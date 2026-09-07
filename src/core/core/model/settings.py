@@ -1,5 +1,6 @@
 from collections.abc import Mapping
 from typing import Any
+from urllib.parse import urlparse
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from sqlalchemy.orm import Mapped
@@ -38,7 +39,19 @@ class Settings(BaseModel):
         merged.setdefault("default_news_item_conflict_retention", "200")
         merged.setdefault("default_timezone", None)
         merged.setdefault("onboarding_enabled", not Config.SKIP_INITIAL_USER_ONBOARDING)
+        merged.setdefault("chat_llm_base_url", "")
+        merged.setdefault("chat_llm_api_key", "")
+        merged.setdefault("chat_llm_model", "")
+        merged.setdefault("chat_llm_timeout", 120)
+        merged.setdefault("chat_max_stories", 5)
         return merged
+
+    def to_dict(self) -> dict[str, Any]:
+        data = super().to_dict()
+        public_settings = self.with_defaults(self.settings)
+        public_settings["chat_llm_api_key_configured"] = bool(public_settings.pop("chat_llm_api_key", ""))
+        data["settings"] = public_settings
+        return data
 
     @classmethod
     def update(cls, data) -> tuple[dict, int]:
@@ -75,9 +88,34 @@ class Settings(BaseModel):
             except ValueError:
                 return {"error": "Invalid onboarding setting"}, 400
 
+        update_data.pop("chat_llm_api_key_configured", None)
+        try:
+            for key in ("chat_llm_timeout", "chat_max_stories"):
+                if key in update_data:
+                    value = cls._validate_non_negative_int(update_data[key])
+                    if value == 0 or (key == "chat_max_stories" and value > 20):
+                        raise ValueError
+                    update_data[key] = value
+            for key in ("chat_llm_base_url", "chat_llm_model", "chat_llm_api_key"):
+                if key in update_data:
+                    if not isinstance(update_data[key], str):
+                        raise TypeError
+                    update_data[key] = update_data[key].strip()
+            if base_url := update_data.get("chat_llm_base_url"):
+                parsed = urlparse(base_url)
+                if parsed.scheme not in {"http", "https"} or not parsed.hostname or parsed.username or parsed.password:
+                    raise ValueError
+                if parsed.query or parsed.fragment:
+                    raise ValueError
+            clear_key = cls._validate_bool(update_data.pop("chat_llm_api_key_clear", False))
+            if clear_key:
+                update_data["chat_llm_api_key"] = ""
+            elif not update_data.get("chat_llm_api_key"):
+                update_data.pop("chat_llm_api_key", None)
+        except (TypeError, ValueError):
+            return {"error": "Invalid chat settings"}, 400
+
         if update_data:
-            logger.debug(f"Settings update data: {update_data}")
-            logger.debug(f"Settings before update: {settings.settings}")
             current_settings = cls.with_defaults(settings.settings)
             onboarding_changed = (
                 "onboarding_enabled" in update_data and update_data["onboarding_enabled"] != current_settings["onboarding_enabled"]
@@ -89,8 +127,7 @@ class Settings(BaseModel):
 
                 User.set_onboarding_enabled_for_all(current_settings["onboarding_enabled"])
         db.session.commit()
-        logger.debug(f"Settings after update: {settings.settings}")
-        return {"message": "Successfully updated settings", "settings": settings.settings}, 200
+        return {"message": "Successfully updated settings", "settings": settings.to_dict()["settings"]}, 200
 
     @classmethod
     def initialize(cls):
@@ -114,7 +151,7 @@ class Settings(BaseModel):
         settings = cls.get_settings_entry()
         if settings is None:
             logger.debug("No Settings entry found")
-            return {}
+            return cls.with_defaults()
         return cls.with_defaults(settings.settings)
 
     @classmethod

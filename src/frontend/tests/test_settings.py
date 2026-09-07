@@ -1,5 +1,6 @@
 from typing import cast
 
+import pytest
 from flask import render_template
 
 
@@ -79,7 +80,8 @@ def test_story_transfer_partial_guards_future_export_dates(app):
     assert "maxDateTimeLocal = now.toISOString().slice(0, 16);" in body
 
 
-def test_settings_patch_action_sends_only_submitted_fields(app, monkeypatch):
+@pytest.mark.parametrize("method", ["patch", "post"])
+def test_settings_patch_action_sends_only_submitted_fields(app, monkeypatch, method):
     from frontend.views.admin_views import settings_views
 
     calls = []
@@ -107,10 +109,10 @@ def test_settings_patch_action_sends_only_submitted_fields(app, monkeypatch):
 
     with app.test_request_context(
         "/admin/settings/settings",
-        method="PATCH",
+        method=method.upper(),
         data={"settings[default_collector_proxy]": "http://proxy.test", "settings[onboarding_enabled]": "false"},
     ):
-        body, status = cast(tuple[str, int], settings_views.SettingsView.settings_action("/settings/settings", method="patch"))
+        body, status = cast(tuple[str, int], settings_views.SettingsView.settings_action("/settings/settings", method=method))
 
     assert status == 200
     assert calls == [
@@ -120,3 +122,20 @@ def test_settings_patch_action_sends_only_submitted_fields(app, monkeypatch):
         )
     ]
     assert '<span id="notification-message">Successfully updated settings</span>' in body
+
+
+@pytest.mark.parametrize("enabled", [False, True])
+def test_admin_chat_settings_visibility_and_write_only_key(app, enabled):
+    from models.admin import Settings, TaranisConfig
+
+    settings = Settings(settings=TaranisConfig(chat_llm_base_url="https://provider.example/v1", chat_llm_api_key_configured=True))
+    with app.test_request_context("/admin/settings/"):
+        body = render_template("settings/settings.html", settings=settings, chat_enabled=enabled, timezone_options=[], frontend_actions=[])
+
+    assert ('data-testid="settings-chat-section"' in body) is enabled
+    if enabled:
+        assert '<details class="collapse collapse-arrow' in body
+        assert "An API key is saved." in body
+        assert 'type="password"' in body
+        assert 'value="https://provider.example/v1"' in body
+        assert 'data-testid="settings-chat-clear-key"' in body

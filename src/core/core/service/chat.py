@@ -19,6 +19,7 @@ from core.managers.db_manager import db
 from core.managers.realtime_publisher import realtime_publisher
 from core.model.chat import ChatConversation, ChatMessage
 from core.model.filter_data import FilterData
+from core.model.settings import Settings
 from core.model.story import Story
 from core.model.user import User
 
@@ -136,11 +137,13 @@ class ChatTurnStream:
 
 
 class ResponsesClient:
-    def __init__(self):
-        self.base_url = Config.CHAT_LLM_BASE_URL.rstrip("/")
-        self.api_key = Config.CHAT_LLM_API_KEY.get_secret_value()
-        self.model = Config.CHAT_LLM_MODEL
-        self.timeout = Config.CHAT_LLM_TIMEOUT
+    def __init__(self, settings: dict[str, Any] | None = None):
+        settings = settings if settings is not None else Settings.get_settings()
+        self.base_url = settings["chat_llm_base_url"].rstrip("/")
+        self.api_key = settings["chat_llm_api_key"]
+        self.model = settings["chat_llm_model"]
+        self.timeout = settings["chat_llm_timeout"]
+        self.request_timeout = (5.0, self.timeout)
 
     def create_structured(
         self,
@@ -194,7 +197,7 @@ class ResponsesClient:
                 f"{self.base_url}/responses",
                 headers=self._headers(),
                 json=payload,
-                timeout=self.timeout,
+                timeout=self.request_timeout,
                 allow_redirects=False,
                 stream=True,
             )
@@ -280,7 +283,7 @@ class ResponsesClient:
                 f"{self.base_url}/responses",
                 headers=self._headers(),
                 json=payload,
-                timeout=self.timeout,
+                timeout=self.request_timeout,
                 allow_redirects=False,
             )
             response.raise_for_status()
@@ -382,9 +385,10 @@ class ChatService:
         history = cls._history_payload(conversation)
         catalog = FilterData.get_assess_filterlists(user=user)
         recent_results = cls._recent_result_references(history, user)
+        settings = Settings.get_settings()
+        client = ResponsesClient(settings)
         db.session.rollback()
 
-        client = ResponsesClient()
         planner_input = {
             "current_time_utc": datetime.now(UTC).isoformat(),
             "analyst_timezone": timezone_name,
@@ -415,7 +419,7 @@ class ChatService:
         else:
             stream.stage("searching")
             query_params = cls._query_params(planner.filters or AssessSearchFilters(), timezone_name)
-            search_args: dict[str, Any] = {**query_params, "limit": Config.CHAT_MAX_STORIES, "offset": 0}
+            search_args: dict[str, Any] = {**query_params, "limit": settings["chat_max_stories"], "offset": 0}
             search_user = User.get(user_id)
             if not search_user:
                 raise ChatConversationNotFoundError
@@ -473,7 +477,7 @@ class ChatService:
         target = f"conversation:{conversation_id}" if conversation_id else f"new:{user_id}"
         lock = redis.lock(
             f"taranis:chat:turn:{target}",
-            timeout=max(5 * Config.CHAT_LLM_TIMEOUT, 300),
+            timeout=max(5 * Settings.get_settings()["chat_llm_timeout"], 300),
         )
         try:
             acquired = lock.acquire(blocking=False)

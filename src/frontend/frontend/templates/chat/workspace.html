@@ -30,6 +30,15 @@
   </aside>
 
   <section class="flex min-h-0 min-w-0 flex-1 flex-col rounded-box bg-base-100 shadow" aria-label="{{ _('Analyst chat') }}">
+    {% if chat_not_configured %}
+      <div class="alert alert-warning m-4" role="alert" data-testid="chat-configuration-warning">
+        {{ heroicon_outline('exclamation-triangle', class='h-6 w-6 shrink-0') }}
+        <div>
+          <h2 class="font-semibold">{{ _("Chat is not configured yet") }}</h2>
+          <p class="text-sm">{{ _("Ask an administrator to configure the provider in Admin Settings > Chat before sending a message.") }}</p>
+        </div>
+      </div>
+    {% endif %}
     {% if notification %}
       {{ notification | safe }}
     {% endif %}

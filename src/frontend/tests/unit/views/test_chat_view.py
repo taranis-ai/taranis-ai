@@ -105,3 +105,21 @@ def test_delete_chat_refreshes_history(authenticated_client_basic, responses):
     assert response.status_code == 200
     assert response.headers["HX-Push-Url"] == url_for("chat.index")
     assert "No saved conversations yet." in response.get_data(as_text=True)
+
+
+@pytest.mark.parametrize("configured", [False, True])
+def test_chat_page_shows_configuration_warning_on_load(authenticated_client_basic, responses, configured):
+    responses.get(
+        f"{Config.TARANIS_CORE_URL}/chat/conversations",
+        json={"items": []} if configured else {"error": "Chat is not configured"},
+        status=200 if configured else 503,
+    )
+
+    response = authenticated_client_basic.get(url_for("chat.index"))
+
+    assert response.status_code == 200
+    body = response.get_data(as_text=True)
+    assert ('data-testid="chat-configuration-warning"' in body) is not configured
+    if not configured:
+        assert "Chat is not configured yet" in body
+        assert "Ask an administrator" in body

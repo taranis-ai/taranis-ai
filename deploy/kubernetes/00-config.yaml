@@ -28,11 +28,6 @@ data:
   LLM_TIMEOUT: "120"
   CACHE_DEFAULT_TIMEOUT: "1"
   CHAT_ENABLED: "false"
-  CHAT_LLM_BASE_URL: ""
-  CHAT_LLM_MODEL: ""
-  CHAT_LLM_TIMEOUT: "120"
-  CHAT_MAX_STORIES: "5"
-  CHAT_REQUEST_TIMEOUT: "300"
 ---
 apiVersion: v1
 kind: ConfigMap

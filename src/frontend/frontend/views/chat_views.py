@@ -16,9 +16,16 @@ from frontend.views.base_view import BaseView
 
 class ChatView(BaseView):
     @staticmethod
-    def _load_conversations() -> list[ChatConversationSummary]:
-        payload = CoreApi().api_get("/chat/conversations")
-        return ChatConversationList.model_validate(payload).items if payload else []
+    def _load_conversations() -> tuple[list[ChatConversationSummary], bool]:
+        api = CoreApi()
+        try:
+            with api.api_download("/chat/conversations") as response:
+                if response.status_code == 503:
+                    return [], response.json().get("error") == "Chat is not configured"
+                payload = api.check_response(response, "/chat/conversations")
+        except requests.RequestException, ValueError:
+            return [], False
+        return (ChatConversationList.model_validate(payload).items if payload else []), False
 
     @staticmethod
     def _load_conversation(conversation_id: str) -> ChatConversation | None:
@@ -47,9 +54,11 @@ class ChatView(BaseView):
         draft: str = "",
         turn_id: str | None = None,
     ) -> dict[str, Any]:
+        conversations, chat_not_configured = cls._load_conversations()
         return {
             "_show_sidebar": False,
-            "conversations": cls._load_conversations(),
+            "conversations": conversations,
+            "chat_not_configured": chat_not_configured,
             "conversation": conversation,
             "message_views": cls._message_views(conversation),
             "notification": notification,
@@ -89,7 +98,7 @@ class ChatView(BaseView):
             response = CoreApi().api_post(
                 endpoint,
                 json_data=payload.model_dump(mode="json"),
-                timeout=Config.CHAT_REQUEST_TIMEOUT,
+                timeout=(5.0, Config.CHAT_REQUEST_TIMEOUT),
             )
         except requests.RequestException:
             conversation = cls._load_conversation(conversation_id) if conversation_id else None

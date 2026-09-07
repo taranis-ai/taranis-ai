@@ -8,6 +8,7 @@ from core.config import Config
 from core.log import logger
 from core.managers.auth_manager import auth_required
 from core.managers.db_manager import db
+from core.model.settings import Settings
 from core.service.chat import (
     ChatConversationNotFoundError,
     ChatCoordinationUnavailableError,
@@ -20,7 +21,7 @@ from core.service.chat import (
 
 
 def _availability_error() -> tuple[dict[str, str], int] | None:
-    if not Config.CHAT_ENABLED or not Config.CHAT_LLM_BASE_URL:
+    if not Config.CHAT_ENABLED or not Settings.get_settings()["chat_llm_base_url"]:
         return {"error": "Chat is not configured"}, 503
     return None
 

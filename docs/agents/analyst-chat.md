@@ -16,6 +16,8 @@ While a turn is pending, the submitted user message appears immediately and the 
 
 ## Code Paths
 
+Admin Settings uses native collapsible sections: General Defaults is open initially, Chat is closed initially, and numeric defaults share a responsive grid. The Chat form remains separate from General Defaults so each save updates only its own fields.
+
 - Shared contracts: `src/models/models/chat.py`
 - Core persistence: `src/core/core/model/chat.py`
 - Core provider and workflow: `src/core/core/service/chat.py`
@@ -35,6 +37,8 @@ Search metadata stores canonical filters, total matches, and selected story IDs,
 
 ## Testing
 
+On page load, the frontend uses the existing conversation-list response to show a persistent setup warning when core returns `503` with the curated `Chat is not configured` error. It does not fetch admin settings or expose provider configuration. `CoreApi.api_post` accepts both scalar and connect/read tuple timeouts.
+
 - Core: `cd src/core && uv run pytest tests/unit/test_chat_client.py`
 - Frontend: `cd src/frontend && uv run pytest tests/unit/views/test_chat_view.py tests/playwright/test_realtime_js.py --e2e-ci`
 
@@ -47,4 +51,4 @@ Search metadata stores canonical filters, total matches, and selected story IDs,
 - Chat answer snapshots contain analyst-visible content and must only use the authenticated user-limited channel. Never log snapshot content or enable history for it.
 - Provider failures log only a sanitized stage or HTTP status; API responses remain generic.
 - New chat tables are created from SQLAlchemy metadata at startup; do not add a migration for them.
-- Keep `CHAT_LLM_API_KEY` in deployment secrets. Disabling Chat is the non-destructive rollback and leaves history intact.
+- Only `CHAT_ENABLED` remains in deployment environment configuration. Provider URL, model, API key, timeout (120 seconds), and maximum stories (5, range 1-20) live in `core/model/settings.py` as flat `chat_*` JSON values. Chat reads Settings for each turn. Admin Settings shows a native collapsible Chat form only when enabled; it patches only submitted fields. API keys are omitted from serialized settings and logs; blank input preserves the key and an explicit clear checkbox removes it. Protect the settings database and backups. Disabling Chat is the non-destructive rollback and leaves history intact.

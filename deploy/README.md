@@ -28,10 +28,8 @@ Optional `llm-bot` overlay:
 
 Optional analyst Chat:
 - Set `CHAT_ENABLED=true` in configuration for both core and frontend.
-- Set `CHAT_LLM_BASE_URL` to the provider's OpenAI-compatible API base URL. Core sends requests to `{CHAT_LLM_BASE_URL}/responses`.
-- Set `CHAT_LLM_MODEL` when required by the provider. `CHAT_LLM_TIMEOUT` defaults to 120 seconds and `CHAT_MAX_STORIES` defaults to 5.
-- Store `CHAT_LLM_API_KEY` only in the deployment secret. It may be empty when the provider does not require bearer authentication.
-- `CHAT_REQUEST_TIMEOUT` is frontend-only and defaults to 300 seconds to cover the synchronous planner and answer calls.
+- Open **Admin Settings > Chat** to configure the provider base URL, model, API key, provider timeout (default 120 seconds), and maximum stories (default 5, allowed 1-20). This collapsible section appears only when Chat is enabled. Values are persisted in Settings; changes apply to the next message without restarting. Only `CHAT_ENABLED` is configured through deployment environment variables.
+- API keys are write-only in the admin form: leave blank to keep the saved key, or select **Remove saved API key** to clear it. Keys are stored in the application database; protect database access and backups. Settings API responses and logs omit the key.
 - Realtime Chat progress uses the existing Centrifugo connection when `REALTIME_ENABLED=true`; Chat still completes through its normal HTTP response when realtime is disabled or unavailable.
 
 ## Images
@@ -85,7 +83,7 @@ Chat is independent of `llm-bot` and workers. Core calls the configured OpenAI-c
 
 Core first makes a structured routing call, then requests a streaming plain-text answer. Providers that reject Responses streaming before sending any content fall back to the structured non-streaming answer contract. When realtime is enabled, Core publishes progress stage identifiers and cumulative answer snapshots to the authenticated user's existing Centrifugo channel; the frontend localizes the stages. These publications are best-effort and have no history; the final synchronous response and PostgreSQL conversation remain authoritative.
 
-Enabling Chat creates `chat_conversation` and `chat_message` tables at core startup. Conversations and answers remain in Taranis until their owner deletes them. The provider receives the analyst's prompt, up to the latest 10 saved chat messages, the analyst-visible filter catalog, and, for search answers, up to `CHAT_MAX_STORIES` bounded story summaries. Raw news-item content and provider credentials are not saved in chat metadata.
+Enabling Chat creates `chat_conversation` and `chat_message` tables at core startup. Conversations and answers remain in Taranis until their owner deletes them. The provider receives the analyst's prompt, up to the latest 10 saved chat messages, the analyst-visible filter catalog, and, for search answers, up to the configured `chat_max_stories` bounded story summaries. Raw news-item content and provider credentials are not saved in chat metadata.
 
 This is a data-egress boundary: analyst prompts and selected story titles, dates, and summaries leave Taranis for the configured provider. Core requests `store: false`, but provider implementations and abuse-monitoring policies may apply their own retention. Select and contract with the provider accordingly, and configure transport security and provider-side retention controls before enabling the feature.
 

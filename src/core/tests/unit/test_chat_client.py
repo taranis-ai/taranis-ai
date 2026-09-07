@@ -6,9 +6,9 @@ import pytest
 import requests
 from models.assess import AssessSearchFilters
 from models.chat import ChatAnswerResponse, ChatPlannerResponse
-from pydantic import SecretStr
 
 from core.config import Config
+from core.model.settings import Settings
 from core.service.chat import (
     ANSWER_PROMPT,
     PLANNER_PROMPT,
@@ -40,10 +40,16 @@ def _stream_response(*events: dict) -> requests.Response:
 
 @pytest.fixture
 def configured_chat(monkeypatch):
-    monkeypatch.setattr(Config, "CHAT_LLM_BASE_URL", "https://llm.example/v1/")
-    monkeypatch.setattr(Config, "CHAT_LLM_API_KEY", SecretStr("test-secret"))
-    monkeypatch.setattr(Config, "CHAT_LLM_MODEL", "test-model")
-    monkeypatch.setattr(Config, "CHAT_LLM_TIMEOUT", 42)
+    settings = Settings.with_defaults(
+        {
+            "chat_llm_base_url": "https://llm.example/v1/",
+            "chat_llm_api_key": "test-secret",
+            "chat_llm_model": "test-model",
+            "chat_llm_timeout": 42,
+        }
+    )
+    monkeypatch.setattr(Settings, "get_settings", classmethod(lambda cls: settings))
+    return settings
 
 
 def test_responses_client_sends_auth_schema_model_and_timeout(configured_chat, monkeypatch):
@@ -60,7 +66,7 @@ def test_responses_client_sends_auth_schema_model_and_timeout(configured_chat, m
     assert result.answer == "Hello"
     assert captured["url"] == "https://llm.example/v1/responses"
     assert captured["headers"]["Authorization"] == "Bearer test-secret"
-    assert captured["timeout"] == 42
+    assert captured["timeout"] == (5.0, 42)
     assert captured["json"]["model"] == "test-model"
     assert captured["json"]["store"] is False
     assert captured["json"]["text"]["format"]["type"] == "json_schema"
@@ -144,12 +150,12 @@ def test_responses_client_retries_invalid_structured_output_once(configured_chat
     assert "previous response was invalid" in calls[1]["instructions"]
 
 
-def test_responses_client_maps_missing_config_timeout_and_sanitized_failures(monkeypatch):
-    monkeypatch.setattr(Config, "CHAT_LLM_BASE_URL", "")
+def test_responses_client_maps_missing_config_timeout_and_sanitized_failures(configured_chat, monkeypatch):
+    configured_chat["chat_llm_base_url"] = ""
     with pytest.raises(ChatUnavailableError):
         ResponsesClient().create_structured({}, "Answer", ChatAnswerResponse)
 
-    monkeypatch.setattr(Config, "CHAT_LLM_BASE_URL", "https://llm.example")
+    configured_chat["chat_llm_base_url"] = "https://llm.example"
     monkeypatch.setattr(requests, "post", lambda *args, **kwargs: (_ for _ in ()).throw(requests.Timeout("provider detail")))
     with pytest.raises(ChatProviderTimeoutError, match="timed out"):
         ResponsesClient().create_structured({}, "Answer", ChatAnswerResponse)
