@@ -8,8 +8,6 @@ OSINT source administration, bulk source creation, source imports, curated sourc
 
 Administrators can create one source with the standard source form or bulk-create at least two URL-based sources. Bulk sources share their description, rank, icon, collector type, and every collector parameter except the primary source URL. RSS, Simple Web, Request Tracker, and MISP collectors are supported for bulk creation; Mastodon, manual, and PPN sources remain single-create workflows.
 
-Starting a single-source collection from the source list refreshes the existing table in place and displays the task notification without adding another table. The collection POST preserves the current list query so manual-source visibility, status, search, sorting, and pagination remain consistent with the browser URL.
-
 The standard create form links from the collector selector to the public collector documentation in a new browser tab.
 
 Bulk creation can also create one named source group containing exactly the new sources. Source and group persistence is atomic through the existing version-4 source import operation. Import templating or merging imported files with form defaults is not part of this workflow.
