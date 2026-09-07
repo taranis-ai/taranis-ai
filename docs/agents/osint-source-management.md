@@ -45,6 +45,7 @@ The curated-list form is loaded into the admin form container over HTMX. Core re
 ## Testing
 
 The existing `test_admin_osint_workflow` browser test covers detail collection with unsaved edits, row collection, and Collect All with manual sources visible. `test_admin_wordlist_management` checks the analogous Update Wordlists table refresh.
+Exercise Collect All before loading curated feeds, while only the manual source exists. Otherwise asynchronous collection can recreate stories after source cleanup and contaminate later export and analyst tests.
 
 Frontend unit coverage verifies the create-form documentation link, supported collectors, bulk-only parameter omission, and Core failure status handling in `src/frontend/tests/unit/views/test_views.py`.
 

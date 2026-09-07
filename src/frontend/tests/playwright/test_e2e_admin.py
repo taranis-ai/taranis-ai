@@ -380,6 +380,13 @@ class TestEndToEndAdmin(BaseE2ETest):
             page.goto(url_for("admin.osint_sources", _external=True))
             expect(page.get_by_role("button", name="Curated sources")).to_be_visible()
             self.capture_screenshot(page, "./tests/playwright/screenshots/docs_osint_sources.png")
+            with_htmx_wait(page, lambda: page.get_by_role("radio", name="Show", exact=True).check())
+            with_htmx_wait(page, lambda: page.get_by_role("button", name="Collect All", exact=True).click())
+            expect(page.locator("#osint_source-table-container")).to_have_count(1)
+            expect(page.get_by_test_id("osint_source-table").locator("tbody tr")).to_have_count(1)
+            expect(page.get_by_role("radio", name="Show", exact=True)).to_be_checked()
+            dismiss_notifications(page)
+            with_htmx_wait(page, lambda: page.get_by_role("radio", name="Hide", exact=True).check())
 
         def load_and_search_curated_sources():
             page.get_by_role("button", name="Curated sources").click()
@@ -400,12 +407,6 @@ class TestEndToEndAdmin(BaseE2ETest):
             with_htmx_wait(page, lambda: manual_row.locator('[data-testid^="action-collect-"]').click())
             expect(page.locator("#osint_source-table-container")).to_have_count(1)
             expect(all_rows).to_have_count(7)
-            dismiss_notifications(page)
-
-            with_htmx_wait(page, lambda: page.get_by_role("button", name="Collect All", exact=True).click())
-            expect(page.locator("#osint_source-table-container")).to_have_count(1)
-            expect(all_rows).to_have_count(7)
-            expect(page.get_by_role("radio", name="Show", exact=True)).to_be_checked()
             dismiss_notifications(page)
 
             with_htmx_wait(page, lambda: page.get_by_role("radio", name="Hide").check())
@@ -1206,10 +1207,11 @@ class TestEndToEndAdmin(BaseE2ETest):
                 has=page.get_by_role("link", name=updated_connector_name, exact=True),
             ).first
             expect(connector_row).to_be_visible()
-            item_id = self.get_table_row_id_by_link_text(page, "connector-table", updated_connector_name)
-            delete_button_test_id = f"action-delete-{item_id}"
-            self.delete_table_row(page, delete_button_test_id)
+            connector_row.get_by_role("checkbox").check()
+            page.get_by_test_id("delete-connector-button").click()
+            with_htmx_wait(page, lambda: page.locator(".swal2-confirm").click())
             expect(connector_row).not_to_be_visible()
+            expect(page.locator("#connector-table-container")).to_have_count(1)
 
         load_connectors()
         add_connector()
