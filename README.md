@@ -57,6 +57,7 @@ For container and Python dependency SBOM scope and attestations, see [docs/sbom.
 * Analyst-Friendly Workflow: Offers a streamlined process where analysts can easily convert unstructured news into structured report items, optimizing the data transformation journey.
 * Multi-Format Output: Generates a variety of end products, including structured reports and PDF files, tailored to specific informational needs.
 * Seamless Publishing: Facilitates the effortless publication of finalized intelligence products, ensuring timely dissemination of critical information.
+  Choose **Create copy** from a Publish table row or an open Product to review a new Product prefilled with its type, title (with a " Copy" suffix), description, and selected Report Items. The copy is created only after **Save**, without rendered content, publication settings, or history. If the source has unsaved edits, cancel the discard confirmation to keep editing or save first; confirming copies the saved version.
 * Collaborative Threat Intelligence (Experimental): Supports Story-level sharing between Taranis AI instances via [MISP](https://www.misp-project.org/), or directly between Taranis AI and MISP for flexible collaboration and information dissemination.
 
 ### OpenAPI
