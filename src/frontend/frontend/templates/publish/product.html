@@ -40,7 +40,10 @@
       <h2 class="card-title">{{ submit_text }}</h2>
       <div class="flex-1"></div>
       {% if is_edit %}
-        <a class="btn btn-outline" href="{{ url_for('publish.product', product_id='0', copy_from=product.id) }}" data-testid="copy-product">Create copy</a>
+        <a class="btn btn-outline"
+           href="{{ url_for('publish.product', product_id='0', copy_from=product.id) }}"
+           @click="if (dirty && !confirm('Discard unsaved changes and create a copy of the saved product?')) $event.preventDefault()"
+           data-testid="copy-product">Create copy</a>
         {% if rendered_product %}
           <a id="download-button"
              class="btn btn-outline"

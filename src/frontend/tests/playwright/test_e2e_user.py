@@ -1102,7 +1102,14 @@ class TestEndToEndUser(BaseE2ETest):
         expect(page.get_by_role("link", name=f"{product_title} Copy", exact=True)).to_have_count(0)
 
         page.goto(source_url)
+        page.get_by_placeholder("Title").fill(f"{product_title} unsaved")
+        page.once("dialog", lambda dialog: dialog.dismiss())
         page.get_by_test_id("copy-product").click()
+        expect(page.get_by_placeholder("Title")).to_have_value(f"{product_title} unsaved")
+        assert page.url == source_url
+        page.once("dialog", lambda dialog: dialog.accept())
+        page.get_by_test_id("copy-product").click()
+        expect(page.get_by_placeholder("Title")).to_have_value(f"{product_title} Copy")
         page.get_by_placeholder("Title").fill(f"{product_title} reviewed")
         page.get_by_test_id("save-product").click()
         expect(page.get_by_role("heading", name=f"Update Product - {product_title} reviewed")).to_be_visible()
