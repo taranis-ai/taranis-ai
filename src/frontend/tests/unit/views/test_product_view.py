@@ -199,3 +199,58 @@ def test_product_view_only_offers_product_types_compatible_with_selected_reports
             context = ProductView.get_extra_context({"product": product})
 
     assert context["product_types"] == [{"id": "compatible", "name": "Compatible"}]
+
+
+@pytest.mark.parametrize("report_items", [[], ["report-1", "report-2"]])
+def test_product_copy_prefills_only_creation_fields(app, report_items):
+    source = Product(
+        id="source-product",
+        title="Daily report",
+        description="Daily summary",
+        product_type_id="product-type-1",
+        report_items=report_items,
+        supported_reports=[{"id": report_id, "title": report_id} for report_id in report_items],
+        render_result="cmVuZGVyZWQ=",
+        mime_type="text/html",
+        last_published_url="/reports/source-product",
+        auto_publish=True,
+        default_publisher="publisher-1",
+    )
+    with patch("frontend.views.product_views.DataPersistenceLayer") as persistence_cls:
+        persistence = persistence_cls.return_value
+        persistence.get_object.return_value = source
+        persistence.get_objects.side_effect = [
+            [ProductType.model_construct(id="product-type-1", title="Daily", report_types=[])],
+            [],
+        ]
+        with app.test_request_context("/publish/0?copy_from=source-product"):
+            context = ProductView.get_create_context()
+            markup = render_template("publish/product.html", **context)
+
+    product = context["product"]
+    assert product == Product(
+        id="0",
+        title="Daily report Copy",
+        description=source.description,
+        product_type_id=source.product_type_id,
+        report_items=report_items,
+    )
+    assert context["selected_report_items"] == report_items
+    assert context["supported_reports"] == source.supported_reports
+    assert context["is_edit"] is False
+    assert context["submit_text"] == "Create Product"
+    assert "hx-post=" in markup and "hx-put=" not in markup
+    assert 'value="Daily report Copy"' in markup
+    assert "cmVuZGVyZWQ=" not in markup
+    assert "/reports/source-product" not in markup
+    assert source.title == "Daily report"
+    persistence.store_object.assert_not_called()
+
+
+def test_product_copy_missing_source_returns_not_found(authenticated_client):
+    with patch("frontend.views.product_views.DataPersistenceLayer") as persistence_cls:
+        persistence_cls.return_value.get_objects.return_value = []
+        persistence_cls.return_value.get_object.return_value = None
+        response = authenticated_client.get("/publish/0?copy_from=missing")
+
+    assert response.status_code == 404

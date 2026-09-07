@@ -1088,3 +1088,27 @@ class TestEndToEndUser(BaseE2ETest):
 
         load_product_list()
         add_product()
+        expect(page.get_by_test_id("copy-product")).to_be_visible()
+        source_url = page.url
+        product_type = page.locator("#product_type_id").input_value()
+
+        page.get_by_test_id("copy-product").click()
+        expect(page.get_by_role("heading", name="Create Product")).to_be_visible()
+        expect(page.get_by_placeholder("Title")).to_have_value(f"{product_title} Copy")
+        expect(page.get_by_placeholder("Description")).to_have_value("This is a test product.")
+        expect(page.locator("#product_type_id")).to_have_value(product_type)
+        expect(page.get_by_test_id("product-render")).to_have_count(0)
+        load_product_list()
+        expect(page.get_by_role("link", name=f"{product_title} Copy", exact=True)).to_have_count(0)
+
+        page.goto(source_url)
+        page.get_by_test_id("copy-product").click()
+        page.get_by_placeholder("Title").fill(f"{product_title} reviewed")
+        page.get_by_test_id("save-product").click()
+        expect(page.get_by_role("heading", name=f"Update Product - {product_title} reviewed")).to_be_visible()
+        expect(page.get_by_test_id("last-published-product-empty")).to_be_visible()
+        assert page.url != source_url
+        page.reload()
+        expect(page.get_by_placeholder("Title")).to_have_value(f"{product_title} reviewed")
+        page.goto(source_url)
+        expect(page.get_by_placeholder("Title")).to_have_value(product_title)
