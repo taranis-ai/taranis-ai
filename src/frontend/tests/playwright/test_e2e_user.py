@@ -529,11 +529,20 @@ class TestEndToEndUser(BaseE2ETest):
             assert self._get_assess_selection_count(page) == 2
             expect(page.get_by_role("button", name="Cluster")).to_be_visible()
 
+        def check_report_type_required():
+            report_type = page.get_by_test_id("report-type-select")
+            expect(report_type).to_have_attribute("required", "")
+            page.get_by_test_id("save-report").click()
+            expect(report_type).to_be_focused()
+            assert report_type.evaluate("select => select.validity.valueMissing")
+            expect(page.get_by_role("heading", name="Create Report")).to_be_visible()
+
         def check_report_view_layout_changes():
             page.get_by_test_id("new-report-button").click()
             expect(page.get_by_role("heading", name="Create Report")).to_be_visible()
 
             page.get_by_role("textbox", name="Title").fill("test title")
+            check_report_type_required()
             page.get_by_test_id("report-type-select").select_option(label=self.CERT_REPORT_TYPE_LABEL)
             page.get_by_role("button", name="Stacked view").click()
             expect(page).to_have_url(re.compile(r"layout=stacked"))
@@ -578,11 +587,19 @@ class TestEndToEndUser(BaseE2ETest):
             self.delete_table_row(page, delete_button_test_id)
 
         def create_report():
+            select_report_stories_from_assess(story_search_term)
+            page.get_by_role("button", name="Add to Report").click()
+            page.get_by_test_id("new-report-button-dialog").click()
+            page.get_by_role("textbox", name="Title").fill("Unsaved report from Assess")
+            check_report_type_required()
+            expect(page.get_by_role("textbox", name="Title")).to_have_value("Unsaved report from Assess")
+            expect(page.locator('#report_form input[name="stories[]"]')).to_have_count(2)
+            page.get_by_role("link", name="Analyze", exact=True).click()
             new_report_button = page.get_by_role("link", name="New Report")
             expect(new_report_button).to_be_visible()
             new_report_button.click()
             page.get_by_role("textbox", name="Title").fill("Test report")
-            page.get_by_label("Report Type Select a report").select_option(label=self.CERT_REPORT_TYPE_LABEL)
+            page.get_by_test_id("report-type-select").select_option(label=self.CERT_REPORT_TYPE_LABEL)
             expect(page.locator("#report_form")).to_contain_text("Attributes will be generated after the report item has been created.")
             expect(page.get_by_test_id("analyze").locator("section")).to_contain_text("No stories assigned to this report.")
             page.get_by_test_id("save-report").click()

@@ -54,6 +54,7 @@ For container and Python dependency SBOM scope and attestations, see [docs/sbom.
 
 In source administration, **Collect** queues collection while keeping the detail form and unsaved edits in place. **Collect All** and **Update Wordlists** refresh their existing tables and show the queue result in a notification.
 Connector bulk delete and Analyze report cloning/deletion likewise refresh the existing table without adding duplicate panels.
+Creating a report requires a Report Type, whether started from Analyze or Assess's Add to Report view.
 
 * Advanced OSINT Capabilities: Taranis AI scours multiple data sources, such as websites, for unstructured news articles, providing a comprehensive intelligence feed.
 * AI-Enhanced Analysis: Utilizes Artificial Intelligence and Natural Language Processing to automatically enhance and enrich collected articles for higher content quality.
