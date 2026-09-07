@@ -80,7 +80,7 @@ cleanup() {
 
   if [ "${KEEP_MIGRATION_TEST_DB:-0}" != "1" ]; then
     if [ -n "${PG_CONTAINER:-}" ]; then
-      "$CONTAINER_CLI" rm -f "$PG_CONTAINER" >/dev/null 2>&1 || true
+      "$CONTAINER_CLI" rm -f -v "$PG_CONTAINER" >/dev/null 2>&1 || true
     fi
     if [ -n "${MASTER_WORKTREE:-}" ] && [ -d "$MASTER_WORKTREE" ]; then
       git worktree remove --force "$MASTER_WORKTREE" >/dev/null 2>&1 || true
@@ -139,7 +139,6 @@ git worktree add --detach "$MASTER_WORKTREE" "$BASE_REF" >/dev/null
 run_step "Start disposable PostgreSQL with $CONTAINER_CLI"
 "$CONTAINER_CLI" run \
   --detach \
-  --rm \
   --name "$PG_CONTAINER" \
   -e POSTGRES_USER="$PG_USER" \
   -e POSTGRES_PASSWORD="$PG_PASSWORD" \
@@ -147,14 +146,26 @@ run_step "Start disposable PostgreSQL with $CONTAINER_CLI"
   -p 127.0.0.1::5432 \
   "$PG_IMAGE" >/dev/null
 
+POSTGRES_READY=false
 for _ in {1..60}; do
-  if "$CONTAINER_CLI" exec "$PG_CONTAINER" pg_isready -U "$PG_USER" -d postgres >/dev/null 2>&1; then
+  # The image starts a temporary socket-only server while initializing. Probe
+  # TCP so only the final PostgreSQL process can satisfy the readiness check.
+  if "$CONTAINER_CLI" exec "$PG_CONTAINER" pg_isready -h 127.0.0.1 -U "$PG_USER" -d postgres >/dev/null 2>&1; then
+    POSTGRES_READY=true
     break
   fi
   sleep 1
 done
 
-"$CONTAINER_CLI" exec "$PG_CONTAINER" pg_isready -U "$PG_USER" -d postgres >/dev/null 2>&1 || fail "PostgreSQL did not become ready."
+if [ "$POSTGRES_READY" != "true" ]; then
+  echo "PostgreSQL container state:" >&2
+  "$CONTAINER_CLI" inspect \
+    --format 'status={{.State.Status}} running={{.State.Running}} exit_code={{.State.ExitCode}}' \
+    "$PG_CONTAINER" >&2 || true
+  echo "PostgreSQL container logs:" >&2
+  "$CONTAINER_CLI" logs "$PG_CONTAINER" >&2 || true
+  fail "PostgreSQL did not become ready."
+fi
 
 PG_PORT="$("$CONTAINER_CLI" port "$PG_CONTAINER" 5432/tcp | sed -E 's/.*:([0-9]+)$/\1/' | head -n 1)"
 [ -n "$PG_PORT" ] || fail "Could not determine PostgreSQL host port."

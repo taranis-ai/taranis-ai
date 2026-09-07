@@ -74,7 +74,7 @@
           </tr>
         {% endif %}
       </tbody>
-      <tfoot hx-select="#{{ container_id }}" hx-target="#{{ container_id }}" hx-swap="outerHTML">
+      <tfoot hx-select:inherited="#{{ container_id }}" hx-target:inherited="#{{ container_id }}" hx-swap:inherited="outerHTML">
         <tr>
           <td colspan="{{ columns | length }}">
             <div class="flex justify-center">{{ table_controls(base_url=base_url, data=tasks) }}</div>

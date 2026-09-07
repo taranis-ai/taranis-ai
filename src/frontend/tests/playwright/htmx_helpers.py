@@ -40,37 +40,31 @@ _HTMX_SUPPORT_SCRIPT = r"""
     state.lastActivity = now();
   };
 
-  const requestUrl = (detail, xhr) =>
-    detail?.pathInfo?.requestPath ||
-    detail?.requestConfig?.path ||
-    xhr?.responseURL ||
+  const requestUrl = (ctx) =>
+    ctx?.response?.raw?.url ||
+    ctx?.request?.action ||
     null;
 
-  const requestMethod = (detail) =>
-    detail?.verb ||
-    detail?.requestConfig?.verb ||
-    detail?.requestConfig?.headers?.["HX-Request-Method"] ||
-    null;
+  const requestMethod = (ctx) => ctx?.request?.method || null;
 
   const recordError = (event, reason) => {
-    const detail = event.detail || {};
-    const xhr = detail.xhr || null;
+    const ctx = event.detail?.ctx;
     state.lastError = {
       event: event.type,
       reason,
-      method: requestMethod(detail),
-      url: requestUrl(detail, xhr),
-      status: xhr ? xhr.status : null,
-      statusText: xhr ? xhr.statusText : null,
+      method: requestMethod(ctx),
+      url: requestUrl(ctx),
+      status: ctx?.response?.status || null,
+      statusText: ctx?.response?.raw?.statusText || null,
       timestamp: now(),
     };
     markActivity();
   };
 
   const startRequest = (event) => {
-    const xhr = event.detail?.xhr;
-    if (xhr) {
-      activeRequests.add(xhr);
+    const ctx = event.detail?.ctx;
+    if (ctx) {
+      activeRequests.add(ctx);
     }
     state.pendingRequests += 1;
     state.lastBeforeRequest = now();
@@ -78,43 +72,27 @@ _HTMX_SUPPORT_SCRIPT = r"""
   };
 
   const finishRequest = (event) => {
-    const detail = event.detail || {};
-    const xhr = detail.xhr || null;
-    if (xhr && activeRequests.has(xhr)) {
-      activeRequests.delete(xhr);
+    const ctx = event.detail?.ctx;
+    if (ctx && activeRequests.has(ctx)) {
+      activeRequests.delete(ctx);
       state.pendingRequests = Math.max(0, state.pendingRequests - 1);
-    } else if (!xhr && state.pendingRequests > 0) {
+    } else if (!ctx && state.pendingRequests > 0) {
       state.pendingRequests = Math.max(0, state.pendingRequests - 1);
     }
 
     state.lastAfterRequest = now();
     markActivity();
-
-    if (detail.failed || detail.successful === false || (xhr && xhr.status >= 400)) {
-      recordError(event, "HTMX request failed");
-    }
   };
 
-  const finishErroredRequest = (event, reason) => {
-    const xhr = event.detail?.xhr;
-    if (xhr && activeRequests.has(xhr)) {
-      activeRequests.delete(xhr);
-      state.pendingRequests = Math.max(0, state.pendingRequests - 1);
-    } else if (!xhr && state.pendingRequests > 0) {
-      state.pendingRequests = Math.max(0, state.pendingRequests - 1);
-    }
-    recordError(event, reason);
-  };
-
-  document.addEventListener("htmx:beforeRequest", startRequest, true);
-  document.addEventListener("htmx:afterRequest", finishRequest, true);
-  document.addEventListener("htmx:sendError", (event) => finishErroredRequest(event, "HTMX send error"), true);
-  document.addEventListener("htmx:responseError", (event) => finishErroredRequest(event, "HTMX response error"), true);
-  document.addEventListener("htmx:afterSwap", () => {
+  document.addEventListener("htmx:before:request", startRequest, true);
+  document.addEventListener("htmx:finally:request", finishRequest, true);
+  document.addEventListener("htmx:error", (event) => recordError(event, "HTMX error"), true);
+  document.addEventListener("htmx:response:error", (event) => recordError(event, "HTMX response error"), true);
+  document.addEventListener("htmx:after:swap", () => {
     state.lastAfterSwap = now();
     markActivity();
   }, true);
-  document.addEventListener("htmx:afterSettle", () => {
+  document.addEventListener("htmx:after:settle", () => {
     state.lastAfterSettle = now();
     markActivity();
   }, true);

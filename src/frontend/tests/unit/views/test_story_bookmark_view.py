@@ -342,7 +342,15 @@ def test_bookmark_cluster_dialog_offers_cluster_and_open(authenticated_client_ba
     assert response.status_code == 200
     tree = html.fromstring(response.text)
     assert tree.xpath('//input[@name="bookmark_id" and @value="bookmark-1"]')
-    assert tree.xpath('//*[@data-testid="dialog-story-cluster-submit"]')
+    submit_button = tree.xpath('//*[@data-testid="dialog-story-cluster-submit"]')[0]
+    assert submit_button.get("hx-on::after:request") == (
+        "if (ctx.response.status < 400) document.getElementById('story_grouping_dialog')?.close()"
+    )
+    assert [submit_button.get(f"hx-status:{status}") for status in ("400", "4xx", "5xx")] == [
+        "target:#notification-bar",
+        "target:#notification-bar",
+        "target:#notification-bar",
+    ]
     assert tree.xpath('//*[@data-testid="dialog-story-cluster-open"]')
 
 

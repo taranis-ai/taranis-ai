@@ -41,7 +41,7 @@ class BaseE2ETest(PlaywrightHelpers):
         login_button = page.get_by_test_id("login-button")
         expect(login_button).to_be_visible()
         self.highlight_element(login_button).click()
-        page.screenshot(path="./tests/playwright/screenshots/screenshot_login.png")
+        self.capture_screenshot(page, "./tests/playwright/screenshots/screenshot_login.png")
         expect(page.locator("#dashboard")).to_be_visible()
 
     def delete_table_row(self, page: Page, delete_button_test_id: str, confirm: bool = True, force: bool = False):

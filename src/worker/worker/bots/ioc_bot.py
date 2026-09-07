@@ -37,9 +37,7 @@ class IOCBot(BaseBot):
 
         extracted_keywords: dict[str, dict[str, str]] = {}
 
-        for i, story in enumerate(data):
-            if i % max(len(data) // 10, 1) == 0:
-                logger.debug(f"Extracting IOCs from {story['id']}: {i}/{len(data)}")
+        for story in data:
             for news_item in story["news_items"]:
                 news_item_content = _news_item_content_for_tagging(news_item)
                 iocs = self.extract_ioc(news_item_content)

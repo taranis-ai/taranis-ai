@@ -167,7 +167,52 @@ def test_bot_create_form_omits_sentinel_id(app: Flask):
             parameter_values={},
         )
 
-    assert not html.fromstring(rendered).xpath('//input[@name="id"]')
+    tree = html.fromstring(rendered)
+    assert not tree.xpath('//input[@name="id"]')
+    availability = tree.xpath('//*[@data-testid="bot-index-availability"]')[0]
+    assert availability.get("hx-get") == url_for("admin.bot_index_availability")
+    assert availability.get("hx-include") == "#bot-form [name='id'], #bot-form [name='index']"
+
+
+def test_bot_index_availability_ignores_current_bot(authenticated_client, monkeypatch: pytest.MonkeyPatch):
+    bots = [Bot.model_construct(id="bot-1", name="Existing bot", type=BOT_TYPES.IOC_BOT, index=4, enabled=True)]
+    monkeypatch.setattr(
+        "frontend.views.admin_views.bot_views.DataPersistenceLayer",
+        lambda: SimpleNamespace(get_objects=lambda model: SimpleNamespace(items=bots)),
+    )
+
+    taken = authenticated_client.get(url_for("admin.bot_index_availability", index=4))
+    current = authenticated_client.get(url_for("admin.bot_index_availability", index=4, id="bot-1"))
+
+    assert taken.status_code == 200
+    assert "Index 4 is already taken." in taken.text
+    assert "text-error" in taken.text
+    assert current.status_code == 200
+    assert "Index 4 is available." in current.text
+    assert "text-success" in current.text
+
+
+def test_bot_create_error_uses_core_message(app: Flask, monkeypatch: pytest.MonkeyPatch):
+    core_response = SimpleNamespace(ok=False, json=lambda: {"error": "A bot with this index already exists."})
+    monkeypatch.setattr(
+        "frontend.views.base_view.DataPersistenceLayer",
+        lambda: SimpleNamespace(store_object=lambda bot: core_response),
+    )
+
+    with app.test_request_context("/"):
+        response, error = BotView.store_form_data(
+            {
+                "name": "Duplicate index bot",
+                "description": "",
+                "type": BOT_TYPES.IOC_BOT,
+                "index": 4,
+                "enabled": True,
+                "parameters": {},
+            }
+        )
+
+    assert response is None
+    assert error == "A bot with this index already exists."
 
 
 def test_run_after_options_use_bot_instance_ids_and_allow_duplicate_types(monkeypatch: pytest.MonkeyPatch):

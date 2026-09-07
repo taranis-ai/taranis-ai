@@ -81,3 +81,21 @@ def test_build_templates_list_returns_api_payloads(monkeypatch):
             },
         },
     ]
+
+
+@pytest.mark.parametrize(
+    ("order", "expected_ids"),
+    [
+        ("id_asc", ["alpha.html", "Beta.html", "zulu.html"]),
+        ("id_desc", ["zulu.html", "Beta.html", "alpha.html"]),
+    ],
+)
+def test_templates_endpoint_orders_by_id(client, auth_header, monkeypatch, order, expected_ids):
+    templates = ["zulu.html", "alpha.html", "Beta.html"]
+    monkeypatch.setattr(template_service, "list_templates", lambda: templates)
+    monkeypatch.setattr(template_service, "get_template_content", lambda _: "Hello")
+
+    response = client.get("/api/config/templates", query_string={"order": order}, headers=auth_header)
+
+    assert response.status_code == 200
+    assert [item["id"] for item in response.json["items"]] == expected_ids

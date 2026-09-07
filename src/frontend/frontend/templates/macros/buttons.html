@@ -44,7 +44,7 @@
           hx-{{ action.method }}="{{ action_url }}"
           data-testid="{{ testid }}"
           {% if action.push_url %}hx-push-url="true" {% endif %}
-          {% if action.hx_target_error %}hx-target-error="{{ action.hx_target_error }}" {% endif %}
+          {% if action.hx_target_error %}hx-status:400="target:{{ action.hx_target_error }}" hx-status:4xx="target:{{ action.hx_target_error }}" hx-status:5xx="target:{{ action.hx_target_error }}" {% endif %}
           {% if action.hx_target %}hx-target="{{ action.hx_target }}" {% endif %}
           {% if action.hx_swap %}hx-swap="{{ action.hx_swap }}" {% endif %}
           {% if action.confirm %}hx-confirm="{{ action.confirm }}" {% endif %}

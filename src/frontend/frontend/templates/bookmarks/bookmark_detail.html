@@ -104,7 +104,7 @@
             }
           }'
           @change="refreshSelection()"
-          @htmx:after-swap="refreshSelection()"
+          @htmx:after:swap="refreshSelection()"
           @keyup.escape.window="clearSelection()">
       <input type="hidden" name="bookmark_id" value="{{ bookmark.id }}">
       {% include "assess/assess_top_bar.html" %}

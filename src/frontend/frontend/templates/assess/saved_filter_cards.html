@@ -23,7 +23,9 @@
                   hx-include="#assess-sidebar, #assess-search-form, #selected-tags"
                   hx-target="#assess_saved_filters_dialog"
                   hx-swap="outerHTML"
-                  hx-target-error="#assess_saved_filters_dialog"
+                  hx-status:400="target:#assess_saved_filters_dialog"
+                  hx-status:4xx="target:#assess_saved_filters_dialog"
+                  hx-status:5xx="target:#assess_saved_filters_dialog"
                   {% if not has_current_filters %}disabled title="Apply at least one Assess filter before updating."{% endif %}>Update</button>
           {% if saved_filter.is_default %}
             <button type="button"
@@ -32,14 +34,18 @@
                     hx-vals='{"clear_default": "true"}'
                     hx-target="#assess_saved_filters_dialog"
                     hx-swap="outerHTML"
-                    hx-target-error="#assess_saved_filters_dialog">Clear default</button>
+                    hx-status:400="target:#assess_saved_filters_dialog"
+                    hx-status:4xx="target:#assess_saved_filters_dialog"
+                    hx-status:5xx="target:#assess_saved_filters_dialog">Clear default</button>
           {% else %}
             <button type="button"
                     class="btn btn-outline btn-xs whitespace-nowrap"
                     hx-post="{{ url_for('assess.set_saved_filter_default', filter_id=saved_filter.id) }}"
                     hx-target="#assess_saved_filters_dialog"
                     hx-swap="outerHTML"
-                    hx-target-error="#assess_saved_filters_dialog">Set default</button>
+                    hx-status:400="target:#assess_saved_filters_dialog"
+                    hx-status:4xx="target:#assess_saved_filters_dialog"
+                    hx-status:5xx="target:#assess_saved_filters_dialog">Set default</button>
           {% endif %}
         {% endif %}
         {% if show_management_actions or show_delete_action %}
@@ -47,7 +53,7 @@
                   class="btn btn-outline btn-error btn-xs whitespace-nowrap"
                   hx-delete="{{ url_for('assess.delete_saved_filter', filter_id=saved_filter.id) }}"
                   hx-confirm="Delete this saved filter?"
-                  {% if show_management_actions %} hx-target="#assess_saved_filters_dialog" hx-swap="outerHTML" hx-target-error="#assess_saved_filters_dialog" {% else %} hx-target="closest [data-testid='dashboard-saved-filter-card']" hx-swap="delete" {% endif %}>Delete</button>
+                  {% if show_management_actions %} hx-target="#assess_saved_filters_dialog" hx-swap="outerHTML" hx-status:400="target:#assess_saved_filters_dialog" hx-status:4xx="target:#assess_saved_filters_dialog" hx-status:5xx="target:#assess_saved_filters_dialog" {% else %} hx-target="closest [data-testid='dashboard-saved-filter-card']" hx-swap="delete" {% endif %}>Delete</button>
         {% endif %}
       </div>
     {% endif %}

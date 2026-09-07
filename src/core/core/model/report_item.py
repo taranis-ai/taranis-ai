@@ -170,6 +170,7 @@ class ReportItem(BaseModel):
             "id": self.id,
             "title": self.title,
             "type": self.report_item_type.title if self.report_item_type else "",
+            "report_item_type_id": self.report_item_type_id,
             "created": self.serialize_datetime(self.created),
         }
 

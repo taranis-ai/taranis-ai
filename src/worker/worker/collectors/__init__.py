@@ -1,3 +1,4 @@
+from worker.collectors.mastodon_collector import MastodonCollector
 from worker.collectors.misp_collector import MispCollector
 from worker.collectors.ppn_collector import PPNCollector
 from worker.collectors.rss_collector import RSSCollector
@@ -5,4 +6,4 @@ from worker.collectors.rt_collector import RTCollector
 from worker.collectors.simple_web_collector import SimpleWebCollector
 
 
-__all__ = ["MispCollector", "PPNCollector", "RSSCollector", "RTCollector", "SimpleWebCollector"]
+__all__ = ["MastodonCollector", "MispCollector", "PPNCollector", "RSSCollector", "RTCollector", "SimpleWebCollector"]

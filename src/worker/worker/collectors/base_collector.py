@@ -99,7 +99,6 @@ class BaseCollector:
         if not news_items_dicts:
             return None
         if (core_response := self.core_api.add_news_items(news_items_dicts)) and (core_message := core_response.get("message")):
-            logger.info(core_message)
             if core_message == "All news items were skipped":
                 raise NoChangeError("All news items were skipped")
             return core_message

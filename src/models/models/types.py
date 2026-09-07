@@ -62,6 +62,7 @@ class ItemType(StrEnum):
 
 class COLLECTOR_TYPES(StrEnum):
     RSS_COLLECTOR = auto()
+    MASTODON_COLLECTOR = auto()
     SIMPLE_WEB_COLLECTOR = auto()
     RT_COLLECTOR = auto()
     MISP_COLLECTOR = auto()
@@ -138,6 +139,7 @@ class PUBLISHER_TYPES(StrEnum):
 
 class WORKER_TYPES(StrEnum):
     RSS_COLLECTOR = auto()
+    MASTODON_COLLECTOR = auto()
     SIMPLE_WEB_COLLECTOR = auto()
     MANUAL_COLLECTOR = auto()
     RT_COLLECTOR = auto()

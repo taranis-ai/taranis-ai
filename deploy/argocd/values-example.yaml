@@ -49,7 +49,7 @@ images:
     tag: latest
   centrifugo:
     repository: centrifugo/centrifugo
-    tag: v6.9.1
+    tag: v6.9
   ingress:
     tag: latest
   worker:

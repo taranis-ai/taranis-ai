@@ -16,6 +16,7 @@ from frontend.data_persistence import DataPersistenceLayer
 from frontend.log import logger
 from frontend.utils.form_data_parser import parse_formdata
 from frontend.utils.router_helpers import is_htmx_request, parse_paging_data
+from frontend.views.analyst_review_views import AnalystReviewView
 from frontend.views.base_view import BaseView
 from frontend.views.story_views import StoryView
 
@@ -61,6 +62,7 @@ class DashboardView(BaseView):
                 clusters=trending_clusters,
                 dashboard_config=dashboard_config,
                 saved_filters=saved_filters,
+                can_start_analyst_review=AnalystReviewView.has_permissions(),
             ),
             200,
         )

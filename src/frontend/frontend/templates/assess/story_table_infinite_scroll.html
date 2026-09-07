@@ -17,11 +17,12 @@
               hx-target="#story-list"
               hx-select="#story-list > *"
               hx-swap="beforeend"
-              hx-history="false"
               hx-push-url="false"
-              hx-target-error="#notification-bar"
-              hx-on:htmx:beforeRequest="this.classList.add('pointer-events-none'); this.setAttribute('aria-busy', 'true'); this.querySelector('[data-indicator]')?.classList.remove('hidden')"
-              hx-on:htmx:afterRequest="this.classList.remove('pointer-events-none'); this.removeAttribute('aria-busy'); this.querySelector('[data-indicator]')?.classList.add('hidden')">
+              hx-status:400="target:#notification-bar select:#notification-bar swap:outerHTML"
+              hx-status:4xx="target:#notification-bar select:#notification-bar swap:outerHTML"
+              hx-status:5xx="target:#notification-bar select:#notification-bar swap:outerHTML"
+              hx-on:htmx:before:request="this.classList.add('pointer-events-none'); this.setAttribute('aria-busy', 'true'); this.querySelector('[data-indicator]')?.classList.remove('hidden')"
+              hx-on:htmx:finally:request="this.classList.remove('pointer-events-none'); this.removeAttribute('aria-busy'); this.querySelector('[data-indicator]')?.classList.add('hidden')">
         <span data-indicator class="hidden loading loading-spinner loading-xs" aria-hidden="true"></span>
         <span>Load more stories</span>
       </button>

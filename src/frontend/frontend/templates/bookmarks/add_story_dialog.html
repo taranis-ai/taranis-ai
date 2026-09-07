@@ -15,7 +15,7 @@
           class="space-y-4"
           hx-post="{{ url_for('assess.submit_bookmark_story') }}"
           hx-target="#notification-bar"
-          hx-on::after-request="if (event.detail.successful) document.getElementById('story_bookmark_dialog').close()">
+          hx-on::after:request="if (ctx.response.raw.ok) document.getElementById('story_bookmark_dialog').close()">
       {% for story_id in story_ids %}<input type="hidden" name="story_ids" value="{{ story_id }}">{% endfor %}
       <input type="hidden" name="mode" :value="mode">
 

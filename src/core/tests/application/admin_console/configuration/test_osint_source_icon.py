@@ -43,7 +43,7 @@ def _assert_normalized_png(icon_bytes: bytes) -> Image.Image:
 @pytest.mark.usefixtures("app")
 def test_osint_source_creation_normalizes_png_icon(session):
     source = OSINTSource(
-        name="Test Source",
+        name="Icon Test Source",
         description="A test",
         type=COLLECTOR_TYPES.RSS_COLLECTOR,
         parameters={"FEED_URL": "https://example.test/feed"},

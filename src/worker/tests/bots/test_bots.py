@@ -1,5 +1,6 @@
 import pytest
 
+from worker.bot_api import BotServiceUnavailableError
 from worker.bots.base_bot import BaseBot
 from worker.bots.tagging_content import _news_item_content_for_tagging
 from worker.config import Config
@@ -205,20 +206,14 @@ def test_cybersec_class_bot(stories, story_get_mock, news_item_attribute_update_
     ]
     assert set(cybersec_status_list) == {"yes"}
 
-    # bot API not reachable -> all news items classified as none
+    # bot API not reachable -> service failure is propagated
     cybersec_classifier_mock.post(
         f"{Config.CYBERSEC_CLASSIFIER_API_ENDPOINT}/",
         json={"error": f"{Config.CYBERSEC_CLASSIFIER_API_ENDPOINT} not reachable"},
         status_code=404,
     )
-    result_msg = cybersec_class_bot.execute()
-
-    assert result_msg == {"message": "Classified 0 news items"}
-    request_json_list = [req.json() for req in story_attribute_update_mock.request_history if req.method == "PATCH"][2 * num_stories :]
-    cybersec_status_list = [
-        d["value"] for attributes_list in request_json_list for d in extract_attributes(attributes_list) if d["key"] == "cybersecurity"
-    ]
-    assert set(cybersec_status_list) == {"none"}
+    with pytest.raises(BotServiceUnavailableError, match="Bot service is unavailable"):
+        cybersec_class_bot.execute()
 
 
 def test_sentiment_analysis_bot_accepts_flat_response_and_normalizes_label(

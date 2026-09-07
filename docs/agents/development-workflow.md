@@ -26,16 +26,28 @@ Do not assume tmux.
 
 See `.github/workflows` for CI behavior. Run commands from the relevant component directory.
 
-- Full validation for a branch or CI regression: `cd src/core && uv run pytest`; `cd src/frontend && uv run pytest`; then `cd src/frontend && uv run pytest --e2e-ci`.
+- Full validation for a branch or CI regression: `cd src/core && uv run pytest`; `cd src/frontend && uv run pytest`; then `cd src/frontend && uv run pytest tests/playwright --e2e-ci`.
 - Use narrower pytest targets only after the full pipeline reproduces a failure or while isolating one.
 - Run test and lint commands from the relevant component directory. Tests live in each component's `tests/` directory.
 - Lint each changed component with `uv run ruff check`; use `uv run ruff check --fix` and `uv run ruff format` where appropriate.
 - After touching Python files, run `./dev/check_pyrefly.sh` to check changed files.
-- E2E tests start and stop a dedicated Docker/Podman Compose test stack automatically for the session; you mainly need Docker/Podman Compose available locally (see `src/frontend/tests/playwright/README.md`).
+- E2E tests start an isolated Docker/Podman Compose stack and stop it afterward.
 - The project-scoped Codex configuration filters inherited `DEBUG` values from shell commands. This prevents the VS Code Codex extension's `DEBUG=release` value from overriding the boolean values in the component `.env` files.
 - Models has no unit tests. Worker browser-scraping tests install Playwright browsers.
 - Core tests replace Redis connections with an in-process fake so test queues and cache invalidations cannot affect a running local instance.
 - E2E admin tests on `master` intentionally keep many functions commented out; do not uncomment them without proving they pass.
+
+### Feature Signoff Loop
+
+After implementing and committing a feature, both humans and agents run the complete push-and-signoff pipeline from the repository root:
+
+```bash
+./dev/test_push_signoff.sh
+```
+
+The script requires a clean worktree, runs the full local lint, unit, and E2E pipeline, then pushes and signs off only after validation passes. Every E2E invocation starts with a fresh Compose project and removes it after the test session, so SQLite and Redis state cannot leak into the next attempt.
+
+When validation fails, fix the feature, commit the fix, and run `./dev/test_push_signoff.sh` again. Do not replace this with a focused E2E test; the complete rerun is the feature signoff gate.
 
 ## Test Conventions
 

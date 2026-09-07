@@ -2,6 +2,7 @@
 
 from typing import cast
 
+from models.task import TaskResult
 from rq.job import Job
 from rq.timeouts import JobTimeoutException
 
@@ -44,7 +45,8 @@ def test_timeout_exception_persists_synthetic_failure(monkeypatch):
     assert captured["kwargs"]["user_id"] == "user-1"
     assert captured["kwargs"]["worker_id"] == "source-1"
     assert captured["kwargs"]["worker_type"] == "rss_collector"
-    assert captured["kwargs"]["result"] == {
+    assert isinstance(captured["kwargs"]["result"], TaskResult)
+    assert captured["kwargs"]["result"].model_dump(mode="json", exclude_none=False) == {
         "message": "too slow",
         "reason": "job_timeout",
         "retryable": True,
@@ -76,8 +78,8 @@ def test_generic_exception_persists_synthetic_failure(monkeypatch):
     )
 
     assert captured["args"] == ("job-1", "presenter_task", "FAILURE")
-    assert captured["kwargs"]["result"]["reason"] == "job_failed"
-    assert captured["kwargs"]["result"]["retryable"] is False
+    assert captured["kwargs"]["result"].reason == "job_failed"
+    assert captured["kwargs"]["result"].retryable is False
 
 
 def test_killed_work_horse_persists_synthetic_failure(monkeypatch):
@@ -99,7 +101,8 @@ def test_killed_work_horse_persists_synthetic_failure(monkeypatch):
     rq_failure_bridge.rq_work_horse_killed_handler(job, 111, 9, None)
 
     assert captured["args"] == ("job-1", "connector_task", "FAILURE")
-    assert captured["kwargs"]["result"] == {
+    assert isinstance(captured["kwargs"]["result"], TaskResult)
+    assert captured["kwargs"]["result"].model_dump(mode="json", exclude_none=False) == {
         "message": "Work horse killed for job job-1",
         "reason": "work_horse_killed",
         "retryable": True,
@@ -140,7 +143,7 @@ def test_bridge_persists_failure_when_terminal_probe_raises(monkeypatch):
 
     assert rq_failure_bridge.rq_failure_exception_handler(job, RuntimeError, RuntimeError("boom"), None) is True
     assert captured["args"] == ("job-1", "collector_task", "FAILURE")
-    assert captured["kwargs"]["result"]["reason"] == "job_failed"
+    assert captured["kwargs"]["result"].reason == "job_failed"
 
 
 def test_bridge_uses_func_name_fallback_when_meta_task_missing(monkeypatch):

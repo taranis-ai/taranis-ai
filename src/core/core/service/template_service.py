@@ -152,6 +152,9 @@ def build_template_response(template_path: str) -> TemplateResponse:
     return _build_template_response(template_path, get_template_content(template_path))
 
 
-def build_templates_list() -> list[TemplateResponse]:
+def build_templates_list(order: str | None = None) -> list[TemplateResponse]:
     """Return API payloads for every stored presenter template."""
-    return [_build_template_response(template_id, get_template_content(template_id)) for template_id in list_templates()]
+    items = [_build_template_response(template_id, get_template_content(template_id)) for template_id in list_templates()]
+    if order in {"id_asc", "id_desc"}:
+        items.sort(key=lambda item: item["id"].casefold(), reverse=order == "id_desc")
+    return items

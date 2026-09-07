@@ -149,7 +149,6 @@ class DataPersistenceLayer:
         cache_key = self.make_detail_cache_key(CoreHealth)
         cached_object = self._load_cached_object(cache_key, CoreHealth)
         if cached_object is not None:
-            logger.debug(f"Cache hit for {cache_key}")
             return cached_object
 
         result = self.api.get_health()

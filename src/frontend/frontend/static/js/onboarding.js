@@ -232,7 +232,7 @@ function tableElement(tableId) {
 
 function osintSourceTableOrDefaultButton() {
   return firstMatchingElement([
-    '[data-tour-target="admin-osint-source-load-defaults"]',
+    '[data-tour-target="admin-osint-source-load-curated"]',
     "#osint_source-table",
     "#osint_source-table-container table",
     "#osint_source-table-container",
@@ -304,7 +304,7 @@ function adminWelcomeTourSteps() {
       "admin-menu-osint-source",
       osintSourceTableOrDefaultButton,
       "OSINT Source table",
-      "This table lists configured feeds and collectors. If no sources exist yet, use the load default sources button to seed the defaults.",
+      "This table lists configured feeds and collectors. Use the curated sources button at any time to add maintained source lists.",
     ),
     sidebarStep(
       "menu-bot",
