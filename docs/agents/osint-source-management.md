@@ -18,6 +18,8 @@ Administrators can add one or more bundled curated source lists at any time. Sou
 
 The OSINT source table keeps actions in its primary toolbar. Search, manual-source visibility, and status share a unified query row directly above the table. The creation buttons use the page context to keep their labels concise: New source and Curated sources.
 
+Detail-page Collect returns only the queue notification when HTMX targets `notification-bar`, preserving the form and unsaved edits. Row Collect and Collect All refresh the existing source table; Collect All forwards the current query parameters to retain filters. Action errors target the notification bar rather than replacing the table.
+
 The bundled catalog groups sources into Austrian news and public-sector coverage, cyber threat intelligence, technology news, security advisories, original threat research, cybersecurity news, vendor research, vulnerability intelligence, independent experts and community sources, and a balanced starter pack. Curated feeds are selected for authority, current parseability, recency, and useful coverage. High-volume vulnerability feeds remain in their own opt-in list.
 
 Invalid bulk form input returns HTTP 400. Core import failures preserve the upstream status so monitoring and callers can distinguish validation failures from service failures; transport failures return HTTP 502 while re-rendering the form with a static error.
@@ -41,6 +43,8 @@ The bulk form uses Alpine only for adding and removing local name/URL rows. Sele
 The curated-list form is loaded into the admin form container over HTMX. Core reads and validates the bundled catalog, resolves selected lists and sources by name, and creates or relinks them in one transaction. After commit, Core schedules every selected enabled source. A scheduling failure returns HTTP 503 without undoing the committed data; repeating the same load retries scheduling for both new and existing sources. Frontend source and source-group caches are invalidated after success.
 
 ## Testing
+
+The existing `test_admin_osint_workflow` browser test covers detail collection with unsaved edits, row collection, and Collect All with manual sources visible. `test_admin_wordlist_management` checks the analogous Update Wordlists table refresh.
 
 Frontend unit coverage verifies the create-form documentation link, supported collectors, bulk-only parameter omission, and Core failure status handling in `src/frontend/tests/unit/views/test_views.py`.
 

@@ -29,6 +29,8 @@ Use `cd src/worker && uv run pytest tests/connectors/test_misp_connector.py` for
 Use `cd src/worker && uv run pytest tests/bots/test_bot_api.py tests/bots/test_bot_tasks.py` for bot transport diagnostics and persisted result coverage.
 
 ## Pitfalls
+Source-detail Collect and Bot Run target the notification bar and must receive notification-only responses. Source Collect All and Update Wordlists explicitly target their existing table containers with outerHTML swaps; inheriting the form-container target inserts a duplicate table. Their error responses target the notification bar.
+
 Do not change core queue endpoint status codes for this behavior. A missing or failed health check should keep the original task notification. The enqueue notification is still only about scheduling; failure visibility for admin/source/bot/render status comes from persisted task rows, not a second frontend polling path.
 
 The user endpoint must always derive ownership from the authenticated user, exclude scheduler and other-user rows, and omit task-specific `result.data`. Search is limited to visible relational fields and must not match `result.data` or other serialized result content.

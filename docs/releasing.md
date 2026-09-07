@@ -2,6 +2,7 @@
 
 1. Make sure the release commit is on `master` and its CI and `:latest` image builds have passed.
 2. Run [Release gate tests](https://github.com/taranis-ai/taranis-ai/actions/workflows/release_gate.yml), then wait for it to pass. The workflow checks out the current `master` and runs all gates. Do not tag a release if it fails.
+   On a test instance, verify source-detail **Collect** preserves unsaved edits and displays a notification without inserting a table. Verify **Collect All** retains source filters and **Update Wordlists** leaves exactly one table. A rejected action must display an error without replacing the form or table.
 3. Create and push the version tag (replace `1.X.X`):
 
    ```bash

@@ -402,6 +402,12 @@ class TestEndToEndAdmin(BaseE2ETest):
             expect(all_rows).to_have_count(7)
             dismiss_notifications(page)
 
+            with_htmx_wait(page, lambda: page.get_by_role("button", name="Collect All", exact=True).click())
+            expect(page.locator("#osint_source-table-container")).to_have_count(1)
+            expect(all_rows).to_have_count(7)
+            expect(page.get_by_role("radio", name="Show", exact=True)).to_be_checked()
+            dismiss_notifications(page)
+
             with_htmx_wait(page, lambda: page.get_by_role("radio", name="Hide").check())
             expect(all_rows).to_have_count(6)
 
@@ -461,6 +467,14 @@ class TestEndToEndAdmin(BaseE2ETest):
         def update_osint_sources():
             form = page.locator("#osint_source-form").first
             expect(form).to_be_visible()
+            detail_url = page.url
+            page.get_by_role("textbox", name="Description", exact=True).fill("Unsaved source description")
+            with_htmx_wait(page, lambda: page.get_by_role("button", name="Collect", exact=True).click())
+            expect(page.locator("#notification-bar")).to_contain_text("scheduled")
+            expect(page).to_have_url(detail_url)
+            expect(page.locator("#osint_source-table-container")).to_have_count(0)
+            expect(page.get_by_role("textbox", name="Description", exact=True)).to_have_value("Unsaved source description")
+            dismiss_notifications(page)
             expect(form.locator('input[name="rank"][value="4"]')).to_be_checked()
             form.locator('input[name="rank"][value="2"]').check()
             feed_url_input = form.locator('input[name="parameters[FEED_URL]"]')
@@ -618,6 +632,10 @@ class TestEndToEndAdmin(BaseE2ETest):
             load_default_button = page.get_by_test_id("load-default-word_list-button")
             expect(load_default_button).to_be_visible()
             with_htmx_wait(page, lambda: load_default_button.click())
+            with_htmx_wait(page, lambda: page.get_by_role("button", name="Update Wordlists", exact=True).click())
+            expect(page.get_by_test_id("word_list-table-container")).to_have_count(1)
+            expect(page.get_by_test_id("word_list-table").locator("tbody tr")).to_have_count(9)
+            dismiss_notifications(page)
             page.get_by_role("row", name="Name Description Words Actions").get_by_role("checkbox").check()
             delete_button = page.get_by_test_id("delete-word_list-button")
             expect(delete_button).to_contain_text("Delete 9 Word List")
