@@ -2,6 +2,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 import pytest
+import requests
 from flask import url_for
 
 from frontend.__init__ import create_app
@@ -123,3 +124,21 @@ def test_chat_page_shows_configuration_warning_on_load(authenticated_client_basi
     if not configured:
         assert "Chat is not configured yet" in body
         assert "Ask an administrator" in body
+
+
+def test_delete_chat_transport_failure_preserves_workspace(authenticated_client_basic, responses):
+    conversation = _conversation()
+    responses.delete(
+        f"{Config.TARANIS_CORE_URL}/chat/conversations/{CONVERSATION_ID}",
+        body=requests.ConnectionError("private transport detail"),
+    )
+    responses.get(f"{Config.TARANIS_CORE_URL}/chat/conversations/{CONVERSATION_ID}", json=conversation)
+    responses.get(f"{Config.TARANIS_CORE_URL}/chat/conversations", json={"items": [conversation]})
+
+    response = authenticated_client_basic.delete(url_for("chat.delete_conversation", conversation_id=CONVERSATION_ID))
+
+    assert response.status_code == 200
+    assert "HX-Push-Url" not in response.headers
+    assert "Chat request timed out or could not reach core." in response.text
+    assert "Summary" in response.text
+    assert "private transport detail" not in response.text

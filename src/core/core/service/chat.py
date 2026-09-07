@@ -1,8 +1,10 @@
 import json
 import time
 from collections.abc import Callable, Iterator
+from concurrent.futures import Future
 from contextlib import contextmanager, suppress
 from datetime import UTC, datetime
+from threading import Thread, Timer
 from typing import Any, TypeVar
 from urllib.parse import urlparse
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
@@ -28,6 +30,8 @@ T = TypeVar("T", bound=BaseModel)
 CHAT_HISTORY_CONTEXT_MESSAGES = 10
 CHAT_STORY_SUMMARY_MAX_CHARS = 4000
 CHAT_STREAM_INTERVAL_SECONDS = 0.2
+CHAT_TURN_TIMEOUT_SECONDS = 540
+CHAT_TURN_CLEANUP_SECONDS = 30
 
 PLANNER_PROMPT = """
 You are the routing and search-planning component for the Taranis AI analyst chat.
@@ -137,7 +141,8 @@ class ChatTurnStream:
 
 
 class ResponsesClient:
-    def __init__(self, settings: dict[str, Any] | None = None):
+    def __init__(self, settings: dict[str, Any] | None = None, deadline: float | None = None):
+        self.deadline = deadline if deadline is not None else time.monotonic() + CHAT_TURN_TIMEOUT_SECONDS
         settings = settings if settings is not None else Settings.get_settings()
         self.base_url = settings["chat_llm_base_url"].rstrip("/")
         self.api_key = settings["chat_llm_api_key"]
@@ -192,34 +197,68 @@ class ResponsesClient:
         if self.model:
             payload["model"] = self.model
 
-        try:
-            response = requests.post(
-                f"{self.base_url}/responses",
-                headers=self._headers(),
-                json=payload,
-                timeout=self.request_timeout,
-                allow_redirects=False,
-                stream=True,
-            )
-        except requests.Timeout as exc:
-            raise ChatProviderTimeoutError("Chat provider timed out") from exc
-        except requests.RequestException as exc:
-            raise ChatProviderError("Chat provider request failed") from exc
-
-        if response.status_code in {400, 404, 405, 415, 422}:
-            response.close()
-            answer = self.create_structured(input_data, instructions, ChatAnswerResponse).answer
-            on_delta(answer)
-            return answer
-
-        try:
+        with self._response(payload) as response:
+            if response.status_code in {400, 404, 405, 415, 422}:
+                response.close()
+                answer = self.create_structured(input_data, instructions, ChatAnswerResponse).answer
+                on_delta(answer)
+                return answer
             response.raise_for_status()
             if "text/event-stream" not in response.headers.get("Content-Type", ""):
                 answer = self._extract_output_text(response.json())
                 on_delta(answer)
                 return answer
             return self._read_text_stream(response, on_delta)
-        except requests.Timeout as exc:
+
+    def remaining_time(self) -> float:
+        remaining = self.deadline - time.monotonic()
+        if remaining <= 0:
+            raise ChatProviderTimeoutError("Chat provider timed out")
+        return remaining
+
+    @contextmanager
+    def _response(self, payload: dict[str, Any]) -> Iterator[requests.Response]:
+        pending: Future[requests.Response] = Future()
+
+        def post() -> None:
+            try:
+                pending.set_result(
+                    requests.post(
+                        f"{self.base_url}/responses",
+                        headers=self._headers(),
+                        json=payload,
+                        timeout=self.request_timeout,
+                        allow_redirects=False,
+                        stream=True,
+                    )
+                )
+            except Exception as exc:
+                pending.set_exception(exc)
+
+        def close_late_response(result: Future[requests.Response]) -> None:
+            with suppress(Exception):
+                result.result().close()
+
+        response = None
+        timer = None
+        try:
+            remaining = self.remaining_time()
+            Thread(target=post, daemon=True).start()
+            try:
+                response = pending.result(timeout=remaining)
+            except TimeoutError:
+                pending.add_done_callback(close_late_response)
+                raise
+
+            def stop_reading() -> None:
+                with suppress(AttributeError, OSError, RuntimeError, ValueError):
+                    response.raw.shutdown()
+
+            timer = Timer(self.remaining_time(), stop_reading)
+            timer.daemon = True
+            timer.start()
+            yield response
+        except (TimeoutError, requests.Timeout) as exc:
             raise ChatProviderTimeoutError("Chat provider timed out") from exc
         except requests.HTTPError as exc:
             status_code = exc.response.status_code if exc.response is not None else "unknown"
@@ -229,7 +268,12 @@ class ResponsesClient:
         except (TypeError, ValueError) as exc:
             raise ChatProviderError("Chat provider returned an invalid response") from exc
         finally:
-            response.close()
+            if timer is not None:
+                timer.cancel()
+                timer.join()
+            if response is not None:
+                response.close()
+            self.remaining_time()
 
     @staticmethod
     def _read_text_stream(response: requests.Response, on_delta: Callable[[str], None]) -> str:
@@ -278,27 +322,9 @@ class ResponsesClient:
         if self.model:
             payload["model"] = self.model
 
-        try:
-            response = requests.post(
-                f"{self.base_url}/responses",
-                headers=self._headers(),
-                json=payload,
-                timeout=self.request_timeout,
-                allow_redirects=False,
-            )
+        with self._response(payload) as response:
             response.raise_for_status()
-            response_data = response.json()
-        except requests.Timeout as exc:
-            raise ChatProviderTimeoutError("Chat provider timed out") from exc
-        except requests.HTTPError as exc:
-            status_code = exc.response.status_code if exc.response is not None else "unknown"
-            raise ChatProviderError(f"Chat provider returned HTTP {status_code}") from exc
-        except requests.RequestException as exc:
-            raise ChatProviderError("Chat provider request failed") from exc
-        except ValueError as exc:
-            raise ChatProviderError("Chat provider returned invalid JSON") from exc
-
-        return self._extract_output_text(response_data)
+            return self._extract_output_text(response.json())
 
     def _validate_base_url(self) -> None:
         parsed_url = urlparse(self.base_url)
@@ -367,10 +393,15 @@ class ChatService:
     @classmethod
     def create_turn(cls, user: User, content: str, turn_id: str, conversation_id: str | None = None) -> dict[str, Any]:
         with cls._turn_lease(user.id, conversation_id):
-            return cls._create_turn(user, content, turn_id, conversation_id)
+            deadline = time.monotonic() + CHAT_TURN_TIMEOUT_SECONDS
+            try:
+                return cls._create_turn(user, content, turn_id, conversation_id, deadline)
+            except Exception:
+                db.session.rollback()
+                raise
 
     @classmethod
-    def _create_turn(cls, user: User, content: str, turn_id: str, conversation_id: str | None) -> dict[str, Any]:
+    def _create_turn(cls, user: User, content: str, turn_id: str, conversation_id: str | None, deadline: float) -> dict[str, Any]:
         user_id = user.id
         stream = ChatTurnStream(user_id, turn_id)
         stream.stage("planning")
@@ -386,7 +417,7 @@ class ChatService:
         catalog = FilterData.get_assess_filterlists(user=user)
         recent_results = cls._recent_result_references(history, user)
         settings = Settings.get_settings()
-        client = ResponsesClient(settings)
+        client = ResponsesClient(settings, deadline=deadline)
         db.session.rollback()
 
         planner_input = {
@@ -450,6 +481,7 @@ class ChatService:
                     stream.add,
                 )
 
+        client.remaining_time()
         conversation = ChatConversation.get_for_user(conversation_id, user_id) if conversation_id else None
         if conversation_id and not conversation:
             raise ChatConversationNotFoundError
@@ -463,6 +495,7 @@ class ChatService:
                 ChatMessage.from_dict({"role": "assistant", "content": answer, "search_result": search_result}),
             ]
         )
+        client.remaining_time()
         conversation.updated = ChatConversation.utcnow()
         db.session.commit()
         stream.complete()
@@ -477,7 +510,7 @@ class ChatService:
         target = f"conversation:{conversation_id}" if conversation_id else f"new:{user_id}"
         lock = redis.lock(
             f"taranis:chat:turn:{target}",
-            timeout=max(5 * Settings.get_settings()["chat_llm_timeout"], 300),
+            timeout=CHAT_TURN_TIMEOUT_SECONDS + CHAT_TURN_CLEANUP_SECONDS,
         )
         try:
             acquired = lock.acquire(blocking=False)

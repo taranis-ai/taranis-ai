@@ -18,7 +18,7 @@ The shared Assess selection bar is hidden when JavaScript is unavailable. Its `<
 
 Filter option lists must reflect current user-visible database state. `/api/assess/filter-lists` builds those options on request and returns tags, sources, groups, and languages. The frontend may cache the response per user, so core writes that affect assess views must invalidate the relevant frontend cache scope.
 
-Saved assess default filters belong to the user profile. Applying defaults should preserve the same canonical query parameter shape used by normal sidebar filtering. Saving with an existing saved filter name updates that filter, duplicate filter criteria under another name are rejected, and managed filters can be updated from the current sidebar filters.
+Saved assess default filters belong to the user profile. Applying defaults should preserve the same canonical query parameter shape used by normal sidebar filtering. Saving with an existing saved filter name updates that filter, duplicate filter criteria under another name are rejected after canonical validation and serialization, including case normalization of choice fields, and managed filters can be updated from the current sidebar filters.
 
 ## Code Paths
 

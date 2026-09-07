@@ -2,13 +2,15 @@
 
 ## When To Load
 
-Load this memory for Chat, `/chat`, `/api/chat`, `CHAT_LLM_*`, Responses API, conversational Assess search, conversation persistence, or chat privacy and retention work.
+Load this memory for Chat, `/chat`, `/api/chat`, `CHAT_ENABLED`, `chat_llm_base_url`, `chat_llm_api_key`, `chat_llm_model`, `chat_llm_timeout`, `chat_max_stories`, Responses API, conversational Assess search, conversation persistence, or chat privacy and retention work.
 
 ## Expected Behavior
 
 Chat is optional and disabled by default. Users need `ASSESS_ACCESS`, can only list, reopen, append to, or delete their own conversations, and retain full history until deletion. A failed provider or search turn does not save either message.
 
-Core makes a structured routing call directly to `{CHAT_LLM_BASE_URL}/responses` with `store: false`, then makes a plain-text streaming answer call for both general and search-backed answers. A provider that rejects streaming before sending content falls back to the structured answer contract; a partial or failed stream fails the turn without saving it. Questions about current Taranis stories, including counts and time periods, use search mode. The planner accounts for multilingual story text with translated search alternatives. Search plans contain only allowlisted Assess filters; core validates catalog and recent-story references, applies the current user's ACL/TLP restrictions, and sends the authoritative total match count plus at most `CHAT_MAX_STORIES` bounded story summaries to the answer call. Zero matches use a deterministic UI-locale no-results answer without a provider answer call.
+Core makes a structured routing call directly to `{chat_llm_base_url}/responses` with `store: false`, then makes a plain-text streaming answer call for both general and search-backed answers. A provider that rejects streaming before sending content falls back to the structured answer contract; a partial or failed stream fails the turn without saving it. Questions about current Taranis stories, including counts and time periods, use search mode. The planner accounts for multilingual story text with translated search alternatives. Search plans contain only allowlisted Assess filters; core validates catalog and recent-story references, applies the current user's ACL/TLP restrictions, and sends the authoritative total match count plus at most `chat_max_stories` bounded story summaries to the answer call. Zero matches use a deterministic UI-locale no-results answer without a provider answer call.
+
+Chat turns share a 540-second deadline across provider planning, retries, search, and answering, checked again before persistence. Provider reads retain the configured per-read timeout; the total deadline stops active response reads even when bytes keep arriving. The Redis lease lasts 570 seconds, reserving 30 seconds for transaction cleanup and release. The frontend HTTP timeout remains 600 seconds.
 
 Answers are plain text. The frontend escapes them, preserves whitespace, and adds one server-built Assess filter link for search results. It does not render Markdown, model-generated links, or story cards.
 
@@ -33,7 +35,7 @@ The frontend supplies a UUIDv7 turn ID. Core acquires a non-blocking Redis lease
 
 Realtime snapshots contain the turn ID, increasing sequence, stage, and complete answer text accumulated so far. They are published at most every 200 ms to `user:#<user_id>`. The browser ignores another turn or an older sequence. A missed snapshot is repaired by the next cumulative snapshot; complete SSE loss is repaired by the final HTTP response.
 
-Search metadata stores canonical filters, total matches, and selected story IDs, not story text. Provider input for selected stories contains only ID, title, created time, and a bounded summary with description fallback. Chat operations intentionally bypass the frontend model cache.
+Search metadata stores canonical filters, total matches, and selected story IDs, not story text. Provider input for selected stories contains only ID, title, created time, and a bounded summary with description fallback. Chat operations intentionally bypass the frontend model cache. Deletion transport failures render the workspace error notification and retain the conversation when it can still be loaded.
 
 ## Testing
 

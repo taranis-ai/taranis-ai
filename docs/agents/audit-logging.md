@@ -10,7 +10,7 @@ Core audit logging is a small v1 feature. It emits one JSON line to stdout for h
 
 Audit records are metadata only: timestamp, method, path, endpoint, status, user id, username, organization id, client IP, and route ids. Client IP comes from Flask's trusted `request.remote_addr`; raw `X-Forwarded-For` values are not parsed by the audit layer. Do not log request bodies, credentials, tokens, connector secrets, story content, or before/after values.
 
-Chat creation, message, and deletion requests use the same metadata-only hook. Analyst prompts, provider answers, filters, and `CHAT_LLM_API_KEY` must never be added to audit records.
+Chat creation, message, and deletion requests use the same metadata-only hook. Analyst prompts, provider answers, filters, and `chat_llm_api_key` must never be added to audit records.
 
 ## Code Paths
 

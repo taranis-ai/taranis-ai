@@ -263,8 +263,7 @@ class StoryView(BaseView):
             else:
                 normalized[key] = normalized_values[0]
         try:
-            AssessSearchFilters.model_validate(normalized)
-            return normalized
+            return AssessSearchFilters.model_validate(normalized).to_query_params()
         except ValidationError:
             return {}
 

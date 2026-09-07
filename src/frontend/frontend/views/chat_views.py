@@ -128,7 +128,13 @@ class ChatView(BaseView):
     @classmethod
     @auth_required("ASSESS_ACCESS")
     def delete_conversation(cls, conversation_id: str) -> ResponseReturnValue:
-        response = CoreApi().api_delete(f"/chat/conversations/{conversation_id}")
+        try:
+            response = CoreApi().api_delete(f"/chat/conversations/{conversation_id}")
+        except requests.RequestException:
+            return cls._render_workspace(
+                conversation=cls._load_conversation(conversation_id),
+                notification=cls.render_response_notification({"error": "Chat request timed out or could not reach core."}),
+            ), 200
         if not response.ok:
             conversation = cls._load_conversation(conversation_id)
             return cls._render_workspace(

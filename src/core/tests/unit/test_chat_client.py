@@ -1,7 +1,12 @@
 import io
 import json
+import time
+from contextlib import suppress
 from datetime import datetime
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from threading import Event, Thread
 
+import fakeredis
 import pytest
 import requests
 from models.assess import AssessSearchFilters
@@ -11,6 +16,7 @@ from core.config import Config
 from core.model.settings import Settings
 from core.service.chat import (
     ANSWER_PROMPT,
+    CHAT_TURN_TIMEOUT_SECONDS,
     PLANNER_PROMPT,
     ChatProviderError,
     ChatProviderTimeoutError,
@@ -231,3 +237,59 @@ def test_chat_turn_stream_publishes_cumulative_throttled_snapshots(monkeypatch):
     assert published[0][0][:3] == ("user:#user-id", "chat.turn.updated", "updated")
     assert [call[1]["data"]["content"] for call in published] == ["", "One", "One two three", "One two three"]
     assert [call[1]["data"]["stage"] for call in published] == ["answering", "answering", "answering", "completed"]
+
+
+class StreamingProviderHandler(BaseHTTPRequestHandler):
+    def do_POST(self):
+        if self.path != "/headers/responses":
+            self.send_response(200)
+            self.send_header("Content-Type", "text/event-stream" if self.path == "/stream/responses" else "application/json")
+            self.end_headers()
+        with suppress(BrokenPipeError, ConnectionResetError):
+            while not self.server.stop.wait(0.01):
+                self.wfile.write(b": keepalive\n\n" if self.path == "/stream/responses" else b" ")
+                self.wfile.flush()
+
+    def log_message(self, *args):
+        pass
+
+
+@pytest.fixture
+def streaming_provider():
+    server = ThreadingHTTPServer(("127.0.0.1", 0), StreamingProviderHandler)
+    server.stop = Event()
+    thread = Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        yield f"http://127.0.0.1:{server.server_port}"
+    finally:
+        server.stop.set()
+        server.shutdown()
+        server.server_close()
+        thread.join()
+
+
+@pytest.mark.parametrize("mode", ["stream", "structured", "headers"])
+def test_provider_deadline_bounds_continuous_network_reads(configured_chat, streaming_provider, mode):
+    configured_chat["chat_llm_base_url"] = f"{streaming_provider}/{mode}"
+    started = time.monotonic()
+    client = ResponsesClient(deadline=started + 0.2)
+
+    with pytest.raises(ChatProviderTimeoutError, match="Chat provider timed out"):
+        if mode == "structured":
+            client.create_structured({}, "Answer", ChatAnswerResponse)
+        else:
+            client.create_text_stream({}, "Answer", lambda delta: None)
+
+    assert time.monotonic() - started < 2
+    assert client.request_timeout == (5.0, 42)
+
+
+def test_turn_lease_covers_deadline(app, monkeypatch):
+    redis = fakeredis.FakeRedis()
+    monkeypatch.setattr("core.service.chat.queue_manager.queue_manager._redis", redis)
+    key = "taranis:chat:turn:conversation:conversation-id"
+
+    with ChatService._turn_lease("user-id", "conversation-id"):
+        assert redis.ttl(key) > CHAT_TURN_TIMEOUT_SECONDS
+        assert not redis.lock(key).acquire(blocking=False)

@@ -66,7 +66,7 @@ For container and Python dependency SBOM scope and attestations, see [docs/sbom.
 
 An [OpenAPI spec](./src/core/core/static/openapi3_1.yaml) for the REST API is included and can be accessed in a running installation under `config/openapi`.
 
-The optional Chat workspace is disabled by default. Enabling it sends analyst messages and selected story summaries to the configured external LLM provider; when realtime is enabled, answer progress streams over the authenticated Centrifugo connection while the final response remains authoritative. See the [deployment guide](./deploy/README.md#analyst-chat) for configuration, privacy, retention, and rollback details.
+The optional Chat workspace is disabled by default. Enabling it sends analyst messages and selected story summaries to the configured external LLM provider; when realtime is enabled, answer progress streams over the authenticated Centrifugo connection while the final response remains authoritative. Each turn has a nine-minute processing deadline. See the [deployment guide](./deploy/README.md#analyst-chat) for configuration, privacy, retention, and rollback details.
 
 ### Core Health Endpoints
 
