@@ -46,8 +46,6 @@ Frontend unit coverage verifies the create-form documentation link, supported co
 
 Core API coverage verifies explicit force parsing, all-ID validation, atomic failure behavior, forced deletion, and curated-list collector-type conflicts and atomic rejection in `src/core/tests/application/admin_console/configuration/test_config_api.py`.
 
-Run `cd src/frontend && uv run pytest tests/unit/views/test_views.py` for focused view coverage. Admin browser coverage exercises the curated multi-select workflow and verifies that single-source collection keeps the filtered table as one in-place view.
-
 ## Pitfalls
 
 Keep the collector-to-primary-URL mapping explicit. A collector without a single primary URL should not appear in the bulk form. Do not create a second persistence path: version-4 import already validates sources, creates optional groups, applies default-group membership, commits atomically, and schedules the new sources after the commit.
