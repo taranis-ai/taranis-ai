@@ -36,6 +36,7 @@ Run focused unit tests for changed views/templates and a focused Playwright test
 ## Pitfalls
 
 - Admin actions that return a complete table container must target that container with `hx-swap="outerHTML"`, including Connector bulk delete. The default innerHTML swap nests duplicate containers. Notification-only detail actions must not receive table markup.
+- Analyze Clone Report, row delete, and bulk delete return `analyze/report_table.html`, including the `#report` wrapper. Target `#report` with outerHTML, not its inner table container. The existing user Analyze workflow checks one report panel and table after these actions.
 - Keep the page-size select and submit button in a flex row so adjacent pagination controls cannot overlap the native submit button. Smoke-check native page-size submission with matching rows; empty results omit pagination controls.
 - Do not generate HTML in JavaScript when Jinja can render it.
 - Do not add global document/window listeners for component-local behavior.
