@@ -35,6 +35,7 @@ Run focused unit tests for changed views/templates and a focused Playwright test
 
 ## Pitfalls
 
+- Keep the page-size select and submit button in a flex row so adjacent pagination controls cannot overlap the native submit button. Smoke-check native page-size submission with matching rows; empty results omit pagination controls.
 - Do not generate HTML in JavaScript when Jinja can render it.
 - Do not add global document/window listeners for component-local behavior.
 - Do not duplicate state between server markup, Alpine, and custom JavaScript.
