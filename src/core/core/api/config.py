@@ -8,6 +8,7 @@ from flask.views import MethodView
 from flask_jwt_extended import current_user
 from models.admin import BotCreate, BotUpdate, CuratedOSINTSourceSelection
 from models.admin import OSINTSource as OSINTSourceModel
+from models.base import TaranisBaseModel
 from psycopg.errors import NotNullViolation, UniqueViolation
 from pydantic import ValidationError
 from sqlalchemy.exc import IntegrityError
@@ -69,18 +70,8 @@ def handle_integrity_error(error: IntegrityError):
 
 
 def handle_validation_error(error: ValidationError):
-    logger.warning("Validation error in config API: %s", error)
-    # Extract meaningful error messages from pydantic ValidationError
-    errors = []
-    for err in error.errors():
-        loc = err.get("loc", [])
-        field = ".".join(str(loc_part) for loc_part in loc) if loc else "unknown"
-        msg = err.get("msg", "Invalid value")
-        errors.append(f"{field}: {msg}")
-
-    if errors:
-        return {"error": f"Validation failed: {'; '.join(errors)}"}, 400
-    return {"error": "Validation failed with unknown errors."}, 400
+    db.session.rollback()
+    return TaranisBaseModel.validation_error_response(error, prefix="Validation failed"), 400
 
 
 def _invalidate_admin_cache(status_code: int) -> int:
@@ -104,55 +95,25 @@ class ACLEntries(MethodView):
 
     @auth_required("CONFIG_ACL_CREATE")
     def post(self):
-        try:
-            acl = role_based_access.RoleBasedAccess.add(request.json)
-            _invalidate_admin_cache(201)
-            return jsonify({"message": "ACL created", "id": acl.id}), 201
-        except IntegrityError:
-            raise
-        except ValidationError:
-            raise
-        except ValueError as e:
-            logger.warning("Invalid ACL payload: %s", e)
-            return {"error": f"Invalid ACL payload: {e}"}, 400
-        except Exception as e:
-            logger.exception("Could not create ACL: %s", e)
-            return {"error": f"Could not create ACL: {e}"}, 400
+        acl = role_based_access.RoleBasedAccess.add(request.json)
+        _invalidate_admin_cache(201)
+        return jsonify({"message": "ACL created", "id": acl.id}), 201
 
     @auth_required("CONFIG_ACL_UPDATE")
     def put(self, acl_id: str | None = None):
         if acl_id is None:
             return {"error": "No acl_id provided"}, 400
-        try:
-            response, status = role_based_access.RoleBasedAccess.update(acl_id, request.json)
-            _invalidate_admin_cache(status)
-            return response, status
-        except IntegrityError:
-            raise
-        except ValidationError:
-            raise
-        except ValueError as e:
-            logger.warning("Invalid ACL update payload: %s", e)
-            return {"error": f"Invalid ACL update payload: {e}"}, 400
-        except Exception as e:
-            logger.exception("Could not update ACL %s: %s", acl_id, e)
-            return {"error": f"Could not update ACL: {e}"}, 400
+        response, status = role_based_access.RoleBasedAccess.update(acl_id, request.json)
+        _invalidate_admin_cache(status)
+        return response, status
 
     @auth_required("CONFIG_ACL_DELETE")
     def delete(self, acl_id: str | None = None):
         if acl_id is None:
             return {"error": "No acl_id provided"}, 400
-        try:
-            response, status = role_based_access.RoleBasedAccess.delete(acl_id)
-            _invalidate_admin_cache(status)
-            return response, status
-        except IntegrityError:
-            raise
-        except ValidationError:
-            raise
-        except Exception as e:
-            logger.exception("Could not delete ACL %s: %s", acl_id, e)
-            return {"error": f"Could not delete ACL: {e}"}, 400
+        response, status = role_based_access.RoleBasedAccess.delete(acl_id)
+        _invalidate_admin_cache(status)
+        return response, status
 
 
 class Attributes(MethodView):
@@ -166,55 +127,25 @@ class Attributes(MethodView):
 
     @auth_required("CONFIG_ATTRIBUTE_CREATE")
     def post(self):
-        try:
-            attribute_result = attribute.Attribute.add(request.json)
-            _invalidate_admin_cache(201)
-            return {"message": "Attribute added", "id": attribute_result.id}, 201
-        except IntegrityError:
-            raise
-        except ValidationError:
-            raise
-        except ValueError as e:
-            logger.warning("Invalid attribute payload: %s", e)
-            return {"error": f"Invalid attribute payload: {e}"}, 400
-        except Exception as e:
-            logger.exception("Could not create attribute: %s", e)
-            return {"error": f"Could not create attribute: {e}"}, 400
+        attribute_result = attribute.Attribute.add(request.json)
+        _invalidate_admin_cache(201)
+        return {"message": "Attribute added", "id": attribute_result.id}, 201
 
     @auth_required("CONFIG_ATTRIBUTE_UPDATE")
     def put(self, attribute_id: str | None = None):
         if attribute_id is None:
             return {"error": "No attribute_id provided"}, 400
-        try:
-            response, status = attribute.Attribute.update(attribute_id, request.json)
-            _invalidate_admin_cache(status)
-            return response, status
-        except IntegrityError:
-            raise
-        except ValidationError:
-            raise
-        except ValueError as e:
-            logger.warning("Invalid attribute update payload: %s", e)
-            return {"error": f"Invalid attribute update payload: {e}"}, 400
-        except Exception as e:
-            logger.exception("Could not update attribute %s: %s", attribute_id, e)
-            return {"error": f"Could not update attribute: {e}"}, 400
+        response, status = attribute.Attribute.update(attribute_id, request.json)
+        _invalidate_admin_cache(status)
+        return response, status
 
     @auth_required("CONFIG_ATTRIBUTE_DELETE")
     def delete(self, attribute_id: str | None = None):
         if attribute_id is None:
             return {"error": "No attribute_id provided"}, 400
-        try:
-            response, status = attribute.Attribute.delete(attribute_id)
-            _invalidate_admin_cache(status)
-            return response, status
-        except IntegrityError:
-            raise
-        except ValidationError:
-            raise
-        except Exception as e:
-            logger.exception("Could not delete attribute %s: %s", attribute_id, e)
-            return {"error": f"Could not delete attribute: {e}"}, 400
+        response, status = attribute.Attribute.delete(attribute_id)
+        _invalidate_admin_cache(status)
+        return response, status
 
 
 class ReportItemTypesImport(MethodView):
@@ -257,13 +188,11 @@ class ReportItemTypes(MethodView):
             item = report_item_type.ReportItemType.add(request.json)
             _invalidate_admin_cache(201)
             return jsonify({"message": "Report item type added", "id": item.id}), 201
-        except IntegrityError:
+        except (IntegrityError, ValidationError):
             raise
-        except ValidationError:
-            raise
-        except Exception as e:
-            logger.exception("Failed to add report item type: %s", e)
-            return {"error": f"Failed to add report item type: {e}"}, 500
+        except Exception:
+            logger.exception("Failed to add report item type")
+            return {"error": "Failed to add report item type"}, 500
 
     @auth_required("CONFIG_REPORT_TYPE_UPDATE")
     def put(self, type_id: str | None = None):
@@ -301,19 +230,16 @@ class ProductTypes(MethodView):
             db.session.rollback()
             logger.warning("Invalid product type template path: %s", e)
             return {"error": "Invalid presenter template path"}, 400
+        except (IntegrityError, ValidationError):
+            raise
         except ValueError as e:
             db.session.rollback()
             logger.warning("Invalid product type payload: %s", e)
             return {"error": "Invalid product type payload"}, 400
-        except IntegrityError:
-            raise
-        except ValidationError:
-            db.session.rollback()
-            raise
         except Exception as e:
             db.session.rollback()
             logger.error(f"Error creating product type: {e}")
-            return {"error": f"Failed to create product type: {e}"}, 500
+            return {"error": "Failed to create product type"}, 500
 
     @auth_required("CONFIG_PRODUCT_TYPE_UPDATE")
     def put(self, type_id: str | None = None):
@@ -327,19 +253,16 @@ class ProductTypes(MethodView):
             db.session.rollback()
             logger.warning("Invalid product type template path: %s", e)
             return {"error": "Invalid presenter template path"}, 400
+        except (IntegrityError, ValidationError):
+            raise
         except ValueError as e:
             db.session.rollback()
             logger.warning("Invalid product type update payload: %s", e)
             return {"error": "Invalid product type payload"}, 400
-        except IntegrityError:
-            raise
-        except ValidationError:
-            db.session.rollback()
-            raise
         except Exception as e:
             db.session.rollback()
             logger.error(f"Error updating product type: {e}")
-            return {"error": f"Failed to update product type: {e}"}, 500
+            return {"error": "Failed to update product type"}, 500
 
     @auth_required("CONFIG_PRODUCT_TYPE_UPDATE")
     def patch(self, type_id: str | None = None):
@@ -362,13 +285,11 @@ class ProductTypes(MethodView):
             response, status = product_type.ProductType.delete(type_id)
             _invalidate_admin_cache(status)
             return response, status
-        except IntegrityError:
-            raise
-        except ValidationError:
+        except (IntegrityError, ValidationError):
             raise
         except Exception as e:
             logger.error(f"Error deleting product type: {e}")
-            return {"error": f"Failed to delete product type: {e}"}, 500
+            return {"error": "Failed to delete product type"}, 500
 
 
 class Permissions(MethodView):
@@ -388,60 +309,30 @@ class Roles(MethodView):
 
     @auth_required("CONFIG_ROLE_CREATE")
     def post(self):
-        try:
-            new_role = role.Role.add(request.json)
-            _invalidate_admin_cache(201)
-            return jsonify({"message": "Role created", "id": new_role.id}), 201
-        except IntegrityError:
-            raise
-        except ValidationError:
-            raise
-        except ValueError as e:
-            logger.warning("Invalid role payload: %s", e)
-            return {"error": f"Invalid role payload: {e}"}, 400
-        except Exception as e:
-            logger.exception("Could not create role: %s", e)
-            return {"error": f"Could not create role: {e}"}, 400
+        new_role = role.Role.add(request.json)
+        _invalidate_admin_cache(201)
+        return jsonify({"message": "Role created", "id": new_role.id}), 201
 
     @auth_required("CONFIG_ROLE_UPDATE")
     def put(self, role_id: str | None = None):
         if role_id is None:
             return {"error": "No role_id provided"}, 400
-        try:
-            if data := request.json:
-                response, status = role.Role.update(role_id, data)
-                _invalidate_admin_cache(status)
-                return response, status
-            return {"error": "No data provided"}, 400
-        except IntegrityError:
-            raise
-        except ValidationError:
-            raise
-        except ValueError as e:
-            logger.warning("Invalid role update payload: %s", e)
-            return {"error": f"Invalid role update payload: {e}"}, 400
-        except Exception as e:
-            logger.exception("Could not update role %s: %s", role_id, e)
-            return {"error": f"Could not update role: {e}"}, 400
+        if data := request.json:
+            response, status = role.Role.update(role_id, data)
+            _invalidate_admin_cache(status)
+            return response, status
+        return {"error": "No data provided"}, 400
 
     @auth_required("CONFIG_ROLE_DELETE")
     def delete(self, role_id: str | None = None):
         if role_id is None:
             return {"error": "No role_id provided"}, 400
-        try:
-            if user.UserRole.has_assigned_user(role_id):
-                logger.warning(f"Role {role_id} cannot be deleted, it has assigned users")
-                return {"error": "Role cannot be deleted, it has assigned users"}, 400
-            response, status = role.Role.delete(role_id)
-            _invalidate_admin_cache(status)
-            return response, status
-        except IntegrityError:
-            raise
-        except ValidationError:
-            raise
-        except Exception as e:
-            logger.exception("Could not delete role %s: %s", role_id, e)
-            return {"error": f"Could not delete role: {e}"}, 400
+        if user.UserRole.has_assigned_user(role_id):
+            logger.warning(f"Role {role_id} cannot be deleted, it has assigned users")
+            return {"error": "Role cannot be deleted, it has assigned users"}, 400
+        response, status = role.Role.delete(role_id)
+        _invalidate_admin_cache(status)
+        return response, status
 
 
 class Templates(MethodView):
@@ -537,55 +428,25 @@ class Organizations(MethodView):
 
     @auth_required("CONFIG_ORGANIZATION_CREATE")
     def post(self):
-        try:
-            org = organization.Organization.add(request.json)
-            _invalidate_admin_cache(201)
-            return jsonify({"message": "Organization created", "id": org.id}), 201
-        except IntegrityError:
-            raise
-        except ValidationError:
-            raise
-        except ValueError as e:
-            logger.warning("Invalid organization payload: %s", e)
-            return {"error": f"Invalid organization payload: {e}"}, 400
-        except Exception as e:
-            logger.exception("Could not create organization: %s", e)
-            return {"error": f"Could not create organization: {e}"}, 400
+        org = organization.Organization.add(request.json)
+        _invalidate_admin_cache(201)
+        return jsonify({"message": "Organization created", "id": org.id}), 201
 
     @auth_required("CONFIG_ORGANIZATION_UPDATE")
     def put(self, organization_id: str | None = None):
         if organization_id is None:
             return {"error": "No organization_id provided"}, 400
-        try:
-            response, status = organization.Organization.update(organization_id, request.json)
-            _invalidate_admin_cache(status)
-            return response, status
-        except IntegrityError:
-            raise
-        except ValidationError:
-            raise
-        except ValueError as e:
-            logger.warning("Invalid organization update payload: %s", e)
-            return {"error": f"Invalid organization update payload: {e}"}, 400
-        except Exception as e:
-            logger.exception("Could not update organization %s: %s", organization_id, e)
-            return {"error": f"Could not update organization: {e}"}, 400
+        response, status = organization.Organization.update(organization_id, request.json)
+        _invalidate_admin_cache(status)
+        return response, status
 
     @auth_required("CONFIG_ORGANIZATION_DELETE")
     def delete(self, organization_id: str | None = None):
         if organization_id is None:
             return {"error": "No organization_id provided"}, 400
-        try:
-            response, status = organization.Organization.delete(organization_id)
-            _invalidate_admin_cache(status)
-            return response, status
-        except IntegrityError:
-            raise
-        except ValidationError:
-            raise
-        except Exception as e:
-            logger.exception("Could not delete organization %s: %s", organization_id, e)
-            return {"error": f"Could not delete organization: {e}"}, 400
+        response, status = organization.Organization.delete(organization_id)
+        _invalidate_admin_cache(status)
+        return response, status
 
 
 class UsersImport(MethodView):
@@ -629,16 +490,11 @@ class Users(MethodView):
             new_user = user.User.add(request.json)
             _invalidate_admin_cache(201)
             return {"message": "User created", "id": new_user.id}, 201
-        except IntegrityError:
+        except (IntegrityError, ValidationError):
             raise
-        except ValidationError:
-            raise
-        except ValueError as e:
-            logger.warning("Invalid user payload: %s", e)
-            return {"error": f"Invalid user payload: {e}"}, 400
-        except Exception as e:
-            logger.exception("Could not create user: %s", e)
-            return {"error": f"Could not create user: {e}"}, 400
+        except Exception:
+            logger.exception("Could not create user")
+            return {"error": "Could not create user"}, 400
 
     @auth_required("CONFIG_USER_UPDATE")
     def put(self, user_id: str | None = None):
@@ -648,16 +504,11 @@ class Users(MethodView):
             response, status = user.User.update(user_id, request.json)
             _invalidate_admin_cache(status)
             return response, status
-        except IntegrityError:
+        except (IntegrityError, ValidationError):
             raise
-        except ValidationError:
-            raise
-        except ValueError as e:
-            logger.warning("Invalid user update payload: %s", e)
-            return {"error": f"Invalid user update payload: {e}"}, 400
-        except Exception as e:
-            logger.exception("Could not update user %s: %s", user_id, e)
-            return {"error": f"Could not update user: {e}"}, 400
+        except Exception:
+            logger.exception("Could not update user %s", user_id)
+            return {"error": "Could not update user"}, 400
 
     @auth_required("CONFIG_USER_DELETE")
     def delete(self, user_id: str | None = None):
@@ -667,13 +518,11 @@ class Users(MethodView):
             response, status = user.User.delete(user_id)
             _invalidate_admin_cache(status)
             return response, status
-        except IntegrityError:
+        except (IntegrityError, ValidationError):
             raise
-        except ValidationError:
-            raise
-        except Exception as e:
-            logger.exception("Could not delete user %s: %s", user_id, e)
-            return {"error": f"Could not delete user: {e}"}, 400
+        except Exception:
+            logger.exception("Could not delete user %s", user_id)
+            return {"error": "Could not delete user"}, 400
 
 
 class Bots(MethodView):
@@ -1204,20 +1053,9 @@ class WordLists(MethodView):
 
     @auth_required("CONFIG_WORD_LIST_CREATE")
     def post(self):
-        try:
-            wordlist = word_list.WordList.add(request.json)
-            _invalidate_admin_cache(200)
-            return jsonify({"id": wordlist.id, "message": "Word list created successfully"}), 200
-        except IntegrityError:
-            raise
-        except ValidationError:
-            raise
-        except ValueError as e:
-            logger.warning("Invalid word list payload: %s", e)
-            return {"error": f"Invalid word list payload: {e}"}, 400
-        except Exception as e:
-            logger.exception("Could not create word list: %s", e)
-            return {"error": f"Could not create word list: {e}"}, 400
+        wordlist = word_list.WordList.add(request.json)
+        _invalidate_admin_cache(200)
+        return jsonify({"id": wordlist.id, "message": "Word list created successfully"}), 200
 
     @auth_required("CONFIG_WORD_LIST_DELETE")
     def delete(self, word_list_id: str | None = None):
@@ -1227,34 +1065,21 @@ class WordLists(MethodView):
             response, status = word_list.WordList.delete(word_list_id)
             _invalidate_admin_cache(status)
             return response, status
-        except IntegrityError:
+        except (IntegrityError, ValidationError):
             raise
-        except ValidationError:
-            raise
-        except Exception as e:
-            logger.exception(f"Failed to delete word list {word_list_id}: {e}")
-            return {"error": f"Could not delete word list: {e}"}, 400
+        except Exception:
+            logger.exception(f"Failed to delete word list {word_list_id}")
+            return {"error": "Could not delete word list"}, 400
 
     @auth_required("CONFIG_WORD_LIST_UPDATE")
     def put(self, word_list_id: str | None = None):
         if word_list_id is None:
             return {"error": "No word_list_id provided"}, 400
-        try:
-            if data := request.json:
-                response, status = word_list.WordList.update(word_list_id, data)
-                _invalidate_admin_cache(status)
-                return response, status
-            return {"error": "No data provided"}, 400
-        except IntegrityError:
-            raise
-        except ValidationError:
-            raise
-        except ValueError as e:
-            logger.warning("Invalid word list update payload: %s", e)
-            return {"error": f"Invalid word list update payload: {e}"}, 400
-        except Exception as e:
-            logger.exception("Could not update word list %s: %s", word_list_id, e)
-            return {"error": f"Could not update word list: {e}"}, 400
+        if data := request.json:
+            response, status = word_list.WordList.update(word_list_id, data)
+            _invalidate_admin_cache(status)
+            return response, status
+        return {"error": "No data provided"}, 400
 
 
 class WordListImport(MethodView):

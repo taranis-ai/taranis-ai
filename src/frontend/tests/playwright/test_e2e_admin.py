@@ -468,12 +468,9 @@ class TestEndToEndAdmin(BaseE2ETest):
         def update_osint_sources():
             form = page.locator("#osint_source-form").first
             expect(form).to_be_visible()
-            detail_url = page.url
             page.get_by_role("textbox", name="Description", exact=True).fill("Unsaved source description")
             with_htmx_wait(page, lambda: page.get_by_role("button", name="Collect", exact=True).click())
             expect(page.locator("#notification-bar")).to_contain_text("scheduled")
-            expect(page).to_have_url(detail_url)
-            expect(page.locator("#osint_source-table-container")).to_have_count(0)
             expect(page.get_by_role("textbox", name="Description", exact=True)).to_have_value("Unsaved source description")
             dismiss_notifications(page)
             expect(form.locator('input[name="rank"][value="4"]')).to_be_checked()

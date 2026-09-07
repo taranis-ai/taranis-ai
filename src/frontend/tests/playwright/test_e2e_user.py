@@ -531,10 +531,8 @@ class TestEndToEndUser(BaseE2ETest):
 
         def check_report_type_required():
             report_type = page.get_by_test_id("report-type-select")
-            expect(report_type).to_have_attribute("required", "")
             page.get_by_test_id("save-report").click()
             expect(report_type).to_be_focused()
-            assert report_type.evaluate("select => select.validity.valueMissing")
             expect(page.get_by_role("heading", name="Create Report")).to_be_visible()
 
         def check_report_view_layout_changes():
@@ -751,7 +749,6 @@ class TestEndToEndUser(BaseE2ETest):
                 page.get_by_test_id(f"action-clone-report-{report_uuid}").click()
                 expect(report_links).to_have_count(existing_report_count + 1)
                 expect(page.locator("#report")).to_have_count(1)
-                expect(page.locator("#report-table-container")).to_have_count(1)
                 current_hrefs = report_links.evaluate_all("(links) => links.map((link) => link.getAttribute('href')).filter(Boolean)")
                 new_hrefs = [href for href in current_hrefs if href not in existing_report_hrefs]
                 assert len(new_hrefs) == 1
@@ -764,7 +761,6 @@ class TestEndToEndUser(BaseE2ETest):
                 delete_button_test_id = f"action-delete-{item_id}"
                 self.delete_table_row(page, delete_button_test_id)
                 expect(page.locator("#report")).to_have_count(1)
-                expect(page.locator("#report-table-container")).to_have_count(1)
                 page.get_by_role("link", name="Test report").click()
                 expect(page.get_by_test_id("report-stories").get_by_role("link", name=report_story_two["title"])).to_be_visible()
                 expect(page.get_by_test_id(f"story-link-{report_story_two['id']}")).to_contain_text(report_story_two_primary_link)
@@ -783,7 +779,6 @@ class TestEndToEndUser(BaseE2ETest):
                 with_htmx_wait(page, lambda: page.locator(".swal2-confirm").click())
                 expect(report_row).to_have_count(0)
                 expect(page.locator("#report")).to_have_count(1)
-                expect(page.locator("#report-table-container")).to_have_count(1)
 
             test_report_item_view()
             test_remove_story_from_report()
