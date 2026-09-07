@@ -93,12 +93,13 @@
                   class="btn btn-error"
                   data-testid="delete-{{ model_name }}-button"
                   :hx-vals="JSON.stringify({ ids: selectedItems })"
-                  hx-delete="{{ delete_route }}"
+                  hx-delete="{{ routes.base_route }}"
                   hx-confirm="Are you sure you want to delete the selected items?"
                   hx-status:400="target:#notification-bar"
                   hx-status:4xx="target:#notification-bar"
                   hx-status:5xx="target:#notification-bar"
-                  hx-target="#{{ table_container }}"
+                  hx-target="#report"
+                  hx-swap="outerHTML"
                   :disabled="selectedItems.length === 0">
             Delete <span x-text="selectedItems.length" x-show="selectedItems.length > 0"></span> {{ name }}
           </button>

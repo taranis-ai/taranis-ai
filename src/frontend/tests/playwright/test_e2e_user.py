@@ -529,11 +529,20 @@ class TestEndToEndUser(BaseE2ETest):
             assert self._get_assess_selection_count(page) == 2
             expect(page.get_by_role("button", name="Cluster")).to_be_visible()
 
+        def check_report_type_required():
+            report_type = page.get_by_test_id("report-type-select")
+            expect(report_type).to_have_attribute("required", "")
+            page.get_by_test_id("save-report").click()
+            expect(report_type).to_be_focused()
+            assert report_type.evaluate("select => select.validity.valueMissing")
+            expect(page.get_by_role("heading", name="Create Report")).to_be_visible()
+
         def check_report_view_layout_changes():
             page.get_by_test_id("new-report-button").click()
             expect(page.get_by_role("heading", name="Create Report")).to_be_visible()
 
             page.get_by_role("textbox", name="Title").fill("test title")
+            check_report_type_required()
             page.get_by_test_id("report-type-select").select_option(label=self.CERT_REPORT_TYPE_LABEL)
             page.get_by_role("button", name="Stacked view").click()
             expect(page).to_have_url(re.compile(r"layout=stacked"))
@@ -578,11 +587,22 @@ class TestEndToEndUser(BaseE2ETest):
             self.delete_table_row(page, delete_button_test_id)
 
         def create_report():
+            select_report_stories_from_assess(story_search_term)
+            page.get_by_role("button", name="Add to Report").click()
+            page.get_by_test_id("new-report-button-dialog").click()
+            page.get_by_role("textbox", name="Title").fill("Unsaved report from Assess")
+            selected_stories = page.locator('#report_form input[name="stories[]"]')
+            story_ids = selected_stories.evaluate_all("inputs => inputs.map(input => input.value)")
+            assert story_ids
+            check_report_type_required()
+            expect(page.get_by_role("textbox", name="Title")).to_have_value("Unsaved report from Assess")
+            assert selected_stories.evaluate_all("inputs => inputs.map(input => input.value)") == story_ids
+            page.get_by_role("link", name="Analyze", exact=True).click()
             new_report_button = page.get_by_role("link", name="New Report")
             expect(new_report_button).to_be_visible()
             new_report_button.click()
             page.get_by_role("textbox", name="Title").fill("Test report")
-            page.get_by_label("Report Type Select a report").select_option(label=self.CERT_REPORT_TYPE_LABEL)
+            page.get_by_test_id("report-type-select").select_option(label=self.CERT_REPORT_TYPE_LABEL)
             expect(page.locator("#report_form")).to_contain_text("Attributes will be generated after the report item has been created.")
             expect(page.get_by_test_id("analyze").locator("section")).to_contain_text("No stories assigned to this report.")
             page.get_by_test_id("save-report").click()
@@ -730,6 +750,8 @@ class TestEndToEndUser(BaseE2ETest):
                 }
                 page.get_by_test_id(f"action-clone-report-{report_uuid}").click()
                 expect(report_links).to_have_count(existing_report_count + 1)
+                expect(page.locator("#report")).to_have_count(1)
+                expect(page.locator("#report-table-container")).to_have_count(1)
                 current_hrefs = report_links.evaluate_all("(links) => links.map((link) => link.getAttribute('href')).filter(Boolean)")
                 new_hrefs = [href for href in current_hrefs if href not in existing_report_hrefs]
                 assert len(new_hrefs) == 1
@@ -741,6 +763,8 @@ class TestEndToEndUser(BaseE2ETest):
                 item_id = self.get_table_row_id_by_link_text(page, "report-table", cloned_report_title)
                 delete_button_test_id = f"action-delete-{item_id}"
                 self.delete_table_row(page, delete_button_test_id)
+                expect(page.locator("#report")).to_have_count(1)
+                expect(page.locator("#report-table-container")).to_have_count(1)
                 page.get_by_role("link", name="Test report").click()
                 expect(page.get_by_test_id("report-stories").get_by_role("link", name=report_story_two["title"])).to_be_visible()
                 expect(page.get_by_test_id(f"story-link-{report_story_two['id']}")).to_contain_text(report_story_two_primary_link)
@@ -749,9 +773,17 @@ class TestEndToEndUser(BaseE2ETest):
 
             def cleanup_reports(report_uuid_2: str):
                 page.get_by_role("link", name="Analyze").click()
-                item_id = self.get_table_row_id_by_link_text(page, "report-table", "Test report")
-                delete_button_test_id = f"action-delete-{item_id}"
-                self.delete_table_row(page, delete_button_test_id)
+                report_row = (
+                    page.get_by_test_id("report-table")
+                    .locator("tbody tr")
+                    .filter(has=page.get_by_role("link", name="Test report", exact=True))
+                )
+                report_row.get_by_role("checkbox").check()
+                page.get_by_test_id("delete-report-button").click()
+                with_htmx_wait(page, lambda: page.locator(".swal2-confirm").click())
+                expect(report_row).to_have_count(0)
+                expect(page.locator("#report")).to_have_count(1)
+                expect(page.locator("#report-table-container")).to_have_count(1)
 
             test_report_item_view()
             test_remove_story_from_report()
@@ -915,7 +947,7 @@ class TestEndToEndUser(BaseE2ETest):
                 page.get_by_test_id("new-report-button").click()
                 expect(page.get_by_role("heading", name="Create Report")).to_be_visible()
                 page.get_by_role("textbox", name="Title").fill("all attr report REQUIRED")
-                page.get_by_label("Report Type Select a report").select_option(label=self.ALL_ATTRIBUTE_REQUIRED_REPORT_TYPE_LABEL)
+                page.get_by_test_id("report-type-select").select_option(label=self.ALL_ATTRIBUTE_REQUIRED_REPORT_TYPE_LABEL)
                 page.get_by_test_id("save-report").click()
                 page.get_by_test_id("report-id").inner_text().split("ID: ")[1]
                 dismiss_notifications(page)
