@@ -5,6 +5,7 @@ import os
 import uuid
 from io import BytesIO
 
+import pytest
 from PIL import Image
 from sqlalchemy.exc import SQLAlchemyError
 from werkzeug.datastructures import FileStorage
@@ -43,6 +44,50 @@ _VALID_GIF_ICON_BYTES = _make_icon_bytes((8, 8), "GIF", mode="P", color=1)
 
 class TestSourcesConfigApi(BaseTest):
     base_uri = "/api/config"
+
+    @pytest.mark.parametrize("collector_type", ["MANUAL_COLLECTOR", "SIMPLE_WEB_COLLECTOR"])
+    @pytest.mark.parametrize("enabled", [True, False])
+    def test_curated_lists_reject_conflicting_collector_types(self, client, auth_header, app, collector_type, enabled):
+        from core.managers.db_manager import db
+        from core.model.osint_source import OSINTSource, OSINTSourceGroup
+
+        with app.app_context():
+            catalog = OSINTSource.get_curated_catalog()
+            curated_list = catalog.lists[0]
+            source_name = curated_list.sources[0]
+
+        response = self.assert_post_ok(
+            client,
+            uri="osint-sources",
+            json_data={
+                "name": source_name,
+                "type": collector_type,
+                "enabled": enabled,
+                "parameters": {"WEB_URL": "https://example.com"} if collector_type == "SIMPLE_WEB_COLLECTOR" else {},
+            },
+            auth_header=auth_header,
+        )
+        source_id = response.json["id"]
+        try:
+            with app.app_context():
+                sources_before = [source.to_dict() for source in db.session.execute(db.select(OSINTSource)).scalars()]
+                groups_before = [group.to_dict() for group in db.session.execute(db.select(OSINTSourceGroup)).scalars()]
+
+            response = client.post(
+                self.concat_url("curated-osint-source-lists"),
+                json={"list_names": [curated_list.name]},
+                headers=auth_header,
+            )
+            assert response.status_code == 409
+            assert response.json["error"] == (
+                f'Cannot load curated lists: source "{source_name}" already exists with a different collector type. '
+                "Rename the existing source and try again. No sources or groups were changed."
+            )
+            with app.app_context():
+                assert [source.to_dict() for source in db.session.execute(db.select(OSINTSource)).scalars()] == sources_before
+                assert [group.to_dict() for group in db.session.execute(db.select(OSINTSourceGroup)).scalars()] == groups_before
+        finally:
+            client.delete(self.concat_url(f"osint-sources/{source_id}"), headers=auth_header)
 
     @staticmethod
     def _assert_normalized_icon(icon_base64: str) -> None:
@@ -129,6 +174,7 @@ class TestSourcesConfigApi(BaseTest):
         source_payload = copy.deepcopy(cleanup_sources)
         source_id = uuid.uuid4().hex
         source_payload["id"] = source_id
+        source_payload["name"] = f"Test Source {source_id}"
         source_payload["icon"] = _VALID_JPEG_ICON_BASE64
 
         create_response = client.post(self.concat_url("osint-sources"), json=source_payload, headers=auth_header)
@@ -244,6 +290,7 @@ class TestSourcesConfigApi(BaseTest):
         source_payload = copy.deepcopy(cleanup_sources)
         source_id = uuid.uuid4().hex
         source_payload["id"] = source_id
+        source_payload["name"] = f"Test Source {source_id}"
 
         create_response = client.post(self.concat_url("osint-sources"), json=source_payload, headers=auth_header)
         assert create_response.status_code == 201
@@ -278,14 +325,14 @@ class TestSourcesConfigApi(BaseTest):
 
         rss_source = {
             "id": rss_source_id,
-            "name": f"Visible Source {unique_suffix}",
+            "name": f"Visible RSS Source {unique_suffix}",
             "description": "Collector that should remain visible",
             "parameters": {"FEED_URL": "https://example.invalid/feed.xml"},
             "type": "rss_collector",
         }
         manual_source = {
             "id": manual_source_id,
-            "name": f"Visible Source {unique_suffix}",
+            "name": f"Visible Manual Source {unique_suffix}",
             "description": "Collector that should be hidden by default",
             "parameters": {},
             "type": "manual_collector",
@@ -317,14 +364,14 @@ class TestSourcesConfigApi(BaseTest):
 
         rss_source = {
             "id": rss_source_id,
-            "name": f"Visible Source {unique_suffix}",
+            "name": f"Visible RSS Source {unique_suffix}",
             "description": "Collector that should remain visible",
             "parameters": {"FEED_URL": "https://example.invalid/feed.xml"},
             "type": "rss_collector",
         }
         manual_source = {
             "id": manual_source_id,
-            "name": f"Visible Source {unique_suffix}",
+            "name": f"Visible Manual Source {unique_suffix}",
             "description": "Collector that should be shown when requested",
             "parameters": {},
             "type": "manual_collector",
@@ -362,7 +409,7 @@ class TestSourcesConfigApi(BaseTest):
         sources = [
             {
                 "id": source_id,
-                "name": f"Status Ordered Source {unique_suffix}",
+                "name": f"Status Ordered Source {source_id} {unique_suffix}",
                 "description": f"{status} source",
                 "parameters": {"FEED_URL": f"https://example.invalid/{source_id}.xml"},
                 "type": "rss_collector",
@@ -541,6 +588,7 @@ class TestWorkerSourceIcon(BaseTest):
         source_payload = copy.deepcopy(cleanup_sources)
         source_id = uuid.uuid4().hex
         source_payload["id"] = source_id
+        source_payload["name"] = f"Test Source {source_id}"
 
         create_response = client.post("/api/config/osint-sources", json=source_payload, headers=auth_header)
         assert create_response.status_code == 201
@@ -572,6 +620,7 @@ class TestWorkerSourceIcon(BaseTest):
         source_payload = copy.deepcopy(cleanup_sources)
         source_id = uuid.uuid4().hex
         source_payload["id"] = source_id
+        source_payload["name"] = f"Test Source {source_id}"
 
         create_response = client.post("/api/config/osint-sources", json=source_payload, headers=auth_header)
         assert create_response.status_code == 201
@@ -599,6 +648,7 @@ class TestWorkerSourceIcon(BaseTest):
         source_payload = copy.deepcopy(cleanup_sources)
         source_id = uuid.uuid4().hex
         source_payload["id"] = source_id
+        source_payload["name"] = f"Test Source {source_id}"
 
         create_response = client.post("/api/config/osint-sources", json=source_payload, headers=auth_header)
         assert create_response.status_code == 201
@@ -993,10 +1043,20 @@ class TestOrganizationConfigApi(BaseTest):
 class TestBotConfigApi(BaseTest):
     base_uri = "/api/config"
 
-    def test_create_bot(self, client, auth_header, cleanup_bot):
-        response = self.assert_post_ok(client, uri="bots", json_data=cleanup_bot, auth_header=auth_header)
+    @pytest.mark.parametrize("index", [0, "0", None, ""])
+    def test_create_bot(self, client, auth_header, cleanup_bot, app, index):
+        from core.model.bot import Bot
+
+        with app.app_context():
+            if Bot.get(cleanup_bot["id"]):
+                Bot.delete(cleanup_bot["id"])
+            expected_index = Bot.get_highest_index() + 1 if index in (None, "") else 0
+        payload = {**cleanup_bot, "index": index}
+        response = self.assert_post_ok(client, uri="bots", json_data=payload, auth_header=auth_header)
         assert response.json["message"] == "Bot created"
         assert response.json["id"] == cleanup_bot["id"]
+        stored = self.assert_get_ok(client, uri=f"bots/{cleanup_bot['id']}", auth_header=auth_header)
+        assert stored.json["index"] == expected_index
 
     def test_create_bot_rejects_invalid_payload_without_leaking_details(self, client, auth_header, cleanup_bot):
         payload = copy.deepcopy(cleanup_bot)
@@ -1008,6 +1068,27 @@ class TestBotConfigApi(BaseTest):
         assert response.status_code == 400
         assert response.json["error"] == "Invalid bot create payload"
         assert "SECRET_BOT_TYPE" not in response.text
+
+        payload["type"] = cleanup_bot["type"]
+        for invalid_payload in ([payload], *({**payload, "index": value} for value in (False, True, 0.0, "not-an-index"))):
+            response = client.post(self.concat_url("bots"), json=invalid_payload, headers=auth_header)
+            assert response.status_code == 400
+            assert response.json == {"error": "Invalid bot create payload"}
+
+    def test_create_bot_rejects_duplicate_index_with_clear_error(self, client, auth_header, cleanup_bot, app):
+        from core.model.bot import Bot
+
+        with app.app_context():
+            duplicate_index = Bot._get_all_ordered()[0].index
+
+        payload = copy.deepcopy(cleanup_bot)
+        payload["id"] = str(uuid.uuid7())
+        payload["index"] = duplicate_index
+
+        response = client.post(self.concat_url("bots"), json=payload, headers=auth_header)
+
+        assert response.status_code == 400
+        assert response.json == {"error": "A bot with this index already exists."}
 
     def test_bot_dag_preview_rejects_invalid_payload_without_leaking_details(self, client, auth_header):
         response = client.post(
@@ -1030,7 +1111,9 @@ class TestBotConfigApi(BaseTest):
         assert response.status_code == 400
         assert response.json["error"] == "Invalid bot DAG preview payload"
 
-    def test_modify_bot(self, client, auth_header, cleanup_bot, app):
+    @pytest.mark.parametrize("method", ["put", "patch"])
+    @pytest.mark.parametrize("index", [0, "0"])
+    def test_modify_bot(self, client, auth_header, cleanup_bot, app, method, index):
         from core.model.bot import Bot
 
         with app.app_context():
@@ -1046,8 +1129,23 @@ class TestBotConfigApi(BaseTest):
             "parameters": {"REGULAR_EXPRESSION": r"\btest\b", "REFRESH_INTERVAL": "0 */8 * * *"},
         }
         bot_id = cleanup_bot["id"]
-        response = self.assert_put_ok(client, uri=f"bots/{bot_id}", json_data=bot_data, auth_header=auth_header)
+        bot_data["index"] = index
+        response = getattr(client, method)(self.concat_url(f"bots/{bot_id}"), json=bot_data, headers=auth_header)
+        assert response.status_code == 200
         assert response.json["id"] == f"{bot_id}"
+        for payload in ({}, {"index": None}, {"index": ""}):
+            response = getattr(client, method)(
+                self.concat_url(f"bots/{bot_id}"), json={"name": bot_data["name"], **payload}, headers=auth_header
+            )
+            assert response.status_code == 200
+            stored = self.assert_get_ok(client, uri=f"bots/{bot_id}", auth_header=auth_header)
+            assert stored.json["index"] == 0
+        for invalid_index in (False, True, 0.0, "not-an-index"):
+            response = getattr(client, method)(self.concat_url(f"bots/{bot_id}"), json={"index": invalid_index}, headers=auth_header)
+            assert response.status_code == 400
+            assert response.json == {"error": "Invalid bot update payload"}
+        stored = self.assert_get_ok(client, uri=f"bots/{bot_id}", auth_header=auth_header)
+        assert stored.json["index"] == 0
 
     def test_modify_bot_rejects_invalid_payload_without_leaking_details(self, client, auth_header, cleanup_bot, app):
         from core.model.bot import Bot

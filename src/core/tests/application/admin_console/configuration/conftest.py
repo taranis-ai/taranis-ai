@@ -105,7 +105,7 @@ def cleanup_user(app):
         from core.model.role import Role
         from core.model.user import User
 
-        organization = Organization.find_by_name("The Earth")
+        organization = Organization.find_by_name("Default Organization")
         role = Role.filter_by_name("User")
 
         user_data = {

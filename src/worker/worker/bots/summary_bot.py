@@ -1,4 +1,4 @@
-from worker.bot_api import BotApi
+from worker.bot_api import BotApi, BotServiceUnavailableError
 from worker.config import Config
 from worker.log import logger
 
@@ -47,6 +47,8 @@ class SummaryBot(BaseBot):
                         )
                     else:
                         logger.warning(f"Failed to update story {story['id']}, skipping attribute update")
+            except BotServiceUnavailableError:
+                raise
             except Exception:
                 logger.exception(f"Could not generate summary for {story['id']}")
                 continue

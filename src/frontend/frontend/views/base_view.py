@@ -164,15 +164,20 @@ class BaseView(MethodView):
             obj = cls.model(**processed_data)
             dpl = DataPersistenceLayer()
             result = dpl.store_object(obj) if cls.is_create_object_id(object_id) else dpl.update_object(obj, object_id)
-            return (result.json(), None) if result.ok else (None, result.json())
+            response = result.json()
+            if result.ok:
+                return response, None
+            if isinstance(response, dict):
+                return None, response.get("error") or response.get("message") or "Failed to save changes"
+            return None, "Failed to save changes"
         except ValidationError as exc:
             logger.error(format_pydantic_errors(exc, cls.model))
             return None, format_pydantic_errors(exc, cls.model)
         except HTTPException:
             raise
-        except Exception as exc:
-            logger.error(f"Error storing form data: {exc!s}")
-            return None, str(exc)
+        except Exception:
+            logger.exception("Error storing form data")
+            return None, "Failed to save changes"
 
     @classmethod
     def get_list_template(cls) -> str:

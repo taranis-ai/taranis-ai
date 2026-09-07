@@ -10,7 +10,7 @@ from core.managers import queue_manager
 from core.managers.auth_manager import api_key_required
 from core.managers.decorators import extract_args
 from core.managers.realtime_publisher import realtime_publisher
-from core.model.bot import Bot
+from core.model.bot import Bot, BotIndexConflictError
 from core.model.connector import Connector
 from core.model.ioc import IOC
 from core.model.news_item import NewsItem
@@ -305,8 +305,13 @@ class BotInfo(MethodView):
         data = request.json
         if not isinstance(data, dict) or not data:
             return {"error": "No data provided"}, 400
-        if bot := Bot.update(bot_id, data):
-            return bot.to_worker_dict(), 200
+        try:
+            if bot := Bot.update(bot_id, data):
+                return bot.to_worker_dict(), 200
+        except BotIndexConflictError:
+            return {"error": BotIndexConflictError.public_message}, 400
+        except (TypeError, ValueError):
+            return {"error": "Invalid bot update payload"}, 400
         return {"error": "Bot not found"}, 404
 
 

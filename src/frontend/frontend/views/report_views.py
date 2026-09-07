@@ -171,6 +171,16 @@ class ReportItemView(BaseView):
                 if cls.is_create_object_id(report.id) and (story_ids := submitted_data.get("stories")):
                     cls._apply_story_ids_to_report(report, story_ids)
                 base_context["report"] = report
+                if review_run := request.args.get("review_run"):
+                    from frontend.views.analyst_review_views import AnalystReviewView
+
+                    if report.id and AnalystReviewView.report_review_state(review_run, str(report.id)):
+                        base_context["analyst_review_run"] = review_run
+                        base_context["form_action"] = url_for(
+                            "analyze.report",
+                            report_id=report.id,
+                            review_run=review_run,
+                        )
             else:
                 base_context["existing_products"] = []
 
@@ -306,6 +316,15 @@ class ReportItemView(BaseView):
     @classmethod
     def get_submit_redirect_target(cls, object_id: str, core_response: dict[str, Any]) -> str:
         response_object_id = core_response.get("id", object_id)
+        if review_run := request.args.get("review_run"):
+            from frontend.views.analyst_review_views import AnalystReviewView
+
+            if AnalystReviewView.report_review_state(review_run, response_object_id):
+                if request.form.get("continue_to_publish") == "true" and (
+                    target := AnalystReviewView.complete_report_review(review_run, response_object_id)
+                ):
+                    return target
+                return url_for("analyze.report", report_id=response_object_id, review_run=review_run)
         if not cls.is_create_object_id(object_id):
             try:
                 if cls.get_object_by_id(response_object_id) is None:

@@ -6,7 +6,7 @@ from typing import Any
 from models.admin import CronSpec
 from models.types import BOT_TYPES
 from sqlalchemy import func, literal
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Mapped
 from sqlalchemy.sql import Select
 
@@ -19,6 +19,10 @@ from core.service.worker_parameters import configured_parameters, effective_para
 
 RUN_AFTER_COLLECTOR = "RUN_AFTER_COLLECTOR"
 RUN_AFTER_BOTS = "RUN_AFTER_BOTS"
+
+
+class BotIndexConflictError(ValueError):
+    public_message = "A bot with this index already exists."
 
 
 class Bot(BaseModel):
@@ -46,7 +50,7 @@ class Bot(BaseModel):
         self.name = name
         self.description = description
         self.type = type if isinstance(type, BOT_TYPES) else BOT_TYPES(type.lower())
-        self.index = index or Bot.get_highest_index() + 1
+        self.index = Bot.get_highest_index() + 1 if index is None else index
         self.enabled = enabled
         self.parameters = set_parameters(self.type, {}, parameters, patch=False, complete=self.enabled)
 
@@ -88,9 +92,12 @@ class Bot(BaseModel):
 
     @classmethod
     def update(cls, bot_id: str, data: dict[str, Any], *, patch: bool = False) -> "Bot | None":
+        if not isinstance(data, dict):
+            raise TypeError("Bot update payload must be an object")
         bot = cls.get(bot_id)
         if not bot:
             return None
+        index = None
         try:
             if name := data.get("name"):
                 bot.name = name
@@ -115,10 +122,17 @@ class Bot(BaseModel):
                 )
             elif bot.enabled:
                 bot.parameters = set_parameters(bot.type, bot.parameters, {}, patch=True, complete=True)
-            if (index := data.get("index")) and not Bot.index_exists(index):
+            if (index := data.get("index")) is not None:
+                if cls.index_exists(index, exclude_id=bot_id):
+                    raise BotIndexConflictError
                 bot.index = index
             cls.validate_dependency_config()
             db.session.commit()
+        except IntegrityError as exc:
+            db.session.rollback()
+            if index is not None and cls.index_exists(index, exclude_id=bot_id):
+                raise BotIndexConflictError from exc
+            raise
         except Exception:
             db.session.rollback()
             raise
@@ -133,8 +147,11 @@ class Bot(BaseModel):
         return result or 0
 
     @classmethod
-    def index_exists(cls, index):
-        query = db.select(db.exists().where(cls.index == index))
+    def index_exists(cls, index: int, *, exclude_id: str | None = None) -> bool:
+        condition = cls.index == index
+        if exclude_id:
+            condition &= cls.id != exclude_id
+        query = db.select(db.exists().where(condition))
         return db.session.execute(query).scalar_one()
 
     @classmethod

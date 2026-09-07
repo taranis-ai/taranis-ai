@@ -12,4 +12,15 @@
    ```
 
 4. Wait for [Release on pushed tags](https://github.com/taranis-ai/taranis-ai/actions/workflows/release.yaml) to finish successfully.
-5. Open the new [GitHub release](https://github.com/taranis-ai/taranis-ai/releases), improve the generated description, and verify the attached files.
+5. Open the new [GitHub release](https://github.com/taranis-ai/taranis-ai/releases), improve the generated description, and verify the three CycloneDX SBOM files are attached.
+6. After authenticating to GHCR, verify the signed CycloneDX attestation attached to an image digest. Replace the example digest with the released image's digest:
+
+   ```bash
+   gh attestation verify oci://ghcr.io/taranis-ai/taranis-core@sha256:EXAMPLE \
+     --repo taranis-ai/taranis-ai \
+     --predicate-type https://cyclonedx.org/bom \
+     --signer-workflow taranis-ai/taranis-ai/.github/workflows/release.yaml \
+     --bundle-from-oci
+   ```
+
+   Repeat this check for `taranis-frontend` and `taranis-worker`.

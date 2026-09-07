@@ -16,6 +16,7 @@ jobs:
       packages: write
       id-token: write
       attestations: write
+      artifact-metadata: write
 
     steps:
       - name: Checkout
@@ -159,9 +160,32 @@ jobs:
           set -euo pipefail
 
           for component in core frontend worker; do
-            uv sync --all-extras --frozen --directory "src/${component}"
-            uvx --from cyclonedx-bom cyclonedx-py environment "src/${component}/.venv" -o "${{ runner.temp }}/taranis_${component}_sbom.json"
+            uv export --format cyclonedx1.5 --preview-features sbom-export --frozen --no-dev --directory "src/${component}" > "${{ runner.temp }}/taranis_${component}_sbom.json"
           done
+
+      - name: Attest taranis-core CycloneDX SBOM
+        uses: actions/attest@v4
+        with:
+          subject-name: ghcr.io/${{ github.repository_owner }}/taranis-core
+          subject-digest: ${{ env.DIGEST_taranis_core }}
+          sbom-path: ${{ runner.temp }}/taranis_core_sbom.json
+          push-to-registry: true
+
+      - name: Attest taranis-frontend CycloneDX SBOM
+        uses: actions/attest@v4
+        with:
+          subject-name: ghcr.io/${{ github.repository_owner }}/taranis-frontend
+          subject-digest: ${{ env.DIGEST_taranis_frontend }}
+          sbom-path: ${{ runner.temp }}/taranis_frontend_sbom.json
+          push-to-registry: true
+
+      - name: Attest taranis-worker CycloneDX SBOM
+        uses: actions/attest@v4
+        with:
+          subject-name: ghcr.io/${{ github.repository_owner }}/taranis-worker
+          subject-digest: ${{ env.DIGEST_taranis_worker }}
+          sbom-path: ${{ runner.temp }}/taranis_worker_sbom.json
+          push-to-registry: true
 
       - name: Release
         uses: softprops/action-gh-release@v3

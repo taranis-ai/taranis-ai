@@ -6,7 +6,7 @@ Centrifugo, SSE, `/sse`, `/connection/uni_sse`, realtime events, `EventSource`, 
 
 ## Expected Behavior
 
-- Centrifugo `v6.9.1` is the only realtime broker. The image tag is pinned in Compose, raw Kubernetes, and the existing Helm chart.
+- Centrifugo `v6.9` is the only realtime broker. Compose, raw Kubernetes, and the existing Helm chart intentionally use the rolling `v6.9` tag so deployments receive current `6.9.x` patch releases automatically.
 - Browsers use the same-origin public `${TARANIS_BASE_PATH}sse` URL. NGINX rewrites only that route to Centrifugo's `/connection/uni_sse`, forwards authentication/origin headers, and disables buffering and caching.
 - Centrifugo's client port is internal to the deployment. Its API, health, and metrics handlers use a separate internal port; admin, debug, Swagger, WebSocket, health, and metrics routes are not proxied publicly.
 - Centrifugo uses the existing Redis instance with the dedicated `taranis:realtime` prefix.
@@ -57,7 +57,7 @@ When a worker persists a terminal `source_preview_<source_id>` task for a user, 
 - The general Docker-backed frontend E2E suite disables realtime in both frontend and core because its test stack does not start Centrifugo; broker behavior is covered by the focused browser module and deployment checks above.
 - Render Compose variants with `docker compose ... config`.
 - Render the chart with `helm template` and raw manifests with `kubectl kustomize deploy/kubernetes`.
-- Start the pinned Centrifugo image from each rendered environment and verify health plus an authenticated broadcast; Centrifugo validates environment configuration on startup.
+- Start the configured Centrifugo `v6.9` image from each rendered environment and verify health plus an authenticated broadcast; Centrifugo validates environment configuration on startup.
 
 ## Pitfalls
 

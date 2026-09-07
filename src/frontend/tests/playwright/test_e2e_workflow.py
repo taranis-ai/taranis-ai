@@ -1,15 +1,21 @@
 import time
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import pytest
 from base_e2e_test import BaseE2ETest
+from flask import url_for
 from playwright.sync_api import Page, expect
+
+from tests.external_e2e import allow_requests_passthru
 
 
 @pytest.mark.usefixtures("e2e_ci")
 @pytest.mark.e2e_user_workflow
 @pytest.mark.usefixtures("ensure_basic_user_permissions")
 class TestUserWorkflow(BaseE2ETest):
+    ALL_ATTRIBUTE_REPORT_TYPE_LABEL = "Zzz_All Attribute Types Report"
+
     def test_e2e_login(self, taranis_frontend: Page):
         page = taranis_frontend
         self.login_with_credentials(page, username="user", password="test")
@@ -27,6 +33,112 @@ class TestUserWorkflow(BaseE2ETest):
         expect(page.get_by_test_id("assess")).to_be_visible()
         assert page.get_by_role("link", name="Administration").count() == 0
         expect(page.get_by_role("searchbox", name="Select sources")).to_be_visible()
+
+    @pytest.mark.e2e_ci
+    def test_analyst_review_guides_triage_into_report_and_publish(
+        self,
+        non_admin_logged_in_page: Page,
+        forward_console_and_page_errors_non_admin: None,
+        pre_seed_report_type_all_attribute_types_optional: None,
+        core_request_client,
+    ):
+        page = non_admin_logged_in_page
+        report_title = f"Analyst Review {uuid4().hex[:8]}"
+        original_statuses: dict[str, tuple[bool, bool]] = {}
+        created_news_item_ids: list[str] = []
+        created_story_ids: list[str] = []
+        report_id: str | None = None
+
+        try:
+            allow_requests_passthru()
+            snapshot = core_request_client.json_request("GET", "/assess/analyst-review/snapshot")
+            for story_id in snapshot["story_ids"]:
+                story = core_request_client.json_request("GET", f"/assess/stories/{story_id}")
+                original_statuses[story_id] = (bool(story["read"]), bool(story["important"]))
+                core_request_client.patch(f"/assess/stories/{story_id}", json_data={"read": True})
+
+            now = datetime.now(UTC)
+            for index in range(3):
+                news_item_id = str(uuid4())
+                timestamp = (now - timedelta(seconds=index)).isoformat()
+                response = core_request_client.json_request(
+                    "POST",
+                    "/assess/news-items",
+                    json_data={
+                        "id": news_item_id,
+                        "title": f"Analyst review story {index + 1}",
+                        "content": f"Analyst review summary {index + 1}",
+                        "link": f"https://example.invalid/analyst-review/{news_item_id}",
+                        "source": "manual",
+                        "osint_source_id": "manual",
+                        "published": timestamp,
+                        "collected": timestamp,
+                    },
+                )
+                created_news_item_ids.extend(response["news_item_ids"])
+                created_story_ids.append(response["story_id"])
+                core_request_client.patch(
+                    f"/assess/stories/{response['story_id']}",
+                    json_data={"important": True},
+                )
+
+            page.goto(url_for("base.dashboard", _external=True))
+            expect(page.get_by_test_id("start-analyst-review-card")).to_be_visible()
+            page.get_by_test_id("start-analyst-review-card").get_by_role("link", name="Start analyst review").click()
+            expect(page.get_by_test_id("analyst-review-start")).to_be_visible()
+
+            page.get_by_test_id("analyst-review-report-title").fill(report_title)
+            page.get_by_test_id("analyst-review-report-type").select_option(label=self.ALL_ATTRIBUTE_REPORT_TYPE_LABEL)
+            expect(page.get_by_test_id("analyst-review-new-review-report")).to_be_checked()
+            page.get_by_test_id("create-and-start-analyst-review").click()
+
+            story_card = page.get_by_test_id("analyst-review-story")
+            expect(story_card).to_be_visible()
+            first_story_id = story_card.get_attribute("data-story-id")
+            assert first_story_id in created_story_ids
+            page.keyboard.press("a")
+            expect(page.get_by_test_id("analyst-review-progress")).to_contain_text("1 of 3 reviewed")
+
+            second_story_id = story_card.get_attribute("data-story-id")
+            assert second_story_id in created_story_ids and second_story_id != first_story_id
+            page.keyboard.press("d")
+            expect(page.get_by_test_id("analyst-review-progress")).to_contain_text("2 of 3 reviewed")
+
+            third_story_id = story_card.get_attribute("data-story-id")
+            assert third_story_id in created_story_ids and third_story_id not in {first_story_id, second_story_id}
+            page.keyboard.press("s")
+            page.wait_for_url("**/report/*?review_run=*", wait_until="domcontentloaded")
+
+            expect(page.get_by_test_id("analyst-review-report-step")).to_be_visible()
+            expect(page.get_by_test_id(f"story-link-{first_story_id}")).to_be_visible()
+            expect(page.locator("[data-testid^='story-link-']")).to_have_count(1)
+            report_id = page.get_by_test_id("report-id").inner_text().removeprefix("ID: ").strip()
+            page.get_by_test_id("save-report").click()
+            page.wait_for_url("**/publish/0?report_id=*", wait_until="domcontentloaded")
+
+            expect(page.get_by_role("heading", name="Create Product")).to_be_visible()
+            expect(page.locator(f'input[type="hidden"][name="report_items[]"][value="{report_id}"]')).to_have_count(1)
+
+            first_story = core_request_client.json_request("GET", f"/assess/stories/{first_story_id}")
+            second_story = core_request_client.json_request("GET", f"/assess/stories/{second_story_id}")
+            third_story = core_request_client.json_request("GET", f"/assess/stories/{third_story_id}")
+            assert (first_story["read"], first_story["important"]) == (True, False)
+            assert (second_story["read"], second_story["important"]) == (True, False)
+            assert (third_story["read"], third_story["important"]) == (False, True)
+
+            report = core_request_client.json_request("GET", f"/analyze/report-items/{report_id}")
+            assert [story["id"] for story in report["stories"]] == [first_story_id]
+        finally:
+            if report_id:
+                core_request_client.delete(f"/analyze/report-items/{report_id}", raise_for_status=False)
+            for news_item_id in created_news_item_ids:
+                core_request_client.delete(f"/assess/news-items/{news_item_id}", raise_for_status=False)
+            for story_id, (read, important) in original_statuses.items():
+                core_request_client.patch(
+                    f"/assess/stories/{story_id}",
+                    json_data={"read": read, "important": important},
+                    raise_for_status=False,
+                )
 
     def test_assess_filter_token_select_reopens_after_selection(
         self,

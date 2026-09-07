@@ -378,39 +378,43 @@ class TestEndToEndAdmin(BaseE2ETest):
 
         def load_osint_sources():
             page.goto(url_for("admin.osint_sources", _external=True))
-            expect(page.get_by_role("button", name="Load default OSINT Source")).to_be_visible()
+            expect(page.get_by_role("button", name="Curated sources")).to_be_visible()
             self.capture_screenshot(page, "./tests/playwright/screenshots/docs_osint_sources.png")
 
-        def load_and_search_default_sources():
-            page.get_by_role("button", name="Load default OSINT Source").click()
+        def load_and_search_curated_sources():
+            page.get_by_role("button", name="Curated sources").click()
+            expect(page.get_by_role("heading", name="Add curated OSINT sources")).to_be_visible()
+            page.locator('input[name="list_names"][value="Austrian Public Sector"]').check()
+            page.locator('input[name="list_names"][value="Cyber Threat Intelligence"]').check()
+            page.get_by_test_id("load-curated-sources-button").click()
             osint_table = page.get_by_test_id("osint_source-table")
             all_rows = osint_table.locator("tbody tr")
-            expect(all_rows).to_have_count(10)
+            expect(all_rows).to_have_count(6)
             dismiss_notifications(page)
 
             with_htmx_wait(page, lambda: page.get_by_role("radio", name="Show").check())
             expect(page).to_have_url(url_for("admin.osint_sources", filter_manual="false", _external=True))
-            expect(all_rows).to_have_count(11)
+            expect(all_rows).to_have_count(7)
 
             manual_row = all_rows.filter(has=page.get_by_text("Manual", exact=True))
             with_htmx_wait(page, lambda: manual_row.locator('[data-testid^="action-collect-"]').click())
             expect(page.locator("#osint_source-table-container")).to_have_count(1)
-            expect(all_rows).to_have_count(11)
+            expect(all_rows).to_have_count(7)
             dismiss_notifications(page)
 
             with_htmx_wait(page, lambda: page.get_by_role("radio", name="Hide").check())
-            expect(all_rows).to_have_count(10)
+            expect(all_rows).to_have_count(6)
 
             first_source_name = osint_table.locator("[data-testid='osint_source-table_name']").first.inner_text().strip()
             page.get_by_placeholder("Search...").fill(first_source_name)
             expect(all_rows).to_have_count(1)
             expect(all_rows.first).to_contain_text(first_source_name)
             page.get_by_placeholder("Search...").fill("")
-            expect(all_rows).to_have_count(10)
+            expect(all_rows).to_have_count(6)
 
             osint_table.locator("thead").get_by_role("checkbox").check()
             delete_button = page.get_by_test_id("delete-osint_source-button")
-            expect(delete_button).to_contain_text("Delete 10 OSINT Source")
+            expect(delete_button).to_contain_text("Delete 6 sources")
             self.highlight_element(delete_button).click()
             force_checkbox = page.get_by_role("checkbox", name="Force Deletion of OSINT source and all its data")
             expect(force_checkbox).to_be_visible()
@@ -489,7 +493,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             self.delete_item(page, "osint_source-table", osint_source_name, force=True)
 
         load_osint_sources()
-        load_and_search_default_sources()
+        load_and_search_curated_sources()
         import_export_osint_sources()
         add_osint_sources()
         update_osint_sources()
@@ -1079,7 +1083,11 @@ class TestEndToEndAdmin(BaseE2ETest):
             expect(page.get_by_role("textbox", name="Description")).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Description").fill("test bot description")
             expect(page.get_by_role("spinbutton", name="Index")).to_have_attribute("required", "")
-            page.get_by_role("spinbutton", name="Index").fill("21")
+            prefilled_index = page.get_by_role("spinbutton", name="Index").input_value()
+            assert prefilled_index
+            expect(page.get_by_test_id("bot-index-availability")).to_contain_text(f"Index {prefilled_index} is available.")
+            page.get_by_role("spinbutton", name="Index").fill("1")
+            expect(page.get_by_test_id("bot-index-availability")).to_contain_text("Index 1 is already taken.")
             self.select_dynamic_type_and_wait(page, "analyst_bot", optional_parameters)
             optional_parameters.locator("summary").click()
 
@@ -1088,6 +1096,8 @@ class TestEndToEndAdmin(BaseE2ETest):
             page.locator('input[name="parameters[ATTRIBUTE_NAME]"]').fill("test_attribute")
 
             page.get_by_role("checkbox", name="run_after_collector").check()
+            page.get_by_role("spinbutton", name="Index").fill("21")
+            expect(page.get_by_test_id("bot-index-availability")).to_contain_text("Index 21 is available.")
             page.get_by_role("button", name="Create Bot").click()
 
         def test_bot_update():

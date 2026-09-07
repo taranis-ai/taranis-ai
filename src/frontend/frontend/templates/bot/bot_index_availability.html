@@ -1,0 +1,11 @@
+<p id="bot-index-status">
+  {% if index is not none %}
+    {% if available is sameas true %}
+      <span class="text-success">Index {{ index }} is available.</span>
+    {% elif available is sameas false %}
+      <span class="text-error">Index {{ index }} is already taken.</span>
+    {% else %}
+      <span class="text-warning">Index availability could not be checked.</span>
+    {% endif %}
+  {% endif %}
+</p>

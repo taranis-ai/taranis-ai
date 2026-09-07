@@ -6,6 +6,15 @@ from worker.config import Config
 from worker.log import logger
 
 
+class BotServiceUnavailableError(RuntimeError):
+    public_message = "Bot service is unavailable. Check its configured endpoint and ensure the service is running."
+    reason = "bot_service_unavailable"
+    retryable = True
+
+    def __init__(self):
+        super().__init__(self.public_message)
+
+
 class BotApi:
     def __init__(
         self,
@@ -30,23 +39,31 @@ class BotApi:
 
     def check_response(self, response: requests.Response, url: str):
         try:
-            if response.ok:
-                return response.json()
-        except requests.exceptions.JSONDecodeError:
+            response.raise_for_status()
+            return response.json()
+        except (requests.exceptions.JSONDecodeError, requests.exceptions.HTTPError) as exc:
             logger.error(f"Call to {url} failed {response.status_code}: {response.text}")
-        logger.error(f"Call to {url} failed {response.status_code}: {response.text}")
+            raise BotServiceUnavailableError from exc
         return None
 
     def api_post(self, url: str, json_data: dict | None = None):
         url = f"{self.api_url}{url}"
         if not json_data:
             json_data = {}
-        response = requests.post(url=url, headers=self.headers, verify=self.verify, json=json_data, timeout=self.timeout)
+        try:
+            response = requests.post(url=url, headers=self.headers, verify=self.verify, json=json_data, timeout=self.timeout)
+        except requests.exceptions.RequestException as exc:
+            logger.error(f"Bot service POST request to {url} failed: {exc}")
+            raise BotServiceUnavailableError from None
         return self.check_response(response, url)
 
     def api_get(self, url: str, params: dict | None = None):
         url = f"{self.api_url}{url}"
         if params:
             url += f"?{urlencode(params)}"
-        response = requests.get(url=url, headers=self.headers, verify=self.verify, timeout=self.timeout)
+        try:
+            response = requests.get(url=url, headers=self.headers, verify=self.verify, timeout=self.timeout)
+        except requests.exceptions.RequestException as exc:
+            logger.error(f"Bot service GET request to {url} failed: {exc}")
+            raise BotServiceUnavailableError from None
         return self.check_response(response, url)
