@@ -2,6 +2,7 @@ import base64
 
 import pytest
 
+from core.config import Config
 from core.service import template_service
 
 
@@ -35,9 +36,9 @@ def test_build_template_response_handles_real_template_states(
 
     response = template_service.build_template_response("report_template.html")
 
-    assert response["id"] == "report_template.html"
-    assert response["content"] == expected_content
-    assert response["validation_status"]["error_type"] == expected_error_type
+    assert response.name == "report_template.html"
+    assert response.content == expected_content
+    assert response.validation_status["error_type"] == expected_error_type
 
 
 def test_build_templates_list_returns_api_payloads(monkeypatch):
@@ -52,9 +53,9 @@ def test_build_templates_list_returns_api_payloads(monkeypatch):
 
     items = template_service.build_templates_list()
 
-    assert items == [
+    assert [item.model_dump() for item in items] == [
         {
-            "id": "valid.html",
+            "name": "valid.html",
             "content": base64.b64encode(b"Hello {{ name }}").decode("utf-8"),
             "validation_status": {
                 "is_valid": True,
@@ -63,7 +64,7 @@ def test_build_templates_list_returns_api_payloads(monkeypatch):
             },
         },
         {
-            "id": "empty.html",
+            "name": "empty.html",
             "content": "",
             "validation_status": {
                 "is_valid": False,
@@ -72,7 +73,7 @@ def test_build_templates_list_returns_api_payloads(monkeypatch):
             },
         },
         {
-            "id": "invalid.html",
+            "name": "invalid.html",
             "content": None,
             "validation_status": {
                 "is_valid": False,
@@ -84,13 +85,13 @@ def test_build_templates_list_returns_api_payloads(monkeypatch):
 
 
 @pytest.mark.parametrize(
-    ("order", "expected_ids"),
+    ("order", "expected_names"),
     [
-        ("id_asc", ["alpha.html", "Beta.html", "zulu.html"]),
-        ("id_desc", ["zulu.html", "Beta.html", "alpha.html"]),
+        ("name_asc", ["alpha.html", "Beta.html", "zulu.html"]),
+        ("name_desc", ["zulu.html", "Beta.html", "alpha.html"]),
     ],
 )
-def test_templates_endpoint_orders_by_id(client, auth_header, monkeypatch, order, expected_ids):
+def test_templates_endpoint_orders_by_name(client, auth_header, monkeypatch, order, expected_names):
     templates = ["zulu.html", "alpha.html", "Beta.html"]
     monkeypatch.setattr(template_service, "list_templates", lambda: templates)
     monkeypatch.setattr(template_service, "get_template_content", lambda _: "Hello")
@@ -98,4 +99,34 @@ def test_templates_endpoint_orders_by_id(client, auth_header, monkeypatch, order
     response = client.get("/api/config/templates", query_string={"order": order}, headers=auth_header)
 
     assert response.status_code == 200
-    assert [item["id"] for item in response.json["items"]] == expected_ids
+    assert [item["name"] for item in response.json["items"]] == expected_names
+
+
+def test_templates_api_lifecycle(client, auth_header, monkeypatch, tmp_path):
+    monkeypatch.setattr(Config, "DATA_FOLDER", str(tmp_path))
+    (tmp_path / "presenter_templates").mkdir()
+    name = "report.html"
+    content = base64.b64encode(b"Hello {{ name }}").decode()
+    endpoint = f"/api/config/templates/{name}"
+
+    response = client.post("/api/config/templates", json={"name": name, "content": content}, headers=auth_header)
+    assert response.status_code == 200
+    assert (tmp_path / "presenter_templates" / name).read_text() == "Hello {{ name }}"
+
+    response = client.get(endpoint, headers=auth_header)
+    assert response.status_code == 200
+    assert response.json == {
+        "name": name,
+        "content": content,
+        "validation_status": {"is_valid": True, "error_message": "", "error_type": ""},
+    }
+
+    content = base64.b64encode(b"Updated").decode()
+    assert client.put(endpoint, json={"content": content}, headers=auth_header).status_code == 200
+    assert client.get(endpoint, headers=auth_header).json["content"] == content
+    assert client.delete(endpoint, headers=auth_header).status_code == 200
+    assert client.get(endpoint, headers=auth_header).json == {
+        "name": name,
+        "content": None,
+        "validation_status": {"is_valid": False, "error_message": "Template file not found.", "error_type": "NotFound"},
+    }
