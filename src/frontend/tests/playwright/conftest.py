@@ -591,6 +591,13 @@ def forward_console_and_page_errors(request, logged_in_page):
 
 
 @pytest.fixture
+def forward_console_and_page_errors_publisher_validation(request, logged_in_page):
+    yield from _forward_console_and_page_errors(
+        request, logged_in_page, extra_allow_patterns=[r"/admin/publisher:0:0 :: Failed to load resource:.*400 \(BAD REQUEST\)"]
+    )
+
+
+@pytest.fixture
 def forward_console_and_page_errors_non_admin(request, non_admin_logged_in_page):
     yield from _forward_console_and_page_errors(
         request,

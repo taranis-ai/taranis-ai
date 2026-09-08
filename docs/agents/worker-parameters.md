@@ -60,6 +60,8 @@ Verified mode parses the public key and pins it to the URL hostname/port with
 carry over between presets. No worker filesystem trust store is loaded.
 The `public-key` schema widget renders a textarea and file picker; Alpine reads the
 local file into the textarea, which follows normal parameter submission and persistence.
+Standard form validation errors rebuild extra context from the submitted model so the
+selected publisher's parameter fields and entered values remain available for correction.
 `src/worker/tests/publishers/test_sftp_publisher.py` exercises actual SSH uploads and
 rejections; the publisher preset E2E workflow covers upload, persistence, and bypass.
 The explicit bypass can trigger CodeQL's missing host-key validation rule and must not

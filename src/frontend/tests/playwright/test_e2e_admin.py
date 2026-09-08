@@ -1219,7 +1219,7 @@ class TestEndToEndAdmin(BaseE2ETest):
         remove_connector()
 
     @pytest.mark.parametrize("publisher_type", ["ftp", "sftp"])
-    def test_publisher_presets(self, logged_in_page: Page, forward_console_and_page_errors, publisher_type):
+    def test_publisher_presets(self, logged_in_page: Page, forward_console_and_page_errors_publisher_validation, publisher_type):
         page = logged_in_page
         host_key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAABAgMEBQYHCAkKCwwNDg8QERITFBUWFxgZGhscHR4f test-server\n"
 
