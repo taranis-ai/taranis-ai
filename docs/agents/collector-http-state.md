@@ -14,7 +14,7 @@ Parsed collector timestamps with an offset are converted to naive UTC; timezone-
 
 Collector fetch, parse, and publish failures propagate to `collector_task`, which persists `FAILURE` and does not schedule post-collection bots. Playwright cleanup still runs on failures.
 
-Direct HTTP connection failures and timeouts in `send_get_request` use a static message advising checks of worker-container DNS, network access, and `PROXY_SERVER`. Original exceptions are logged server-side and suppressed from the displayed error chain. This adds no retries and does not diagnose DNS as the definite cause. Worker task tests cover connection, proxy, connect-timeout, and read-timeout failures through RSS collection.
+Direct HTTP connection failures and timeouts in `send_get_request` use a static message advising checks of worker-container DNS, network access, and `PROXY_SERVER`. Original exceptions are logged server-side and suppressed from the displayed error chain. This adds no retries and does not diagnose DNS as the definite cause.
 
 ## Code Paths
 - Worker HTTP behavior: `src/worker/worker/collectors/base_web_collector.py`
