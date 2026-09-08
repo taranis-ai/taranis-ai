@@ -41,7 +41,8 @@ class TestNoJavaScriptLayout:
             expect(page.get_by_role("heading", name=pre_seed_stories[0]["title"])).to_be_visible()
             expect(page.get_by_role("searchbox", name="Select sources")).to_be_hidden()
             expect(page.get_by_role("searchbox", name="Search tags")).to_be_hidden()
-            expect(page.get_by_test_id("language-filter-native")).to_be_visible()
+            expect(page.get_by_role("searchbox", name="Select languages")).to_be_hidden()
+            expect(page.locator('select[name="language"]')).to_have_count(0)
 
             page.locator('#assess-sidebar select[name="sort"]').select_option("date_asc")
             page.get_by_test_id("assess-apply-filters").click()

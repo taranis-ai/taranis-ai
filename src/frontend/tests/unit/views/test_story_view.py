@@ -689,7 +689,7 @@ def test_assess_filters_support_htmx_and_native_form_submission(authenticated_cl
     assert not filter_form.xpath('.//select[@name="source"]')
     assert not filter_form.xpath('.//select[@name="group"]')
     assert not filter_form.xpath('.//select[@name="tags"]')
-    assert filter_form.xpath('.//select[@name="language" and @data-testid="language-filter-native"]//option[@value="en"]')
+    assert not filter_form.xpath('.//select[@name="language"]')
 
 
 def test_story_read_action_replaces_story_card(app):
