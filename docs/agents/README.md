@@ -41,6 +41,8 @@ Use these files when a task mentions a related feature, workflow, route, model, 
 - [Worker Parameters](worker-parameters.md) - shared parameter registry ownership, configured/effective values, schema-driven forms, secrets, update semantics, and migration rules.
 - [OSINT Source Management](osint-source-management.md) - single and bulk source creation, atomic bulk deletion, shared settings, optional groups, and import-backed transactions.
 
+- [Presenter Template API](template-api.md) - template names, Pydantic responses, sorting, and admin routing.
+
 ## File Format
 
 Each memory should use this structure:

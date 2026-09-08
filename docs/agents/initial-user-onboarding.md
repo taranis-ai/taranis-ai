@@ -8,6 +8,8 @@ Initial database setup, pre-seeded users, onboarding tasks, `pre_seed_default_us
 
 `SKIP_INITIAL_USER_ONBOARDING` defaults to `false` and presets the persistent global `onboarding_enabled` setting only while that setting is missing. A value of `true` presets onboarding to disabled; later changes in Admin Settings remain authoritative.
 
+`PRE_SEED_SETTINGS` accepts a flat JSON object for any global settings. `Settings.initialize()` applies it only when no singleton settings row exists, filling omitted keys with normal defaults. An explicit `onboarding_enabled` seed overrides `SKIP_INITIAL_USER_ONBOARDING` and is copied to existing initial users. Subsequent startup preserves persisted settings and does not merge seed values. JSON parsing is handled by Pydantic Settings; initialization reuses existing timezone, integer, and boolean validators. Environment parsing and persistence/restart coverage live in `src/core/tests/test_settings.py`; deployment examples are in `docker/README.md`.
+
 Changing the global setting updates every existing user's `profile.onboarding_enabled` value. An administrator can then override individual users in Admin Users, including enabling one user while the global setting remains disabled. New users inherit the current global value unless the create form explicitly overrides it.
 
 Disabling onboarding suppresses pending tasks without changing completed, dismissed, or pending task state. An actual global value change replaces all existing per-user enabled flags; submitting the unchanged global value preserves individual overrides.
