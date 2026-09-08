@@ -2,7 +2,7 @@
 
 Administrators can inspect recent collection activity on an OSINT source's detail page. The value appears next to the lifetime number of news items stored for that source.
 
-Use the **Articles** control above the table to select:
+Use the period control (**Day**, **Week**, **Month**) on the source's detail page to select:
 
 - **Day**: the trailing 24 hours
 - **Week**: the trailing 7 days, selected by default
