@@ -4,6 +4,8 @@ This worker uses RQ (Redis Queue) for background task processing.
 
 RSS sources expose collection health through their persisted task status. Responses that are not identifiable as RSS or Atom fail immediately and remain failed across a later 304 response. Parseable feeds with no entries report `NOT_MODIFIED` with an explicit empty-feed message that is preserved across later 304 responses.
 
+RSS and Simple Web HTTP connection failures and timeouts report guidance to check worker-container DNS, network access, and `PROXY_SERVER`. Technical exception details stay in worker logs. This does not add automatic retries; see [deployment troubleshooting](../../deploy/README.md#collector-network-errors).
+
 ## Install
 
 ```bash

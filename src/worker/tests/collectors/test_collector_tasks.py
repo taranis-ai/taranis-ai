@@ -2,6 +2,7 @@ from copy import deepcopy
 from unittest.mock import MagicMock
 
 import pytest
+from niquests.exceptions import ConnectionError, ConnectTimeout, ProxyError, ReadTimeout
 
 from worker.collectors import collector_tasks
 from worker.config import Config
@@ -44,6 +45,29 @@ def test_collector_task_missing_source_is_recorded_as_failure(current_job, reque
         },
         "status": "FAILURE",
     }
+
+
+@pytest.mark.parametrize("error_type", [ConnectionError, ProxyError, ConnectTimeout, ReadTimeout])
+def test_rss_network_failure_reports_worker_network_guidance(current_job, requests_mock, monkeypatch, error_type):
+    source = {
+        "id": "source-1",
+        "name": "Source 1",
+        "type": "rss_collector",
+        "parameters": {"FEED_URL": "https://example.com/feed"},
+    }
+    monkeypatch.setattr(collector_tasks.Collector, "get_source", lambda self, osint_source_id: source)
+    requests_mock.get(source["parameters"]["FEED_URL"], exc=error_type("private-network-details"))
+    requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
+
+    with pytest.raises(RuntimeError, match="Check DNS resolution and network access from the worker container") as failure:
+        collector_tasks.collector_task("source-1", False)
+
+    payload = next(request.json() for request in requests_mock.request_history if request.url.endswith("/tasks"))
+    assert payload["status"] == "FAILURE"
+    assert "PROXY_SERVER" in payload["result"]["message"]
+    assert "private-network-details" not in str(payload)
+    assert "private-network-details" not in str(failure.value)
+    assert all(not request.url.endswith("/worker/post-collection-bots") for request in requests_mock.request_history)
 
 
 def test_mastodon_failure_result_uses_curated_message_and_recovers(current_job, requests_mock, monkeypatch):
