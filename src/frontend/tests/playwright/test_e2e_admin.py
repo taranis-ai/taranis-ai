@@ -1218,8 +1218,10 @@ class TestEndToEndAdmin(BaseE2ETest):
         update_connector()
         remove_connector()
 
-    def test_publisher_presets(self, logged_in_page: Page, forward_console_and_page_errors):
+    @pytest.mark.parametrize("publisher_type", ["ftp", "sftp"])
+    def test_publisher_presets(self, logged_in_page: Page, forward_console_and_page_errors, publisher_type):
         page = logged_in_page
+        host_key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAABAgMEBQYHCAkKCwwNDg8QERITFBUWFxgZGhscHR4f test-server\n"
 
         def load_publisher_presets():
             page.goto(url_for("admin.publisher_presets", _external=True))
@@ -1229,29 +1231,55 @@ class TestEndToEndAdmin(BaseE2ETest):
         def publisher_presets_create():
             page.get_by_test_id("new-publisher_preset-button").click()
             expect(page.get_by_role("heading", name="Create Publisher Preset")).to_be_visible()
-            ftp_url_input = page.locator('input[name="parameters[FTP_URL]"]')
+            ftp_url_input = page.locator(f'input[name="parameters[{publisher_type.upper()}_URL]"]')
 
             expect(page.get_by_role("textbox", name="Name")).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Name").fill("publisher preset test")
-            self.select_dynamic_type_and_wait(page, "ftp_publisher", ftp_url_input)
+            self.select_dynamic_type_and_wait(page, f"{publisher_type}_publisher", ftp_url_input)
             expect(ftp_url_input).to_have_attribute("required", "")
-            ftp_url_input.fill("testurl")
+            ftp_url_input.fill("sftp://user@example.test/" if publisher_type == "sftp" else "testurl")
+            if publisher_type == "sftp":
+                page.get_by_test_id("optional-worker-parameters").locator("summary").click()
+                host_key_input = page.locator('textarea[name="parameters[HOST_KEY]"]')
+                bypass = page.locator('input[name="parameters[ACCEPT_ANY_HOST_KEY]"][type="checkbox"]')
+                expect(bypass).not_to_be_checked()
+                page.get_by_role("button", name="Create Publisher Preset").click()
+                expect(page.get_by_text("Provide a server host public key", exact=False).first).to_be_visible()
+                optional = page.get_by_test_id("optional-worker-parameters")
+                if not optional.evaluate("el => el.open"):
+                    optional.locator("summary").click()
+                page.get_by_label("Upload public key file").set_input_files(
+                    {"name": "server.pub", "mimeType": "text/plain", "buffer": host_key.encode()}
+                )
+                expect(host_key_input).to_have_value(host_key)
             page.get_by_role("button", name="Create Publisher Preset").click()
-            expect(page.get_by_role("row", name="publisher preset test Ftp")).to_be_visible()
+            expect(page.get_by_role("link", name="publisher preset test", exact=True)).to_be_visible()
 
         def publisher_presets_update():
             page.get_by_role("link", name="publisher preset test").click()
             expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
-            ftp_url_input = page.locator('input[name="parameters[FTP_URL]"]')
+            ftp_url_input = page.locator(f'input[name="parameters[{publisher_type.upper()}_URL]"]')
 
             ftp_url_input.click()
             expect(ftp_url_input).to_have_attribute("required", "")
-            ftp_url_input.fill("testurl.com")
+            ftp_url_input.fill("sftp://user@example.test/reports/" if publisher_type == "sftp" else "testurl.com")
+            if publisher_type == "sftp":
+                page.get_by_test_id("optional-worker-parameters").locator("summary").click()
+                host_key_input = page.locator('textarea[name="parameters[HOST_KEY]"]')
+                expect(host_key_input).to_have_value(host_key)
+                host_key_input.fill("")
+                page.locator('input[name="parameters[ACCEPT_ANY_HOST_KEY]"][type="checkbox"]').check()
             page.get_by_role("textbox", name="Name").click()
             expect(page.get_by_role("textbox", name="Name")).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Name").fill("publisher preset test updated")
             page.get_by_role("button", name="Update Publisher Preset").click()
             expect(page.get_by_role("row", name="publisher preset test updated")).to_be_visible()
+            if publisher_type == "sftp":
+                page.get_by_role("link", name="publisher preset test updated").click()
+                page.get_by_test_id("optional-worker-parameters").locator("summary").click()
+                expect(page.locator('input[name="parameters[ACCEPT_ANY_HOST_KEY]"][type="checkbox"]')).to_be_checked()
+                expect(page.locator('textarea[name="parameters[HOST_KEY]"]')).to_have_value("")
+                page.goto(url_for("admin.publisher_presets", _external=True))
 
         def publisher_presets_delete():
             publisher_table = page.get_by_test_id("publisher_preset-table")

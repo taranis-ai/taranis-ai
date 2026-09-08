@@ -52,9 +52,15 @@ Invalid reveal requests are logged server-side and return a static `400` error w
 
 ## SFTP Host Trust
 
-`SFTP_PUBLISHER` uses Paramiko's `RejectPolicy` and loads the worker account's
-`~/.ssh/known_hosts` before connecting. The published image uses `/app/.ssh/known_hosts`;
-provision verified server keys read-only as described in `deploy/README.md`.
-No publisher parameter bypasses host verification. Connections close even on failure.
-`src/worker/tests/publishers/test_sftp_publisher.py` exercises real SSH connections with
-trusted, unknown, and changed keys, including non-default port entries.
+`SFTP_PUBLISHER` requires `HOST_KEY` (an OpenSSH public key, uploaded or pasted in the
+admin form) or explicit `ACCEPT_ANY_HOST_KEY=true`. The latter defaults to false and,
+when enabled, ignores the supplied key and uses Paramiko's insecure `AutoAddPolicy`.
+Verified mode parses the public key and pins it to the URL hostname/port with
+`RejectPolicy`. Each upload uses a fresh client, so keys and bypass settings never
+carry over between presets. No worker filesystem trust store is loaded.
+The `public-key` schema widget renders a textarea and file picker; Alpine reads the
+local file into the textarea, which follows normal parameter submission and persistence.
+`src/worker/tests/publishers/test_sftp_publisher.py` exercises actual SSH uploads and
+rejections; the publisher preset E2E workflow covers upload, persistence, and bypass.
+The explicit bypass can trigger CodeQL's missing host-key validation rule and must not
+be mistaken for the secure default. See `deploy/README.md` for deployment and rollback.

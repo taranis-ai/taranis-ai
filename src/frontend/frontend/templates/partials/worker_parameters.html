@@ -48,6 +48,18 @@
       {{ form_select(label=field.label, name='parameters[' + field.name + ']', value=field_value, options=field.options, required=field_required) }}
     {% elif field.type == 'number' %}
       {{ form_input(label=field.label, name='parameters[' + field.name + ']', value=field_value, type='number', required=field_required, min_value=field.minimum, max_value=field.maximum, preserve=preserve) }}
+    {% elif field.widget == 'public-key' %}
+      <div x-data="{ uploadError: '' }">
+        {{ form_textarea(label=field.label, name='parameters[' + field.name + ']', value=field_value, required=field_required, preserve=preserve) }}
+        <label class="label" for="upload-{{ field.name }}">Upload public key file</label>
+        <input id="upload-{{ field.name }}"
+               type="file"
+               accept=".pub,.txt,text/plain"
+               class="file-input w-full"
+               x-on:change="uploadError = ''; const file = $event.target.files[0]; if (file) { if (file.size > 16384) { uploadError = 'Public key file must be at most 16 KiB.'; } else { file.text().then(text => $el.parentElement.querySelector('textarea').value = text).catch(() => uploadError = 'Could not read public key file.'); } }">
+        <p class="text-error text-sm" role="alert" x-text="uploadError"></p>
+        <p class="text-sm mb-5">Use the server's public key, verified with its administrator. You can also paste it above.</p>
+      </div>
     {% elif field.type == 'textarea' %}
       {% set textarea_value = field_value | tojson if field_value is mapping else field_value %}
       {{ form_textarea(label=field.label, name='parameters[' + field.name + ']', value=textarea_value, required=field_required, preserve=preserve) }}

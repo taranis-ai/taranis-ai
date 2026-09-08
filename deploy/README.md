@@ -138,19 +138,23 @@ For dashboard updates, deploy matching core and frontend images so weekly activi
 
 ## SFTP publisher host trust
 
-SFTP publishing requires a trusted server key in the worker user's `~/.ssh/known_hosts`.
-For the published worker image this is `/app/.ssh/known_hosts`. Mount a pre-provisioned
-file there read-only on each worker that processes publishing jobs; for a local worker,
-use the account running the worker. Ensure that account can read the file.
+Configure host trust in **Admin → Publisher Presets → SFTP Publisher → Optional settings**.
+Upload the server's `.pub` file or paste its OpenSSH public key (`key-type base64-key`,
+with an optional comment) into **Server host public key**. Verify its fingerprint with
+the server administrator through a trusted channel. The key applies to the destination
+in the SFTP URL, including non-default ports. Changed server keys fail publishing.
+The public key is stored in the preset's `HOST_KEY` parameter; no image changes,
+worker filesystem mounts, or restarts are needed when updating a key.
 
-Obtain the host key from the SFTP administrator and verify its fingerprint through a
-trusted channel before installing it. A key collected with `ssh-keyscan` alone is not
-verified. Use `hostname key-type base64-key` entries for port 22 and
-`[hostname]:port key-type base64-key` for non-default ports, matching the SFTP URL.
-Unknown hosts and changed keys fail publishing; keys are never accepted automatically.
+Alternatively, explicitly enable **Accept any server host key (insecure)**
+(`ACCEPT_ANY_HOST_KEY=true`). This ignores any supplied key and disables server identity
+verification, allowing man-in-the-middle attacks. It defaults to false. Without a key
+or this explicit opt-in, configuration and publishing fail. The client authentication
+`PRIVATE_KEY` parameter is separate from the server's public host key.
 
-Before upgrading an existing SFTP deployment, provision the verified keys, pull the
-selected published image, restart the workers, verify worker health, and publish a test
-product. For a legitimate key rotation, verify and replace the trusted key, then retry.
-If rolling back worker images, retain the trust mount and account for the older image's
-lack of host-key enforcement.
+Deploy matching core, frontend, and worker images for these parameters. For existing
+SFTP presets, configure one of the two options before publishing; mounted `known_hosts`
+files are no longer used. Pull the selected published images, restart services, verify
+health, and publish a test product. No database migration is required. Before rolling
+back, export the presets and remove the new parameters for older schema versions;
+the prior worker version requires its documented `known_hosts` setup.
