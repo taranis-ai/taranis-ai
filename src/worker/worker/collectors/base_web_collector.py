@@ -27,6 +27,13 @@ def parse_datetime(value: str) -> datetime.datetime | None:
     return None
 
 
+class HTTPNotModifiedError(NoChangeError):
+    def __init__(self, url: str, *, primary_resource: bool):
+        super().__init__(f"{url} was not modified")
+        self.url = url
+        self.primary_resource = primary_resource
+
+
 class BaseWebCollector(BaseCollector):
     def __init__(self):
         super().__init__()
@@ -98,7 +105,7 @@ class BaseWebCollector(BaseCollector):
         if response.status_code == 200 and not response.content:
             logger.info(f"Request to {url} got Response 200 OK, but returned no content")
         if response.status_code == 304:
-            raise NoChangeError(f"{url} was not modified")
+            raise HTTPNotModifiedError(url, primary_resource=primary_request)
         if response.status_code == 429:
             raise requests.exceptions.HTTPError("Got Response 429 Too Many Requests. Try decreasing REFRESH_INTERVAL.")
         response.raise_for_status()

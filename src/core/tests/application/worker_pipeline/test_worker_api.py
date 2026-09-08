@@ -1010,8 +1010,8 @@ class TestWorkerTaskResults:
                 if Task.get(task_id):
                     Task.delete(task_id)
 
-    @pytest.mark.parametrize("status", ["NOT_MODIFIED", "WARNING"])
-    def test_collector_completed_updates_last_success_and_task_statistics(self, client, api_header, app, fake_source, status):
+    @pytest.mark.parametrize("status, counter", [("NOT_MODIFIED", "successes"), ("WARNING", "warnings")])
+    def test_collector_completed_updates_last_success_and_task_statistics(self, client, api_header, app, fake_source, status, counter):
         from core.model.osint_source import CollectorHTTPState
         from core.model.task import Task
 
@@ -1059,9 +1059,9 @@ class TestWorkerTaskResults:
 
             history = history_response.get_json()
             collector_stats = history["task_stats"]["rss_collector"]
-            assert collector_stats["successes"] >= 1
-            assert collector_stats["total"] >= collector_stats["successes"]
-            assert history["totals"]["successes"] >= 1
+            assert collector_stats[counter] >= 1
+            assert collector_stats["total"] >= collector_stats[counter]
+            assert history["totals"][counter] >= 1
         finally:
             with app.app_context():
                 if Task.get(task_id):
