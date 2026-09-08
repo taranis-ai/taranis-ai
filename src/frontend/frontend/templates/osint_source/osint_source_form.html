@@ -32,7 +32,24 @@
 
   <p class="text-base-content/60 text-[0.7rem] mb-5 w-3/4 ml-[10%]">ID: {{ osint_id }}</p>
   {% if osint_id != "0" %}
-    <p class="text-base-content/60 text-[0.7rem] mb-5 w-3/4 ml-[10%]">News items in database: {{ osint_source.news_items_count or 0 }}</p>
+    {% set collection_count = osint_source.collection_count or 0 %}
+    {% set collection_period = collection_period | default(osint_source.collection_period or "week") %}
+    <div class="flex flex-wrap items-end justify-between gap-3 mb-5 w-3/4 ml-[10%]">
+      <div class="text-base-content/60 text-[0.7rem]">
+        <p>News items in database: {{ osint_source.news_items_count or 0 }}</p>
+        <p data-testid="osint-source-collection-count">
+          Recent collection: {{ collection_count }} article{% if collection_count != 1 %}s{% endif %}/{{ collection_period }}
+        </p>
+      </div>
+      <nav class="join" aria-label="Article collection period">
+        {% for option in ["day", "week", "month"] %}
+          <a class="join-item btn btn-xs {% if collection_period == option %}btn-active{% endif %}"
+             href="{{ url_for('admin.edit_osint_source', osint_source_id=osint_id, period=option) }}"
+             data-testid="detail-collection-period-{{ option }}"
+             {% if collection_period == option %}aria-current="true"{% endif %}>{{ option | capitalize }}</a>
+        {% endfor %}
+      </nav>
+    </div>
   {% endif %}
   {% if read_only %}
     <div role="alert" class="alert alert-warning alert-horizontal w-3/4 mb-4 ml-[10%]">

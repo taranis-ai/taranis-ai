@@ -2,7 +2,7 @@
 
 ## When To Load
 
-Source administration, bulk creation/deletion, curated lists, source groups, `/admin/sources`, or version-4 source import.
+Source administration, bulk creation/deletion, curated lists, source groups, `/admin/sources`, rolling collection metrics, or version-4 source import.
 
 ## Contracts
 
@@ -15,6 +15,8 @@ Source administration, bulk creation/deletion, curated lists, source groups, `/a
 - Bulk input errors return 400, core failures retain their status, and transport failures return 502 with the form notification.
 - Detail Collect preserves unsaved edits with a notification-only response. Row/Collect All refresh the table; Collect All retains query parameters. Apply the [shared swap/error rules](frontend-development.md).
 
+- Source details show rolling collection counts for the trailing 24 hours, 7 days, or 30 days, defaulting to week, alongside the lifetime news-item count. Use `NewsItem.collected`, never `NewsItem.published`.
+
 ## Entry Points and Coverage
 
 `src/frontend/frontend/views/admin_views/source_views.py`, `src/frontend/frontend/templates/osint_source/`, `src/core/core/model/osint_source.py`, `src/core/core/api/config.py`, `src/core/core/static/curated_osint_sources.json`.
@@ -22,3 +24,7 @@ Source administration, bulk creation/deletion, curated lists, source groups, `/a
 The bulk parameter fragment omits only the primary URL; ordinary requests, including `bulk=false`, retain it. Frontend builds the version-4 payload from name/URL rows and shared settings.
 
 Tests: `src/frontend/tests/unit/views/test_views.py`, `src/core/tests/application/admin_console/configuration/test_config_api.py`, and `test_admin_osint_workflow` in `src/frontend/tests/playwright/test_e2e_admin.py`. In E2E, run Collect All before loading curated feeds while only the manual source exists; asynchronous feed collection can otherwise recreate cleaned-up stories and contaminate later workflows.
+
+`GET /config/osint-sources/{id}?period=day|week|month` adds the rolling metric alongside `news_items_count`; the overview does not calculate or return collection activity. Count and period validation live in `src/core/core/model/osint_source.py`; the UI lives in `src/frontend/frontend/templates/osint_source/osint_source_form.html`.
+
+Rolling-window and invalid-period coverage lives in `src/core/tests/application/admin_console/configuration/test_osint_source_validation.py`; detail rendering and period selection are covered in `src/frontend/tests/unit/views/test_views.py`.
