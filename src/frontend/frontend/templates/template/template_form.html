@@ -19,7 +19,7 @@
     <input id="id"
            type="text"
            placeholder="Enter filename...*"
-           name="id"
+           name="name"
            value="{{ '' if template.id == '0' else template.id }}"
            required
            pattern="^[\w\.\-]+$"
@@ -73,10 +73,10 @@
 
   if (!window.__templateEditorAfterSwapHandler) {
     window.__templateEditorAfterSwapHandler = (event) => {
-      if (event.target && event.target.id === formId) {
+      if (event.detail.ctx?.target?.id === formId) {
         initTemplateEditor();
       }
     };
-    document.addEventListener('htmx:afterSwap', window.__templateEditorAfterSwapHandler);
+    document.addEventListener('htmx:after:swap', window.__templateEditorAfterSwapHandler);
   }
 </script>

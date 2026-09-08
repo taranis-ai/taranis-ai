@@ -18,12 +18,12 @@ from worker.log import logger
 
 def parse_datetime(value: str) -> datetime.datetime | None:
     try:
-        parsed = dateparser.parse(value, ignoretz=True)
+        parsed = dateparser.parse(value)
     except (TypeError, ValueError, OverflowError):
         logger.info("Could not parse datetime value")
         return None
     if isinstance(parsed, datetime.datetime):
-        return parsed
+        return NewsItem.normalize_datetime(parsed)
     return None
 
 

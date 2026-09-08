@@ -22,6 +22,24 @@ def _expected_story_tag_names(story: dict) -> set[str]:
 class TestWorkerApi:
     base_uri = "/api/worker"
 
+    @pytest.mark.parametrize(
+        ("add_result", "should_notify"),
+        [
+            ({"story_ids": ["story-1"], "news_item_ids": ["news-1"], "message": "1 News item added successfully"}, True),
+            ({"story_ids": [], "news_item_ids": [], "message": "All news items were skipped"}, False),
+        ],
+    )
+    def test_news_item_ingestion_notifies_only_when_items_are_added(self, client, api_header, monkeypatch, add_result, should_notify):
+        assess_changed = Mock()
+        monkeypatch.setattr("core.api.worker.Story.add_news_items", lambda _: (add_result, 200))
+        monkeypatch.setattr("core.api.worker.realtime_publisher.assess_changed", assess_changed)
+
+        response = client.post(f"{self.base_uri}/news-items", json=[{"id": "news-1"}], headers=api_header)
+
+        assert response.status_code == 200
+        assert response.get_json() == add_result
+        assert assess_changed.call_count == int(should_notify)
+
     def test_rss_source_includes_global_entry_limit(self, client, api_header, fake_source, monkeypatch):
         monkeypatch.setattr(
             "core.model.osint_source.Settings.get_settings",

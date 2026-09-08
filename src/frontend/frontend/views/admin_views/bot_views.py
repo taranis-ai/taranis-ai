@@ -117,6 +117,15 @@ class BotView(AdminBaseView):
         ]
 
         bot = base_context.get(cls.model_name())
+        if bot and bot.index is None:
+            try:
+                bots = DataPersistenceLayer().get_objects(Bot).items
+                bot.index = max((item.index for item in bots if item.index is not None), default=0) + 1
+            except HTTPException:
+                raise
+            except Exception:
+                logger.exception("Failed to choose the next bot index")
+
         bot_type_name = request.args.get("type", "")
         if bot and (bot_type := _bot_type_name(bot)):
             parameter_values = bot.parameters or {}
@@ -170,6 +179,25 @@ class BotView(AdminBaseView):
             word_list_options=cls.get_word_list_options(),
             worker_parameters_selected=True,
         )
+
+    @classmethod
+    @admin_required()
+    def get_bot_index_availability(cls):
+        index = request.args.get("index", type=int)
+        if index is None:
+            return render_template("bot/bot_index_availability.html", index=None, available=None)
+
+        current_bot_id = request.args.get("id", "")
+        try:
+            bots = DataPersistenceLayer().get_objects(Bot).items
+            available = not any(bot.index == index and bot.id != current_bot_id for bot in bots)
+        except HTTPException:
+            raise
+        except Exception:
+            logger.exception("Failed to check bot index availability")
+            available = None
+
+        return render_template("bot/bot_index_availability.html", index=index, available=available)
 
     @classmethod
     @admin_required()

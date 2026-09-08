@@ -56,6 +56,33 @@ def test_auth_login(client):
     assert response.status_code == 200
 
 
+def test_auth_login_rejects_non_string_credentials(client):
+    # regression test: a dict payload (e.g. NoSQL-injection style {"$gt": ""}) must not reach the DB layer
+    body = {"username": {"$gt": ""}, "password": "irrelevant"}
+    response = client.post("/api/auth/login", json=body)
+    assert response.status_code == 400
+    assert response.json == {"error": "Missing username or password"}
+
+
+def test_auth_login_coerces_numeric_credentials_to_wrong_credentials(client):
+    body = {"username": 123, "password": 456}
+    response = client.post("/api/auth/login", json=body)
+    assert response.status_code == 401
+
+
+def test_auth_login_rejects_empty_string_credentials(client):
+    body = {"username": "", "password": ""}
+    response = client.post("/api/auth/login", json=body)
+    assert response.status_code == 400
+    assert response.json == {"error": "Missing username or password"}
+
+
+def test_auth_login_rejects_non_dict_json_body(client):
+    response = client.post("/api/auth/login", json=["admin", "password"])
+    assert response.status_code == 400
+    assert response.json == {"error": "No data provided"}
+
+
 def test_auth_refresh_is_header_only_and_rejects_revoked_tokens(client, app, monkeypatch):
     from core.auth import base_authenticator
     from core.model.user import User

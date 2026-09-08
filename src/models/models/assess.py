@@ -354,6 +354,18 @@ class StoryUpdatePayload(TaranisBaseModel):
         return normalized
 
 
+class AnalystReviewActionPayload(TaranisBaseModel):
+    story_id: str
+    action: Literal["add", "dismiss"]
+    report_id: str | None = None
+
+    @model_validator(mode="after")
+    def require_report_for_add(self) -> Self:
+        if self.action == "add" and not self.report_id:
+            raise ValueError("report_id is required when adding a story")
+        return self
+
+
 class BulkAction(TaranisBaseModel):
     story_ids: list[str] = Field(default_factory=list)
     payload: StoryUpdatePayload | None = None

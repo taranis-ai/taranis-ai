@@ -47,7 +47,7 @@ services:
       - telemetry_data:/data
 
   centrifugo:
-    image: "centrifugo/centrifugo:v6.9.1"
+    image: "centrifugo/centrifugo:v6.9"
     depends_on:
       redis:
         condition: service_healthy

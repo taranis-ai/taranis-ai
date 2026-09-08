@@ -23,36 +23,49 @@ run_in_dir() {
   )
 }
 
+sync_models() {
+  run_in_dir src/models uv sync --frozen --all-extras
+}
+
+sync_core() {
+  run_in_dir src/core uv sync --frozen --all-extras
+}
+
+sync_frontend() {
+  run_in_dir src/frontend uv sync --frozen --all-extras
+  run_in_dir src/frontend ./build_tailwindcss.sh
+}
+
+sync_worker() {
+  run_in_dir src/worker uv sync --frozen --all-extras
+}
+
 run_models() {
   run_step "src/models"
-  run_in_dir src/models uv sync --frozen --all-extras
   run_in_dir src/models uv run --frozen --no-sync ruff check
 }
 
 run_core() {
   run_step "src/core"
-  run_in_dir src/core uv sync --frozen --all-extras
   run_in_dir src/core uv run --frozen --no-sync ruff check
   run_in_dir src/core uv run --frozen --no-sync pytest
 }
 
 run_frontend() {
   run_step "src/frontend"
-  run_in_dir src/frontend uv sync --frozen --all-extras
   run_in_dir src/frontend uv run --frozen --no-sync ruff check
   run_in_dir src/frontend uv run --frozen --no-sync djlint --profile=jinja --check frontend/templates
-  run_in_dir src/frontend uv run --frozen --no-sync pytest
+  run_in_dir src/frontend uv run --frozen --no-sync pytest -p no:cacheprovider --ignore=tests/playwright
 }
 
 run_frontend_e2e() {
   run_step "src/frontend e2e"
-  run_in_dir src/frontend ./build_tailwindcss.sh
-  run_in_dir src/frontend uv run --frozen --no-sync pytest --e2e-ci
+  run_in_dir src/frontend uv run --frozen --no-sync pytest -p no:cacheprovider \
+    tests/playwright --e2e-ci
 }
 
 run_worker() {
   run_step "src/worker"
-  run_in_dir src/worker uv sync --frozen --all-extras
   run_in_dir src/worker uv run --frozen --no-sync ruff check
   run_in_dir src/worker uv run --frozen --no-sync pytest
 }
@@ -110,10 +123,19 @@ PARALLEL_NAMES=()
 PARALLEL_PIDS=()
 PARALLEL_LOGS=()
 
+start_parallel_step "sync src/models" sync_models
+start_parallel_step "sync src/core" sync_core
+start_parallel_step "sync src/frontend" sync_frontend
+start_parallel_step "sync src/worker" sync_worker
+wait_parallel_steps
+
+PARALLEL_NAMES=()
+PARALLEL_PIDS=()
+PARALLEL_LOGS=()
+
 start_parallel_step "src/models" run_models
 start_parallel_step "src/core" run_core
 start_parallel_step "src/frontend" run_frontend
 start_parallel_step "src/worker" run_worker
+start_parallel_step "src/frontend e2e" run_frontend_e2e
 wait_parallel_steps
-
-run_frontend_e2e

@@ -97,7 +97,7 @@ uv run pybabel compile -d frontend/translations
 * [DaisyUI](https://daisyui.com/docs/intro/)
 * [tailwindCSS](https://tailwindcss.com/docs)
 * [Jinja](https://jinja.palletsprojects.com/en/stable/templates/)
-* [HTMX](https://htmx.org/docs/)
+* [HTMX 4](https://four.htmx.org/docs/)
 
 ### 1. Download and Setup Tailwind CSS
 

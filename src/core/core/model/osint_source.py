@@ -3,9 +3,10 @@ import json
 from collections.abc import Sequence
 from datetime import UTC, datetime
 from io import BytesIO
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from models.admin import CronSpec, OSINTSourceUpdateModel
+from models.admin import CronSpec, CuratedOSINTSourceCatalog, OSINTSourceUpdateModel
 from models.admin import OSINTSource as OSINTSourceModel
 from models.types import COLLECTOR_TYPES
 from PIL import Image, ImageOps, UnidentifiedImageError
@@ -17,6 +18,7 @@ from sqlalchemy.sql import Select
 from core.config import Config
 from core.log import logger
 from core.managers import queue_manager
+from core.managers.data_manager import get_default_json
 from core.managers.db_manager import db
 from core.model.base_model import DB_INTEGER_MAX, UUID_STR_LENGTH, BaseModel
 from core.model.role import TLPLevel
@@ -37,6 +39,19 @@ class InvalidOSINTSourceIconError(ValueError):
     def __init__(self, public_message: str):
         super().__init__(public_message)
         self.public_message = public_message
+
+
+class CuratedOSINTSourceSchedulingError(RuntimeError):
+    pass
+
+
+class CuratedOSINTSourceConflictError(ValueError):
+    def __init__(self, source_name: str):
+        self.public_message = (
+            f'Cannot load curated lists: source "{source_name}" already exists with a different collector type. '
+            "Rename the existing source and try again. No sources or groups were changed."
+        )
+        super().__init__(self.public_message)
 
 
 class CollectorHTTPState(BaseModel):
@@ -88,7 +103,7 @@ class OSINTSource(BaseModel):
 
     id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), primary_key=True, default=BaseModel.uuid7_str)
     key: Mapped[str | None] = db.Column(db.String(64), unique=True, nullable=True)
-    name: Mapped[str] = db.Column(db.String(), nullable=False)
+    name: Mapped[str] = db.Column(db.String(), nullable=False, unique=True)
     description: Mapped[str] = db.Column(db.String())
     rank: Mapped[int] = db.Column(db.Integer, nullable=False, default=0)
 
@@ -946,6 +961,106 @@ class OSINTSource(BaseModel):
         logger.debug(f"Imported {len(ids)} sources")
         return ids
 
+    @staticmethod
+    def get_curated_catalog() -> CuratedOSINTSourceCatalog:
+        filename = "curated_osint_sources.json"
+        catalog_path = Path(get_default_json(filename)) / filename
+        with catalog_path.open(encoding="utf-8") as catalog_file:
+            return CuratedOSINTSourceCatalog.model_validate(json.load(catalog_file))
+
+    @classmethod
+    def get_curated_list_summaries(cls) -> list[dict[str, Any]]:
+        catalog = cls.get_curated_catalog()
+        return [
+            {
+                "name": curated_list.name,
+                "description": curated_list.description,
+                "source_count": len(curated_list.sources),
+            }
+            for curated_list in catalog.lists
+        ]
+
+    @classmethod
+    def load_curated_lists(cls, list_names: set[str]) -> dict[str, int | str]:
+        catalog = cls.get_curated_catalog()
+        catalog_lists = {curated_list.name: curated_list for curated_list in catalog.lists}
+        if unknown_list_names := set(list_names) - catalog_lists.keys():
+            raise ValueError(f"Unknown curated list names: {', '.join(sorted(unknown_list_names))}")
+
+        selected_lists = [catalog_lists[name] for name in list_names]
+        selected_source_names = {name for curated_list in selected_lists for name in curated_list.sources}
+        catalog_sources = {source.name: source for source in catalog.sources}
+        existing_sources = {
+            source.name: source for source in db.session.execute(db.select(cls).where(cls.name.in_(selected_source_names))).scalars()
+        }
+        existing_groups = {
+            group.name: group
+            for group in db.session.execute(db.select(OSINTSourceGroup).where(OSINTSourceGroup.name.in_(list_names))).scalars()
+        }
+        resolved_sources: dict[str, OSINTSource] = {}
+        created_sources: list[OSINTSource] = []
+
+        try:
+            for source_name in selected_source_names:
+                source = existing_sources.get(source_name)
+                if source is not None and source.type != catalog_sources[source_name].type:
+                    raise CuratedOSINTSourceConflictError(source_name)
+                if source is None:
+                    source = cls.from_payload(catalog_sources[source_name])
+                    db.session.add(source)
+                    created_sources.append(source)
+                resolved_sources[source_name] = source
+
+            default_group = OSINTSourceGroup.get_default()
+            if default_group:
+                for source in created_sources:
+                    if source not in default_group.osint_sources:
+                        default_group.osint_sources.append(source)
+
+            created_group_count = 0
+            updated_group_count = 0
+            for curated_list in selected_lists:
+                group = existing_groups.get(curated_list.name)
+                if group is None:
+                    group = OSINTSourceGroup(name=curated_list.name, description=curated_list.description)
+                    db.session.add(group)
+                    created_group_count += 1
+                else:
+                    updated_group_count += 1
+
+                for source_name in curated_list.sources:
+                    source = resolved_sources[source_name]
+                    if source not in group.osint_sources:
+                        group.osint_sources.append(source)
+
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            raise
+
+        scheduling_failed = False
+        for source in resolved_sources.values():
+            if not source.enabled:
+                continue
+            try:
+                if source.schedule_osint_source() is not True:
+                    scheduling_failed = True
+                    logger.error("Failed to schedule curated OSINT source %s", source.id)
+            except Exception:
+                scheduling_failed = True
+                logger.exception("Failed to schedule curated OSINT source %s", source.id)
+
+        if scheduling_failed:
+            raise CuratedOSINTSourceSchedulingError
+
+        return {
+            "message": "Curated OSINT sources loaded successfully",
+            "created_source_count": len(created_sources),
+            "reused_source_count": len(selected_source_names) - len(created_sources),
+            "created_group_count": created_group_count,
+            "updated_group_count": updated_group_count,
+        }
+
     @classmethod
     def get_all_for_assess_api(cls, user=None) -> tuple[dict[str, Any], int]:
         filter_args = {}
@@ -975,7 +1090,7 @@ class OSINTSourceGroup(BaseModel):
 
     id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), primary_key=True, default=BaseModel.uuid7_str)
     key: Mapped[str | None] = db.Column(db.String(64), unique=True, nullable=True)
-    name: Mapped[str] = db.Column(db.String(), nullable=False)
+    name: Mapped[str] = db.Column(db.String(), nullable=False, unique=True)
     description: Mapped[str] = db.Column(db.String())
     default: Mapped[bool] = db.Column(db.Boolean(), default=False)
 

@@ -1,33 +1,20 @@
 # Bot Run Order DAG
 
 ## When To Load
-Bot configuration, post-collection bots, `RUN_AFTER_COLLECTOR`, `RUN_AFTER_BOTS`, bot dependencies, admin bot form, worker bot scheduling.
 
-## Expected Behavior
-Each configured bot instance is a DAG node, identified by `Bot.id`. Multiple bot instances may use the same `BOT_TYPES` value. `RUN_AFTER_COLLECTOR=true` marks collector roots. `RUN_AFTER_BOTS` stores comma-separated parent bot instance UUIDs, edited through the admin run-order UI rather than raw text.
+Bot dependencies, `RUN_AFTER_COLLECTOR`, `RUN_AFTER_BOTS`, DAG previews, or post-collection scheduling.
 
-The admin dependency preview is scoped to the connected dependency component containing the edited bot. The Collector Chain remains the global enabled collector run order: every bot in that order sees the same full chain, while bots outside it see no Collector Chain section. Disabled bots are excluded from the collector chain but can remain visible in dependency badges with disabled styling. Malformed preview fields, types, or indexes return a generic 400 response rather than exposing validation details or raising a 500.
+## Contracts
 
-Collector-triggered runs enqueue the reachable enabled DAG once. Manual and cron bot runs enqueue the downstream DAG for their specific `worker_id` only after a successful result. Dependent jobs inherit the original filter and run with dependent triggering suppressed, so downstream completions do not schedule duplicate chains.
+- Nodes are configured `Bot.id` UUIDs, never bot types (multiple instances may share a type). `RUN_AFTER_COLLECTOR=true` defines roots; `RUN_AFTER_BOTS` stores comma-separated parent UUIDs edited through the run-order UI.
+- Core validates dependencies, self-links, and cycles. Collector runs enqueue the reachable enabled DAG once. Successful manual/cron runs schedule downstream nodes for their `worker_id`; dependent jobs inherit filters and suppress further dependent triggering.
+- Multi-parent nodes wait only for parents in the current chain. Missing/disabled parents do not block it, but previews warn about them.
+- Dependency preview shows the edited bot's connected component. Collector Chain shows the full enabled collector order only for bots in that chain; disabled parents may still appear in dependency badges.
+- Bot indexes are unique. Accept integers/integer strings, reject booleans/floats, treat null/empty as omitted, and preserve zero and omitted-update semantics. New forms suggest max+1; availability checks exclude the current bot. Database conflicts retain curated validation errors.
+- Use one `POST /api/config/bots/dag-preview`, sending only candidate `id`, `type`, `index`, `enabled`, and the two dependency fields. Reject unrelated fields; malformed previews return a generic 400.
 
-For multiple parents, a bot waits only for parents that are part of the current scheduled chain. Disabled or missing parents do not block a chain, but the preview should warn admins.
+## Entry Points and Coverage
 
-## Code Paths
-- Core model and DAG validation: `src/core/core/model/bot.py`
-- Queue graph scheduling: `src/core/core/managers/queue_manager.py`
-- Bot result follow-up scheduling: `src/core/core/service/task.py`
-- Worker bot result metadata: `src/worker/worker/bots/bot_tasks.py`
-- Admin bot UI: `src/frontend/frontend/views/admin_views/bot_views.py`, `src/frontend/frontend/templates/bot/`
-- Seeded defaults: `src/core/core/managers/pre_seed_data.py`
+`src/core/core/model/bot.py`, `src/core/core/managers/queue_manager.py`, `src/core/core/service/task.py`, `src/models/models/admin.py`, `src/worker/worker/bots/bot_tasks.py`, `src/frontend/frontend/views/admin_views/bot_views.py`.
 
-## Data Flow
-The normal create/update form posts the full bot configuration. DAG previews use one `POST /api/config/bots/dag-preview` endpoint and send the candidate `id` for stored bots plus `type`, `index`, `enabled`, `RUN_AFTER_COLLECTOR`, and `RUN_AFTER_BOTS`. Core rejects unrelated fields and validates the bot type, dependency UUIDs, self-dependencies, and cycles. Queue scheduling converts bot instance IDs to RQ `depends_on` relationships.
-
-## Testing
-- Core DAG tests: `src/core/tests/application/admin_console/configuration/test_bot_dag.py`
-- Queue graph tests: `src/core/tests/application/admin_console/configuration/test_queue_manager_scheduler_extended.py`
-- Frontend run-order tests: `src/frontend/tests/unit/views/test_bot_view.py`
-- Worker metadata tests: `src/worker/worker/tests/bots/test_bot_tasks.py`
-
-## Pitfalls
-Do not use bot types as DAG references: they are implementation selectors and are not unique configuration identities. Do not accept type aliases in `RUN_AFTER_BOTS`; this WIP feature has one canonical UUID-based shape. Do not add separate new-bot, stored-bot, or override DAG preview endpoints. Do not send the full bot response model, task status, credentials, or unrelated worker parameters to the preview endpoint. Do not reintroduce type-specific ordering or scheduling special cases. Do not let dependent jobs trigger their own dependents unless the full chain should intentionally recurse.
+Tests: `src/core/tests/application/admin_console/configuration/test_bot_dag.py`, `src/core/tests/application/admin_console/configuration/test_queue_manager_scheduler_extended.py`, `src/frontend/tests/unit/views/test_bot_view.py`, `src/frontend/tests/playwright/test_e2e_admin.py`, `src/worker/tests/bots/test_bot_tasks.py`.

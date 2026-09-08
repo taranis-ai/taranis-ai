@@ -184,7 +184,7 @@
                  hx-push-url="false"
                  hx-swap="innerHTML"
                  :hx-vals="JSON.stringify({ q: query })"
-                 hx-on::beforeRequest="if (!hasQuery()) event.preventDefault()"
+                 hx-on::before:request="if (!hasQuery()) event.preventDefault()"
                {% endif %}>
       </label>
       <ul id="{{ suggestion_list_id }}"

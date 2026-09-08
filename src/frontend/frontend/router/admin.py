@@ -66,10 +66,14 @@ class BulkCreateOSINTSources(MethodView):
         return SourceView.bulk_create_post_view()
 
 
-class LoadDefaultOSINTSources(MethodView):
+class CuratedOSINTSourceLists(MethodView):
+    @admin_required()
+    def get(self):
+        return SourceView.curated_lists_view()
+
     @admin_required()
     def post(self):
-        return SourceView.load_default_osint_sources()
+        return SourceView.curated_lists_post_view()
 
 
 class OSINTSourceCollect(MethodView):
@@ -189,7 +193,11 @@ def init(app: Flask):
     )
     admin_bp.add_url_rule("/export/osint_sources", view_func=ExportOSINTSources.as_view("export_osint_sources"))
     admin_bp.add_url_rule("/import/osint_sources", view_func=ImportOSINTSources.as_view("import_osint_sources"))
-    admin_bp.add_url_rule("/load_default_osint_sources", view_func=LoadDefaultOSINTSources.as_view("load_default_osint_sources"))
+    admin_bp.add_url_rule(
+        "/sources/curated",
+        view_func=CuratedOSINTSourceLists.as_view("curated_osint_source_lists"),
+        methods=["GET", "POST"],
+    )
     admin_bp.add_url_rule(
         "/source_preview/<string:osint_source_id>",
         view_func=SourceView.get_osint_source_preview_view,
@@ -209,6 +217,9 @@ def init(app: Flask):
     admin_bp.add_url_rule("/bots/<string:bot_id>", view_func=BotView.as_view("edit_bot"))
     admin_bp.add_url_rule(
         "/bot_parameters/<string:bot_id>", view_func=BotView.get_bot_parameters_view, methods=["GET"], endpoint="bot_parameters"
+    )
+    admin_bp.add_url_rule(
+        "/bot_index_availability", view_func=BotView.get_bot_index_availability, methods=["GET"], endpoint="bot_index_availability"
     )
     admin_bp.add_url_rule("/bot_dag_preview", view_func=BotView.preview_bot_dag, methods=["POST"], endpoint="bot_dag_preview")
     admin_bp.add_url_rule("/toggle_bot_state/<string:bot_id>/<string:new_state>", view_func=BotView.toggle_bot_state, methods=["POST"])

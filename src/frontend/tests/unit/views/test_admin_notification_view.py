@@ -34,7 +34,9 @@ def test_admin_notifications_page_shows_sidebar_link_form_and_connected_clients(
     assert tree.xpath(f'//a[@data-testid="admin-menu-Notifications"][@href="{notifications_url}"]')
     form = tree.xpath(f'//form[@hx-post="{notifications_url}"]')[0]
     assert form.get("hx-target") == "#notification-bar"
-    assert form.get("hx-target-error") == "#notification-bar"
+    assert form.get("hx-status:400") == "target:#notification-bar"
+    assert form.get("hx-status:4xx") == "target:#notification-bar"
+    assert form.get("hx-status:5xx") == "target:#notification-bar"
     assert form.xpath('.//input[@name="message"][@maxlength="500"][@required]')
     assert tree.xpath('//*[@data-testid="connected-client-count"][normalize-space()="2"]')
     assert tree.xpath('//*[@data-testid="connected-user-count"][normalize-space()="1"]')

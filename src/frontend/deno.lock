@@ -3,27 +3,25 @@
   "specifiers": {
     "npm:@codemirror/commands@^6.11.0": "6.11.0",
     "npm:@codemirror/language@^6.12.4": "6.12.4",
-    "npm:@codemirror/legacy-modes@^6.5.3": "6.5.3",
+    "npm:@codemirror/legacy-modes@^6.5.4": "6.5.4",
     "npm:@codemirror/merge@^6.12.2": "6.12.2",
-    "npm:@codemirror/state@^6.7.1": "6.7.1",
-    "npm:@codemirror/view@^6.43.9": "6.43.9",
+    "npm:@codemirror/state@^6.7.2": "6.7.2",
+    "npm:@codemirror/view@^6.43.10": "6.43.10",
     "npm:@tailwindcss/cli@4.3.0": "4.3.0",
-    "npm:alpinejs@*": "3.16.3",
-    "npm:alpinejs@^3.16.3": "3.16.3",
+    "npm:alpinejs@*": "3.17.1",
+    "npm:alpinejs@^3.17.1": "3.17.1",
     "npm:choices.js@*": "11.2.4",
     "npm:choices.js@^11.2.4": "11.2.4",
     "npm:codemirror@^6.0.2": "6.0.2",
-    "npm:daisyui@^5.7.22": "5.7.22",
+    "npm:daisyui@^5.7.27": "5.7.27",
     "npm:driver.js@*": "1.8.0",
     "npm:driver.js@^1.8.0": "1.8.0",
     "npm:fuse.js@*": "7.5.0",
     "npm:fuse.js@^7.5.0": "7.5.0",
     "npm:highlight-search-term@*": "1.0.3",
     "npm:highlight-search-term@^1.0.3": "1.0.3",
-    "npm:htmx-ext-response-targets@*": "2.0.4",
-    "npm:htmx-ext-response-targets@^2.0.4": "2.0.4",
-    "npm:htmx.org@*": "2.0.10",
-    "npm:htmx.org@^2.0.10": "2.0.10",
+    "npm:htmx.org@4": "4.0.0",
+    "npm:htmx.org@4.0.0": "4.0.0",
     "npm:sortablejs@*": "1.15.7",
     "npm:sortablejs@^1.15.7": "1.15.7",
     "npm:sweetalert2@*": "11.26.25",
@@ -60,8 +58,8 @@
         "style-mod"
       ]
     },
-    "@codemirror/legacy-modes@6.5.3": {
-      "integrity": "sha512-xCsmIzH78MyWkib9jlPaaun57XNkfbMIhagfaZVd0iLTqlpw3jXaIcbZm72MTmmn64eTZpBVNjbyYh+QXnxRsg==",
+    "@codemirror/legacy-modes@6.5.4": {
+      "integrity": "sha512-/cZr6qZyl08iYNLGsJ862CXXNI51LryRFRE40ejgoIjXZz0C1rGkD3/Ek5jM/8w1ceRjqtt4qx/KLMh4zBTgew==",
       "dependencies": [
         "@codemirror/language"
       ]
@@ -92,14 +90,14 @@
         "crelt"
       ]
     },
-    "@codemirror/state@6.7.1": {
-      "integrity": "sha512-9QzNDgE4EYDnAHfrTlR2lwiPciiOymLtwKK+8yHQzCc7GXhAP9xdEbEJFy2IWB1j9UGUl9BsgMmTo/ImA02T7A==",
+    "@codemirror/state@6.7.2": {
+      "integrity": "sha512-U3RiPX62Wl/Gx4ftQ7UxLlloSfsFTQqKa+7vFBYteZGCzkp6oBqcsD7iSwniWRGobCAmDcwZSY+Six3+3ztdfg==",
       "dependencies": [
         "@marijn/find-cluster-break"
       ]
     },
-    "@codemirror/view@6.43.9": {
-      "integrity": "sha512-sTuUzTpPMFebRhg6dawChoKKgndIwfjmJgKVxBefPElcU2NwQ6AFroupk0SFqEerQyZOGRfDNnSN8Dw/lMAsXw==",
+    "@codemirror/view@6.43.10": {
+      "integrity": "sha512-vVWLvd4fKWYN/pMcwUrg6dWeublxmSz+V+52ZjW3h64IVN9cRUYLk5Km4JDT9vifxAFfDtNOIFxKYENthcolJQ==",
       "dependencies": [
         "@codemirror/state",
         "crelt",
@@ -346,8 +344,8 @@
     "@vue/shared@3.5.42": {
       "integrity": "sha512-2rPxex1jQf4jvl9MOHl6YaXCPcrNqz/FstMOEh3QWY+/OME9nQTvl9WYeCwhW7AFjaR0SnngZGlp/wkR6rkI6g=="
     },
-    "alpinejs@3.16.3": {
-      "integrity": "sha512-kLIO2JOPs5ZY3mHPH+CHHPzp89Y6Gb2luLRy+RDIb1oG9y6N5Vfc75kkEoaSOPhJqvakuPiAsnd9paNPNSZyVg==",
+    "alpinejs@3.17.1": {
+      "integrity": "sha512-HDUhA9juSA/pNYZ5FAAlW4qNsdeVORFSVONEIu0hVasqCOqLitf15R9tCr5GBCV0ZxiZW2Qx6BYdMSF7iGLT/Q==",
       "dependencies": [
         "@vue/reactivity"
       ]
@@ -373,8 +371,8 @@
     "crelt@1.0.7": {
       "integrity": "sha512-aK6BbWfhf4U/wCcLHKPJl/xa6VkVstRaPywWtMKGwuOLc/wZTyQYuoxgvZnNsBvv7Kg3YTBQYYBCggcviQczuA=="
     },
-    "daisyui@5.7.22": {
-      "integrity": "sha512-pYii+2NCN0+OIL6Lpuc054LK0QJeNv+GRK9UzN1GRmjdYhYO6WFl0QLoj5oPcitPD7o+okiiI0SKFkn641TxmA=="
+    "daisyui@5.7.27": {
+      "integrity": "sha512-Je10yYK7UFJYyLSQrIxhFmpwX+86gXdNTnfNkA1jlev7j9oz3QrqioEQ6/0JYOvYPs5NYH4aaJ+X35/N80G/xg=="
     },
     "detect-libc@2.1.2": {
       "integrity": "sha512-Btj2BOOO83o3WyH59e8MgXsxEQVcarkUOpEYrubB0urwnN10yQ364rsiByU11nZlqWYZm05i/of7io4mzihBtQ=="
@@ -398,14 +396,9 @@
     "highlight-search-term@1.0.3": {
       "integrity": "sha512-cCZNdQp6Dpq54QvixkrUltZ6rPHnLHapQUOQiZqTojntJRyBuX/jeWY0LvBS76JcDEd7QKbZL780vz3TtbJDJQ=="
     },
-    "htmx-ext-response-targets@2.0.4": {
-      "integrity": "sha512-Q/yfH0N2A40j903mr6ldGV3qLWMQeufROylYIbYQLBGrCpmydflxXmQwDOEhEWdPnBTgiHofkAo0gQ3S1BmyxQ==",
-      "dependencies": [
-        "htmx.org"
-      ]
-    },
-    "htmx.org@2.0.10": {
-      "integrity": "sha512-kdeJe7ZVwaS6QMz/ebBIVtZdpwen6L0OQ5GOhPV9MKBb196TCZeZu4yA7ZIQsaLKv7EpXz+So7KSXNuHXhj7Cw=="
+    "htmx.org@4.0.0": {
+      "integrity": "sha512-T/171FUY93Kdfp8t+DnHdk45QvKRiBhVhhrwSzrXgUi4pHKvhp77dUA/qg8FAjsFWPIHNbmUuIdCrcVHuiZWng==",
+      "bin": true
     },
     "is-extglob@2.1.1": {
       "integrity": "sha512-SbKbANkN603Vi4jEZv49LeVJMn4yGwsbzZworEoyEiutsN3nJYdbO36zfhGJ6QEDpOZIFkDtnq5JRxmvl3jsoQ=="
@@ -538,20 +531,19 @@
     "dependencies": [
       "npm:@codemirror/commands@^6.11.0",
       "npm:@codemirror/language@^6.12.4",
-      "npm:@codemirror/legacy-modes@^6.5.3",
+      "npm:@codemirror/legacy-modes@^6.5.4",
       "npm:@codemirror/merge@^6.12.2",
-      "npm:@codemirror/state@^6.7.1",
-      "npm:@codemirror/view@^6.43.9",
+      "npm:@codemirror/state@^6.7.2",
+      "npm:@codemirror/view@^6.43.10",
       "npm:@tailwindcss/cli@4.3.0",
-      "npm:alpinejs@^3.16.3",
+      "npm:alpinejs@^3.17.1",
       "npm:choices.js@^11.2.4",
       "npm:codemirror@^6.0.2",
-      "npm:daisyui@^5.7.22",
+      "npm:daisyui@^5.7.27",
       "npm:driver.js@^1.8.0",
       "npm:fuse.js@^7.5.0",
       "npm:highlight-search-term@^1.0.3",
-      "npm:htmx-ext-response-targets@^2.0.4",
-      "npm:htmx.org@^2.0.10",
+      "npm:htmx.org@4",
       "npm:sortablejs@^1.15.7",
       "npm:sweetalert2@^11.26.25",
       "npm:tailwindcss@4.3.0"

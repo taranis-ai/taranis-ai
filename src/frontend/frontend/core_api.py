@@ -144,14 +144,11 @@ class CoreApi:
             logger.error(f"Export sources failed: {e}")
             return None
 
-    def load_default_osint_sources(self):
-        try:
-            return self.api_get("/static/default_sources.json")
-        except HTTPException:
-            raise
-        except Exception as e:
-            logger.error(f"Load default OSINT sources failed: {e}")
-            return None
+    def get_curated_osint_source_lists(self):
+        return self.api_get("/config/curated-osint-source-lists")
+
+    def load_curated_osint_source_lists(self, list_names: list[str]):
+        return self.api_post("/config/curated-osint-source-lists", json_data={"list_names": list_names})
 
     def get_osint_source_preview(self, osint_source_id: str):
         try:

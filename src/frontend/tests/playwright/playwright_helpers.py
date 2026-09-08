@@ -108,6 +108,10 @@ class PlaywrightHelpers:
             return
         time.sleep(duration)
 
+    def capture_screenshot(self, page: Page, path: str):
+        if not self.ci_run:
+            page.screenshot(path=path)
+
     def expect_list_of_test_ids_visible(self, page: Page, test_ids: list[str]):
         """Assert that a list of elements identified by their test IDs are visible on the page."""
         if not test_ids:

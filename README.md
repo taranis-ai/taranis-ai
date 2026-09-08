@@ -15,6 +15,8 @@ For production deployments, see our [Deployment Guide using docker compose](http
 
 For existing Celery/RabbitMQ deployments, see the [RQ Migration Guide](./dev/rq_migration_guide.md).
 
+To preseed global settings on a fresh instance, set core’s `PRE_SEED_SETTINGS` environment variable to a flat JSON object. See [settings preseeding](docker/README.md#settings-preseeding) for an example and restart behavior.
+
 ## Contributions
 
 We welcome contributions from the community! If you're interested in contributing to Taranis AI, please read our [Development Setup Guide](./dev/README.md) to get started.
@@ -30,6 +32,8 @@ For IntelOwl enrichment setup, see [docs/intelowl.md](docs/intelowl.md).
 For Mastodon collection setup, including access-token HTTPS requirements and complete-versus-latest cursor modes, see [docs/mastodon.md](docs/mastodon.md).
 
 For maintainer release steps, see [docs/releasing.md](docs/releasing.md).
+
+For container and Python dependency SBOM scope and attestations, see [docs/sbom.md](docs/sbom.md).
 
 ## Services
 
@@ -63,6 +67,8 @@ For maintainer release steps, see [docs/releasing.md](docs/releasing.md).
 
 An [OpenAPI spec](./src/core/core/static/openapi3_1.yaml) for the REST API is included and can be accessed in a running installation under `config/openapi`.
 
+Presenter template API responses and creation requests use `name` for the filename; list sorting uses `name_asc` or `name_desc`. See the [release notes for deployment coordination](./docs/releasing.md#template-api-contract).
+
 ### Core Health Endpoints
 
 Core exposes two unauthenticated health-related endpoints:
@@ -94,3 +100,7 @@ It is released under terms of the [European Union Public Licence](https://eupl.e
 ## EU Funding
 
 ![Co-financed by the Connecting Europe Facility of the European Union](https://ec.europa.eu/inea/sites/default/files/ceflogos/en_horizontal_cef_logo_2.png)
+
+Shared tables support ordinary links and GET forms for navigation, search, filters, and pagination when JavaScript is unavailable. Interactive Assess token filters and bulk actions still require JavaScript.
+
+The dashboard shows Assess, Analyze, Publish, and Connectors in a responsive two-column layout, with weekly activity counts (Monday onward, UTC) and an Assess header shortcut to analyst review. Users without review permission see the standard card title without an empty action area.

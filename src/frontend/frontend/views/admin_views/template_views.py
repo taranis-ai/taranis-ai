@@ -26,7 +26,7 @@ class TemplateView(AdminBaseView):
         from frontend.filters import render_item_validation_status
 
         return [
-            {"title": "Template Name", "field": "id", "sortable": True, "renderer": None},
+            {"title": "Template Name", "field": "name", "sortable": True, "renderer": None},
             {"title": "Validation Status", "field": "validation_status", "sortable": False, "renderer": render_item_validation_status},
         ]
 
@@ -66,4 +66,4 @@ class TemplateView(AdminBaseView):
             raise
         except Exception as exc:
             logger.error(f"Error storing form data: {exc!s}")
-            return None, str(exc)
+            return None, "Failed to save template"

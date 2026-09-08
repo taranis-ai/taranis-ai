@@ -1,33 +1,63 @@
 {% from 'dashboard/cards.html' import dashboard_card %}
 
-<div class="grid grid-flow-row-dense grid-cols-4 gap-4 pb-4">
-  {% call dashboard_card('Assess', url_for('assess.assess')) %}
-    <div class="join">
-      {{ heroicon_outline('newspaper', class="mr-1") }} There are <pre> {{ data.total_news_items }} </pre> total news items.
-    </div>
-    <br />
-    <div class="join">
-      {{ heroicon_outline('inbox-stack', class="mr-1") }} There are <pre> {{ data.total_story_items }} </pre> total story items.
+{% set review_action | trim %}
+  {% if can_start_analyst_review | default(false) %}
+    <span data-testid="start-analyst-review-card">
+      <a href="{{ url_for('assess.analyst_review_start') }}"
+         class="btn btn-primary btn-sm"
+         title="Review the current shift's unread Stories and continue through Report to Publish.">Start analyst review</a>
+    </span>
+  {% endif %}
+{% endset %}
+
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4 pb-4" data-testid="dashboard-workflow-cards">
+  {% call dashboard_card('Assess', url_for('assess.assess'), test_id='dashboard-assess-card', header_actions=review_action) %}
+    <div class="space-y-3">
+      <p class="flex items-center gap-2">
+        {{ heroicon_outline('newspaper', class="size-5 shrink-0 text-primary") }}
+        <span>There are <strong class="tabular-nums">{{ data.total_news_items }}</strong> news items</span>
+      </p>
+      <p class="flex items-center gap-2">
+        {{ heroicon_outline('inbox-stack', class="size-5 shrink-0 text-primary") }}
+        <span>There are <strong class="tabular-nums">{{ data.total_story_items }}</strong> stories</span>
+      </p>
+      <div class="rounded-lg bg-base-200 p-3 text-sm" title="Since Monday 00:00 UTC, by news publication date and story creation date.">
+        <p class="font-semibold mb-1">This week</p>
+        <p><strong class="tabular-nums">{{ data.news_items_this_week }}</strong> news items · <strong class="tabular-nums">{{ data.stories_this_week }}</strong> stories</p>
+      </div>
     </div>
   {% endcall %}
 
-  {% call dashboard_card('Analyze', url_for('analyze.analyze')) %}
-    <div class="join">
-      {{ heroicon_outline('chart-bar', class="mr-1") }} There are <pre> {{ data.report_items_completed }} </pre> completed analyses.
-    </div>
-    <br />
-    <div class="join">
-      {{ heroicon_outline('chart-bar', class="mr-1") }} There are <pre> {{ data.report_items_in_progress }} </pre> pending analyses.
-    </div>
-  {% endcall %}
-
-  {% call dashboard_card('Publish', url_for('publish.publish')) %}
-    <div class="join">
-      {{ heroicon_outline('paper-airplane', class="mr-1") }} There are <pre> {{ data.total_products }} </pre> products ready for publications.
+  {% call dashboard_card('Analyze', url_for('analyze.analyze'), test_id='dashboard-analyze-card') %}
+    <div class="space-y-3">
+      <p><strong class="tabular-nums">{{ data.report_items_completed }}</strong> completed reports</p>
+      <p><strong class="tabular-nums">{{ data.report_items_in_progress }}</strong> reports in progress</p>
+      <div class="rounded-lg bg-base-200 p-3 text-sm" title="Since Monday 00:00 UTC, by report creation date.">
+        <p class="font-semibold mb-1">This week</p>
+        <p><strong class="tabular-nums">{{ data.reports_this_week }}</strong> reports created</p>
+      </div>
     </div>
   {% endcall %}
 
-  {% call dashboard_card('Connectors', url_for('base.conflict_menu')) %}
-    There are <b>{{ data.conflict_count }}</b> conflicts detected.
+  {% call dashboard_card('Publish', url_for('publish.publish'), test_id='dashboard-publish-card') %}
+    <div class="space-y-3">
+      <p><strong class="tabular-nums">{{ data.total_products }}</strong> products</p>
+      <p class="text-sm text-base-content/70">Prepare products and choose where to publish them.</p>
+      <div class="rounded-lg bg-base-200 p-3 text-sm" title="Since Monday 00:00 UTC, by product creation date.">
+        <p class="font-semibold mb-1">This week</p>
+        <p><strong class="tabular-nums">{{ data.products_this_week }}</strong> products created</p>
+      </div>
+    </div>
+  {% endcall %}
+
+  {% call dashboard_card('Connectors', url_for('base.conflict_menu'), test_id='dashboard-connectors-card') %}
+    <div class="space-y-3">
+      <p><strong class="tabular-nums">{{ data.conflict_count }}</strong> conflicts need review</p>
+      <p class="text-sm text-base-content/70">Resolve incoming changes before applying them.</p>
+      <div class="rounded-lg bg-base-200 p-3 text-sm">
+        <p class="font-semibold mb-1">Pending conflicts</p>
+        <p><strong class="tabular-nums">{{ data.story_conflict_count }}</strong> story conflicts · <strong class="tabular-nums">{{ data.news_item_conflict_count }}</strong> news item conflicts</p>
+      </div>
+    </div>
   {% endcall %}
 </div>

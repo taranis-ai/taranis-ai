@@ -560,6 +560,9 @@ class StoryView(BaseView):
                 return cls.redirect_htmx(url_for("assess.bookmark", bookmark_id=bookmark_id))
             return cls.redirect_htmx(url_for("assess.story", story_id=story_ids[0]))
 
+        if not response.ok:
+            return make_response(notification_html, response.status_code or 500)
+
         if cls._get_bookmark_id() or StoryView._get_current_url_path() == url_for("assess.assess"):
             return cls.rerender_list(notification=notification_html)
         else:
@@ -582,9 +585,10 @@ class StoryView(BaseView):
         story_ids = request.form.getlist("story_ids")
         open_primary_story = request.form.get("open_primary") == "true"
         if len(story_ids) < 2:
-            return cls.rerender_list(
-                notification=cls.render_response_notification({"error": "At least two stories must be selected for clustering."})
-            )
+            notification_html = cls.render_response_notification({"error": "At least two stories must be selected for clustering."})
+            if is_htmx_request():
+                return make_response(notification_html, 400)
+            return cls.rerender_list(notification=notification_html)
         logger.debug(f"Clustering {story_ids[1:]} into {story_ids[0]}")
         response = CoreApi().api_post("/assess/stories/group", json_data=story_ids)
         notification_html = cls.get_notification_from_response(response)
@@ -593,6 +597,9 @@ class StoryView(BaseView):
             primary_story_id = story_ids[0]
             cls.add_flash_notification(response)
             return cls.redirect_htmx(url_for("assess.story", story_id=primary_story_id))
+
+        if not response.ok and is_htmx_request():
+            return make_response(notification_html, response.status_code or 500)
 
         return cls.rerender_list(notification=notification_html)
 

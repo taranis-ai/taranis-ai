@@ -51,13 +51,16 @@ def require_docker_compose_command() -> str:
     pytest.skip("docker compose or podman-compose is not available - skipping docker-backed tests")
 
 
-def docker_setup_commands(docker_compose_command: str) -> list[str]:
-    up_cmd = "up -d" if "podman" in docker_compose_command else "up -d --wait"
-    return ["down -v --remove-orphans", up_cmd]
+def docker_setup_commands(docker_compose_command: str, *services: str) -> list[str]:
+    up_cmd = ["up", "-d"]
+    if "podman" not in docker_compose_command:
+        up_cmd.append("--wait")
+    up_cmd.extend(services)
+    return [" ".join(up_cmd)]
 
 
 def docker_cleanup_commands() -> list[str]:
-    return ["down -v --remove-orphans"]
+    return ["down -v --remove-orphans --timeout 1"]
 
 
 def compose_logs(

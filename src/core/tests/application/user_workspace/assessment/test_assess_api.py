@@ -293,6 +293,160 @@ class TestAssessNewsItems(BaseTest):
 class TestAssessStories(BaseTest):
     base_uri = "/api/assess"
 
+    def test_analyst_review_snapshot_contains_only_current_unread_stories(self, app, client, stories, auth_header):
+        from datetime import timedelta
+
+        from core.managers.db_manager import db
+        from core.model.story import Story
+
+        with app.app_context():
+            current_unread = Story.get(stories[0])
+            current_read = Story.get(stories[1])
+            old_unread = Story.get(stories[2])
+            assert current_unread and current_read and old_unread
+
+            original_values = {item.id: (item.created, item.read) for item in (current_unread, current_read, old_unread)}
+            now = Story.utcnow()
+            current_unread.created = now
+            current_unread.read = False
+            current_read.created = now
+            current_read.read = True
+            old_unread.created = now - timedelta(days=2)
+            old_unread.read = False
+            db.session.commit()
+
+        try:
+            response = client.get(self.concat_url("analyst-review/snapshot"), headers=auth_header)
+
+            assert response.status_code == 200
+            assert response.get_json() == {"story_ids": [stories[0]]}
+        finally:
+            with app.app_context():
+                for story_id, (created, read) in original_values.items():
+                    story = Story.get(story_id)
+                    assert story
+                    story.created = created
+                    story.read = read
+                db.session.commit()
+
+    def test_analyst_review_add_is_one_atomic_story_and_report_update(
+        self,
+        app,
+        client,
+        stories,
+        cleanup_report_item,
+        auth_header,
+        monkeypatch,
+    ):
+        from core.managers.db_manager import db
+        from core.model.report_item import ReportItem
+        from core.model.story import Story
+
+        report_id = str(uuid.uuid7())
+        monkeypatch.setattr("core.service.analyst_review.ReportStorySyncService.refresh_auto_update_jobs", lambda _stories: None)
+
+        with app.app_context():
+            report, status = ReportItem.add(cleanup_report_item | {"id": report_id})
+            assert status == 200
+            assert isinstance(report, ReportItem)
+
+            story = Story.get(stories[0])
+            assert story
+            original_status = (story.read, story.important, story.last_change)
+            story.read = False
+            story.important = True
+            db.session.commit()
+            story_revision = story.revision
+            report_revision = report.revision
+
+        try:
+            response = client.post(
+                self.concat_url("analyst-review/actions"),
+                json={"action": "add", "story_id": stories[0], "report_id": report_id},
+                headers=auth_header,
+            )
+
+            assert response.status_code == 200
+            with app.app_context():
+                story = Story.get(stories[0])
+                report = ReportItem.get(report_id)
+                assert story and report
+                assert story.read is True
+                assert story.important is False
+                assert story in report.stories
+                assert story.revision == story_revision + 1
+                assert report.revision == report_revision + 1
+        finally:
+            with app.app_context():
+                if ReportItem.get(report_id):
+                    ReportItem.delete(report_id)
+                story = Story.get(stories[0])
+                assert story
+                story.read, story.important, story.last_change = original_status
+                db.session.commit()
+
+    def test_analyst_review_add_rolls_back_every_change_when_report_revision_fails(
+        self,
+        app,
+        client,
+        stories,
+        cleanup_report_item,
+        auth_header,
+        monkeypatch,
+    ):
+        from core.managers.db_manager import db
+        from core.model.report_item import ReportItem
+        from core.model.story import Story
+
+        report_id = str(uuid.uuid7())
+        monkeypatch.setattr("core.service.analyst_review.ReportStorySyncService.refresh_auto_update_jobs", lambda _stories: None)
+
+        with app.app_context():
+            report, status = ReportItem.add(cleanup_report_item | {"id": report_id})
+            assert status == 200
+            assert isinstance(report, ReportItem)
+
+            story = Story.get(stories[0])
+            assert story
+            original_status = (story.read, story.important, story.last_change)
+            story.read = False
+            story.important = True
+            db.session.commit()
+            story_revision = story.revision
+            report_revision = report.revision
+
+        def fail_report_revision(*_args, **_kwargs):
+            raise RuntimeError("revision failure")
+
+        monkeypatch.setattr("core.model.revision.ReportRevision.create_from_report", fail_report_revision)
+
+        try:
+            response = client.post(
+                self.concat_url("analyst-review/actions"),
+                json={"action": "add", "story_id": stories[0], "report_id": report_id},
+                headers=auth_header,
+            )
+
+            assert response.status_code == 500
+            assert response.get_json() == {"error": "Failed to apply analyst review action"}
+            with app.app_context():
+                story = Story.get(stories[0])
+                report = ReportItem.get(report_id)
+                assert story and report
+                assert story.read is False
+                assert story.important is True
+                assert story not in report.stories
+                assert story.revision == story_revision
+                assert report.revision == report_revision
+        finally:
+            with app.app_context():
+                if ReportItem.get(report_id):
+                    ReportItem.delete(report_id)
+                story = Story.get(stories[0])
+                assert story
+                story.read, story.important, story.last_change = original_status
+                db.session.commit()
+
     def test_import_story_payload(self, client, auth_header):
         imported_story_id = str(uuid.uuid4())
         imported_news_item_id = str(uuid.uuid4())
