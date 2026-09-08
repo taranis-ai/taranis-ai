@@ -15,6 +15,8 @@ For production deployments, see our [Deployment Guide using docker compose](http
 
 For existing Celery/RabbitMQ deployments, see the [RQ Migration Guide](./dev/rq_migration_guide.md).
 
+To preseed global settings on a fresh instance, set core’s `PRE_SEED_SETTINGS` environment variable to a flat JSON object. See [settings preseeding](docker/README.md#settings-preseeding) for an example and restart behavior.
+
 ## Contributions
 
 We welcome contributions from the community! If you're interested in contributing to Taranis AI, please read our [Development Setup Guide](./dev/README.md) to get started.
