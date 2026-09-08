@@ -11,6 +11,7 @@ Seeded users, onboarding tasks/settings, `pre_seed_default_user`, or `SKIP_INITI
 - The global value is a bulk default, not a runtime gate: individual users can be enabled while it is disabled. Disabling hides pending tasks without rewriting task completion/dismissal state.
 - Administrator tours require `ADMIN_OPERATIONS`; there is no catch-all `ALL` permission.
 - Fresh databases seed `admin`/`user` as Default Admin/Default User in one Default Organization.
+- `PRE_SEED_SETTINGS` accepts a flat JSON object for any global settings. `Settings.initialize()` applies it only when no singleton settings row exists
 
 ## Entry Points and Coverage
 
