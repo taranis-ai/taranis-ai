@@ -64,7 +64,7 @@ class Assets(MethodView):
             return {"error": "No data provided"}, 400
         response, status = asset.Asset.add(current_user.organization, data)
         invalidate_frontend_cache_on_success(status, models=("asset",))
-        return response, status
+        return jsonify(response), status
 
     @auth_required("ASSETS_CREATE")
     def put(self, asset_id: str | None = None):

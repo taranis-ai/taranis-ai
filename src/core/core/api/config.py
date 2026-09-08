@@ -129,7 +129,7 @@ class Attributes(MethodView):
     def post(self):
         attribute_result = attribute.Attribute.add(request.json)
         _invalidate_admin_cache(201)
-        return {"message": "Attribute added", "id": attribute_result.id}, 201
+        return jsonify({"message": "Attribute added", "id": attribute_result.id}), 201
 
     @auth_required("CONFIG_ATTRIBUTE_UPDATE")
     def put(self, attribute_id: str | None = None):
@@ -489,7 +489,7 @@ class Users(MethodView):
         try:
             new_user = user.User.add(request.json)
             _invalidate_admin_cache(201)
-            return {"message": "User created", "id": new_user.id}, 201
+            return jsonify({"message": "User created", "id": new_user.id}), 201
         except (IntegrityError, ValidationError):
             raise
         except Exception:

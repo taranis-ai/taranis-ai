@@ -135,3 +135,22 @@ docker exec -it core taranis-cli set-roles user Admin
 After updating the frontend image, check table search, sorting, page size, and pagination with JavaScript enabled and disabled. With JavaScript enabled, verify that search focus survives updates and failed requests display notifications without replacing the table.
 
 For dashboard updates, deploy matching core and frontend images so weekly activity fields are available. Check the four workflow cards, weekly counts, and permission-gated analyst review link. Verify that users without review permission have no empty header action area. No database migration is required.
+
+## SFTP publisher host trust
+
+SFTP publishing requires a trusted server key in the worker user's `~/.ssh/known_hosts`.
+For the published worker image this is `/app/.ssh/known_hosts`. Mount a pre-provisioned
+file there read-only on each worker that processes publishing jobs; for a local worker,
+use the account running the worker. Ensure that account can read the file.
+
+Obtain the host key from the SFTP administrator and verify its fingerprint through a
+trusted channel before installing it. A key collected with `ssh-keyscan` alone is not
+verified. Use `hostname key-type base64-key` entries for port 22 and
+`[hostname]:port key-type base64-key` for non-default ports, matching the SFTP URL.
+Unknown hosts and changed keys fail publishing; keys are never accepted automatically.
+
+Before upgrading an existing SFTP deployment, provision the verified keys, pull the
+selected published image, restart the workers, verify worker health, and publish a test
+product. For a legitimate key rotation, verify and replace the trusted key, then retry.
+If rolling back worker images, retain the trust mount and account for the older image's
+lack of host-key enforcement.

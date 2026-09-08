@@ -73,16 +73,17 @@ class SFTPPublisher(BasePublisher):
 
         logger.debug(f"Uploading to SFTP: {server_config.hostname}:{ssh_port} {remote_path}")
 
-        self.ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        self.ssh.connect(
-            hostname=hostname,
-            port=ssh_port,
-            username=server_config.username,
-            password=connect_password,
-            pkey=private_key,
-            look_for_keys=False,
-            allow_agent=False,
-        )
-        with self.ssh.open_sftp() as sftp:
-            sftp.putfo(data_to_upload, remote_path)
-        self.ssh.close()
+        self.ssh.load_system_host_keys()
+        self.ssh.set_missing_host_key_policy(paramiko.RejectPolicy())
+        with self.ssh:
+            self.ssh.connect(
+                hostname=hostname,
+                port=ssh_port,
+                username=server_config.username,
+                password=connect_password,
+                pkey=private_key,
+                look_for_keys=False,
+                allow_agent=False,
+            )
+            with self.ssh.open_sftp() as sftp:
+                sftp.putfo(data_to_upload, remote_path)

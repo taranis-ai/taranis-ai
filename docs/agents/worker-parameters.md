@@ -49,3 +49,12 @@ Invalid reveal requests are logged server-side and return a static `400` error w
 - The destructive migration has no reconstructive downgrade. Deployment requires a verified database snapshot; rollback restores it and redeploys the previous compatible images.
 - Migration failures for unsupported worker types or invalid enabled source/bot configurations identify the owner table, owner ID, and worker type; they never silently discard an owner. Incomplete connector, product-type, and publisher-preset configurations are retained for administrators to repair and are fully validated before execution.
 - `TAGGING_BOT.KEYWORDS` is migrated to `REGULAR_EXPRESSION` when no canonical value exists, and TAXII `AUTH_TYPE=token` is migrated to `bearer`.
+
+## SFTP Host Trust
+
+`SFTP_PUBLISHER` uses Paramiko's `RejectPolicy` and loads the worker account's
+`~/.ssh/known_hosts` before connecting. The published image uses `/app/.ssh/known_hosts`;
+provision verified server keys read-only as described in `deploy/README.md`.
+No publisher parameter bypasses host verification. Connections close even on failure.
+`src/worker/tests/publishers/test_sftp_publisher.py` exercises real SSH connections with
+trusted, unknown, and changed keys, including non-default port entries.

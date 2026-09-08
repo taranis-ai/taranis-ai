@@ -15,6 +15,8 @@ For production deployments, see our [Deployment Guide using docker compose](http
 
 For existing Celery/RabbitMQ deployments, see the [RQ Migration Guide](./dev/rq_migration_guide.md).
 
+SFTP publishers require verified server keys in the worker's `known_hosts` file; see [SFTP host trust setup](./deploy/README.md#sftp-publisher-host-trust).
+
 To preseed global settings on a fresh instance, set core’s `PRE_SEED_SETTINGS` environment variable to a flat JSON object. See [settings preseeding](docker/README.md#settings-preseeding) for an example and restart behavior.
 
 ## Contributions
