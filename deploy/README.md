@@ -113,6 +113,10 @@ kubectl logs deploy/collector --tail=200
 kubectl logs deploy/cron --tail=200
 ```
 
+## Collector network errors
+
+For HTTP connection failures or timeouts in collectors using the shared HTTP request helper (including RSS, Simple Web, and RT), check DNS resolution and outbound access from the worker/collector container or pod; successful resolution on the host alone is insufficient. A read timeout can also occur after a connection succeeds. If a proxy is required, verify the source's `PROXY_SERVER` URL and that its hostname resolves inside the container. A proxy IP can help diagnose a hostname-resolution problem, but should not replace fixing DNS. Check worker/collector logs for the underlying error, then run the collection again. Connection and timeout diagnostics remain HTTP request exceptions, preserving RT’s existing per-item error handling. No automatic retry policy is added by these diagnostic messages.
+
 ## Operational CLI
 
 Run `taranis-cli` inside the core container for emergency user administration.
