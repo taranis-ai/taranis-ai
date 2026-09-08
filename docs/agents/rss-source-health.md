@@ -11,8 +11,9 @@ RSS/Atom detection, feedparser, empty feeds, source status, or RSS entry limits.
 - Preserve validators and prior empty/failure state on 304 as defined in [Collector HTTP State](collector-http-state.md).
 - `rss_collector_max_entries` is a global positive integer, default 42, applying to normal feeds and digest splitting. Admin Settings warns outside 20–100 but permits any positive value.
 - Truncating feed entries reports `WARNING` with `rss_entry_limit` and "Only the newest N feed entries were considered. X items were skipped." Count skipped feed entries before filtering, deduplication, or digest expansion; preserve the existing feed order. Duplicate-only publication still warns when entries were truncated. Successful publication still runs post-collection bots.
-- HTTP 304 retains a prior entry-limit warning. A freshly parsed feed within the limit clears it, including duplicate-only publication. Raising the limit requires a fresh response (manual collection bypasses validators).
-- Warnings count as successful executions for timestamps/statistics and appear in My Tasks, while source badges/details and task rows display warning styling. Warning completion invalidates frontend content caches like success.
+- The warning is appended to the normal collection result, preserving publication or duplicate-only context.
+- A primary-feed HTTP 304 retains a prior entry-limit warning for the same URL. A freshly parsed feed within the limit clears it, including duplicate-only publication. Raising the limit requires a fresh response (manual collection bypasses validators).
+- Warnings update successful-execution timestamps and appear in My Tasks, while source badges/details and task rows display warning styling. Warning completion invalidates frontend content caches like success. Dashboard/history statistics count warnings separately and show warning styling; see [Scheduler Dashboard](scheduler-dashboard.md).
 
 ## Entry Points and Coverage
 

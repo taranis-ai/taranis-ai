@@ -199,6 +199,7 @@ class TaskHistoryStats(TaranisBaseModel):
     last_run_display: str | None = None
     last_success_display: str | None = None
     successes: int = 0
+    warnings: int = 0
     failures: int = 0
     total: int = 0
     success_pct: int = 0
@@ -207,6 +208,7 @@ class TaskHistoryStats(TaranisBaseModel):
 
 class TaskHistoryTotals(TaranisBaseModel):
     successes: int = 0
+    warnings: int = 0
     failures: int = 0
     overall_success_rate: int = 0
 
