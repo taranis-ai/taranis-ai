@@ -15,7 +15,9 @@
 {% endmacro %}
 
 {% macro action_button(action, item_id) %}
-  {% if item_id %}
+  {% if action.url_template %}
+    {% set action_url = action.url_template | replace('{item_id}', item_id | urlencode) %}
+  {% elif item_id %}
     {% if action.url.endswith('/') %}
       {% set action_url = action.url ~ item_id %}
     {% else %}
@@ -24,10 +26,13 @@
   {% else %}
     {% set action_url = action.url %}
   {% endif %}
+  {% if action.query_string %}
+    {% set action_url = action_url ~ ('&' if '?' in action_url else '?') ~ action.query_string %}
+  {% endif %}
   {% set testid = "action-" ~ action.label | lower | replace(' ', '-') ~ "-" ~ (item_id | default('button')) %}
   <div class="tooltip" data-tip="{{ action.label }}">
   {% if action.type == 'link' %}
-  <a href="{{ action_url }}" class="btn btn-ghost btn-sm {{ action.class }}" data-testid="{{ testid }}">
+  <a href="{{ action_url }}" class="btn btn-ghost btn-sm {{ action.class }}" aria-label="{{ action.label }}" data-testid="{{ testid }}">
        {{ heroicon_outline(action.icon) }}
   </a>
   {% elif action.type == 'function' %}

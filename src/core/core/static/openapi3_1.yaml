@@ -4974,8 +4974,8 @@ paths:
         schema:
           type: string
           enum:
-          - id_asc
-          - id_desc
+          - name_asc
+          - name_desc
       responses:
         '200':
           description: success
@@ -4990,7 +4990,7 @@ paths:
     post:
       tags:
       - config
-      description: create or update a presenter template (by id in body) and return
+      description: create or update a presenter template (by name in body) and return
         validation status
       operationId: config.config_templates.post
       security:
@@ -10772,7 +10772,7 @@ components:
     template_item:
       type: object
       properties:
-        id:
+        name:
           type: string
         content:
           description: base64 encoded template content; may be empty string when file
@@ -10784,7 +10784,8 @@ components:
         validation_status:
           $ref: '#/components/schemas/validation_status'
       required:
-      - id
+      - name
+      - content
       - validation_status
     template_list_response:
       type: object
@@ -10798,14 +10799,14 @@ components:
     template_write_request:
       type: object
       properties:
-        id:
+        name:
           type: string
           description: template file name (path relative to presenter_templates)
         content:
           type: string
           format: base64
       required:
-      - id
+      - name
       - content
     template_write_response:
       type: object

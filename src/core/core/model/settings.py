@@ -37,7 +37,7 @@ class Settings(BaseModel):
         merged.setdefault("default_story_conflict_retention", "200")
         merged.setdefault("default_news_item_conflict_retention", "200")
         merged.setdefault("default_timezone", None)
-        merged.setdefault("onboarding_enabled", not Config.SKIP_INITIAL_USER_ONBOARDING)
+        merged.setdefault("onboarding_enabled", True)
         return merged
 
     @classmethod
@@ -98,7 +98,15 @@ class Settings(BaseModel):
             onboarding_missing = "onboarding_enabled" not in (settings.settings or {})
             settings.settings = cls.with_defaults(settings.settings)
         else:
-            settings = cls()
+            seed = cls._normalize_update_data(Config.PRE_SEED_SETTINGS)
+            for key in ("default_bot_lookback_days", "rss_collector_max_entries"):
+                if key in seed:
+                    seed[key] = cls._validate_non_negative_int(seed[key])
+            if seed.get("rss_collector_max_entries") == 0:
+                raise ValueError("Invalid RSS collector entry limit")
+            if "onboarding_enabled" in seed:
+                seed["onboarding_enabled"] = cls._validate_bool(seed["onboarding_enabled"])
+            settings = cls(seed)
             onboarding_missing = True
             db.session.add(settings)
 

@@ -299,7 +299,7 @@ class TestCRUDViews:
         form_formats_from_models,
         authenticated_client,
     ):
-        item_id = str(mock_core_get_item_endpoints[view_name]["id"])
+        item_id = str(view_cls.model(**mock_core_get_item_endpoints[view_name]).id)
         key = view_cls._get_object_key()
         url = view_cls.get_edit_route(**{key: item_id})
         resp = authenticated_client.get(url)

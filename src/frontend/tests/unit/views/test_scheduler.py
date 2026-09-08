@@ -93,7 +93,7 @@ def test_source_filters_preserve_each_other_and_table_query(authenticated_client
     order_link = tree.xpath('//a[contains(@href, "order=")]')[0]
     limit_select = tree.xpath('//select[@name="limit"]')[0]
     assert parse_qs(urlparse(order_link.get("href")).query)["state"] == ["failure"]
-    assert parse_qs(urlparse(limit_select.get("hx-get")).query)["state"] == ["failure"]
+    assert limit_select.xpath('ancestor::form//input[@type="hidden"][@name="state"][@value="failure"]')
 
 
 def test_bot_table_query_preserves_failure_filter(authenticated_client, mock_core_get_endpoints):
@@ -115,7 +115,7 @@ def test_bot_table_query_preserves_failure_filter(authenticated_client, mock_cor
     order_link = tree.xpath('//a[contains(@href, "order=")]')[0]
     limit_select = tree.xpath('//select[@name="limit"]')[0]
     assert parse_qs(urlparse(order_link.get("href")).query)["state"] == ["failure"]
-    assert parse_qs(urlparse(limit_select.get("hx-get")).query)["state"] == ["failure"]
+    assert limit_select.xpath('ancestor::form//input[@type="hidden"][@name="state"][@value="failure"]')
 
 
 def test_scheduler_dashboard_auto_refresh_is_opt_in_and_tab_scoped(authenticated_client, mock_core_get_endpoints):

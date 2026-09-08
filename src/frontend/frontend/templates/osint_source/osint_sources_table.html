@@ -15,7 +15,13 @@
   {% call table_decoration("source", model_name, table_container, routes=routes, searchbar=false, force_delete=true, delete_name="sources") %}
     <div class="grow-0">
       <div class="join gap-1" hx-target:inherited="#form-container">
-        <button hx-post="{{ url_for('admin.collect_osint_source_all') }}" class="btn btn-outline">
+        <button hx-post="{{ url_for('admin.collect_osint_source_all', **request.args) }}"
+                hx-target="#{{ table_container }}"
+                hx-swap="outerHTML"
+                hx-status:400="target:#notification-bar"
+                hx-status:4xx="target:#notification-bar"
+                hx-status:5xx="target:#notification-bar"
+                class="btn btn-outline">
           {{ heroicon_outline("arrows-pointing-in", class="h-5 w-5") }}
           Collect All
         </button>
@@ -39,12 +45,15 @@
   <div class="flex gap-4 mb-4">
     {{ table_search_bar(table_container, routes.base_route, ["state", "filter_manual"]) }}
     <div class="grow-0">
-      <form class="inline-flex flex-col items-center gap-1"
+      <form method="get"
+            action="{{ routes.base_route }}"
+            class="inline-flex flex-col items-center gap-1"
+            hx-target="#{{ table_container }}"
+            hx-swap="outerHTML"
             hx-get="{{ routes.base_route }}"
-            hx-target:inherited="#{{ table_container }}"
-            hx-swap:inherited="outerHTML"
-            hx-push-url:inherited="true"
-            hx-trigger="change">
+            hx-push-url="true"
+            hx-trigger="submit, change"
+            hx-sync="this:replace">
         {% for key, values in request.args.lists() %}
           {% if key not in ["filter_manual", "page"] %}
             {% for value in values %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endfor %}
@@ -65,6 +74,7 @@
                  {% if filter_manual != "false" %}checked{% endif %} />
         </div>
         <span class="label-text text-sm">Manual sources</span>
+        <button type="submit" class="btn btn-ghost btn-xs">Apply</button>
 
       </form>
     </div>
@@ -75,9 +85,7 @@
   {% elif request.args %}
     <div class="text-center p-4">
       <p class="text-gray-500">No {{ name }} available.</p>
-      <button class="mt-2 btn btn-primary" hx-get="{{ routes.base_route }}" hx-target="#{{ table_container }}" hx-push-url="true">
-        Reset Filter
-      </button>
+      <a class="mt-2 btn btn-primary" href="{{ routes.base_route }}" hx-boost="target:#{{ table_container }} swap:outerHTML">Reset Filter</a>
     </div>
   {% else %}
     <div class="text-center p-4">

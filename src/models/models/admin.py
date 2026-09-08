@@ -423,9 +423,14 @@ class Template(TaranisBaseModel):
     _model_name = "template"
     _pretty_name = "Template"
 
-    id: str
+    name: str
     content: str | None = None
     validation_status: dict | None = None
+
+    @property
+    def id(self) -> str:
+        """Use the filename for shared admin view routes and table actions."""
+        return getattr(self, "name", "0")
 
 
 class AttributeEnum(TaranisBaseModel):

@@ -18,7 +18,7 @@ def _unique_value(prefix: str) -> str:
     return f"{prefix}-{BaseModel.uuid7_str()}"
 
 
-def test_get_dashboard_data_includes_task_totals(monkeypatch):
+def test_get_dashboard_data_includes_weekly_activity_and_task_totals(session, monkeypatch):
     latest_collected = datetime(2026, 4, 13, 12, 30, tzinfo=UTC)
     schedule_count_calls = []
 
@@ -49,7 +49,26 @@ def test_get_dashboard_data_includes_task_totals(monkeypatch):
         ),
     )
 
+    now = datetime(2001, 1, 3, 12)
+    week_start = datetime(2001, 1, 1)
+    monkeypatch.setattr(BaseModel, "utcnow", staticmethod(lambda: now))
+    for timestamp in [week_start - timedelta(microseconds=1), week_start, now, now + timedelta(microseconds=1)]:
+        story = create_story(news_items=[build_news_item_payload()])
+        story.created = timestamp
+        story.news_items[0].published = timestamp
+        report = ReportItem(title="Weekly report", report_item_type_id=None)
+        product = Product(title="Weekly product", product_type_id=None)
+        report.created = product.created = timestamp
+        session.add_all([report, product])
+    session.flush()
+
     dashboard = DashboardService.get_dashboard_data()["items"][0]
+
+    for field in ["news_items_this_week", "stories_this_week", "reports_this_week", "products_this_week"]:
+        assert dashboard[field] == 2
+    assert dashboard["story_conflict_count"] == 2
+    assert dashboard["news_item_conflict_count"] == 1
+    assert dashboard["conflict_count"] == 3
 
     assert dashboard["task_status_totals"] == {
         "failures": 1,

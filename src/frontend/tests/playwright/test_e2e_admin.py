@@ -380,6 +380,13 @@ class TestEndToEndAdmin(BaseE2ETest):
             page.goto(url_for("admin.osint_sources", _external=True))
             expect(page.get_by_role("button", name="Curated sources")).to_be_visible()
             self.capture_screenshot(page, "./tests/playwright/screenshots/docs_osint_sources.png")
+            with_htmx_wait(page, lambda: page.get_by_role("radio", name="Show", exact=True).check())
+            with_htmx_wait(page, lambda: page.get_by_role("button", name="Collect All", exact=True).click())
+            expect(page.locator("#osint_source-table-container")).to_have_count(1)
+            expect(page.get_by_test_id("osint_source-table").locator("tbody tr")).to_have_count(1)
+            expect(page.get_by_role("radio", name="Show", exact=True)).to_be_checked()
+            dismiss_notifications(page)
+            with_htmx_wait(page, lambda: page.get_by_role("radio", name="Hide", exact=True).check())
 
         def load_and_search_curated_sources():
             page.get_by_role("button", name="Curated sources").click()
@@ -391,6 +398,19 @@ class TestEndToEndAdmin(BaseE2ETest):
             all_rows = osint_table.locator("tbody tr")
             expect(all_rows).to_have_count(6)
             dismiss_notifications(page)
+
+            with_htmx_wait(page, lambda: page.get_by_role("radio", name="Show").check())
+            expect(page).to_have_url(url_for("admin.osint_sources", filter_manual="false", _external=True))
+            expect(all_rows).to_have_count(7)
+
+            manual_row = all_rows.filter(has=page.get_by_text("Manual", exact=True))
+            with_htmx_wait(page, lambda: manual_row.locator('[data-testid^="action-collect-"]').click())
+            expect(page.locator("#osint_source-table-container")).to_have_count(1)
+            expect(all_rows).to_have_count(7)
+            dismiss_notifications(page)
+
+            with_htmx_wait(page, lambda: page.get_by_role("radio", name="Hide").check())
+            expect(all_rows).to_have_count(6)
 
             first_source_name = osint_table.locator("[data-testid='osint_source-table_name']").first.inner_text().strip()
             page.get_by_placeholder("Search...").fill(first_source_name)
@@ -408,7 +428,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             force_checkbox.check()
             page.get_by_role("button", name="Delete").click()
             dismiss_notifications(page)
-            expect(page.get_by_role("button", name="Reset Filter")).to_be_visible()
+            expect(page.get_by_role("link", name="Reset Filter")).to_be_visible()
 
         def import_export_osint_sources():
             page.get_by_role("button", name="Import").click()
@@ -448,6 +468,14 @@ class TestEndToEndAdmin(BaseE2ETest):
         def update_osint_sources():
             form = page.locator("#osint_source-form").first
             expect(form).to_be_visible()
+            detail_url = page.url
+            page.get_by_role("textbox", name="Description", exact=True).fill("Unsaved source description")
+            with_htmx_wait(page, lambda: page.get_by_role("button", name="Collect", exact=True).click())
+            expect(page.locator("#notification-bar")).to_contain_text("scheduled")
+            expect(page).to_have_url(detail_url)
+            expect(page.locator("#osint_source-table-container")).to_have_count(0)
+            expect(page.get_by_role("textbox", name="Description", exact=True)).to_have_value("Unsaved source description")
+            dismiss_notifications(page)
             expect(form.locator('input[name="rank"][value="4"]')).to_be_checked()
             form.locator('input[name="rank"][value="2"]').check()
             feed_url_input = form.locator('input[name="parameters[FEED_URL]"]')
@@ -605,6 +633,10 @@ class TestEndToEndAdmin(BaseE2ETest):
             load_default_button = page.get_by_test_id("load-default-word_list-button")
             expect(load_default_button).to_be_visible()
             with_htmx_wait(page, lambda: load_default_button.click())
+            with_htmx_wait(page, lambda: page.get_by_role("button", name="Update Wordlists", exact=True).click())
+            expect(page.get_by_test_id("word_list-table-container")).to_have_count(1)
+            expect(page.get_by_test_id("word_list-table").locator("tbody tr")).to_have_count(9)
+            dismiss_notifications(page)
             page.get_by_role("row", name="Name Description Words Actions").get_by_role("checkbox").check()
             delete_button = page.get_by_test_id("delete-word_list-button")
             expect(delete_button).to_contain_text("Delete 9 Word List")
@@ -826,7 +858,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             page.locator(".col-span-12 > .grid > div").first.click()
             expect(page.get_by_role("textbox", name="Title")).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Title").fill("number 5 in report")
-            page.get_by_label("Report Type Select a report").select_option(label="report item type test 5")
+            page.get_by_test_id("report-type-select").select_option(label="report item type test 5")
             page.get_by_test_id("save-report").click()
             expect(page.get_by_role("heading", name="Update Report - number 5 in")).to_be_visible()
             expect(page.get_by_role("heading", name="group1")).to_be_visible()
@@ -866,7 +898,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             page.get_by_role("textbox", name="Title").click()
             expect(page.get_by_role("textbox", name="Title")).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Title").fill("update attr use")
-            page.get_by_label("Report Type Select a report").select_option(label="report item type test 5")
+            page.get_by_test_id("report-type-select").select_option(label="report item type test 5")
             page.get_by_test_id("save-report").click()
             attr_field = page.get_by_role("spinbutton", name="attr title text")
             expect(attr_field).to_have_value("6")
@@ -1175,10 +1207,11 @@ class TestEndToEndAdmin(BaseE2ETest):
                 has=page.get_by_role("link", name=updated_connector_name, exact=True),
             ).first
             expect(connector_row).to_be_visible()
-            item_id = self.get_table_row_id_by_link_text(page, "connector-table", updated_connector_name)
-            delete_button_test_id = f"action-delete-{item_id}"
-            self.delete_table_row(page, delete_button_test_id)
+            connector_row.get_by_role("checkbox").check()
+            page.get_by_test_id("delete-connector-button").click()
+            with_htmx_wait(page, lambda: page.locator(".swal2-confirm").click())
             expect(connector_row).not_to_be_visible()
+            expect(page.locator("#connector-table-container")).to_have_count(1)
 
         load_connectors()
         add_connector()

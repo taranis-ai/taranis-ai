@@ -2,64 +2,29 @@
 
 ## When To Load
 
-OSINT source administration, bulk source creation, source imports, curated source lists, source groups, collector parameters, `/admin/sources`, `/config/import-osint-sources`, or `/config/curated-osint-source-lists`.
+Source administration, bulk creation/deletion, curated lists, source groups, `/admin/sources`, rolling collection metrics, or version-4 source import.
 
-## Expected Behavior
+## Contracts
 
-Administrators can create one source with the standard source form or bulk-create at least two URL-based sources. Bulk sources share their description, rank, icon, collector type, and every collector parameter except the primary source URL. RSS, Simple Web, Request Tracker, and MISP collectors are supported for bulk creation; Mastodon, manual, and PPN sources remain single-create workflows.
+- Bulk creation requires at least two URL-based sources sharing all settings except name/primary URL. Supported collectors: RSS, Simple Web, Request Tracker, MISP. Keep the primary-URL mapping explicit; Mastodon/manual/PPN remain single-create.
+- Reuse version-4 import for atomic sources and an optional group containing exactly those sources, including normal default-group handling and post-commit scheduling. Do not add a parallel persistence path or merge uploaded files with form defaults.
+- Bulk deletion validates all IDs before mutation and commits atomically. `force` accepts only `true`/`false`; it also removes related news and emptied stories. Queue/scheduler/MISP cleanup runs after commit.
+- Curated sources/groups use unique stable names as external identities. Loading overlaps/reloads adds missing records/memberships without overwriting fields or removing anything. Renaming catalog entries creates new records on reload.
+- A same-name source with a different collector type (even disabled/manual) rejects the entire curated load with 409 and a rename instruction. Ordinary creation may use catalog names.
+- Curated loading commits reconciliation, then schedules every selected enabled source. Scheduling failure returns 503 without undoing data; repeat loads retry existing sources too. Successful loads invalidate source/group caches.
+- Bulk input errors return 400, core failures retain their status, and transport failures return 502 with the form notification.
+- Detail Collect preserves unsaved edits with a notification-only response. Row/Collect All refresh the table; Collect All retains query parameters. Apply the [shared swap/error rules](frontend-development.md).
 
-The source detail form shows how many news items Taranis collected during a selected rolling day, week, or month. These periods mean the trailing 24 hours, 7 days, and 30 days, use `NewsItem.collected`, and default to week. The detail form keeps the separate lifetime news-item count.
+- Source details show rolling collection counts for the trailing 24 hours, 7 days, or 30 days, defaulting to week, alongside the lifetime news-item count. Use `NewsItem.collected`, never `NewsItem.published`.
 
-The standard create form links from the collector selector to the public collector documentation in a new browser tab.
+## Entry Points and Coverage
 
-Bulk creation can also create one named source group containing exactly the new sources. Source and group persistence is atomic through the existing version-4 source import operation. Import templating or merging imported files with form defaults is not part of this workflow.
+`src/frontend/frontend/views/admin_views/source_views.py`, `src/frontend/frontend/templates/osint_source/`, `src/core/core/model/osint_source.py`, `src/core/core/api/config.py`, `src/core/core/static/curated_osint_sources.json`.
 
-Bulk deletion validates the complete source selection before changing data and commits all database deletions atomically. The optional `force` query parameter accepts only `true` or `false`; forced deletion also removes related news items and stories left without news items. Queue, scheduler, and MISP job cleanup runs after the database commit.
+The bulk parameter fragment omits only the primary URL; ordinary requests, including `bulk=false`, retain it. Frontend builds the version-4 payload from name/URL rows and shared settings.
 
-Administrators can add one or more bundled curated source lists at any time. Source and group names are unique and deliberately serve as the stable external identities instead of a separate index or key. This prevents duplicate names when defaults or source files are loaded repeatedly, lets the curated loader reuse records by name, and allows the same externally managed JSON definitions to be used across instances without relying on database IDs. Loading overlapping or previously loaded lists creates each source once and adds missing group memberships. Reloading never overwrites existing source or group fields and never removes sources or memberships.
+Tests: `src/frontend/tests/unit/views/test_views.py`, `src/core/tests/application/admin_console/configuration/test_config_api.py`, and `test_admin_osint_workflow` in `src/frontend/tests/playwright/test_e2e_admin.py`. In E2E, run Collect All before loading curated feeds while only the manual source exists; asynchronous feed collection can otherwise recreate cleaned-up stories and contaminate later workflows.
 
-The OSINT source table keeps actions in its primary toolbar. Search, manual-source visibility, and status share a unified query row directly above the table. The creation buttons use the page context to keep their labels concise: New source and Curated sources.
+`GET /config/osint-sources/{id}?period=day|week|month` adds the rolling metric alongside `news_items_count`; the overview does not calculate or return collection activity. Count and period validation live in `src/core/core/model/osint_source.py`; the UI lives in `src/frontend/frontend/templates/osint_source/osint_source_form.html`.
 
-The bundled catalog groups sources into Austrian news and public-sector coverage, cyber threat intelligence, technology news, security advisories, original threat research, cybersecurity news, vendor research, vulnerability intelligence, independent experts and community sources, and a balanced starter pack. Curated feeds are selected for authority, current parseability, recency, and useful coverage. High-volume vulnerability feeds remain in their own opt-in list.
-
-Invalid bulk form input returns HTTP 400. Core import failures preserve the upstream status so monitoring and callers can distinguish validation failures from service failures; transport failures return HTTP 502 while re-rendering the form with a static error.
-
-Curated loading rejects a same-name source with a different collector type, including enabled or disabled manual sources, with HTTP 409 before committing. The error identifies the source and asks the administrator to rename it before retrying. The entire load is rolled back; ordinary source creation still allows names found in the catalog.
-
-## Code Paths
-
-- Frontend view and payload construction: `src/frontend/frontend/views/admin_views/source_views.py`
-- Frontend routes: `src/frontend/frontend/router/admin.py`
-- Bulk form and source-list entry point: `src/frontend/frontend/templates/osint_source/`
-- Transactional import and source-group association: `src/core/core/model/osint_source.py`
-- Atomic source deletion: `src/core/core/model/osint_source.py`
-- Rolling collection count and period validation: `src/core/core/model/osint_source.py`
-- Import API: `src/core/core/api/config.py`
-- Rolling metric UI: `src/frontend/frontend/templates/osint_source/osint_source_form.html`
-- Bundled curated catalog: `src/core/core/static/curated_osint_sources.json`
-
-## Data Flow
-
-The bulk form uses Alpine only for adding and removing local name/URL rows. Selecting a collector loads its shared parameter fragment over HTMX with the collector's primary URL parameter omitted; regular parameter requests, including an explicit `bulk=false`, keep the URL field. On submit, the frontend builds a version-4 import payload by combining each name/URL pair with the shared settings. Optional group indexes associate the newly inserted sources with the new group in the same core database transaction.
-
-`GET /config/osint-sources/{id}?period=day|week|month` adds the rolling metric alongside `news_items_count`. The overview response does not calculate or return collection activity.
-
-The curated-list form is loaded into the admin form container over HTMX. Core reads and validates the bundled catalog, resolves selected lists and sources by name, and creates or relinks them in one transaction. After commit, Core schedules every selected enabled source. A scheduling failure returns HTTP 503 without undoing the committed data; repeating the same load retries scheduling for both new and existing sources. Frontend source and source-group caches are invalidated after success.
-
-## Testing
-
-Frontend unit coverage verifies the create-form documentation link, supported collectors, bulk-only parameter omission, and Core failure status handling in `src/frontend/tests/unit/views/test_views.py`.
-
-Core coverage is limited to one rolling-window test and one invalid-period test in `src/core/tests/application/admin_console/configuration/test_osint_source_validation.py`. One frontend test covers the detail rendering and selected period in `src/frontend/tests/unit/views/test_views.py`.
-
-Core API coverage verifies explicit force parsing, all-ID validation, atomic failure behavior, forced deletion, and curated-list collector-type conflicts and atomic rejection in `src/core/tests/application/admin_console/configuration/test_config_api.py`.
-
-Admin browser coverage exercises the curated multi-select workflow.
-
-## Pitfalls
-
-Keep the collector-to-primary-URL mapping explicit. A collector without a single primary URL should not appear in the bulk form. Do not create a second persistence path: version-4 import already validates sources, creates optional groups, applies default-group membership, commits atomically, and schedules the new sources after the commit.
-
-Keep the rolling count on the detail endpoint and use `NewsItem.collected`, not the publisher-controlled `NewsItem.published` timestamp.
-
-Curated loading is intentionally separate from arbitrary file import because it reconciles existing sources and groups by their unique names. Keep catalog source and list names stable; changing one creates a new database record on the next load. A separate immutable key was considered for this identity but rejected as unnecessary while names are unique and stable; do not introduce another required identifier unless names can no longer satisfy that contract.
+Rolling-window and invalid-period coverage lives in `src/core/tests/application/admin_console/configuration/test_osint_source_validation.py`; detail rendering and period selection are covered in `src/frontend/tests/unit/views/test_views.py`.

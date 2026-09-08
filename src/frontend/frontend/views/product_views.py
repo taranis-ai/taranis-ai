@@ -1,6 +1,6 @@
 from typing import Any
 
-from flask import abort, render_template, request
+from flask import abort, render_template, request, url_for
 from flask.typing import ResponseReturnValue
 from models.product import Product, ProductType, PublisherPreset
 from models.report import ReportItem
@@ -26,6 +26,20 @@ class ProductView(BaseView):
     edit_route = "publish.product"
 
     @classmethod
+    def get_default_actions(cls) -> list[dict[str, Any]]:
+        actions = super().get_default_actions()
+        actions.insert(
+            1,
+            {
+                "label": "Create copy",
+                "icon": "document-duplicate",
+                "type": "link",
+                "url_template": url_for("publish.product", product_id="0") + "?copy_from={item_id}",
+            },
+        )
+        return actions
+
+    @classmethod
     def get_columns(cls) -> list[dict[str, Any]]:
         return [
             {"title": "Title", "field": "title", "sortable": True, "renderer": None},
@@ -49,13 +63,26 @@ class ProductView(BaseView):
 
         if cls.model_name() in base_context:
             product: Product = base_context[cls.model_name()]
+            if request.method == "GET" and cls.is_create_object_id(product.id) and (copy_from := request.args.get("copy_from")):
+                source = dpl.get_object(Product, copy_from)
+                if source is None:
+                    abort(404)
+                product = Product(
+                    id="0",
+                    product_type_id=source.product_type_id,
+                    title=f"{source.title} Copy",
+                    description=source.description,
+                    report_items=list(source.report_items),
+                )
+                base_context[cls.model_name()] = product
+                base_context["supported_reports"] = list(getattr(source, "supported_reports", None) or [])
             is_edit = product.id not in {None, "0"}
             if is_edit:
                 base_context["submit_text"] = f"Update {cls.pretty_name()} - {product.title}"
             base_context["is_edit"] = is_edit
 
             selected_report_items = [str(report_item_id) for report_item_id in product.report_items if report_item_id]
-            supported_reports = list(getattr(product, "supported_reports", None) or [])
+            supported_reports = base_context.get("supported_reports", list(getattr(product, "supported_reports", None) or []))
 
             if (report_id := request.args.get("report_id")) and (report := dpl.get_object(ReportItem, report_id)):
                 if report_id not in selected_report_items:

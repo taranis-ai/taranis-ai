@@ -44,6 +44,12 @@ class Dashboard(TaranisBaseModel):
     _model_name = "dashboard"
     _pretty_name = "Dashboard"
     _cache_timeout = 30
+    news_items_this_week: int = 0
+    stories_this_week: int = 0
+    reports_this_week: int = 0
+    products_this_week: int = 0
+    story_conflict_count: int = 0
+    news_item_conflict_count: int = 0
     total_news_items: int = 0
     total_story_items: int = 0
     total_products: int = 0

@@ -394,14 +394,19 @@ def test_htmx_native_status_rules_preserve_error_swap_behavior(page: Page):
     expect(page.locator("#content")).to_have_text("validation error")
 
 
-def test_htmx_filter_control_includes_its_form(page: Page):
+def test_boosted_filter_form_keeps_latest_values_and_focus(page: Page):
     requests = []
     filter_markup = """
         <div id="results">
-          <form hx-target:inherited="#results"
-                hx-select:inherited="#results"
-                hx-swap:inherited="outerHTML"
+          <form method="get"
+                action="/filter"
+                hx-boost="select:#results target:#results swap:outerHTML"
+                hx-push-url="true"
                 hx-push-url:inherited="true"
+                hx-select:inherited="#results"
+                hx-target:inherited="#results"
+                hx-swap:inherited="outerHTML"
+                hx-sync:inherited="this:replace"
                 hx-on::before:request="restoreSearchAfterSwap(ctx)">
             <input id="search" name="search"
                    value=""
@@ -438,6 +443,11 @@ def test_htmx_filter_control_includes_its_form(page: Page):
                     'value=""',
                     f'value="{parse_qs(urlparse(route.request.url).query).get("search", [""])[0]}"',
                     1,
+                ).replace(
+                    '<option value="open">',
+                    '<option value="open" selected>'
+                    if parse_qs(urlparse(route.request.url).query).get("status") == ["open"]
+                    else '<option value="open">',
                 ),
             ),
         ),
@@ -453,7 +463,9 @@ def test_htmx_filter_control_includes_its_form(page: Page):
     expect(page.locator("#results [name='search']")).to_be_focused()
     page.locator("#status").select_option("open")
 
+    expect(page).to_have_url(re.compile(r"status=open"))
     expect(page.locator("#results [name='search']")).to_have_value("incident")
+    expect(page.locator("#results #status")).to_have_value("open")
     assert requests == [
         "https://example.test/filter?search=incident&status=",
         "https://example.test/filter?status=open&search=incident",

@@ -1,6 +1,9 @@
+import json
+
 import pytest
 from flask import Flask
 from pydantic import SecretStr, ValidationError
+from pydantic_settings import SettingsError
 
 from core.config import Settings
 
@@ -86,14 +89,6 @@ def test_jwt_cookie_names_and_paths(application_root, suffix, expected_names):
 def test_jwt_cookie_suffix_rejects_invalid_characters():
     with pytest.raises(ValidationError, match="JWT_COOKIE_SUFFIX"):
         Settings(JWT_COOKIE_SUFFIX="/q")
-
-
-def test_skip_initial_user_onboarding_from_env(monkeypatch):
-    monkeypatch.setenv("SKIP_INITIAL_USER_ONBOARDING", "true")
-
-    settings = Settings()
-
-    assert settings.SKIP_INITIAL_USER_ONBOARDING is True
 
 
 def test_realtime_secrets_must_be_distinct_when_enabled():
@@ -264,3 +259,46 @@ def test_sqlalchemy_pool_recycle_accepts_minus_one(clear_pool_env_vars):
 
     assert settings.SQLALCHEMY_POOL_RECYCLE == -1
     assert settings.SQLALCHEMY_ENGINE_OPTIONS["pool_recycle"] == -1
+
+
+@pytest.mark.parametrize("payload", ["{", "[]", "null", '"value"'])
+def test_pre_seed_settings_requires_json_object(monkeypatch, payload):
+    monkeypatch.setenv("PRE_SEED_SETTINGS", payload)
+
+    with pytest.raises((SettingsError, ValidationError)):
+        Settings()
+
+
+def test_pre_seed_settings_initialization(session, admin_user, monkeypatch):
+    from core.model.settings import Config
+    from core.model.settings import Settings as PersistentSettings
+
+    seed = {
+        "default_timezone": " Europe/Vienna ",
+        "rss_collector_max_entries": 100,
+        "default_bot_lookback_days": 0,
+        "onboarding_enabled": False,
+        "default_collector_proxy": "http://proxy:8080",
+    }
+    monkeypatch.setenv("PRE_SEED_SETTINGS", json.dumps(seed))
+    config = Settings()
+    monkeypatch.setattr(Config, "PRE_SEED_SETTINGS", config.PRE_SEED_SETTINGS)
+    session.delete(PersistentSettings.get_settings_entry())
+    session.flush()
+
+    PersistentSettings.initialize()
+    session.expire_all()
+
+    expected = PersistentSettings.with_defaults({**seed, "default_timezone": "Europe/Vienna"})
+    assert PersistentSettings.get_settings() == expected
+    assert admin_user.profile["onboarding_enabled"] is False
+    assert config.PRE_SEED_SETTINGS == seed
+
+    _, status = PersistentSettings.update({"settings": {"rss_collector_max_entries": 25}})
+    assert status == 200
+    monkeypatch.setattr(Config, "PRE_SEED_SETTINGS", {"rss_collector_max_entries": 200, "onboarding_enabled": True})
+    PersistentSettings.initialize()
+    session.expire_all()
+
+    assert PersistentSettings.get_settings() == {**expected, "rss_collector_max_entries": 25}
+    assert admin_user.profile["onboarding_enabled"] is False
