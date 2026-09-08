@@ -26,6 +26,17 @@ Optional `llm-bot` overlay:
 - For Helm, set `config.llmBaseUrl`; optionally set `config.llmTimeout`, `config.llmModel`, and `secrets.llmApiKey`.
 - Set ingress hostname in `kubernetes/40-ingress.yaml` (or Helm values).
 
+## Initial settings
+
+Before the first startup, set `PRE_SEED_SETTINGS` in `kubernetes/00-config.yaml`, or the JSON string `config.preSeedSettings` in Helm values. Both default to `"{}"`. For example, Helm values can contain:
+
+```yaml
+config:
+  preSeedSettings: '{"onboarding_enabled":false}'
+```
+
+This initializes a fresh settings row only; restarts and upgrades preserve saved Admin Settings. Keep credentials out of these ConfigMaps and inject credential-bearing seeds into core through a Secret instead. See [settings preseeding](../docker/README.md#settings-preseeding).
+
 ## Images
 
 Core uses `ghcr.io/taranis-ai/taranis-core`, `taranis-frontend`, `taranis-ingress`, and `taranis-worker` (for `collector`, `worker`, and `cron`). Realtime uses the pinned `centrifugo/centrifugo:v6.9` image.

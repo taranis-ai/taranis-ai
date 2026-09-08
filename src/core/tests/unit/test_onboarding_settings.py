@@ -1,21 +1,19 @@
 from copy import deepcopy
 
-from core.config import Config
 from core.model.settings import Settings
 from core.model.user import User
 
 
-def test_environment_presets_global_onboarding(session, admin_user, monkeypatch):
+def test_missing_global_onboarding_defaults_to_enabled(session, admin_user):
     settings = Settings.get_settings_entry()
     assert settings is not None
     settings.settings = {key: value for key, value in settings.settings.items() if key != "onboarding_enabled"}
     session.flush()
-    monkeypatch.setattr(Config, "SKIP_INITIAL_USER_ONBOARDING", True)
 
     Settings.initialize()
 
-    assert settings.settings["onboarding_enabled"] is False
-    assert admin_user.profile["onboarding_enabled"] is False
+    assert settings.settings["onboarding_enabled"] is True
+    assert admin_user.profile["onboarding_enabled"] is True
 
 
 def test_global_and_per_user_onboarding_controls(session, admin_user):
