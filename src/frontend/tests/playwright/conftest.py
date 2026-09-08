@@ -623,7 +623,7 @@ def stories_date_descending_important(core_request_client):
     yield story_ids
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def stories_relevance_descending(core_request_client, stories_date_descending):
     allow_requests_passthru()
 
@@ -631,7 +631,7 @@ def stories_relevance_descending(core_request_client, stories_date_descending):
     yield [story.get("id") for story in stories_relevance_desc]
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def stories_date_descending(core_request_client, stories_session_wrapper):
     allow_requests_passthru()
 
@@ -643,7 +643,7 @@ def stories_date_descending(core_request_client, stories_session_wrapper):
     yield story_ids
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def stories_date_descending_not_important(core_request_client, stories_session_wrapper):
     allow_requests_passthru()
     story_ids = []
