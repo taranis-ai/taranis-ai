@@ -148,7 +148,6 @@ class Settings(BaseSettings):
     OPENID_METADATA_URL: str = "http://keycloak/realms/master/.well-known/openid-configuration"
     PRE_SEED_PASSWORD_ADMIN: str = "admin"
     PRE_SEED_PASSWORD_USER: str = "user"
-    SKIP_INITIAL_USER_ONBOARDING: bool = False
     PRE_SEED_SETTINGS: Annotated[dict[str, Any], NoDecode] = Field(default_factory=dict, repr=False)
 
     @field_validator("PRE_SEED_SETTINGS", mode="before")

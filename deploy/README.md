@@ -32,6 +32,17 @@ Optional analyst Chat:
 - API keys are write-only in the admin form: leave blank to keep the saved key, or select **Remove saved API key** to clear it. Keys are stored in the application database; protect database access and backups. Settings API responses and logs omit the key.
 - Realtime Chat progress uses the existing Centrifugo connection when `REALTIME_ENABLED=true`; Chat still completes through its normal HTTP response when realtime is disabled or unavailable.
 
+## Initial settings
+
+Before the first startup, set `PRE_SEED_SETTINGS` in `kubernetes/00-config.yaml`, or the JSON string `config.preSeedSettings` in Helm values. Both default to `"{}"`. For example, Helm values can contain:
+
+```yaml
+config:
+  preSeedSettings: '{"onboarding_enabled":false}'
+```
+
+This initializes a fresh settings row only; restarts and upgrades preserve saved Admin Settings. Keep credentials out of these ConfigMaps and inject credential-bearing seeds into core through a Secret instead. See [settings preseeding](../docker/README.md#settings-preseeding).
+
 ## Images
 
 Core uses `ghcr.io/taranis-ai/taranis-core`, `taranis-frontend`, `taranis-ingress`, and `taranis-worker` (for `collector`, `worker`, and `cron`). Realtime uses the pinned `centrifugo/centrifugo:v6.9` image.
@@ -121,6 +132,10 @@ kubectl logs deploy/worker --tail=200
 kubectl logs deploy/collector --tail=200
 kubectl logs deploy/cron --tail=200
 ```
+
+## Collector network errors
+
+For HTTP connection failures or timeouts in collectors using the shared HTTP request helper (including RSS, Simple Web, and RT), check DNS resolution and outbound access from the worker/collector container or pod; successful resolution on the host alone is insufficient. A read timeout can also occur after a connection succeeds. If a proxy is required, verify the source's `PROXY_SERVER` URL and that its hostname resolves inside the container. A proxy IP can help diagnose a hostname-resolution problem, but should not replace fixing DNS. Check worker/collector logs for the underlying error, then run the collection again. Connection and timeout diagnostics remain HTTP request exceptions, preserving RT’s existing per-item error handling. No automatic retry policy is added by these diagnostic messages.
 
 ## Operational CLI
 

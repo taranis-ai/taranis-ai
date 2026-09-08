@@ -82,7 +82,16 @@ class BaseWebCollector(BaseCollector):
         primary_request = http_validators is not None and http_validators["url"] == url
 
         with requests.Session(disable_http3=Config.DISABLE_HTTP3) as session:
-            response = session.get(url, headers=self._request_headers(url, modified_since), proxies=self.proxies, timeout=self.timeout)
+            try:
+                response = session.get(url, headers=self._request_headers(url, modified_since), proxies=self.proxies, timeout=self.timeout)
+            except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as exc:
+                logger.error(f"Collector HTTP request failed: {exc}")
+                logger.exception("Collector HTTP request failed")
+                raise requests.exceptions.RequestException(
+                    "The request to the source or proxy failed or timed out. "
+                    "Check DNS resolution and network access from the worker container, "
+                    "and verify the source's PROXY_SERVER setting if a proxy is required. See worker logs for technical details."
+                ) from None
         if http_validators is not None and primary_request and response.status_code == 200:
             http_validators["etag"] = response.headers.get("ETag")
             http_validators["last_modified"] = response.headers.get("Last-Modified")
