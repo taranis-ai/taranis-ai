@@ -1,6 +1,8 @@
 import uuid
 from datetime import UTC, datetime, timedelta
 
+import pytest
+
 
 def _task_payload(job_id: str, *, user_id: str | None, status: str = "SUCCESS", worker_type: str = "presenter_task"):
     return {
@@ -28,7 +30,8 @@ def _delete_tasks(app, job_ids: list[str]) -> None:
                 Task.delete(job_id)
 
 
-def test_user_tasks_returns_only_authenticated_users_completed_results(app, client, api_header, auth_header_user_permissions):
+@pytest.mark.parametrize("status", ["SUCCESS", "WARNING"])
+def test_user_tasks_returns_only_authenticated_users_completed_results(app, client, api_header, auth_header_user_permissions, status):
     from core.model.user import User
 
     with app.app_context():
@@ -44,7 +47,9 @@ def test_user_tasks_returns_only_authenticated_users_completed_results(app, clie
     job_ids = [own_job_id, preview_job_id, active_job_id, other_job_id]
 
     try:
-        assert client.post("/api/tasks", json=_task_payload(own_job_id, user_id=user.id), headers=api_header).status_code == 200
+        assert (
+            client.post("/api/tasks", json=_task_payload(own_job_id, user_id=user.id, status=status), headers=api_header).status_code == 200
+        )
         assert (
             client.post(
                 "/api/tasks",

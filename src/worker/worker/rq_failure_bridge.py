@@ -10,7 +10,7 @@ from worker.core_api import CoreApi, build_failure_task_result
 from worker.log import logger
 
 
-TERMINAL_TASK_STATUSES = {"SUCCESS", "FAILURE", "NOT_MODIFIED", "PREVIEW"}
+TERMINAL_TASK_STATUSES = {"SUCCESS", "WARNING", "FAILURE", "NOT_MODIFIED", "PREVIEW"}
 
 
 def rq_failure_exception_handler(job: Job, exc_type: type[BaseException], exc_value: BaseException, _traceback: Any) -> bool:

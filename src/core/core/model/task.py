@@ -15,7 +15,7 @@ from core.model.base_model import UUID_STR_LENGTH, BaseModel
 class Task(BaseModel):
     __tablename__ = "task"
 
-    SUCCESS_STATUSES = frozenset({"SUCCESS", "NOT_MODIFIED"})
+    SUCCESS_STATUSES = frozenset({"SUCCESS", "NOT_MODIFIED", "WARNING"})
     FAILURE_STATUSES = frozenset({"FAILURE"})
     USER_TASK_TERMINAL_STATUSES = SUCCESS_STATUSES | FAILURE_STATUSES | {"PREVIEW"}
     DEFAULT_RESULT: ClassVar[dict[str, object]] = {

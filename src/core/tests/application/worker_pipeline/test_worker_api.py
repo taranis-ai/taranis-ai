@@ -1010,7 +1010,8 @@ class TestWorkerTaskResults:
                 if Task.get(task_id):
                     Task.delete(task_id)
 
-    def test_collector_not_modified_updates_last_success_and_task_statistics(self, client, api_header, app, fake_source):
+    @pytest.mark.parametrize("status", ["NOT_MODIFIED", "WARNING"])
+    def test_collector_completed_updates_last_success_and_task_statistics(self, client, api_header, app, fake_source, status):
         from core.model.osint_source import CollectorHTTPState
         from core.model.task import Task
 
@@ -1032,7 +1033,7 @@ class TestWorkerTaskResults:
                 "retryable": False,
                 "data": {"source_id": source_id, "http_validators": validators},
             },
-            "status": "NOT_MODIFIED",
+            "status": status,
         }
 
         try:
@@ -1042,7 +1043,7 @@ class TestWorkerTaskResults:
             with app.app_context():
                 stored = Task.get(task_id)
                 assert stored is not None
-                assert stored.status == "NOT_MODIFIED"
+                assert stored.status == status
                 assert stored.last_run is not None
                 assert stored.last_success is not None
                 state = CollectorHTTPState.query.get(source_id)

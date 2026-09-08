@@ -189,13 +189,57 @@ def test_empty_rss_feed_result_is_preserved_after_not_modified_response(current_
     assert feed_requests[-1].headers["If-None-Match"] == validators["etag"]
 
 
+@pytest.mark.parametrize("publish_message", ["News items added", "All news items were skipped"])
+def test_rss_entry_limit_warning_and_recovery(current_job, requests_mock, publish_message):
+    feed_url = "https://example.com/feed"
+    source = {
+        "id": "source-1",
+        "name": "Source 1",
+        "type": "rss_collector",
+        "rss_collector_max_entries": 2,
+        "parameters": {"FEED_URL": feed_url, "USE_FEED_CONTENT": True},
+    }
+    entries = "".join(f"<item><title>Item {i}</title><description>Content {i}</description></item>" for i in range(3))
+    feed = f"<rss version='2.0'><channel><title>Feed</title>{entries}</channel></rss>"
+    requests_mock.get(feed_url, [{"text": feed, "headers": {"ETag": '"feed"'}}, {"status_code": 304}, {"text": feed}])
+    requests_mock.get("https://example.com/favicon.ico", status_code=404)
+    source_endpoint = f"{Config.TARANIS_CORE_URL}/worker/osint-sources/source-1"
+    requests_mock.get(source_endpoint, json=source)
+    requests_mock.post(f"{Config.TARANIS_CORE_URL}/worker/news-items", json={"message": publish_message})
+    bots = requests_mock.put(f"{Config.TARANIS_CORE_URL}/worker/post-collection-bots", json={})
+    requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
+
+    warning = "Only the newest 2 feed entries were considered. 1 items were skipped."
+    assert collector_tasks.collector_task("source-1") == warning
+    payload = requests_mock.request_history[-1].json()
+    assert payload["status"] == current_job.meta["status"] == "WARNING"
+    assert payload["result"]["reason"] == "rss_entry_limit"
+    assert payload["result"]["retryable"] is False
+    published = next(request.json() for request in requests_mock.request_history if request.url.endswith("/worker/news-items"))
+    assert [item["title"] for item in published] == ["Item 0", "Item 1"]
+    assert bots.call_count == (1 if publish_message == "News items added" else 0)
+
+    source["status"] = payload
+    source["http_validators"] = payload["result"]["data"]["http_validators"]
+    requests_mock.get(source_endpoint, json=source)
+    assert collector_tasks.collector_task("source-1") == warning
+    assert requests_mock.request_history[-1].json()["status"] == "WARNING"
+
+    source["rss_collector_max_entries"] = 3
+    requests_mock.get(source_endpoint, json=source)
+    collector_tasks.collector_task("source-1", manual=True)
+    payload = requests_mock.request_history[-1].json()
+    assert payload["status"] == ("SUCCESS" if publish_message == "News items added" else "NOT_MODIFIED")
+    assert payload["result"]["reason"] != "rss_entry_limit"
+
+
 def test_rss_parse_failure_cleans_up_persists_failure_and_skips_bots(
     current_job, requests_mock, monkeypatch, rss_collector_mock, rss_collector
 ):
     from tests.testdata import rss_collector_source_data
 
     source = deepcopy(rss_collector_source_data)
-    source |= {"name": "Source 1", "type": "rss_collector"}
+    source |= {"name": "Source 1", "type": "rss_collector", "rss_collector_max_entries": 1}
     source["parameters"] |= {"BROWSER_MODE": "true", "DIGEST_SPLITTING": "false"}
     playwright_manager = MagicMock()
     monkeypatch.setattr("worker.collectors.rss_collector.PlaywrightManager", lambda *_: playwright_manager)
