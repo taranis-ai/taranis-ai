@@ -307,7 +307,7 @@ class Story(BaseModel):
 
             if result := db.session.execute(query).first():
                 story, user_vote = result
-                story_data = story.to_detail_dict()
+                story_data = story.to_detail_dict(user=user)
                 story_data["user_vote"] = user_vote
                 return story_data, 200
 
@@ -622,7 +622,7 @@ class Story(BaseModel):
         if filter_args.get("no_count", False):
             stories = []
             for story in cls.get_filtered(query) or []:
-                story_data = story.to_dict()
+                story_data = story.to_dict(user=user)
                 story_data["revision_count"] = story.get_revision_count()
                 stories.append(story_data)
             return stories, None
@@ -633,7 +633,7 @@ class Story(BaseModel):
         query = cls.enhance_with_report_count(query)
 
         for story, user_vote, report_count in db.session.execute(query):
-            story_data = story.to_dict()
+            story_data = story.to_dict(user=user)
             story_data["revision_count"] = story.get_revision_count()
             story_data["user_vote"] = user_vote
             story_data["in_reports_count"] = report_count
@@ -876,8 +876,14 @@ class Story(BaseModel):
         return result, 200
 
     def allowed_to_update(self, user: User) -> bool:
-        return self.tlp_level.value in user.get_highest_tlp().get_accessible_levels() and all(
-            item.allowed_with_acl(user, require_write_access=True) for item in self.news_items
+        accessible_tlps = user.get_highest_tlp().get_accessible_levels()
+        return (
+            "ASSESS_UPDATE" in user.get_permissions()
+            and not any(attribute.key == "rt_id" for attribute in self.attributes)
+            and self.tlp_level.value in accessible_tlps
+            and all(
+                item.tlp_level.value in accessible_tlps and item.allowed_with_acl(user, require_write_access=True) for item in self.news_items
+            )
         )
 
     @classmethod
@@ -1470,8 +1476,10 @@ class Story(BaseModel):
         ordered = [items.pop(item_id) for item_id in self.news_item_order or [] if item_id in items]
         return ordered + [items[item_id] for item_id in sorted(items)]
 
-    def to_dict(self) -> dict[str, Any]:
+    def to_dict(self, user: User | None = None) -> dict[str, Any]:
         data = super().to_dict()
+        if user is not None:
+            data["can_edit"] = self.allowed_to_update(user)
         data.pop("news_item_order", None)
         data["news_items"] = [news_item.to_detail_dict() for news_item in self.ordered_news_items]
         data["tags"] = [tag.to_dict() for tag in self.tags]
@@ -1481,8 +1489,8 @@ class Story(BaseModel):
         del data["search_vector"]
         return data
 
-    def to_detail_dict(self) -> dict[str, Any]:
-        data = self.to_dict()
+    def to_detail_dict(self, user: User | None = None) -> dict[str, Any]:
+        data = self.to_dict(user=user)
         data["tags"] = [tag.to_dict() for tag in self.tags]
         data["attributes"] = [attribute.to_small_dict() for attribute in self.attributes]
         data["detail_view"] = True
@@ -1802,7 +1810,7 @@ class StoryBookmark(BaseModel):
             stories_by_id = cls._get_accessible_stories_by_id(story_ids, user)
             visible_stories = [stories_by_id[story_id] for story_id in story_ids if story_id in stories_by_id]
 
-            return bookmark.to_detail_dict(stories=visible_stories), 200
+            return bookmark.to_detail_dict(stories=visible_stories, user=user), 200
         return {"error": "Bookmark collection not found"}, 404
 
     @classmethod
@@ -1884,10 +1892,10 @@ class StoryBookmark(BaseModel):
         data["story_ids"] = [story.id for story in stories if story and story.id]
         return data
 
-    def to_detail_dict(self, stories: list[Story] | None = None) -> dict[str, Any]:
+    def to_detail_dict(self, stories: list[Story] | None = None, user: User | None = None) -> dict[str, Any]:
         stories = stories if stories is not None else self.stories
         data = self.to_dict(stories=stories)
-        data["stories"] = [story.to_dict() for story in stories if story]
+        data["stories"] = [story.to_dict(user=user) for story in stories if story]
         return data
 
 

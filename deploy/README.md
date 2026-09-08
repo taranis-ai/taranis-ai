@@ -32,6 +32,8 @@ Core uses `ghcr.io/taranis-ai/taranis-core`, `taranis-frontend`, `taranis-ingres
 Optional overlay uses `ghcr.io/taranis-ai/taranis-llm-bot:latest`.
 Pin explicit tags for production.
 
+Deploy matching Core and frontend versions for story editability: Core supplies the user-specific `can_edit` field, and the frontend defaults missing values to read-only. No database migration is needed for this field. Verify a writable story and an RT-managed or ACL read-only story after upgrading; roll back both components together if needed.
+
 Published `core`, `frontend`, `worker`, and `ingress` images include platform-specific BuildKit SPDX SBOM attestations. The final multi-architecture `core`, `frontend`, and `worker` image digests also have signed CycloneDX attestations generated from their production `uv` lock graphs.
 GitHub releases attach the same CycloneDX JSON files for direct download: `taranis_core_sbom.json`, `taranis_frontend_sbom.json`, and `taranis_worker_sbom.json`. See [Software Bills of Materials](../docs/sbom.md) for their scope.
 

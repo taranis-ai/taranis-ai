@@ -200,6 +200,8 @@ class MispAutoUpdatePayload(TaranisBaseModel):
 
 
 class Story(TaranisBaseModel):
+    can_edit: bool = False
+
     _core_endpoint = "/assess/stories"
     _model_name = "story"
     _pretty_name = "Story"

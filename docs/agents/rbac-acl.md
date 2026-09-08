@@ -8,7 +8,7 @@ RoleBasedAccess ACLs restrict user-facing content and reference data, not admin/
 
 OSINT source visibility can be granted by a direct OSINT Source ACL or inherited from an OSINT Source Group ACL. A source-group ACL grants access to the group's current member sources; an OSINT Source Group `*` ACL grants all sources, including ungrouped sources. Read-only ACLs grant read access only; writable ACLs grant write access where a user-facing workflow already enforces ACL write checks.
 
-Story content updates (PUT/PATCH and bulk updates) and item reordering share `Story.allowed_to_update`, requiring story TLP access and write ACL access to every linked news item before any mutation. Trusted bot updates without a user preserve their existing behavior.
+Story content updates (PUT/PATCH and bulk updates) and item reordering share `Story.allowed_to_update`, requiring ASSESS_UPDATE, story TLP access, write ACL access to every linked news item, and no `rt_id` story attribute before any mutation. User-scoped story list, detail, and bookmark responses expose this decision as `can_edit`; the frontend defaults it to false and uses it for edit links, fields, ordering, tags, and manual bot controls. Direct news-item edits and tag writes also check the parent story. Frontend story caches are keyed by user. Trusted bot updates without a user preserve their existing behavior.
 
 Manual story and report bot-action endpoints enforce item-level write ACLs and TLP access before queueing work. The worker API key must not be used as a way for a user request to trigger processing of inaccessible content.
 

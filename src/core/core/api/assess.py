@@ -160,7 +160,9 @@ class UpdateNewsItemTags(MethodView):
         item = news_item.NewsItem.get(news_item_id)
         if not item:
             return {"error": "NewsItem not found"}, 404
-        if not item.allowed_with_acl(current_user, require_write_access=True):
+        if not item.allowed_with_acl(current_user, require_write_access=True) or (
+            item.story and not item.story.allowed_to_update(current_user)
+        ):
             return {"error": "User does not have write access to this news item"}, 403
 
         tags = request.json
@@ -420,13 +422,9 @@ class BotActions(MethodView):
         report_ids = request_id_list(request.json, "report_id", "report_ids")
         if not story_ids and not report_ids:
             return {"error": "No story_id or report_id provided"}, 400
-        accessible_tlps = current_user.get_highest_tlp().get_accessible_levels()
         for story_id in story_ids:
             selected_story = story.Story.get(story_id)
-            if not selected_story or any(
-                not item.allowed_with_acl(current_user, require_write_access=True) or item.tlp_level.value not in accessible_tlps
-                for item in selected_story.news_items
-            ):
+            if not selected_story or not selected_story.allowed_to_update(current_user):
                 return {"error": "User does not have write access to all requested stories"}, 403
         for report_id in report_ids:
             report = report_item.ReportItem.get(report_id)

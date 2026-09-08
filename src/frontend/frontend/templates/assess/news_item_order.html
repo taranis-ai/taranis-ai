@@ -14,13 +14,13 @@
        },
        destroy() { this.sortable?.destroy(); }
      }"
-     {% if not has_rt_id and story.news_items | length > 1 %} x-init="sortable = Sortable.create($refs.items, {
+     {% if story.can_edit and story.news_items | length > 1 %} x-init="sortable = Sortable.create($refs.items, {
          handle: '[data-order-handle]', draggable: '[data-order-item]', animation: 150,
          onEnd: (event) => { if (event.oldIndex !== event.newIndex) dirty = true; }
        })" x-effect="sortable?.option('disabled', saving)" {% endif %}>
   <div class="card-body space-y-5">
     <h3 class="card-title text-lg">Linked news items ({{ story.news_items | length }})</h3>
-    {% if not has_rt_id and story.news_items | length > 1 %}
+    {% if story.can_edit and story.news_items | length > 1 %}
       <p class="text-sm">Drag items or use the arrow buttons, then save their order. The story title stays unchanged.</p>
       <form id="news-item-order-form"
             method="post"
@@ -44,7 +44,7 @@
     <div class="space-y-4" x-ref="items">
       {% for item in story.news_items %}
         <div data-order-item="{{ item.id }}">
-          {% if not has_rt_id and story.news_items | length > 1 %}
+          {% if story.can_edit and story.news_items | length > 1 %}
             <input type="hidden" name="news_item_ids" value="{{ item.id }}" form="news-item-order-form">
             <div class="flex items-center gap-2 mb-2">
               <span data-order-handle class="cursor-grab" title="Drag to reorder" aria-hidden="true">{{ heroicon_mini('bars-3', class='h-5 w-5') }}</span>
@@ -52,7 +52,7 @@
               <button type="button" class="btn btn-xs btn-ghost" :disabled="saving" @click="move($el, 1)" aria-label="Move {{ item.title }} down">↓</button>
             </div>
           {% endif %}
-          {{ news_item_card(item, story, edit_tags=(not has_rt_id)) }}
+          {{ news_item_card(item, story, edit_tags=story.can_edit) }}
         </div>
       {% else %}
         <p class="text-sm text-base-content/70">No news items are attached to this story yet.</p>

@@ -6,7 +6,7 @@ Story news-item order, drag-and-drop, linked news items, conflict diffs, groupin
 ## Expected Behavior
 The story editor offers drag handles, keyboard move buttons, and a separate Save order action. The shared order is local to this instance. Saving order preserves unsaved story fields and does not change the title, content timestamps, revision, or MISP scheduling.
 
-The story edit route and its order-save/reload route require ASSESS_UPDATE. Ordering controls exist only in the editor; there is no per-story capability flag. Core uses the existing ASSESS_UPDATE route decorator. Story.update and reorder share Story.allowed_to_update: the user must satisfy the story TLP and have write ACL access to every linked item. Trusted bot updates without a user retain their existing path. Single-item and RT-managed stories hide ordering controls.
+The story edit route and its order-save/reload route require ASSESS_UPDATE. Ordering controls exist only in the editor and use Core's user-specific `can_edit` flag. Core uses the existing ASSESS_UPDATE route decorator. Story.update and reorder share Story.allowed_to_update: the user must have ASSESS_UPDATE, satisfy the story TLP, have write ACL access to every linked item, and the story must have no `rt_id` attribute. Trusted bot updates without a user retain their existing path. Single-item and RT-managed stories hide ordering controls.
 
 Saved order survives import and conflict resolution. Grouping keeps destination order and appends source items in their source order. Ungrouped items use their own titles; removal of an item whose title matches the parent promotes the first remaining item's title. Other parent titles remain unchanged.
 

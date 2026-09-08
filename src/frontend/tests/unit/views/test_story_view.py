@@ -53,6 +53,7 @@ def story_with_news_item_tags() -> dict:
     return {
         "id": "story-1",
         "title": "Tagged Story",
+        "can_edit": True,
         "description": "Story description",
         "summary": "Story summary",
         "comments": "Story comment",
@@ -487,8 +488,10 @@ def test_manual_news_item_validation_error_targets_notification_bar(authenticate
     assert "Invalid BCP 47 language tag" in notification_bar.text_content()
 
 
-def test_story_edit_renders_news_item_tag_editor(app, authenticated_client, responses_mock):
+@pytest.mark.parametrize("can_edit", [True, False])
+def test_story_edit_renders_news_item_tag_editor(app, authenticated_client, responses_mock, can_edit):
     story_payload = story_with_news_item_tags()
+    story_payload["can_edit"] = can_edit
     mock_story_for_edit(responses_mock, story_payload)
     csrf_token = "csrf-token"
     authenticated_client.set_cookie(key=app.config["JWT_ACCESS_CSRF_COOKIE_NAME"], value=csrf_token)
@@ -498,14 +501,15 @@ def test_story_edit_renders_news_item_tag_editor(app, authenticated_client, resp
     assert response.status_code == 200
     tree = html.fromstring(response.text)
 
-    assert tree.xpath('//*[@data-testid="edit-newsitem-tags"]')
-    assert tree.xpath('//*[@data-testid="news-item-tag-name-input"]')
+    assert bool(tree.xpath('//*[@data-testid="edit-newsitem-tags"]')) is can_edit
+    assert bool(tree.xpath('//*[@data-testid="news-item-tag-name-input"]')) is can_edit
     assert "keydown[canUseAssessShortcut(event, 'r')]" in response.text
-    assert "resetTags(); tagEditorOpen = false" in response.text
+    assert ("resetTags(); tagEditorOpen = false" in response.text) is can_edit
     assert not tree.xpath('//*[@data-testid="tag-name-input"]')
     assert not tree.xpath('//*[@data-testid="tag-value-input"]')
 
     edit_form = tree.xpath('//form[@id="story-edit-form"]')[0]
+    assert bool(edit_form.xpath("./fieldset[@disabled]")) is not can_edit
     assert edit_form.get("method") == "post"
     assert edit_form.get("action") == url_for("assess.story_edit", story_id=story_payload["id"])
     assert edit_form.get("hx-post") == edit_form.get("action")

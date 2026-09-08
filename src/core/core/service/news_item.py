@@ -12,7 +12,9 @@ class NewsItemService:
         news_item = NewsItem.get(news_item_id)
         if not news_item:
             return {"error": "NewsItem not found"}, 404
-        if not news_item.allowed_with_acl(user, require_write_access=True):
+        if not news_item.allowed_with_acl(user, require_write_access=True) or (
+            news_item.story and not news_item.story.allowed_to_update(user)
+        ):
             return {"error": "User does not have write access to this news item"}, 403
         response, status = news_item.update_item(data, actor=Story.last_change_for_user(user))
         if status != 200:

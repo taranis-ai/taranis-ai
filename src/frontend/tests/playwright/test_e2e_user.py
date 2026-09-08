@@ -483,6 +483,17 @@ class TestEndToEndUser(BaseE2ETest):
             order_panel.get_by_role("button", name="Reload news items").click()
             expect(order_panel.get_by_test_id("save-news-item-order")).to_be_disabled()
             expect(rows.first).to_have_attribute("data-order-item", original_order[1])
+
+            core_request_client.patch(
+                f"/assess/stories/{story_id}",
+                json_data={"attributes": [{"key": "rt_id", "value": "123"}]},
+            )
+            page.reload()
+            expect(page.get_by_text("This story is read-only.", exact=True)).to_be_visible()
+            expect(page.get_by_role("textbox", name="Summary")).to_be_disabled()
+            expect(page.get_by_role("button", name="Save changes", exact=True)).to_be_disabled()
+            expect(order_panel.get_by_test_id("save-news-item-order")).to_have_count(0)
+            expect(order_panel.get_by_test_id("edit-newsitem-tags")).to_have_count(0)
         finally:
             allow_requests_passthru()
             for created_id in created_ids:

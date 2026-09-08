@@ -932,7 +932,6 @@ class StoryView(BaseView):
                 except Exception:
                     context["misp_connectors"] = []
             attributes = story.attributes or []
-            context["has_rt_id"] = any(isinstance(attr, dict) and attr.get("key") == "rt_id" for attr in attributes)
 
             cybersecurity_value = next(
                 (attr.get("value") for attr in attributes if isinstance(attr, dict) and attr.get("key") == "cybersecurity"),
@@ -950,7 +949,6 @@ class StoryView(BaseView):
             source_dict = {source.id: source for source in sources if source.id}
             cls._enhance_story_with_details(story, source_dict)
         else:
-            context["has_rt_id"] = False
             context["story_cyber_status"] = "Not Classified"
             context["cyber_chip_class"] = "badge badge-outline"
             context["story_sentiment_status"] = "Not Classified"
