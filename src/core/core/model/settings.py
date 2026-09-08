@@ -37,7 +37,7 @@ class Settings(BaseModel):
         merged.setdefault("default_story_conflict_retention", "200")
         merged.setdefault("default_news_item_conflict_retention", "200")
         merged.setdefault("default_timezone", None)
-        merged.setdefault("onboarding_enabled", not Config.SKIP_INITIAL_USER_ONBOARDING)
+        merged.setdefault("onboarding_enabled", True)
         return merged
 
     @classmethod

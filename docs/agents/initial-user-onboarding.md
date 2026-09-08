@@ -2,13 +2,13 @@
 
 ## When To Load
 
-Initial database setup, pre-seeded users, onboarding tasks, `pre_seed_default_user`, or `SKIP_INITIAL_USER_ONBOARDING`.
+Initial database setup, pre-seeded users, onboarding tasks, `pre_seed_default_user`, or `PRE_SEED_SETTINGS`.
 
 ## Expected Behavior
 
-`SKIP_INITIAL_USER_ONBOARDING` defaults to `false` and presets the persistent global `onboarding_enabled` setting only while that setting is missing. A value of `true` presets onboarding to disabled; later changes in Admin Settings remain authoritative.
+Onboarding defaults to enabled. Set `PRE_SEED_SETTINGS='{"onboarding_enabled":false}'` to disable it during settings initialization; later changes in Admin Settings remain authoritative.
 
-`PRE_SEED_SETTINGS` accepts a flat JSON object for any global settings. `Settings.initialize()` applies it only when no singleton settings row exists, filling omitted keys with normal defaults. An explicit `onboarding_enabled` seed overrides `SKIP_INITIAL_USER_ONBOARDING` and is copied to existing initial users. Subsequent startup preserves persisted settings and does not merge seed values. JSON parsing is handled by Pydantic Settings; initialization reuses existing timezone, integer, and boolean validators. Environment parsing and persistence/restart coverage live in `src/core/tests/test_settings.py`; deployment examples are in `docker/README.md`.
+`PRE_SEED_SETTINGS` accepts a flat JSON object for any global settings. `Settings.initialize()` applies it only when no singleton settings row exists, filling omitted keys with normal defaults. The initialized `onboarding_enabled` value is copied to existing users. Subsequent startup preserves persisted settings and does not merge seed values. JSON parsing is handled by Pydantic Settings; initialization reuses existing timezone, integer, and boolean validators. Environment parsing and persistence/restart coverage live in `src/core/tests/test_settings.py`; deployment examples are in `docker/README.md`.
 
 Changing the global setting updates every existing user's `profile.onboarding_enabled` value. An administrator can then override individual users in Admin Users, including enabling one user while the global setting remains disabled. New users inherit the current global value unless the create form explicitly overrides it.
 
@@ -33,7 +33,7 @@ Fresh databases seed the `admin` and `user` accounts as `Default Admin` and `Def
 
 ## Data Flow
 
-Core startup initializes the missing global setting from the environment flag and copies it to existing profiles. Admin Settings performs the same bulk copy only when the global value changes. The user profile response suppresses pending tasks when that user's enabled flag is false.
+Core startup seeds a new settings row from `PRE_SEED_SETTINGS` and copies onboarding to existing profiles. An existing row missing `onboarding_enabled` receives the default `true`. Admin Settings performs the same bulk copy only when the global value changes. The user profile response suppresses pending tasks when that user's enabled flag is false.
 
 ## Testing
 
@@ -50,6 +50,6 @@ Run from `src/frontend`:
 
 ## Pitfalls
 
-- The environment flag must not overwrite an already-persisted global value.
+- The JSON seed must not overwrite an existing settings row.
 - The global value is a bulk default, not a runtime gate; per-user overrides must remain effective until the global value actually changes.
 - Never rewrite `onboarding_tasks` when enabling or disabling onboarding.

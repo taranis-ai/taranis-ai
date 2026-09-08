@@ -252,7 +252,7 @@ def migrate_user_profiles():
 
     profile_template = {
         **PROFILE_TEMPLATE,
-        "onboarding_enabled": Settings.get_settings().get("onboarding_enabled", not Config.SKIP_INITIAL_USER_ONBOARDING),
+        "onboarding_enabled": Settings.get_settings().get("onboarding_enabled", True),
     }
     users = User.get_all_for_collector() or []
     for user in users:

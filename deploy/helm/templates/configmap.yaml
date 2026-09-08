@@ -19,7 +19,6 @@ data:
   SQLALCHEMY_POOL_TIMEOUT: {{ .Values.config.sqlalchemyPoolTimeout | quote }}
   SQLALCHEMY_POOL_RECYCLE: {{ .Values.config.sqlalchemyPoolRecycle | quote }}
   TARANIS_AUTHENTICATOR: {{ .Values.config.authenticator | quote }}
-  SKIP_INITIAL_USER_ONBOARDING: {{ .Values.config.skipInitialUserOnboarding | quote }}
   SUMMARY_API_ENDPOINT: {{ .Values.config.summaryApiEndpoint | quote }}
   TITLE_API_ENDPOINT: {{ .Values.config.titleApiEndpoint | quote }}
   NLP_API_ENDPOINT: {{ .Values.config.nlpApiEndpoint | quote }}

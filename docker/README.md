@@ -43,7 +43,7 @@ For a directly launched core process, export the same JSON value as `PRE_SEED_SE
 
 Preseeding applies only when the persistent settings row does not exist. Restarts and upgrades preserve saved settings, including administrator edits; they do not merge newly supplied seed keys into an existing row. An empty object `{}` or an unset variable uses normal defaults. Use a JSON object, not the API's `{"settings": {...}}` wrapper. Invalid JSON and non-object values are rejected during configuration loading. Timezone, entry-limit, lookback, and onboarding values use the existing settings validators during initialization.
 
-An explicit `onboarding_enabled` seed overrides `SKIP_INITIAL_USER_ONBOARDING` and is copied to the initial users. After initialization, use Admin Settings to change values. Removing the variable does not undo persisted settings; no database migration is required.
+Onboarding defaults to enabled. Set `PRE_SEED_SETTINGS='{"onboarding_enabled":false}'` to disable it during initialization; the value is copied to existing users. This replaces the removed `SKIP_INITIAL_USER_ONBOARDING` variable. After initialization, use Admin Settings to change values. Removing the variable does not undo persisted settings; no database migration is required.
 
 ## Startup & Usage
 
@@ -170,7 +170,7 @@ Any configuration options are available at [https://hub.docker.com/\_/postgres](
 | `REDIS_URL`                   | Redis connection URL                       | `redis://redis:6379` |
 | `PRE_SEED_PASSWORD_ADMIN`     | Initial password for `admin`               | `admin`       |
 | `PRE_SEED_PASSWORD_USER`      | Initial password for `user`                | `user`        |
-| `SKIP_INITIAL_USER_ONBOARDING`| Initially disable onboarding for all users | `False`       |
+| `PRE_SEED_SETTINGS`          | Flat JSON object for initial global settings | `{}`        |
 | `API_KEY`                     | API Key for communication with workers     | `supersecret` |
 | `DEBUG`                       | Debug logging                              | `False`       |
 | `DB_URL`                      | PostgreSQL database URL                    | `localhost`   |
