@@ -33,7 +33,7 @@ def test_base_web_collector_conditional_request(base_web_collector_mock, base_we
     for error_type in (requests.exceptions.ConnectionError, requests.exceptions.Timeout, requests.exceptions.ReadTimeout):
         requests_mock.get("https://test.org/network-error", exc=error_type("technical-network-details"))
         caplog.clear()
-        with caplog.at_level("INFO"), pytest.raises(RuntimeError) as failure:
+        with caplog.at_level("INFO"), pytest.raises(requests.exceptions.RequestException) as failure:
             base_web_collector.send_get_request("https://test.org/network-error")
 
         assert str(failure.value) == (
@@ -352,11 +352,19 @@ def test_simple_web_collector_digest_splitting(simple_web_collector_mock, simple
     assert result is None
 
 
-def test_rt_collector_collect(rt_mock, rt_collector):
+def test_rt_collector_collect(rt_mock, rt_collector, requests_mock):
     from tests.collectors import rt_testdata
 
     result = rt_collector.collect(rt_testdata.rt_collector_source_data)
     assert result is None
+
+    requests_mock.get(rt_testdata.rt_attachment_1_url, exc=requests.exceptions.ConnectionError("connection failed"))
+    assert rt_collector.get_attachment_values(rt_testdata.rt_attachment_1_url) == {}
+    requests_mock.get(rt_testdata.rt_ticket_attachments_url, exc=requests.exceptions.ReadTimeout("read timed out"))
+    assert rt_collector.get_ticket_attachments(1) == []
+    requests_mock.get(rt_testdata.rt_ticket_url, exc=requests.exceptions.ConnectTimeout("connect timed out"))
+    assert rt_collector.get_ticket(1) == {}
+    assert rt_collector.collect(rt_testdata.rt_collector_source_data) is None
 
 
 def test_rt_collector_no_tickets_error(rt_mock, rt_collector):

@@ -87,7 +87,7 @@ class BaseWebCollector(BaseCollector):
             except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as exc:
                 logger.error(f"Collector HTTP request failed: {exc}")
                 logger.exception("Collector HTTP request failed")
-                raise RuntimeError(
+                raise requests.exceptions.RequestException(
                     "The request to the source or proxy failed or timed out. "
                     "Check DNS resolution and network access from the worker container, "
                     "and verify the source's PROXY_SERVER setting if a proxy is required. See worker logs for technical details."
