@@ -347,6 +347,20 @@ class TestCRUDViews:
 
 
 class TestSourceView:
+    @pytest.mark.parametrize("status", [200, 409])
+    def test_native_delete_redirects_with_notification(self, authenticated_client, responses_mock, status):
+        core_url = f"{Config.TARANIS_CORE_URL}/config/osint-sources/source-1"
+        message = "Source deleted" if status == 200 else "Source has related news items"
+        responses_mock.delete(core_url, json={"message" if status == 200 else "error": message}, status=status)
+
+        response = authenticated_client.post(SourceView.get_edit_route(osint_source_id="source-1"), data={"_action": "delete"})
+
+        assert response.status_code == 302
+        assert response.location == SourceView.get_base_route()
+        assert len([call for call in responses_mock.calls if call.request.method == "DELETE" and call.request.url == core_url]) == 1
+        with authenticated_client.session_transaction() as session:
+            assert ("success" if status == 200 else "error", message) in session["_flashes"]
+
     def test_source_menu_badge_uses_task_failure_count(self, monkeypatch):
         fake_badges = SimpleNamespace(osint_source=4)
         monkeypatch.setattr(

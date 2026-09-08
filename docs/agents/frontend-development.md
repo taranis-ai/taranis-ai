@@ -12,6 +12,8 @@ Handle known events at their producer. Do not rediscover them with polling, DOM-
 
 Shared controls own selection, accessibility, styling, and shortcut behavior across consumers. Keep selection backed by native inputs where forms submit it; do not add a parallel selection store. Assess shortcuts use the shared guard to avoid firing in editable controls or open dialogs. The selection bar's no-JavaScript hiding rule belongs in `base.html`, never in swappable fragments.
 
+Shared row actions have accessible names. Delete actions retain native CSRF-protected POST forms and explicitly target notifications on HTMX 400/4xx/5xx failures.
+
 ## HTMX and Forms
 
 Taranis uses HTMX 4:
