@@ -53,7 +53,7 @@ class Story(BaseModel):
     summary: Mapped[str] = db.Column(db.Text, default="")
     revision: Mapped[int] = db.Column(db.Integer, nullable=False, default=0)
     news_items: Mapped[list["NewsItem"]] = relationship("NewsItem")
-    news_item_order: Mapped[list[str]] = db.Column(db.JSON, nullable=False, default=list, server_default="[]")
+    news_item_order: Mapped[list[str]] = db.Column(db.JSON, nullable=False, default=list)
     last_change: Mapped[str] = db.Column(db.String())
     attributes: Mapped[list["NewsItemAttribute"]] = relationship(
         "NewsItemAttribute", secondary="story_news_item_attribute", cascade="all, delete"

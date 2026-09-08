@@ -99,3 +99,9 @@ class TestStoryConflictSorting:
         updated_story["news_items"][0]["title"] = "Edited"
         before, after = StoryConflict.normalize_data(original_story, updated_story)
         assert before != after
+
+        for items in ([None], [None, {"id": "a"}], ["invalid", 42]):
+            updated_story["news_items"] = items
+            before, after = StoryConflict.normalize_data(original_story, updated_story)
+            assert json.loads(after)["news_items"] == items
+            assert before != after

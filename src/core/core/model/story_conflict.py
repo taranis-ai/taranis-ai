@@ -104,7 +104,7 @@ class StoryConflict:
         normalized_current = cls.keep_keys_deep(current_data, STORY_CONFLICT_ALLOWED_KEYS)
         normalized_new = cls.keep_keys_deep(new_data, STORY_CONFLICT_ALLOWED_KEYS)
         for data in (normalized_current, normalized_new):
-            if isinstance(data.get("news_items"), list):
+            if isinstance(data.get("news_items"), list) and all(isinstance(item, dict) for item in data["news_items"]):
                 data["news_items"] = sorted(data["news_items"], key=lambda item: item.get("id") or "")
         return cls.stable_stringify(normalized_current), cls.stable_stringify(normalized_new)
 

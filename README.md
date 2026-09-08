@@ -31,7 +31,7 @@ For Mastodon collection setup, including access-token HTTPS requirements and com
 
 For maintainer release steps, see [docs/releasing.md](docs/releasing.md).
 
-The story editor requires `ASSESS_UPDATE`. Saving story edits or item order also requires access to the story’s TLP level and write access to every linked item’s source. In the editor, drag linked news items or use their arrow buttons, then select **Save order**. Everyone on this instance sees that order; it does not change the story title or synchronize through MISP. Conflict diffs compare items by ID so transport order does not create misleading changes.
+The story editor requires `ASSESS_UPDATE`. Saving story edits or item order also requires access to the story’s TLP level and write access to every linked item’s source. In the editor, drag linked news items or use their arrow buttons, then select **Save order**. Everyone on this instance sees that order; it does not change the story title or synchronize through MISP. Conflict diffs compare items by ID so transport order does not create misleading changes; malformed item entries remain visible without being sorted.
 
 For container and Python dependency SBOM scope and attestations, see [docs/sbom.md](docs/sbom.md).
 
