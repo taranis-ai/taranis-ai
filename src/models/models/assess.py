@@ -212,7 +212,6 @@ class Story(TaranisBaseModel):
     updated: datetime | None = None
     last_change: str | None = None
     news_items: list[NewsItem] | None = None
-    can_order_news_items: bool = False
     links: list[str] | None = None
     important: bool | None = None
     read: bool | None = None

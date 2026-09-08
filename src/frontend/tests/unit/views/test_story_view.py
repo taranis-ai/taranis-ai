@@ -4,6 +4,7 @@ from typing import Any
 from urllib.parse import parse_qs, urlparse
 from uuid import UUID
 
+import pytest
 from flask import render_template, render_template_string, url_for
 from lxml import html
 from models.assess import FilterLists, Story, StoryUpdatePayload
@@ -342,7 +343,20 @@ def test_story_update_redirects_to_story_without_htmx(authenticated_client, resp
     assert json.loads(responses_mock.calls[0].request.body) == {"read": True}
 
 
-def test_story_edit_standard_post_updates_and_redirects(authenticated_client, responses_mock):
+@pytest.mark.parametrize("can_update", [True, False])
+def test_story_edit_standard_post_updates_and_redirects(authenticated_client, auth_user, responses_mock, can_update):
+    if not can_update:
+        reader = auth_user.model_copy(deep=True)
+        reader.permissions = ["ASSESS_ACCESS"]
+        add_user_to_cache(reader.model_dump(mode="json"))
+        for endpoint, methods in (("assess.story_edit", ("GET", "POST", "PUT")), ("assess.story_news_item_order", ("GET", "POST"))):
+            for method in methods:
+                assert authenticated_client.open(url_for(endpoint, story_id="story-1"), method=method).status_code == 403
+        mock_story_for_edit(responses_mock, story_with_news_item_tags())
+        responses_mock.get(f"{Config.TARANIS_CORE_URL}/assess/bookmarks", json={"items": [], "total_count": 0})
+        assert authenticated_client.get(url_for("assess.story", story_id="story-1")).status_code == 200
+        return
+
     responses_mock.patch(
         f"{Config.TARANIS_CORE_URL}/assess/stories/story-1",
         json={"message": "Story updated"},
@@ -563,7 +577,7 @@ def test_story_edit_misp_auto_update_controls_require_connector_access(authentic
     )
 
     connector_user = auth_user.model_copy(deep=True)
-    connector_user.permissions = ["CONNECTOR_USER_ACCESS"]
+    connector_user.permissions = ["ASSESS_UPDATE", "CONNECTOR_USER_ACCESS"]
     add_user_to_cache(connector_user.model_dump(mode="json"))
 
     response = authenticated_client.get(url_for("assess.story_edit", story_id=story_payload["id"], layout="advanced"))

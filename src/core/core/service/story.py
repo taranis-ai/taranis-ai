@@ -29,8 +29,8 @@ class StoryService:
         story = db.session.execute(db.select(Story).where(Story.id == story_id).with_for_update()).scalar_one_or_none()
         if story is None:
             return {"error": "Story not found"}, 404
-        if not story.can_order_news_items(user):
-            return {"error": "You do not have permission to reorder this story"}, 403
+        if not story.allowed_to_update(user):
+            return {"error": "User is not allowed to update story"}, 403
         current_ids = [item.id for item in story.ordered_news_items]
         if expected_news_item_ids != current_ids:
             return {"error": "News items changed. Reload the list before saving its order."}, 409

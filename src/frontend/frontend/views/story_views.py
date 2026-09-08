@@ -959,7 +959,7 @@ class StoryView(BaseView):
         return context
 
     @classmethod
-    @auth_required("ASSESS_ACCESS")
+    @auth_required("ASSESS_UPDATE")
     def news_item_order(cls, story_id: str):
         message = None
         if request.method == "POST":

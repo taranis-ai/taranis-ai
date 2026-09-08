@@ -309,7 +309,6 @@ class Story(BaseModel):
                 story, user_vote = result
                 story_data = story.to_detail_dict()
                 story_data["user_vote"] = user_vote
-                story_data["can_order_news_items"] = story.can_order_news_items(user)
                 return story_data, 200
 
         if item := db.session.execute(query).scalar():
@@ -876,6 +875,11 @@ class Story(BaseModel):
         logger.info(f"News items added successfully: {result}")
         return result, 200
 
+    def allowed_to_update(self, user: User) -> bool:
+        return self.tlp_level.value in user.get_highest_tlp().get_accessible_levels() and all(
+            item.allowed_with_acl(user, require_write_access=True) for item in self.news_items
+        )
+
     @classmethod
     def update(
         cls,
@@ -889,6 +893,9 @@ class Story(BaseModel):
         logger.debug(f"Updating story {story_id} with data: {data}")
         if not story:
             return {"error": "Story not found"}, 404
+
+        if user is not None and not story.allowed_to_update(user):
+            return {"error": "User is not allowed to update story"}, 403
 
         if "misp_auto_update" in data and (not user or "CONNECTOR_USER_ACCESS" not in user.get_permissions()):
             return {"error": "forbidden"}, 403
@@ -1462,13 +1469,6 @@ class Story(BaseModel):
         items = {item.id: item for item in self.news_items}
         ordered = [items.pop(item_id) for item_id in self.news_item_order or [] if item_id in items]
         return ordered + [items[item_id] for item_id in sorted(items)]
-
-    def can_order_news_items(self, user: User) -> bool:
-        return (
-            "ASSESS_UPDATE" in user.get_permissions()
-            and self.tlp_level.value in user.get_highest_tlp().get_accessible_levels()
-            and all(item.allowed_with_acl(user, require_write_access=True) for item in self.news_items)
-        )
 
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()

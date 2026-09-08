@@ -1,5 +1,9 @@
-from flask import Blueprint, Flask
+from typing import cast
 
+from flask import Blueprint, Flask
+from flask.typing import RouteCallable
+
+from frontend.auth import auth_required
 from frontend.views.analyst_review_views import AnalystReviewView
 from frontend.views.story_bookmark_views import StoryBookmarkView
 from frontend.views.story_views import StoryView
@@ -49,7 +53,9 @@ def init(app: Flask):
         "/story/<string:story_id>", view_func=StoryView.patch_story, methods=["POST", "PUT", "PATCH"], endpoint="story_update"
     )
     assess_bp.add_url_rule("/story/<string:story_id>", view_func=StoryView.delete_story, methods=["DELETE"], endpoint="story_delete")
-    assess_bp.add_url_rule("/story/<string:story_id>/edit", view_func=StoryView.as_view("story_edit"))
+    assess_bp.add_url_rule(
+        "/story/<string:story_id>/edit", view_func=cast(RouteCallable, auth_required("ASSESS_UPDATE")(StoryView.as_view("story_edit")))
+    )
     assess_bp.add_url_rule(
         "/story/<string:story_id>/bots", view_func=StoryView.trigger_bot_action, methods=["POST"], endpoint="story_trigger_bot"
     )

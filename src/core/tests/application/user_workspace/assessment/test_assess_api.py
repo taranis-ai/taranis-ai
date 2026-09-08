@@ -7,6 +7,32 @@ from tests.application.support.api_test_base import BaseTest
 class TestAssessApi(BaseTest):
     base_uri = "/api/assess"
 
+    def test_order_saves_without_changing_content_and_rejects_stale_or_invalid_requests(self, client, auth_header, session):
+        from core.managers.db_manager import db
+        from tests.application.support.builders import build_news_item_payload, create_story
+
+        story = create_story(news_items=[build_news_item_payload() for _ in range(3)])
+        original_ids = [item.id for item in story.ordered_news_items]
+        desired_ids = list(reversed(original_ids))
+        before = (story.title, story.updated, story.revision, story.last_change)
+        endpoint = f"/api/assess/stories/{story.id}/news-item-order"
+        payload = {"news_item_ids": desired_ids, "expected_news_item_ids": original_ids}
+
+        response = client.put(endpoint, headers=auth_header, json=payload)
+        assert response.status_code == 200
+        db.session.expire_all()
+        assert [item.id for item in story.ordered_news_items] == desired_ids
+        assert (story.title, story.updated, story.revision, story.last_change) == before
+        detail = client.get(f"/api/assess/stories/{story.id}", headers=auth_header).get_json()
+        assert [item["id"] for item in detail["news_items"]] == desired_ids
+        assert "news_item_order" not in story.to_worker_dict()
+
+        assert client.put(endpoint, headers=auth_header, json=payload).status_code == 409
+        for invalid in (desired_ids[:-1], [desired_ids[0]] * 3, [*desired_ids[:-1], "foreign-item"]):
+            response = client.put(endpoint, headers=auth_header, json={"news_item_ids": invalid, "expected_news_item_ids": desired_ids})
+            assert response.status_code == 400
+        assert [item.id for item in story.ordered_news_items] == desired_ids
+
     def test_get_OSINTSourceGroupsAssess(self, client, fake_source, auth_header):
         """
         This test queries the OSINTSourceGroupsAssess authenticated.
@@ -39,6 +65,27 @@ class TestAssessApi(BaseTest):
         assert story["title"] == input_data["title"]
         assert actual_attributes == expected_attributes
         assert len(story["news_items"]) == len(input_data["news_items"])
+
+        from core.model.story import Story
+
+        story = Story.get(story_id)
+        original_ids = [item.id for item in story.ordered_news_items]
+        desired_ids = list(reversed(original_ids))
+        self.assert_put_ok(
+            client,
+            f"/stories/{story_id}/news-item-order",
+            {"news_item_ids": desired_ids, "expected_news_item_ids": original_ids},
+            auth_header,
+        )
+        payload = story.to_worker_dict()
+        payload["news_items"].reverse()
+        payload["news_item_order"] = original_ids
+        payload["summary"] = "Updated upstream"
+        result, status = Story.add_or_update(payload)
+        assert status == 200, result
+        updated = self.assert_get_ok(client, f"/story/{story_id}", auth_header).get_json()
+        assert [item["id"] for item in updated["news_items"]] == desired_ids
+        assert updated["summary"] == "Updated upstream"
 
     def test_get_connectors(self, client, auth_header, assess_connector):
         response = self.assert_get_ok(client, "connectors", auth_header)

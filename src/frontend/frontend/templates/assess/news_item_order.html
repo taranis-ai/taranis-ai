@@ -1,5 +1,4 @@
 {% from "assess/news_item_card.html" import news_item_card %}
-{% set can_order = story.can_order_news_items and not has_rt_id and story.news_items | length > 1 %}
 {% set order_url = url_for('assess.story_news_item_order', story_id=story.id, bookmark_id=bookmark_id or None) %}
 <div id="news-item-order"
      class="card bg-base-100 shadow-lg border border-base-200"
@@ -15,13 +14,13 @@
        },
        destroy() { this.sortable?.destroy(); }
      }"
-     {% if can_order %} x-init="sortable = Sortable.create($refs.items, {
+     {% if not has_rt_id and story.news_items | length > 1 %} x-init="sortable = Sortable.create($refs.items, {
          handle: '[data-order-handle]', draggable: '[data-order-item]', animation: 150,
          onEnd: (event) => { if (event.oldIndex !== event.newIndex) dirty = true; }
        })" x-effect="sortable?.option('disabled', saving)" {% endif %}>
   <div class="card-body space-y-5">
     <h3 class="card-title text-lg">Linked news items ({{ story.news_items | length }})</h3>
-    {% if can_order %}
+    {% if not has_rt_id and story.news_items | length > 1 %}
       <p class="text-sm">Drag items or use the arrow buttons, then save their order. The story title stays unchanged.</p>
       <form id="news-item-order-form"
             method="post"
@@ -45,7 +44,7 @@
     <div class="space-y-4" x-ref="items">
       {% for item in story.news_items %}
         <div data-order-item="{{ item.id }}">
-          {% if can_order %}
+          {% if not has_rt_id and story.news_items | length > 1 %}
             <input type="hidden" name="news_item_ids" value="{{ item.id }}" form="news-item-order-form">
             <div class="flex items-center gap-2 mb-2">
               <span data-order-handle class="cursor-grab" title="Drag to reorder" aria-hidden="true">{{ heroicon_mini('bars-3', class='h-5 w-5') }}</span>

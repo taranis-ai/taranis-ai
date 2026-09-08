@@ -1,6 +1,8 @@
 import uuid
 from unittest.mock import Mock
 
+import pytest
+
 from core.managers.db_manager import db
 from core.model.role import TLPLevel
 from tests.application.support.rbac import (
@@ -293,7 +295,8 @@ class TestRBACAclBehavior:
         db.session.commit()
         assert item.allowed_with_acl(user, require_write_access=True)
 
-    def test_story_order_requires_write_access_to_every_source(self, client, session, auth_header_user_permissions):
+    @pytest.mark.parametrize("operation", ["put", "patch", "reorder"])
+    def test_story_updates_require_write_access_and_tlp(self, client, session, auth_header_user_permissions, operation):
         from core.model.role import Role
         from core.model.role_based_access import ItemType
         from core.model.story import Story
@@ -305,16 +308,22 @@ class TestRBACAclBehavior:
         user_role = Role.filter_by_name("User")
         grant_acl(user_role, ItemType.OSINT_SOURCE, source.id, read_only=False)
         other_acl = grant_acl(user_role, ItemType.OSINT_SOURCE, other_source.id, read_only=True)
-        endpoint = f"/api/assess/stories/{story.id}/news-item-order"
+        suffix = "/news-item-order" if operation == "reorder" else ""
+        endpoint = f"/api/assess/stories/{story.id}{suffix}"
+        send = client.patch if operation == "patch" else client.put
         ids = [item.id for item in story.ordered_news_items]
         payload = {"news_item_ids": list(reversed(ids)), "expected_news_item_ids": ids}
 
-        detail = client.get(f"/api/assess/stories/{story.id}", headers=auth_header_user_permissions).get_json()
-        assert detail["can_order_news_items"] is False
-        assert client.put(endpoint, headers=auth_header_user_permissions, json=payload).status_code == 403
+        if operation != "reorder":
+            payload = {"title": "Updated story"}
+        original_title = story.title
+        assert send(endpoint, headers=auth_header_user_permissions, json=payload).status_code == 403
+        db.session.refresh(story)
+        assert story.title == original_title
+        assert [item.id for item in story.ordered_news_items] == ids
         other_acl.read_only = False
         db.session.commit()
-        assert client.put(endpoint, headers=auth_header_user_permissions, json=payload).status_code == 200
+        assert send(endpoint, headers=auth_header_user_permissions, json=payload).status_code == 200
 
         restricted = create_story(news_items=[build_news_item_payload(source.id)], attributes=[{"key": "TLP", "value": "red"}])
         from core.model.news_item_attribute import NewsItemAttribute
@@ -322,10 +331,13 @@ class TestRBACAclBehavior:
         restricted.upsert_attribute(NewsItemAttribute(key="TLP", value="red"))
         db.session.commit()
         restricted_ids = [item.id for item in restricted.news_items]
-        response = client.put(
-            f"/api/assess/stories/{restricted.id}/news-item-order",
+        restricted_payload = (
+            {"news_item_ids": restricted_ids, "expected_news_item_ids": restricted_ids} if operation == "reorder" else {"title": "Blocked"}
+        )
+        response = send(
+            f"/api/assess/stories/{restricted.id}{suffix}",
             headers=auth_header_user_permissions,
-            json={"news_item_ids": restricted_ids, "expected_news_item_ids": restricted_ids},
+            json=restricted_payload,
         )
         assert response.status_code == 403
 

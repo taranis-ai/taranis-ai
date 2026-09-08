@@ -6,7 +6,7 @@ Story news-item order, drag-and-drop, linked news items, conflict diffs, groupin
 ## Expected Behavior
 The story editor offers drag handles, keyboard move buttons, and a separate Save order action. The shared order is local to this instance. Saving order preserves unsaved story fields and does not change the title, content timestamps, revision, or MISP scheduling.
 
-Core requires ASSESS_UPDATE, adequate story TLP clearance, and write access to every linked item. Read-only and single-item views hide controls. RT-managed stories retain their read-only editor behavior.
+The story edit route and its order-save/reload route require ASSESS_UPDATE. Ordering controls exist only in the editor; there is no per-story capability flag. Core uses the existing ASSESS_UPDATE route decorator. Story.update and reorder share Story.allowed_to_update: the user must satisfy the story TLP and have write ACL access to every linked item. Trusted bot updates without a user retain their existing path. Single-item and RT-managed stories hide ordering controls.
 
 Saved order survives import and conflict resolution. Grouping keeps destination order and appends source items in their source order. Ungrouped items use their own titles; removal of an item whose title matches the parent promotes the first remaining item's title. Other parent titles remain unchanged.
 
@@ -23,7 +23,7 @@ The DOM and form-associated hidden inputs hold the proposed order. HTMX posts to
 `ordered_news_items` returns saved current IDs followed by unlisted IDs in deterministic ID order. Stale IDs never change membership. Existing stories initially use ID order. The storage field is excluded from external payloads. Conflict normalization sorts news-item copies by ID regardless of display order; it does not sort arbitrary lists.
 
 ## Testing
-Core ordering tests live in `tests/application/user_workspace/assessment/test_story_news_item_order.py`, with ACL coverage in `test_rbac.py` and normalization coverage in `test_story_conflict.py`. The default CI browser suite includes `TestEndToEndUser.test_news_item_order` for drag, keyboard, persistence, draft preservation, and stale-save recovery. Run the complete `./dev/test_push_signoff.sh` gate after committing.
+Core payload validation lives in the existing `test_assess_api.py` suite. Existing worker integration, revision/removal, and conflict normalization tests cover order preservation. The core RBAC test parameterizes PUT, PATCH, and reorder to cover the shared ACL/TLP policy; existing auth tests cover the permission decorator. The existing frontend story-edit test checks route permission gates; its dedicated connection-error test covers safe partial responses. The default CI browser suite includes `TestEndToEndUser.test_news_item_order` for drag, keyboard, persistence, draft preservation, and stale-save recovery. Run the complete `./dev/test_push_signoff.sh` gate after committing.
 
 ## Pitfalls
 - Never trust order supplied by imported content or use it to move items between stories.

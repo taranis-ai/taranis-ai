@@ -45,6 +45,7 @@ def story_data_2():
 @pytest.fixture
 def original_story():
     return {
+        "news_items": [{"id": "b", "title": "Second"}, {"id": "a", "title": "First"}],
         "title": "Breaking News Story",
         "description": "Important news",
         "tags": {
@@ -63,6 +64,7 @@ def original_story():
 @pytest.fixture
 def updated_story():
     return {
+        "news_items": [{"id": "a", "title": "First"}, {"id": "b", "title": "Second"}],
         "title": "Breaking News Story",
         "description": "Important news",
         "tags": {
@@ -79,21 +81,6 @@ def updated_story():
 
 
 class TestStoryConflictSorting:
-    def test_news_item_order_is_ignored_without_hiding_content_changes(self):
-        current = {"news_items": [{"id": "b", "title": "Second"}, {"id": "a", "title": "First"}]}
-        incoming = deepcopy(current)
-        incoming["news_items"].reverse()
-        original = deepcopy(current)
-        before, after = StoryConflict.normalize_data(current, incoming)
-        assert before == after
-        assert current == original
-        assert [item["id"] for item in json.loads(before)["news_items"]] == ["a", "b"]
-
-        incoming["news_items"][0]["title"] = "Edited"
-        assert StoryConflict.normalize_data(current, incoming)[0] != StoryConflict.normalize_data(current, incoming)[1]
-        incoming["news_items"].pop()
-        assert len(json.loads(StoryConflict.normalize_data(current, incoming)[1])["news_items"]) == 1
-
     def test_stable_stringify_handles_different_tag_order(self, story_data_1, story_data_2):
         result_1 = StoryConflict.stable_stringify(story_data_1)
         result_2 = StoryConflict.stable_stringify(story_data_2)
@@ -101,8 +88,14 @@ class TestStoryConflictSorting:
         assert result_1 == result_2, "Same data with different order should produce identical strings"
 
     def test_normalize_data_handles_different_ordering(self, original_story, updated_story):
+        original = deepcopy(original_story)
         normalized_original, normalized_updated = StoryConflict.normalize_data(original_story, updated_story)
 
         assert normalized_original == normalized_updated, (
             "Stories with same content but different order should normalize to identical strings"
         )
+        assert original_story == original
+        assert [item["id"] for item in json.loads(normalized_original)["news_items"]] == ["a", "b"]
+        updated_story["news_items"][0]["title"] = "Edited"
+        before, after = StoryConflict.normalize_data(original_story, updated_story)
+        assert before != after

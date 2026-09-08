@@ -2,7 +2,7 @@
 
 ## News-item ordering upgrade
 
-The news-item ordering feature adds the `story.news_item_order` JSON column through the normal core startup migration. Existing stories initially display their items in deterministic ID order. Deploy matching published core and frontend images: pull, restart core to complete the migration, restart frontend, then verify core readiness and saving/reloading a multi-item story's order. No image build or separate backfill is required.
+The news-item ordering feature adds the `story.news_item_order` JSON column through the normal core startup migration. Existing stories initially display their items in deterministic ID order. Deploy matching published core and frontend images: pull, restart core to complete the migration, restart frontend, then verify core readiness and saving/reloading a multi-item story's order. No image build or separate backfill is required. Story edits and reordering now share ACL/TLP checks; verify read-only source ACLs and insufficient TLP access reject both writes. Verify that users without `ASSESS_UPDATE` can read stories but cannot open the editor or save/reload item order.
 
 For application rollback, restore the previous published images and leave the additive column in place to retain saved orders. Removing the column discards those orders and is not required for rollback.
 

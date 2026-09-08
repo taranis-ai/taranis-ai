@@ -6237,7 +6237,7 @@ paths:
       - UserAuth: []
       tags:
       - assess
-      description: Save local display order. Requires ASSESS_UPDATE and write access to every item. Does not edit story content or MISP data.
+      description: Save local display order. Requires ASSESS_UPDATE and the shared story-update ACL/TLP checks. Does not edit story content or MISP data.
       operationId: assess.story_news_item_order.put
       requestBody:
         required: true
@@ -6267,7 +6267,7 @@ paths:
         '401':
           $ref: '#/components/responses/401Unauthorized'
         '403':
-          description: Insufficient write or TLP access
+          description: ASSESS_UPDATE permission, story TLP access, and write ACL access to every linked item required
         '404':
           $ref: '#/components/responses/404NotFound'
         '409':
