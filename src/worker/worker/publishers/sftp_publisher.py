@@ -88,6 +88,7 @@ class SFTPPublisher(BasePublisher):
 
         self.ssh = paramiko.SSHClient()
         if accept_any_host_key:
+            # codeql[py/paramiko-missing-host-key-validation] Admin explicitly accepts this risk; disabled by default.
             self.ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         else:
             if not host_key.strip():

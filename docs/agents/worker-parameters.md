@@ -2,67 +2,31 @@
 
 ## When To Load
 
-Load for worker types, collector/bot/connector/product-type/publisher-preset parameters, configuration forms, parameter validation, secret reveal, worker dispatch, pre-seeding, or the worker-parameter migration.
+Worker parameter contracts/forms, configured/effective values, secrets, SFTP host trust, dispatch, seeding, or registry migration.
 
-## Expected Behavior
+## Contracts
 
-`src/models/models/worker_parameters.py` is the only intrinsic worker-parameter contract. Every `WORKER_TYPES` member has exactly one registry entry and one Pydantic model with `extra="forbid"`. Models own uppercase external names, native types, defaults, field order, constraints, labels, tooltip descriptions, secret status, and exceptional UI widgets.
+- `src/models/models/worker_parameters.py` is the sole intrinsic contract: one registry entry and `extra="forbid"` Pydantic model per `WORKER_TYPES` member. It owns external uppercase names, native types, defaults, order, constraints, labels/help, secrets, and exceptional widgets.
+- Persist only explicitly configured native values, even when equal to defaults. Human APIs return configured non-secrets and `********` markers. Worker APIs validate/expand defaults and include raw secrets; workers revalidate before adding transient task filters.
+- Frontend renders validation-mode JSON Schema with aliases. Use standard schema metadata first; `json_schema_extra` is for widgets schema cannot express. Required controls stay visible, optional controls are collapsed but submitted. Type changes replace the shared section; Assess create-from-URL is separate.
+- POST creates; `PUT.parameters` replaces non-secrets while preserving omitted/masked configured secrets; PATCH merges, with `null` removing a value and omission retaining it. Worker type is immutable.
+- Sources/bots may be incomplete only while disabled; enabling/executing fully validates. Connector contract failures persist `invalid_parameters` before aborting. Stateful reference/template/DAG/deployment checks remain in core/frontend.
+- Secret inputs submit only after Replace/Clear. Reveal is an audited, non-cacheable POST requiring the resource's update permission; invalid requests return static 400.
+- Compatibility contracts: omitted email subject expands to empty; TAXII bearer auth uses `bearer`; Kafka supports PLAINTEXT, SSL, SASL_PLAINTEXT, and SASL_SSL.
+- SFTP requires an uploaded/pasted OpenSSH `HOST_KEY` or explicit `ACCEPT_ANY_HOST_KEY=true` (default false). Verified mode pins the key to the URL hostname/port; bypass ignores it and uses insecure `AutoAddPolicy`. Each upload uses a fresh client; no filesystem trust store is loaded.
+- The opt-in branch has a rule-specific `codeql[...]` accepted-risk annotation. Python CI includes `AlertSuppression.ql` to mark SARIF results; GitHub alert #268 is separately dismissed as accepted risk because code scanning does not apply inline suppressions automatically. Keep verification enabled by default and the rule active elsewhere.
+- The `public-key` widget reads a local file into the submitted textarea. Validation errors rebuild context from submitted values so publisher parameters remain editable. Setup/rollback: [SFTP host trust](../../deploy/README.md#sftp-publisher-host-trust).
 
-Database JSON columns contain only explicitly configured names with their native validated values. Explicit values are retained even when equal to defaults. Core returns configured non-secret values and `********` secret markers to human-facing APIs. Worker-authenticated responses validate the configured values, expand model defaults, preserve native Pydantic types, and include raw secrets. Workers validate that effective payload again before dispatch; transient task filters are added only afterwards.
+## Migration
 
-## Code Paths
+`src/core/migrations/20260818_01_Wp4rM-worker-parameter-registry.py` is destructive with no reconstructive downgrade. Deployment requires a verified database snapshot; rollback restores it with prior compatible images.
 
-- Contract and adapters: `src/models/models/worker_parameters.py`
-- Core parameter policy: `src/core/core/service/worker_parameters.py`
-- Owner models: `src/core/core/model/{osint_source,bot,connector,product_type,publisher_preset}.py`
-- Configuration and secret API: `src/core/core/api/config.py`
-- Worker API: `src/core/core/api/worker.py`
-- Frontend schema adapter: `src/frontend/frontend/views/admin_views/admin_base_view.py`
-- Shared form partial: `src/frontend/frontend/templates/partials/worker_parameters.html`
-- Migration: `src/core/migrations/20260818_01_Wp4rM-worker-parameter-registry.py`
+Unsupported types/invalid enabled source or bot configs fail with owner table/ID/type rather than discarding records. Incomplete connector/product-type/publisher-preset configs remain repairable but must validate before execution. Mappings: `TAGGING_BOT.KEYWORDS` to `REGULAR_EXPRESSION` if canonical value is absent; TAXII `token` to `bearer`.
 
-## Data Flow
+## Entry Points and Coverage
 
-Frontend imports the registry and renders `model_json_schema(mode="validation", by_alias=True)`. Standard schema types, enums, defaults, required fields, patterns, and numeric bounds drive controls. `Field(title=...)` is the label and `Field(description=...)` is tooltip/help text. `json_schema_extra` is only for behavior JSON Schema cannot express, such as cron, template, word-list, or preferred textarea widgets.
+Contract above; policy: `src/core/core/service/worker_parameters.py`; human/worker APIs: `src/core/core/api/config.py`, `src/core/core/api/worker.py`; forms: `src/frontend/frontend/views/admin_views/admin_base_view.py`, `src/frontend/frontend/templates/partials/worker_parameters.html`.
 
-Admin forms render schema-required parameters immediately in full-width rows. Non-required parameters remain part of the submitted form but are visually grouped in a responsive two-column grid inside a native `details` disclosure that is closed by default and reports how many optional keys are explicitly configured. Workers without required parameters explain that defaults are sufficient; selected workers with no parameters show a compact empty state. Dynamic HTMX type changes replace the complete shared parameter section, and the separate Assess create-from-URL dialog is not part of this shared form.
+Tests: `src/core/tests/unit/test_worker_parameter_registry.py`, `src/core/tests/unit/test_worker_parameter_service.py`, configuration/import tests in `src/core/tests/application/admin_console/configuration/`, frontend admin forms/workflows, and worker dispatch tests. Browser flows must expand optional settings before interacting with them.
 
-POST creates a full configuration. `PUT.parameters` replaces non-secret configuration while preserving omitted or masked configured secrets. `PATCH.parameters` merges keys; `null` removes a configured value and omitted keys remain unchanged. Worker type is immutable. Sources and bots may be incomplete only while disabled, and enabling or executing them performs full validation. Connector tasks persist parameter-contract failures with the `invalid_parameters` reason before aborting execution. Email publisher subjects remain optional for compatibility with existing presets; an omitted subject expands to an empty string for worker execution. TAXII bearer authentication uses the `bearer` value expected by the worker. Kafka publishers support `PLAINTEXT`, `SSL`, `SASL_PLAINTEXT`, and `SASL_SSL`.
-
-Secret inputs are not submitted until Replace or Clear is selected. Reveal is an audited POST authorized by the resource's update permission and is non-cacheable. Audit records remain metadata-only.
-Invalid reveal requests are logged server-side and return a static `400` error without exception-derived text.
-
-## Testing
-
-- Registry/service: `src/core/tests/unit/test_worker_parameter_registry.py`, `test_worker_parameter_service.py`
-- Core configuration/import: `src/core/tests/application/admin_console/configuration`
-- Frontend forms: `src/frontend/tests/unit/views`
-- Admin browser flows expand the optional-settings disclosure before interacting with non-required controls.
-- Worker dispatch: `src/worker/tests`
-- Run Ruff in all four components and `./dev/check_pyrefly.sh` from the repository root.
-
-## Pitfalls
-
-- Never add validation metadata back to owner rows or create a parallel frontend catalog.
-- Preserve validated native types across persistence, human-facing APIs, and worker execution; do not turn booleans, numbers, objects, or lists back into strings.
-- Template existence, referenced bot/word-list ids, DAG validity, and deployment availability remain stateful core/frontend checks.
-- The destructive migration has no reconstructive downgrade. Deployment requires a verified database snapshot; rollback restores it and redeploys the previous compatible images.
-- Migration failures for unsupported worker types or invalid enabled source/bot configurations identify the owner table, owner ID, and worker type; they never silently discard an owner. Incomplete connector, product-type, and publisher-preset configurations are retained for administrators to repair and are fully validated before execution.
-- `TAGGING_BOT.KEYWORDS` is migrated to `REGULAR_EXPRESSION` when no canonical value exists, and TAXII `AUTH_TYPE=token` is migrated to `bearer`.
-
-## SFTP Host Trust
-
-`SFTP_PUBLISHER` requires `HOST_KEY` (an OpenSSH public key, uploaded or pasted in the
-admin form) or explicit `ACCEPT_ANY_HOST_KEY=true`. The latter defaults to false and,
-when enabled, ignores the supplied key and uses Paramiko's insecure `AutoAddPolicy`.
-Verified mode parses the public key and pins it to the URL hostname/port with
-`RejectPolicy`. Each upload uses a fresh client, so keys and bypass settings never
-carry over between presets. No worker filesystem trust store is loaded.
-The `public-key` schema widget renders a textarea and file picker; Alpine reads the
-local file into the textarea, which follows normal parameter submission and persistence.
-Standard form validation errors rebuild extra context from the submitted model so the
-selected publisher's parameter fields and entered values remain available for correction.
-`src/worker/tests/publishers/test_sftp_publisher.py` exercises actual SSH uploads and
-rejections; the publisher preset E2E workflow covers upload, persistence, and bypass.
-The explicit bypass can trigger CodeQL's missing host-key validation rule and must not
-be mistaken for the secure default. See `deploy/README.md` for deployment and rollback.
+SFTP: `src/worker/worker/publishers/sftp_publisher.py`; real SSH coverage in `src/worker/tests/publishers/test_sftp_publisher.py`; upload, persistence, bypass, and validation recovery in `src/frontend/tests/playwright/test_e2e_admin.py::TestEndToEndAdmin::test_publisher_presets`.
