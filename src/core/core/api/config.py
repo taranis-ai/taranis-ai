@@ -339,10 +339,10 @@ class Templates(MethodView):
     @auth_required("CONFIG_PRODUCT_TYPE_ACCESS")
     def get(self, template_path: str | None = None):
         if template_path:
-            return jsonify(build_template_response(template_path)), 200
+            return jsonify(build_template_response(template_path).model_dump()), 200
 
         # List all templates
-        items = build_templates_list(request.args.get("order"))
+        items = [item.model_dump() for item in build_templates_list(request.args.get("order"))]
         return jsonify({"items": items, "total_count": len(items)}), 200
 
     @auth_required("CONFIG_PRODUCT_TYPE_CREATE")
@@ -350,9 +350,9 @@ class Templates(MethodView):
         # Use shared logic for create/update
         if not request.json:
             return {"error": "No data provided"}, 400
-        template_id = request.json.get("id")
+        template_name = request.json.get("name")
         base64_content = request.json.get("content")
-        response, status = create_or_update_template(template_id, base64_content)
+        response, status = create_or_update_template(template_name, base64_content)
         _invalidate_admin_cache(status)
         return make_response(jsonify(response), status)
 
