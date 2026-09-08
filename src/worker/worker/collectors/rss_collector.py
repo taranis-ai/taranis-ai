@@ -64,7 +64,8 @@ class RSSCollector(BaseWebCollector):
     @property
     def entry_limit_warning(self) -> str | None:
         if self.skipped_entries:
-            return f"Only the newest {self.max_entries} feed entries were considered. {self.skipped_entries} items were skipped."
+            skipped = "1 item was skipped" if self.skipped_entries == 1 else f"{self.skipped_entries} items were skipped"
+            return f"Only the newest {self.max_entries} feed entries were considered. {skipped}."
         return None
 
     def collect(self, source: dict, manual: bool = False):

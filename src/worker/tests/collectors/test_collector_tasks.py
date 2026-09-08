@@ -196,8 +196,9 @@ def test_empty_rss_feed_result_is_preserved_after_not_modified_response(current_
         ("All news items were skipped", "No changes: All news items were skipped", "NOT_MODIFIED", 0),
     ],
 )
+@pytest.mark.parametrize("skipped_entries, skipped_message", [(1, "1 item was skipped."), (2, "2 items were skipped.")])
 def test_rss_entry_limit_warning_and_recovery(
-    current_job, requests_mock, publish_message, result_prefix, recovered_status, expected_bot_runs
+    current_job, requests_mock, publish_message, result_prefix, recovered_status, expected_bot_runs, skipped_entries, skipped_message
 ):
     feed_url = "https://example.com/feed"
     source = {
@@ -207,7 +208,7 @@ def test_rss_entry_limit_warning_and_recovery(
         "rss_collector_max_entries": 2,
         "parameters": {"FEED_URL": feed_url, "USE_FEED_CONTENT": True},
     }
-    entries = "".join(f"<item><title>Item {i}</title><description>Content {i}</description></item>" for i in range(3))
+    entries = "".join(f"<item><title>Item {i}</title><description>Content {i}</description></item>" for i in range(2 + skipped_entries))
     feed = f"<rss version='2.0'><channel><title>Feed</title>{entries}</channel></rss>"
     requests_mock.get(
         feed_url,
@@ -220,7 +221,7 @@ def test_rss_entry_limit_warning_and_recovery(
     bots = requests_mock.put(f"{Config.TARANIS_CORE_URL}/worker/post-collection-bots", json={})
     requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
 
-    warning = "Only the newest 2 feed entries were considered. 1 items were skipped."
+    warning = f"Only the newest 2 feed entries were considered. {skipped_message}"
     expected_message = f"{result_prefix} {warning}"
     assert collector_tasks.collector_task("source-1") == expected_message
     payload = requests_mock.request_history[-1].json()
@@ -231,7 +232,7 @@ def test_rss_entry_limit_warning_and_recovery(
     assert [item["title"] for item in published] == ["Item 0", "Item 1"]
     assert bots.call_count == expected_bot_runs
 
-    source["rss_collector_max_entries"] = 3
+    source["rss_collector_max_entries"] = 2 + skipped_entries
     for _ in range(2):
         source["status"] = payload
         source["http_validators"] = payload["result"]["data"]["http_validators"]

@@ -25,4 +25,4 @@ Ignore invalid Last-Modified dates. Parsed offset-aware dates become naive UTC; 
 
 Worker: `src/worker/worker/collectors/base_web_collector.py`, `rss_collector.py`, `simple_web_collector.py`, and `collector_tasks.py` in that directory. Core: `src/core/core/model/osint_source.py`, `src/core/core/service/task.py`.
 
-Tests: `src/worker/tests/collectors/test_collector.py`, `src/worker/tests/collectors/test_collector_tasks.py`, `src/core/tests/application/worker_pipeline/test_worker_api.py`. Scheduled collector E2E accepts SUCCESS and NOT_MODIFIED terminal outcomes. See [RSS Source Health](rss-source-health.md) for feed validation.
+Tests: `src/worker/tests/collectors/test_collector.py`, `src/worker/tests/collectors/test_collector_tasks.py`, `src/core/tests/application/worker_pipeline/test_worker_api.py`. Scheduled collector E2E accepts SUCCESS, NOT_MODIFIED, and WARNING terminal outcomes. See [RSS Source Health](rss-source-health.md) for feed validation.
