@@ -5,7 +5,7 @@ from tests.testdata import news_items
 from worker.config import Config
 
 
-def test_base_web_collector_conditional_request(base_web_collector_mock, base_web_collector, requests_mock):
+def test_base_web_collector_conditional_request(base_web_collector_mock, base_web_collector, requests_mock, caplog):
     from worker.collectors.base_web_collector import NoChangeError
 
     response = base_web_collector.send_get_request("https://test.org/200")
@@ -29,6 +29,21 @@ def test_base_web_collector_conditional_request(base_web_collector_mock, base_we
     with pytest.raises(requests.exceptions.HTTPError) as exception:
         response = base_web_collector.send_get_request("https://test.org/404")
     assert str(exception.value) == "404 Client Error: None for url: https://test.org/404"
+
+    for error_type in (requests.exceptions.ConnectionError, requests.exceptions.Timeout, requests.exceptions.ReadTimeout):
+        requests_mock.get("https://test.org/network-error", exc=error_type("technical-network-details"))
+        caplog.clear()
+        with caplog.at_level("INFO"), pytest.raises(RuntimeError) as failure:
+            base_web_collector.send_get_request("https://test.org/network-error")
+
+        assert str(failure.value) == (
+            "The request to the source or proxy failed or timed out. "
+            "Check DNS resolution and network access from the worker container, "
+            "and verify the source's PROXY_SERVER setting if a proxy is required. See worker logs for technical details."
+        )
+        assert failure.value.__suppress_context__ is True
+        assert failure.value.__cause__ is None
+        assert any(record.levelname == "ERROR" and "technical-network-details" in record.message for record in caplog.records)
 
 
 @pytest.mark.parametrize("disable_http3", [False, True])
