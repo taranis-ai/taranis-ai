@@ -15,7 +15,7 @@ For production deployments, see our [Deployment Guide using docker compose](http
 
 For existing Celery/RabbitMQ deployments, see the [RQ Migration Guide](./dev/rq_migration_guide.md).
 
-To preseed global settings on a fresh instance, set core’s `PRE_SEED_SETTINGS` environment variable to a flat JSON object. To disable initial onboarding, use `PRE_SEED_SETTINGS='{"onboarding_enabled":false}'`. See [settings preseeding](docker/README.md#settings-preseeding) for an example and restart behavior.
+To preseed global settings on a fresh instance, set core’s `PRE_SEED_SETTINGS` environment variable to a flat JSON object. To disable initial onboarding, use `PRE_SEED_SETTINGS='{"onboarding_enabled":false}'`. The shipped Compose files forward this variable; Helm exposes `config.preSeedSettings`. See [settings preseeding](docker/README.md#settings-preseeding) for an example and restart behavior.
 
 ## Contributions
 

@@ -18,6 +18,7 @@ data:
   DISABLE_HTTP3: {{ .Values.config.disableHttp3 | quote }}
   SQLALCHEMY_POOL_TIMEOUT: {{ .Values.config.sqlalchemyPoolTimeout | quote }}
   SQLALCHEMY_POOL_RECYCLE: {{ .Values.config.sqlalchemyPoolRecycle | quote }}
+  PRE_SEED_SETTINGS: {{ .Values.config.preSeedSettings | quote }}
   TARANIS_AUTHENTICATOR: {{ .Values.config.authenticator | quote }}
   SUMMARY_API_ENDPOINT: {{ .Values.config.summaryApiEndpoint | quote }}
   TITLE_API_ENDPOINT: {{ .Values.config.titleApiEndpoint | quote }}

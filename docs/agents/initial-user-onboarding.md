@@ -11,7 +11,7 @@ Seeded users, onboarding tasks/settings, `pre_seed_default_user`, or `PRE_SEED_S
 - The global value is a bulk default, not a runtime gate: individual users can be enabled while it is disabled. Disabling hides pending tasks without rewriting task completion/dismissal state.
 - Administrator tours require `ADMIN_OPERATIONS`; there is no catch-all `ALL` permission.
 - Fresh databases seed `admin`/`user` as Default Admin/Default User in one Default Organization.
-- `PRE_SEED_SETTINGS` accepts a flat JSON object for any global settings. `Settings.initialize()` applies it only when no singleton settings row exists, filling omitted keys with normal defaults and copying onboarding to existing profiles. Subsequent startup preserves persisted settings. An existing row missing `onboarding_enabled` receives the default `true`. JSON parsing uses Pydantic Settings and initialization reuses existing timezone, integer, and boolean validators. Deployment examples are in `docker/README.md`.
+- `PRE_SEED_SETTINGS` accepts a flat JSON object for any global settings. `Settings.initialize()` applies it only when no singleton settings row exists, filling omitted keys with normal defaults and copying onboarding to existing profiles. Subsequent startup preserves persisted settings. An existing row missing `onboarding_enabled` receives the default `true`. JSON parsing uses Pydantic Settings and initialization reuses existing timezone, integer, and boolean validators. Compose forwards `PRE_SEED_SETTINGS` with a `{}` default; Kubernetes exposes the same ConfigMap key and Helm exposes the JSON string `config.preSeedSettings`. Deployment examples are in `docker/README.md` and `deploy/README.md`.
 
 ## Entry Points and Coverage
 
