@@ -2,41 +2,21 @@
 
 ## When To Load
 
-Mastodon collector, hashtag timeline, home timeline, public account collection, Mastodon.py, Mastodon cursor, or `MASTODON_COLLECTOR`.
+`MASTODON_COLLECTOR`, hashtag/home/account timelines, Mastodon.py, or cursor pagination.
 
-## Expected Behavior
+## Contracts
 
-Mastodon collection runs as scheduled polling rather than a long-lived stream. Hashtags may use public API access; home and account timelines require a masked read-only access token. Mastodon collection does not use the RSS entry limit. `COLLECTION_MODE=complete` is the default and collects every status since the cursor without a per-run limit. `COLLECTION_MODE=latest` imports only the newest 40-status page and warns when it skips older statuses.
+- Scheduled polling, not streaming. Hashtags can be anonymous; home/account collection needs a masked read-only token. Token-bearing sources require HTTPS, enforced by shared validation and again before worker client creation. Tokenless HTTP is for development instances.
+- Anonymous authentication rejection asks admins to configure a token; an invalid configured token is a distinct failure. Log static API failure messages because upstream exceptions may contain secrets.
+- Default `COLLECTION_MODE=complete` uses `min_id` to collect all statuses since the cursor with no per-run limit. `latest` uses `since_id` for the newest 40-status page and a `min_id` probe to warn about skipped middle statuses. RSS entry limits do not apply.
+- Both modes bootstrap from the newest page. Preview always fetches that page, ignores mode/cursor, and never persists progress.
+- Cursor identity includes instance, timeline, and normalized hashtag/resolved account ID, but not collection mode. Identity changes reset progress; switching latest to complete cannot recover already skipped statuses.
+- Advance only after successful publication (duplicate-only publication counts). Every subsequent result, including failures, carries the new or previous cursor. It lives in the latest task result and can disappear with history cleanup/deletion/inactivity; then bootstrap and rely on core deduplication.
+- Keep replies/boosts. Boosts map to the original post URL for deduplication. Treat status IDs as opaque strings and paginate in API response order; do not use write-scoped Mastodon markers that change other clients' read position.
+- Complete mode after long downtime can hit rate/resource limits.
 
-Any Mastodon source with an access token must use an HTTPS instance origin. The shared parameter contract enforces the rule for enabled source creation, update, and import, and the worker rejects an insecure token-bearing payload before constructing the Mastodon client. Tokenless hashtag collection may use HTTP for development-only instances.
+## Entry Points and Coverage
 
-When an instance rejects an anonymous hashtag request with an authentication-related response, collection fails with a static message telling the administrator to configure an access token. Invalid configured tokens remain a separate authentication failure.
+`src/worker/worker/collectors/mastodon_collector.py`, `src/models/models/worker_parameters.py`, `src/core/core/model/osint_source.py`; setup: `docs/mastodon.md`.
 
-New sources bootstrap from the newest API page in either collection mode. Complete runs paginate through all statuses immediately newer than a cursor retained in the latest collector task result. Latest runs fetch the newest page after the cursor, then probe the oldest immediately newer status to determine whether any middle statuses were skipped. A failed API request or publish never advances progress. A preview ignores the cursor and collection mode, shows the newest API page, and never persists progress.
-
-The cursor is intentionally best-effort state. Task-history cleanup, manual task deletion, or prolonged source inactivity can remove it; the next collection then bootstraps from the newest statuses and relies on core deduplication for replayed items.
-
-Boosts become news items for the original post and deduplicate through its URL. Replies and boosts visible in the selected timeline are retained.
-
-## Code Paths
-
-- Worker API collection and mapping: `src/worker/worker/collectors/mastodon_collector.py`
-- Parameter contract: `src/models/models/worker_parameters.py`
-- Cursor worker payload: `src/core/core/model/osint_source.py`
-- User setup: `docs/mastodon.md`
-
-## Data Flow
-
-Core expands validated source parameters, including the collection-mode default, and returns any valid cursor from the latest collector task result to the worker. The worker resolves the configured timeline, applies the selected cursor strategy, publishes mapped news items, and returns the new cursor in the next task result.
-
-The timeline identity includes the instance, timeline selection, and normalized hashtag or resolved account ID. A changed identity ignores the old cursor and establishes a new one only after successful publication. Collection mode is not part of that identity, so switching modes continues from the existing cursor.
-
-## Testing
-
-- Worker behavior: `src/worker/tests/collectors/test_mastodon_collector.py`, `test_collector_tasks.py`
-- Parameter validation: `src/core/tests/unit/test_worker_parameter_registry.py`
-- Cursor delivery and malformed-state rejection: `src/core/tests/application/worker_pipeline/test_worker_api.py`
-
-## Pitfalls
-
-Do not use Mastodon markers: updating them requires write scope and changes the user's read position in other clients. Complete mode uses `min_id`; latest mode deliberately uses `since_id` and must warn when its `min_id` probe proves that middle statuses were skipped. Switching from latest to complete cannot recover statuses behind the advanced latest cursor. Do not advance the cursor before core publication succeeds; duplicate-only publication is the exception because the statuses already exist. Every collector task result after initial progress must carry either the advanced or previous cursor so a failure does not reset progress. Complete mode after extended downtime can process many pages and hit rate or resource limits. Treat Mastodon status IDs as opaque strings and use the API's response order for pagination. Use the original post URL for news-item deduplication. Log only static Mastodon API and response-failure messages because upstream exception text may contain secrets; return only curated task messages.
+Tests: `src/worker/tests/collectors/test_mastodon_collector.py`, `src/worker/tests/collectors/test_collector_tasks.py`, `src/core/tests/unit/test_worker_parameter_registry.py`, `src/core/tests/application/worker_pipeline/test_worker_api.py`.

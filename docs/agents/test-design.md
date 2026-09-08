@@ -2,34 +2,21 @@
 
 ## When To Load
 
-Before adding, removing, or changing any test in the repository, including unit, integration, browser, end-to-end, migration, and regression tests.
+Before adding, removing, or changing tests.
 
-## Expected Behavior
+## Coverage
 
-Tests describe stable, existing product functionality and the final behavior users and supported integrations depend on.
+Test stable product contracts through their normal API, user, worker, or persistence boundary and assert observable results. Prefer complete workflows over separate assertions/tests for incidental markup or internal calls.
 
-Never add a dedicated migration or regression test solely for a bug introduced on an unmerged branch. The test suite must not preserve the history of branch-local implementation mistakes. If such a mistake reveals missing coverage of a real product contract, cover that contract in the nearest existing functionality or workflow test.
+Before keeping a new test, compare existing coverage and extend the nearest relevant test when possible. Remove duplicates and mock-only orchestration tests. Do not preserve unmerged branch mistakes as dedicated regression/migration tests; cover any missing durable contract in its owning workflow. Released-schema upgrade tests remain appropriate.
 
-For user-facing behavior, test the complete interaction and resulting UI state. Prefer one workflow test such as loading new Assess stories and verifying the refreshed Assess UI over separate tests for each element that happened to disappear during development.
+## Fixtures
 
-## Code Paths
+- Reuse the nearest `conftest.py`. Core shared application fixtures belong in `src/core/tests/application/conftest.py`, cluster fixtures locally, and cross-application payload/setup fixtures in `src/core/tests/conftest.py`.
+- Put shared builders in `src/core/tests/application/support/` and large data in fixtures or `src/core/tests/test_data/`.
+- Do not create inline fake classes/ad-hoc doubles inside tests or use autouse fixtures. Request fixtures explicitly or use module/class `pytest.mark.usefixtures`.
+- Prefer frontend E2E coverage for cross-component cache invalidation, scheduling, and seeding. Reuse established test selectors; prefer `data-test-id` for new ones.
 
-- Core tests: `src/core/tests/`
-- Frontend unit tests: `src/frontend/tests/unit/`
-- Frontend browser and end-to-end tests: `src/frontend/tests/playwright/`
-- Component test configuration: `src/*/pyproject.toml`
+## Entry Points
 
-## Data Flow
-
-Start from a stable public behavior: an API operation, user action, worker workflow, or persisted domain rule. Exercise that behavior through its normal boundary and assert the final observable state. Treat internal calls and individual markup elements as implementation details unless they are themselves a supported contract.
-
-## Testing
-
-Before keeping a new test, compare it with the existing suite and ask whether it adds durable coverage of specific existing functionality. Extend or strengthen the nearest workflow test when possible. Remove duplicate, branch-history-specific, or mock-only orchestration tests.
-
-## Pitfalls
-
-- Do not name or scope tests around a branch-local bug or its former failure mode.
-- Do not create one test per DOM element when one interaction-level UI assertion covers the workflow.
-- Do not mistake implementation-call assertions for product behavior.
-- Database migration tests remain appropriate when they validate a real released-schema upgrade path; this prohibition concerns tests that merely memorialize unmerged branch mistakes.
+Tests live under each component's `tests/`; frontend browser tests are in `src/frontend/tests/playwright/`. Commands and signoff: [Development Workflow](development-workflow.md). Stack selection and diagnostics: [Frontend E2E Harness](frontend-e2e-harness.md).
