@@ -8,6 +8,7 @@ from flask import render_template, render_template_string, url_for
 from lxml import html
 from models.assess import FilterLists, Story, StoryUpdatePayload
 from models.user import AssessSavedFilter
+from requests import RequestException
 from werkzeug.datastructures import MultiDict
 from werkzeug.exceptions import Forbidden
 
@@ -18,6 +19,22 @@ from frontend.views.story_views import ASSESS_SAVED_FILTER_SESSION_KEY, StoryVie
 
 def expected_search_trigger(input_id: str) -> str:
     return f"input changed delay:500ms from:#{input_id}, search from:#{input_id}"
+
+
+def test_news_item_order_returns_local_safe_error_when_core_is_unavailable(authenticated_client_basic, responses_mock, htmx_header):
+    responses_mock.put(
+        f"{Config.TARANIS_CORE_URL}/assess/stories/story-1/news-item-order",
+        body=RequestException("private connection details"),
+    )
+    response = authenticated_client_basic.post(
+        "/story/story-1/news-item-order",
+        headers=htmx_header,
+        data={"news_item_ids": ["item-2", "item-1"], "expected_news_item_ids": ["item-1", "item-2"]},
+    )
+    assert response.status_code == 503
+    assert b"Unable to save news item order" in response.data
+    assert b"private connection details" not in response.data
+    assert b"story-edit-form" not in response.data
 
 
 def mock_story_for_edit(responses_mock, story_payload: dict):

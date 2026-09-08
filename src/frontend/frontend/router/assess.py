@@ -105,6 +105,12 @@ def init(app: Flask):
     )
     assess_bp.add_url_rule("/story/cluster", view_func=StoryView.get_cluster_dialog, methods=["GET"], endpoint="cluster_story")
     assess_bp.add_url_rule("/story/cluster", view_func=StoryView.submit_cluster_dialog, methods=["POST"], endpoint="submit_cluster_story")
+    assess_bp.add_url_rule(
+        "/story/<string:story_id>/news-item-order",
+        view_func=StoryView.news_item_order,
+        methods=["GET", "POST"],
+        endpoint="story_news_item_order",
+    )
     assess_bp.add_url_rule("/story/export", view_func=StoryView.export_stories, methods=["GET"], endpoint="export_stories")
     assess_bp.add_url_rule("/story/import", view_func=StoryView.import_stories, methods=["POST"], endpoint="import_stories")
     assess_bp.add_url_rule("/tags", view_func=StoryView.get_tags, methods=["GET"], endpoint="get_tags")

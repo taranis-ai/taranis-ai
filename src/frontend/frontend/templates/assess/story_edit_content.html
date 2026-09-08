@@ -304,17 +304,5 @@
     {% endif %}
   </div>
 
-  <div class="card bg-base-100 shadow-lg border border-base-200">
-    <div class="card-body space-y-5">
-      <div class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-        <h3 class="card-title text-lg">Linked news items ({{ news_count }})</h3>
-      </div>
-
-      {% if story.news_items %}
-        <div class="space-y-4">{% for item in story.news_items %}{{ news_item_card(item, story, edit_tags=(not has_rt_id)) }}{% endfor %}</div>
-      {% else %}
-        <p class="text-sm text-base-content/70">No news items are attached to this story yet.</p>
-      {% endif %}
-    </div>
-  </div>
+  {% include "assess/news_item_order.html" %}
 </section>

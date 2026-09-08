@@ -24,6 +24,7 @@ from models.cti import CTIResponse
 from models.report import ReportItem
 from models.revision_diff import build_story_revision_diff_payload
 from pydantic import ValidationError
+from requests import RequestException
 from requests import Response as RequestsResponse
 from werkzeug.datastructures import FileStorage
 from werkzeug.exceptions import HTTPException
@@ -956,6 +957,46 @@ class StoryView(BaseView):
             context["sentiment_chip_class"] = "badge badge-outline"
 
         return context
+
+    @classmethod
+    @auth_required("ASSESS_ACCESS")
+    def news_item_order(cls, story_id: str):
+        message = None
+        if request.method == "POST":
+            try:
+                response = CoreApi().api_put(
+                    f"/assess/stories/{story_id}/news-item-order",
+                    json_data={
+                        "news_item_ids": request.form.getlist("news_item_ids"),
+                        "expected_news_item_ids": request.form.getlist("expected_news_item_ids"),
+                    },
+                )
+                status = response.status_code
+            except RequestException:
+                logger.exception("Unable to save news item order")
+                status = 503
+            if status != 200:
+                message = (
+                    "News items changed. Reload the list before saving its order."
+                    if status == 409
+                    else "Unable to save news item order. Check your access and try again."
+                )
+                if is_htmx_request():
+                    return render_template(
+                        "assess/news_item_order_status.html", story_id=story_id, message=message, stale=status == 409
+                    ), status
+                flash(message, "error")
+                return redirect(url_for("assess.story_edit", story_id=story_id, bookmark_id=cls._get_bookmark_id() or None))
+            message = "News item order saved"
+        if not is_htmx_request():
+            if message:
+                flash(message, "success")
+            return redirect(url_for("assess.story_edit", story_id=story_id, bookmark_id=cls._get_bookmark_id() or None))
+        DataPersistenceLayer().invalidate_model_cache_locally(Story, story_id)
+        context = cls.get_item_context(story_id)
+        if not context.get("story"):
+            abort(404)
+        return render_template("assess/news_item_order.html", **context, order_message=message)
 
     @staticmethod
     def _format_cyber_status(status: str | None) -> str:

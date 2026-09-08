@@ -53,7 +53,7 @@ class NewsItemService:
         story.news_items.remove(news_item)
         news_item.delete_item()
         if story.news_items and story.title == deleted_title:
-            story.title = story.news_items[0].title
+            story.title = story.ordered_news_items[0].title
         story.update_status(change=story_actor)
         story.record_revision(user, note="delete_news_item")
         db.session.commit()

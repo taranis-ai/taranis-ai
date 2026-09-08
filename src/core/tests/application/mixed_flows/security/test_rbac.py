@@ -293,6 +293,42 @@ class TestRBACAclBehavior:
         db.session.commit()
         assert item.allowed_with_acl(user, require_write_access=True)
 
+    def test_story_order_requires_write_access_to_every_source(self, client, session, auth_header_user_permissions):
+        from core.model.role import Role
+        from core.model.role_based_access import ItemType
+        from core.model.story import Story
+        from tests.application.support.builders import build_news_item_payload, create_story
+
+        source, story, _ = create_rbac_source_story("order-write")
+        other_source, other, _ = create_rbac_source_story("order-other")
+        Story.group_stories([story.id, other.id])
+        user_role = Role.filter_by_name("User")
+        grant_acl(user_role, ItemType.OSINT_SOURCE, source.id, read_only=False)
+        other_acl = grant_acl(user_role, ItemType.OSINT_SOURCE, other_source.id, read_only=True)
+        endpoint = f"/api/assess/stories/{story.id}/news-item-order"
+        ids = [item.id for item in story.ordered_news_items]
+        payload = {"news_item_ids": list(reversed(ids)), "expected_news_item_ids": ids}
+
+        detail = client.get(f"/api/assess/stories/{story.id}", headers=auth_header_user_permissions).get_json()
+        assert detail["can_order_news_items"] is False
+        assert client.put(endpoint, headers=auth_header_user_permissions, json=payload).status_code == 403
+        other_acl.read_only = False
+        db.session.commit()
+        assert client.put(endpoint, headers=auth_header_user_permissions, json=payload).status_code == 200
+
+        restricted = create_story(news_items=[build_news_item_payload(source.id)], attributes=[{"key": "TLP", "value": "red"}])
+        from core.model.news_item_attribute import NewsItemAttribute
+
+        restricted.upsert_attribute(NewsItemAttribute(key="TLP", value="red"))
+        db.session.commit()
+        restricted_ids = [item.id for item in restricted.news_items]
+        response = client.put(
+            f"/api/assess/stories/{restricted.id}/news-item-order",
+            headers=auth_header_user_permissions,
+            json={"news_item_ids": restricted_ids, "expected_news_item_ids": restricted_ids},
+        )
+        assert response.status_code == 403
+
     def test_story_bot_action_rejects_read_only_source_access(self, client, session, auth_header_user_permissions, monkeypatch):
         from core.model.permission import Permission
         from core.model.role import Role

@@ -31,6 +31,8 @@ For Mastodon collection setup, including access-token HTTPS requirements and com
 
 For maintainer release steps, see [docs/releasing.md](docs/releasing.md).
 
+In the story editor, drag linked news items or use their arrow buttons, then select **Save order**. Everyone on this instance sees that order; it does not change the story title or synchronize through MISP. Conflict diffs compare items by ID so transport order does not create misleading changes.
+
 For container and Python dependency SBOM scope and attestations, see [docs/sbom.md](docs/sbom.md).
 
 ## Services

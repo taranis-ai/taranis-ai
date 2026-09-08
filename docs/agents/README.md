@@ -14,6 +14,8 @@ Use these files when a task mentions a related feature, workflow, route, model, 
 
 ## Feature Memories
 
+- [News Item Ordering](news-item-ordering.md) - local shared item order, editor controls, conflict normalization, and ungrouping title fallback.
+
 - [Dashboard Cards](dashboard-cards.md) - workflow card layout, weekly counts, and analyst review entry.
 
 - [Assess Filters](assess-filters.md) - assess sidebar filters, filter-list loading, default filters, omnisearch filter handling, and related cache behavior.

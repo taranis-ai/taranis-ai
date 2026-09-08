@@ -25,6 +25,22 @@ if TYPE_CHECKING:
 
 class StoryService:
     @staticmethod
+    def order_news_items(story_id: str, news_item_ids: list[str], expected_news_item_ids: list[str], user: User) -> tuple[dict, int]:
+        story = db.session.execute(db.select(Story).where(Story.id == story_id).with_for_update()).scalar_one_or_none()
+        if story is None:
+            return {"error": "Story not found"}, 404
+        if not story.can_order_news_items(user):
+            return {"error": "You do not have permission to reorder this story"}, 403
+        current_ids = [item.id for item in story.ordered_news_items]
+        if expected_news_item_ids != current_ids:
+            return {"error": "News items changed. Reload the list before saving its order."}, 409
+        if len(news_item_ids) != len(current_ids) or set(news_item_ids) != set(current_ids):
+            return {"error": "Include every news item exactly once"}, 400
+        story.news_item_order = news_item_ids
+        db.session.commit()
+        return {"message": "News item order saved"}, 200
+
+    @staticmethod
     def _refresh_auto_update_jobs_on_success(result: tuple[dict, int], story_ids: Sequence[str]) -> tuple[dict, int]:
         if result[1] == 200:
             refresh_misp_auto_update_jobs(story_ids)

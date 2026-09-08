@@ -6225,6 +6225,53 @@ paths:
           description: forbidden
         '404':
           $ref: '#/components/responses/404NotFound'
+  /assess/stories/{story_id}/news-item-order:
+    parameters:
+    - name: story_id
+      in: path
+      required: true
+      schema:
+        type: string
+    put:
+      security:
+      - UserAuth: []
+      tags:
+      - assess
+      description: Save local display order. Requires ASSESS_UPDATE and write access to every item. Does not edit story content or MISP data.
+      operationId: assess.story_news_item_order.put
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [news_item_ids, expected_news_item_ids]
+              properties:
+                news_item_ids:
+                  type: array
+                  uniqueItems: true
+                  items:
+                    type: string
+                  description: Every current news item ID, in the desired order.
+                expected_news_item_ids:
+                  type: array
+                  items:
+                    type: string
+                  description: The full ordered list shown when editing began.
+      responses:
+        '200':
+          description: Order saved
+        '400':
+          description: Invalid payload or incomplete or duplicate item IDs
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: Insufficient write or TLP access
+        '404':
+          $ref: '#/components/responses/404NotFound'
+        '409':
+          description: Item membership or order changed; reload before saving
   /assess/stories/{story_id}/cti:
     parameters:
     - name: story_id

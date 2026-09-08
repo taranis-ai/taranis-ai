@@ -1,3 +1,6 @@
+import json
+from copy import deepcopy
+
 import pytest
 
 from core.model.story_conflict import StoryConflict
@@ -76,6 +79,21 @@ def updated_story():
 
 
 class TestStoryConflictSorting:
+    def test_news_item_order_is_ignored_without_hiding_content_changes(self):
+        current = {"news_items": [{"id": "b", "title": "Second"}, {"id": "a", "title": "First"}]}
+        incoming = deepcopy(current)
+        incoming["news_items"].reverse()
+        original = deepcopy(current)
+        before, after = StoryConflict.normalize_data(current, incoming)
+        assert before == after
+        assert current == original
+        assert [item["id"] for item in json.loads(before)["news_items"]] == ["a", "b"]
+
+        incoming["news_items"][0]["title"] = "Edited"
+        assert StoryConflict.normalize_data(current, incoming)[0] != StoryConflict.normalize_data(current, incoming)[1]
+        incoming["news_items"].pop()
+        assert len(json.loads(StoryConflict.normalize_data(current, incoming)[1])["news_items"]) == 1
+
     def test_stable_stringify_handles_different_tag_order(self, story_data_1, story_data_2):
         result_1 = StoryConflict.stable_stringify(story_data_1)
         result_2 = StoryConflict.stable_stringify(story_data_2)

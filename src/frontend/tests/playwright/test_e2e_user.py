@@ -8,6 +8,7 @@ from flask import url_for
 from htmx_helpers import with_htmx_wait
 from playwright.sync_api import Error, Page, expect
 
+from tests.external_e2e import allow_requests_passthru
 from tests.playwright.notification_helpers import dismiss_notifications
 
 
@@ -428,6 +429,64 @@ class TestEndToEndUser(BaseE2ETest):
         total_count = go_to_assess()
         access_story()
         infinite_scroll_all_items(total_count)
+
+    def test_news_item_order(self, non_admin_logged_in_page, forward_console_and_page_errors_non_admin, core_request_client):
+        page = non_admin_logged_in_page
+        allow_requests_passthru()
+        created_ids = []
+        try:
+            for index in range(2):
+                suffix = str(uuid.uuid4())
+                result = core_request_client.json_request(
+                    "POST",
+                    "/assess/news-items",
+                    json_data={
+                        "title": f"Ordered item {index}",
+                        "content": f"Ordering test {suffix}",
+                        "source": "manual",
+                        "osint_source_id": "manual",
+                        "link": f"https://example.invalid/{suffix}",
+                    },
+                )
+                created_ids.append(result["story_id"])
+            core_request_client.post("/assess/stories/group", json_data=created_ids)
+            story_id = created_ids[0]
+            page.goto(url_for("assess.story_edit", story_id=story_id, _external=True))
+            order_panel = page.locator("#news-item-order")
+            rows = order_panel.locator("[data-order-item]")
+            expect(rows).to_have_count(2)
+            original_order = rows.evaluate_all("rows => rows.map(row => row.dataset.orderItem)")
+            page.get_by_role("textbox", name="Summary").fill("Unsaved analyst draft")
+            rows.nth(1).locator("[data-order-handle]").drag_to(rows.nth(0).locator("[data-order-handle]"))
+            expect(rows.first).to_have_attribute("data-order-item", original_order[1])
+            order_panel.get_by_test_id("save-news-item-order").click()
+            expect(page.locator("#news-item-order-status")).to_have_text("News item order saved")
+            expect(page.get_by_role("textbox", name="Summary")).to_have_value("Unsaved analyst draft")
+            page.reload()
+            expect(rows.first).to_have_attribute("data-order-item", original_order[1])
+
+            rows.first.get_by_role("button", name="down", exact=False).focus()
+            page.keyboard.press("Enter")
+            expect(rows.first).to_have_attribute("data-order-item", original_order[0])
+            order_panel.get_by_test_id("save-news-item-order").click()
+            expect(page.locator("#news-item-order-status")).to_have_text("News item order saved")
+
+            allow_requests_passthru()
+            core_request_client.put(
+                f"/assess/stories/{story_id}/news-item-order",
+                json_data={"news_item_ids": list(reversed(original_order)), "expected_news_item_ids": original_order},
+            )
+            rows.first.get_by_role("button", name="down", exact=False).click()
+            with page.expect_response(lambda response: response.url.endswith("/news-item-order") and response.status == 409):
+                order_panel.get_by_test_id("save-news-item-order").click()
+            expect(page.locator("#news-item-order-status")).to_contain_text("News items changed")
+            order_panel.get_by_role("button", name="Reload news items").click()
+            expect(order_panel.get_by_test_id("save-news-item-order")).to_be_disabled()
+            expect(rows.first).to_have_attribute("data-order-item", original_order[1])
+        finally:
+            allow_requests_passthru()
+            for created_id in created_ids:
+                core_request_client.delete(f"/assess/stories/{created_id}", raise_for_status=False)
 
     def test_story_export(
         self,

@@ -10,6 +10,7 @@ from models.assess import (
     StoryBookmarkOrderPayload,
     StoryBookmarkStoryPayload,
     StoryBookmarkUpdatePayload,
+    StoryNewsItemOrderPayload,
     StoryUpdatePayload,
 )
 from pydantic import ValidationError
@@ -332,6 +333,21 @@ class Story(MethodView):
         return response, code
 
 
+class StoryNewsItemOrder(MethodView):
+    @auth_required("ASSESS_UPDATE")
+    @validate_json
+    def put(self, story_id: str):
+        try:
+            payload = StoryNewsItemOrderPayload.model_validate(request.json)
+        except ValidationError as exc:
+            return _validation_error_response(exc)
+        response, code = StoryService.order_news_items(story_id, payload.news_item_ids, payload.expected_news_item_ids, current_user)
+        if code == 200:
+            realtime_publisher.assess_changed()
+        invalidate_frontend_cache_on_success(code, scopes=(SCOPE_STORY_REPORT_VIEWS,), object_ids={"story": story_id})
+        return response, code
+
+
 class StoryCTI(MethodView):
     @auth_required("ASSESS_ACCESS")
     def get(self, story_id: str):
@@ -615,6 +631,7 @@ def initialize(app: Flask):
         "/news-items/<string:news_item_id>/attributes", view_func=UpdateNewsItemAttributes.as_view("update_news_item_attributes")
     )
     assess_bp.add_url_rule("/news-items/<string:news_item_id>/tags", view_func=UpdateNewsItemTags.as_view("update_news_item_tags"))
+    assess_bp.add_url_rule("/stories/<string:story_id>/news-item-order", view_func=StoryNewsItemOrder.as_view("story_news_item_order"))
     assess_bp.add_url_rule("/stories/group", view_func=GroupAction.as_view("group_action"))
     assess_bp.add_url_rule("/stories/ungroup", view_func=UnGroupStories.as_view("ungroup_stories"))
     assess_bp.add_url_rule("/news-items/ungroup", view_func=UnGroupNewsItem.as_view("ungroup_news_items"))

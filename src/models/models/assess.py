@@ -212,6 +212,7 @@ class Story(TaranisBaseModel):
     updated: datetime | None = None
     last_change: str | None = None
     news_items: list[NewsItem] | None = None
+    can_order_news_items: bool = False
     links: list[str] | None = None
     important: bool | None = None
     read: bool | None = None
@@ -325,6 +326,13 @@ class StoryBookmark(StoryBookmarkBase):
     story_count: int = 0
     story_ids: list[str] = Field(default_factory=list)
     stories: list[Story] = Field(default_factory=list)
+
+
+class StoryNewsItemOrderPayload(TaranisBaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    news_item_ids: list[str]
+    expected_news_item_ids: list[str]
 
 
 class StoryUpdatePayload(TaranisBaseModel):

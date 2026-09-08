@@ -53,6 +53,7 @@ class Story(BaseModel):
     summary: Mapped[str] = db.Column(db.Text, default="")
     revision: Mapped[int] = db.Column(db.Integer, nullable=False, default=0)
     news_items: Mapped[list["NewsItem"]] = relationship("NewsItem")
+    news_item_order: Mapped[list[str]] = db.Column(db.JSON, nullable=False, default=list, server_default="[]")
     last_change: Mapped[str] = db.Column(db.String())
     attributes: Mapped[list["NewsItemAttribute"]] = relationship(
         "NewsItemAttribute", secondary="story_news_item_attribute", cascade="all, delete"
@@ -308,6 +309,7 @@ class Story(BaseModel):
                 story, user_vote = result
                 story_data = story.to_detail_dict()
                 story_data["user_vote"] = user_vote
+                story_data["can_order_news_items"] = story.can_order_news_items(user)
                 return story_data, 200
 
         if item := db.session.execute(query).scalar():
@@ -1200,7 +1202,7 @@ class Story(BaseModel):
                 if not source_story:
                     continue
 
-                for news_item in source_story.news_items[:]:
+                for news_item in source_story.ordered_news_items:
                     StoryOperationsService.transfer_news_item_to_story(first_story, news_item, source_stories_by_id, user)
 
             processed_stories = StoryOperationsService.finalize_story_merge(
@@ -1277,7 +1279,7 @@ class Story(BaseModel):
                 new_stories_ids.append(cls.create_from_item(news_item, commit=False, actor=actor))
             for story in processed_stories:
                 if story.news_items and story.title in removed_titles_by_story.get(story, set()):
-                    story.title = story.news_items[0].title
+                    story.title = story.ordered_news_items[0].title
                 story.update_status(change=actor)
             for story in processed_stories:
                 story.record_revision(user, note="ungroup_news_items")
@@ -1397,6 +1399,8 @@ class Story(BaseModel):
     def update_status(self, change: str | None = None, refresh_timestamps: bool = True):
         if self.remove_empty_story():
             return
+        if self.news_item_order:
+            self.news_item_order = [item.id for item in self.ordered_news_items]
         if refresh_timestamps:
             self.update_timestamps()
         self.update_status_attributes()
@@ -1453,9 +1457,23 @@ class Story(BaseModel):
     def tlp_level(self) -> TLPLevel:
         return next((TLPLevel(attr.value) for attr in self.attributes if attr.key == "TLP"), TLPLevel.CLEAR)
 
+    @property
+    def ordered_news_items(self) -> list[NewsItem]:
+        items = {item.id: item for item in self.news_items}
+        ordered = [items.pop(item_id) for item_id in self.news_item_order or [] if item_id in items]
+        return ordered + [items[item_id] for item_id in sorted(items)]
+
+    def can_order_news_items(self, user: User) -> bool:
+        return (
+            "ASSESS_UPDATE" in user.get_permissions()
+            and self.tlp_level.value in user.get_highest_tlp().get_accessible_levels()
+            and all(item.allowed_with_acl(user, require_write_access=True) for item in self.news_items)
+        )
+
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
-        data["news_items"] = [news_item.to_detail_dict() for news_item in self.news_items]
+        data.pop("news_item_order", None)
+        data["news_items"] = [news_item.to_detail_dict() for news_item in self.ordered_news_items]
         data["tags"] = [tag.to_dict() for tag in self.tags]
         data["links"] = self.links
         if self.misp_auto_update:
@@ -1475,6 +1493,7 @@ class Story(BaseModel):
 
     def to_worker_dict(self) -> dict[str, Any]:
         data = super().to_dict()
+        data.pop("news_item_order", None)
         data["news_items"] = [news_item.to_dict() for news_item in self.news_items]
         data["tags"] = {tag.name: tag.to_dict() for tag in self.tags}
         if self.misp_auto_update:

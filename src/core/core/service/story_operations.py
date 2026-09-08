@@ -143,7 +143,9 @@ class StoryOperationsService:
             if news_item in source_story.news_items:
                 source_story.news_items.remove(news_item)
 
+        target_order = [item.id for item in target_story.ordered_news_items]
         target_story.news_items.append(news_item)
+        target_story.news_item_order = [*target_order, news_item.id]
 
     @classmethod
     def finalize_story_merge(
