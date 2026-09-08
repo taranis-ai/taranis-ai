@@ -90,10 +90,7 @@ Without NLP: 2 GB of RAM, 2 CPU cores and 20 GB of disk storage
   * [frontend](src/frontend/) flask & htmx part of the web user interface
   * [models](src/models/) pydantic models for validating inputs and outputs
   * [worker](src/worker/) retrieves OSINT information from sources such as websites, RSS/Atom feeds, Mastodon, MISP, and Request Tracker and creates **news items**.
-
 * [docker/](docker/) - Support files for Docker image creation and example docker-compose file
-
-RSS collection considers up to `rss_collector_max_entries` feed entries (default 42, configurable in Admin Settings). When a feed exceeds this limit, collection reports `WARNING`: "Only the newest N feed entries were considered. X items were skipped." Collected items remain available and post-collection bots still run.
 
 ## About
 

@@ -37,8 +37,6 @@ config:
 
 This initializes a fresh settings row only; restarts and upgrades preserve saved Admin Settings. Keep credentials out of these ConfigMaps and inject credential-bearing seeds into core through a Secret instead. See [settings preseeding](../docker/README.md#settings-preseeding).
 
-RSS feeds exceeding `rss_collector_max_entries` (default 42) report `WARNING` with the skipped entry count. Deploy matching core, worker, and frontend versions for warning display and task accounting; no database migration is needed. Verify with a feed above the configured limit, then raise the limit and collect manually to confirm recovery. Scheduled HTTP 304 responses retain the warning.
-
 ## Images
 
 Core uses `ghcr.io/taranis-ai/taranis-core`, `taranis-frontend`, `taranis-ingress`, and `taranis-worker` (for `collector`, `worker`, and `cron`). Realtime uses the pinned `centrifugo/centrifugo:v6.9` image.
