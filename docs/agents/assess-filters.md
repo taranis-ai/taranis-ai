@@ -2,90 +2,30 @@
 
 ## When To Load
 
-Load this memory for tasks mentioning assess filters, the assess sidebar, story filtering, `/assess`, `/api/assess/filter-lists`, `FilterLists`, assess default filters, source/group/language/tag filters, or omnisearch assess filter syntax.
+Assess sidebar/search/default filters, `/assess`, `/api/assess/filter-lists`, omnisearch filter syntax, or pagination.
 
-## Expected Behavior
+## Contracts
 
-Assess filters let users narrow stories and news items from the assess workspace by search text, read/important/relevant/in-report states, source, group, language, tags, date range, and sorting.
+- Filter lists contain current user-visible tags, sources, groups, and languages. Core builds them on request; frontend caches per user. Writes affecting those options must invalidate the relevant frontend scope.
+- Sidebar submissions, profile defaults, and dashboard shortcuts share canonical query parameters; source/group/language/tag values remain list-shaped. Saving an existing filter name updates it; identical criteria under a different name are rejected after canonical validation and serialization, including case normalization of choice fields.
+- Dashboard shortcuts reuse saved-filter normalization, delete routes, and Assess URLs. Show the first three by default, with the rest behind Show more.
+- Omnisearch fetches filter lists lazily, only for value resolution/suggestions.
+- Paged navigation replaces `#story-list` and out-of-band `#story-pagination`, scrolls to the top, and keeps the sticky top bar mounted. Errors notify without replacing/appending stories. Stable search-input IDs preserve focus.
+- `Shift+Space` prevents native page-up on keydown and performs read/unread on keyup only with a selection. Bookmark detail shares this behavior and the [global shortcut/selection rules](frontend-development.md).
 
 `AssessSearchFilters` defines the canonical Assess story filter fields, multi-value fields, validation, and query serialization used by the core Assess endpoint, frontend saved filters, and Analyst Chat. Paging and internal query controls remain separate. Core additionally validates model-proposed source, group, tag, language, and recent-story references against the current user's visible catalog before calling `Story.get_by_filter(filter_args, current_user)`. Chat search-result links reuse the canonical `/assess` query shape with doseq encoding for multi-value filters.
 
-The Assess selection toolbar uses `Shift+Space` to toggle selected stories between read and unread. The toolbar prevents the browser's native page-up behavior for that key combination even when no stories are selected, but only submits the bulk action when a selection exists. While typing in an editable control or while a dialog is open, native keyboard behavior remains available. Bookmark detail reuses this behavior through the shared selection toolbar.
-With infinite scroll disabled, page navigation replaces the story list and pagination controls, scrolls the window to the top, and keeps the sticky Assess top bar mounted and visible.
-Paging and infinite-scroll errors update the notification bar without applying the story-list selection or append swap. Search inputs with stable IDs keep browser focus through HTMX replacement swaps.
+Chat must never turn a model-proposed filter into raw SQL or bypass server-side catalog validation.
 
-The shared Assess selection bar is hidden when JavaScript is unavailable. Its `<noscript>` style belongs in `base.html`, not in HTMX-swappable fragments, so filtering cannot accidentally activate the fallback style.
+## Entry Points
 
-Filter option lists must reflect current user-visible database state. `/api/assess/filter-lists` builds those options on request and returns tags, sources, groups, and languages. The frontend may cache the response per user, so core writes that affect assess views must invalidate the relevant frontend cache scope.
+- Core: `src/core/core/api/assess.py`, `src/core/core/model/filter_data.py`, `src/core/core/service/cache_invalidation.py`
+- Contract: `src/models/models/assess.py`
+- Frontend: `src/frontend/frontend/views/story_views.py` (`get_filter_lists`), `src/frontend/frontend/views/dashboard_views.py`, `src/frontend/frontend/omnisearch.py`
+- Templates: `src/frontend/frontend/templates/assess/sidebar/`, `src/frontend/frontend/templates/assess/saved_filter_cards.html`
 
-Saved assess default filters belong to the user profile. Applying defaults should preserve the same canonical query parameter shape used by normal sidebar filtering. Saving with an existing saved filter name updates that filter, duplicate filter criteria under another name are rejected after canonical validation and serialization, including case normalization of choice fields, and managed filters can be updated from the current sidebar filters.
+- Chat: `src/core/core/service/chat.py`, `src/frontend/frontend/views/chat_views.py`
 
-## Code Paths
+## Coverage
 
-- Core API: `src/core/core/api/assess.py`
-  - `/api/assess/filter-lists`
-  - story/news item filter argument parsing
-- Core filter data: `src/core/core/model/filter_data.py`
-- Core cache invalidation: `src/core/core/service/cache_invalidation.py`
-- Shared models: `src/models/models/assess.py`
-  - `AssessSearchFilters`
-  - `FilterLists`
-  - assess source/group/list models
-- Frontend API client: `src/frontend/frontend/core_api.py`
-- Frontend assess view: `src/frontend/frontend/views/story_views.py`
-  - filter-list loading and user cache
-  - source/group/language select data
-  - saved default filter extraction and redirect URL construction
-- Frontend dashboard view: `src/frontend/frontend/views/dashboard_views.py`
-  - saved filter shortcut links
-- Frontend routes: `src/frontend/frontend/router/assess.py`
-- Omnisearch: `src/frontend/frontend/omnisearch.py`, `src/frontend/frontend/router/base.py`
-- Chat planner and validation: `src/core/core/service/chat.py`
-- Chat filter links: `src/frontend/frontend/views/chat_views.py`
-- Templates: `src/frontend/frontend/templates/assess/sidebar/`
-  - `sidebar.html`
-  - `source_select.html`
-  - `language_select.html`
-  - `tags_select.html`
-  - `filter_token_select.html`
-  - `tri_state_filter.html`
-  - `saved_filters_dialog.html`
-- No-JavaScript layout: `src/frontend/frontend/templates/base.html`
-- Shared saved filter template: `src/frontend/frontend/templates/assess/saved_filter_cards.html`
-
-## Data Flow
-
-The assess page loads filter lists through `StoryView.get_filter_lists()`. That method first checks the frontend model cache for the current username, then calls `CoreApi().get_filter_lists()`, which requests `/assess/filter-lists` from core.
-
-Core serves filter lists through `FilterLists.get()` in `src/core/core/api/assess.py`, backed by `FilterData.get_assess_filterlists()`.
-
-Sidebar form submissions and saved defaults use query parameters. Multi-value filters such as source, group, language, and tags must stay list-shaped where the view/core expects lists.
-
-Paged Assess links target `#story-list`; the response replaces `#story-pagination` out of band. This keeps the top bar mounted while its Alpine-owned story metadata updates from the changed list.
-
-The dashboard can surface saved Assess filters as shortcut cards, but should reuse the same saved filter normalization, delete route, and canonical `/assess` URL construction instead of adding a dashboard-specific endpoint or payload shape. Show only the first three saved filters by default and put the rest behind the dashboard's native Show more/Show less pattern.
-
-Omnisearch only loads assess filter lists when value resolution or suggestions need them. Keep this lazy behavior so ordinary global search does not always fetch filter-list data.
-
-## Testing
-
-Use focused tests for assess filter changes:
-
-- Core filter-list behavior: `cd src/core && uv run pytest tests/application/user_workspace/assessment/test_story_filters.py`
-- Frontend assess view behavior: `cd src/frontend && uv run pytest tests/unit/views/test_story_view.py`
-- Frontend Assess shortcut behavior: `cd src/frontend && uv run pytest tests/playwright/test_main_js.py`
-- Assess pagination UI behavior: `cd src/frontend && uv run pytest tests/playwright/test_e2e_user.py::TestEndToEndUser::test_user_profile --e2e-ci`
-- Omnisearch filter syntax and suggestions: `cd src/frontend && uv run pytest tests/unit/test_omnisearch.py`
-
-For broad validation or CI regressions, follow the project test instructions in `AGENTS.md`.
-
-## Pitfalls
-
-- Do not import admin-domain models from `models.admin` into user-facing frontend assess views.
-- Do not use admin/config endpoints for user-facing assess filter workflows.
-- Keep frontend and core query parameter names aligned; avoid adding compatibility aliases for new WIP filter fields.
-- Chat must execute story searches through `Story.get_by_filter` with the current user; a model-proposed filter must never become a raw SQL fragment or bypass server-side catalog validation.
-- Keep `Shift+Space` default prevention on `keydown`; the bulk action fires on `keyup`, after the browser would otherwise scroll.
-- Filter-list cache invalidation matters because stale sources, groups, tags, or languages can hide available filter options.
-- Treat persisted naive datetimes in core as UTC when date/range filtering changes touch stored timestamps.
-- Prefer `data-test-id` selectors when adding e2e coverage for new filter UI behavior.
+`src/core/tests/application/user_workspace/assessment/test_story_filters.py`; `src/frontend/tests/unit/views/test_story_view.py`; `src/frontend/tests/unit/test_omnisearch.py`; `src/frontend/tests/playwright/test_main_js.py`; pagination in `test_user_profile` in `src/frontend/tests/playwright/test_e2e_user.py`.

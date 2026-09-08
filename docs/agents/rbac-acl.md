@@ -1,25 +1,21 @@
 # RBAC ACL Behavior
 
 ## When To Load
-ACL, RoleBasedAccess, RBAC, permissions, Assess source visibility, OSINT source groups, config/admin access, report/product/word-list access.
 
-## Expected Behavior
-RoleBasedAccess ACLs restrict user-facing content and reference data, not admin/config management workflows. Users with `ADMIN_OPERATIONS` bypass RoleBasedAccess ACL checks, but TLP restrictions still apply unless their role TLP allows access.
+RoleBasedAccess, ACLs, TLP, content/reference visibility, source-group inheritance, or admin/config permissions.
 
-OSINT source visibility can be granted by a direct OSINT Source ACL or inherited from an OSINT Source Group ACL. A source-group ACL grants access to the group's current member sources; an OSINT Source Group `*` ACL grants all sources, including ungrouped sources. Read-only ACLs grant read access only; writable ACLs grant write access where a user-facing workflow already enforces ACL write checks.
+## Contracts
 
-Manual story and report bot-action endpoints enforce item-level write ACLs and TLP access before queueing work. The worker API key must not be used as a way for a user request to trigger processing of inaccessible content.
+- ACLs restrict user-facing content/reference data, not admin/config management. Config routes use `CONFIG_*` permissions and must not pass `current_user` into ACL-aware model calls.
+- `ADMIN_OPERATIONS` bypasses RoleBasedAccess, but not role TLP restrictions. Never infer this bypass from the `Admin` role name.
+- Source access comes from direct source ACLs or current source-group membership. A source-group `*` ACL includes all sources, even ungrouped ones. Read-only ACLs do not grant writes.
+- Assess content and source/group reference lists use the same visibility rules.
+- Manual story/report bot actions enforce item-level write access and TLP before queueing; the worker API key cannot elevate a user's request.
 
 Analyst Chat requires `ASSESS_ACCESS`, scopes every conversation to its owner, and runs generated story filters through `Story.get_by_filter(..., current_user)`. For Taranis story and reference data, only ACL/TLP-visible source and group catalogs and accessible bounded story summaries may leave core for the configured provider. User-provided analyst prompts, latest messages, and conversation history also go to the provider. Recent story references must be rechecked through the same story path before reuse in a follow-up.
 
-## Code Paths
-Core ACL evaluation lives in `src/core/core/service/role_based_access.py`. OSINT source, source-group, news-item, story, report, product, and word-list models call it through `get_filter_query_with_acl` or per-item access checks. Admin/config routes in `src/core/core/api/config.py` should rely on `CONFIG_*` permissions and should not pass `current_user` into ACL-aware model calls.
+## Entry Points and Coverage
 
-## Data Flow
-Assess story/news queries join through OSINT sources, then RoleBasedAccess filters the source ids visible to the current user. Assess source and source-group reference lists use the same ACL service so filter options match content visibility. Config APIs authenticate with `CONFIG_*` permissions and fetch unfiltered configuration data.
+`src/core/core/service/role_based_access.py`; model `get_filter_query_with_acl`/per-item checks; admin routes in `src/core/core/api/config.py`.
 
-## Testing
-Primary coverage is in `src/core/tests/application/mixed_flows/security/test_rbac.py`. Run `cd src/core && uv run pytest tests/application/mixed_flows/security/test_rbac.py` after changing ACL behavior.
-
-## Pitfalls
-Do not use ACLs as a second permission layer for admin/config pages. Do not tie superadmin behavior to the `Admin` role name; use the `ADMIN_OPERATIONS` permission. Do not bypass TLP from RoleBasedAccess helpers.
+Tests: `src/core/tests/application/mixed_flows/security/test_rbac.py`.

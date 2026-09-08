@@ -2,40 +2,20 @@
 
 ## When To Load
 
-Load this memory for tasks mentioning audit logs, audit events, security logging, request logging, login logging, `/api/auth/login`, `core.audit`, or `AUDIT_LOG_ENABLED`.
+Audit/security/request/login logs, `core.audit`, or `AUDIT_LOG_ENABLED`.
 
-## Expected Behavior
+## Contracts
 
-Core audit logging is a small v1 feature. It emits one JSON line to stdout for human JWT-authenticated `POST`, `PUT`, `PATCH`, and `DELETE` API requests, plus `/api/auth/login`.
+Core emits JSONL to stdout for human JWT-authenticated API POST/PUT/PATCH/DELETE requests and login. API-key-only worker/bot activity and GET exports are excluded. Retention/search belong to the log collector, not the application database.
 
-Audit records are metadata only: timestamp, method, path, endpoint, status, user id, username, organization id, client IP, and route ids. Client IP comes from Flask's trusted `request.remote_addr`; raw `X-Forwarded-For` values are not parsed by the audit layer. Do not log request bodies, credentials, tokens, connector secrets, story content, or before/after values.
+Records contain only timestamp, method, path, endpoint, status, user/organization IDs, username, client IP, and route IDs. Never include bodies, credentials, content, or before/after values. IP comes from trusted Flask `request.remote_addr`; proxy normalization must happen before the hook, which must not parse raw forwarded headers.
+
+The hook is registered once, honors the environment toggle, and logs failures without changing the response.
 
 Chat creation, message, and deletion requests use the same metadata-only hook. Analyst prompts, provider answers, filters, and `chat_llm_api_key` must never be added to audit records.
 
-## Code Paths
+## Entry Points and Coverage
 
-- Core audit hook: `src/core/core/audit.py`
-- App registration: `src/core/core/managers/api_manager.py`
-- Settings: `src/core/core/config.py`
-- Login failure logging: `src/core/core/auth/database_authenticator.py`
-- Tests: `src/core/tests/application/mixed_flows/security/test_audit.py`
+`src/core/core/audit.py`, `src/core/core/managers/api_manager.py`, `src/core/core/config.py`, `src/core/core/auth/database_authenticator.py`.
 
-## Data Flow
-
-`api_manager.initialize()` registers the audit hook once with Flask. The hook runs after each request, checks the env toggle, method, API path, and actor, then writes a JSON object to stdout. Audit failures are logged but do not change the API response.
-
-## Testing
-
-Primary validation:
-
-- `cd src/core && uv run pytest tests/application/mixed_flows/security/test_audit.py tests/application/mixed_flows/security/test_auth.py`
-- `cd src/core && uv run ruff check`
-- `cd src/core && ./dev/check_touched_pyright.sh`
-
-## Pitfalls
-
-- Keep v1 out of the database; retention and search belong to the log collector.
-- Do not add per-route policy config until an operator has a concrete requirement.
-- API-key-only worker and bot routes are intentionally not audited as human activity.
-- `GET` exports are intentionally not audited in v1.
-- Proxy handling must normalize `request.remote_addr` before the audit hook runs; do not trust raw forwarded headers in audit code.
+Tests: `src/core/tests/application/mixed_flows/security/test_audit.py`, `src/core/tests/application/mixed_flows/security/test_auth.py`.

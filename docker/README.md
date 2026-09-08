@@ -28,6 +28,23 @@ cp env.sample .env
 
 Open file `.env` and defaults if needed
 
+### Settings preseeding
+
+Before the first startup, pass `PRE_SEED_SETTINGS` to the core container as a flat JSON object using the keys stored in Admin Settings. Any subset (or all settings) can be supplied; omitted keys retain their built-in defaults. For example, add this Compose override:
+
+```yaml
+services:
+  core:
+    environment:
+      PRE_SEED_SETTINGS: '{"default_timezone":"Europe/Vienna","rss_collector_max_entries":100,"default_bot_lookback_days":0,"onboarding_enabled":false}'
+```
+
+For a directly launched core process, export the same JSON value as `PRE_SEED_SETTINGS`. In Kubernetes or Helm, add it to the core container's environment (use a Secret if values contain credentials).
+
+Preseeding applies only when the persistent settings row does not exist. Restarts and upgrades preserve saved settings, including administrator edits; they do not merge newly supplied seed keys into an existing row. An empty object `{}` or an unset variable uses normal defaults. Use a JSON object, not the API's `{"settings": {...}}` wrapper. Invalid JSON and non-object values are rejected during configuration loading. Timezone, entry-limit, lookback, and onboarding values use the existing settings validators during initialization.
+
+An explicit `onboarding_enabled` seed overrides `SKIP_INITIAL_USER_ONBOARDING` and is copied to the initial users. After initialization, use Admin Settings to change values. Removing the variable does not undo persisted settings; no database migration is required.
+
 ## Startup & Usage
 
 Start-up application

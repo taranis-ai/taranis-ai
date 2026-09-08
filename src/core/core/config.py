@@ -1,3 +1,4 @@
+import json
 from datetime import UTC, datetime, timedelta
 from typing import Annotated, Any, Literal
 from urllib.parse import urlparse, urlunparse
@@ -8,7 +9,7 @@ from models.cache_contract import (
     CACHE_KEY_PREFIX_DEFAULT,
 )
 from pydantic import Field, SecretStr, ValidationInfo, field_validator, model_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
 def mask_db_uri(uri: str) -> str:
@@ -148,6 +149,12 @@ class Settings(BaseSettings):
     PRE_SEED_PASSWORD_ADMIN: str = "admin"
     PRE_SEED_PASSWORD_USER: str = "user"
     SKIP_INITIAL_USER_ONBOARDING: bool = False
+    PRE_SEED_SETTINGS: Annotated[dict[str, Any], NoDecode] = Field(default_factory=dict, repr=False)
+
+    @field_validator("PRE_SEED_SETTINGS", mode="before")
+    @classmethod
+    def parse_pre_seed_settings(cls, value: Any) -> Any:
+        return json.loads(value) if isinstance(value, str) else value
 
     REDIS_URL: str = "redis://localhost:6379"
     REDIS_PASSWORD: SecretStr | None = None

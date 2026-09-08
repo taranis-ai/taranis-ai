@@ -2,9 +2,6 @@
 
 1. Make sure the release commit is on `master` and its CI and `:latest` image builds have passed.
 2. Run [Release gate tests](https://github.com/taranis-ai/taranis-ai/actions/workflows/release_gate.yml), then wait for it to pass. The workflow checks out the current `master` and runs all gates. Do not tag a release if it fails.
-   On a test instance, verify source-detail **Collect** preserves unsaved edits and displays a notification without inserting a table. Verify **Collect All** retains source filters and **Update Wordlists** leaves exactly one table. Bulk-delete a disposable connector and verify exactly one connector table remains. A rejected action must display an error without replacing the form or table.
-   Clone a disposable report in Analyze, then exercise row and bulk deletion; each action must leave exactly one report panel and table.
-   Start a new report from Analyze and from Assess Add to Report. With only a title entered, Save must focus the required Report Type selector and preserve the form and selected stories.
 3. Create and push the version tag (replace `1.X.X`):
 
    ```bash
@@ -27,3 +24,9 @@
    ```
 
    Repeat this check for `taranis-frontend` and `taranis-worker`.
+
+## Template API Contract
+
+Deploy matching Core and Frontend images together when upgrading the template API from `id` to `name`. Update external clients to read `name` in template detail/list responses, send `name` in creation requests, and use `order=name_asc` or `order=name_desc`. Content remains base64 encoded, validation status retains its existing fields, and update/delete URLs still contain the filename. Existing template files need no migration.
+
+Pull the selected published images, restart Core and Frontend, verify readiness, then check template listing, sorting, creation, editing, and deletion. If rolling back, restore both image versions and the corresponding client contract together.
