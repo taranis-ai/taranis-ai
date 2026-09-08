@@ -15,6 +15,8 @@ For production deployments, see our [Deployment Guide using docker compose](http
 
 For existing Celery/RabbitMQ deployments, see the [RQ Migration Guide](./dev/rq_migration_guide.md).
 
+To preseed global settings on a fresh instance, set core’s `PRE_SEED_SETTINGS` environment variable to a flat JSON object. See [settings preseeding](docker/README.md#settings-preseeding) for an example and restart behavior.
+
 ## Contributions
 
 We welcome contributions from the community! If you're interested in contributing to Taranis AI, please read our [Development Setup Guide](./dev/README.md) to get started.
@@ -66,6 +68,8 @@ For container and Python dependency SBOM scope and attestations, see [docs/sbom.
 <img src="https://validator.swagger.io/validator?url=https://raw.githubusercontent.com/taranis-ai/taranis-ai/master/src/core/core/static/openapi3_1.yaml">
 
 An [OpenAPI spec](./src/core/core/static/openapi3_1.yaml) for the REST API is included and can be accessed in a running installation under `config/openapi`.
+
+Presenter template API responses and creation requests use `name` for the filename; list sorting uses `name_asc` or `name_desc`. See the [release notes for deployment coordination](./docs/releasing.md#template-api-contract).
 
 ### Core Health Endpoints
 

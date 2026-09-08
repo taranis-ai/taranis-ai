@@ -32,3 +32,9 @@ For application rollback, restore the previous published images and leave the ad
    ```
 
    Repeat this check for `taranis-frontend` and `taranis-worker`.
+
+## Template API Contract
+
+Deploy matching Core and Frontend images together when upgrading the template API from `id` to `name`. Update external clients to read `name` in template detail/list responses, send `name` in creation requests, and use `order=name_asc` or `order=name_desc`. Content remains base64 encoded, validation status retains its existing fields, and update/delete URLs still contain the filename. Existing template files need no migration.
+
+Pull the selected published images, restart Core and Frontend, verify readiness, then check template listing, sorting, creation, editing, and deletion. If rolling back, restore both image versions and the corresponding client contract together.

@@ -358,7 +358,7 @@ def mock_core_get_item_endpoints(responses_mock, core_payloads, mock_core_get_it
 
     for view_data in mock_core_get_item_endpoint_data.values():
         url = view_data.pop("_url", None)
-        data_id = view_data.get("id", None)
+        data_id = view_data.get("id", view_data.get("name"))
         if not url or not data_id:
             continue
         responses_mock.get(f"{url}/{data_id}", json=view_data)
@@ -370,7 +370,7 @@ def mock_core_get_item_endpoints(responses_mock, core_payloads, mock_core_get_it
 def mock_core_delete_endpoints(responses_mock, mock_core_get_item_endpoint_data):
     for view_data in mock_core_get_item_endpoint_data.values():
         url = view_data.pop("_url", None)
-        data_id = view_data.get("id", None)
+        data_id = view_data.get("id", view_data.get("name"))
         if not url or not data_id:
             continue
         responses_mock.delete(f"{url}/{data_id}", json={"message": "Successfully deleted"})
@@ -381,7 +381,7 @@ def mock_core_delete_endpoints(responses_mock, mock_core_get_item_endpoint_data)
 def mock_core_create_endpoints(responses_mock, mock_core_get_item_endpoint_data):
     for view_data in mock_core_get_item_endpoint_data.values():
         url = view_data.pop("_url", None)
-        data_id = view_data.get("id", None)
+        data_id = view_data.get("id", view_data.get("name"))
         if not url or not data_id:
             continue
         responses_mock.post(f"{url}", json=view_data)
@@ -392,7 +392,7 @@ def mock_core_create_endpoints(responses_mock, mock_core_get_item_endpoint_data)
 def mock_core_update_endpoints(responses_mock, mock_core_get_item_endpoint_data):
     for view_data in mock_core_get_item_endpoint_data.values():
         url = view_data.pop("_url", None)
-        data_id = view_data.get("id", None)
+        data_id = view_data.get("id", view_data.get("name"))
         if not url or not data_id:
             continue
         responses_mock.put(f"{url}/{data_id}", json=view_data)

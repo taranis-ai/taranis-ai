@@ -322,7 +322,7 @@ def setup_test_templates(core_request_client):
     uploaded_templates = []
     for test_file in test_data_dir.glob("*.html"):
         payload = {
-            "id": test_file.name,
+            "name": test_file.name,
             "content": base64.b64encode(test_file.read_bytes()).decode("utf-8"),
         }
         core_request_client.post("/config/templates", json_data=payload, timeout_seconds=30)
