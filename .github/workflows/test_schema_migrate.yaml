@@ -25,6 +25,7 @@ jobs:
           if git diff --quiet \
             "${{ github.event.pull_request.base.sha }}" \
             "${{ github.event.pull_request.head.sha }}" -- \
+            dev/test_master_to_branch_migration.sh \
             src/core/core/model \
             src/core/migrations \
             src/models; then

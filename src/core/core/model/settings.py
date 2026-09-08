@@ -31,12 +31,13 @@ class Settings(BaseModel):
         merged: dict[str, Any] = dict(settings) if isinstance(settings, Mapping) else {}
         merged.setdefault("default_collector_proxy", "")
         merged.setdefault("default_collector_interval", "0 */8 * * *")
+        merged.setdefault("rss_collector_max_entries", 42)
         merged.setdefault("default_bot_lookback_days", 7)
         merged.setdefault("default_tlp_level", TLPLevel.CLEAR.value)
         merged.setdefault("default_story_conflict_retention", "200")
         merged.setdefault("default_news_item_conflict_retention", "200")
         merged.setdefault("default_timezone", None)
-        merged.setdefault("onboarding_enabled", not Config.SKIP_INITIAL_USER_ONBOARDING)
+        merged.setdefault("onboarding_enabled", True)
         return merged
 
     @classmethod
@@ -61,6 +62,13 @@ class Settings(BaseModel):
                 update_data["default_bot_lookback_days"] = cls._validate_non_negative_int(update_data["default_bot_lookback_days"])
             except (TypeError, ValueError):
                 return {"error": "Invalid bot lookback setting"}, 400
+        if "rss_collector_max_entries" in update_data:
+            try:
+                update_data["rss_collector_max_entries"] = cls._validate_non_negative_int(update_data["rss_collector_max_entries"])
+                if update_data["rss_collector_max_entries"] == 0:
+                    raise ValueError
+            except (TypeError, ValueError):
+                return {"error": "Invalid RSS collector entry limit"}, 400
         if "onboarding_enabled" in update_data:
             try:
                 update_data["onboarding_enabled"] = cls._validate_bool(update_data["onboarding_enabled"])
@@ -90,7 +98,15 @@ class Settings(BaseModel):
             onboarding_missing = "onboarding_enabled" not in (settings.settings or {})
             settings.settings = cls.with_defaults(settings.settings)
         else:
-            settings = cls()
+            seed = cls._normalize_update_data(Config.PRE_SEED_SETTINGS)
+            for key in ("default_bot_lookback_days", "rss_collector_max_entries"):
+                if key in seed:
+                    seed[key] = cls._validate_non_negative_int(seed[key])
+            if seed.get("rss_collector_max_entries") == 0:
+                raise ValueError("Invalid RSS collector entry limit")
+            if "onboarding_enabled" in seed:
+                seed["onboarding_enabled"] = cls._validate_bool(seed["onboarding_enabled"])
+            settings = cls(seed)
             onboarding_missing = True
             db.session.add(settings)
 

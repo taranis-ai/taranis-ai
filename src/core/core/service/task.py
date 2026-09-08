@@ -2,7 +2,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from models.task import Task as TaskResponseModel
-from models.task import TaskHistoryResponse, TaskResultEnvelope, TaskSubmission, UserTaskFilter, UserTaskList
+from models.task import TaskHistoryResponse, TaskResult, TaskSubmission, UserTaskFilter, UserTaskList
 
 from core.config import Config
 from core.log import logger
@@ -192,12 +192,13 @@ class TaskService:
 
         product_id = result_data.get("product_id")
         rendered_product = result_data.get("render_result")
+        render_revision = result_data.get("render_revision")
 
-        if not isinstance(product_id, str) or not isinstance(rendered_product, str):
+        if not isinstance(product_id, str) or not isinstance(rendered_product, str) or not isinstance(render_revision, str):
             logger.error(f"Product {product_id} not found or no render result")
             return
 
-        _, status = Product.update_render_for_id(product_id, rendered_product)
+        _, status = Product.update_render_for_id(product_id, rendered_product, render_revision)
         if status == 200 and user_id:
             realtime_publisher.product_rendered(product_id, user_id, "completed")
 
@@ -248,5 +249,5 @@ class TaskService:
         IOC.upsert_many([item for item in enrichments if isinstance(item, dict)])
 
     @staticmethod
-    def _get_result_dict_data(result: TaskResultEnvelope) -> dict[str, Any] | None:
+    def _get_result_dict_data(result: TaskResult) -> dict[str, Any] | None:
         return result.data if isinstance(result.data, dict) else None

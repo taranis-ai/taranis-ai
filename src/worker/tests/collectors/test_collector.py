@@ -5,9 +5,7 @@ from tests.testdata import news_items
 from worker.config import Config
 
 
-def test_base_web_collector_conditional_request(base_web_collector_mock, base_web_collector):
-    import datetime
-
+def test_base_web_collector_conditional_request(base_web_collector_mock, base_web_collector, requests_mock, caplog):
     from worker.collectors.base_web_collector import NoChangeError
 
     response = base_web_collector.send_get_request("https://test.org/200")
@@ -18,9 +16,11 @@ def test_base_web_collector_conditional_request(base_web_collector_mock, base_we
     assert response.status_code == 200
     assert response.text == ""
 
+    last_attempted = base_web_collector.get_last_attempted({"last_attempted": "2020-03-20T14:00:00+02:00"})
     with pytest.raises(NoChangeError) as exception:
-        response = base_web_collector.send_get_request("https://test.org/304", datetime.datetime(2020, 3, 20, 12))
+        response = base_web_collector.send_get_request("https://test.org/304", last_attempted)
     assert str(exception.value) == "https://test.org/304 was not modified"
+    assert requests_mock.request_history[-1].headers["If-Modified-Since"] == "Fri, 20 Mar 2020 12:00:00 GMT"
 
     with pytest.raises(requests.exceptions.HTTPError) as exception:
         response = base_web_collector.send_get_request("https://test.org/429")
@@ -29,6 +29,21 @@ def test_base_web_collector_conditional_request(base_web_collector_mock, base_we
     with pytest.raises(requests.exceptions.HTTPError) as exception:
         response = base_web_collector.send_get_request("https://test.org/404")
     assert str(exception.value) == "404 Client Error: None for url: https://test.org/404"
+
+    for error_type in (requests.exceptions.ConnectionError, requests.exceptions.Timeout, requests.exceptions.ReadTimeout):
+        requests_mock.get("https://test.org/network-error", exc=error_type("technical-network-details"))
+        caplog.clear()
+        with caplog.at_level("INFO"), pytest.raises(requests.exceptions.RequestException) as failure:
+            base_web_collector.send_get_request("https://test.org/network-error")
+
+        assert str(failure.value) == (
+            "The request to the source or proxy failed or timed out. "
+            "Check DNS resolution and network access from the worker container, "
+            "and verify the source's PROXY_SERVER setting if a proxy is required. See worker logs for technical details."
+        )
+        assert failure.value.__suppress_context__ is True
+        assert failure.value.__cause__ is None
+        assert any(record.levelname == "ERROR" and "technical-network-details" in record.message for record in caplog.records)
 
 
 @pytest.mark.parametrize("disable_http3", [False, True])
@@ -76,8 +91,12 @@ def test_rss_collector_get_feed(rss_collector_mock, rss_collector):
         rss_collector.collect(rss_collector_source_data_not_modified)
     assert str(exception.value) == f"{rss_collector_url_not_modified} was not modified"
 
-    with pytest.raises(RSSCollectorError, match="No parseable RSS or Atom feed was detected"):
+    with pytest.raises(RSSCollectorError) as exception:
         rss_collector.collect(rss_collector_source_data_no_content)
+    assert str(exception.value) == (
+        f"No parseable RSS or Atom feed was detected at {rss_collector_source_data_no_content['parameters']['FEED_URL']}"
+        ". Suggested feed URL: https://rss.example.com/feed.xml"
+    )
 
 
 def test_rss_published_date_uses_first_parseable_value(rss_collector):
@@ -89,11 +108,29 @@ def test_rss_published_date_uses_first_parseable_value(rss_collector):
         published="not a date",
         pubDate="   ",
         created="",
-        updated="2026-08-19T12:34:56Z",
+        updated="2026-08-19T12:34:56+02:00",
         modified="2026-08-20T12:34:56Z",
     )
 
-    assert rss_collector.get_published_date(entry) == datetime.datetime(2026, 8, 19, 12, 34, 56)
+    assert rss_collector.get_published_date(entry) == datetime.datetime(2026, 8, 19, 10, 34, 56)
+
+
+@pytest.mark.parametrize(("use_feed_content", "link"), [(True, "https://example.com/article"), (False, "")])
+def test_rss_last_modified_published_fallback_applies_across_content_modes(rss_collector, use_feed_content, link):
+    import datetime
+
+    import feedparser
+
+    rss_collector.feed_url = "https://example.com/feed"
+    rss_collector.use_feed_content = use_feed_content
+    rss_collector.xpath = ""
+    rss_collector.http_validators = {"last_modified": "Tue, 11 Aug 2026 09:07:03 GMT"}
+    item = rss_collector.parse_feed_entry(
+        feedparser.FeedParserDict(title="Item", description="Feed content", link=link),
+        {"id": "source-1", "parameters": {}},
+    )
+
+    assert item.published == datetime.datetime(2026, 8, 11, 9, 7, 3)
 
 
 def test_rss_publish_error_propagates(rss_collector, requests_mock):
@@ -315,11 +352,19 @@ def test_simple_web_collector_digest_splitting(simple_web_collector_mock, simple
     assert result is None
 
 
-def test_rt_collector_collect(rt_mock, rt_collector):
+def test_rt_collector_collect(rt_mock, rt_collector, requests_mock):
     from tests.collectors import rt_testdata
 
     result = rt_collector.collect(rt_testdata.rt_collector_source_data)
     assert result is None
+
+    requests_mock.get(rt_testdata.rt_attachment_1_url, exc=requests.exceptions.ConnectionError("connection failed"))
+    assert rt_collector.get_attachment_values(rt_testdata.rt_attachment_1_url) == {}
+    requests_mock.get(rt_testdata.rt_ticket_attachments_url, exc=requests.exceptions.ReadTimeout("read timed out"))
+    assert rt_collector.get_ticket_attachments(1) == []
+    requests_mock.get(rt_testdata.rt_ticket_url, exc=requests.exceptions.ConnectTimeout("connect timed out"))
+    assert rt_collector.get_ticket(1) == {}
+    assert rt_collector.collect(rt_testdata.rt_collector_source_data) is None
 
 
 def test_rt_collector_no_tickets_error(rt_mock, rt_collector):

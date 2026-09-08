@@ -1,3 +1,5 @@
+import re
+
 import pytest
 from models.types import WORKER_TYPES
 from models.worker_parameters import (
@@ -57,6 +59,83 @@ def test_secret_schema_uses_standard_password_fields():
 
     assert api_key["format"] == "password"
     assert api_key["writeOnly"] is True
+
+
+def test_mastodon_timeline_contract_and_secret():
+    schema = parameter_schema("MASTODON_COLLECTOR")
+    assert schema["properties"]["TIMELINE"]["enum"] == ["hashtag", "home", "account"]
+    assert schema["properties"]["COLLECTION_MODE"] == {
+        "default": "complete",
+        "description": "Complete collects every status since the cursor; latest keeps only the newest page and warns when older statuses are skipped.",
+        "enum": ["complete", "latest"],
+        "title": "Collection mode",
+        "type": "string",
+    }
+    assert schema["properties"]["ACCESS_TOKEN"]["format"] == "password"
+    assert schema["properties"]["ACCESS_TOKEN"]["writeOnly"] is True
+    instance_pattern = schema["properties"]["INSTANCE_URL"]["pattern"]
+    assert re.fullmatch(instance_pattern, "https://mastodon.example/")
+    assert not re.fullmatch(instance_pattern, "https://mastodon.example/api")
+
+    hashtag = effective_parameter_values(
+        "MASTODON_COLLECTOR",
+        {"INSTANCE_URL": "https://mastodon.example", "TIMELINE": "hashtag", "HASHTAG": "security"},
+    )
+    assert hashtag["ACCESS_TOKEN"] == ""
+    assert hashtag["COLLECTION_MODE"] == "complete"
+    assert (
+        effective_parameter_values(
+            "MASTODON_COLLECTOR",
+            {"INSTANCE_URL": "http://mastodon.example", "TIMELINE": "hashtag", "HASHTAG": "security"},
+        )["INSTANCE_URL"]
+        == "http://mastodon.example"
+    )
+
+    for parameters in (
+        {"INSTANCE_URL": "https://mastodon.example", "TIMELINE": "hashtag"},
+        {"INSTANCE_URL": "https://mastodon.example", "TIMELINE": "home"},
+        {"INSTANCE_URL": "https://mastodon.example", "TIMELINE": "account", "ACCOUNT": "alice"},
+    ):
+        with pytest.raises(ValidationError):
+            effective_parameter_values("MASTODON_COLLECTOR", parameters)
+
+    account = effective_parameter_values(
+        "MASTODON_COLLECTOR",
+        {
+            "INSTANCE_URL": "https://mastodon.example",
+            "TIMELINE": "account",
+            "ACCOUNT": "alice@example.social",
+            "ACCESS_TOKEN": "secret",
+        },
+    )
+    assert account["ACCESS_TOKEN"] == "secret"
+
+    for invalid_parameters in (
+        {"INSTANCE_URL": "https://user:password@mastodon.example", "TIMELINE": "hashtag", "HASHTAG": "security"},
+        {"INSTANCE_URL": "https://mastodon.example/api", "TIMELINE": "hashtag", "HASHTAG": "security"},
+        {"INSTANCE_URL": "https://mastodon.example", "TIMELINE": "hashtag", "HASHTAG": "threat intel"},
+        {"INSTANCE_URL": "https://mastodon.example", "TIMELINE": "hashtag", "HASHTAG": "security?limit=100"},
+        {
+            "INSTANCE_URL": "https://mastodon.example",
+            "TIMELINE": "hashtag",
+            "COLLECTION_MODE": "unknown",
+            "HASHTAG": "security",
+        },
+        {
+            "INSTANCE_URL": "http://mastodon.example",
+            "TIMELINE": "hashtag",
+            "HASHTAG": "security",
+            "ACCESS_TOKEN": "secret",
+        },
+        {
+            "INSTANCE_URL": "https://mastodon.example",
+            "TIMELINE": "account",
+            "ACCOUNT": "https://mastodon.example/@alice",
+            "ACCESS_TOKEN": "secret",
+        },
+    ):
+        with pytest.raises(ValidationError):
+            effective_parameter_values("MASTODON_COLLECTOR", invalid_parameters)
 
 
 def test_every_schema_uses_uppercase_names_and_documents_each_field():

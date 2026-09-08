@@ -1,35 +1,30 @@
 # Worker Task Notifications
 
 ## When To Load
-Worker-backed frontend actions, task queue notifications, OSINT source collect, bot execute, word-list gather, product render, product publish, `/health`, and no-worker warning behavior.
 
-## Expected Behavior
-Worker-backed actions still report queue success when core accepts the job. If core health reports `workers: down`, the frontend shows a warning that the task was queued but may not be processed until a worker starts. Final task failures are not pushed into that enqueue notification, but persisted task/status views reflect actual RQ-level failures such as exceptions, timeouts, and killed workhorses. For user-triggered runs, including automatic renders caused by authenticated product creation or update, the persisted task row also carries the authenticated `user_id`; scheduler-driven runs leave it empty. A successful user-triggered presenter result also publishes a user-scoped `product.rendered` realtime event after the render has been committed.
+Worker-backed actions, queue warnings/priority, task results, `/health`, My Tasks, or history retention.
 
-MISP connector outcomes are persisted according to the completed operation rather than successful worker dispatch: synchronized stories and submitted proposals are successes, while an entirely failed execution raises into the connector task's single failure path. Expected connector errors carry a curated public message and stable reason code; missing configurations use `connector_not_found`, configurations missing a type use `connector_type_missing`, and unexpected errors use a generic fallback.
+## Queue and Result Contracts
 
-Task history is retained globally by the daily `cleanup_task_history` housekeeping job. The retention window comes from the core `TASK_HISTORY_RETENTION_DAYS` environment variable and does not vary by task type or worker family.
-The My Tasks page lists only completed persisted results belonging to the authenticated user, including successful OSINT source previews with `PREVIEW` status. It does not query Redis or display queued and running jobs; enqueue notifications remain the immediate acknowledgement for those states.
+- Accepted jobs report queue success. Only cached core health `services.workers == "down"` changes this to a queued-but-no-worker warning; failed/missing health checks retain the original notice. Do not change queue endpoint status codes or poll for final failures through this notification.
+- Authenticated runs, including auto-render after product edits, carry `user_id`; scheduler runs do not. Propagate attribution through dependencies and post-collection bots.
+- User jobs enqueue at the front of their functional queue (LIFO); background jobs remain FIFO. Workers check presenters, publishers, connectors, misc, bots, then collectors. Priority does not preempt running jobs or affect workers subscribed to other queues.
+- RQ `enqueue_at` promotion does not wait for unfinished dependencies. Scheduled user jobs keep front priority, but scheduled dependencies cannot model execution ordering.
+- Persist actual RQ failures, including timeouts/killed workhorses. Worker hooks synthesize results when task code cannot save; the reconciler covers missed/stalled runs.
+- Successful presenter results publish user-scoped `product.rendered` after commit; notification failure cannot change task success. See [Realtime Events](realtime-events.md).
+- MISP results reflect completed sync/proposal operations, not dispatch success. Entire failures use one connector failure path; curated reasons include `connector_not_found` and `connector_type_missing`.
+- Bot transport failures use retryable `bot_service_unavailable` so dependents do not run. Log the transport error server-side, retain the curated exception's originating traceback, and suppress the underlying HTTP exception chain from displayed failures.
 
-Jobs carrying an authenticated `user_id` are enqueued at the front of their functional RQ queue. User-triggered jobs therefore run in last-in, first-out order within that queue, while scheduler-driven and other background jobs retain normal first-in, first-out ordering. User attribution and front-of-queue priority propagate through deferred dependencies and post-collection bot scheduling.
+## History and UI
 
-## Code Paths
-Frontend notification handling lives in `frontend.views.base_view.BaseView.render_worker_task_notification`. Core health is read through `frontend.data_persistence.DataPersistenceLayer.get_core_health`.
-The user task route lives in `frontend.views.user_views.UserTaskView`; its user-scoped core endpoint is `GET /tasks/user`.
+My Tasks lists only completed persisted results owned by the authenticated user, including successful `PREVIEW` results. It never queries Redis for queued/running jobs. Omit task `result.data`; search only visible relational fields, never serialized results. This differs from [Notification Center](notification-center.md) history.
 
-## Data Flow
-The frontend posts the worker-backed action to core. On a successful response, it reads cached `/health`; only `services.workers == "down"` changes the notification from success to warning. Core includes the authenticated user in the queued job metadata for manual runs, derives RQ's `at_front` option from that metadata, and worker-side task persistence copies the user onto the task row. Worker-triggered follow-up requests forward the current job's user metadata so downstream jobs retain the same behavior. For successful presenter tasks, core stores the rendered product and then attempts a bounded user-scoped realtime notification; notification failure never changes the task result. The history-cleanup worker records core HTTP failures as `core_http_error`, including the status and response body; transport failures are recorded as `core_transport_error`. Separately, core stores synthetic task failures from worker-level RQ hooks when a job dies before task code can call `save_task_result(...)`, and from the background reconciler when a run is missed or stalls before any worker-side persistence can happen.
+Daily `cleanup_task_history` applies global `TASK_HISTORY_RETENTION_DAYS` across task families. Cleanup records core HTTP/transport failures as `core_http_error`/`core_transport_error`.
 
-## Testing
-Use `cd src/frontend && uv run pytest tests/unit/views/test_worker_task_notifications.py` for focused coverage.
-Use `cd src/frontend && uv run pytest tests/unit/views/test_user_task_view.py` and the core user-task tests for the completed-results view.
-Use `cd src/worker && uv run pytest tests/connectors/test_misp_connector.py` for MISP connector result and persistence coverage.
+Source-detail Collect/Bot Run return notifications; Collect All/Update Wordlists replace their table containers. Follow [shared frontend swap rules](frontend-development.md).
 
-## Pitfalls
-Do not change core queue endpoint status codes for this behavior. A missing or failed health check should keep the original task notification. The enqueue notification is still only about scheduling; failure visibility for admin/source/bot/render status comes from persisted task rows, not a second frontend polling path.
+## Entry Points and Coverage
 
-The user endpoint must always derive ownership from the authenticated user, exclude scheduler and other-user rows, and omit task-specific `result.data`. Search is limited to visible relational fields and must not match `result.data` or other serialized result content.
+`BaseView.render_worker_task_notification` in `src/frontend/frontend/views/base_view.py`; `DataPersistenceLayer.get_core_health` in `src/frontend/frontend/data_persistence.py`; `UserTaskView` in `src/frontend/frontend/views/user_views.py`; user endpoint `GET /tasks/user`.
 
-Front-of-queue priority is local to each functional queue. Workers check enabled queues in this priority order: presenters, publishers, connectors, misc, bots, collectors. A dedicated collector worker is unaffected because it only subscribes to collectors. An already running job is never preempted.
-
-RQ promotes jobs created with `enqueue_at` when they become due without waiting for unfinished `depends_on` jobs. Scheduled user jobs retain front-of-queue promotion, but callers must not use scheduled dependencies to model execution ordering.
+Tests: `src/frontend/tests/unit/views/test_worker_task_notifications.py`, `src/frontend/tests/unit/views/test_user_task_view.py`, `src/worker/tests/connectors/test_misp_connector.py`, `src/worker/tests/bots/test_bot_api.py`, `src/worker/tests/bots/test_bot_tasks.py`.

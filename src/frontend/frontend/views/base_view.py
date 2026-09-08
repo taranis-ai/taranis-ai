@@ -164,15 +164,20 @@ class BaseView(MethodView):
             obj = cls.model(**processed_data)
             dpl = DataPersistenceLayer()
             result = dpl.store_object(obj) if cls.is_create_object_id(object_id) else dpl.update_object(obj, object_id)
-            return (result.json(), None) if result.ok else (None, result.json())
+            response = result.json()
+            if result.ok:
+                return response, None
+            if isinstance(response, dict):
+                return None, response.get("error") or response.get("message") or "Failed to save changes"
+            return None, "Failed to save changes"
         except ValidationError as exc:
             logger.error(format_pydantic_errors(exc, cls.model))
             return None, format_pydantic_errors(exc, cls.model)
         except HTTPException:
             raise
-        except Exception as exc:
-            logger.error(f"Error storing form data: {exc!s}")
-            return None, str(exc)
+        except Exception:
+            logger.exception("Error storing form data")
+            return None, "Failed to save changes"
 
     @classmethod
     def get_list_template(cls) -> str:
@@ -565,13 +570,10 @@ class BaseView(MethodView):
 
     @classmethod
     def delete_multiple_view(cls, object_ids: list[str]) -> tuple[str, int]:
-        results = []
-        results.extend(DataPersistenceLayer().delete_object(cls.model, object_id) for object_id in object_ids)
-        if not all(r.ok for r in results):
-            return (
-                render_template("notification/index.html", notification={"message": "Failed to delete selected items", "error": True}),
-                500,
-            )
+        results = [DataPersistenceLayer().delete_object(cls.model, object_id) for object_id in object_ids]
+        failed_response = next((response for response in results if not response.ok), None)
+        if failed_response is not None:
+            return cls.get_notification_from_response(failed_response), failed_response.status_code or 500
 
         cls._invalidate_model_cache()
 

@@ -32,6 +32,7 @@ class ConnectorView(AdminBaseView):
 
         base_context["parameters"] = parameters
         base_context["parameter_values"] = parameter_values
+        base_context["worker_parameters_selected"] = bool(connector and connector.type)
         base_context["connector_types"] = cls.connector_types.values()
         base_context["secret_reveal_url"] = (
             f"{Config.TARANIS_BASE_PATH.rstrip('/')}/api/config/parameter-secrets/connectors/{connector.id}"
@@ -62,4 +63,4 @@ class ConnectorView(AdminBaseView):
             logger.warning("No connector ID or type provided.")
 
         parameters = cls.get_worker_parameters(worker_type=connector_type)
-        return render_template("partials/worker_parameters.html", parameters=parameters)
+        return render_template("partials/worker_parameters.html", parameters=parameters, worker_parameters_selected=True)

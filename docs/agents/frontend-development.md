@@ -2,36 +2,36 @@
 
 ## When To Load
 
-Read this before every change under `src/frontend`, including Flask views, Jinja templates, HTMX behavior, Alpine state, styles, browser APIs, and static JavaScript.
+Before any `src/frontend` change.
 
-## Expected Behavior
+## Rendering and State
 
-Taranis is server-rendered and keeps browser code to the absolute minimum. Use this order and stop at the first option that works:
+Use HTMX for server-rendered requests and targeted swaps, then Alpine for component-local state. Custom JavaScript needs a concrete browser capability neither can provide. Keep HTML in Jinja, one owner per state value, and reuse existing native/browser/framework capabilities before adding dependencies.
 
-1. Use HTMX for requests, server-rendered HTML, targeted swaps, and server-driven UI updates.
-2. Use Alpine.js for small, local UI state and behavior that cannot be expressed with HTMX alone.
-3. Write custom JavaScript only when neither HTMX nor Alpine can provide the required browser API or behavior. Any new custom JavaScript must have a concrete reason why the first two options are insufficient.
+Handle known events at their producer. Do not rediscover them with polling, DOM-wide observers/scans, or broad lifecycle listeners. Deferred scripts initialize directly; component-local behavior must not add global listeners.
 
-Known events must be handled at their source. The code that receives a realtime event, HTMX response, or user action must invoke the exact update it requires. Never add polling, a DOM-wide `MutationObserver`, repeated DOM scans, or broad lifecycle listeners to rediscover an event the application already receives. Do not add `DOMContentLoaded` handlers for deferred scripts; initialize directly or use the relevant HTMX or Alpine lifecycle.
+Shared controls own selection, accessibility, styling, and shortcut behavior across consumers. Keep selection backed by native inputs where forms submit it; do not add a parallel selection store. Assess shortcuts use the shared guard to avoid firing in editable controls or open dialogs. The selection bar's no-JavaScript hiding rule belongs in `base.html`, never in swappable fragments.
 
-## Code Paths
+## HTMX and Forms
 
-- Server-rendered UI: `src/frontend/frontend/views/`, `src/frontend/frontend/templates/`
-- Browser code: `src/frontend/frontend/static/js/`
-- HTMX and Alpine bundle: `src/frontend/vendor.js`
-- Frontend tests: `src/frontend/tests/unit/`, `src/frontend/tests/playwright/`
+Taranis uses HTMX 4:
 
-## Data Flow
+- Attributes apply only to their element unless explicitly marked `:inherited`.
+- Lifecycle names use colons (`htmx:config:request`, `htmx:after:swap`); request/swap context is `event.detail.ctx`, and the swap target is `ctx.target`.
+- Authenticated pages swap 400 validation responses into the normal target and suppress other 4xx/5xx swaps. Intentional error rendering needs local `hx-status:400`, `hx-status:4xx`, and `hx-status:5xx` target rules, plus compatible select/swap rules.
+- Complete table-container responses require `outerHTML` on that container; notification-only actions must receive only notifications. Error responses must not inherit an append or table-selection swap.
 
-Prefer Flask view -> Jinja fragment -> HTMX targeted swap. Add Alpine only inside the owning component when local state is necessary. Custom JavaScript may expose a small browser-API boundary, such as `sessionStorage` or `EventSource`, but event producers must call that boundary directly.
+Shared table navigation retains native links/GET forms and `restoreSearchAfterSwap`; `hx-preserve` does not replace request-derived search restoration. Page-size events stay local to the form. Import controls retain the list URL for refresh after success. Assess token filters still require JavaScript.
 
-## Testing
+Preserve selected IDs and retry context on validation errors. Report/clustering dialogs close only on success. Non-HTMX forms retain CSRF protection and safe result/retry redirects.
 
-Run focused unit tests for changed views/templates and a focused Playwright test for browser behavior. Verify the real local UI when user-facing behavior changes, including the browser console for errors, repeated handlers, and long tasks.
+## Specific Integration Traps
 
-## Pitfalls
+- Analyze Clone Report and row/bulk delete return `analyze/report_table.html` including `#report`; replace that wrapper with outerHTML.
+- Analyze New Report and Assess Add to Report share `analyze/report.html`. Report Type is required in both UI and core; the existing `test_user_analyze` workflow covers both entry paths.
 
-- Do not generate HTML in JavaScript when Jinja can render it.
-- Do not add global document/window listeners for component-local behavior.
-- Do not duplicate state between server markup, Alpine, and custom JavaScript.
-- Do not introduce a frontend dependency for behavior already covered by HTMX, Alpine, CSS, or a native browser API.
+## Entry Points and Verification
+
+Views/templates: `src/frontend/frontend/views/`, `src/frontend/frontend/templates/`; browser code: `src/frontend/frontend/static/js/`; bundle: `src/frontend/vendor.js`.
+
+Use existing unit/browser workflows and the [shared validation process](development-workflow.md). For user-facing changes, verify the real local UI and browser console, including repeated handlers and long tasks.

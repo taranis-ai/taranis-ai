@@ -1,19 +1,20 @@
 {% from "macros/forms.html" import form_input, form_select, form_textarea, form_switch %}
 {% from "macros/cron.html" import form_cron %}
 
-{% set parameter_values = parameter_values | default({}) %}
-{% set optional_parameters = optional_parameters | default([]) %}
-{% for field in parameters %}
+{% macro worker_parameter(field, parameter_values, optional_parameters, preserve, secret_reveal_url, word_list_options, template_options) %}
   {% set field_value = parameter_values.get(field.name, field.value) %}
   {% set field_required = field.required and field.name not in optional_parameters %}
-  <div class="relative" data-parameter="{{ field.name }}">
+  {% set full_width = field.type in ['textarea', 'word-list-table', 'cron_interval'] %}
+  <div class="relative {% if full_width %}md:col-span-2{% elif field.type == 'switch' %}md:-mt-4{% endif %}" data-parameter="{{ field.name }}">
     {% if field.description %}
       <span class="tooltip tooltip-left absolute right-2 top-2 z-10"
             data-tip="{{ field.description }}"
             title="{{ field.description }}"
             aria-label="Help for {{ field.label }}">{{ heroicon_outline("information-circle", class="size-4") }}</span>
     {% endif %}
-    {% if field.type == 'password' %}
+    {% if field.widget == 'template-selector' %}
+      {{ form_select(label=field.label, name='parameters[' + field.name + ']', value=field_value, options=template_options, required=field_required) }}
+    {% elif field.type == 'password' %}
       {% set configured = field_value == '********' %}
       <div class="mb-5 w-full" x-data="{ revealed: '' }">
         {{ form_input(label=field.label, name='parameters[' + field.name + ']', value='', type='password', required=field_required and not configured, preserve=false, input_id='parameter-' + field.name) }}
@@ -39,7 +40,7 @@
       {% set selected_word_lists = field_value if field_value is iterable and field_value is not string else field_value.split(',') %}
       <label class="label" for="parameter-{{ field.name }}">{{ field.label }}</label>
       <select id="parameter-{{ field.name }}" name="parameters[{{ field.name }}][]" multiple>
-        {% for option in word_list_options | default([]) %}
+        {% for option in word_list_options %}
           <option value="{{ option.id }}" {% if option.id in selected_word_lists %}selected{% endif %}>{{ option.name }}</option>
         {% endfor %}
       </select>
@@ -58,4 +59,71 @@
       {{ form_input(label=field.label, name='parameters[' + field.name + ']', value=field_value, type='text', required=field_required, pattern=field.pattern, preserve=preserve) }}
     {% endif %}
   </div>
+{% endmacro %}
+
+{% set parameter_values = parameter_values | default({}) %}
+{% set optional_parameters = optional_parameters | default([]) %}
+{% set word_list_options = word_list_options | default([]) %}
+{% set template_options = template_options | default([]) %}
+{% set required_fields = [] %}
+{% set optional_fields = [] %}
+{% set counts = namespace(configured_optional=0) %}
+{% for field in parameters %}
+  {% if field.required and field.name not in optional_parameters %}
+    {% set _ = required_fields.append(field) %}
+  {% else %}
+    {% set _ = optional_fields.append(field) %}
+    {% if field.name in parameter_values %}
+      {% set counts.configured_optional = counts.configured_optional + 1 %}
+    {% endif %}
+  {% endif %}
 {% endfor %}
+
+{% if parameters %}
+  <section class="mb-5 overflow-hidden rounded-box border border-base-300 bg-base-100" data-testid="worker-parameter-settings">
+    <div class="p-4">
+      <div class="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 class="text-lg font-semibold text-base-content">Worker settings</h2>
+          <p class="text-sm text-base-content/65">Configure the settings required for this worker.</p>
+        </div>
+        {% if required_fields %}<span class="badge badge-outline">{{ required_fields | length }} required</span>{% endif %}
+      </div>
+
+      {% if required_fields %}
+        <h3 class="mt-5 mb-3 text-xs font-semibold uppercase tracking-wide text-base-content/60">Required settings</h3>
+        <div class="grid grid-cols-1" data-testid="required-worker-parameters">
+          {% for field in required_fields %}
+            {{ worker_parameter(field, parameter_values, optional_parameters, preserve, secret_reveal_url, word_list_options, template_options) }}
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="mt-4 rounded-box bg-base-200 px-3 py-2 text-sm text-base-content/70">No required settings. Defaults will be used unless optional settings are changed.</p>
+      {% endif %}
+    </div>
+
+    {% if optional_fields %}
+      <details class="group border-t border-base-300" data-testid="optional-worker-parameters">
+        <summary class="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 hover:bg-base-200/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">
+          <span class="flex min-w-0 items-center gap-2">
+            {{ heroicon_outline("chevron-right", class="size-4 shrink-0 transition-transform group-open:rotate-90") }}
+            <span class="font-medium">Optional settings</span>
+            <span class="text-sm text-base-content/60">{{ optional_fields | length }} available</span>
+          </span>
+          {% if counts.configured_optional %}<span class="badge badge-primary badge-outline">{{ counts.configured_optional }} configured</span>{% endif %}
+        </summary>
+        <div class="border-t border-base-300 bg-base-200/30 p-4">
+          <div class="grid grid-cols-1 gap-x-4 md:grid-cols-2">
+            {% for field in optional_fields %}
+              {{ worker_parameter(field, parameter_values, optional_parameters, preserve, secret_reveal_url, word_list_options, template_options) }}
+            {% endfor %}
+          </div>
+        </div>
+      </details>
+    {% endif %}
+  </section>
+{% elif worker_parameters_selected | default(false) %}
+  <div class="mb-5 rounded-box border border-base-300 bg-base-100 px-4 py-3 text-sm text-base-content/70" data-testid="worker-parameter-empty-state">
+    No additional worker configuration is required.
+  </div>
+{% endif %}

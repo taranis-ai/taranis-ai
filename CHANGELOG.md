@@ -6,6 +6,7 @@ This file records notable changes to Taranis AI. Published release entries link 
 
 ### Added
 
+- Added a scheduled Mastodon collector for hashtags, authenticated home timelines, and public accounts with selectable complete or latest cursor collection and explicit skip warnings.
 - Added one shared Pydantic parameter contract for every supported worker type.
 - Added schema-derived configuration forms with labels, tooltip descriptions, validation constraints, defaults, and exceptional widget hints.
 - Added parameter-aware `PATCH` support for sources, bots, connectors, product types, and publisher presets.
@@ -33,6 +34,7 @@ This file records notable changes to Taranis AI. Published release entries link 
 
 ### Deployment notes
 
+- Deploy shared models, core, frontend, and worker images together so the Mastodon collector contract and implementation remain compatible. Before rolling back to a release without `MASTODON_COLLECTOR`, restore the verified pre-deployment database snapshot as described below.
 - This release contains a destructive worker-parameter database migration. Before deployment, create a database snapshot, verify that it can be restored, and record the snapshot identifier and restore verification.
 - Before deployment, verify that `osint_source.type` contains no `EMAIL_COLLECTOR` or `TWITTER_COLLECTOR` rows. These unsupported collector remnants have no safe automatic conversion, so the migration stops and identifies the source instead of deleting it.
 - Deploy core, frontend, worker, and shared-model images as one compatible release.

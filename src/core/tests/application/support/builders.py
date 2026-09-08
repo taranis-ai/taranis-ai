@@ -135,7 +135,7 @@ def build_import_user_payload(app, username: str, name: str | None = None) -> di
         from core.model.organization import Organization
         from core.model.role import Role
 
-        organization = Organization.find_by_name("The Earth")
+        organization = Organization.find_by_name("Default Organization")
         role = Role.filter_by_name("User")
         assert organization is not None
         assert role is not None

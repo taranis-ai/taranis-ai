@@ -46,6 +46,51 @@ def test_collector_task_missing_source_is_recorded_as_failure(current_job, reque
     }
 
 
+def test_mastodon_failure_result_uses_curated_message_and_recovers(current_job, requests_mock, monkeypatch):
+    instance_url = "https://mastodon.example"
+    cursor = {"timeline": f"{instance_url}|hashtag|security", "last_status_id": "123"}
+    source = {
+        "id": "source-1",
+        "name": "Mastodon source",
+        "type": "mastodon_collector",
+        "mastodon_cursor": cursor,
+        "parameters": {
+            "INSTANCE_URL": instance_url,
+            "TIMELINE": "hashtag",
+            "HASHTAG": "security",
+            "ACCESS_TOKEN": "secret-token-value",
+        },
+    }
+    monkeypatch.setattr(collector_tasks.Collector, "get_source", lambda self, osint_source_id: source)
+    requests_mock.get(
+        f"{instance_url}/api/v1/timelines/tag/security",
+        [
+            {"status_code": 401, "json": {"error": "secret-token-value was rejected"}},
+            {"json": []},
+        ],
+    )
+    requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
+
+    with pytest.raises(RuntimeError, match="Mastodon authentication failed or access was denied"):
+        collector_tasks.collector_task("source-1", False)
+
+    payload = next(request.json() for request in requests_mock.request_history if request.url.endswith("/tasks"))
+    assert payload["status"] == "FAILURE"
+    assert payload["result"]["reason"] == "mastodon_authentication_failed"
+    assert payload["result"]["message"] == "Mastodon authentication failed or access was denied"
+    assert payload["result"]["data"]["mastodon_cursor"] == cursor
+    assert "secret-token-value" not in str(payload)
+
+    source["status"] = {"status": payload["status"], "result": payload["result"]}
+    result = collector_tasks.collector_task("source-1", False)
+
+    assert result == "No changes: No new Mastodon statuses"
+    payloads = [request.json() for request in requests_mock.request_history if request.url.endswith("/tasks")]
+    assert payloads[-1]["status"] == "NOT_MODIFIED"
+    assert payloads[-1]["result"]["reason"] == "collector_not_modified"
+    assert payloads[-1]["result"]["data"]["mastodon_cursor"] == cursor
+
+
 def test_collector_task_no_change_persists_not_modified_status(current_job, requests_mock, monkeypatch):
     source = {"id": "source-1", "name": "Source 1", "type": "rss_collector", "parameters": {"FEED_URL": "https://example.com/feed"}}
 

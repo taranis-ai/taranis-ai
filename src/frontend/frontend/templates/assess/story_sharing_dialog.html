@@ -28,7 +28,7 @@
                   class="btn btn-outline w-1/2"
                   hx-post="{{ url_for('assess.submit_share_story') }}"
                   hx-target="#notification-bar"
-                  hx-on::after-request="document.getElementById('share_story_to_connector_dialog').close()">Share</button>
+                  hx-on::after:request="document.getElementById('share_story_to_connector_dialog').close()">Share</button>
           <a type="button" class="btn btn-outline w-1/2" href="{{ mail_sharing_link }}">Share via email</a>
         </div>
       {% else %}

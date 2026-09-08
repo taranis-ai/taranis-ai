@@ -1124,6 +1124,77 @@ paths:
           description: forbidden
         '404':
           $ref: '#/components/responses/404NotFound'
+  /assess/analyst-review/snapshot:
+    get:
+      security:
+      - UserAuth: []
+      tags:
+      - assess
+      description: get the stable shift and unread story snapshot for an analyst review
+      operationId: assess.analyst_review_snapshot.get
+      responses:
+        '200':
+          description: story identifiers in review order
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - story_ids
+                properties:
+                  story_ids:
+                    type: array
+                    items:
+                      type: string
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: forbidden
+  /assess/analyst-review/actions:
+    post:
+      security:
+      - UserAuth: []
+      tags:
+      - assess
+      description: apply one atomic analyst review decision
+      operationId: assess.analyst_review_action.post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - story_id
+              - action
+              properties:
+                story_id:
+                  type: string
+                action:
+                  type: string
+                  enum:
+                  - add
+                  - dismiss
+                report_id:
+                  type: string
+      responses:
+        '200':
+          description: analyst review action applied
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: invalid review action
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: forbidden
+        '404':
+          $ref: '#/components/responses/404NotFound'
+        '500':
+          description: review action failed
   /assess/stories:
     get:
       security:
@@ -4238,6 +4309,41 @@ paths:
           $ref: '#/components/responses/401Unauthorized'
         '404':
           $ref: '#/components/responses/404NotFound'
+    delete:
+      tags:
+      - config
+      description: delete multiple OSINT sources
+      operationId: config.config_osint_sources.delete
+      parameters:
+      - name: ids
+        in: query
+        required: true
+        schema:
+          type: array
+          items:
+            type: string
+      - name: force
+        in: query
+        schema:
+          type: boolean
+          default: false
+      security:
+      - UserAuth: []
+      responses:
+        '200':
+          description: success
+        '400':
+          description: no source IDs provided or invalid force parameter
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: forbidden
+        '404':
+          $ref: '#/components/responses/404NotFound'
+        '409':
+          description: related news items prevent deletion without force
+        '500':
+          description: deletion failed
   /config/osint-sources/{osint_source_id}:
     parameters:
     - name: osint_source_id
@@ -4269,15 +4375,27 @@ paths:
       - config
       description: delete OSINT source
       operationId: config.config_osint_source.delete
+      parameters:
+      - name: force
+        in: query
+        schema:
+          type: boolean
+          default: false
       security:
       - UserAuth: []
       responses:
         '200':
           description: success
+        '400':
+          description: invalid force parameter or protected manual source
         '401':
           $ref: '#/components/responses/401Unauthorized'
         '404':
           $ref: '#/components/responses/404NotFound'
+        '409':
+          description: related news items prevent deletion without force
+        '500':
+          description: deletion failed
     get:
       security:
       - UserAuth: []
@@ -4386,6 +4504,91 @@ paths:
                 type: object
         '401':
           $ref: '#/components/responses/401Unauthorized'
+  /config/curated-osint-source-lists:
+    get:
+      tags:
+      - config
+      description: get the bundled curated OSINT source lists
+      operationId: config.config_curated_osint_source_lists.get
+      security:
+      - UserAuth: []
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        name:
+                          type: string
+                        description:
+                          type: string
+                        source_count:
+                          type: integer
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: forbidden
+        '500':
+          description: curated catalog unavailable
+    post:
+      tags:
+      - config
+      description: add or relink sources from bundled curated lists
+      operationId: config.config_curated_osint_source_lists.post
+      security:
+      - UserAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - list_names
+              properties:
+                list_names:
+                  type: array
+                  minItems: 1
+                  uniqueItems: true
+                  items:
+                    type: string
+      responses:
+        '200':
+          description: curated sources loaded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  created_source_count:
+                    type: integer
+                  reused_source_count:
+                    type: integer
+                  created_group_count:
+                    type: integer
+                  updated_group_count:
+                    type: integer
+        '400':
+          description: invalid selection or catalog
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: forbidden
+        '500':
+          description: curated sources could not be loaded
+        '409':
+          description: a source name already exists with a different collector type; no changes were saved
+        '503':
+          description: curated sources were saved but could not be scheduled; retrying the request retries scheduling
   /config/export-osint-sources:
     parameters:
     - name: ids
@@ -4751,6 +4954,15 @@ paths:
       operationId: config.config_templates.get
       security:
       - UserAuth: []
+      parameters:
+      - name: order
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - name_asc
+          - name_desc
       responses:
         '200':
           description: success
@@ -4765,7 +4977,7 @@ paths:
     post:
       tags:
       - config
-      description: create or update a presenter template (by id in body) and return
+      description: create or update a presenter template (by name in body) and return
         validation status
       operationId: config.config_templates.post
       security:
@@ -9825,6 +10037,8 @@ components:
           type: string
         type:
           type: string
+        report_item_type_id:
+          type: string
         created:
           type: string
           format: date-time
@@ -10532,7 +10746,7 @@ components:
     template_item:
       type: object
       properties:
-        id:
+        name:
           type: string
         content:
           description: base64 encoded template content; may be empty string when file
@@ -10544,7 +10758,8 @@ components:
         validation_status:
           $ref: '#/components/schemas/validation_status'
       required:
-      - id
+      - name
+      - content
       - validation_status
     template_list_response:
       type: object
@@ -10558,14 +10773,14 @@ components:
     template_write_request:
       type: object
       properties:
-        id:
+        name:
           type: string
           description: template file name (path relative to presenter_templates)
         content:
           type: string
           format: base64
       required:
-      - id
+      - name
       - content
     template_write_response:
       type: object

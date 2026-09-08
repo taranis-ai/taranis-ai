@@ -56,10 +56,24 @@ class ImportOSINTSources(MethodView):
         return SourceView.import_post_view()
 
 
-class LoadDefaultOSINTSources(MethodView):
+class BulkCreateOSINTSources(MethodView):
+    @admin_required()
+    def get(self):
+        return SourceView.bulk_create_view()
+
     @admin_required()
     def post(self):
-        return SourceView.load_default_osint_sources()
+        return SourceView.bulk_create_post_view()
+
+
+class CuratedOSINTSourceLists(MethodView):
+    @admin_required()
+    def get(self):
+        return SourceView.curated_lists_view()
+
+    @admin_required()
+    def post(self):
+        return SourceView.curated_lists_post_view()
 
 
 class OSINTSourceCollect(MethodView):
@@ -91,7 +105,8 @@ class OSINTSourceParameterAPI(MethodView):
     @admin_required()
     def get(self, osint_source_id: str):
         collector_type = request.args.get("type", "")
-        return SourceView.get_osint_source_parameters_view(osint_source_id, collector_type)
+        bulk = request.args.get("bulk", "").lower() in {"true", "1", "yes", "on"}
+        return SourceView.get_osint_source_parameters_view(osint_source_id, collector_type, bulk=bulk)
 
 
 class PublisherParameterAPI(MethodView):
@@ -170,6 +185,7 @@ def init(app: Flask):
     admin_bp.add_url_rule("/source_groups/<string:osint_source_group_id>", view_func=SourceGroupView.as_view("edit_osint_source_group"))
 
     admin_bp.add_url_rule("/sources", view_func=SourceView.as_view("osint_sources"))
+    admin_bp.add_url_rule("/sources/bulk", view_func=BulkCreateOSINTSources.as_view("bulk_create_osint_sources"))
     admin_bp.add_url_rule("/sources/<string:osint_source_id>", view_func=SourceView.as_view("edit_osint_source"))
     admin_bp.add_url_rule("/source_parameters/<string:osint_source_id>", view_func=OSINTSourceParameterAPI.as_view("osint_source_parameters"))
     admin_bp.add_url_rule(
@@ -177,7 +193,11 @@ def init(app: Flask):
     )
     admin_bp.add_url_rule("/export/osint_sources", view_func=ExportOSINTSources.as_view("export_osint_sources"))
     admin_bp.add_url_rule("/import/osint_sources", view_func=ImportOSINTSources.as_view("import_osint_sources"))
-    admin_bp.add_url_rule("/load_default_osint_sources", view_func=LoadDefaultOSINTSources.as_view("load_default_osint_sources"))
+    admin_bp.add_url_rule(
+        "/sources/curated",
+        view_func=CuratedOSINTSourceLists.as_view("curated_osint_source_lists"),
+        methods=["GET", "POST"],
+    )
     admin_bp.add_url_rule(
         "/source_preview/<string:osint_source_id>",
         view_func=SourceView.get_osint_source_preview_view,
@@ -197,6 +217,9 @@ def init(app: Flask):
     admin_bp.add_url_rule("/bots/<string:bot_id>", view_func=BotView.as_view("edit_bot"))
     admin_bp.add_url_rule(
         "/bot_parameters/<string:bot_id>", view_func=BotView.get_bot_parameters_view, methods=["GET"], endpoint="bot_parameters"
+    )
+    admin_bp.add_url_rule(
+        "/bot_index_availability", view_func=BotView.get_bot_index_availability, methods=["GET"], endpoint="bot_index_availability"
     )
     admin_bp.add_url_rule("/bot_dag_preview", view_func=BotView.preview_bot_dag, methods=["POST"], endpoint="bot_dag_preview")
     admin_bp.add_url_rule("/toggle_bot_state/<string:bot_id>/<string:new_state>", view_func=BotView.toggle_bot_state, methods=["POST"])

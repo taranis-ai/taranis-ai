@@ -31,6 +31,13 @@ def build_publish_product_payload(
 class TestAnalyzeApi(BaseTest):
     base_uri = "/api/analyze"
 
+    def test_report_types_identify_when_guided_review_is_needed(self, client, auth_header):
+        response = self.assert_get_ok(client, "report-types", auth_header)
+
+        items = response.get_json()["items"]
+        assert items
+        assert all(isinstance(item["needs_review"], bool) for item in items)
+
     def test_create_Report(self, client, auth_header, cleanup_report_item):
         """
         POST to /api/analyze/report-items endpoint to create a report.

@@ -41,6 +41,10 @@
       <h2 class="card-title">{{ submit_text }}</h2>
       <div class="flex-1"></div>
       {% if is_edit %}
+        <a class="btn btn-outline"
+           href="{{ url_for('publish.product', product_id='0', copy_from=product.id) }}"
+           @click="if (dirty && !confirm('Discard unsaved changes and create a copy of the saved product?')) $event.preventDefault()"
+           data-testid="copy-product">Create copy</a>
         {% if rendered_product %}
           <a id="download-button"
              class="btn btn-outline"
@@ -70,23 +74,22 @@
               {% if is_edit %}hx-put="{{ form_action }}"{% else %}hx-post="{{ form_action }}"{% endif %}
               hx-swap="innerHTML"
               hx-target="#product"
-              hx-target-error="#product"
+              hx-status:400="target:#product"
+              hx-status:4xx="target:#product"
+              hx-status:5xx="target:#product"
               @input="dirty=true"
               data-testid="product-form">
           <input type="hidden" name="csrf_token" value="{{ request.cookies.get(config['JWT_ACCESS_CSRF_COOKIE_NAME'], '') }}">
           {% include "partials/admin_form_error.html" %}
           <div class="grid grid-cols-12 gap-4">
             <div class="col-span-12 md:col-span-6">
-              {{ form_select('Product Type', 'product_type_id', product.product_type_id, product_types, required=true, width='w-full', disabled=is_edit) }}
-              {% if product.product_type_id %}
-                <input type="hidden" name="product_type_id" value="{{ product.product_type_id }}">
-              {% endif %}
+              {{ form_select('Product Type', 'product_type_id', product.product_type_id, product_types, required=true, width='w-full', data_testid='product-type-select') }}
             </div>
             <div class="col-span-12 md:col-span-6">{{ form_input('Title', 'title', product.title, form_error.title) }}</div>
             <div class="col-span-12">{{ form_textarea('Description', 'description', product.description, form_error.description, required=false) }}</div>
           </div>
 
-          {% if product.product_type_id %}
+          {% if product.product_type_id or selected_report_items %}
             <div class="mt-2">
               <div data-product-report-items-enhanced>
                 {{ datatable('Report Items', supported_reports, columns, selected_items=selected_report_items, input_name='report_items[]', headline='Report Items') }}

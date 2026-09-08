@@ -4,6 +4,7 @@ from typing import TypedDict
 
 from jinja2 import DebugUndefined, TemplateSyntaxError, UndefinedError
 from jinja2.sandbox import ImmutableSandboxedEnvironment
+from pydantic import BaseModel
 
 from core.log import logger
 from core.managers.data_manager import (
@@ -23,20 +24,20 @@ class ValidationStatus(TypedDict):
     error_type: str
 
 
-class TemplateResponse(TypedDict):
-    id: str
+class TemplateResponse(BaseModel):
+    name: str
     content: str | None
     validation_status: ValidationStatus
 
 
-def create_or_update_template(template_id, base64_content):
+def create_or_update_template(template_name, base64_content):
     """
     Shared logic for creating or updating a template.
     Decodes base64 content, validates, and saves the template.
     Returns a tuple: (response_dict, status_code)
     """
-    if not template_id or not base64_content:
-        return {"error": "Missing template id or content"}, 400
+    if not template_name or not base64_content:
+        return {"error": "Missing template name or content"}, 400
 
     # Decode content
     try:
@@ -50,16 +51,16 @@ def create_or_update_template(template_id, base64_content):
 
     # Store in file
     try:
-        save_template_content(template_id, template_content)
+        save_template_content(template_name, template_content)
     except InvalidPresenterTemplatePathError:
         return {"error": "Invalid presenter template path"}, 400
     except OSError:
-        logger.exception("Failed to save template %s", template_id)
+        logger.exception("Failed to save template %s", template_name)
         return {"error": "Failed to save template"}, 500
 
     response = {
         "message": "Template updated or created",
-        "path": template_id,
+        "path": template_name,
         "validation_status": validation_status,
     }
     if not validation_status["is_valid"]:
@@ -138,20 +139,19 @@ def _build_validation_and_content(content: TemplateContent) -> tuple[str | None,
     return base64.b64encode(text.encode("utf-8")).decode("utf-8"), validate_template_content(text)
 
 
-def _build_template_response(template_id: str, content: TemplateContent) -> TemplateResponse:
+def _build_template_response(template_name: str, content: TemplateContent) -> TemplateResponse:
     encoded_content, validation_status = _build_validation_and_content(content)
-    return {
-        "id": template_id,
-        "content": encoded_content,
-        "validation_status": validation_status,
-    }
+    return TemplateResponse(name=template_name, content=encoded_content, validation_status=validation_status)
 
 
 def build_template_response(template_path: str) -> TemplateResponse:
-    """Return a template payload with id, base64 content, and validation status."""
+    """Return a template payload with name, base64 content, and validation status."""
     return _build_template_response(template_path, get_template_content(template_path))
 
 
-def build_templates_list() -> list[TemplateResponse]:
+def build_templates_list(order: str | None = None) -> list[TemplateResponse]:
     """Return API payloads for every stored presenter template."""
-    return [_build_template_response(template_id, get_template_content(template_id)) for template_id in list_templates()]
+    items = [_build_template_response(template_name, get_template_content(template_name)) for template_name in list_templates()]
+    if order in {"name_asc", "name_desc"}:
+        items.sort(key=lambda item: item.name.casefold(), reverse=order == "name_desc")
+    return items

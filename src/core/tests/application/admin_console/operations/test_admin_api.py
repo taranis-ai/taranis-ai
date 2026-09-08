@@ -2,6 +2,8 @@ import json
 import uuid
 from datetime import UTC, datetime, timedelta
 
+import pytest
+
 from tests.application.support.api_test_base import BaseTest
 
 
@@ -22,6 +24,7 @@ class TestAdminApi(BaseTest):
             "settings": {
                 "default_collector_proxy": "http://test_server:1111",
                 "default_collector_interval": "5 5 * * *",
+                "rss_collector_max_entries": "75",
                 "default_tlp_level": "clear",
                 "default_story_conflict_retention": "150",
                 "default_news_item_conflict_retention": "150",
@@ -33,7 +36,8 @@ class TestAdminApi(BaseTest):
         response_settings = response.get_json()
 
         assert response_settings["message"] == "Successfully updated settings"
-        for key, value in test_settings["settings"].items():
+        expected_settings = test_settings["settings"] | {"rss_collector_max_entries": 75}
+        for key, value in expected_settings.items():
             assert response_settings["settings"][key] == value
 
     def test_settings_patch_updates_single_field(self, client, auth_header):
@@ -78,6 +82,17 @@ class TestAdminApi(BaseTest):
 
         assert response.status_code == 400
         assert response.get_json()["error"] == "Invalid bot lookback setting"
+
+    @pytest.mark.parametrize("value", [0, -1, "invalid"])
+    def test_settings_rejects_invalid_rss_collector_entry_limit(self, client, auth_header, value):
+        response = client.put(
+            self.concat_url("settings"),
+            json={"settings": {"rss_collector_max_entries": value}},
+            headers=auth_header,
+        )
+
+        assert response.status_code == 400
+        assert response.get_json()["error"] == "Invalid RSS collector entry limit"
 
     def test_settings_rejects_invalid_default_timezone(self, client, auth_header):
         response = client.put(

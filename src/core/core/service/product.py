@@ -69,7 +69,7 @@ class ProductService:
 
     @classmethod
     def get_published_report(cls, product_id: str):
-        if not (product := Product.get(product_id)):
+        if not (product := Product.get(product_id)) or not product.last_published_url:
             return {"error": "Published report not found"}, 404
 
         report_path = cls._published_reports_directory() / product.id

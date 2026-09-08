@@ -465,7 +465,7 @@ def test_forced_source_deletion_refreshes_survivors_and_cancels_deleted_stories(
     refreshed = []
     cancelled = []
     monkeypatch.setattr("core.service.misp_auto_update.refresh_misp_auto_update_jobs", refreshed.extend)
-    monkeypatch.setattr("core.service.story.cancel_misp_auto_update_jobs", cancelled.extend)
+    monkeypatch.setattr("core.service.misp_auto_update.cancel_misp_auto_update_jobs", cancelled.extend)
 
     assert OSINTSource.delete(source.id, force=True)[1] == 200
 

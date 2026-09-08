@@ -1,6 +1,6 @@
 from typing import Any
 
-from flask import abort, render_template, request
+from flask import abort, render_template, request, url_for
 from flask.typing import ResponseReturnValue
 from models.product import Product, ProductType, PublisherPreset
 from models.report import ReportItem
@@ -30,6 +30,20 @@ class ProductView(BaseView):
         return cls.get_edit_route(product_id=object_id)
 
     @classmethod
+    def get_default_actions(cls) -> list[dict[str, Any]]:
+        actions = super().get_default_actions()
+        actions.insert(
+            1,
+            {
+                "label": "Create copy",
+                "icon": "document-duplicate",
+                "type": "link",
+                "url_template": url_for("publish.product", product_id="0") + "?copy_from={item_id}",
+            },
+        )
+        return actions
+
+    @classmethod
     def get_columns(cls) -> list[dict[str, Any]]:
         return [
             {"title": "Title", "field": "title", "sortable": True, "renderer": None},
@@ -46,35 +60,52 @@ class ProductView(BaseView):
 
     @classmethod
     def get_extra_context(cls, base_context: dict[str, Any]) -> dict[str, Any]:
-        product_types = DataPersistenceLayer().get_objects(ProductType)
-        base_context["product_types"] = [{"id": pt.id, "name": pt.title} for pt in product_types]
-        publishers = DataPersistenceLayer().get_objects(PublisherPreset)
+        dpl = DataPersistenceLayer()
+        product_types = dpl.get_objects(ProductType)
+        publishers = dpl.get_objects(PublisherPreset)
         base_context["publishers"] = [{"id": p.id, "name": p.name} for p in publishers]
 
         if cls.model_name() in base_context:
             product: Product = base_context[cls.model_name()]
-            is_edit = product.id is not None and product.id != "0"
+            if request.method == "GET" and cls.is_create_object_id(product.id) and (copy_from := request.args.get("copy_from")):
+                source = dpl.get_object(Product, copy_from)
+                if source is None:
+                    abort(404)
+                product = Product(
+                    id="0",
+                    product_type_id=source.product_type_id,
+                    title=f"{source.title} Copy",
+                    description=source.description,
+                    report_items=list(source.report_items),
+                )
+                base_context[cls.model_name()] = product
+                base_context["supported_reports"] = list(getattr(source, "supported_reports", None) or [])
+            is_edit = product.id not in {None, "0"}
             if is_edit:
                 base_context["submit_text"] = f"Update {cls.pretty_name()} - {product.title}"
             base_context["is_edit"] = is_edit
 
-            selected_report_items = [
-                str(report_item_id) for report_item_id in (getattr(product, "report_items", None) or []) if report_item_id
-            ]
-            supported_reports = list(getattr(product, "supported_reports", None) or [])
+            selected_report_items = [str(report_item_id) for report_item_id in product.report_items if report_item_id]
+            supported_reports = base_context.get("supported_reports", list(getattr(product, "supported_reports", None) or []))
 
-            if report_id := request.args.get("report_id"):
-                report = DataPersistenceLayer().get_object(ReportItem, report_id)
-                if report:
-                    if report.id and report.id not in selected_report_items:
-                        selected_report_items.append(report.id)
+            if (report_id := request.args.get("report_id")) and (report := dpl.get_object(ReportItem, report_id)):
+                if report_id not in selected_report_items:
+                    selected_report_items.append(report_id)
 
-                    report_payload = report.model_dump(mode="json")
-                    if report.id and not any(str(item.get("id")) == str(report.id) for item in supported_reports if isinstance(item, dict)):
-                        supported_reports.append(report_payload)
+                if all(str(item["id"]) != report_id for item in supported_reports):
+                    supported_reports.append(report.model_dump(mode="json"))
 
             base_context["selected_report_items"] = selected_report_items
             base_context["supported_reports"] = supported_reports
+
+            if selected_report_type_ids := {
+                str(item["report_item_type_id"])
+                for item in supported_reports
+                if str(item["id"]) in selected_report_items and item.get("report_item_type_id")
+            }:
+                product_types = [pt for pt in product_types if selected_report_type_ids.issubset(set(pt.report_types))]
+
+        base_context["product_types"] = [{"id": pt.id, "name": pt.title} for pt in product_types]
 
         return base_context
 

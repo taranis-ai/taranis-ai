@@ -12,6 +12,7 @@ Deployment options:
 Replace every `CHANGE_ME_...` value before deployment.
 
 Always required:
+
 - In `kubernetes/00-config.yaml` (or `helm/values.yaml`), set `GRANIAN_HOST`.
 - In `kubernetes/01-secrets.yaml` (or `helm/values.yaml`), set `JWT_SECRET_KEY`, `API_KEY`, `CENTRIFUGO_API_KEY`, `CENTRIFUGO_CONNECT_PROXY_SECRET`, `PRE_SEED_PASSWORD_ADMIN`, `PRE_SEED_PASSWORD_USER`, `DB_URL`, `DB_DATABASE`, `DB_USER`, `DB_PASSWORD`, `REDIS_URL`, `CENTRIFUGO_REDIS_URL`, and `REDIS_PASSWORD`. Keep the two Centrifugo secrets distinct from each other and from existing application keys.
 - The raw manifest provides `TARANIS_BASE_PATH: /`; set it only when serving the application below a subpath.
@@ -19,19 +20,31 @@ Always required:
 - The raw manifest keeps the public realtime endpoint at `/sse`; ingress rewrites it to Centrifugo's `/connection/uni_sse`.
 
 Optional `llm-bot` overlay:
+
 - In `kubernetes/00-config.yaml`, set `LLM_BASE_URL`; optionally set `LLM_TIMEOUT` and `LLM_MODEL`.
 - In `kubernetes/01-secrets.yaml`, set `BOT_API_KEY`; optionally set `LLM_API_KEY` for providers that require one.
 - For Helm, set `config.llmBaseUrl`; optionally set `config.llmTimeout`, `config.llmModel`, and `secrets.llmApiKey`.
 - Set ingress hostname in `kubernetes/40-ingress.yaml` (or Helm values).
 
+## Initial settings
+
+Before the first startup, set `PRE_SEED_SETTINGS` in `kubernetes/00-config.yaml`, or the JSON string `config.preSeedSettings` in Helm values. Both default to `"{}"`. For example, Helm values can contain:
+
+```yaml
+config:
+  preSeedSettings: '{"onboarding_enabled":false}'
+```
+
+This initializes a fresh settings row only; restarts and upgrades preserve saved Admin Settings. Keep credentials out of these ConfigMaps and inject credential-bearing seeds into core through a Secret instead. See [settings preseeding](../docker/README.md#settings-preseeding).
+
 ## Images
 
-Core uses `ghcr.io/taranis-ai/taranis-core`, `taranis-frontend`, `taranis-ingress`, and `taranis-worker` (for `collector`, `worker`, and `cron`). Realtime uses the pinned `centrifugo/centrifugo:v6.9.1` image.
+Core uses `ghcr.io/taranis-ai/taranis-core`, `taranis-frontend`, `taranis-ingress`, and `taranis-worker` (for `collector`, `worker`, and `cron`). Realtime uses the pinned `centrifugo/centrifugo:v6.9` image.
 Optional overlay uses `ghcr.io/taranis-ai/taranis-llm-bot:latest`.
 Pin explicit tags for production.
 
-Published `core`, `frontend`, `worker`, and `ingress` images include registry SBOM attestations.
-GitHub releases attach CycloneDX JSON SBOM files for the Python application environments: `taranis_core_sbom.json`, `taranis_frontend_sbom.json`, and `taranis_worker_sbom.json`.
+Published `core`, `frontend`, `worker`, and `ingress` images include platform-specific BuildKit SPDX SBOM attestations. The final multi-architecture `core`, `frontend`, and `worker` image digests also have signed CycloneDX attestations generated from their production `uv` lock graphs.
+GitHub releases attach the same CycloneDX JSON files for direct download: `taranis_core_sbom.json`, `taranis_frontend_sbom.json`, and `taranis_worker_sbom.json`. See [Software Bills of Materials](../docs/sbom.md) for their scope.
 
 ## Raw Kubernetes
 
@@ -100,6 +113,10 @@ kubectl logs deploy/collector --tail=200
 kubectl logs deploy/cron --tail=200
 ```
 
+## Collector network errors
+
+For HTTP connection failures or timeouts in collectors using the shared HTTP request helper (including RSS, Simple Web, and RT), check DNS resolution and outbound access from the worker/collector container or pod; successful resolution on the host alone is insufficient. A read timeout can also occur after a connection succeeds. If a proxy is required, verify the source's `PROXY_SERVER` URL and that its hostname resolves inside the container. A proxy IP can help diagnose a hostname-resolution problem, but should not replace fixing DNS. Check worker/collector logs for the underlying error, then run the collection again. Connection and timeout diagnostics remain HTTP request exceptions, preserving RT’s existing per-item error handling. No automatic retry policy is added by these diagnostic messages.
+
 ## Operational CLI
 
 Run `taranis-cli` inside the core container for emergency user administration.
@@ -127,3 +144,9 @@ docker exec -it core taranis-cli set-roles user Admin
 - The default `core` and `frontend` images recycle Granian workers above 4096 MiB and 1024 MiB RSS respectively.
 - The default ingress policy assumes the stock k3s Traefik deployment runs in `kube-system` with label `app.kubernetes.io/name=traefik`. Adjust [`05-network-policies.yaml`](./kubernetes/05-network-policies.yaml) or the Helm values if your ingress controller differs.
 - The default ingress manifest is plain HTTP. For raw Kubernetes, add `spec.tls` and a certificate secret. For Helm, configure `ingress.tls` and `ingress.annotations` in values.yaml.
+
+## Frontend smoke check
+
+After updating the frontend image, check table search, sorting, page size, and pagination with JavaScript enabled and disabled. With JavaScript enabled, verify that search focus survives updates and failed requests display notifications without replacing the table.
+
+For dashboard updates, deploy matching core and frontend images so weekly activity fields are available. Check the four workflow cards, weekly counts, and permission-gated analyst review link. Verify that users without review permission have no empty header action area. No database migration is required.

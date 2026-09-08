@@ -3,6 +3,7 @@
 import json
 from dataclasses import dataclass
 from typing import Annotated, Any, Literal
+from urllib.parse import urlparse
 
 from pydantic import (
     BaseModel,
@@ -81,6 +82,84 @@ class RSSCollectorParameters(WebCollectorParameters):
         False, title="Use feed content", description="Use content embedded in the feed instead of fetching the linked page."
     )
     XPATH: str = Field("", title="XPath", description="Optional XPath expression selecting article content.")
+
+
+class MastodonCollectorParameters(WorkerParameters):
+    INSTANCE_URL: str = Field(
+        min_length=1,
+        pattern=r"^https?://[^\s/@?#]+/?$",
+        title="Instance URL",
+        description="Base URL of the Mastodon instance used for API requests.",
+    )
+    TIMELINE: Literal["hashtag", "home", "account"] = Field(
+        title="Timeline",
+        description="Mastodon timeline to collect: hashtag, the token owner's home timeline, or a public account.",
+    )
+    COLLECTION_MODE: Literal["complete", "latest"] = Field(
+        "complete",
+        title="Collection mode",
+        description="Complete collects every status since the cursor; latest keeps only the newest page and warns when older statuses are skipped.",
+    )
+    HASHTAG: str = Field("", title="Hashtag", description="Hashtag to collect in hashtag mode, with or without a leading #.")
+    ACCOUNT: str = Field("", title="Account", description="Account handle to collect in account mode, such as user@example.social.")
+    ACCESS_TOKEN: SecretStr = Field(
+        SecretStr(""),
+        title="Access token",
+        description="Read-only Mastodon token; required for home and account timelines and optional for hashtags.",
+    )
+    USER_AGENT: str = Field("TaranisAI/1.0", title="User agent", description="HTTP User-Agent header sent to Mastodon.")
+    PROXY_SERVER: str = Field("", title="Proxy server", description="Optional proxy URL used for Mastodon API requests.")
+    USE_GLOBAL_PROXY: bool = Field(False, title="Use global proxy", description="Use the globally configured collector proxy.")
+    TLP_LEVEL: TLPLevel = Field(TLPLevel.CLEAR, title="TLP level", description="Traffic Light Protocol level assigned to collected items.")
+    REFRESH_INTERVAL: Cron = Field("", title="Refresh interval", description="Five-field cron schedule for collection.")
+
+    @field_validator("INSTANCE_URL")
+    @classmethod
+    def validate_instance_url(cls, value: str) -> str:
+        parsed = urlparse(value)
+        try:
+            _ = parsed.port
+        except ValueError as exc:
+            raise ValueError("INSTANCE_URL must contain a valid port") from exc
+        if (
+            parsed.scheme not in {"http", "https"}
+            or not parsed.hostname
+            or parsed.username
+            or parsed.password
+            or parsed.query
+            or parsed.fragment
+            or parsed.path not in {"", "/"}
+        ):
+            raise ValueError("INSTANCE_URL must be an HTTP(S) instance origin without credentials, a path, query, or fragment")
+        return value.rstrip("/")
+
+    @field_validator("HASHTAG")
+    @classmethod
+    def validate_hashtag(cls, value: str) -> str:
+        hashtag = value.removeprefix("#")
+        if value and (not hashtag or not all(character.isalnum() or character == "_" for character in hashtag)):
+            raise ValueError("HASHTAG may contain only letters, numbers, and underscores, with an optional leading #")
+        return value
+
+    @field_validator("ACCOUNT")
+    @classmethod
+    def validate_account(cls, value: str) -> str:
+        if any(character.isspace() for character in value) or "/" in value:
+            raise ValueError("ACCOUNT cannot contain whitespace or slashes")
+        return value
+
+    @model_validator(mode="after")
+    def validate_timeline_configuration(self) -> "MastodonCollectorParameters":
+        access_token = self.ACCESS_TOKEN.get_secret_value().strip()
+        if access_token and urlparse(self.INSTANCE_URL).scheme != "https":
+            raise ValueError("INSTANCE_URL must use HTTPS when ACCESS_TOKEN is configured")
+        if self.TIMELINE == "hashtag" and not self.HASHTAG.lstrip("#").strip():
+            raise ValueError("HASHTAG is required for hashtag timelines")
+        if self.TIMELINE == "account" and not self.ACCOUNT.lstrip("@").strip():
+            raise ValueError("ACCOUNT is required for account timelines")
+        if self.TIMELINE in {"home", "account"} and not access_token:
+            raise ValueError("ACCESS_TOKEN is required for home and account timelines")
+        return self
 
 
 class SimpleWebCollectorParameters(WebCollectorParameters):
@@ -401,6 +480,12 @@ def _definition(
 
 _DEFINITIONS = (
     _definition(WORKER_TYPES.RSS_COLLECTOR, "RSS Collector", "Collector for gathering data from RSS feeds", RSSCollectorParameters),
+    _definition(
+        WORKER_TYPES.MASTODON_COLLECTOR,
+        "Mastodon Collector",
+        "Collector for gathering statuses from Mastodon timelines",
+        MastodonCollectorParameters,
+    ),
     _definition(
         WORKER_TYPES.SIMPLE_WEB_COLLECTOR, "Simple Web Collector", "Collector for gathering data from a website", SimpleWebCollectorParameters
     ),

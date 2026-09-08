@@ -1,4 +1,8 @@
+from datetime import timedelta
+
 from core.managers import queue_manager
+from core.managers.db_manager import db
+from core.model.base_model import BaseModel
 from core.model.news_item import NewsItem
 from core.model.news_item_conflict import NewsItemConflict
 from core.model.product import Product
@@ -12,6 +16,12 @@ from core.service.health import get_health_response
 class DashboardService:
     @classmethod
     def get_dashboard_data(cls) -> dict:
+        now = BaseModel.utcnow()
+        week_start = (now - timedelta(days=now.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
+        news_items_this_week = NewsItem.get_filtered_count(db.select(NewsItem.id).where(NewsItem.published.between(week_start, now)))
+        stories_this_week = Story.get_filtered_count(db.select(Story.id).where(Story.created.between(week_start, now)))
+        reports_this_week = ReportItem.get_filtered_count(db.select(ReportItem.id).where(ReportItem.created.between(week_start, now)))
+        products_this_week = Product.get_filtered_count(db.select(Product.id).where(Product.created.between(week_start, now)))
         total_news_items = NewsItem.get_count()
         total_story_items = Story.get_count()
         total_products = Product.get_count()
@@ -25,6 +35,12 @@ class DashboardService:
         return {
             "items": [
                 {
+                    "news_items_this_week": news_items_this_week,
+                    "stories_this_week": stories_this_week,
+                    "reports_this_week": reports_this_week,
+                    "products_this_week": products_this_week,
+                    "story_conflict_count": len(StoryConflict.conflict_store),
+                    "news_item_conflict_count": len(NewsItemConflict.conflict_store),
                     "total_news_items": total_news_items,
                     "total_story_items": total_story_items,
                     "total_products": total_products,

@@ -1,21 +1,23 @@
 # Public Product Publishing
 
 ## When To Load
-Product publishing, Taranis Publisher, public reports, `/reports/<product-id>`, or files under `/app/data/published-reports`.
 
-## Expected Behavior
-Taranis always seeds a built-in `TARANIS_PUBLISHER` preset during first startup and restores it when missing during later startups. The built-in preset cannot be deleted; administrators may still create additional presets of the same type. Publishing a rendered product with such a preset copies its current render into persistent storage, stores the stable public URL as the product's `last_published_url`, and returns it. Product details always show either a direct link to the latest successful publication or an unpublished empty state. The report URL is intentionally reachable without authentication. The worker-only write endpoint remains protected by the worker API key.
+Product copy/type changes, Taranis Publisher, `/reports/<product-id>`, or persisted public reports.
 
-Product creation and row deletion use native links and POST forms enhanced by HTMX, so both workflows remain available when JavaScript is disabled. On an existing product, compatible report items are also rendered as a native checkbox table inside a `noscript` fallback; the Alpine-powered searchable table remains the enhanced JavaScript experience.
+## Contracts
 
-## Code Paths
-Publisher dispatch and the Taranis publisher live under `src/worker/worker/publishers/`. Core persistence and serving live in `src/core/core/service/product.py`, with authenticated worker routing in `src/core/core/api/worker.py`, its contract in `src/core/core/static/openapi3_1.yaml`, and public routing in `src/core/core/api/publish.py`. Ingress proxies `/reports` to core through `src/ingress/extras/default.conf.template`.
+- Product creation and row deletion use native links and POST forms enhanced by HTMX, so both workflows remain available when JavaScript is disabled. On an existing product, compatible report items are also rendered as a native checkbox table inside a `noscript` fallback; the Alpine-powered searchable table remains the enhanced JavaScript experience.
+- Create copy opens `/publish/0?copy_from=<id>` without writing. Prefill type, title plus " Copy", description, and Report Items only; render/publication fields start empty. Fetch through user-scoped persistence (404 if missing), retain unsaved-edit discard confirmation, and save through ordinary creation.
+- With no reports, any ACL-visible Product Type is allowed. Otherwise the type must support every selected typed report; untyped legacy reports impose no restriction. A type change clears the render; a MIME change also clears/disables publication until republished.
+- Startup idempotently restores the non-deletable built-in `TARANIS_PUBLISHER` preset after worker types exist; additional presets are allowed.
+- Presenter callbacks carry a hash of the exact render inputs. Reject stale/missing revisions rather than overwriting newer product state.
+- Publishing copies the current render through a worker-key-protected endpoint into `<resolved DATA_FOLDER>/published-reports/<product-id>` (containers use `/app/data`). Use atomic replacement and update `last_published_url` only on success; failures retain the previous URL.
+- `/reports/<product-id>` is intentionally unauthenticated, proxied to core, and served with the product MIME type, sandbox, and no-sniff headers. A MIME-changing edit disables this route even while the old file remains for replacement.
+- Paths and canonical public URLs use the database-reloaded UUID, never the raw request value. Publication links must be same-origin root-relative or absolute HTTP(S), without credentials/whitespace; reject unsafe hrefs.
+- Report/product request schemas remain closed to undeclared fields.
 
-## Data Flow
-Core seeds the built-in preset after worker types are available, using the same idempotent path for new and existing databases. The publisher worker validates that a rendered product exists, then calls the API-key-protected core publish endpoint. Core resolves `DATA_FOLDER` to an absolute path and atomically writes the decoded render to `<resolved-data-folder>/published-reports/<product-id>`; containers set `DATA_FOLDER=/app/data`. The public read path uses the same resolved directory so Flask serves the file independently of its application root. After the file replacement succeeds, core validates and persists the canonical `/reports/<database-loaded-product-id>` URL and invalidates the frontend product cache. Failed publications leave the previous URL unchanged. Public requests to `/reports/<product-id>` are proxied to core and served with the product MIME type plus sandbox and no-sniff headers.
+## Entry Points and Coverage
 
-## Testing
-Run `cd src/core && uv run pytest tests/application/user_workspace/publishing/test_publish_api.py`, `cd src/worker && uv run pytest worker/tests/publishers/test_taranis_publisher.py`, and `cd src/frontend && uv run pytest tests/unit/views/test_product_view.py`.
+`src/worker/worker/publishers/`, `src/core/core/service/product.py`, `src/core/core/api/worker.py`, `src/core/core/api/publish.py`, `src/ingress/extras/default.conf.template`; API contract in `src/core/core/static/openapi3_1.yaml`.
 
-## Pitfalls
-Treat every published report as public data. Filesystem paths and public URLs use the product UUID reloaded from the database, never the request path value, to avoid reflected XSS and path traversal. Persisted publication links must be root-relative same-origin URLs or absolute HTTP(S) URLs without credentials or surrounding whitespace; unsafe links must never reach an `href`. Product type changes are unsupported, so the MIME type remains stable. Republishing the same product atomically replaces the existing file and updates the stored URL to the latest successful destination. Keep the report-and-product workflow request schemas closed to undeclared properties so generated schema tests do not create arbitrary nested payload fields.
+Tests: `src/core/tests/application/user_workspace/publishing/test_publish_api.py`, `src/worker/tests/publishers/test_taranis_publisher.py`, `src/frontend/tests/unit/views/test_product_view.py`.
