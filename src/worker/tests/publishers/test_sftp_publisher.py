@@ -39,7 +39,7 @@ def test_sftp_publisher_rejects_untrusted_host(sftp_publisher, get_product_mock,
     publisher = {"parameters": {"SFTP_URL": f"sftp://user:password@{sftp_mock.host}:{sftp_mock.port}"}}
 
     error = paramiko.BadHostKeyException if changed_key else paramiko.SSHException
-    with pytest.raises(error, match="does not match|not found in known_hosts"):
+    with pytest.raises(error, match=r"does not match|not found in known_hosts"):
         sftp_publisher.publish(publisher, product_text, get_product_mock)
     assert sftp_publisher.ssh.get_transport() is None
     assert not Path(sftp_publisher.file_name).exists()
