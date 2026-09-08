@@ -67,6 +67,8 @@ For container and Python dependency SBOM scope and attestations, see [docs/sbom.
 
 An [OpenAPI spec](./src/core/core/static/openapi3_1.yaml) for the REST API is included and can be accessed in a running installation under `config/openapi`.
 
+Presenter template API responses and creation requests use `name` for the filename; list sorting uses `name_asc` or `name_desc`. See the [release notes for deployment coordination](./docs/releasing.md#template-api-contract).
+
 ### Core Health Endpoints
 
 Core exposes two unauthenticated health-related endpoints:
