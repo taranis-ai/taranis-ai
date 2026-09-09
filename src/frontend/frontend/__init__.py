@@ -2,7 +2,7 @@ from typing import Any
 
 from flask import Flask
 
-from frontend import auth, cache, router, setup
+from frontend import auth, cache, core_api, router, setup
 from frontend.config import Config, build_config_overrides
 
 
@@ -19,6 +19,7 @@ def create_app(config_overrides: dict[str, Any] | None = None):
 
 
 def init(app: Flask):
+    core_api.init_app(app)
     cache.init(app)
     auth.init(app)
     setup.init(app)

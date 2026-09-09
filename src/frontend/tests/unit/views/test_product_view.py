@@ -1,15 +1,13 @@
 from unittest.mock import call, patch
 
 import pytest
-from flask import Response as FlaskResponse
 from flask import render_template, render_template_string, url_for
 from models.product import Product, ProductType, PublisherPreset
 from models.report import ReportItem
 from models.types import PRESENTER_TYPES, PUBLISHER_TYPES
 from pydantic import ValidationError
-from requests import Response
-from requests.structures import CaseInsensitiveDict
 
+from frontend.config import Config
 from frontend.views.product_views import ProductView
 
 
@@ -78,41 +76,29 @@ def test_product_view_always_shows_last_publication_section(app, last_published_
         assert 'rel="noopener noreferrer"' in markup
 
 
-def test_product_download_streams_core_response(authenticated_client):
+def test_product_download_streams_core_response(authenticated_client, responses_mock):
     product_id = "product-download-test"
-    expected_content = b"binary-product"
-    headers = CaseInsensitiveDict(
-        {
-            "Content-Type": "application/pdf",
-            "Content-Disposition": 'attachment; filename="core-product.pdf"',
-        }
+    expected_content = b"binary-product" * 10000
+    headers = {
+        "Content-Type": "application/pdf",
+        "Content-Disposition": 'attachment; filename="core-product.pdf"',
+    }
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/publish/products/{product_id}/render",
+        body=expected_content,
+        headers=headers,
     )
 
-    core_response = Response()
-    core_response.status_code = 200
-    core_response.headers = headers
-
-    proxied = FlaskResponse(
-        expected_content,
-        status=200,
-        headers={
-            "Content-Type": headers["Content-Type"],
-            "Content-Disposition": headers["Content-Disposition"],
-        },
-    )
-
-    with patch("frontend.views.product_views.CoreApi") as core_api_cls:
-        core_api_instance = core_api_cls.return_value
-        core_api_instance.download_product.return_value = core_response
-        core_api_cls.stream_proxy.return_value = proxied
-
-        response = authenticated_client.get(f"/product/{product_id}/download")
-
-    core_api_instance.download_product.assert_called_once_with(product_id)
-    assert response.status_code == core_response.status_code
-    assert response.data == expected_content
-    assert response.headers["Content-Type"] == headers["Content-Type"]
-    assert response.headers["Content-Disposition"] == headers["Content-Disposition"]
+    response = authenticated_client.get(f"/product/{product_id}/download")
+    try:
+        assert response.status_code == 200
+        assert response.is_streamed
+        assert response.data == expected_content
+        assert response.headers["Content-Type"] == headers["Content-Type"]
+        assert response.headers["Content-Disposition"] == headers["Content-Disposition"]
+    finally:
+        response.close()
+    assert responses_mock.calls[0].response.raw.closed
 
 
 def test_product_view_uses_publish_product_types_endpoint():
