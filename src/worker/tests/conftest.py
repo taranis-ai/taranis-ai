@@ -2,7 +2,6 @@
 import json
 import os
 import sys
-from threading import Thread
 from unittest.mock import Mock
 
 import niquests
@@ -12,8 +11,6 @@ import requests_mock.mocker as requests_mock_mocker
 import requests_mock.request as requests_mock_request
 import requests_mock.response as requests_mock_response
 from niquests.packages import urllib3
-
-from tests.http_server import RecordingHTTPServer
 
 
 sys.modules["requests"] = niquests
@@ -39,18 +36,6 @@ current_path = os.getcwd()
 
 if not current_path.endswith("src/worker"):
     sys.exit("Tests must be run from within src/worker")
-
-
-@pytest.fixture
-def http_server():
-    with RecordingHTTPServer() as server:
-        thread = Thread(target=server.serve_forever, daemon=True)
-        thread.start()
-        try:
-            yield server
-        finally:
-            server.shutdown()
-            thread.join(timeout=5)
 
 
 class FakeQueue:

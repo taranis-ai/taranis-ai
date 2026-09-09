@@ -20,6 +20,6 @@ HTTP clients, connection pooling, service/source request policies, frontend down
 
 Worker: `src/worker/worker/http_client.py`, `core_api.py`, `bot_api.py`, `collectors/base_web_collector.py`, and task entry points. Frontend: `src/frontend/frontend/core_api.py` and `__init__.py`.
 
-Real loopback HTTP coverage: `src/worker/tests/unit/test_http_client.py` and `tests/http_server.py` verify connection reuse/closure, cookie and credential isolation, and no redirect/write replay. Frontend lifecycle/download coverage: `src/frontend/tests/unit/test_core_api.py`. Existing collector tests own validators/304 behavior; existing auth tests own repeated `Set-Cookie` forwarding.
+Extend existing coverage when refactoring HTTP clients: `src/worker/tests/collectors/test_collector.py` covers shared collector sessions and validators/304 behavior; `src/frontend/tests/unit/views/test_product_view.py` exercises the download endpoint through the real HTTP client and stream proxy; `src/frontend/tests/unit/test_data_persistence.py` covers bearer-token forwarding and caching. Existing auth tests own repeated `Set-Cookie` forwarding. Do not add standalone client suites or HTTP server fixtures for this refactor.
 
 Worker tests currently alias Requests to Niquests for `requests-mock`; do not use those mocks as proof of SDK transport compatibility. Library consolidation or concurrent collection requires its own assessment; pooling does not automatically parallelize sequential fetches.

@@ -3,6 +3,7 @@ import pytest
 
 from tests.testdata import news_items
 from worker.config import Config
+from worker.http_client import http_session_scope
 
 
 def test_base_web_collector_conditional_request(base_web_collector_mock, base_web_collector, requests_mock, caplog):
@@ -58,7 +59,9 @@ def test_base_web_collector_http3_config(base_web_collector_mock, base_web_colle
     monkeypatch.setattr(Config, "DISABLE_HTTP3", disable_http3)
     monkeypatch.setattr(requests, "Session", create_session)
 
-    base_web_collector.send_get_request("https://test.org/200")
+    with http_session_scope():
+        base_web_collector.send_get_request("https://test.org/200")
+        base_web_collector._fetch_icon("https://test.org/200")
 
     assert session_options == [{"retries": 0, "disable_http3": disable_http3, "allow_incoming_cookies": True}]
 
