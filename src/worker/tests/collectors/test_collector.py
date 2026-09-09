@@ -60,7 +60,7 @@ def test_base_web_collector_http3_config(base_web_collector_mock, base_web_colle
 
     base_web_collector.send_get_request("https://test.org/200")
 
-    assert session_options == [{"disable_http3": disable_http3}]
+    assert session_options == [{"retries": 0, "disable_http3": disable_http3, "allow_incoming_cookies": True}]
 
 
 def test_malformed_last_modified_is_ignored(base_web_collector, requests_mock):

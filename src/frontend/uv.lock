@@ -1292,7 +1292,6 @@ dependencies = [
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "python-dotenv" },
-    { name = "requests" },
 ]
 
 [package.metadata]
@@ -1305,7 +1304,6 @@ requires-dist = [
     { name = "pyrefly", marker = "extra == 'dev'", specifier = ">=1.1.1" },
     { name = "pytest", marker = "extra == 'dev'" },
     { name = "python-dotenv" },
-    { name = "requests" },
     { name = "ruff", marker = "extra == 'dev'" },
     { name = "wheel", marker = "extra == 'dev'" },
 ]

@@ -1,6 +1,6 @@
 import base64
 
-import niquests as requests
+from worker.http_client import http_request
 
 from .base_publisher import BasePublisher
 
@@ -29,5 +29,5 @@ class WORDPRESSPublisher(BasePublisher):
 
         post = {"title": product.get("title"), "status": "publish", "content": bytes_data}
 
-        response = requests.post(f"{main_wp_url}/index.php/wp-json/wp/v2/posts", headers=headers, json=post, timeout=60)
+        response = http_request("POST", f"{main_wp_url}/index.php/wp-json/wp/v2/posts", external=True, headers=headers, json=post, timeout=60)
         return response.text

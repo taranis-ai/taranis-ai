@@ -7,12 +7,14 @@ from rq.job import Job
 from rq.timeouts import JobTimeoutException
 
 from worker.core_api import CoreApi, build_failure_task_result
+from worker.http_client import http_session_scope
 from worker.log import logger
 
 
 TERMINAL_TASK_STATUSES = {"SUCCESS", "FAILURE", "NOT_MODIFIED", "PREVIEW"}
 
 
+@http_session_scope()
 def rq_failure_exception_handler(job: Job, exc_type: type[BaseException], exc_value: BaseException, _traceback: Any) -> bool:
     if _has_terminal_task_result(job.id):
         return True
@@ -31,6 +33,7 @@ def rq_failure_exception_handler(job: Job, exc_type: type[BaseException], exc_va
     return True
 
 
+@http_session_scope()
 def rq_work_horse_killed_handler(job: Job, retpid: int, ret_val: int, _rusage: Any) -> None:
     if _has_terminal_task_result(job.id):
         return
