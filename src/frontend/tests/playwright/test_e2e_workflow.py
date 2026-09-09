@@ -248,6 +248,7 @@ class TestUserWorkflow(BaseE2ETest):
             expect(story_card.get_by_test_id("story-summary")).to_be_visible()
             self.highlight_element(story_card.get_by_test_id("story-actions-menu")).click()
             self.highlight_element(story_card.get_by_test_id("toggle-read")).click()
+            expect(story_card).to_have_attribute("data-story-read", "true")
 
         def toggle_story_summary(story_id: str):
             story_card = page.get_by_test_id(f"story-card-{story_id}")
@@ -307,20 +308,17 @@ class TestUserWorkflow(BaseE2ETest):
 
             # select multiple, press mark as read once
             for i in range(7, 10):
-                self.highlight_element(
-                    page.get_by_test_id(f"story-card-{non_important_story_ids[i]}").get_by_test_id("story-actions-menu")
-                ).click()
-                self.highlight_element(page.get_by_test_id(f"story-card-{non_important_story_ids[i]}"), scroll=False).click()
-            self.highlight_element(page.get_by_role("button", name="Mark as read")).click()
+                story_card = page.get_by_test_id(f"story-card-{non_important_story_ids[i]}")
+                self.highlight_element(story_card, scroll=False).click(position={"x": 5, "y": 5})
+                expect(story_card).to_have_attribute("aria-selected", "true")
+            self.highlight_element(page.get_by_test_id("assess-tob-bar-actions-menu")).click()
+            self.highlight_element(page.get_by_test_id("bulk-toggle-read")).click()
             expect(page.get_by_test_id("assess_story_selection_count")).to_be_hidden()
             expect(page.get_by_test_id(f"story-card-{non_important_story_ids[10]}")).to_be_visible()
 
             # remaining stories
             for i in range(10, 20):
                 mark_story_as_read(non_important_story_ids[i])
-
-            # after all stories are marked as read in first page, last story is carried over -> mark it twice
-            mark_story_as_read(non_important_story_ids[19])
 
             for i in range(20, 28):
                 print(f"Marking story {non_important_story_ids[i]} as read AND is {i}/28")
@@ -340,9 +338,11 @@ class TestUserWorkflow(BaseE2ETest):
             # Mark as read and remove important (using manual clicks since base method may not fit)
             self.highlight_element(page.get_by_test_id("story-actions-menu")).click()
             self.highlight_element(page.get_by_test_id("toggle-read")).click()
+            expect(page.get_by_test_id(f"story-card-{important_story_ids[0]}")).to_have_attribute("data-story-read", "true")
             # Remove mark as important
             self.highlight_element(page.get_by_test_id("story-actions-menu")).click()
             self.highlight_element(page.get_by_test_id("toggle-important")).click()
+            expect(page.get_by_test_id(f"story-card-{important_story_ids[0]}")).to_have_attribute("data-story-important", "false")
 
             go_to_assess()
             reset_story_filters()
@@ -361,6 +361,7 @@ class TestUserWorkflow(BaseE2ETest):
                 ],
             )
             page.get_by_test_id("dialog-story-cluster-submit").click()
+            expect(page.get_by_test_id("story-to-merge")).to_have_count(0)
 
             # Edit story
             self.highlight_element(page.get_by_test_id(f"story-card-{important_story_ids[4]}").get_by_test_id("edit-story")).click()
@@ -396,48 +397,56 @@ class TestUserWorkflow(BaseE2ETest):
         self,
         non_admin_logged_in_page: Page,
         forward_console_and_page_errors_non_admin: None,
-        stories_date_descending: list[str],
+        stories_session_wrapper,
     ):
         def go_to_analyze():
             self.navigate_to_analyze(page)
 
         def report_1():
-            self.highlight_element(page.get_by_role("link", name="New Report").first).click()
-            page.get_by_label("Select a report").select_option("CERT Report")
-            self.short_sleep(0.5)
-            page.get_by_label("Title", exact=True).fill("Test Report")
-            self.highlight_element(page.get_by_role("button", name="Create Report")).click()
-            time.sleep(0.5)
+            self.highlight_element(page.get_by_test_id("new-report-button")).click()
+            self.highlight_element(page.get_by_role("textbox", name="Title", exact=True)).fill("Test Report")
+            self.highlight_element(page.get_by_test_id("report-type-select")).select_option(label="CERT Report")
+            self.highlight_element(page.get_by_test_id("save-report")).click()
+            expect(page.get_by_role("button", name="Completed", exact=True)).to_be_visible()
             self.capture_screenshot(page, "./tests/playwright/screenshots/report_item_add.png")
 
         def report_2():
-            self.highlight_element(page.get_by_role("link", name="New Report")).click()
-            page.get_by_label("Select a report").select_option("Disinformation")
-            page.get_by_label("Title", exact=True).fill("Test Disinformation Title")
-            self.highlight_element(page.get_by_role("button", name="Create Report")).click()
+            self.highlight_element(page.get_by_test_id("new-report-button")).click()
+            self.highlight_element(page.get_by_role("textbox", name="Title", exact=True)).fill("Test Disinformation Title")
+            self.highlight_element(page.get_by_test_id("report-type-select")).select_option(label="Disinformation")
+            self.highlight_element(page.get_by_test_id("save-report")).click()
+            expect(page.get_by_role("button", name="Completed", exact=True)).to_be_visible()
 
         def add_stories_to_report_1():
+            page.goto(url_for("assess.assess", _external=True, limit=50))
+            expect(page.get_by_test_id("assess")).to_be_visible()
+            story_cards = page.locator("[data-testid^='story-card-']")
+            expect(story_cards.first).to_be_visible()
+            selected_story_ids = story_cards.evaluate_all("cards => cards.map(card => card.dataset.storyId)")
             # Select all
             self.highlight_element(page.get_by_test_id("assess-select-all-button")).click()
             self.highlight_element(page.get_by_role("button", name="Add to Report")).click()
 
             # First dialog
-            self.highlight_element(page.get_by_test_id("select-report-input")).click()
-            self.highlight_element(page.get_by_text("Test Report")).click()
+            self.highlight_element(page.get_by_test_id("select-report-input")).select_option(label="Test Report")
             self.highlight_element(page.get_by_test_id("share-to-report-dialog-button")).click()
+            expect(page.get_by_test_id("share-story-to-report-dialog")).to_have_count(0)
 
             # Second dialog
-            self.highlight_element(page.get_by_test_id("story-title").first).click()
+            page.goto(url_for("assess.assess", _external=True, limit=50))
+            story_card = page.get_by_test_id(f"story-card-{selected_story_ids[0]}")
+            self.highlight_element(story_card).click(position={"x": 5, "y": 5})
+            expect(story_card).to_have_attribute("aria-selected", "true")
             self.highlight_element(page.get_by_role("button", name="Add to Report")).click()
 
-            self.highlight_element(page.get_by_test_id("select-report-input")).click()
-            self.highlight_element(page.get_by_text("Test Disinformation Title")).click()
+            self.highlight_element(page.get_by_test_id("select-report-input")).select_option(label="Test Disinformation Title")
             self.highlight_element(page.get_by_test_id("share-to-report-dialog-button")).click()
-            page.keyboard.press("Escape")
+            expect(page.get_by_test_id("share-story-to-report-dialog")).to_have_count(0)
+            return selected_story_ids
 
-        def modify_report_1(stories_date_descending: list[str]):
-            self.highlight_element(page.get_by_role("cell", name="Test Report")).click()
-            self.expect_list_of_test_ids_visible(page, [f"story-link-{story_id}" for story_id in stories_date_descending])
+        def modify_report_1(selected_story_ids: list[str]):
+            self.highlight_element(page.get_by_role("link", name="Test Report", exact=True)).click()
+            self.expect_list_of_test_ids_visible(page, [f"story-link-{story_id}" for story_id in selected_story_ids])
             self.highlight_element(page.get_by_placeholder("Date"), scroll=False).fill("17/3/2024")
             self.highlight_element(page.get_by_placeholder("Timeframe"), scroll=False).fill("12/2/2024 - 21/2/2024")
             self.highlight_element(page.get_by_placeholder("Handler", exact=True), scroll=False).fill("John Doe")
@@ -463,16 +472,16 @@ class TestUserWorkflow(BaseE2ETest):
 
             # Save & toggle report views
             self.highlight_element(page.get_by_test_id("save-report")).click()
-            self.expect_list_of_test_ids_visible(page, [f"story-link-{story_id}" for story_id in stories_date_descending])
+            self.expect_list_of_test_ids_visible(page, [f"story-link-{story_id}" for story_id in selected_story_ids])
 
-            self.highlight_element(page.get_by_role("link", name="Stacked view")).click()
-            self.expect_list_of_test_ids_visible(page, [f"story-link-{story_id}" for story_id in stories_date_descending])
+            self.highlight_element(page.get_by_role("button", name="Stacked view")).click()
+            self.expect_list_of_test_ids_visible(page, [f"story-link-{story_id}" for story_id in selected_story_ids])
 
-            self.highlight_element(page.get_by_role("link", name="Split view")).click()
-            self.expect_list_of_test_ids_visible(page, [f"story-link-{story_id}" for story_id in stories_date_descending])
+            self.highlight_element(page.get_by_role("button", name="Split view")).click()
+            self.expect_list_of_test_ids_visible(page, [f"story-link-{story_id}" for story_id in selected_story_ids])
 
             self.highlight_element(page.get_by_role("button", name="Completed")).click()
-            self.expect_list_of_test_ids_visible(page, [f"story-link-{story_id}" for story_id in stories_date_descending])
+            self.expect_list_of_test_ids_visible(page, [f"story-link-{story_id}" for story_id in selected_story_ids])
 
             # TODO: see if needed:
             # page.get_by_test_id("save-report").click()
@@ -493,11 +502,11 @@ class TestUserWorkflow(BaseE2ETest):
         expect(page.get_by_text("Test Disinformation Title")).to_be_visible()
 
         self.highlight_element(page.get_by_role("link", name="Assess")).click()
-        add_stories_to_report_1()
+        selected_story_ids = add_stories_to_report_1()
 
         go_to_analyze()
 
-        modify_report_1(stories_date_descending)
+        modify_report_1(selected_story_ids)
 
         # TODO: tag search not implemented yet
         # go_to_assess()
