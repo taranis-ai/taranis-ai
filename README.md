@@ -15,8 +15,6 @@ For production deployments, see our [Deployment Guide using docker compose](http
 
 For existing Celery/RabbitMQ deployments, see the [RQ Migration Guide](./dev/rq_migration_guide.md).
 
-To preseed global settings on a fresh instance, set core’s `PRE_SEED_SETTINGS` environment variable to a flat JSON object. To disable initial onboarding, use `PRE_SEED_SETTINGS='{"onboarding_enabled":false}'`. The shipped Compose files forward this variable; Helm exposes `config.preSeedSettings`. See [settings preseeding](docker/README.md#settings-preseeding) for an example and restart behavior.
-
 ## Contributions
 
 We welcome contributions from the community! If you're interested in contributing to Taranis AI, please read our [Development Setup Guide](./dev/README.md) to get started.
@@ -100,7 +98,3 @@ It is released under terms of the [European Union Public Licence](https://eupl.e
 ## EU Funding
 
 ![Co-financed by the Connecting Europe Facility of the European Union](https://ec.europa.eu/inea/sites/default/files/ceflogos/en_horizontal_cef_logo_2.png)
-
-Shared tables support ordinary links and GET forms for navigation, search, filters, and pagination when JavaScript is unavailable. Interactive Assess token filters and bulk actions still require JavaScript.
-
-The dashboard shows Assess, Analyze, Publish, and Connectors in a responsive two-column layout, with weekly activity counts (Monday onward, UTC) and an Assess header shortcut to analyst review. Users without review permission see the standard card title without an empty action area.

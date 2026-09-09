@@ -6,6 +6,7 @@ Product copy/type changes, Taranis Publisher, `/reports/<product-id>`, or persis
 
 ## Contracts
 
+- Product creation and row deletion use native links and POST forms enhanced by HTMX, so both workflows remain available when JavaScript is disabled. On an existing product, compatible report items are also rendered as a native checkbox table inside a `noscript` fallback; the Alpine-powered searchable table remains the enhanced JavaScript experience.
 - Create copy opens `/publish/0?copy_from=<id>` without writing. Prefill type, title plus " Copy", description, and Report Items only; render/publication fields start empty. Fetch through user-scoped persistence (404 if missing), retain unsaved-edit discard confirmation, and save through ordinary creation.
 - With no reports, any ACL-visible Product Type is allowed. Otherwise the type must support every selected typed report; untyped legacy reports impose no restriction. A type change clears the render; a MIME change also clears/disables publication until republished.
 - Startup idempotently restores the non-deletable built-in `TARANIS_PUBLISHER` preset after worker types exist; additional presets are allowed.

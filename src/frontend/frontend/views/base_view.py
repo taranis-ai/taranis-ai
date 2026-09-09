@@ -360,6 +360,11 @@ class BaseView(MethodView):
                 ),
             ), 400
 
+        if not is_htmx_request():
+            cls.add_flash_notification(core_response)
+            target_id = core_response.get("id", object_id)
+            return redirect(cls.get_edit_route(**{cls._get_object_key(): target_id}))
+
         notification_response = cls.render_response_notification(core_response)
         response = notification_response + render_template(
             cls.get_update_template(),
@@ -543,8 +548,14 @@ class BaseView(MethodView):
         return {"message": response.get("error"), "error": True}
 
     @classmethod
-    def delete_view(cls, object_id: str) -> tuple[str, int]:
+    def delete_view(cls, object_id: str) -> ResponseReturnValue:
         core_response = DataPersistenceLayer().delete_object(cls.model, object_id)
+
+        if not is_htmx_request():
+            cls.add_flash_notification(core_response)
+            if core_response.ok:
+                cls._invalidate_model_cache(object_id)
+            return redirect(cls.get_base_route())
 
         response = cls.get_notification_from_response(core_response)
         if not core_response.ok:
@@ -666,7 +677,12 @@ class BaseView(MethodView):
         return flask_response
 
     def post(self, *args, **kwargs) -> tuple[str, int] | ResponseReturnValue:
-        return self.update_view_table(object_id=self._get_object_id(kwargs) or "0")
+        object_id = self._get_object_id(kwargs)
+        if request.form.get("_action") == "delete":
+            if object_id is None or self.is_create_object_id(object_id):
+                return abort(405)
+            return self.delete_view(object_id)
+        return self.update_view_table(object_id=object_id or "0")
 
     def put(self, **kwargs) -> tuple[str, int] | ResponseReturnValue:
         object_id = self._get_object_id(kwargs)

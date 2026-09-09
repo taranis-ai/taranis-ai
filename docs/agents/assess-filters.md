@@ -6,6 +6,7 @@ Assess sidebar/search/default filters, `/assess`, `/api/assess/filter-lists`, om
 
 ## Contracts
 
+- Without JavaScript, search and the native sidebar filters submit through one GET form, and the form exposes an explicit Apply filters button. Source, language, group, and tag filters are hidden because their token-selection workflows require JavaScript.
 - Filter lists contain current user-visible tags, sources, groups, and languages. Core builds them on request; frontend caches per user. Writes affecting those options must invalidate the relevant frontend scope.
 - Sidebar submissions, profile defaults, and dashboard shortcuts share canonical query parameters; source/group/language/tag values remain list-shaped. Saving an existing filter name updates it; identical criteria under a different name are rejected.
 - Dashboard shortcuts reuse saved-filter normalization, delete routes, and Assess URLs. Show the first three by default, with the rest behind Show more.
