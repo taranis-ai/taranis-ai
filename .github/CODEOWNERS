@@ -1,0 +1,3 @@
+# Root product README and the rule that protects it require Ben's review.
+/README.md @b3n4kh
+/.github/CODEOWNERS @b3n4kh
