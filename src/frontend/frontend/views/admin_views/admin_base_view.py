@@ -96,7 +96,7 @@ class AdminBaseView(BaseView):
                 else "cron_interval"
                 if widget == "cron"
                 else "textarea"
-                if widget == "textarea"
+                if widget in {"textarea", "public-key"}
                 else "switch"
                 if prop.get("type") == "boolean"
                 else "number"
