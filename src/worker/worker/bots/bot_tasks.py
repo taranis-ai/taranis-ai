@@ -11,9 +11,11 @@ from rq import get_current_job
 import worker.bots
 from worker.bot_api import BotServiceUnavailableError
 from worker.core_api import CoreApi, build_failure_task_result, build_success_task_result
+from worker.http_client import http_session_scope
 from worker.log import logger
 
 
+@http_session_scope()
 def bot_task(bot_id: str, filter: dict | None = None, trigger_dependents: bool = True):
     """Execute a bot to process news items.
 
