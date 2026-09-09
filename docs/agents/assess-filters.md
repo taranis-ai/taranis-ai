@@ -12,7 +12,7 @@ Assess sidebar/search/default filters, `/assess`, `/api/assess/filter-lists`, om
 - Omnisearch fetches filter lists lazily, only for value resolution/suggestions.
 - Paged navigation replaces `#story-list` and out-of-band `#story-pagination`, scrolls to the top, and keeps the sticky top bar mounted. Errors notify without replacing/appending stories. Stable search-input IDs preserve focus.
 - `Shift+Space` prevents native page-up on keydown and performs read/unread on keyup only with a selection. Bookmark detail shares this behavior and the [global shortcut/selection rules](frontend-development.md).
-- Successful clustering replaces the saved Assess selection with the first story in the submitted dialog order before the list swap; merged-away IDs must not survive into the next action. Failed clustering preserves selection and the open dialog. Repeated clustering is covered in `test_assess` in `test_e2e_workflow.py`.
+- Successful clustering replaces the saved Assess selection with the first story in the submitted dialog order before the list swap; merged-away IDs must not survive into the next action. Failed clustering preserves selection and the open dialog. Repeated clustering is covered in `test_user_assess` in `test_e2e_user.py`.
 
 ## Entry Points
 

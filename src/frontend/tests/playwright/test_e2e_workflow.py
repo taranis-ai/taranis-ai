@@ -363,20 +363,6 @@ class TestUserWorkflow(BaseE2ETest):
             page.get_by_test_id("dialog-story-cluster-submit").click()
             expect(page.get_by_test_id("story-to-merge")).to_have_count(0)
 
-            # Reuse the surviving selection to merge another story.
-            expect(page.get_by_test_id("assess_story_selection_count")).to_have_text("1")
-            expect(page.get_by_test_id(f"story-card-{important_story_ids[2]}")).to_have_attribute("aria-selected", "true")
-            expect(page.get_by_test_id(f"story-card-{important_story_ids[3]}")).to_have_count(0)
-            page.get_by_test_id(f"story-card-{important_story_ids[1]}").click()
-            page.get_by_role("button", name="Cluster", exact=True).click()
-            expect(page.get_by_test_id("story-to-merge")).to_have_count(2)
-            expect(page.locator('#sortable-form input[name="story_ids"]').nth(0)).to_have_value(important_story_ids[2])
-            expect(page.locator('#sortable-form input[name="story_ids"]').nth(1)).to_have_value(important_story_ids[1])
-            page.get_by_test_id("dialog-story-cluster-submit").click()
-            expect(page.get_by_test_id("story-to-merge")).to_have_count(0)
-            expect(page.get_by_test_id("assess_story_selection_count")).to_have_text("1")
-            expect(page.get_by_test_id(f"story-card-{important_story_ids[1]}")).to_have_count(0)
-
             # Edit story
             self.highlight_element(page.get_by_test_id(f"story-card-{important_story_ids[4]}").get_by_test_id("edit-story")).click()
 
