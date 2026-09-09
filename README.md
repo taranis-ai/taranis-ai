@@ -62,6 +62,7 @@ For container and Python dependency SBOM scope and attestations, see [docs/sbom.
 * Collaborative Threat Intelligence (Experimental): Supports Story-level sharing between Taranis AI instances via [MISP](https://www.misp-project.org/), or directly between Taranis AI and MISP for flexible collaboration and information dissemination.
 
 Assess search and basic filters, report/product editing, and row deletion support native forms without JavaScript. Token filters and bulk actions require JavaScript. Row deletion reports failures through notifications.
+Report/product deletion requires object write access as well as module delete permission; report TLP restrictions also apply.
 
 ### OpenAPI
 

@@ -3,6 +3,7 @@ from unittest.mock import call, patch
 import pytest
 from flask import Response as FlaskResponse
 from flask import render_template, render_template_string, url_for
+from lxml import html
 from models.product import Product, ProductType, PublisherPreset
 from models.report import ReportItem
 from models.types import PRESENTER_TYPES, PUBLISHER_TYPES
@@ -107,9 +108,9 @@ def test_product_view_renders_native_report_item_selection(app):
 
     assert 'data-testid="report-items-native"' in markup
     assert "Selectable report" in markup
-    assert 'name="report_items[]"' in markup
-    assert 'value="report-1"' in markup
-    assert "checked" in markup
+    tree = html.fromstring(markup)
+    checkbox = tree.xpath('//table[@id="report-items-native-table"]//input[@name="report_items[]"][@value="report-1"]')[0]
+    assert checkbox.get("checked") is not None
 
 
 def test_product_download_streams_core_response(authenticated_client):

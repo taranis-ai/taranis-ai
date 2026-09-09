@@ -39,6 +39,11 @@ ADMIN_VIEWS = [(name, cls) for name, cls in VIEW_ITEMS if getattr(cls, "_is_admi
 ADMIN_IDS = [name for name, _ in ADMIN_VIEWS]
 
 
+def test_native_delete_rejects_create_id(authenticated_client):
+    response = authenticated_client.post(SourceView.get_edit_route(osint_source_id="0"), data={"_action": "delete"})
+    assert response.status_code == 405
+
+
 def _json_request_body(call: Any) -> dict[str, Any]:
     body = call.request.body
     if isinstance(body, bytes):

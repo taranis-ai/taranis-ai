@@ -678,7 +678,9 @@ class BaseView(MethodView):
     def post(self, *args, **kwargs) -> tuple[str, int] | ResponseReturnValue:
         object_id = self._get_object_id(kwargs)
         if request.form.get("_action") == "delete":
-            return self.delete_view(object_id) if object_id is not None else abort(405)
+            if object_id is None or self.is_create_object_id(object_id):
+                return abort(405)
+            return self.delete_view(object_id)
         return self.update_view_table(object_id=object_id or "0")
 
     def put(self, **kwargs) -> tuple[str, int] | ResponseReturnValue:
