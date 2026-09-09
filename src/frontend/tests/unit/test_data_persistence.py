@@ -1,23 +1,22 @@
 from unittest.mock import Mock
 
+import responses
 from models.admin import ActiveJob, OSINTSource
 from models.types import COLLECTOR_TYPES
 
 import frontend.data_persistence as data_persistence_module
 from frontend.cache import cache, get_cache_keys
 from frontend.cache_models import PagingData
+from frontend.config import Config
 from frontend.data_persistence import DataPersistenceLayer
 
 
 def test_get_objects_by_endpoint_caches_empty_results(app, monkeypatch, test_cache_backend):
-    api = Mock()
-    api.api_get.return_value = {"items": [], "total_count": 0}
-
-    with app.app_context():
+    with responses.RequestsMock() as upstream, app.app_context():
+        upstream.get(f"{Config.TARANIS_CORE_URL}/config/empty", json={"items": [], "total_count": 0})
         monkeypatch.setattr(data_persistence_module, "get_jwt_identity", lambda: "user1")
 
         persistence = DataPersistenceLayer(jwt_token="token")
-        persistence.api = api
         cache_key = persistence.make_list_cache_key(ActiveJob, "/config/empty")
 
         first_result = persistence.get_objects_by_endpoint(ActiveJob, "/config/empty")
@@ -27,7 +26,8 @@ def test_get_objects_by_endpoint_caches_empty_results(app, monkeypatch, test_cac
         assert second_result.total_count == 0
         assert list(second_result) == []
         assert get_cache_keys() == [cache_key]
-        assert api.api_get.call_count == 1
+        assert len(upstream.calls) == 1
+        assert upstream.calls[0].request.headers["Authorization"] == "Bearer token"
 
 
 def test_update_object_does_not_invalidate_local_cache(app, monkeypatch, test_cache_backend):

@@ -1,9 +1,8 @@
 from datetime import datetime
-from typing import Any, Self
+from typing import Any
 from urllib.parse import urlsplit
 
 from pydantic import Field, ValidationInfo, field_validator
-from requests import Response
 
 from models.base import TaranisBaseModel
 from models.types import PRESENTER_TYPES, PUBLISHER_TYPES
@@ -33,13 +32,6 @@ def validate_linkable_url(value: str | None) -> str | None:
 class WorkerProduct(TaranisBaseModel):
     data: bytes | None = None
     mime_type: str | None = None
-
-    @classmethod
-    def from_response(cls, response: Response) -> Self:
-        return cls(
-            data=response.content,
-            mime_type=response.headers.get("Content-Type", ""),
-        )
 
 
 class ProductParameterValue(TaranisBaseModel):

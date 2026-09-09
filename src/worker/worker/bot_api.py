@@ -3,6 +3,7 @@ from urllib.parse import urlencode
 import niquests as requests
 
 from worker.config import Config
+from worker.http_client import http_request
 from worker.log import logger
 
 
@@ -36,6 +37,7 @@ class BotApi:
     def update_parameters(self, api_url: str, api_key: str | None = None):
         self.api_url = api_url
         self.api_key = api_key or Config.BOT_API_KEY
+        self.headers = self.get_headers()
 
     def check_response(self, response: requests.Response, url: str):
         try:
@@ -51,7 +53,7 @@ class BotApi:
         if not json_data:
             json_data = {}
         try:
-            response = requests.post(url=url, headers=self.headers, verify=self.verify, json=json_data, timeout=self.timeout)
+            response = http_request("POST", url=url, headers=self.headers, verify=self.verify, json=json_data, timeout=self.timeout)
         except requests.exceptions.RequestException as exc:
             logger.error(f"Bot service POST request to {url} failed: {exc}")
             raise BotServiceUnavailableError from None
@@ -62,7 +64,7 @@ class BotApi:
         if params:
             url += f"?{urlencode(params)}"
         try:
-            response = requests.get(url=url, headers=self.headers, verify=self.verify, timeout=self.timeout)
+            response = http_request("GET", url=url, headers=self.headers, verify=self.verify, timeout=self.timeout)
         except requests.exceptions.RequestException as exc:
             logger.error(f"Bot service GET request to {url} failed: {exc}")
             raise BotServiceUnavailableError from None

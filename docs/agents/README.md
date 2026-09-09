@@ -20,6 +20,7 @@ Read matching memories before planning or editing related features, routes, mode
 - [PizzINT Dashboard](pizzint-dashboard.md): opt-in external signal, cache, and stale fallback.
 - [OSINT Source Management](osint-source-management.md): bulk creation/deletion, curated lists, and transactions.
 - [Collector HTTP State](collector-http-state.md): validators, request scoping, dates, and 304 handling.
+- [HTTP Client Lifetimes](http-clients.md): pooling, service/source policies, credentials, streaming cleanup, and SDK boundaries.
 - [RSS Source Health](rss-source-health.md): feed detection, empty feeds, and entry limits.
 - [Mastodon Collector](mastodon-collector.md): timelines, pagination, tokens, and cursors.
 - [Bot Run Order DAG](bot-run-order-dag.md): bot dependencies and scheduling.
