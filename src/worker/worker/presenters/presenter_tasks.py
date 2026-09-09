@@ -14,8 +14,10 @@ import worker.presenters
 from worker.core_api import CoreApi, build_failure_task_result, build_success_task_result
 from worker.log import logger
 from worker.presenters.base_presenter import BasePresenter
+from worker.telemetry import instrument_job
 
 
+@instrument_job
 def presenter_task(product_id: str):
     """Generate a product/report in the specified format.
 

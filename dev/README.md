@@ -88,6 +88,20 @@ Browsers connect through the local NGINX ingress at `http://local.taranis.ai/sse
 Centrifugo reaches Core through Podman's `host.containers.internal` address; set `TARANIS_CORE_PORT` when Core does not use port `5001`.
 When `/sse` is unavailable, the browser retries eight times with exponential backoff and then requires a page reload; an internal connect-proxy error does not display a data-change notice.
 
+To start the optional Grafana LGTM telemetry stack as well:
+
+```bash
+docker compose -f dev/compose.yml --profile telemetry up -d
+```
+
+Set `OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318` in the core, frontend, and worker environments, then open Grafana at `http://localhost:3000`. The automated workflow bundles both steps:
+
+```bash
+WITH_TELEMETRY=1 ./dev/start_dev.sh
+```
+
+The automated workflow preserves profiles already set in `COMPOSE_PROFILES`.
+
 Setup nginx.
 Make sure the paths are correct. Some distributions use a different nginx configuration directory hierarchy and rely on `.conf` suffix.
 Existing installed nginx configurations are not updated automatically when `dev/nginx.conf` changes. Public product publishing requires the active server block to include the tracked `/reports` proxy; recopy or update the installed configuration before validating that route.
@@ -284,5 +298,6 @@ The frontend is served by the [Flask & HTMX REST frontend](../src/frontend/READM
 
 * Docker: For containerization.
 * docker-compose: For managing multi-container Docker applications.
+* OpenTelemetry and Grafana LGTM: For request, RQ job, and metric observability.
 * Sentry: For error monitoring.
 * CI/CD: GitHub Actions

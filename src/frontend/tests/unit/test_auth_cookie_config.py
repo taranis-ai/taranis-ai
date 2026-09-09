@@ -51,6 +51,12 @@ def test_jwt_cookie_suffix_rejects_invalid_characters() -> None:
         Settings(JWT_COOKIE_SUFFIX="/q")
 
 
+def test_otlp_endpoint_is_normalized() -> None:
+    settings = Settings(OTEL_EXPORTER_OTLP_ENDPOINT="  http://telemetry:4318/  ")
+
+    assert settings.OTEL_EXPORTER_OTLP_ENDPOINT == "http://telemetry:4318"
+
+
 def test_form_reads_configured_csrf_cookie(app: Flask, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setitem(app.config, "JWT_ACCESS_CSRF_COOKIE_NAME", "csrf_access_token_q")
 
