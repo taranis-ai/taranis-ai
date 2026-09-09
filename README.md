@@ -57,7 +57,6 @@ For container and Python dependency SBOM scope and attestations, see [docs/sbom.
 * Advanced OSINT Capabilities: Taranis AI scours multiple data sources, such as websites, for unstructured news articles, providing a comprehensive intelligence feed.
 * AI-Enhanced Analysis: Utilizes Artificial Intelligence and Natural Language Processing to automatically enhance and enrich collected articles for higher content quality.
 * Analyst-Friendly Workflow: Offers a streamlined process where analysts can easily convert unstructured news into structured report items, optimizing the data transformation journey.
-  After clustering stories in Assess, the primary story stays selected so you can select another story and cluster again.
 * Multi-Format Output: Generates a variety of end products, including structured reports and PDF files, tailored to specific informational needs.
 * Seamless Publishing: Facilitates the effortless publication of finalized intelligence products, ensuring timely dissemination of critical information.
 * Collaborative Threat Intelligence (Experimental): Supports Story-level sharing between Taranis AI instances via [MISP](https://www.misp-project.org/), or directly between Taranis AI and MISP for flexible collaboration and information dissemination.
