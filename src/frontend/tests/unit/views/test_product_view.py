@@ -2,7 +2,6 @@ from unittest.mock import call, patch
 
 import pytest
 from flask import render_template, render_template_string, url_for
-from lxml import html
 from models.product import Product, ProductType, PublisherPreset
 from models.report import ReportItem
 from models.types import PRESENTER_TYPES, PUBLISHER_TYPES
