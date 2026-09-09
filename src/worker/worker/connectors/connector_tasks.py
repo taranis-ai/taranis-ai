@@ -14,9 +14,11 @@ from rq import get_current_job
 from worker.connectors import MispConnector
 from worker.connectors.exceptions import ConnectorError
 from worker.core_api import CoreApi, build_failure_task_result, build_success_task_result
+from worker.http_client import http_session_scope
 from worker.log import logger
 
 
+@http_session_scope()
 def connector_task(connector_id: str, story_ids: list[str] | None, auto_update: bool = False) -> dict[str, Any]:
     """Push stories to an external connector system.
 
