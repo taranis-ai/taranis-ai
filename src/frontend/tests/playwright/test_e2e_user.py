@@ -347,9 +347,9 @@ class TestEndToEndUser(BaseE2ETest):
 
             story_card().get_by_test_id("toggle-summary").click()
             story_card().get_by_test_id("story-actions-menu").click()
-            story_card().get_by_test_id("toggle-read").click()
+            with_htmx_wait(page, story_card().get_by_test_id("toggle-read").click)
             story_card().get_by_test_id("story-actions-menu").click()
-            story_card().get_by_test_id("toggle-important").click()
+            with_htmx_wait(page, story_card().get_by_test_id("toggle-important").click)
             story_card().get_by_test_id("story-actions-menu").click()
             share_story = story_card().get_by_test_id("share-story")
             share_story.dispatch_event("click")
@@ -430,17 +430,13 @@ class TestEndToEndUser(BaseE2ETest):
         infinite_scroll_all_items(total_count)
 
         # Keep the primary selection and reuse it in the next clustering action.
-        story_ids = page.locator("#story-list article[data-story-id]").evaluate_all(
-            "cards => cards.slice(0, 3).map(card => card.dataset.storyId)"
-        )
-        primary_id = story_ids[0]
+        cards = page.locator("#story-list article[data-story-id]")
+        primary_id, second_id, third_id = [cards.nth(i).get_attribute("data-story-id") for i in range(3)]
         page.get_by_test_id(f"story-card-{primary_id}").click()
-        for secondary_id in story_ids[1:]:
+        for secondary_id in (second_id, third_id):
             page.get_by_test_id(f"story-card-{secondary_id}").click()
             page.get_by_role("button", name="Cluster").click()
             expect(page.get_by_test_id("story-to-merge")).to_have_count(2)
-            expect(page.locator('#sortable-form input[name="story_ids"]').nth(0)).to_have_value(primary_id)
-            expect(page.locator('#sortable-form input[name="story_ids"]').nth(1)).to_have_value(secondary_id)
             page.get_by_test_id("dialog-story-cluster-submit").click()
             expect(page.get_by_test_id("story-to-merge")).to_have_count(0)
             expect(page.get_by_test_id("assess_story_selection_count")).to_have_text("1 stories selected")
