@@ -5,15 +5,15 @@
     "npm:@codemirror/language@^6.12.4": "6.12.4",
     "npm:@codemirror/legacy-modes@^6.5.4": "6.5.4",
     "npm:@codemirror/merge@^6.12.2": "6.12.2",
-    "npm:@codemirror/state@^6.7.2": "6.7.2",
-    "npm:@codemirror/view@^6.43.10": "6.43.10",
+    "npm:@codemirror/state@^6.7.4": "6.7.4",
+    "npm:@codemirror/view@^6.43.11": "6.43.11",
     "npm:@tailwindcss/cli@4.3.0": "4.3.0",
     "npm:alpinejs@*": "3.17.1",
     "npm:alpinejs@^3.17.1": "3.17.1",
     "npm:choices.js@*": "11.2.4",
     "npm:choices.js@^11.2.4": "11.2.4",
     "npm:codemirror@^6.0.2": "6.0.2",
-    "npm:daisyui@^5.7.27": "5.7.27",
+    "npm:daisyui@^5.7.28": "5.7.28",
     "npm:driver.js@*": "1.8.0",
     "npm:driver.js@^1.8.0": "1.8.0",
     "npm:fuse.js@*": "7.5.0",
@@ -90,14 +90,14 @@
         "crelt"
       ]
     },
-    "@codemirror/state@6.7.2": {
-      "integrity": "sha512-U3RiPX62Wl/Gx4ftQ7UxLlloSfsFTQqKa+7vFBYteZGCzkp6oBqcsD7iSwniWRGobCAmDcwZSY+Six3+3ztdfg==",
+    "@codemirror/state@6.7.4": {
+      "integrity": "sha512-QhQIVRY+xHZDxwOSFrJ1eUMapJBUID3IdeAjf7dHO7zBUzSkyooHiodnalz5MG3iHzwixKMlAAyn7244y537EA==",
       "dependencies": [
         "@marijn/find-cluster-break"
       ]
     },
-    "@codemirror/view@6.43.10": {
-      "integrity": "sha512-vVWLvd4fKWYN/pMcwUrg6dWeublxmSz+V+52ZjW3h64IVN9cRUYLk5Km4JDT9vifxAFfDtNOIFxKYENthcolJQ==",
+    "@codemirror/view@6.43.11": {
+      "integrity": "sha512-2+esucbQX6wB2JYi1eDvdCPFTA31BN8oSy6xCmk3G6CloV11yOvEjYk+gH7kLrP0MuHG94E8WDhjs5oMiu3+Wg==",
       "dependencies": [
         "@codemirror/state",
         "crelt",
@@ -371,8 +371,8 @@
     "crelt@1.0.7": {
       "integrity": "sha512-aK6BbWfhf4U/wCcLHKPJl/xa6VkVstRaPywWtMKGwuOLc/wZTyQYuoxgvZnNsBvv7Kg3YTBQYYBCggcviQczuA=="
     },
-    "daisyui@5.7.27": {
-      "integrity": "sha512-Je10yYK7UFJYyLSQrIxhFmpwX+86gXdNTnfNkA1jlev7j9oz3QrqioEQ6/0JYOvYPs5NYH4aaJ+X35/N80G/xg=="
+    "daisyui@5.7.28": {
+      "integrity": "sha512-BxQap2QOj7NQy5nEsjTHRmybmUZP3t+O5G6vfdidZuptBsh/QyKN9wbdrGDZk198fMI3UyYnA/rCWlggZIhGnw=="
     },
     "detect-libc@2.1.2": {
       "integrity": "sha512-Btj2BOOO83o3WyH59e8MgXsxEQVcarkUOpEYrubB0urwnN10yQ364rsiByU11nZlqWYZm05i/of7io4mzihBtQ=="
@@ -533,13 +533,13 @@
       "npm:@codemirror/language@^6.12.4",
       "npm:@codemirror/legacy-modes@^6.5.4",
       "npm:@codemirror/merge@^6.12.2",
-      "npm:@codemirror/state@^6.7.2",
-      "npm:@codemirror/view@^6.43.10",
+      "npm:@codemirror/state@^6.7.4",
+      "npm:@codemirror/view@^6.43.11",
       "npm:@tailwindcss/cli@4.3.0",
       "npm:alpinejs@^3.17.1",
       "npm:choices.js@^11.2.4",
       "npm:codemirror@^6.0.2",
-      "npm:daisyui@^5.7.27",
+      "npm:daisyui@^5.7.28",
       "npm:driver.js@^1.8.0",
       "npm:fuse.js@^7.5.0",
       "npm:highlight-search-term@^1.0.3",

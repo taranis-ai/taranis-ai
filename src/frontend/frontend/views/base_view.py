@@ -640,6 +640,7 @@ class BaseView(MethodView):
                 context["message"] = message
         if submitted_model is not None:
             context[cls.model_name()] = submitted_model
+            context = cls.get_extra_context(context)
 
         return render_template(cls.get_edit_template(), **context), 400
 
