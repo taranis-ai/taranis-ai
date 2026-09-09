@@ -16,6 +16,7 @@ from pydantic import BaseModel, ValidationError
 from redis.exceptions import LockError, RedisError
 
 from core.config import Config
+from core.log import logger
 from core.managers import queue_manager
 from core.managers.db_manager import db
 from core.managers.realtime_publisher import realtime_publisher
@@ -42,15 +43,17 @@ Choose exactly one mode:
 - search: translate any request that depends on current Taranis story data into the supported Assess filters. This includes counts, statistics, summaries, and questions about stories from a time period. You have access to this data through search mode; never claim otherwise.
 
 Supported filters:
+Use JSON arrays of strings for source, group, tags, language, and story_ids. Use [] when unused, never null or a scalar string.
+Use JSON null for unused scalar filters, never the string "null". Boolean filters must be true, false, or null.
 - search: PostgreSQL web-search text. Use quotes and OR only when useful; do not invent unsupported syntax.
 - source/group: IDs from the supplied catalog. Their combination is OR.
 - tags: exact supplied tag values. Multiple tags are AND.
 - language: exact supplied language values.
-- story_ids: only IDs from supplied recent_results, for follow-ups such as "the second result".
+- story_ids: only IDs from supplied recent_results, for follow-ups such as "the second result". Combine only with sort, leaving other filters unused.
 - read, important, relevant, in_report: booleans.
 - cybersecurity: yes, no, mixed, or incomplete.
 - changed_by: only me.
-- range: 24h, day, week, month, or lastN. "last week" means last7; "this week" means week.
+- range: shift, 24h, day, week, month, or lastN with a positive integer N. "last week" means last7; "this week" means week.
 - timefrom/timeto: ISO 8601 timestamps for explicit dates, interpreted using the supplied analyst timezone.
 - sort: date_desc, date_asc, relevance, updated_desc, or updated_asc.
 
@@ -89,6 +92,12 @@ class ChatProviderError(RuntimeError):
 
 class ChatProviderTimeoutError(ChatProviderError):
     pass
+
+
+class ChatPlannerValidationError(ValueError):
+    def __init__(self, field: str, message: str):
+        super().__init__(message)
+        self.field = field
 
 
 class ChatConversationNotFoundError(LookupError):
@@ -171,10 +180,28 @@ class ResponsesClient:
                 request_instructions = (
                     f"{instructions}\nYour previous response was invalid. Return corrected JSON matching the schema exactly."
                 )
+            stage = "schema"
             try:
                 parsed = response_model.model_validate_json(self._request(request_input, request_instructions, response_model))
+                stage = "validator"
                 return validator(parsed) if validator else parsed
             except (ValidationError, ValueError) as exc:
+                errors = (
+                    exc.errors(include_url=False, include_context=False, include_input=False)
+                    if isinstance(exc, ValidationError)
+                    else [{"loc": ("filters", exc.field) if isinstance(exc, ChatPlannerValidationError) else (), "type": "value_error"}]
+                )
+                known_fields = set(response_model.model_fields) | set(AssessSearchFilters.model_fields)
+                for error in errors:
+                    # Extra-field locations are provider-controlled, so never log unknown names.
+                    field = ".".join(str(part) if part in known_fields else "*" for part in error["loc"]) or "<root>"
+                    logger.warning(
+                        "Chat response validation failed: stage=%s field=%s type=%s attempt=%s",
+                        stage,
+                        field,
+                        error["type"],
+                        attempt + 1,
+                    )
                 validation_error = exc
                 if attempt:
                     raise ChatProviderError("Chat provider returned an invalid response") from exc
@@ -575,19 +602,19 @@ class ChatService:
             return planner
 
         filters = planner.filters.model_copy(deep=True)
-        if filters.search and filters.search.casefold() == "null":
-            raise ValueError("Search must use JSON null, not the string 'null'")
+        if filters.search and filters.search.strip().casefold() == "null":
+            raise ChatPlannerValidationError("search", "Search must use JSON null, not the string 'null'")
         filters.source = cls._normalize_catalog_values(filters.source, catalog.get("sources", []), "source")
         filters.group = cls._normalize_catalog_values(filters.group, catalog.get("groups", []), "group")
-        filters.tags = cls._normalize_strings(filters.tags, catalog.get("tags", []), "tag")
+        filters.tags = cls._normalize_strings(filters.tags, catalog.get("tags", []), "tags")
         filters.language = cls._normalize_strings(filters.language, catalog.get("languages", []), "language")
         if unknown_ids := set(filters.story_ids) - recent_story_ids:
-            raise ValueError(f"Unknown recent story IDs: {', '.join(sorted(unknown_ids))}")
+            raise ChatPlannerValidationError("story_ids", f"Unknown recent story IDs: {', '.join(sorted(unknown_ids))}")
         filters.story_ids = list(dict.fromkeys(filters.story_ids))
         if filters.story_ids:
             combined_filters = filters.model_dump(exclude_none=True, exclude={"story_ids", "sort"})
             if any(value not in ([], "") for value in combined_filters.values()):
-                raise ValueError("Recent story IDs cannot be combined with other search filters")
+                raise ChatPlannerValidationError("story_ids", "Recent story IDs cannot be combined with other search filters")
         planner.filters = filters
         return planner
 
@@ -611,7 +638,7 @@ class ChatService:
         normalized = []
         for value in values:
             if not (resolved := lookup.get(value.casefold())):
-                raise ValueError(f"Unknown {label}: {value}")
+                raise ChatPlannerValidationError(label, f"Unknown {label}: {value}")
             if resolved not in normalized:
                 normalized.append(resolved)
         return normalized
@@ -622,7 +649,7 @@ class ChatService:
         normalized = []
         for value in values:
             if not (resolved := lookup.get(value.casefold())):
-                raise ValueError(f"Unknown {label}: {value}")
+                raise ChatPlannerValidationError(label, f"Unknown {label}: {value}")
             if resolved not in normalized:
                 normalized.append(resolved)
         return normalized

@@ -48,9 +48,10 @@ On page load, the frontend uses the existing conversation-list response to show 
 
 - Chat is not connected to `llm-bot` or workers. Redis is required only for the cross-replica active-turn lease; realtime delivery remains optional.
 - Treat messages, catalogs, and story summaries as untrusted data in prompts; never follow instructions embedded in story text.
-- Reject the literal string `"null"` as a planner text search so malformed structured output is repaired instead of executed.
+- Planner list filters (`source`, `group`, `tags`, `language`, `story_ids`) require arrays of strings; unused lists use `[]`, while unused scalar filters use JSON `null`. Do not normalize provider `null` lists without evidence of that provider behavior; invalid shapes use the single repair attempt. The shared Assess contract remains unchanged.
+- Reject the literal string `"null"` as a planner text search, including surrounding whitespace and case variants, so malformed structured output is repaired instead of executed.
 - Never expose provider response bodies, credentials, inaccessible story metadata, or raw news-item content.
 - Chat answer snapshots contain analyst-visible content and must only use the authenticated user-limited channel. Never log snapshot content or enable history for it.
-- Provider failures log only a sanitized stage or HTTP status; API responses remain generic.
+- Provider validation failures log stage (`schema` or `validator`), known field paths, error type, and attempt number. Redact unknown extra-field names and omit input, messages, context, and tracebacks from these diagnostics. Other provider failures log only a sanitized stage or HTTP status; API responses remain generic.
 - New chat tables are created from SQLAlchemy metadata at startup; do not add a migration for them.
 - Only `CHAT_ENABLED` remains in deployment environment configuration. Provider URL, model, API key, timeout (120 seconds), and maximum stories (5, range 1-20) live in `core/model/settings.py` as flat `chat_*` JSON values. Chat reads Settings for each turn. Admin Settings shows a native collapsible Chat form only when enabled; it patches only submitted fields. API keys are omitted from serialized settings and logs; blank input preserves the key and an explicit clear checkbox removes it. Protect the settings database and backups. Disabling Chat is the non-destructive rollback and leaves history intact.

@@ -9,7 +9,7 @@ from threading import Event, Thread
 import fakeredis
 import pytest
 import requests
-from models.assess import AssessSearchFilters
+from models.assess import ASSESS_FILTER_MULTI_KEYS, AssessSearchFilters
 from models.chat import ChatAnswerResponse, ChatPlannerResponse
 
 from core.config import Config
@@ -139,8 +139,23 @@ def test_responses_client_falls_back_only_when_streaming_is_rejected(configured_
     assert calls[1]["text"]["format"]["type"] == "json_schema"
 
 
-def test_responses_client_retries_invalid_structured_output_once(configured_chat, monkeypatch):
-    responses = iter([_response({"output_text": "not json"}), _response({"output_text": '{"answer":"Repaired"}'})])
+@pytest.mark.parametrize(
+    ("invalid", "corrected", "response_model", "field", "error_type"),
+    [
+        ("not json", {"answer": "Repaired"}, ChatAnswerResponse, "<root>", "json_invalid"),
+        (
+            json.dumps({"mode": "search", "filters": {"language": None}}),
+            {"mode": "search", "filters": {"language": ["de"]}},
+            ChatPlannerResponse,
+            "filters.language",
+            "list_type",
+        ),
+    ],
+)
+def test_responses_client_retries_invalid_structured_output_once(
+    configured_chat, monkeypatch, caplog, invalid, corrected, response_model, field, error_type
+):
+    responses = iter([_response({"output_text": invalid}), _response({"output_text": json.dumps(corrected)})])
     calls = []
 
     def post(*args, **kwargs):
@@ -149,11 +164,48 @@ def test_responses_client_retries_invalid_structured_output_once(configured_chat
 
     monkeypatch.setattr(requests, "post", post)
 
-    result = ResponsesClient().create_structured({}, "Answer", ChatAnswerResponse)
+    result = ResponsesClient().create_structured({}, "Answer", response_model)
 
-    assert result.answer == "Repaired"
+    assert result == response_model.model_validate(corrected)
     assert len(calls) == 2
     assert "previous response was invalid" in calls[1]["instructions"]
+    assert f"stage=schema field={field} type={error_type} attempt=1" in caplog.text
+    assert invalid not in caplog.text
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "error_type"),
+    [(field, value, "list_type") for field in sorted(ASSESS_FILTER_MULTI_KEYS) for value in (None, "private-value", {"private-key": []})]
+    + [(field, [None], "string_type") for field in sorted(ASSESS_FILTER_MULTI_KEYS)]
+    + [(field, "private-value", "bool_parsing") for field in ("read", "important", "relevant", "in_report")]
+    + [(field, "private-value", "literal_error") for field in ("cybersecurity", "changed_by", "sort")]
+    + [("range", "last0", "string_pattern_mismatch"), ("search", ["private-value"], "string_type")]
+    + [(field, "private-value", "datetime_from_date_parsing") for field in ("timefrom", "timeto")]
+    + [("private-key", "private-value", "extra_forbidden")],
+)
+def test_responses_client_rejects_repeated_invalid_filters_without_logging_content(
+    configured_chat, monkeypatch, caplog, field, value, error_type
+):
+    calls = []
+
+    def post(*args, **kwargs):
+        calls.append(kwargs["json"])
+        return _response({"output_text": json.dumps({"mode": "search", "filters": {field: value}})})
+
+    monkeypatch.setattr(requests, "post", post)
+
+    with pytest.raises(ChatProviderError, match="Chat provider returned an invalid response"):
+        ResponsesClient().create_structured({}, PLANNER_PROMPT, ChatPlannerResponse)
+
+    assert len(calls) == 2
+    safe_field = "*" if field == "private-key" else field
+    if error_type == "string_type" and field in ASSESS_FILTER_MULTI_KEYS:
+        safe_field += ".*"
+    for attempt in (1, 2):
+        assert f"stage=schema field=filters.{safe_field} type={error_type} attempt={attempt}" in caplog.text
+    assert "private-value" not in caplog.text
+    assert "private-key" not in caplog.text
+    assert configured_chat["chat_llm_api_key"] not in caplog.text
 
 
 def test_responses_client_maps_missing_config_timeout_and_sanitized_failures(configured_chat, monkeypatch):
@@ -194,30 +246,30 @@ def test_chat_prompts_route_current_story_counts_through_search():
     assert "total_count is the authoritative number" in ANSWER_PROMPT
 
 
-def test_planner_rejects_hallucinated_catalog_and_story_references():
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [(field, ["private-value"]) for field in sorted(ASSESS_FILTER_MULTI_KEYS)] + [("search", "null"), ("search", " NULL ")],
+)
+def test_planner_repairs_invalid_catalog_and_story_references(configured_chat, monkeypatch, caplog, field, value):
     catalog = {
         "sources": [{"id": "source-one", "name": "Source One"}],
         "groups": [],
         "tags": ["apt"],
         "languages": ["en"],
     }
-    hallucinated_source = ChatPlannerResponse(
-        mode="search",
-        filters=AssessSearchFilters(source=["made-up-source"]),
+    responses = iter(
+        [
+            _response({"output_text": json.dumps({"mode": "search", "filters": {field: value}})}),
+            _response({"output_text": json.dumps({"mode": "search", "filters": {"language": ["EN"]}})}),
+        ]
     )
-    with pytest.raises(ValueError, match="Unknown source"):
-        ChatService._validate_planner(hallucinated_source, catalog, set())
-
-    hallucinated_story = ChatPlannerResponse(
-        mode="search",
-        filters=AssessSearchFilters(story_ids=["made-up-story"]),
+    monkeypatch.setattr(requests, "post", lambda *args, **kwargs: next(responses))
+    result = ResponsesClient().create_structured(
+        {}, PLANNER_PROMPT, ChatPlannerResponse, validator=lambda planner: ChatService._validate_planner(planner, catalog, {"known-story"})
     )
-    with pytest.raises(ValueError, match="Unknown recent story IDs"):
-        ChatService._validate_planner(hallucinated_story, catalog, {"known-story"})
-
-    string_null = ChatPlannerResponse(mode="search", filters=AssessSearchFilters(search="null"))
-    with pytest.raises(ValueError, match="must use JSON null"):
-        ChatService._validate_planner(string_null, catalog, set())
+    assert result.filters.language == ["en"]
+    assert f"stage=validator field=filters.{field} type=value_error attempt=1" in caplog.text
+    assert "private-value" not in caplog.text
 
 
 def test_chat_turn_stream_publishes_cumulative_throttled_snapshots(monkeypatch):
