@@ -24,7 +24,7 @@ class SFTPTestHandler(Handler):
                 if channel is not None:
                     # Paramiko runs the SFTP subsystem; no SSH command thread is needed.
                     channels.append(channel)
-        except EOFError:
+        except (EOFError, ConnectionResetError):
             # Rejecting a changed host key disconnects during SSH negotiation.
             pass
         finally:
