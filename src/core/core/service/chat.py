@@ -306,7 +306,7 @@ class ResponsesClient:
     def _read_text_stream(response: requests.Response, on_delta: Callable[[str], None]) -> str:
         deltas: list[str] = []
         completed = False
-        for line in response.iter_lines(decode_unicode=True):
+        for line in response.iter_lines():
             if isinstance(line, bytes):
                 line = line.decode("utf-8")
             if not line or not line.startswith("data:"):
