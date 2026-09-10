@@ -27,8 +27,11 @@ class TestEndToEndUser(BaseE2ETest):
 
     @staticmethod
     def _get_assess_story_counts(page: Page) -> tuple[int, int]:
-        count_text = page.get_by_test_id("assess_story_count").inner_text()
-        match = re.search(r"(\d+)\s*/\s*(\d+)", count_text)
+        story_count = page.get_by_test_id("assess_story_count")
+        count_pattern = re.compile(r"(\d+)\s*/\s*(\d+)")
+        expect(story_count).to_contain_text(count_pattern)
+        count_text = story_count.inner_text()
+        match = count_pattern.search(count_text)
         assert match, f"Unable to parse assess story count from: {count_text!r}"
         return int(match.group(1)), int(match.group(2))
 
@@ -328,8 +331,10 @@ class TestEndToEndUser(BaseE2ETest):
 
         def access_story():
             target_title = pre_seed_stories[0]["title"]
-            page.get_by_placeholder("Search stories").fill(target_title)
-            page.get_by_placeholder("Search stories").press("Enter")
+            search = page.get_by_placeholder("Search stories")
+            search.fill(target_title)
+            expect(page.locator("#story-list article[data-story-id]")).to_have_count(1)
+            with_htmx_wait(page, search.blur)
 
             story = page.locator("article", has=page.get_by_test_id("story-title").filter(has_text=target_title)).first
             expect(story).to_be_visible()

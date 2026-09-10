@@ -40,7 +40,7 @@
 
 {{ filter_token_select_assets() }}
 
-<script type="text/javascript">
+<script>
 if (typeof htmx !== 'undefined' && htmx.onLoad) {
   htmx.onLoad(function (elt) {
     highlightSearch({{ current_search | tojson }});
