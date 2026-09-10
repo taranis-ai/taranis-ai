@@ -1,7 +1,7 @@
 {% macro tri_state_filter(item) %}
   <label class="select w-full">
     <span class="label min-w-[100px]">{{ item.label }}</span>
-    <select {% if item.value not in ['', None] %}name="{{ item.name }}"{% endif %}
+    <select name="{{ item.name }}"
             onchange="this.name = this.value ? '{{ item.name }}' : ''"
             class="select select-bordered select-sm"
             hx-trigger="change">
