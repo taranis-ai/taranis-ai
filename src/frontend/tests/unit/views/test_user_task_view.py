@@ -22,7 +22,9 @@ def test_my_tasks_renders_standard_table_for_basic_user(authenticated_client_bas
     failed["result"] = {"message": "Rendering failed", "reason": "render_failed", "retryable": True}
     warning = _task_payload("task-warning")
     warning["status"] = "WARNING"
-    warning["result"]["message"] = "Only the newest 2 feed entries were considered. 1 items were skipped."
+    warning["result"]["message"] = (
+        "Only 2 entries were considered, in the order provided by the feed (starting at the top). 1 additional entries were skipped."
+    )
     responses_mock.get(
         f"{Config.TARANIS_CORE_URL}/tasks/user",
         json={"items": [_task_payload(), failed, warning], "total_count": 3},

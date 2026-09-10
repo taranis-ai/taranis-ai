@@ -196,9 +196,9 @@ def test_empty_rss_feed_result_is_preserved_after_not_modified_response(current_
         ("All news items were skipped", "No changes: All news items were skipped", "NOT_MODIFIED", 0),
     ],
 )
-@pytest.mark.parametrize("skipped_entries, skipped_message", [(1, "1 item was skipped."), (2, "2 items were skipped.")])
+@pytest.mark.parametrize("skipped_entries", [1, 2])
 def test_rss_entry_limit_warning_and_recovery(
-    current_job, requests_mock, publish_message, result_prefix, recovered_status, expected_bot_runs, skipped_entries, skipped_message
+    current_job, requests_mock, publish_message, result_prefix, recovered_status, expected_bot_runs, skipped_entries
 ):
     feed_url = "https://example.com/feed"
     source = {
@@ -221,7 +221,10 @@ def test_rss_entry_limit_warning_and_recovery(
     bots = requests_mock.put(f"{Config.TARANIS_CORE_URL}/worker/post-collection-bots", json={})
     requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
 
-    warning = f"Only the newest 2 feed entries were considered. {skipped_message}"
+    warning = (
+        "Only 2 entries were considered, in the order provided by the feed (starting at the top). "
+        f"{skipped_entries} additional entries were skipped."
+    )
     expected_message = f"{result_prefix} {warning}"
     assert collector_tasks.collector_task("source-1") == expected_message
     payload = requests_mock.request_history[-1].json()
