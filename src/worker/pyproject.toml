@@ -16,7 +16,7 @@ dependencies = [
     # Core
     "rq",
     "redis",
-    "croniter>=6.0.0",
+    "croniter",
     "click",
     "python-dotenv",
     "pydantic-settings",
@@ -35,7 +35,7 @@ dependencies = [
     "minio",
     "taxii2-client",
     # Presenters
-    "weasyprint",
+    "weasyprint>=70.0",
     "jinja2",
     "misp-stix",
     # Connectors
@@ -44,9 +44,9 @@ dependencies = [
     "ioc-finder",
     "ioc-fanger",
     "pyintelowl",
-    "pypandoc-binary>=1.15",
+    "pypandoc-binary",
     "niquests",
-    "confluent-kafka>=2.14.2",
+    "confluent-kafka",
 ]
 dynamic = ["version"]
 
@@ -142,6 +142,7 @@ reportIncompatibleMethodOverride = "none"
 [tool.uv]
 config-settings = { editable_mode = "compat" }
 exclude-newer = "1 week"
+exclude-newer-package = { "weasyprint" = false }
 required-environments = [
   "sys_platform == 'linux' and platform_machine == 'x86_64'",
   "sys_platform == 'linux' and platform_machine == 'aarch64'",
