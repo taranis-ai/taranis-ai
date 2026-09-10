@@ -114,6 +114,17 @@ class AssessSearchFilters(TaranisBaseModel):
     timeto: datetime | None = None
     sort: Literal["date_desc", "date_asc", "relevance", "updated_desc", "updated_asc"] | None = None
 
+    @model_validator(mode="before")
+    @classmethod
+    def omit_empty_filters(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+        return {
+            key: value
+            for key, value in data.items()
+            if value is not None and value != [] and not (isinstance(value, str) and value.strip().casefold() in {"", "null"})
+        }
+
     @field_validator("cybersecurity", "changed_by", "range", "sort", mode="before")
     @classmethod
     def normalize_choices(cls, value: Any) -> Any:
@@ -122,7 +133,7 @@ class AssessSearchFilters(TaranisBaseModel):
     def to_query_params(self) -> dict[str, str | list[str]]:
         return {
             key: str(value).lower() if isinstance(value, bool) else value
-            for key, value in self.model_dump(mode="json", exclude_defaults=True, exclude_none=True).items()
+            for key, value in self.model_dump(mode="json", exclude_unset=True, exclude_defaults=True, exclude_none=True).items()
             if value not in ([], "")
         }
 

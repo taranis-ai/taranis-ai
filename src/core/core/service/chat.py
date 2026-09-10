@@ -43,8 +43,8 @@ Give a concise plain-text answer without Markdown links or citations; the UI sup
 Never claim to have searched or inspected stories without a tool result.
 
 Supported filters:
-Use JSON arrays of strings for source, group, tags, language, and story_ids. Use [] when unused, never null or a scalar string.
-Use JSON null for unused scalar filters, never the string "null". Boolean filters must be true, false, or null.
+Include only filters that have values; omit unused filters entirely. Never send null, "null", empty strings, or empty arrays.
+Use JSON arrays of strings for source, group, tags, language, and story_ids. Boolean filters must be true or false.
 - search: PostgreSQL web-search text. Use quotes and OR only when useful; do not invent unsupported syntax.
 - source/group: IDs from the supplied catalog. Their combination is OR.
 - tags: exact supplied tag values. Multiple tags are AND.
@@ -154,14 +154,13 @@ class ChatClient:
         }
         if search:
             schema = AssessSearchFilters.model_json_schema()
-            schema["required"] = list(schema["properties"])
             payload["tools"] = [
                 {
                     "type": "function",
                     "name": "search_stories",
                     "description": "Search current Taranis stories using Assess filters.",
                     "parameters": schema,
-                    "strict": True,
+                    "strict": False,
                 }
             ]
             payload["parallel_tool_calls"] = False
@@ -620,8 +619,6 @@ class ChatService:
     def _search_filters(arguments: Any, catalog: dict[str, Any], recent_story_ids: set[str]) -> AssessSearchFilters:
         try:
             filters = AssessSearchFilters.model_validate_json(arguments)
-            if filters.search and filters.search.strip().casefold() == "null":
-                raise ValueError
             for values, allowed in (
                 (filters.source, {item["id"] for item in catalog.get("sources", [])}),
                 (filters.group, {item["id"] for item in catalog.get("groups", [])}),
