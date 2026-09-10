@@ -4,7 +4,7 @@
 
 
 <!-- Template Validation Status Display -->
-{% if validation_status and template.id != '0' %}<div class="w-3/4 mb-5">{{ validation_status | render_validation_status }}</div>{% endif %}
+{% if validation_status and template.id != "0" %}<div class="w-3/4 mb-5">{{ validation_status | render_validation_status }}</div>{% endif %}
 
 <form id="{{ model_name }}-form"
       method="post"
@@ -35,7 +35,7 @@
   <input type="submit" class="btn btn-primary w-3/4 mt-5" value="{{ submit_text }}" />
 </form>
 
-<script type="text/javascript">
+<script>
   const formId = '{{ model_name }}-form';
   let templateEditor = null;
 

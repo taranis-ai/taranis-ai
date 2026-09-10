@@ -21,7 +21,7 @@
       <div class="flex flex-wrap items-center gap-2">
         {% for bot in dag_preview.order %}
           <span class="badge badge-primary badge-outline">{{ bot.name }}</span>
-          {% if not loop.last %}<span class="text-base-content/50">&rarr;</span>{% endif %}
+          {% if not loop.last %}<span class="text-base-content/50">→</span>{% endif %}
         {% endfor %}
       </div>
     </div>
@@ -32,7 +32,7 @@
       <div class="text-sm font-semibold mb-2">Bot Dependencies</div>
       <div class="flex flex-wrap gap-2">
         {% for edge in dag_preview.edges %}
-          <span class="badge badge-outline {% if edge.disabled %}opacity-50{% endif %}">{{ edge.from_name }} &rarr; {{ edge.to_name }}</span>
+          <span class="badge badge-outline {% if edge.disabled %}opacity-50{% endif %}">{{ edge.from_name }} → {{ edge.to_name }}</span>
         {% endfor %}
       </div>
     </div>
