@@ -48,6 +48,8 @@
         {% set badge = stats.status_badge %}
         {% if badge %}
           <span class="badge badge-{{ badge.variant }} badge-sm">{{ badge.label }}</span>
+        {% elif stats.warnings and stats.failures == 0 %}
+          <span class="badge badge-warning badge-sm">Warning</span>
         {% elif stats.failures == 0 %}
           <span class="badge badge-success badge-sm">All Success</span>
         {% elif stats.success_pct >= 80 %}
@@ -73,6 +75,7 @@
       <td>
         <div class="flex gap-2">
           <div class="badge badge-success w-20">✓ {{ stats.successes }}</div>
+          <div class="badge badge-warning w-20" title="Warnings">⚠ {{ stats.warnings }}</div>
           <div class="badge badge-error w-20">✗ {{ stats.failures }}</div>
           <div class="badge badge-ghost min-w-16 justify-end text-right">{{ stats.success_pct }}%</div>
         </div>
@@ -84,6 +87,10 @@
     <div class="stat">
       <div class="stat-title">Total Successes</div>
       <div class="stat-value text-success">{{ total_successes }}</div>
+    </div>
+    <div class="stat">
+      <div class="stat-title">Total Warnings</div>
+      <div class="stat-value text-warning">{{ total_warnings }}</div>
     </div>
     <div class="stat">
       <div class="stat-title">Total Failures</div>

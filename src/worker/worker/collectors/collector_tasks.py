@@ -11,9 +11,10 @@ from rq import get_current_job
 
 import worker.collectors
 from worker.collectors.base_collector import BaseCollector, NoChangeError
+from worker.collectors.base_web_collector import HTTPNotModifiedError
 from worker.collectors.mastodon_collector import MastodonCollectorError
-from worker.collectors.rss_collector import EmptyRSSFeedError
-from worker.core_api import CoreApi, build_failure_task_result, build_success_task_result
+from worker.collectors.rss_collector import EmptyRSSFeedError, RSSCollector
+from worker.core_api import CoreApi, build_failure_task_result, build_success_task_result, build_task_result
 from worker.http_client import http_session_scope
 from worker.log import TaranisLogFormatter, TaranisLogger, logger
 
@@ -154,7 +155,7 @@ def collector_task(osint_source_id: str, manual: bool = False):
     with collector_log_fmt(logger, formatter):
         try:
             collection_result = collector_impl.collect(source, manual)
-            result_message = f"'{source.get('name')}': {collection_result}"
+            result_message = f"'{source.get('name')}': {collection_result if collection_result is not None else 'Collection completed'}"
         except EmptyRSSFeedError as e:
             result_message = f"RSS feed {e.feed_url} is valid but currently contains no entries"
             logger.info(result_message)
@@ -169,29 +170,49 @@ def collector_task(osint_source_id: str, manual: bool = False):
                 data=_collector_result_data(osint_source_id, manual, collector_impl),
             )
         except NoChangeError as e:
+            if isinstance(collector_impl, RSSCollector) and (warning := collector_impl.entry_limit_warning):
+                return _persist_and_return_result(
+                    job,
+                    core_api,
+                    f"No changes: {e.message} {warning}",
+                    worker_id=osint_source_id,
+                    worker_type=worker_type,
+                    meta_status="WARNING",
+                    reason="rss_entry_limit",
+                    data=_collector_result_data(osint_source_id, manual, collector_impl),
+                )
             previous_status = source.get("status")
-            if isinstance(previous_status, dict):
+            if isinstance(e, HTTPNotModifiedError) and e.primary_resource and isinstance(previous_status, dict):
                 previous_result = previous_status.get("result")
                 previous_result = previous_result if isinstance(previous_result, dict) else {}
                 previous_task_status = previous_status.get("status")
                 preserve_http_failure = previous_task_status == "FAILURE" and bool(getattr(collector_impl, "http_validators", None))
                 preserve_empty_feed = previous_task_status == "NOT_MODIFIED" and previous_result.get("reason") == "rss_feed_empty"
-                preserve_previous_result = preserve_http_failure or preserve_empty_feed
+                previous_data = previous_result.get("data")
+                previous_data = previous_data if isinstance(previous_data, dict) else {}
+                previous_validators = previous_data.get("http_validators")
+                preserve_entry_limit = (
+                    previous_task_status == "WARNING"
+                    and previous_result.get("reason") == "rss_entry_limit"
+                    and isinstance(collector_impl, RSSCollector)
+                    and isinstance(previous_validators, dict)
+                    and previous_validators.get("url") == e.url
+                )
+                preserve_previous_result = preserve_http_failure or preserve_empty_feed or preserve_entry_limit
                 if preserve_previous_result:
-                    previous_data = previous_result.get("data")
-                    result_data = dict(previous_data) if isinstance(previous_data, dict) else {}
+                    result_data = dict(previous_data)
                     result_data.update(_collector_result_data(osint_source_id, manual, collector_impl))
                     return _persist_and_return_result(
                         job,
                         core_api,
-                        str(previous_result.get("message") or f"No changes: {e}"),
+                        str(previous_result.get("message") or f"No changes: {e.message}"),
                         worker_id=osint_source_id,
                         worker_type=worker_type,
                         meta_status=previous_task_status,
                         reason=previous_result.get("reason"),
                         data=result_data,
                     )
-            result_message = f"No changes: {e}"
+            result_message = f"No changes: {e.message}"
             return _persist_and_return_result(
                 job,
                 core_api,
@@ -243,6 +264,16 @@ def collector_task(osint_source_id: str, manual: bool = False):
     # Run post-collection bots
     core_api.run_post_collection_bots(osint_source_id)
 
+    reason = None
+    if isinstance(collector_impl, RSSCollector) and (warning := collector_impl.entry_limit_warning):
+        task_status = "WARNING"
+        reason = "rss_entry_limit"
+        result_message = f"{result_message} {warning}"
+        if job:
+            job.meta["status"] = task_status
+            job.meta["message"] = result_message
+            job.save_meta()
+
     # Save task result to database
     if job:
         core_api.save_task_result(
@@ -251,8 +282,9 @@ def collector_task(osint_source_id: str, manual: bool = False):
             task_status,
             worker_id=osint_source_id,
             worker_type=worker_type,
-            result=build_success_task_result(
-                default_message=result_message,
+            result=build_task_result(
+                result_message,
+                reason=reason,
                 data=_collector_result_data(osint_source_id, manual, collector_impl),
             ),
         )
