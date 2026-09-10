@@ -75,12 +75,13 @@ class TestAdminApi(BaseTest):
 
     def test_chat_settings_save_preserve_and_clear_secret(self, client, auth_header, app):
         from core.model.settings import Settings
-        from core.service.chat import ResponsesClient
+        from core.service.chat import ChatClient
 
         values = {
             "chat_llm_base_url": "https://provider.example/v1",
             "chat_llm_api_key": "private-test-key",
             "chat_llm_model": "analyst-model",
+            "chat_llm_api_format": "chat_completions",
             "chat_llm_timeout": "90",
             "chat_max_stories": "8",
         }
@@ -93,26 +94,30 @@ class TestAdminApi(BaseTest):
 
         self.assert_patch_ok(client, "settings", {"settings": {"chat_llm_api_key": "", "default_bot_lookback_days": 7}}, auth_header)
         with app.app_context():
-            provider = ResponsesClient()
+            provider = ChatClient()
             assert provider.base_url == values["chat_llm_base_url"]
             assert provider.api_key == values["chat_llm_api_key"]
             assert provider.model == values["chat_llm_model"]
+            assert provider.api_format == "chat_completions"
             assert provider.timeout == 90
             assert Settings.get_settings()["chat_max_stories"] == 8
 
         response = self.assert_patch_ok(client, "settings", {"settings": {"chat_llm_api_key_clear": "true"}}, auth_header)
         assert response.get_json()["settings"]["chat_llm_api_key_configured"] is False
         with app.app_context():
-            assert ResponsesClient().api_key == ""
+            assert ChatClient().api_key == ""
 
     @pytest.mark.parametrize(
         ("key", "value"),
         [
+            ("chat_llm_api_format", "invalid"),
             ("chat_llm_timeout", 0),
             ("chat_llm_timeout", True),
             ("chat_max_stories", 21),
             ("chat_max_stories", -1),
             ("chat_llm_base_url", "file:///tmp/provider"),
+            ("chat_llm_base_url", "https://provider.example/v1/responses"),
+            ("chat_llm_base_url", "https://api.mistral.ai/v1/chat/completions/"),
             ("chat_llm_base_url", "https://provider.example:invalid"),
             ("chat_llm_base_url", "https://provider.example:70000"),
             ("chat_llm_base_url", "https://user:password@provider.example"),

@@ -41,6 +41,7 @@ class Settings(BaseModel):
         merged.setdefault("default_news_item_conflict_retention", "200")
         merged.setdefault("default_timezone", None)
         merged.setdefault("onboarding_enabled", True)
+        merged.setdefault("chat_llm_api_format", "responses")
         merged.setdefault("chat_llm_base_url", "")
         merged.setdefault("chat_llm_api_key", "")
         merged.setdefault("chat_llm_model", "")
@@ -112,6 +113,8 @@ class Settings(BaseModel):
     @classmethod
     def _validate_chat_settings(cls, update_data: dict[str, Any]) -> None:
         update_data.pop("chat_llm_api_key_configured", None)
+        if "chat_llm_api_format" in update_data and update_data["chat_llm_api_format"] not in ("responses", "chat_completions"):
+            raise ValueError
         for key in ("chat_llm_timeout", "chat_max_stories"):
             if key in update_data:
                 value = cls._validate_non_negative_int(update_data[key])
@@ -127,7 +130,7 @@ class Settings(BaseModel):
             parsed = urlparse(base_url)
             if parsed.scheme not in {"http", "https"} or not parsed.hostname or parsed.username or parsed.password:
                 raise ValueError
-            if parsed.port == 0 or parsed.query or parsed.fragment:
+            if parsed.port == 0 or parsed.query or parsed.fragment or parsed.path.rstrip("/").endswith(("/responses", "/chat/completions")):
                 raise ValueError
         clear_key = cls._validate_bool(update_data.pop("chat_llm_api_key_clear", False))
         if clear_key:

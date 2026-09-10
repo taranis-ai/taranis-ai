@@ -125,13 +125,15 @@ class ChatTurnStream:
             self.enabled = False
 
 
-class ResponsesClient:
+class ChatClient:
     def __init__(self, settings: dict[str, Any] | None = None, deadline: float | None = None):
         self.deadline = deadline if deadline is not None else time.monotonic() + CHAT_TURN_TIMEOUT_SECONDS
         settings = settings if settings is not None else Settings.get_settings()
         self.base_url = settings["chat_llm_base_url"].rstrip("/")
         if not self.base_url:
             raise ChatUnavailableError("Chat provider is not configured")
+        self.api_format = settings.get("chat_llm_api_format", "responses")
+        self.endpoint = "chat/completions" if self.api_format == "chat_completions" else "responses"
         self.api_key = settings["chat_llm_api_key"]
         self.model = settings["chat_llm_model"]
         self.timeout = settings["chat_llm_timeout"]
@@ -163,6 +165,8 @@ class ResponsesClient:
                 }
             ]
             payload["parallel_tool_calls"] = False
+        if self.api_format == "chat_completions":
+            payload = self._chat_payload(input_items, payload.get("tools", []))
         if self.model:
             payload["model"] = self.model
 
@@ -172,7 +176,11 @@ class ResponsesClient:
                     continue
                 response.raise_for_status()
                 is_stream = "text/event-stream" in response.headers.get("Content-Type", "")
-                result = self._read_stream(response, on_delta) if is_stream else response.json()
+                if self.api_format == "chat_completions":
+                    completion = self._read_chat_stream(response, on_delta) if is_stream else response.json()
+                    result = self._chat_result(completion)
+                else:
+                    result = self._read_stream(response, on_delta) if is_stream else response.json()
                 if not isinstance(result, dict) or not isinstance(result.get("output", []), list):
                     raise ChatProviderError("Chat provider returned an invalid response")
                 if result.get("status") not in {None, "completed"}:
@@ -190,6 +198,119 @@ class ResponsesClient:
                 return result
         raise ChatProviderError("Chat provider request failed")
 
+    @staticmethod
+    def _chat_payload(input_items: list[dict[str, Any]], tools: list[dict[str, Any]]) -> dict[str, Any]:
+        messages = [{"role": "system", "content": CHAT_PROMPT}]
+        for item in input_items:
+            if item.get("type") == "chat_message":
+                messages.append(item["message"])
+            elif item.get("type") == "function_call_output":
+                messages.append({"role": "tool", "tool_call_id": item["call_id"], "content": item["output"]})
+            elif item.get("type") != "function_call":
+                messages.append(item)
+        payload: dict[str, Any] = {"messages": messages}
+        if tools:
+            payload["tools"] = [
+                {"type": "function", "function": {key: value for key, value in tool.items() if key != "type"}} for tool in tools
+            ]
+            payload["parallel_tool_calls"] = False
+        else:
+            payload["tool_choice"] = "none"
+        return payload
+
+    @staticmethod
+    def _chat_result(completion: dict[str, Any]) -> dict[str, Any]:
+        if not isinstance(completion, dict) or not isinstance(choices := completion.get("choices"), list) or len(choices) != 1:
+            raise ChatProviderError("Chat provider returned an invalid response")
+        choice = choices[0]
+        if not isinstance(choice, dict) or choice.get("finish_reason") not in {"stop", "tool_calls"}:
+            raise ChatProviderError("Chat provider did not complete the response")
+        message = choice.get("message")
+        if not isinstance(message, dict) or message.get("role") != "assistant":
+            raise ChatProviderError("Chat provider returned an invalid response")
+        output: list[dict[str, Any]] = [{"type": "chat_message", "message": message}]
+        calls = message.get("tool_calls") or []
+        if not isinstance(calls, list):
+            raise ChatProviderError("Chat provider returned an invalid search call")
+        for call in calls:
+            if not isinstance(call, dict) or call.get("type") != "function" or not isinstance(call.get("function"), dict):
+                raise ChatProviderError("Chat provider returned an invalid search call")
+            output.append(
+                {
+                    "type": "function_call",
+                    "call_id": call.get("id"),
+                    "name": call["function"].get("name"),
+                    "arguments": call["function"].get("arguments"),
+                }
+            )
+        content = message.get("content")
+        if isinstance(content, list):
+            # Mistral can return text and thinking blocks; only text is public.
+            content = "".join(
+                part["text"]
+                for part in content
+                if isinstance(part, dict) and part.get("type") == "text" and isinstance(part.get("text"), str)
+            )
+        return {"output": output, "output_text": content}
+
+    @staticmethod
+    def _read_chat_stream(response: requests.Response, on_delta: Callable[[str], None]) -> dict[str, Any]:
+        message: dict[str, Any] = {"role": "assistant", "content": []}
+        calls: dict[int, dict[str, Any]] = {}
+        finish_reason = None
+        done = False
+        for line in response.iter_lines():
+            if isinstance(line, bytes):
+                line = line.decode("utf-8")
+            if not line or not line.startswith("data:"):
+                continue
+            data = line.removeprefix("data:").strip()
+            if data == "[DONE]":
+                done = True
+                break
+            event = json.loads(data)
+            if not isinstance(event, dict) or "error" in event or not isinstance(event.get("choices"), list):
+                raise ChatProviderError("Chat provider returned an invalid response")
+            for choice in event["choices"]:
+                if not isinstance(choice, dict) or choice.get("index") != 0 or finish_reason is not None:
+                    raise ChatProviderError("Chat provider returned an invalid response")
+                delta = choice.get("delta")
+                if not isinstance(delta, dict):
+                    raise ChatProviderError("Chat provider returned an invalid response")
+                content = delta.get("content")
+                parts = [{"type": "text", "text": content}] if isinstance(content, str) else content or []
+                if not isinstance(parts, list) or any(not isinstance(part, dict) for part in parts):
+                    raise ChatProviderError("Chat provider returned an invalid response")
+                message["content"].extend(parts)
+                for part in parts:
+                    if part.get("type") == "text":
+                        if not isinstance(part.get("text"), str):
+                            raise ChatProviderError("Chat provider returned an invalid text delta")
+                        on_delta(part["text"])
+                if reasoning := delta.get("reasoning_content"):
+                    if not isinstance(reasoning, str):
+                        raise ChatProviderError("Chat provider returned an invalid response")
+                    message["reasoning_content"] = message.get("reasoning_content", "") + reasoning
+                for fragment in delta.get("tool_calls") or []:
+                    if not isinstance(fragment, dict) or not isinstance(index := fragment.get("index"), int) or index < 0:
+                        raise ChatProviderError("Chat provider returned an invalid search call")
+                    call = calls.setdefault(index, {"id": "", "type": "function", "function": {"name": "", "arguments": ""}})
+                    if fragment.get("id"):
+                        call["id"] = fragment["id"]
+                    if fragment.get("type"):
+                        call["type"] = fragment["type"]
+                    function = fragment.get("function") or {}
+                    if not isinstance(function, dict):
+                        raise ChatProviderError("Chat provider returned an invalid search call")
+                    for key in ("name", "arguments"):
+                        call["function"][key] += function.get(key) or ""
+                finish_reason = choice.get("finish_reason")
+        if not done or finish_reason not in {"stop", "tool_calls"}:
+            raise ChatProviderError("Chat provider did not complete the response")
+        if calls:
+            message["tool_calls"] = [calls[index] for index in sorted(calls)]
+        return {"choices": [{"message": message, "finish_reason": finish_reason}]}
+
     def remaining_time(self) -> float:
         remaining = self.deadline - time.monotonic()
         if remaining <= 0:
@@ -204,7 +325,7 @@ class ResponsesClient:
             try:
                 pending.set_result(
                     requests.post(
-                        f"{self.base_url}/responses",
+                        f"{self.base_url}/{self.endpoint}",
                         headers=self._headers(),
                         json=payload,
                         timeout=self.request_timeout,
@@ -352,7 +473,7 @@ class ChatService:
         catalog = FilterData.get_assess_filterlists(user=user)
         recent_results = cls._recent_result_references(history, user)
         settings = Settings.get_settings()
-        client = ResponsesClient(settings, deadline=deadline)
+        client = ChatClient(settings, deadline=deadline)
         db.session.rollback()
 
         context = {

@@ -1,4 +1,4 @@
-{% from "macros/forms.html" import form_input %}
+{% from "macros/forms.html" import form_input, form_select %}
 <div class="w-full">
   <details class="collapse collapse-arrow border border-base-300 bg-base-100 rounded-box shadow-sm" data-testid="settings-chat-section">
     <summary class="collapse-title px-6 py-5 pr-12 text-lg font-semibold">
@@ -7,7 +7,7 @@
     </summary>
     <div class="collapse-content px-6">
       <p class="text-sm text-base-content/70 mb-6">
-        Connect analyst Chat to an OpenAI-compatible Responses API. Saved changes apply to the next message.
+        Connect analyst Chat to a Responses or Chat Completions API. Saved changes apply to the next message.
         Prompts and selected story summaries are sent to this provider.
       </p>
       <form method="post"
@@ -17,6 +17,11 @@
             hx-select="#settings-container"
             hx-swap="outerHTML"
             data-testid="settings-chat-form">
+        {{ form_select('API format', 'settings[chat_llm_api_format]', current_settings.chat_llm_api_format, options=[{'id': 'responses', 'name': 'Responses'}, {'id': 'chat_completions', 'name': 'Chat Completions (Mistral and compatible providers)'}], data_testid='settings-chat-api-format') }}
+        <p class="text-sm text-base-content/70 mb-4">
+          For Mistral, select Chat Completions, use https://api.mistral.ai/v1 and model zai-glm-5-2.
+          Enter the base URL without /responses or /chat/completions.
+        </p>
         {{ form_input('Provider base URL', 'settings[chat_llm_base_url]', current_settings.chat_llm_base_url, type='url', required=False, preserve=False, placeholder='https://provider.example/v1', data_testid='settings-chat-base-url') }}
         {{ form_input('Model', 'settings[chat_llm_model]', current_settings.chat_llm_model, required=False, preserve=False, placeholder='Provider default', data_testid='settings-chat-model') }}
         {{ form_input('API key', 'settings[chat_llm_api_key]', '', type='password', required=False, preserve=False, placeholder='Leave blank to keep the saved key', data_testid='settings-chat-api-key') }}
