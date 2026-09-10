@@ -5,6 +5,9 @@ import pytest
 from mockssh.server import SERVER_KEY_PATH
 
 
+pytestmark = pytest.mark.filterwarnings("error::pytest.PytestUnhandledThreadExceptionWarning")
+
+
 @pytest.mark.parametrize("accept_any", [False, True], ids=["pinned-key", "accept-any-key"])
 def test_sftp_publisher_publish(sftp_publisher, get_product_mock, sftp_mock, accept_any):
     from tests.publishers.publishers_data import product_text
