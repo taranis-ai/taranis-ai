@@ -207,14 +207,21 @@ def test_rss_last_modified_validator_is_sent_to_secondary_resources(rss_collecto
         assert request.headers["If-Modified-Since"] == stored_validators["last_modified"]
 
 
-def test_rss_collector_digest_splitting(rss_collector_mock, rss_collector):
+@pytest.mark.parametrize("entry_limit", [1, 3, 42])
+def test_rss_collector_digest_splitting(rss_collector_mock, rss_collector, entry_limit):
+    from copy import deepcopy
+
     from tests.testdata import rss_collector_source_data
 
+    rss_collector_source_data = deepcopy(rss_collector_source_data)
+    rss_collector_source_data["rss_collector_max_entries"] = entry_limit
     rss_collector_source_data["parameters"]["DIGEST_SPLITTING"] = True
     rss_collector_source_data["parameters"]["DIGEST_SPLITTING_LIMIT"] = 2
     result = rss_collector.collect(rss_collector_source_data)
 
     assert result is None
+    assert rss_collector.skipped_entries == max(0, 3 - entry_limit)
+    assert bool(rss_collector.entry_limit_warning) == (entry_limit < 3)
 
 
 def test_rss_collector_with_additional_headers(rss_collector_mock, rss_collector):

@@ -27,6 +27,7 @@ def _task_stats_page(task_history: TaskHistoryResponse) -> CacheObject:
             "last_run": stats.last_run,
             "last_success": stats.last_success,
             "successes": stats.successes,
+            "warnings": stats.warnings,
             "failures": stats.failures,
             "success_pct": stats.success_pct,
         }
@@ -84,7 +85,7 @@ class SchedulerView(AdminBaseView):
             queues = persistence.get_objects(QueueStatus)
             worker_stats = persistence.get_object(WorkerStats)
             jobs = active_jobs = failed_jobs = task_stats = None
-            total_successes = total_failures = overall_success_rate = 0
+            total_successes = total_warnings = total_failures = overall_success_rate = 0
 
             paging_data = parse_paging_data()
             match selected_tab:
@@ -100,6 +101,7 @@ class SchedulerView(AdminBaseView):
                         raise ValueError("Failed to load scheduler execution history")
                     task_stats = _task_stats_page(history)
                     total_successes = history.totals.successes
+                    total_warnings = history.totals.warnings
                     total_failures = history.totals.failures
                     overall_success_rate = history.totals.overall_success_rate
 
@@ -113,6 +115,7 @@ class SchedulerView(AdminBaseView):
                     "failed_jobs": failed_jobs,
                     "task_stats": task_stats,
                     "total_successes": total_successes,
+                    "total_warnings": total_warnings,
                     "total_failures": total_failures,
                     "overall_success_rate": overall_success_rate,
                     "initial_tab": selected_tab,
@@ -212,6 +215,7 @@ class ScheduleHistoryAPI(MethodView):
                 "schedule/execution_history.html",
                 task_stats=_task_stats_page(task_history),
                 total_successes=task_history.totals.successes,
+                total_warnings=task_history.totals.warnings,
                 total_failures=task_history.totals.failures,
                 overall_success_rate=task_history.totals.overall_success_rate,
             )
