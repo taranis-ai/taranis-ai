@@ -634,6 +634,7 @@ class ChatService:
             if filters.story_ids and filters.to_query_params().keys() - {"story_ids", "sort"}:
                 raise ValueError
         except (TypeError, ValueError) as exc:
+            logger.debug("Chat provider rejected search filter arguments: %r", arguments)
             logger.warning("Chat provider returned invalid search filters")
             raise ChatProviderError("Chat provider returned invalid search filters") from exc
         return filters

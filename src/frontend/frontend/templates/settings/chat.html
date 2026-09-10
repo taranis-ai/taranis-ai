@@ -17,10 +17,11 @@
             hx-select="#settings-container"
             hx-swap="outerHTML"
             data-testid="settings-chat-form">
-        {{ form_select('API format', 'settings[chat_llm_api_format]', current_settings.chat_llm_api_format, options=[{'id': 'responses', 'name': 'Responses'}, {'id': 'chat_completions', 'name': 'Chat Completions (Mistral and compatible providers)'}], data_testid='settings-chat-api-format') }}
+        {{ form_select('API format', 'settings[chat_llm_api_format]', current_settings.chat_llm_api_format, options=[{'id': 'responses', 'name': 'Responses'}, {'id': 'chat_completions', 'name': 'Chat Completions'}], data_testid='settings-chat-api-format') }}
         <p class="text-sm text-base-content/70 mb-4">
-          For Mistral, select Chat Completions, use https://api.mistral.ai/v1 and model zai-glm-5-2.
-          Enter the base URL without /responses or /chat/completions.
+          Choose the API format supported by your provider and model: Responses uses /responses;
+          Chat Completions uses /chat/completions. Both require support for function calling.
+          Enter only the base URL; the selected endpoint is added automatically.
         </p>
         {{ form_input('Provider base URL', 'settings[chat_llm_base_url]', current_settings.chat_llm_base_url, type='url', required=False, preserve=False, placeholder='https://provider.example/v1', data_testid='settings-chat-base-url') }}
         {{ form_input('Model', 'settings[chat_llm_model]', current_settings.chat_llm_model, required=False, preserve=False, placeholder='Provider default', data_testid='settings-chat-model') }}
