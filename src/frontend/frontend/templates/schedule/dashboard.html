@@ -37,7 +37,7 @@
               </svg>
               Scheduled Jobs
             </h2>
-            {% if current_tab == 'scheduled' %}
+            {% if current_tab == "scheduled" %}
               {% include "schedule/jobs_table.html" %}
             {% else %}
               {{ refreshable_table_placeholder('scheduled-jobs-table', url_for('admin.scheduler_jobs_table')) }}
@@ -56,7 +56,7 @@
               </svg>
               Currently Running
             </h2>
-            {% if current_tab == 'active' %}
+            {% if current_tab == "active" %}
               {% include "schedule/active_jobs.html" %}
             {% else %}
               {{ refreshable_table_placeholder('active-jobs-table', url_for('admin.scheduler_active_jobs')) }}
@@ -76,7 +76,7 @@
               Queue Failures
             </h2>
             <p class="text-sm opacity-70">Jobs currently held in the RQ failed-job registry.</p>
-            {% if current_tab == 'failed' %}
+            {% if current_tab == "failed" %}
               {% include "schedule/failed_jobs.html" %}
             {% else %}
               {{ refreshable_table_placeholder('failed-jobs-table', url_for('admin.scheduler_failed_jobs')) }}
@@ -95,7 +95,7 @@
               </svg>
               Execution History
             </h2>
-            {% if current_tab == 'history' %}
+            {% if current_tab == "history" %}
               {% include "schedule/execution_history.html" %}
             {% else %}
               {{ refreshable_table_placeholder('execution-history', url_for('admin.scheduler_history')) }}
