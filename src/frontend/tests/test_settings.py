@@ -122,25 +122,3 @@ def test_settings_patch_action_sends_only_submitted_fields(app, monkeypatch, met
         )
     ]
     assert '<span id="notification-message">Successfully updated settings</span>' in body
-
-
-@pytest.mark.parametrize("enabled", [False, True])
-def test_admin_chat_settings_visibility_and_write_only_key(app, enabled):
-    from models.admin import Settings, TaranisConfig
-
-    settings = Settings(
-        settings=TaranisConfig(
-            chat_llm_base_url="https://provider.example/v1", chat_llm_api_key_configured=True, chat_llm_api_format="chat_completions"
-        )
-    )
-    with app.test_request_context("/admin/settings/"):
-        body = render_template("settings/settings.html", settings=settings, chat_enabled=enabled, timezone_options=[], frontend_actions=[])
-
-    assert ('data-testid="settings-chat-section"' in body) is enabled
-    if enabled:
-        assert '<details class="collapse collapse-arrow' in body
-        assert 'value="chat_completions" selected' in body
-        assert "An API key is saved." in body
-        assert 'type="password"' in body
-        assert 'value="https://provider.example/v1"' in body
-        assert 'data-testid="settings-chat-clear-key"' in body

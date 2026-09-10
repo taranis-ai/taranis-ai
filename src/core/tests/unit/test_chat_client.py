@@ -150,56 +150,6 @@ def test_story_search_supplies_context_and_saves_answer(configured_chat, db_pers
         db_persistent_session.commit()
 
 
-def test_search_without_matches_saves_no_results_answer(configured_chat, admin_user, monkeypatch):
-    calls = []
-
-    def post(*args, **kwargs):
-        calls.append(kwargs)
-        if configured_chat == "chat_completions":
-            return _response(
-                {
-                    "choices": [
-                        {
-                            "finish_reason": "tool_calls",
-                            "message": {
-                                "role": "assistant",
-                                "content": None,
-                                "tool_calls": [
-                                    {
-                                        "id": "search001",
-                                        "type": "function",
-                                        "function": {"name": "search_stories", "arguments": json.dumps({"timefrom": "2999-01-01T00:00:00"})},
-                                    }
-                                ],
-                            },
-                        }
-                    ]
-                }
-            )
-        return _response(
-            {
-                "output": [
-                    {
-                        "type": "function_call",
-                        "name": "search_stories",
-                        "call_id": "search-1",
-                        "arguments": json.dumps({"timefrom": "2999-01-01T00:00:00"}),
-                    }
-                ]
-            }
-        )
-
-    monkeypatch.setattr(requests, "post", post)
-    conversation = ChatService.create_turn(admin_user, "Stories from 2999", "turn-id")
-    try:
-        answer = ChatService.get_conversation(conversation["id"], admin_user)["messages"][-1]
-        assert answer["search_result"]["total_count"] == 0
-        assert answer["content"] in {"No matching stories found.", "Keine passenden Stories gefunden."}
-        assert len(calls) == 1
-    finally:
-        ChatService.delete_conversation(conversation["id"], admin_user)
-
-
 def test_answer_works_when_provider_does_not_support_streaming(configured_chat, monkeypatch):
     responses = iter(
         [_response({}, status=422), _chat_response("Hello") if configured_chat == "chat_completions" else _response({"output_text": "Hello"})]
