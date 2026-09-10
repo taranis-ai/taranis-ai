@@ -330,8 +330,10 @@ class TestEndToEndUser(BaseE2ETest):
 
         def access_story():
             target_title = pre_seed_stories[0]["title"]
-            page.get_by_placeholder("Search stories").fill(target_title)
-            page.get_by_placeholder("Search stories").press("Enter")
+            search = page.get_by_placeholder("Search stories")
+            search.fill(target_title)
+            expect(page.locator("#story-list article[data-story-id]")).to_have_count(1)
+            with_htmx_wait(page, search.blur)
 
             story = page.locator("article", has=page.get_by_test_id("story-title").filter(has_text=target_title)).first
             expect(story).to_be_visible()

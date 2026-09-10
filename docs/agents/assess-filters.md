@@ -14,11 +14,10 @@ Assess sidebar/search/default filters, `/assess`, `/api/assess/filter-lists`, om
 - Paged navigation replaces `#story-list` and out-of-band `#story-pagination`, scrolls to the top, and keeps the sticky top bar mounted. Errors notify without replacing/appending stories. Stable search-input IDs preserve focus.
 - `Shift+Space` prevents native page-up on keydown and performs read/unread on keyup only with a selection. Bookmark detail shares this behavior and the [global shortcut/selection rules](frontend-development.md).
 - Successful clustering replaces the saved Assess selection with the first story in the submitted dialog order before the list swap; merged-away IDs must not survive into the next action. Failed clustering preserves selection and the open dialog. `test_user_assess` in `test_e2e_user.py` requires three cards and performs two merges, checking the surviving selection and removal of each secondary card.
-- The Assess count wrapper is visible before Alpine fills in the visible story count. Browser tests use `_get_assess_story_counts` to wait for both counts before parsing; wrapper visibility alone is insufficient.
-
-`AssessSearchFilters` defines the canonical Assess story filter fields, multi-value fields, validation, and query serialization used by the core Assess endpoint, frontend saved filters, and Analyst Chat. Paging and internal query controls remain separate. Core additionally validates model-proposed source, group, tag, language, and recent-story references against the current user's visible catalog before calling `Story.get_by_filter(filter_args, current_user)`. Chat search-result links reuse the canonical `/assess` query shape with doseq encoding for multi-value filters.
-
-Chat must never turn a model-proposed filter into raw SQL or bypass server-side catalog validation.
+- Browser tests use `_get_assess_story_counts` to wait for both Alpine-populated counts; wrapper visibility is insufficient.
+- Search submits on debounce and changed-value blur. Before opening card menus, tests wait for filtering and the blur-triggered HTMX request; an already-visible story does not prove completion.
+- `AssessSearchFilters` owns filter validation and serialization for Core, saved filters, and Chat; paging/internal controls stay separate. Chat links use canonical `/assess` queries with doseq encoding.
+- Before `Story.get_by_filter(filter_args, current_user)`, Core validates model-proposed source, group, tag, language, and recent-story references against the user's visible catalog. Chat must never bypass this validation or turn proposed filters into raw SQL.
 
 ## Entry Points
 
@@ -26,7 +25,6 @@ Chat must never turn a model-proposed filter into raw SQL or bypass server-side 
 - Contract: `src/models/models/assess.py`
 - Frontend: `src/frontend/frontend/views/story_views.py` (`get_filter_lists`), `src/frontend/frontend/views/dashboard_views.py`, `src/frontend/frontend/omnisearch.py`
 - Templates: `src/frontend/frontend/templates/assess/sidebar/`, `src/frontend/frontend/templates/assess/saved_filter_cards.html`
-
 - Chat: `src/core/core/service/chat.py`, `src/frontend/frontend/views/chat_views.py`
 
 ## Coverage
