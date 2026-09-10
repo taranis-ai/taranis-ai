@@ -113,11 +113,18 @@ class TestAdminApi(BaseTest):
             ("chat_max_stories", 21),
             ("chat_max_stories", -1),
             ("chat_llm_base_url", "file:///tmp/provider"),
+            ("chat_llm_base_url", "https://provider.example:invalid"),
+            ("chat_llm_base_url", "https://provider.example:70000"),
             ("chat_llm_base_url", "https://user:password@provider.example"),
             ("chat_llm_api_key", 123),
         ],
     )
     def test_chat_settings_reject_invalid_values(self, client, auth_header, key, value):
+        from core.model.settings import Settings
+
+        with pytest.raises((TypeError, ValueError)):
+            Settings({key: value})
+
         response = client.patch(self.concat_url("settings"), json={"settings": {key: value}}, headers=auth_header)
         assert response.status_code == 400
         assert response.get_json()["error"] == "Invalid chat settings"
