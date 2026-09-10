@@ -20,9 +20,14 @@ def test_my_tasks_renders_standard_table_for_basic_user(authenticated_client_bas
     failed = _task_payload("task-failed")
     failed["status"] = "FAILURE"
     failed["result"] = {"message": "Rendering failed", "reason": "render_failed", "retryable": True}
+    warning = _task_payload("task-warning")
+    warning["status"] = "WARNING"
+    warning["result"]["message"] = (
+        "Only 2 entries were considered, in the order provided by the feed (starting at the top). 1 additional entries were skipped."
+    )
     responses_mock.get(
         f"{Config.TARANIS_CORE_URL}/tasks/user",
-        json={"items": [_task_payload(), failed], "total_count": 2},
+        json={"items": [_task_payload(), failed, warning], "total_count": 3},
     )
     with authenticated_client_basic.application.app_context():
         url = url_for("user.tasks")
@@ -34,6 +39,9 @@ def test_my_tasks_renders_standard_table_for_basic_user(authenticated_client_bas
     assert "Pdf Presenter" in body
     assert "Product rendered" in body
     assert "Success" in body
+    assert "Warning" in body
+    assert "badge-warning" in body
+    assert warning["result"]["message"] in body
     assert "Failed" in body
     assert "Rendering failed" in body
     assert "Render Failed" in body

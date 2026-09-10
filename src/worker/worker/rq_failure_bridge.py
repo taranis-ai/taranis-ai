@@ -11,7 +11,7 @@ from worker.http_client import http_session_scope
 from worker.log import logger
 
 
-TERMINAL_TASK_STATUSES = {"SUCCESS", "FAILURE", "NOT_MODIFIED", "PREVIEW"}
+TERMINAL_TASK_STATUSES = {"SUCCESS", "WARNING", "FAILURE", "NOT_MODIFIED", "PREVIEW"}
 
 
 @http_session_scope()

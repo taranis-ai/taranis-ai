@@ -7,7 +7,7 @@ RSS/Simple Web conditional requests, ETag/Last-Modified, 304 results, collector 
 ## Contracts
 
 - Scheduled collection replays stored validators only when the configured primary URL still matches. Manual runs bypass conditional headers. ETags (including weak tags) are opaque and apply only to the primary URL; its Last-Modified is replayed on all direct/browser GETs, including articles, digests, attachments, and icons.
-- Only a primary-resource 200 replaces validators. A 304 preserves them and reports `NOT_MODIFIED`, except it must retain a preceding failure or the `rss_feed_empty` reason/message. Unchanged content cannot prove recovery.
+- Only a primary-resource 200 replaces validators. A primary-resource 304 preserves them and reports `NOT_MODIFIED`, except it must retain a preceding failure, the `rss_feed_empty` reason/message, or an RSS entry-limit `WARNING` for the same URL. Unchanged content cannot prove recovery. `HTTPNotModifiedError` identifies the URL and whether it is the primary resource; duplicate-only publication and secondary-resource 304s do not retain prior source health.
 - Validator state is source-keyed runtime data, independent of task retention, exposed as worker-only `http_validators` and returned in task results. Do not put it in editable parameters or derive it from task times.
 - Fetch/parse/publish failures propagate to `collector_task`, persist FAILURE, and prevent post-collection bots. Cleanup must still run and must not return from `finally`.
 
@@ -27,4 +27,4 @@ Ignore invalid Last-Modified dates. Parsed offset-aware dates become naive UTC; 
 
 Worker: `src/worker/worker/collectors/base_web_collector.py`, `rss_collector.py`, `simple_web_collector.py`, and `collector_tasks.py` in that directory. Core: `src/core/core/model/osint_source.py`, `src/core/core/service/task.py`.
 
-Tests: `src/worker/tests/collectors/test_collector.py`, `src/worker/tests/collectors/test_collector_tasks.py`, `src/core/tests/application/worker_pipeline/test_worker_api.py`. Scheduled collector E2E accepts SUCCESS and NOT_MODIFIED terminal outcomes. See [RSS Source Health](rss-source-health.md) for feed validation.
+Tests: `src/worker/tests/collectors/test_collector.py`, `src/worker/tests/collectors/test_collector_tasks.py`, `src/core/tests/application/worker_pipeline/test_worker_api.py`. Scheduled collector E2E accepts SUCCESS, NOT_MODIFIED, and WARNING terminal outcomes. See [RSS Source Health](rss-source-health.md) for feed validation.

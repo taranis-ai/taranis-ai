@@ -41,6 +41,7 @@ class RSSCollector(BaseWebCollector):
         self.language: str = ""
         self.use_feed_content: bool = False
         self.max_entries: int = 42
+        self.skipped_entries: int | None = None
 
         logger_trafilatura: logging.Logger = logging.getLogger("trafilatura")
         logger_trafilatura.setLevel(logging.WARNING)
@@ -49,6 +50,7 @@ class RSSCollector(BaseWebCollector):
         return params.get("USE_FEED_CONTENT", False)
 
     def parse_source(self, source: dict):
+        self.skipped_entries = None
         super().parse_source(source)
         params = source.get("parameters", {})
 
@@ -58,6 +60,15 @@ class RSSCollector(BaseWebCollector):
 
         self.use_feed_content = self._determine_use_feed_content(params)
         self.max_entries = source.get("rss_collector_max_entries", 42)
+
+    @property
+    def entry_limit_warning(self) -> str | None:
+        if self.skipped_entries:
+            return (
+                f"Only {self.max_entries} entries were considered, in the order provided by the feed (starting at the top). "
+                f"{self.skipped_entries} additional entries were skipped."
+            )
+        return None
 
     def collect(self, source: dict, manual: bool = False):
         self.parse_source(source)
@@ -250,6 +261,7 @@ class RSSCollector(BaseWebCollector):
         updated = str(feed_metadata.get("updated") or "").strip()
         feed_updated = parse_datetime(updated) if updated else None
         feed_entries = feed["entries"][: self.max_entries]
+        self.skipped_entries = len(feed["entries"]) - len(feed_entries)
 
         if self.digest_splitting:
             return self.handle_digests(feed_entries, feed_updated)
