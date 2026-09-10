@@ -348,7 +348,73 @@ class TestRBACAclBehavior:
         db.session.commit()
         assert item.allowed_with_acl(user, require_write_access=True)
 
-    def test_story_bot_action_rejects_read_only_source_access(self, client, session, auth_header_user_permissions, monkeypatch):
+    @pytest.mark.parametrize("operation", ["put", "patch", "reorder"])
+    def test_story_updates_require_write_access_and_tlp(self, client, session, auth_header_user_permissions, operation):
+        from core.model.role import Role
+        from core.model.role_based_access import ItemType
+        from core.model.story import Story
+        from tests.application.support.builders import build_news_item_payload, create_story
+
+        source, story, _ = create_rbac_source_story("order-write")
+        other_source, other, _ = create_rbac_source_story("order-other")
+        Story.group_stories([story.id, other.id])
+        user_role = Role.filter_by_name("User")
+        grant_acl(user_role, ItemType.OSINT_SOURCE, source.id, read_only=False)
+        other_acl = grant_acl(user_role, ItemType.OSINT_SOURCE, other_source.id, read_only=True)
+        suffix = "/news-item-order" if operation == "reorder" else ""
+        endpoint = f"/api/assess/stories/{story.id}{suffix}"
+        send = client.patch if operation == "patch" else client.put
+        ids = [item.id for item in story.ordered_news_items]
+        payload = {"news_item_ids": list(reversed(ids)), "expected_news_item_ids": ids}
+
+        if operation != "reorder":
+            payload = {"title": "Updated story"}
+        original_title = story.title
+        detail_url = f"/api/assess/stories/{story.id}"
+        assert client.get(detail_url, headers=auth_header_user_permissions).json["can_edit"] is False
+        assert send(endpoint, headers=auth_header_user_permissions, json=payload).status_code == 403
+        db.session.refresh(story)
+        assert story.title == original_title
+        assert [item.id for item in story.ordered_news_items] == ids
+        other_acl.read_only = False
+        db.session.commit()
+        permissions = list(user_role.permissions)
+        user_role.permissions = [permission for permission in permissions if permission.code != "ASSESS_UPDATE"]
+        db.session.commit()
+        assert client.get(detail_url, headers=auth_header_user_permissions).json["can_edit"] is False
+        user_role.permissions = permissions
+        db.session.commit()
+        assert client.get(detail_url, headers=auth_header_user_permissions).json["can_edit"] is True
+        assert send(endpoint, headers=auth_header_user_permissions, json=payload).status_code == 200
+
+        from core.model.news_item_attribute import NewsItemAttribute
+
+        story.upsert_attribute(NewsItemAttribute(key="rt_id", value="123"))
+        db.session.commit()
+        assert client.get(detail_url, headers=auth_header_user_permissions).json["can_edit"] is False
+        assert send(endpoint, headers=auth_header_user_permissions, json=payload).status_code == 403
+        item_url = f"/api/assess/news-items/{story.news_items[0].id}"
+        assert client.put(item_url, headers=auth_header_user_permissions, json={"title": "Blocked"}).status_code == 403
+        assert client.put(f"{item_url}/tags", headers=auth_header_user_permissions, json=[]).status_code == 403
+
+        restricted = create_story(news_items=[build_news_item_payload(source.id)], attributes=[{"key": "TLP", "value": "red"}])
+        from core.model.news_item_attribute import NewsItemAttribute
+
+        restricted.upsert_attribute(NewsItemAttribute(key="TLP", value="red"))
+        db.session.commit()
+        restricted_ids = [item.id for item in restricted.news_items]
+        restricted_payload = (
+            {"news_item_ids": restricted_ids, "expected_news_item_ids": restricted_ids} if operation == "reorder" else {"title": "Blocked"}
+        )
+        response = send(
+            f"/api/assess/stories/{restricted.id}{suffix}",
+            headers=auth_header_user_permissions,
+            json=restricted_payload,
+        )
+        assert response.status_code == 403
+
+    @pytest.mark.parametrize("rt_managed", [False, True])
+    def test_story_bot_action_rejects_read_only_source_access(self, client, session, auth_header_user_permissions, monkeypatch, rt_managed):
         from core.model.permission import Permission
         from core.model.role import Role
         from core.model.role_based_access import ItemType
@@ -356,7 +422,11 @@ class TestRBACAclBehavior:
         source, story, _ = create_rbac_source_story("bot-action-read-only")
         user_role = Role.filter_by_name("User")
         assert user_role is not None
-        grant_acl(user_role, ItemType.OSINT_SOURCE, source.id, read_only=True)
+        grant_acl(user_role, ItemType.OSINT_SOURCE, source.id, read_only=not rt_managed)
+        if rt_managed:
+            from core.model.news_item_attribute import NewsItemAttribute
+
+            story.upsert_attribute(NewsItemAttribute(key="rt_id", value="123"))
         for permission in Permission.get_bulk(["ASSESS_UPDATE"]):
             if permission not in user_role.permissions:
                 user_role.permissions.append(permission)

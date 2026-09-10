@@ -4,10 +4,12 @@ from typing import Any
 from urllib.parse import parse_qs, urlparse
 from uuid import UUID
 
+import pytest
 from flask import render_template, render_template_string, url_for
 from lxml import html
 from models.assess import FilterLists, Story, StoryUpdatePayload
 from models.user import AssessSavedFilter
+from requests import RequestException
 from werkzeug.datastructures import MultiDict
 from werkzeug.exceptions import Forbidden
 
@@ -18,6 +20,22 @@ from frontend.views.story_views import ASSESS_SAVED_FILTER_SESSION_KEY, StoryVie
 
 def expected_search_trigger(input_id: str) -> str:
     return f"input changed delay:500ms from:#{input_id}, search from:#{input_id}"
+
+
+def test_news_item_order_returns_local_safe_error_when_core_is_unavailable(authenticated_client_basic, responses_mock, htmx_header):
+    responses_mock.put(
+        f"{Config.TARANIS_CORE_URL}/assess/stories/story-1/news-item-order",
+        body=RequestException("private connection details"),
+    )
+    response = authenticated_client_basic.post(
+        "/story/story-1/news-item-order",
+        headers=htmx_header,
+        data={"news_item_ids": ["item-2", "item-1"], "expected_news_item_ids": ["item-1", "item-2"]},
+    )
+    assert response.status_code == 503
+    assert b"Unable to save news item order" in response.data
+    assert b"private connection details" not in response.data
+    assert b"story-edit-form" not in response.data
 
 
 def mock_story_for_edit(responses_mock, story_payload: dict):
@@ -35,6 +53,7 @@ def story_with_news_item_tags() -> dict:
     return {
         "id": "story-1",
         "title": "Tagged Story",
+        "can_edit": True,
         "description": "Story description",
         "summary": "Story summary",
         "comments": "Story comment",
@@ -325,7 +344,20 @@ def test_story_update_redirects_to_story_without_htmx(authenticated_client, resp
     assert json.loads(responses_mock.calls[0].request.body) == {"read": True}
 
 
-def test_story_edit_standard_post_updates_and_redirects(authenticated_client, responses_mock):
+@pytest.mark.parametrize("can_update", [True, False])
+def test_story_edit_standard_post_updates_and_redirects(authenticated_client, auth_user, responses_mock, can_update):
+    if not can_update:
+        reader = auth_user.model_copy(deep=True)
+        reader.permissions = ["ASSESS_ACCESS"]
+        add_user_to_cache(reader.model_dump(mode="json"))
+        for endpoint, methods in (("assess.story_edit", ("GET", "POST", "PUT")), ("assess.story_news_item_order", ("GET", "POST"))):
+            for method in methods:
+                assert authenticated_client.open(url_for(endpoint, story_id="story-1"), method=method).status_code == 403
+        mock_story_for_edit(responses_mock, story_with_news_item_tags())
+        responses_mock.get(f"{Config.TARANIS_CORE_URL}/assess/bookmarks", json={"items": [], "total_count": 0})
+        assert authenticated_client.get(url_for("assess.story", story_id="story-1")).status_code == 200
+        return
+
     responses_mock.patch(
         f"{Config.TARANIS_CORE_URL}/assess/stories/story-1",
         json={"message": "Story updated"},
@@ -456,8 +488,10 @@ def test_manual_news_item_validation_error_targets_notification_bar(authenticate
     assert "Invalid BCP 47 language tag" in notification_bar.text_content()
 
 
-def test_story_edit_renders_news_item_tag_editor(app, authenticated_client, responses_mock):
+@pytest.mark.parametrize("can_edit", [True, False])
+def test_story_edit_renders_news_item_tag_editor(app, authenticated_client, responses_mock, can_edit):
     story_payload = story_with_news_item_tags()
+    story_payload["can_edit"] = can_edit
     mock_story_for_edit(responses_mock, story_payload)
     csrf_token = "csrf-token"
     authenticated_client.set_cookie(key=app.config["JWT_ACCESS_CSRF_COOKIE_NAME"], value=csrf_token)
@@ -467,14 +501,15 @@ def test_story_edit_renders_news_item_tag_editor(app, authenticated_client, resp
     assert response.status_code == 200
     tree = html.fromstring(response.text)
 
-    assert tree.xpath('//*[@data-testid="edit-newsitem-tags"]')
-    assert tree.xpath('//*[@data-testid="news-item-tag-name-input"]')
+    assert bool(tree.xpath('//*[@data-testid="edit-newsitem-tags"]')) is can_edit
+    assert bool(tree.xpath('//*[@data-testid="news-item-tag-name-input"]')) is can_edit
     assert "keydown[canUseAssessShortcut(event, 'r')]" in response.text
-    assert "resetTags(); tagEditorOpen = false" in response.text
+    assert ("resetTags(); tagEditorOpen = false" in response.text) is can_edit
     assert not tree.xpath('//*[@data-testid="tag-name-input"]')
     assert not tree.xpath('//*[@data-testid="tag-value-input"]')
 
     edit_form = tree.xpath('//form[@id="story-edit-form"]')[0]
+    assert bool(edit_form.xpath("./fieldset[@disabled]")) is not can_edit
     assert edit_form.get("method") == "post"
     assert edit_form.get("action") == url_for("assess.story_edit", story_id=story_payload["id"])
     assert edit_form.get("hx-post") == edit_form.get("action")
@@ -546,7 +581,7 @@ def test_story_edit_misp_auto_update_controls_require_connector_access(authentic
     )
 
     connector_user = auth_user.model_copy(deep=True)
-    connector_user.permissions = ["CONNECTOR_USER_ACCESS"]
+    connector_user.permissions = ["ASSESS_UPDATE", "CONNECTOR_USER_ACCESS"]
     add_user_to_cache(connector_user.model_dump(mode="json"))
 
     response = authenticated_client.get(url_for("assess.story_edit", story_id=story_payload["id"], layout="advanced"))

@@ -1,3 +1,6 @@
+import json
+from copy import deepcopy
+
 import pytest
 
 from core.model.story_conflict import StoryConflict
@@ -42,6 +45,7 @@ def story_data_2():
 @pytest.fixture
 def original_story():
     return {
+        "news_items": [{"id": "b", "title": "Second"}, {"id": "a", "title": "First"}],
         "title": "Breaking News Story",
         "description": "Important news",
         "tags": {
@@ -60,6 +64,7 @@ def original_story():
 @pytest.fixture
 def updated_story():
     return {
+        "news_items": [{"id": "a", "title": "First"}, {"id": "b", "title": "Second"}],
         "title": "Breaking News Story",
         "description": "Important news",
         "tags": {
@@ -83,8 +88,20 @@ class TestStoryConflictSorting:
         assert result_1 == result_2, "Same data with different order should produce identical strings"
 
     def test_normalize_data_handles_different_ordering(self, original_story, updated_story):
+        original = deepcopy(original_story)
         normalized_original, normalized_updated = StoryConflict.normalize_data(original_story, updated_story)
 
         assert normalized_original == normalized_updated, (
             "Stories with same content but different order should normalize to identical strings"
         )
+        assert original_story == original
+        assert [item["id"] for item in json.loads(normalized_original)["news_items"]] == ["a", "b"]
+        updated_story["news_items"][0]["title"] = "Edited"
+        before, after = StoryConflict.normalize_data(original_story, updated_story)
+        assert before != after
+
+        for items in ([None], [None, {"id": "a"}], ["invalid", 42]):
+            updated_story["news_items"] = items
+            before, after = StoryConflict.normalize_data(original_story, updated_story)
+            assert json.loads(after)["news_items"] == items
+            assert before != after

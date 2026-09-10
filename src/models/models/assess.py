@@ -200,6 +200,8 @@ class MispAutoUpdatePayload(TaranisBaseModel):
 
 
 class Story(TaranisBaseModel):
+    can_edit: bool = False
+
     _core_endpoint = "/assess/stories"
     _model_name = "story"
     _pretty_name = "Story"
@@ -325,6 +327,13 @@ class StoryBookmark(StoryBookmarkBase):
     story_count: int = 0
     story_ids: list[str] = Field(default_factory=list)
     stories: list[Story] = Field(default_factory=list)
+
+
+class StoryNewsItemOrderPayload(TaranisBaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    news_item_ids: list[str]
+    expected_news_item_ids: list[str]
 
 
 class StoryUpdatePayload(TaranisBaseModel):

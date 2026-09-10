@@ -33,7 +33,7 @@
             {{ heroicon_mini("document-magnifying-glass", class="h-4 w-4") }}
             <span>CTI</span>
           </a>
-          {% if news_item.source == "manual" %}
+          {% if story.can_edit and news_item.source == "manual" %}
             <a class="btn btn-sm btn-outline"
                data-testid="edit-newsitem-{{ news_item.id }}"
                href="{{ url_for('assess.get_news_item', news_item_id=news_item.id) }}">Edit</a>
