@@ -33,6 +33,7 @@ It requires a clean worktree, runs the full lint/unit/E2E pipeline, then pushes 
 
 ## Development Conventions
 
+- Root `README.md` is curated product documentation; edit it only when explicitly requested. Use scoped documentation for development and deployment changes. `.github/CODEOWNERS` assigns root `README.md` and the ownership file to `@b3n4kh`. On `master`, enable **Require review from Code Owners** and **Dismiss stale pull request approvals when new commits are pushed**; ownership rules take effect after the file reaches the PR's base branch. Stale approval dismissal applies to all PRs. GitHub requests Ben's review on ready-for-review PRs from other authors. His existing review bypass remains available to him, but agents must never use it for these files. GitHub cannot accept self-approval on PRs authored by his account, so those require his explicit manual decision.
 - Keep changes simple and focused. Prefer flat settings JSON and direct values; avoid forced DRY abstractions, unnecessary metadata, and compatibility aliases or migrations for unreleased branch-only behavior.
 - Use `fix/`, `feature/`, or `chore/` branch prefixes. Never use `git add -A`; stage intended files only.
 - Fix tests/lint before committing. Omit test-pass counts from commit messages and change-history comments from code.
