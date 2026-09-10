@@ -1,6 +1,8 @@
 import uuid
 from unittest.mock import Mock
 
+import pytest
+
 from core.managers.db_manager import db
 from core.model.role import TLPLevel
 from tests.application.support.rbac import (
@@ -14,6 +16,59 @@ from tests.application.support.rbac import (
 
 
 class TestRBAC:
+    @pytest.mark.parametrize("resource", ["report", "product"])
+    def test_delete_requires_object_write_access(self, client, session, auth_header_user_permissions, resource):
+        from core.model.permission import Permission
+        from core.model.product import Product
+        from core.model.product_type import ProductType
+        from core.model.role import Role
+        from core.model.role_based_access import ItemType
+
+        role = Role.filter_by_name("User")
+        assert role is not None
+        role.tlp_level = TLPLevel.RED
+        for permission in Permission.get_bulk(["ANALYZE_DELETE", "PUBLISH_DELETE"]):
+            if permission not in role.permissions:
+                role.permissions.append(permission)
+        if resource == "report":
+            item = create_rbac_report_item("delete-access", TLPLevel.AMBER)
+            item_type = ItemType.REPORT_ITEM_TYPE
+            type_id = item.report_item_type_id
+            url = f"/api/analyze/report-items/{item.id}"
+        else:
+            product_type = ProductType.filter_by_title("Default TEXT Presenter")
+            assert product_type is not None
+            item = Product(title="Delete access", product_type_id=product_type.id)
+            db.session.add(item)
+            db.session.commit()
+            item_type = ItemType.PRODUCT_TYPE
+            type_id = product_type.id
+            url = f"/api/publish/products/{item.id}"
+
+        acl = grant_acl(role, item_type, "unrelated-type")
+        item_id = item.id
+        for allowed_type in ["unrelated-type", type_id]:
+            acl.item_id = allowed_type
+            db.session.commit()
+            response = client.delete(url, headers=auth_header_user_permissions)
+            assert response.status_code == 403
+            assert response.json == {"error": f"User is not allowed to delete {resource}"}
+            assert type(item).get(item_id) is not None
+
+        acl.read_only = False
+        db.session.commit()
+        if resource == "report":
+            role.tlp_level = TLPLevel.CLEAR
+            db.session.commit()
+            assert client.delete(url, headers=auth_header_user_permissions).status_code == 403
+            assert type(item).get(item_id) is not None
+            role.tlp_level = TLPLevel.RED
+            db.session.commit()
+
+        assert client.delete(url, headers=auth_header_user_permissions).status_code == 200
+        assert type(item).get(item_id) is None
+        assert client.delete(url, headers=auth_header_user_permissions).status_code == 404
+
     def test_news_item_without_source_uses_default_tlp_setting(self, app):
         from core.model.news_item import NewsItem
         from core.model.settings import Settings

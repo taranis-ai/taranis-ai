@@ -2,7 +2,8 @@ import base64
 import json
 from typing import Any, ClassVar, Literal
 
-from flask import render_template, request, url_for
+from flask import redirect, render_template, request, url_for
+from flask.typing import ResponseReturnValue
 from models.admin import AdminMenuBadges, OSINTSource, OSINTSourceGroup
 from models.task import Task
 from models.types import COLLECTOR_TYPES
@@ -18,6 +19,7 @@ from frontend.data_persistence import DataPersistenceLayer
 from frontend.filters import render_source_parameter, render_truncated, render_worker_status
 from frontend.log import logger
 from frontend.utils.form_data_parser import parse_formdata
+from frontend.utils.router_helpers import is_htmx_request
 from frontend.utils.validation_helpers import format_pydantic_errors
 from frontend.views.admin_views.admin_base_view import AdminBaseView
 
@@ -39,6 +41,28 @@ class SourceView(AdminBaseView):
         COLLECTOR_TYPES.RT_COLLECTOR.value: "BASE_URL",
         COLLECTOR_TYPES.MISP_COLLECTOR.value: "URL",
     }
+
+    @staticmethod
+    def get_collection_period() -> Literal["day", "week", "month"]:
+        period = request.args.get("period", "week")
+        if period == "day":
+            return "day"
+        if period == "month":
+            return "month"
+        return "week"
+
+    @classmethod
+    def get_object_by_id(cls, object_id: str) -> OSINTSource | None:
+        result = CoreApi().api_get(
+            f"{cls.model._core_endpoint}/{object_id}",
+            params={"period": cls.get_collection_period()},
+        )
+        return OSINTSource(**result) if isinstance(result, dict) else None
+
+    @classmethod
+    def get_form_action(cls, object_id: str = "0") -> str:
+        action = super().get_form_action(object_id)
+        return f"{action}?period={cls.get_collection_period()}"
 
     @classmethod
     def get_admin_menu_badge(cls) -> int:
@@ -295,7 +319,7 @@ class SourceView(AdminBaseView):
         target_id = core_response.get("id") or object_id
         if cls.is_create_object_id(target_id):
             return cls.get_base_route()
-        return cls.get_edit_route(**{cls._get_object_key(): target_id})
+        return cls.get_edit_route(**{cls._get_object_key(): target_id}, period=cls.get_collection_period())
 
     @classmethod
     def process_form_data(cls, object_id: str):
@@ -442,11 +466,17 @@ class SourceView(AdminBaseView):
         return render_template("osint_source/osint_source_preview.html", task_result=task_result, osint_source_id=osint_source_id)
 
     @classmethod
-    def delete_view(cls, object_id: str) -> tuple[str, int]:
+    def delete_view(cls, object_id: str) -> ResponseReturnValue:
         force = request.values.get("force") == "true"
         dpl = DataPersistenceLayer()
         params = {"force": "true"} if force else None
         core_response = dpl.delete_object(cls.model, object_id, params=params)
+
+        if not is_htmx_request():
+            cls.add_flash_notification(core_response)
+            if core_response.ok:
+                cls._invalidate_model_cache(object_id)
+            return redirect(cls.get_base_route())
 
         response = cls.get_notification_from_response(core_response)
         if not core_response.ok:

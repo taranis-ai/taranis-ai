@@ -1,25 +1,44 @@
-from typing import IO, Any, cast
+from contextlib import ExitStack
+from typing import Any
 
 import requests
-from flask import Response, request
+from flask import Flask, Response, request
 from werkzeug.exceptions import Forbidden, HTTPException
-from werkzeug.wsgi import wrap_file
 
 from frontend.config import Config
 from frontend.log import logger
 
 
+def init_app(app: Flask) -> None:
+    app.teardown_request(close_sessions)
+
+
+def close_sessions(_error: BaseException | None = None) -> None:
+    with ExitStack() as cleanup:
+        for resource in request.environ.pop("taranis.core_downloads", {}).values():
+            cleanup.callback(resource.close)
+        for session in request.environ.pop("taranis.core_sessions", {}).values():
+            cleanup.callback(session.close)
+
+
 class CoreApi:
     def __init__(self, jwt_token: str | None = None):
-        self.session = requests.Session()
-        self.session.trust_env = Config.REQUESTS_TRUST_ENV
         self.api_url = Config.TARANIS_CORE_URL
-        self.jwt_token = self.get_jwt_from_request()
+        self.jwt_token = jwt_token if jwt_token is not None else self.get_jwt_from_request()
         self.headers = self.get_headers()
-        self.session.headers.update(self.headers)
         self.verify = Config.SSL_VERIFICATION
-        self.session.verify = self.verify
-        self.timeout = Config.REQUESTS_TIMEOUT
+        self.timeout = (min(5, Config.REQUESTS_TIMEOUT), Config.REQUESTS_TIMEOUT)
+        sessions = request.environ.setdefault("taranis.core_sessions", {})
+        if self.jwt_token not in sessions:
+            sessions[self.jwt_token] = self._new_session()
+        self.session = sessions[self.jwt_token]
+
+    def _new_session(self) -> requests.Session:
+        session = requests.Session()
+        session.trust_env = Config.REQUESTS_TRUST_ENV
+        session.verify = self.verify
+        session.headers.update(self.headers)
+        return session
 
     @staticmethod
     def _extract_forbidden_message(response: requests.Response) -> str:
@@ -103,7 +122,12 @@ class CoreApi:
 
     def api_download(self, endpoint: str, params: dict | None = None) -> requests.Response:
         url = f"{self.api_url}{endpoint}"
-        return self.session.get(url=url, headers=self.headers, timeout=self.timeout, params=params, stream=True)
+        # Downloads may outlive the request and therefore own a separate session.
+        with ExitStack() as resources:
+            session = resources.enter_context(self._new_session())
+            response = resources.enter_context(session.get(url=url, timeout=self.timeout, params=params, stream=True))
+            request.environ.setdefault("taranis.core_downloads", {})[id(response)] = resources.pop_all()
+            return response
 
     def export_users(self, user_ids=None):
         try:
@@ -259,19 +283,25 @@ class CoreApi:
     @staticmethod
     def stream_proxy(response: requests.Response, fallback_filename: str) -> Response:
         disposition = response.headers.get("Content-Disposition", f"attachment; filename={fallback_filename}")
+        resources = request.environ.get("taranis.core_downloads", {}).pop(id(response), None)
+        if resources is None:
+            resources = ExitStack()
+            resources.callback(response.close)
 
-        file_wrapper = wrap_file(
-            request.environ,
-            cast(IO[bytes], response.raw),
-        )
+        def stream():
+            try:
+                yield from response.iter_content(chunk_size=64 * 1024)
+            finally:
+                resources.close()
 
-        return Response(
-            file_wrapper,
+        proxied = Response(
+            stream(),
             status=response.status_code,
             content_type=response.headers.get("Content-Type", "application/octet-stream"),
             headers={"Content-Disposition": disposition},
-            direct_passthrough=True,
         )
+        proxied.call_on_close(resources.close)
+        return proxied
 
     def update_user_profile(self, form_data: dict) -> requests.Response:
         return self.api_post("/users/profile", json_data=form_data)

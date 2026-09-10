@@ -1,6 +1,5 @@
-import niquests as requests
-
 from worker.core_api import CoreApi
+from worker.http_client import http_request
 from worker.log import logger
 
 
@@ -24,7 +23,7 @@ def update_wordlist(word_list_id: str):
     word_list_name = word_list.get("name", f"word_list_{word_list_id}")
     url = word_list["link"]
     logger.info(f"Updating word list {word_list_name} ({word_list_id}) from {url}")
-    response = requests.get(url=url, timeout=60)
+    response = http_request("GET", url=url, external=True, timeout=60)
     if not response.ok:
         logger.error(f"Failed to download word list {word_list_name} ({word_list_id}) from {url}: {response.status_code}")
         raise RuntimeError(f"Failed to download word list {word_list_name} ({word_list_id}) from {url}: {response.status_code}")

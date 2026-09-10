@@ -170,3 +170,26 @@ docker exec -it core taranis-cli set-roles user Admin
 After updating the frontend image, check table search, sorting, page size, and pagination with JavaScript enabled and disabled. With JavaScript enabled, verify that search focus survives updates and failed requests display notifications without replacing the table.
 
 For dashboard updates, deploy matching core and frontend images so weekly activity fields are available. Check the four workflow cards, weekly counts, and permission-gated analyst review link. Verify that users without review permission have no empty header action area. No database migration is required.
+
+## SFTP publisher host trust
+
+Configure host trust in **Admin → Publisher Presets → SFTP Publisher → Optional settings**.
+Upload the server's `.pub` file or paste its OpenSSH public key (`key-type base64-key`,
+with an optional comment) into **Server host public key**. Verify its fingerprint with
+the server administrator through a trusted channel. The key applies to the destination
+in the SFTP URL, including non-default ports. Changed server keys fail publishing.
+The public key is stored in the preset's `HOST_KEY` parameter; no image changes,
+worker filesystem mounts, or restarts are needed when updating a key.
+
+Alternatively, explicitly enable **Accept any server host key (insecure)**
+(`ACCEPT_ANY_HOST_KEY=true`). This ignores any supplied key and disables server identity
+verification, allowing man-in-the-middle attacks. It defaults to false. Without a key
+or this explicit opt-in, configuration and publishing fail. The client authentication
+`PRIVATE_KEY` parameter is separate from the server's public host key.
+
+Deploy matching core, frontend, and worker images for these parameters. For existing
+SFTP presets, configure one of the two options before publishing; mounted `known_hosts`
+files are no longer used. Pull the selected published images, restart services, verify
+health, and publish a test product. No database migration is required. Before rolling
+back, export the presets and remove the new parameters for older schema versions;
+the prior worker version requires its documented `known_hosts` setup.

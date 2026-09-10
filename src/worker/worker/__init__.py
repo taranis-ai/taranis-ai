@@ -18,7 +18,6 @@ import redis
 from rq import Queue, SpawnWorker, Worker
 
 from worker.config import WORKER_TYPE_PRIORITIES, Config
-from worker.core_api import CoreApi
 from worker.log import logger
 from worker.rq_failure_bridge import rq_failure_exception_handler, rq_work_horse_killed_handler
 
@@ -66,9 +65,6 @@ def resolve_worker_class() -> type[Worker]:
 
 def start_worker():
     """Start RQ worker with configured queues."""
-    # Initialize core API for worker tasks to use
-    CoreApi()
-
     register_task_modules()
 
     queue_names = get_queues()
