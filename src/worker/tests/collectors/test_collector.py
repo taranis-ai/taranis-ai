@@ -3,9 +3,10 @@ import pytest
 
 from tests.testdata import news_items
 from worker.config import Config
+from worker.http_client import http_session_scope
 
 
-def test_base_web_collector_conditional_request(base_web_collector_mock, base_web_collector, requests_mock):
+def test_base_web_collector_conditional_request(base_web_collector_mock, base_web_collector, requests_mock, caplog):
     from worker.collectors.base_web_collector import NoChangeError
 
     response = base_web_collector.send_get_request("https://test.org/200")
@@ -30,6 +31,21 @@ def test_base_web_collector_conditional_request(base_web_collector_mock, base_we
         response = base_web_collector.send_get_request("https://test.org/404")
     assert str(exception.value) == "404 Client Error: None for url: https://test.org/404"
 
+    for error_type in (requests.exceptions.ConnectionError, requests.exceptions.Timeout, requests.exceptions.ReadTimeout):
+        requests_mock.get("https://test.org/network-error", exc=error_type("technical-network-details"))
+        caplog.clear()
+        with caplog.at_level("INFO"), pytest.raises(requests.exceptions.RequestException) as failure:
+            base_web_collector.send_get_request("https://test.org/network-error")
+
+        assert str(failure.value) == (
+            "The request to the source or proxy failed or timed out. "
+            "Check DNS resolution and network access from the worker container, "
+            "and verify the source's PROXY_SERVER setting if a proxy is required. See worker logs for technical details."
+        )
+        assert failure.value.__suppress_context__ is True
+        assert failure.value.__cause__ is None
+        assert any(record.levelname == "ERROR" and "technical-network-details" in record.message for record in caplog.records)
+
 
 @pytest.mark.parametrize("disable_http3", [False, True])
 def test_base_web_collector_http3_config(base_web_collector_mock, base_web_collector, monkeypatch, disable_http3):
@@ -43,9 +59,11 @@ def test_base_web_collector_http3_config(base_web_collector_mock, base_web_colle
     monkeypatch.setattr(Config, "DISABLE_HTTP3", disable_http3)
     monkeypatch.setattr(requests, "Session", create_session)
 
-    base_web_collector.send_get_request("https://test.org/200")
+    with http_session_scope():
+        base_web_collector.send_get_request("https://test.org/200")
+        base_web_collector._fetch_icon("https://test.org/200")
 
-    assert session_options == [{"disable_http3": disable_http3}]
+    assert session_options == [{"retries": 0, "disable_http3": disable_http3, "allow_incoming_cookies": True}]
 
 
 def test_malformed_last_modified_is_ignored(base_web_collector, requests_mock):
@@ -337,11 +355,19 @@ def test_simple_web_collector_digest_splitting(simple_web_collector_mock, simple
     assert result is None
 
 
-def test_rt_collector_collect(rt_mock, rt_collector):
+def test_rt_collector_collect(rt_mock, rt_collector, requests_mock):
     from tests.collectors import rt_testdata
 
     result = rt_collector.collect(rt_testdata.rt_collector_source_data)
     assert result is None
+
+    requests_mock.get(rt_testdata.rt_attachment_1_url, exc=requests.exceptions.ConnectionError("connection failed"))
+    assert rt_collector.get_attachment_values(rt_testdata.rt_attachment_1_url) == {}
+    requests_mock.get(rt_testdata.rt_ticket_attachments_url, exc=requests.exceptions.ReadTimeout("read timed out"))
+    assert rt_collector.get_ticket_attachments(1) == []
+    requests_mock.get(rt_testdata.rt_ticket_url, exc=requests.exceptions.ConnectTimeout("connect timed out"))
+    assert rt_collector.get_ticket(1) == {}
+    assert rt_collector.collect(rt_testdata.rt_collector_source_data) is None
 
 
 def test_rt_collector_no_tickets_error(rt_mock, rt_collector):

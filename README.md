@@ -15,8 +15,6 @@ For production deployments, see our [Deployment Guide using docker compose](http
 
 For existing Celery/RabbitMQ deployments, see the [RQ Migration Guide](./dev/rq_migration_guide.md).
 
-To preseed global settings on a fresh instance, set core’s `PRE_SEED_SETTINGS` environment variable to a flat JSON object. See [settings preseeding](docker/README.md#settings-preseeding) for an example and restart behavior.
-
 ## Contributions
 
 We welcome contributions from the community! If you're interested in contributing to Taranis AI, please read our [Development Setup Guide](./dev/README.md) to get started.
@@ -32,8 +30,6 @@ For IntelOwl enrichment setup, see [docs/intelowl.md](docs/intelowl.md).
 For Mastodon collection setup, including access-token HTTPS requirements and complete-versus-latest cursor modes, see [docs/mastodon.md](docs/mastodon.md).
 
 For maintainer release steps, see [docs/releasing.md](docs/releasing.md).
-
-The story editor requires `ASSESS_UPDATE`. Saving story edits or item order also requires access to the story’s TLP level and write access to every linked item’s source. In the editor, drag linked news items or use their arrow buttons, then select **Save order**. Everyone on this instance sees that order; it does not change the story title or synchronize through MISP. Conflict diffs compare items by ID so transport order does not create misleading changes; malformed item entries remain visible without being sorted.
 
 For container and Python dependency SBOM scope and attestations, see [docs/sbom.md](docs/sbom.md).
 
@@ -69,8 +65,6 @@ For container and Python dependency SBOM scope and attestations, see [docs/sbom.
 
 An [OpenAPI spec](./src/core/core/static/openapi3_1.yaml) for the REST API is included and can be accessed in a running installation under `config/openapi`.
 
-Presenter template API responses and creation requests use `name` for the filename; list sorting uses `name_asc` or `name_desc`. See the [release notes for deployment coordination](./docs/releasing.md#template-api-contract).
-
 ### Core Health Endpoints
 
 Core exposes two unauthenticated health-related endpoints:
@@ -103,8 +97,3 @@ It is released under terms of the [European Union Public Licence](https://eupl.e
 
 ![Co-financed by the Connecting Europe Facility of the European Union](https://ec.europa.eu/inea/sites/default/files/ceflogos/en_horizontal_cef_logo_2.png)
 
-Shared tables support ordinary links and GET forms for navigation, search, filters, and pagination when JavaScript is unavailable. Interactive Assess token filters and bulk actions still require JavaScript.
-
-The dashboard shows Assess, Analyze, Publish, and Connectors in a responsive two-column layout, with weekly activity counts (Monday onward, UTC) and an Assess header shortcut to analyst review. Users without review permission see the standard card title without an empty action area.
-
-Assess story editing is controlled by Core: users need `ASSESS_UPDATE`, story TLP access, and write ACL access to every linked news item. RT-managed stories are read-only. The frontend uses the user-specific `can_edit` response field for editing controls.

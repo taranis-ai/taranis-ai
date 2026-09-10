@@ -348,9 +348,9 @@ class TestEndToEndUser(BaseE2ETest):
 
             story_card().get_by_test_id("toggle-summary").click()
             story_card().get_by_test_id("story-actions-menu").click()
-            story_card().get_by_test_id("toggle-read").click()
+            with_htmx_wait(page, story_card().get_by_test_id("toggle-read").click)
             story_card().get_by_test_id("story-actions-menu").click()
-            story_card().get_by_test_id("toggle-important").click()
+            with_htmx_wait(page, story_card().get_by_test_id("toggle-important").click)
             story_card().get_by_test_id("story-actions-menu").click()
             share_story = story_card().get_by_test_id("share-story")
             share_story.dispatch_event("click")
@@ -429,6 +429,20 @@ class TestEndToEndUser(BaseE2ETest):
         total_count = go_to_assess()
         access_story()
         infinite_scroll_all_items(total_count)
+
+        # Keep the primary selection and reuse it in the next clustering action.
+        cards = page.locator("#story-list article[data-story-id]")
+        primary_id, second_id, third_id = [cards.nth(i).get_attribute("data-story-id") for i in range(3)]
+        page.get_by_test_id(f"story-card-{primary_id}").click()
+        for secondary_id in (second_id, third_id):
+            page.get_by_test_id(f"story-card-{secondary_id}").click()
+            page.get_by_role("button", name="Cluster").click()
+            expect(page.get_by_test_id("story-to-merge")).to_have_count(2)
+            page.get_by_test_id("dialog-story-cluster-submit").click()
+            expect(page.get_by_test_id("story-to-merge")).to_have_count(0)
+            expect(page.get_by_test_id("assess_story_selection_count")).to_have_text("1 stories selected")
+            expect(page.get_by_test_id(f"story-card-{primary_id}")).to_have_attribute("aria-selected", "true")
+            expect(page.get_by_test_id(f"story-card-{secondary_id}")).to_have_count(0)
 
     def test_news_item_order(self, non_admin_logged_in_page, forward_console_and_page_errors_non_admin, core_request_client):
         page = non_admin_logged_in_page

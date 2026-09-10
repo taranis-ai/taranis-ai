@@ -39,6 +39,11 @@ ADMIN_VIEWS = [(name, cls) for name, cls in VIEW_ITEMS if getattr(cls, "_is_admi
 ADMIN_IDS = [name for name, _ in ADMIN_VIEWS]
 
 
+def test_native_delete_rejects_create_id(authenticated_client):
+    response = authenticated_client.post(SourceView.get_edit_route(osint_source_id="0"), data={"_action": "delete"})
+    assert response.status_code == 405
+
+
 def _json_request_body(call: Any) -> dict[str, Any]:
     body = call.request.body
     if isinstance(body, bytes):
@@ -347,6 +352,20 @@ class TestCRUDViews:
 
 
 class TestSourceView:
+    @pytest.mark.parametrize("status", [200, 409])
+    def test_native_delete_redirects_with_notification(self, authenticated_client, responses_mock, status):
+        core_url = f"{Config.TARANIS_CORE_URL}/config/osint-sources/source-1"
+        message = "Source deleted" if status == 200 else "Source has related news items"
+        responses_mock.delete(core_url, json={"message" if status == 200 else "error": message}, status=status)
+
+        response = authenticated_client.post(SourceView.get_edit_route(osint_source_id="source-1"), data={"_action": "delete"})
+
+        assert response.status_code == 302
+        assert response.location == SourceView.get_base_route()
+        assert len([call for call in responses_mock.calls if call.request.method == "DELETE" and call.request.url == core_url]) == 1
+        with authenticated_client.session_transaction() as session:
+            assert ("success" if status == 200 else "error", message) in session["_flashes"]
+
     def test_source_menu_badge_uses_task_failure_count(self, monkeypatch):
         fake_badges = SimpleNamespace(osint_source=4)
         monkeypatch.setattr(
@@ -373,6 +392,31 @@ class TestSourceView:
         assert response.status_code == 409
         assert related_data_error in response.get_data(as_text=True)
         assert responses_mock.calls[0].request.url == f"{core_url}?ids=source-safe&ids=source-blocked"
+
+    def test_source_detail_renders_collection_rate(self, authenticated_client, responses_mock):
+        source = OSINTSource(
+            id="source-rate",
+            name="Source rate",
+            description="A test source",
+            type=COLLECTOR_TYPES.RSS_COLLECTOR,
+            parameters={"FEED_URL": "https://example.com/feed.xml"},
+            news_items_count=9,
+            collection_count=1,
+            collection_period="day",
+        )
+        responses_mock.get(
+            f"{Config.TARANIS_CORE_URL}/config/osint-sources/source-rate",
+            json=source.model_dump(mode="json"),
+            status=200,
+        )
+
+        response = authenticated_client.get(SourceView.get_edit_route(osint_source_id="source-rate", period="day"))
+
+        assert response.status_code == 200
+        assert "Recent collection: 1 article/day" in response.text
+        tree = html.fromstring(response.text)
+        assert tree.xpath('//*[@data-testid="detail-collection-period-day"][@aria-current="true"]')
+        assert parse_qs(urlparse(responses_mock.calls[0].request.url).query)["period"] == ["day"]
 
     def test_bulk_create_view_uses_url_based_collectors(self, authenticated_client):
         create_form_response = authenticated_client.get(SourceView.get_edit_route(osint_source_id="0"))

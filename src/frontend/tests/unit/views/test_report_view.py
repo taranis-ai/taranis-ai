@@ -1,4 +1,5 @@
-from flask import url_for
+from flask import render_template_string, url_for
+from lxml import html
 from models.report import ReportItem, ReportTypes
 
 from frontend.config import Config
@@ -126,9 +127,25 @@ def test_report_diff_view_shows_no_changes_state(app, authenticated_client_basic
 
 def test_report_delete_actions_target_notification_bar_on_error(app):
     with app.test_request_context():
-        delete_action = next(action for action in ReportItemView.get_report_actions() if action["label"] == "Delete")
+        markup = render_template_string(
+            '{% from "macros/buttons.html" import action_button %}'
+            '{% for action in actions %}{{ action_button(action, "report-1") }}{% endfor %}',
+            actions=ReportItemView.get_report_actions(),
+        )
 
-    assert delete_action["hx_target_error"] == "#notification-bar"
+    tree = html.fromstring(markup)
+    delete_button = tree.xpath('//button[@aria-label="Delete"]')[0]
+    for status in ("400", "4xx", "5xx"):
+        assert delete_button.get(f"hx-status:{status}") == "target:#notification-bar"
+    assert delete_button.get("hx-target-error") is None
+    assert delete_button.get("hx-target") == "#report"
+    assert delete_button.get("hx-swap") == "outerHTML"
+    form = delete_button.getparent()
+    assert form.get("method") == "post"
+    assert form.get("action") == delete_button.get("hx-delete") == "/report/report-1"
+    assert form.xpath('./input[@name="_action" and @value="delete"]')
+    assert form.xpath('./input[@name="csrf_token"]')
+    assert tree.xpath('//button[@aria-label="Clone Report" and @type="button"]')
 
 
 def test_story_view_renders_access_denied_page_when_core_returns_403(app, authenticated_client_basic, responses_mock):

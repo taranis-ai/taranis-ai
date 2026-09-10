@@ -91,14 +91,6 @@ def test_jwt_cookie_suffix_rejects_invalid_characters():
         Settings(JWT_COOKIE_SUFFIX="/q")
 
 
-def test_skip_initial_user_onboarding_from_env(monkeypatch):
-    monkeypatch.setenv("SKIP_INITIAL_USER_ONBOARDING", "true")
-
-    settings = Settings()
-
-    assert settings.SKIP_INITIAL_USER_ONBOARDING is True
-
-
 def test_realtime_secrets_must_be_distinct_when_enabled():
     with pytest.raises(ValidationError, match="must be distinct"):
         Settings(

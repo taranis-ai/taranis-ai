@@ -12,10 +12,12 @@ from rq import get_current_job
 
 import worker.presenters
 from worker.core_api import CoreApi, build_failure_task_result, build_success_task_result
+from worker.http_client import http_session_scope
 from worker.log import logger
 from worker.presenters.base_presenter import BasePresenter
 
 
+@http_session_scope()
 def presenter_task(product_id: str):
     """Generate a product/report in the specified format.
 

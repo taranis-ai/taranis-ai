@@ -30,20 +30,17 @@ Open file `.env` and defaults if needed
 
 ### Settings preseeding
 
-Before the first startup, pass `PRE_SEED_SETTINGS` to the core container as a flat JSON object using the keys stored in Admin Settings. Any subset (or all settings) can be supplied; omitted keys retain their built-in defaults. For example, add this Compose override:
+Before the first startup, pass `PRE_SEED_SETTINGS` to the core container as a flat JSON object using the keys stored in Admin Settings. Any subset (or all settings) can be supplied; omitted keys retain their built-in defaults. The shipped Compose files (including load, minimal, PPN, and Tor variations) forward this variable from your shell or `.env`, defaulting to `{}`. For example, add this line to `.env`:
 
-```yaml
-services:
-  core:
-    environment:
-      PRE_SEED_SETTINGS: '{"default_timezone":"Europe/Vienna","rss_collector_max_entries":100,"default_bot_lookback_days":0,"onboarding_enabled":false}'
+```dotenv
+PRE_SEED_SETTINGS='{"default_timezone":"Europe/Vienna","rss_collector_max_entries":100,"default_bot_lookback_days":0,"onboarding_enabled":false}'
 ```
 
-For a directly launched core process, export the same JSON value as `PRE_SEED_SETTINGS`. In Kubernetes or Helm, add it to the core container's environment (use a Secret if values contain credentials).
+For a directly launched core process, export the same JSON value as `PRE_SEED_SETTINGS`. For Kubernetes, set `PRE_SEED_SETTINGS` in `deploy/kubernetes/00-config.yaml`; for Helm, set `config.preSeedSettings` to the same JSON string. These ConfigMap values must not contain credentials; inject credential-bearing seeds into the core environment through a Secret instead.
 
 Preseeding applies only when the persistent settings row does not exist. Restarts and upgrades preserve saved settings, including administrator edits; they do not merge newly supplied seed keys into an existing row. An empty object `{}` or an unset variable uses normal defaults. Use a JSON object, not the API's `{"settings": {...}}` wrapper. Invalid JSON and non-object values are rejected during configuration loading. Timezone, entry-limit, lookback, and onboarding values use the existing settings validators during initialization.
 
-An explicit `onboarding_enabled` seed overrides `SKIP_INITIAL_USER_ONBOARDING` and is copied to the initial users. After initialization, use Admin Settings to change values. Removing the variable does not undo persisted settings; no database migration is required.
+Onboarding defaults to enabled. Set `PRE_SEED_SETTINGS='{"onboarding_enabled":false}'` to disable it during initialization; the value is copied to existing users. This replaces the removed `SKIP_INITIAL_USER_ONBOARDING` variable. After initialization, use Admin Settings to change values. Removing the variable does not undo persisted settings; no database migration is required.
 
 ## Startup & Usage
 
@@ -170,7 +167,7 @@ Any configuration options are available at [https://hub.docker.com/\_/postgres](
 | `REDIS_URL`                   | Redis connection URL                       | `redis://redis:6379` |
 | `PRE_SEED_PASSWORD_ADMIN`     | Initial password for `admin`               | `admin`       |
 | `PRE_SEED_PASSWORD_USER`      | Initial password for `user`                | `user`        |
-| `SKIP_INITIAL_USER_ONBOARDING`| Initially disable onboarding for all users | `False`       |
+| `PRE_SEED_SETTINGS`          | Flat JSON object for initial global settings | `{}`        |
 | `API_KEY`                     | API Key for communication with workers     | `supersecret` |
 | `DEBUG`                       | Debug logging                              | `False`       |
 | `DB_URL`                      | PostgreSQL database URL                    | `localhost`   |

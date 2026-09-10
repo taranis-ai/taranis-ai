@@ -33,8 +33,17 @@ For application rollback, restore the previous published images and leave the ad
 
    Repeat this check for `taranis-frontend` and `taranis-worker`.
 
+## Frontend Upgrade Checks
+
+For frontend upgrades, verify row deletion with and without JavaScript: a refused deletion must show a notification and retain the row; native source deletion must return to the source list. Include keyboard/screen-reader checks for named row actions.
+Verify that users with module delete permission cannot delete reports/products hidden by ACLs or granted read-only access, or reports above their TLP clearance. Deploy the matching Core image to enforce these checks for both native and enhanced forms.
+
 ## Template API Contract
 
 Deploy matching Core and Frontend images together when upgrading the template API from `id` to `name`. Update external clients to read `name` in template detail/list responses, send `name` in creation requests, and use `order=name_asc` or `order=name_desc`. Content remains base64 encoded, validation status retains its existing fields, and update/delete URLs still contain the filename. Existing template files need no migration.
 
 Pull the selected published images, restart Core and Frontend, verify readiness, then check template listing, sorting, creation, editing, and deletion. If rolling back, restore both image versions and the corresponding client contract together.
+
+## Assess Clustering Selection
+
+The repeated-clustering fix needs only an updated Frontend image, with no database migration. After pulling and restarting Frontend, verify readiness, reload Assess, cluster two disposable stories, then select one more and cluster again. Only the surviving primary story should remain selected after each merge.

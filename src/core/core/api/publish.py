@@ -55,6 +55,11 @@ class Products(MethodView):
     def delete(self, product_id: str | None = None):
         if not product_id:
             return {"error": "No product_id provided"}, 400
+        selected_product = product.Product.get(product_id)
+        if selected_product is None:
+            return {"error": "Product not found"}, 404
+        if not selected_product.product_type or not selected_product.product_type.allowed_with_acl(current_user, require_write_access=True):
+            return {"error": "User is not allowed to delete product"}, 403
         response, status = product.Product.delete(product_id)
         invalidate_frontend_cache_on_success(status, scopes=(SCOPE_PUBLISH_VIEWS,), object_ids={"product": product_id})
         return response, status

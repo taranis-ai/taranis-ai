@@ -591,6 +591,13 @@ def forward_console_and_page_errors(request, logged_in_page):
 
 
 @pytest.fixture
+def forward_console_and_page_errors_publisher_validation(request, logged_in_page):
+    yield from _forward_console_and_page_errors(
+        request, logged_in_page, extra_allow_patterns=[r"/admin/publisher:0:0 :: Failed to load resource:.*400 \(BAD REQUEST\)"]
+    )
+
+
+@pytest.fixture
 def forward_console_and_page_errors_non_admin(request, non_admin_logged_in_page):
     yield from _forward_console_and_page_errors(
         request,
@@ -624,7 +631,7 @@ def stories_date_descending_important(core_request_client):
     yield story_ids
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def stories_relevance_descending(core_request_client, stories_date_descending):
     allow_requests_passthru()
 
@@ -632,7 +639,7 @@ def stories_relevance_descending(core_request_client, stories_date_descending):
     yield [story.get("id") for story in stories_relevance_desc]
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def stories_date_descending(core_request_client, stories_session_wrapper):
     allow_requests_passthru()
 
@@ -644,7 +651,7 @@ def stories_date_descending(core_request_client, stories_session_wrapper):
     yield story_ids
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def stories_date_descending_not_important(core_request_client, stories_session_wrapper):
     allow_requests_passthru()
     story_ids = []
