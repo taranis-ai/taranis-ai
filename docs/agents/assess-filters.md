@@ -15,6 +15,8 @@ Assess sidebar/search/default filters, `/assess`, `/api/assess/filter-lists`, om
 - `Shift+Space` prevents native page-up on keydown and performs read/unread on keyup only with a selection. Bookmark detail shares this behavior and the [global shortcut/selection rules](frontend-development.md).
 - Successful clustering replaces the saved Assess selection with the first story in the submitted dialog order before the list swap; merged-away IDs must not survive into the next action. Failed clustering preserves selection and the open dialog. `test_user_assess` in `test_e2e_user.py` requires three cards and performs two merges, checking the surviving selection and removal of each secondary card.
 
+- The Assess count wrapper is visible before Alpine fills in the visible story count. Browser tests use `_get_assess_story_counts` to wait for both counts before parsing; wrapper visibility alone is insufficient.
+
 ## Entry Points
 
 - Core: `src/core/core/api/assess.py`, `src/core/core/model/filter_data.py`, `src/core/core/service/cache_invalidation.py`

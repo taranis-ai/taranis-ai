@@ -26,8 +26,11 @@ class TestEndToEndUser(BaseE2ETest):
 
     @staticmethod
     def _get_assess_story_counts(page: Page) -> tuple[int, int]:
-        count_text = page.get_by_test_id("assess_story_count").inner_text()
-        match = re.search(r"(\d+)\s*/\s*(\d+)", count_text)
+        story_count = page.get_by_test_id("assess_story_count")
+        count_pattern = re.compile(r"(\d+)\s*/\s*(\d+)")
+        expect(story_count).to_contain_text(count_pattern)
+        count_text = story_count.inner_text()
+        match = count_pattern.search(count_text)
         assert match, f"Unable to parse assess story count from: {count_text!r}"
         return int(match.group(1)), int(match.group(2))
 
