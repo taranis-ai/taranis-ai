@@ -16,6 +16,7 @@ Before keeping a new test, compare existing coverage and extend the nearest rele
 - Put shared builders in `src/core/tests/application/support/` and large data in fixtures or `src/core/tests/test_data/`.
 - Do not create inline fake classes/ad-hoc doubles inside tests or use autouse fixtures. Request fixtures explicitly or use module/class `pytest.mark.usefixtures`.
 - Prefer frontend E2E coverage for cross-component cache invalidation, scheduling, and seeding. Reuse established test selectors; prefer `data-test-id` for new ones.
+- Worker SFTP tests use a real local SSH server. The `sftp_mock` fixture and `SFTPTestHandler` handle the expected server-side EOF or connection reset when the client rejects a host key and join listener/connection threads during teardown. Keep thread warnings fatal in `src/worker/tests/publishers/test_sftp_publisher.py`; otherwise a leaked SSH thread can report its failure against an unrelated later test (including TAXII).
 
 ## Entry Points
 
