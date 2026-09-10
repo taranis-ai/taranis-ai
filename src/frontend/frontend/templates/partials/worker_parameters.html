@@ -12,9 +12,9 @@
             title="{{ field.description }}"
             aria-label="Help for {{ field.label }}">{{ heroicon_outline("information-circle", class="size-4") }}</span>
     {% endif %}
-    {% if field.widget == 'template-selector' %}
+    {% if field.widget == "template-selector" %}
       {{ form_select(label=field.label, name='parameters[' + field.name + ']', value=field_value, options=template_options, required=field_required) }}
-    {% elif field.type == 'password' %}
+    {% elif field.type == "password" %}
       {% set configured = field_value == '********' %}
       <div class="mb-5 w-full" x-data="{ revealed: '' }">
         {{ form_input(label=field.label, name='parameters[' + field.name + ']', value='', type='password', required=field_required and not configured, preserve=false, input_id='parameter-' + field.name) }}
@@ -36,7 +36,7 @@
           </div>
         {% endif %}
       </div>
-    {% elif field.type == 'word-list-table' %}
+    {% elif field.type == "word-list-table" %}
       {% set selected_word_lists = field_value if field_value is iterable and field_value is not string else field_value.split(',') %}
       <label class="label" for="parameter-{{ field.name }}">{{ field.label }}</label>
       <select id="parameter-{{ field.name }}" name="parameters[{{ field.name }}][]" multiple>
@@ -44,11 +44,11 @@
           <option value="{{ option.id }}" {% if option.id in selected_word_lists %}selected{% endif %}>{{ option.name }}</option>
         {% endfor %}
       </select>
-    {% elif field.type == 'select' %}
+    {% elif field.type == "select" %}
       {{ form_select(label=field.label, name='parameters[' + field.name + ']', value=field_value, options=field.options, required=field_required) }}
-    {% elif field.type == 'number' %}
+    {% elif field.type == "number" %}
       {{ form_input(label=field.label, name='parameters[' + field.name + ']', value=field_value, type='number', required=field_required, min_value=field.minimum, max_value=field.maximum, preserve=preserve) }}
-    {% elif field.widget == 'public-key' %}
+    {% elif field.widget == "public-key" %}
       <div x-data="{ uploadError: '' }">
         {{ form_textarea(label=field.label, name='parameters[' + field.name + ']', value=field_value, required=field_required, preserve=preserve) }}
         <label class="label" for="upload-{{ field.name }}">Upload public key file</label>
@@ -60,12 +60,12 @@
         <p class="text-error text-sm" role="alert" x-text="uploadError"></p>
         <p class="text-sm mb-5">Use the server's public key, verified with its administrator. You can also paste it above.</p>
       </div>
-    {% elif field.type == 'textarea' %}
+    {% elif field.type == "textarea" %}
       {% set textarea_value = field_value | tojson if field_value is mapping else field_value %}
       {{ form_textarea(label=field.label, name='parameters[' + field.name + ']', value=textarea_value, required=field_required, preserve=preserve) }}
-    {% elif field.type == 'switch' %}
+    {% elif field.type == "switch" %}
       {{ form_switch(label=field.label, name='parameters[' + field.name + ']', value=field_value, yes_val='true', no_val='false', required=false, preserve=preserve) }}
-    {% elif field.type == 'cron_interval' %}
+    {% elif field.type == "cron_interval" %}
       {{ form_cron(label=field.label, name='parameters[' + field.name + ']', value=field_value, required=field_required, pattern=field.pattern) }}
     {% else %}
       {{ form_input(label=field.label, name='parameters[' + field.name + ']', value=field_value, type='text', required=field_required, pattern=field.pattern, preserve=preserve) }}

@@ -47,7 +47,7 @@
       {% if conversation %}
         {% for message in message_views %}
           <div class="chat {% if message.role == 'user' %}chat-end{% else %}chat-start{% endif %}" data-testid="chat-message-{{ message.role }}">
-            <div class="chat-header mb-1">{% if message.role == 'user' %}{{ _("You") }}{% else %}{{ _("Taranis Chat") }}{% endif %}</div>
+            <div class="chat-header mb-1">{% if message.role == "user" %}{{ _("You") }}{% else %}{{ _("Taranis Chat") }}{% endif %}</div>
             <div class="chat-bubble whitespace-pre-wrap break-words {% if message.role == 'user' %}chat-bubble-primary{% endif %}">{{ message.content }}</div>
             {% if message.search_result %}
               <div class="chat-footer mt-2">

@@ -31,10 +31,10 @@
             hx-sync:inherited="this:replace"
             hx-on::before:request="restoreSearchAfterSwap(ctx)">
         <input type="hidden" name="page" value="1">
-        {% if request.args.get('limit') %}
+        {% if request.args.get("limit") %}
           <input type="hidden" name="limit" value="{{ request.args.get('limit') }}">
         {% endif %}
-        {% if request.args.get('order') %}
+        {% if request.args.get("order") %}
           <input type="hidden" name="order" value="{{ request.args.get('order') }}">
         {% endif %}
         <label class="input min-w-[16rem] flex-1">

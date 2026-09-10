@@ -1,5 +1,5 @@
 <div class="flex items-center space-x-4">
-  {% if _show_sidebar and templates and templates.get('sidebar_template') %}
+  {% if _show_sidebar and templates and templates.get("sidebar_template") %}
     <button @click="sidebarOpen = !sidebarOpen" class="btn btn-ghost btn-square mr-4" aria-label="{{ _('Toggle sidebar') }}">
       {{ heroicon_outline("bars-3") }}
     </button>
@@ -26,7 +26,7 @@
         <span class="sr-only 2xl:not-sr-only">{{ _("Dashboard") }}</span>
       </a>
     </li>
-    {% if current_user and 'ASSESS_ACCESS' in current_user.permissions %}
+    {% if current_user and "ASSESS_ACCESS" in current_user.permissions %}
       <li>
         <a href="{{ url_for('assess.assess') }}" data-tour-target="nav-assess" class="whitespace-nowrap">
           {{ heroicon_outline("newspaper") }}
@@ -42,7 +42,7 @@
         </li>
       {% endif %}
     {% endif %}
-    {% if current_user and 'ANALYZE_ACCESS' in current_user.permissions %}
+    {% if current_user and "ANALYZE_ACCESS" in current_user.permissions %}
       <li>
         <a href="{{ url_for('analyze.analyze') }}" data-tour-target="nav-analyze" class="whitespace-nowrap">
           {{ heroicon_outline("presentation-chart-bar") }}
@@ -50,7 +50,7 @@
         </a>
       </li>
     {% endif %}
-    {% if current_user and 'PUBLISH_ACCESS' in current_user.permissions %}
+    {% if current_user and "PUBLISH_ACCESS" in current_user.permissions %}
       <li>
         <a href="{{ url_for('publish.publish') }}" data-tour-target="nav-publish" class="whitespace-nowrap">
           {{ heroicon_outline("paper-airplane") }}
