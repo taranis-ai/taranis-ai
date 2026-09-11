@@ -18,24 +18,27 @@
               <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
             </form>
             <h3 class="font-bold text-lg mt-1 mb-4">Export Stories</h3>
-            <form method="get"
-                  action="{{ export_url }}"
-                  class="space-y-4"
-                  x-data="{ maxDateTimeLocal: '' }"
-                  x-init="const now = new Date(); now.setMinutes(now.getMinutes() - now.getTimezoneOffset()); maxDateTimeLocal = now.toISOString().slice(0, 16);">
+            <form method="get" action="{{ export_url }}" class="space-y-4" data-timezone="{{ export_timezone }}">
+              <p class="text-sm">Dates use your profile timezone ({{ export_timezone }}) and filter the story's creation time.</p>
               <div class="grid grid-cols-2 gap-3">
                 <label class="input w-full p-1">
                   <span class="label text-xs font-medium text-base-content/70 pr-1 mr-1">From</span>
                   <input name="timefrom"
                          type="datetime-local"
                          class="input-bordered input-xs -ml-3"
-                         x-bind:max="maxDateTimeLocal"
+                         max="{{ export_max_datetime }}"
+                         value="{{ request.args.get('timefrom', '') }}"
                          data-testid="story-export-time-from">
                 </label>
 
                 <label class="input w-full p-1">
                   <span class="label text-xs font-medium text-base-content/70 pr-1 mr-1">To</span>
-                  <input name="timeto" type="datetime-local" class="input-bordered input-xs -ml-3" x-bind:max="maxDateTimeLocal" data-testid="story-export-time-to">
+                  <input name="timeto"
+                         type="datetime-local"
+                         class="input-bordered input-xs -ml-3"
+                         max="{{ export_max_datetime }}"
+                         value="{{ request.args.get('timeto', '') }}"
+                         data-testid="story-export-time-to">
                 </label>
               </div>
               <div class="grid grid-cols-2 gap-2 join">

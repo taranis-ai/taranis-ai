@@ -1487,12 +1487,15 @@ class Story(BaseModel):
 
     def to_detail_dict(self, user: User | None = None) -> dict[str, Any]:
         data = self.to_dict(user=user)
-        data["tags"] = [tag.to_dict() for tag in self.tags]
         data["attributes"] = [attribute.to_small_dict() for attribute in self.attributes]
         data["detail_view"] = True
         data["in_reports_count"] = ReportItemStory.count(self.id)
-        data["links"] = self.links
         data["revision_count"] = self.get_revision_count()
+        return data
+
+    def to_export_dict(self) -> dict[str, Any]:
+        data = self.to_dict()
+        data["attributes"] = [attribute.to_small_dict() for attribute in self.attributes]
         return data
 
     def to_worker_dict(self) -> dict[str, Any]:

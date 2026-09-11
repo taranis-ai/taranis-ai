@@ -58,7 +58,9 @@ class ExportStoriesQuery(TaranisBaseModel):
 
     @model_validator(mode="after")
     def set_timeto_default(self):
-        if self.timefrom and (self.timeto is None or self.timeto < self.timefrom):
+        if self.timefrom and self.timeto and self.timeto < self.timefrom:
+            raise ValueError("To must be on or after From")
+        if self.timefrom and self.timeto is None:
             self.timeto = _utcnow()
         return self
 

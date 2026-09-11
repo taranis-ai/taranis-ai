@@ -1504,7 +1504,7 @@ class StoryView(BaseView):
                 return cls.render_response_notification({"error": "Failed to ungroup story."})
 
     @classmethod
-    @auth_required()
+    @auth_required("ASSESS_ACCESS")
     def export_stories(cls):
         story_ids = request.args.getlist("story_ids")
         if not story_ids:
@@ -1512,17 +1512,14 @@ class StoryView(BaseView):
             return cls.render_response_notification({"error": "Failed to export stories."}), 400
 
         try:
-            paging_data = PagingData(query_params={"story_ids": story_ids}, limit=len(story_ids))
-            stories = DataPersistenceLayer().get_objects(Story, paging_data)
-            export_data = [story.to_core_dict() for story in stories.items]
-
-            response_data = json.dumps({"total_count": len(export_data), "items": export_data}, indent=2)
-            flask_response = make_response(response_data, 200)
-            flask_response.headers["Content-Type"] = "application/json"
-            flask_response.headers["Content-Disposition"] = (
-                f'attachment; filename="stories_export_{datetime.datetime.now(datetime.UTC).strftime("%Y%m%d_%H%M%S")}.json"'
-            )
-            return flask_response
+            response = CoreApi().api_download("/assess/stories/export", params={"story_ids": story_ids})
+            if not response.ok:
+                return cls.render_response_notification(
+                    {"error": "Failed to export stories. Reload and check your selection."}
+                ), response.status_code
+            download = CoreApi.stream_proxy(response, "stories_export.json")
+            download.headers["Cache-Control"] = "no-store"
+            return download
         except HTTPException:
             raise
         except Exception:

@@ -150,7 +150,7 @@ def test_export_stories_and_metadata(client, full_story, api_header, auth_header
     assert data[0]["id"] == story_id
     assert data[0]["news_items"][0].get("author") is None
 
-    expected_created = datetime.fromisoformat(full_story[0]["created"]).isoformat()
+    expected_created = datetime.fromisoformat(full_story[0]["created"]).replace(tzinfo=UTC).isoformat()
     assert data[0]["created"] == expected_created
 
     exported_news_item_ids = {ni["id"] for ni in data[0].get("news_items", [])}
@@ -185,7 +185,8 @@ def test_export_stories_and_metadata(client, full_story, api_header, auth_header
     # Must include metadata fields now
     assert "title" in data[0]
     assert "tags" in data[0]
-    # assert "attributes" in data[0]
+    assert "attributes" in data[0]
+    assert not {"detail_view", "in_reports_count", "revision_count", "news_item_order", "search_vector"} & data[0].keys()
     assert "news_items" in data[0]
     assert "likes" in data[0]
     assert "dislikes" in data[0]
@@ -202,8 +203,8 @@ def test_export_stories_and_metadata(client, full_story, api_header, auth_header
     assert news_item_ids.issubset(exported_news_item_ids)
 
     # Attribute we set should be present
-    # attrs = {a.get("key"): a.get("value") for a in data[0].get("attributes", [])}
-    # assert attrs.get("status") == "updated"
+    attrs = {a.get("key"): a.get("value") for a in data[0]["attributes"]}
+    assert attrs.get("status") == "updated"
 
 
 def test_import_stories_ignores_export_only_fields(client, auth_header):
@@ -244,16 +245,16 @@ def test_export_stories_rejects_invalid_datetime_filters(client, auth_header):
     r = client.get("/api/settings/export-stories?timefrom=invalid", headers=auth_header)
 
     assert r.status_code == 400
-    assert r.get_json()["error"][0]["loc"] == ["timefrom"]
+    assert "timefrom" in r.get_json()["error"]
 
 
 def test_export_stories_rejects_future_datetime_filters(client, auth_header):
     future_time = (datetime.now(UTC) + timedelta(days=1)).isoformat()
 
-    r = client.get(f"/api/settings/export-stories?timeto={future_time}", headers=auth_header)
+    r = client.get("/api/settings/export-stories", query_string={"timeto": future_time}, headers=auth_header)
 
     assert r.status_code == 400
-    assert r.get_json()["error"][0]["loc"] == ["timeto"]
+    assert "timeto" in r.get_json()["error"]
 
 
 def test_export_stories_allows_empty_datetime_filters(client, auth_header):
