@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import cast
 from urllib.parse import parse_qs, urlparse
 from zoneinfo import ZoneInfo
@@ -81,7 +81,8 @@ def test_story_transfer_partial_guards_future_export_dates(authenticated_client,
 
     assert 'data-testid="story-export-time-from"' in body
     assert 'data-testid="story-export-time-to"' in body
-    assert body.count(f'max="{datetime.now(ZoneInfo("Europe/Vienna")).strftime("%Y-%m-%dT%H:%M")}"') == 2
+    now = datetime.now(ZoneInfo("Europe/Vienna"))
+    assert any(body.count(f'max="{minute:%Y-%m-%dT%H:%M}"') == 2 for minute in (now, now - timedelta(minutes=1)))
     assert "profile timezone (Europe/Vienna)" in body
     responses.get(f"{Config.TARANIS_CORE_URL}/settings/export-stories", json=[])
     response = authenticated_client.get("/admin/settings/export-stories?timefrom=2024-01-01T12:00&timeto=2024-07-01T12:00&metadata=true")
