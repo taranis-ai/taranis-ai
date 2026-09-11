@@ -27,6 +27,7 @@ data:
   LLM_BASE_URL: CHANGE_ME_LLM_BASE_URL
   LLM_TIMEOUT: "120"
   CACHE_DEFAULT_TIMEOUT: "1"
+  CHAT_ENABLED: "false"
 ---
 apiVersion: v1
 kind: ConfigMap

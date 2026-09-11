@@ -961,8 +961,8 @@ def test_assess_save_saved_filter_posts_selected_filters_to_profile(authenticate
             "important": "false",
             "sort": "date_desc",
             "range": "week",
-            "timefrom": "2026-05-01T10:00",
-            "timeto": "2026-05-02T11:00",
+            "timefrom": "2026-05-01T10:00:00",
+            "timeto": "2026-05-02T11:00:00",
         },
         "is_default": True,
     }
@@ -998,13 +998,18 @@ def test_assess_save_saved_filter_rejects_duplicate_filters(authenticated_client
     _cache_saved_filters(
         auth_user,
         [
-            AssessSavedFilter(id="filter-1", name="Existing", filters={"search": "incident", "tags": ["alpha", "beta"]}, is_default=False),
+            AssessSavedFilter(
+                id="filter-1",
+                name="Existing",
+                filters={"search": "incident", "tags": ["alpha", "beta"], "sort": "date_desc"},
+                is_default=False,
+            ),
         ],
     )
 
     response = authenticated_client.post(
         url_for("assess.save_saved_filter"),
-        data=MultiDict([("name", "Different"), ("search", "incident"), ("tags", "beta"), ("tags", "alpha")]),
+        data=MultiDict([("name", "Different"), ("search", "incident"), ("tags", "beta"), ("tags", "alpha"), ("sort", "DATE_DESC")]),
     )
 
     assert response.status_code == 400

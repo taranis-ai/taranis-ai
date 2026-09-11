@@ -12,6 +12,8 @@ Records contain only timestamp, method, path, endpoint, status, user/organizatio
 
 The hook is registered once, honors the environment toggle, and logs failures without changing the response.
 
+Chat creation, message, and deletion requests use the same metadata-only hook. Analyst prompts, provider answers, filters, and `chat_llm_api_key` must never be added to audit records.
+
 ## Entry Points and Coverage
 
 `src/core/core/audit.py`, `src/core/core/managers/api_manager.py`, `src/core/core/config.py`, `src/core/core/auth/database_authenticator.py`.

@@ -8,6 +8,7 @@ from playwright.sync_api import Page
 pytestmark = pytest.mark.e2e_ci
 
 REALTIME_JS_PATH = Path(__file__).parents[2] / "frontend/static/js/realtime.js"
+CHAT_JS_PATH = Path(__file__).parents[2] / "frontend/static/js/chat.js"
 VENDOR_JS_PATH = Path(__file__).parents[2] / "frontend/static/vendor/vendor.bundle.js"
 
 
@@ -139,6 +140,38 @@ def test_realtime_owns_one_event_source_and_dispatches_valid_domain_event(page: 
 
     assert page.evaluate("() => EventSource.instances.length") == 1
     assert page.evaluate("() => window.receivedRealtimeEvents.length") == 1
+
+
+def test_chat_stream_shows_optimistic_message_and_applies_newest_matching_snapshot(page: Page):
+    page.set_content(
+        """
+        <div id="chat-workspace" data-chat-turn-id="turn-1" data-chat-sequence="0"
+             data-chat-stage-planning="Planning" data-chat-stage-answering="Writing">
+          <div id="chat-messages"><div data-chat-empty></div>
+            <div class="hidden" data-chat-pending-user><span data-chat-pending-user-content></span></div>
+            <div data-chat-stream-status><span data-chat-stream-stage></span></div><span data-chat-stream-content></span></div>
+          <form><textarea id="chat-message-input">Question</textarea></form>
+        </div>
+        """
+    )
+    page.add_script_tag(path=str(CHAT_JS_PATH))
+    page.evaluate(
+        """
+        () => {
+          taranisChat.begin(document.querySelector("#chat-workspace form"));
+          for (const [turn_id, sequence, content] of [
+            ["other-turn", 1, "Wrong"],
+            ["turn-1", 2, '<img src=x onerror="alert(1)">Safe'],
+            ["turn-1", 1, "Stale"],
+          ]) taranisChat.update({data: {turn_id, sequence, stage: "answering", content}});
+        }
+        """
+    )
+
+    assert page.locator("[data-chat-pending-user-content]").text_content() == "Question"
+    assert page.locator("#chat-message-input").input_value() == ""
+    assert page.locator("[data-chat-stream-content]").text_content() == '<img src=x onerror="alert(1)">Safe'
+    assert page.locator("[data-chat-stream-content] img").count() == 0
 
 
 def test_osint_source_preview_event_refetches_only_the_matching_preview(page: Page):

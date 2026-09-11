@@ -13,6 +13,7 @@ Read matching memories before planning or editing related features, routes, mode
 
 ## Feature Memories
 
+- [Analyst Chat](analyst-chat.md) - persistent chat workflow, Responses and Chat Completions integration, Assess search planning, privacy, ownership, and deployment configuration.
 - [News Item Ordering](news-item-ordering.md) - local shared item order, editor controls, conflict normalization, and ungrouping title fallback.
 - [Assess Filters](assess-filters.md): sidebar queries, saved filters, pagination, and cache invalidation.
 - [Story Bookmarks](story-bookmarks.md): private collections, ordering, and Assess action context.

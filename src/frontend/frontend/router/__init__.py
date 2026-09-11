@@ -2,7 +2,7 @@ from flask import Flask
 from swagger_ui import api_doc
 
 from frontend.config import Config
-from frontend.router import admin, admin_settings, analyze, assess, asset, base, publish, user
+from frontend.router import admin, admin_settings, analyze, assess, asset, base, chat, publish, user
 
 
 def init(app: Flask):
@@ -13,6 +13,8 @@ def init(app: Flask):
     admin.init(app)
     admin_settings.init(app)
     assess.init(app)
+    if app.config["CHAT_ENABLED"]:
+        chat.init(app)
     analyze.init(app)
     publish.init(app)
     asset.init(app)

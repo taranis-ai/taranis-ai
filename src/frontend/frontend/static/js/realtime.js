@@ -7,6 +7,7 @@
     "product.rendered",
     "osint_source.preview.finished",
     "notification.broadcast",
+    "chat.turn.updated",
   ]);
 
   let eventSource;
@@ -73,7 +74,9 @@
     document.dispatchEvent(
       new CustomEvent(`realtime:${event.type}`, { detail: event }),
     );
-    if (event.type === "notification.broadcast") {
+    if (event.type === "chat.turn.updated") {
+      self.taranisChat?.update(event);
+    } else if (event.type === "notification.broadcast") {
       showBroadcastNotification(
         event.data?.message,
         event.data?.persistent === true,

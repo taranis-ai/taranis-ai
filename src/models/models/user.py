@@ -87,6 +87,6 @@ class UserProfile(TaranisBaseModel):
     organization: dict[str, Any] | None = None
     profile: ProfileSettings = Field(default_factory=ProfileSettings)
     effective_timezone: str = "UTC"
-    permissions: list[str] | None = Field(default_factory=list)
-    roles: list[dict[str, Any]] | None = Field(default_factory=list)
+    permissions: list[str] = Field(default_factory=list)
+    roles: list[dict[str, Any]] = Field(default_factory=list)
     pending_onboarding_tasks: list[OnboardingTask] = Field(default_factory=list)

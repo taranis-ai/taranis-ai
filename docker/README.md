@@ -184,6 +184,7 @@ Any configuration options are available at [https://hub.docker.com/\_/postgres](
 | `TARANIS_CORE_SENTRY_DSN`     | Core Sentry DSN                            | `''`          |
 | `TARANIS_BASE_PATH`           | Path under which Taranis AI is reachable   | `/`           |
 | `GRANIAN_WORKERS_MAX_RSS`     | Per-worker Granian RSS recycle limit in MiB| `4096`        |
+| `CHAT_ENABLED`                | Enable the optional analyst Chat API; configure the provider in Admin Settings > Chat | `false` |
 
 The supplied Centrifugo configuration enables presence only for `global:events`, which every authenticated browser already receives. Core uses the server API to provide the `ADMIN_OPERATIONS`-protected connected-client snapshot on the Admin Notifications page; browsers are not granted presence access, and organization/user channel presence remains disabled.
 
@@ -217,6 +218,7 @@ All other Centrifugo server behavior is configured through native `CENTRIFUGO_*`
 | `TARANIS_FRONTEND_SENTRY_DSN` | Frontend Sentry DSN                        | `''`                         |
 | `DEBUG`                 | Debug logging                              | `False`                     |
 | `GRANIAN_WORKERS_MAX_RSS` | Per-worker Granian RSS recycle limit in MiB | `1024`       |
+| `CHAT_ENABLED`            | Show the optional analyst Chat workspace    | `false`      |
 
 
 > [!NOTE]

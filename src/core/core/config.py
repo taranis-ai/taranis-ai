@@ -38,6 +38,7 @@ class Settings(BaseSettings):
     MODULE_ID: str = "Core"
     DEBUG: bool = False
     AUDIT_LOG_ENABLED: bool = True
+    CHAT_ENABLED: bool = False
 
     JWT_SECRET_KEY: str = "supersecret"
     JWT_IDENTITY_CLAIM: str = "sub"

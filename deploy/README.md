@@ -26,6 +26,12 @@ Optional `llm-bot` overlay:
 - For Helm, set `config.llmBaseUrl`; optionally set `config.llmTimeout`, `config.llmModel`, and `secrets.llmApiKey`.
 - Set ingress hostname in `kubernetes/40-ingress.yaml` (or Helm values).
 
+Optional analyst Chat:
+- Set `CHAT_ENABLED=true` in configuration for both core and frontend.
+- Open **Admin Settings > Chat** to configure the provider base URL, model, API key, provider timeout (default 120 seconds), and maximum stories (default 5, allowed 1-20). This collapsible section appears only when Chat is enabled. Values are persisted in Settings; changes apply to the next message without restarting. Only `CHAT_ENABLED` is configured through deployment environment variables.
+- API keys are write-only in the admin form: leave blank to keep the saved key, or select **Remove saved API key** to clear it. Keys are stored in the application database; protect database access and backups. Settings API responses and logs omit the key.
+- Realtime Chat progress uses the existing Centrifugo connection when `REALTIME_ENABLED=true`; Chat still completes through its normal HTTP response when realtime is disabled or unavailable.
+
 ## Initial settings
 
 Before the first startup, set `PRE_SEED_SETTINGS` in `kubernetes/00-config.yaml`, or the JSON string `config.preSeedSettings` in Helm values. Both default to `"{}"`. For example, Helm values can contain:
@@ -83,6 +89,20 @@ Use [`argocd/`](./argocd) if you want GitOps deployment through the Helm chart.
 ```bash
 kubectl apply -f deploy/argocd/application.yaml
 ```
+
+## Analyst Chat
+
+Chat is independent of `llm-bot` and workers. Core calls the configured OpenAI-compatible Responses API directly and uses Redis only for a bounded per-conversation turn lease. If Redis is unavailable, new turns return 503 rather than risk out-of-order conversation history. Analysts need `ASSESS_ACCESS`; all generated Assess searches continue to enforce their source ACLs and TLP restrictions.
+
+Core first makes a structured routing call, then requests a streaming plain-text answer. Providers that reject Responses streaming before sending any content fall back to the structured non-streaming answer contract. When realtime is enabled, Core publishes progress stage identifiers and cumulative answer snapshots to the authenticated user's existing Centrifugo channel; the frontend localizes the stages. These publications are best-effort and have no history; the final synchronous response and PostgreSQL conversation remain authoritative.
+
+Chat turns share a 540-second deadline across provider planning, retries, search, and answering, checked again before persistence. Provider reads retain the configured per-read timeout; the total deadline stops active response reads even when bytes keep arriving. The Redis lease lasts 570 seconds, reserving 30 seconds for transaction cleanup and release. The frontend HTTP timeout remains 600 seconds.
+
+Enabling Chat creates `chat_conversation` and `chat_message` tables at core startup. Conversations and answers remain in Taranis until their owner deletes them. The provider receives the analyst's prompt, up to the latest 10 saved chat messages, the analyst-visible filter catalog, and, for search answers, up to the configured `chat_max_stories` bounded story summaries. Raw news-item content and provider credentials are not saved in chat metadata.
+
+This is a data-egress boundary: analyst prompts and selected story titles, dates, and summaries leave Taranis for the configured provider. Core requests `store: false`, but provider implementations and abuse-monitoring policies may apply their own retention. Select and contract with the provider accordingly, and configure transport security and provider-side retention controls before enabling the feature.
+
+Rollback is non-destructive. Set `CHAT_ENABLED=false` on core and frontend and restart the published application images; navigation disappears and core returns 503 for Chat calls, while the tables and conversation history remain untouched. Older images ignore the new tables.
 
 ## Validation
 

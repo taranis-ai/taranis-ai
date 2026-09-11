@@ -234,6 +234,14 @@ class TaranisConfig(TaranisBaseModel):
     default_news_item_conflict_retention: str = "200"
     default_timezone: str | None = None
     onboarding_enabled: bool = True
+    chat_llm_api_format: Literal["responses", "chat_completions"] = "responses"
+    chat_llm_base_url: str = ""
+    chat_llm_api_key: str = Field(default="", repr=False)
+    chat_llm_api_key_configured: bool = Field(default=False, exclude=True)
+    chat_llm_api_key_clear: bool = False
+    chat_llm_model: str = ""
+    chat_llm_timeout: int = Field(default=120, gt=0)
+    chat_max_stories: int = Field(default=5, gt=0, le=20)
 
     @field_validator("default_timezone", mode="after")
     @classmethod

@@ -30,6 +30,7 @@ data:
   LLM_MODEL: {{ .Values.config.llmModel | quote }}
   LLM_TIMEOUT: {{ .Values.config.llmTimeout | quote }}
   CACHE_DEFAULT_TIMEOUT: {{ .Values.config.cacheDefaultTimeout | quote }}
+  CHAT_ENABLED: {{ .Values.config.chatEnabled | quote }}
 ---
 apiVersion: v1
 kind: ConfigMap
