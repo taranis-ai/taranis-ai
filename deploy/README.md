@@ -26,6 +26,12 @@ Optional `llm-bot` overlay:
 - For Helm, set `config.llmBaseUrl`; optionally set `config.llmTimeout`, `config.llmModel`, and `secrets.llmApiKey`.
 - Set ingress hostname in `kubernetes/40-ingress.yaml` (or Helm values).
 
+## Opt-in fuzzy deduplication after upgrading
+
+To enable fuzzy rejection of collected news items, first deploy the updated published Core image with `FUZZY_DEDUP_ENABLED=false` and let its PostgreSQL schema migration complete. Run `taranis-cli backfill-fuzzy-hashes` inside Core to fingerprint the desired collection window, then set `FUZZY_DEDUP_ENABLED=true` in Core's environment and restart it. Optional settings are `FUZZY_DEDUP_LOOKBACK_DAYS=30` and `FUZZY_DEDUP_THRESHOLD=90`; standard Docker Compose forwards them, while Kubernetes/Helm installations must supply these variables to Core through their deployment configuration.
+
+Verify readiness and a sample collection before wider use. Index creation can briefly block writes on a large `news_item` table; schedule the upgrade accordingly. Disable the setting to return to exact-only ingestion. Application rollback may leave the additive column/index in place; already skipped articles require recollection. See [collection scope, backfill, and similarity limitations](../docs/osint-sources.md#fuzzy-deduplication).
+
 ## Initial settings
 
 Before the first startup, set `PRE_SEED_SETTINGS` in `kubernetes/00-config.yaml`, or the JSON string `config.preSeedSettings` in Helm values. Both default to `"{}"`. For example, Helm values can contain:

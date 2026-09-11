@@ -31,7 +31,7 @@ class TestWorkerApi:
     )
     def test_news_item_ingestion_notifies_only_when_items_are_added(self, client, api_header, monkeypatch, add_result, should_notify):
         assess_changed = Mock()
-        monkeypatch.setattr("core.api.worker.Story.add_news_items", lambda _: (add_result, 200))
+        monkeypatch.setattr("core.api.worker.Story.add_news_items", lambda _, **kwargs: (add_result, 200))
         monkeypatch.setattr("core.api.worker.realtime_publisher.assess_changed", assess_changed)
 
         response = client.post(f"{self.base_uri}/news-items", json=[{"id": "news-1"}], headers=api_header)

@@ -38,6 +38,9 @@ class Settings(BaseSettings):
     MODULE_ID: str = "Core"
     DEBUG: bool = False
     AUDIT_LOG_ENABLED: bool = True
+    FUZZY_DEDUP_ENABLED: bool = False
+    FUZZY_DEDUP_LOOKBACK_DAYS: Annotated[int, Field(ge=1, le=365)] = 30
+    FUZZY_DEDUP_THRESHOLD: Annotated[int, Field(ge=1, le=100)] = 90
 
     JWT_SECRET_KEY: str = "supersecret"
     JWT_IDENTITY_CLAIM: str = "sub"

@@ -19,6 +19,15 @@ JWT_COOKIE_PATH_SETTINGS = (
 )
 
 
+@pytest.mark.parametrize(
+    "field,value",
+    [("FUZZY_DEDUP_LOOKBACK_DAYS", 0), ("FUZZY_DEDUP_LOOKBACK_DAYS", 366), ("FUZZY_DEDUP_THRESHOLD", 0), ("FUZZY_DEDUP_THRESHOLD", 101)],
+)
+def test_fuzzy_settings_reject_invalid_bounds(field, value):
+    with pytest.raises(ValidationError, match=field):
+        Settings(**{field: value})
+
+
 @pytest.fixture
 def clear_pool_env_vars(monkeypatch):
     """Fixture to clear SQLAlchemy pool-related environment variables."""

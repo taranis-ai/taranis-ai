@@ -45,7 +45,7 @@ class AddNewsItems(MethodView):
             logger.debug(f"Received invalid news items payload type: {type(json_data).__name__}")
             return {"error": "Expected a list of news items"}, 400
         logger.debug(f"Received {len(json_data)} news items for worker ingestion")
-        result, status = Story.add_news_items(json_data)
+        result, status = Story.add_news_items(json_data, collection=True)
         if 200 <= status < 300 and result.get("news_item_ids"):
             realtime_publisher.assess_changed()
         invalidate_frontend_cache_on_success(status, scopes=(SCOPE_ASSESS_VIEWS, SCOPE_STORY_REPORT_VIEWS))

@@ -13,6 +13,8 @@ Run inside the core container against existing users:
 
 The CLI starts Flask with `initial_setup=False`, validates references, and commits in an app context. It is for user repair, not creation.
 
+The same entry point also provides `backfill-fuzzy-hashes`; its content, batching, and timestamp contracts belong to [Fuzzy Deduplication](fuzzy-deduplication.md).
+
 ## Entry Points and Coverage
 
 `src/core/core/cli.py`; console entry in `src/core/pyproject.toml`; operator docs in `src/core/README.md` and `deploy/README.md`; tests in `src/core/tests/unit/test_cli.py`.
