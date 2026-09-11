@@ -916,6 +916,15 @@ wheels = [
 ]
 
 [[package]]
+name = "ppdeep"
+version = "20260221"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/ef/6c/4b97c7c1f7dcb4ee0c8d3534284e7f1a638dee6dccd5d0a8f7d9fa6dac3c/ppdeep-20260221.tar.gz", hash = "sha256:8be1f4164b7ad2f7c40a51a664d3176701e40b2f9c1b96d18eeffaf06dfeff94", size = 4579, upload-time = "2026-02-21T08:23:44.357Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/26/78/71a6ae21b086f979ebf6a4f169c94f8e005e45df317cc6bc63187aae439e/ppdeep-20260221-py3-none-any.whl", hash = "sha256:e46d5130afeb0c73155568df9fcab41e2ff1ff04e95a29970b3da5b129f0ec34", size = 4763, upload-time = "2026-02-21T08:23:43.09Z" },
+]
+
+[[package]]
 name = "psycopg"
 version = "3.3.5"
 source = { registry = "https://pypi.org/simple" }
@@ -1466,6 +1475,7 @@ dependencies = [
     { name = "flask-sqlalchemy" },
     { name = "granian" },
     { name = "pillow" },
+    { name = "ppdeep" },
     { name = "psycopg" },
     { name = "pydantic-settings" },
     { name = "python-dotenv" },
@@ -1509,6 +1519,7 @@ requires-dist = [
     { name = "granian" },
     { name = "pillow" },
     { name = "playwright", marker = "extra == 'dev'" },
+    { name = "ppdeep" },
     { name = "psycopg" },
     { name = "pydantic-settings" },
     { name = "pyrefly", marker = "extra == 'dev'", specifier = ">=1.1.1" },

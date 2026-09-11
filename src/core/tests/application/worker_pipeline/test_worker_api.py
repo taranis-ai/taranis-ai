@@ -2,7 +2,7 @@
 import importlib.util
 import sys
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from unittest.mock import Mock
 
@@ -22,6 +22,39 @@ def _expected_story_tag_names(story: dict) -> set[str]:
 class TestWorkerApi:
     base_uri = "/api/worker"
 
+    def test_fuzzy_collection_skips_near_duplicates(self, client, api_header, session):
+        from core.model.news_item import NewsItem
+        from tests.application.support.builders import build_news_item_payload, create_osint_source
+
+        source = create_osint_source(rank=0)
+        body = (Path(__file__).parents[2] / "test_data" / "fuzzy_article.txt").read_text()
+        original = build_news_item_payload(source.id, content=body)
+        duplicate = build_news_item_payload(source.id, content=body.replace("on Tuesday", "on Wednesday"))
+        response = client.post(f"{self.base_uri}/news-items", json=[original, duplicate], headers=api_header)
+        assert response.status_code == 200
+        assert response.json["news_item_ids"] == [original["id"]]
+        assert NewsItem.get(original["id"]).fuzzy_hash
+
+        response = client.post(f"{self.base_uri}/news-items", json=[duplicate], headers=api_header)
+        assert response.status_code == 200
+        assert response.json["message"] == "All news items were skipped"
+
+    def test_fuzzy_collection_respects_source_and_time(self, client, api_header, session):
+        from core.model.news_item import NewsItem
+        from tests.application.support.builders import build_news_item_payload, create_osint_source, create_story
+
+        source = create_osint_source(rank=0)
+        other_source = create_osint_source(rank=1)
+        body = (Path(__file__).parents[2] / "test_data" / "fuzzy_article.txt").read_text()
+        old = build_news_item_payload(source.id, content=body)
+        old["collected"] = (NewsItem.utcnow() - timedelta(days=31)).isoformat()
+        create_story(news_items=[old, build_news_item_payload(other_source.id, content=body)])
+
+        incoming = build_news_item_payload(source.id, content=body)
+        response = client.post(f"{self.base_uri}/news-items", json=[incoming], headers=api_header)
+        assert response.status_code == 200
+        assert response.json["news_item_ids"] == [incoming["id"]]
+
     @pytest.mark.parametrize(
         ("add_result", "should_notify"),
         [
@@ -31,7 +64,7 @@ class TestWorkerApi:
     )
     def test_news_item_ingestion_notifies_only_when_items_are_added(self, client, api_header, monkeypatch, add_result, should_notify):
         assess_changed = Mock()
-        monkeypatch.setattr("core.api.worker.Story.add_news_items", lambda _: (add_result, 200))
+        monkeypatch.setattr("core.api.worker.Story.add_news_items", lambda _, **kwargs: (add_result, 200))
         monkeypatch.setattr("core.api.worker.realtime_publisher.assess_changed", assess_changed)
 
         response = client.post(f"{self.base_uri}/news-items", json=[{"id": "news-1"}], headers=api_header)

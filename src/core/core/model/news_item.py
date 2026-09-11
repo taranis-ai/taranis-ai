@@ -1,8 +1,10 @@
 import hashlib
+import unicodedata
 from collections.abc import Sequence
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
+import ppdeep
 from models.assess import NewsItem as AssessNewsItem
 from models.assess import Story as AssessStory
 from models.assess import validate_bcp47
@@ -31,9 +33,11 @@ if TYPE_CHECKING:
 
 class NewsItem(BaseModel):
     __tablename__ = "news_item"
+    __table_args__ = (db.Index("ix_news_item_source_collected", "osint_source_id", "collected"),)
 
     id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), primary_key=True, default=BaseModel.uuid7_str)
     hash: Mapped[str] = db.Column(db.String(), index=True, unique=True, nullable=False)
+    fuzzy_hash: Mapped[str | None] = db.Column(db.String(), nullable=True)
 
     title: Mapped[str] = db.Column(db.String())
     review: Mapped[str] = db.Column(db.String())
@@ -115,6 +119,7 @@ class NewsItem(BaseModel):
         self.title = payload.title or ""
         self.review = payload.review or ""
         self.content = payload.content or ""
+        self.fuzzy_hash = self.get_fuzzy_hash(self.content)
         if osint_source := OSINTSource.get(payload.osint_source_id):
             with db.session.no_autoflush:
                 self.osint_source = osint_source
@@ -162,6 +167,37 @@ class NewsItem(BaseModel):
     def identical(cls, hash) -> bool:
         return db.session.execute(db.select(db.exists().where(cls.hash == hash))).scalar_one()
 
+    @staticmethod
+    def get_fuzzy_hash(content: str | None) -> str | None:
+        body = " ".join(unicodedata.normalize("NFC", content or "").split()).encode("utf-8")
+        return ppdeep.hash(body) if len(body) >= 256 else None
+
+    @classmethod
+    def find_collection_duplicate(cls, payload: AssessNewsItem) -> tuple[str, str | None] | None:
+        if not (fingerprint := cls.get_fuzzy_hash(payload.content)):
+            return None
+
+        source = db.session.execute(
+            db.select(OSINTSource).where(OSINTSource.id == payload.osint_source_id).with_for_update()
+        ).scalar_one_or_none()
+        if source is None or source.key == "manual":
+            return None
+
+        now = cls.utcnow()
+        query = db.select(cls.id, cls.story_id, cls.fuzzy_hash).where(
+            cls.osint_source_id == source.id,
+            cls.collected >= now - timedelta(days=30),
+            cls.collected <= now,
+            cls.fuzzy_hash.is_not(None),
+        )
+        with db.session.execute(query.execution_options(yield_per=500)) as candidates:
+            for item_id, story_id, candidate in candidates:
+                score = ppdeep.compare(fingerprint, candidate)
+                if score >= 90:
+                    logger.info(f"Fuzzy duplicate skipped: source={source.id} matched_item={item_id} score={score}")
+                    return item_id, story_id
+        return None
+
     @classmethod
     def find_by_hash(cls, hash):
         return cls.get_filtered(db.select(cls).where(cls.hash == hash))
@@ -203,6 +239,7 @@ class NewsItem(BaseModel):
 
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
+        data.pop("fuzzy_hash", None)
         data["tags"] = [tag.to_dict() for tag in self.tags]
         return data
 
@@ -445,6 +482,7 @@ class NewsItem(BaseModel):
         self.author = payload.author or ""
         self.link = payload.link or ""
         self.content = payload.content or ""
+        self.fuzzy_hash = self.get_fuzzy_hash(self.content)
         self.language = payload.language or ""
         self.published = payload.published or self.published
         self.hash = payload.hash or self.hash

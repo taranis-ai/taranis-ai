@@ -777,12 +777,18 @@ class Story(BaseModel):
             return {"error": "Failed to add story"}, 400
 
     @classmethod
-    def add_from_news_item(cls, news_item: AssessNewsItem, user: User | None = None) -> "tuple[dict, int]":
+    def add_from_news_item(cls, news_item: AssessNewsItem, user: User | None = None, *, collection: bool = False) -> "tuple[dict, int]":
         if news_item_obj := NewsItem.get_by_hash(news_item.hash):
             logger.warning("Identical news item found. Skipping...")
             return {
                 "error": "Identical news item found. Skipping...",
                 "skipped_news_item_story_id": news_item_obj.story_id if news_item_obj else None,
+            }, 409
+
+        if collection and (duplicate := NewsItem.find_collection_duplicate(news_item)):
+            return {
+                "error": "Similar news item found. Skipping...",
+                "skipped_news_item_story_id": duplicate[1],
             }, 409
 
         data = {
@@ -835,7 +841,7 @@ class Story(BaseModel):
             return {"error": "Failed to add news items"}, 400
 
     @classmethod
-    def add_news_items(cls, news_items_list: list[dict], user: User | None = None):
+    def add_news_items(cls, news_items_list: list[dict], user: User | None = None, *, collection: bool = False):
         story_ids = []
         news_item_ids = []
         skipped_count = 0
@@ -849,7 +855,9 @@ class Story(BaseModel):
                 if normalized_news_item is None:
                     skipped_count += 1
                     continue
-                message, status = cls.add_from_news_item(normalized_news_item, user=user)
+                message, status = cls.add_from_news_item(normalized_news_item, user=user, collection=collection)
+                # Release a skipped item's source lock before processing another source.
+                db.session.commit()
                 if status > 299:
                     skipped_count += 1
                     continue
@@ -858,6 +866,7 @@ class Story(BaseModel):
             db.session.commit()
         except Exception:
             logger.exception("Failed to add news items")
+            db.session.rollback()
             return {"error": "Failed to add news items"}, 400
 
         result = {"story_ids": story_ids, "news_item_ids": news_item_ids, "message": f"{len(news_item_ids)} News items added successfully"}
