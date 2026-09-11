@@ -16,6 +16,51 @@ from tests.application.support.rbac import (
 
 
 class TestRBAC:
+    def test_selected_export_requires_read_access_to_every_item(self, client, session, auth_header_user_permissions):
+        from core.model.news_item_attribute import NewsItemAttribute
+        from core.model.role import Role
+        from core.model.role_based_access import ItemType
+        from core.model.story import Story
+
+        source, story, _ = create_rbac_source_story("export-allowed")
+        other_source, other_story, other_item = create_rbac_source_story("export-other")
+        role = Role.filter_by_name("User")
+        role.tlp_level = TLPLevel.CLEAR
+        grant_acl(role, ItemType.OSINT_SOURCE, source.id, read_only=True)
+        endpoint = "/api/assess/stories/export"
+
+        for ids in ([story.id, "missing"], [story.id, other_story.id]):
+            response = client.get(endpoint, headers=auth_header_user_permissions, query_string={"story_ids": ids})
+            assert response.status_code == 404
+            assert response.json == {"error": "One or more selected stories are unavailable"}
+            assert "Content-Disposition" not in response.headers
+
+        other_acl = grant_acl(role, ItemType.OSINT_SOURCE, other_source.id, read_only=True)
+        response = client.get(
+            endpoint, headers=auth_header_user_permissions, query_string={"story_ids": [other_story.id, story.id, other_story.id]}
+        )
+        assert response.status_code == 200
+        assert response.json["total_count"] == 2
+        assert [exported["id"] for exported in response.json["items"]] == [other_story.id, story.id]
+
+        Story.group_stories([story.id, other_story.id])
+        other_acl.item_id = "unrelated-source"
+        db.session.commit()
+        response = client.get(endpoint, headers=auth_header_user_permissions, query_string={"story_ids": story.id})
+        assert response.status_code == 404
+        assert response.json == {"error": "One or more selected stories are unavailable"}
+        other_acl.item_id = other_source.id
+        for target in (story, other_item):
+            target.upsert_attribute(NewsItemAttribute(key="TLP", value="red"))
+            db.session.commit()
+            response = client.get(endpoint, headers=auth_header_user_permissions, query_string={"story_ids": story.id})
+            assert response.status_code == 404
+            assert response.json == {"error": "One or more selected stories are unavailable"}
+            target.upsert_attribute(NewsItemAttribute(key="TLP", value="clear"))
+            db.session.commit()
+
+        assert client.get(endpoint, headers=auth_header_user_permissions, query_string={"story_ids": story.id}).status_code == 200
+
     @pytest.mark.parametrize("resource", ["report", "product"])
     def test_delete_requires_object_write_access(self, client, session, auth_header_user_permissions, resource):
         from core.model.permission import Permission

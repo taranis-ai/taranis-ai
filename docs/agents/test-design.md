@@ -19,8 +19,6 @@ Before keeping a new test, compare existing coverage and extend the nearest rele
 - Worker SFTP tests use a real local SSH server. The `sftp_mock` fixture and `SFTPTestHandler` handle the expected server-side EOF or connection reset when the client rejects a host key and join listener/connection threads during teardown. Keep thread warnings fatal in `src/worker/tests/publishers/test_sftp_publisher.py`; otherwise a leaked SSH thread can report its failure against an unrelated later test (including TAXII).
 - SFTP tests run in a per-test temporary working directory so uploads cannot contaminate later cases. Explicitly close the saved listener socket before joining: mockssh can skip `close()` when `shutdown()` fails on macOS.
 
-SFTP fixtures run in `tmp_path` and explicitly close the saved listener socket before joining: on macOS, mockssh's `shutdown()` may fail and skip its own `close()`.
-
 ## Entry Points
 
 Tests live under each component's `tests/`; frontend browser tests are in `src/frontend/tests/playwright/`. Commands and signoff: [Development Workflow](development-workflow.md). Stack selection and diagnostics: [Frontend E2E Harness](frontend-e2e-harness.md).
