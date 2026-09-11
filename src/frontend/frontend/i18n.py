@@ -28,10 +28,7 @@ def _profile_value(user: Any, key: str) -> str | None:
     profile = getattr(user, "profile", None)
     if profile is None:
         return None
-    if isinstance(profile, dict):
-        value = profile.get(key)
-    else:
-        value = getattr(profile, key, None)
+    value = profile.get(key) if isinstance(profile, dict) else getattr(profile, key, None)
     if not isinstance(value, str):
         return None
     value = value.strip()
