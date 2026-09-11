@@ -49,9 +49,7 @@ class ExportStoriesQuery(TaranisBaseModel):
     @field_validator("timefrom", "timeto", mode="before")
     @classmethod
     def empty_string_to_none(cls, value):
-        if value == "":
-            return None
-        return value
+        return None if value == "" else value
 
     @field_validator("timefrom", "timeto", mode="after")
     @classmethod
@@ -209,9 +207,7 @@ class User(TaranisBaseModel):
 
     @field_serializer("password", when_used="json")
     def dump_secret(self, v):
-        if isinstance(v, SecretStr):
-            return v.get_secret_value()
-        return v
+        return v.get_secret_value() if isinstance(v, SecretStr) else v
 
     @field_validator("profile", mode="after")
     @classmethod
@@ -477,7 +473,7 @@ class BotUpdate(BotInput):
 
 class BotCreate(BotInput):
     id: str | None = None
-    name: str
+    name: str = ""
     type: BOT_TYPES
 
 

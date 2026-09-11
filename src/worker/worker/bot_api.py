@@ -46,7 +46,6 @@ class BotApi:
         except (requests.exceptions.JSONDecodeError, requests.exceptions.HTTPError) as exc:
             logger.error(f"Call to {url} failed {response.status_code}: {response.text}")
             raise BotServiceUnavailableError from exc
-        return None
 
     def api_post(self, url: str, json_data: dict | None = None):
         url = f"{self.api_url}{url}"
