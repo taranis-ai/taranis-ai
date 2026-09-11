@@ -14,7 +14,6 @@ from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import Mapped, relationship
 from sqlalchemy.sql import Select
 
-from core.config import Config
 from core.log import logger
 from core.managers.db_manager import db
 from core.model.base_model import UUID_STR_LENGTH, BaseModel
@@ -176,7 +175,7 @@ class NewsItem(BaseModel):
 
     @classmethod
     def find_collection_duplicate(cls, payload: AssessNewsItem) -> tuple[str, str | None] | None:
-        if not Config.FUZZY_DEDUP_ENABLED or not (fingerprint := cls.get_fuzzy_hash(payload.content)):
+        if not (fingerprint := cls.get_fuzzy_hash(payload.content)):
             return None
 
         # Held through insertion/commit by add_news_items; concurrent collectors for
@@ -190,7 +189,7 @@ class NewsItem(BaseModel):
         now = cls.utcnow()
         query = db.select(cls.id, cls.story_id, cls.fuzzy_hash).where(
             cls.osint_source_id == source.id,
-            cls.collected >= now - timedelta(days=Config.FUZZY_DEDUP_LOOKBACK_DAYS),
+            cls.collected >= now - timedelta(days=30),
             cls.collected <= now,
             cls.fuzzy_hash.is_not(None),
         )
@@ -199,7 +198,7 @@ class NewsItem(BaseModel):
         with db.session.execute(query.execution_options(yield_per=500)) as candidates:
             for item_id, story_id, candidate in candidates:
                 score = ppdeep.compare(fingerprint, candidate)
-                if score >= Config.FUZZY_DEDUP_THRESHOLD:
+                if score >= 90:
                     logger.info(f"Fuzzy duplicate skipped: source={source.id} matched_item={item_id} score={score}")
                     return item_id, story_id
         return None

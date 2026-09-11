@@ -2,21 +2,19 @@
 
 ## When To Load
 
-News-item fingerprints, fuzzy duplicate detection, collection ingestion, or fingerprint backfill.
+News-item fingerprints, collection deduplication, or the fuzzy-hash migration.
 
 ## Contracts
 
-- Core computes internal `fuzzy_hash` from sanitized content using `ppdeep` CTPH after NFC and whitespace normalization. Bodies under 256 UTF-8 bytes remain NULL. Recompute on content edits; exclude fingerprints from serialization and untrusted import fields.
-- Exact title/URL hashing remains first and globally unique. Opt-in fuzzy rejection is passed explicitly from the worker news-item endpoint via `collection=True`. Do not enable it in shared constructors, manual/JSON creation, MISP/RT synchronization, or conflict resolution.
-- Candidates share the real OSINT source ID and have `collected` in the inclusive UTC interval `[now - lookback, now]`. Manual/missing sources bypass fuzzy comparison. Defaults are disabled, 30 days, score 90. Lookback is 1–365; score is 1–100. Scores do not prove semantic equivalence, including at 100.
-- PostgreSQL locks the source row through check and insert. Release locks after each skipped item too, before processing another source, to avoid retaining locks across mixed-source batches. SQLite does not enforce row locks.
-- Preserve the worker's skipped-item result, especially `All news items were skipped`, which becomes collector `NOT_MODIFIED`. Existing items/stories are never deleted or merged.
-- The additive PostgreSQL migration adds the column/index only. CLI backfill locks and commits bounded batches, processes NULL fingerprints within a UTC window, and explicitly preserves `updated`. Reruns skip filled fingerprints and revisit short bodies. Do not run a corpus backfill during server startup.
+- Core hashes sanitized content with `ppdeep` after NFC and whitespace normalization. Bodies under 256 UTF-8 bytes remain NULL. Recompute on content edits; exclude fingerprints from serialization and untrusted import fields.
+- Worker news-item ingestion always checks fuzzy similarity after the globally unique exact title/URL hash. Compare the same source's items collected in the inclusive UTC interval `[now - 30 days, now]`; skip at score 90 or higher.
+- The `collection=True` argument identifies the ingestion boundary. Manual/missing sources, explicit creation, JSON imports, MISP/RT synchronization, and conflict resolution retain their existing identity rules.
+- Hold the PostgreSQL source-row lock through check and insertion; release it after each skipped item before processing another source. SQLite does not enforce row locks.
+- Preserve `All news items were skipped`, which collectors translate to `NOT_MODIFIED`. Never merge or delete existing items.
+- The PostgreSQL migration adds the column/index and fills existing fingerprints in its transaction using a bounded cursor. It preserves content and timestamps. There is no separate CLI operation.
 
-## Entry Points and Coverage
+## Entry Points
 
-`src/core/core/model/news_item.py`, `src/core/core/model/story.py`, `src/core/core/api/worker.py`, `src/core/core/config.py`, and `src/core/core/cli.py`.
+`src/core/core/model/news_item.py`, `src/core/core/model/story.py`, `src/core/core/api/worker.py`, and `src/core/migrations/20260911_01_f8H2q-add-news-item-fuzzy-hash.py`.
 
-Behavior/backfill coverage: `src/core/tests/application/worker_pipeline/test_fuzzy_ingestion.py`. Real PostgreSQL race and released-schema migration coverage: `test_fuzzy_postgres.py` in the same directory; set `TARANIS_TEST_POSTGRES_URI` to an isolated test database. The fixture creates and drops a unique schema. Config validation: `src/core/tests/test_settings.py`. Existing collector tests own `NOT_MODIFIED` handling.
-
-Operator instructions and rollback limitations: [OSINT sources](../osint-sources.md#fuzzy-deduplication).
+Minimal collection/scope tests live in `src/core/tests/application/worker_pipeline/test_worker_api.py`. Existing collector tests cover `NOT_MODIFIED` handling. See [OSINT sources](../osint-sources.md#fuzzy-deduplication) for behavior and limitations.

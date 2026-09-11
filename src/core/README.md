@@ -44,8 +44,6 @@ taranis-ai
 
 The core image also includes `taranis-cli` for direct administrative fixes from the core container.
 
-`taranis-cli backfill-fuzzy-hashes` fills missing fingerprints for recent news items in committed batches. It supports `--days` (defaults to `FUZZY_DEDUP_LOOKBACK_DAYS`) and `--batch-size` (default 500), preserves timestamps, and can be rerun after interruption. See [fuzzy deduplication](../../docs/osint-sources.md#fuzzy-deduplication) for activation, scope, and matching limitations.
-
 Set a local database-auth password for an existing user:
 
 ```bash

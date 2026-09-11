@@ -1519,7 +1519,7 @@ requires-dist = [
     { name = "granian" },
     { name = "pillow" },
     { name = "playwright", marker = "extra == 'dev'" },
-    { name = "ppdeep", specifier = ">=20260221" },
+    { name = "ppdeep" },
     { name = "psycopg" },
     { name = "pydantic-settings" },
     { name = "pyrefly", marker = "extra == 'dev'", specifier = ">=1.1.1" },

@@ -34,7 +34,7 @@ dependencies = [
     "taranis-models",
     "sentry-sdk[flask]",
     "sentry-sdk[sqlalchemy]",
-    "ppdeep>=20260221",
+    "ppdeep",
 ]
 dynamic = ["version"]
 
