@@ -13,6 +13,7 @@ from models.assess import (
     StoryBookmarkOrderPayload,
     StoryBookmarkStoryPayload,
     StoryBookmarkUpdatePayload,
+    StoryNewsItemOrderPayload,
     StoryUpdatePayload,
 )
 from pydantic import ValidationError
@@ -162,7 +163,9 @@ class UpdateNewsItemTags(MethodView):
         item = news_item.NewsItem.get(news_item_id)
         if not item:
             return {"error": "NewsItem not found"}, 404
-        if not item.allowed_with_acl(current_user, require_write_access=True):
+        if not item.allowed_with_acl(current_user, require_write_access=True) or (
+            item.story and not item.story.allowed_to_update(current_user)
+        ):
             return {"error": "User does not have write access to this news item"}, 403
 
         tags = request.json
@@ -327,6 +330,21 @@ class Story(MethodView):
         return response, code
 
 
+class StoryNewsItemOrder(MethodView):
+    @auth_required("ASSESS_UPDATE")
+    @validate_json
+    def put(self, story_id: str):
+        try:
+            payload = StoryNewsItemOrderPayload.model_validate(request.json)
+        except ValidationError as exc:
+            return _validation_error_response(exc)
+        response, code = StoryService.order_news_items(story_id, payload.news_item_ids, payload.expected_news_item_ids, current_user)
+        if code == 200:
+            realtime_publisher.assess_changed()
+        invalidate_frontend_cache_on_success(code, scopes=(SCOPE_STORY_REPORT_VIEWS,), object_ids={"story": story_id})
+        return response, code
+
+
 class StoryCTI(MethodView):
     @auth_required("ASSESS_ACCESS")
     def get(self, story_id: str):
@@ -399,13 +417,9 @@ class BotActions(MethodView):
         report_ids = request_id_list(request.json, "report_id", "report_ids")
         if not story_ids and not report_ids:
             return {"error": "No story_id or report_id provided"}, 400
-        accessible_tlps = current_user.get_highest_tlp().get_accessible_levels()
         for story_id in story_ids:
             selected_story = story.Story.get(story_id)
-            if not selected_story or any(
-                not item.allowed_with_acl(current_user, require_write_access=True) or item.tlp_level.value not in accessible_tlps
-                for item in selected_story.news_items
-            ):
+            if not selected_story or not selected_story.allowed_to_update(current_user):
                 return {"error": "User does not have write access to all requested stories"}, 403
         for report_id in report_ids:
             report = report_item.ReportItem.get(report_id)
@@ -610,6 +624,7 @@ def initialize(app: Flask):
         "/news-items/<string:news_item_id>/attributes", view_func=UpdateNewsItemAttributes.as_view("update_news_item_attributes")
     )
     assess_bp.add_url_rule("/news-items/<string:news_item_id>/tags", view_func=UpdateNewsItemTags.as_view("update_news_item_tags"))
+    assess_bp.add_url_rule("/stories/<string:story_id>/news-item-order", view_func=StoryNewsItemOrder.as_view("story_news_item_order"))
     assess_bp.add_url_rule("/stories/group", view_func=GroupAction.as_view("group_action"))
     assess_bp.add_url_rule("/stories/ungroup", view_func=UnGroupStories.as_view("ungroup_stories"))
     assess_bp.add_url_rule("/news-items/ungroup", view_func=UnGroupNewsItem.as_view("ungroup_news_items"))

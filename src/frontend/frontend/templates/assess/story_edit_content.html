@@ -26,10 +26,10 @@
          @keyup.shift.window="showHints = false"
          x-data="{ showHints: false }">
 
-  {% if has_rt_id -%}
+  {% if not story.can_edit -%}
     <div class="alert alert-warning shadow-lg border border-warning/40">
-      <span class="font-semibold text-sm">RT managed story detected.</span>
-      <span class="text-sm">Please make any edits directly in RT to avoid conflicts; this interface is read-only for the record.</span>
+      <span class="font-semibold text-sm">This story is read-only.</span>
+      <span class="text-sm">Editing is unavailable for this story.</span>
     </div>
   {% endif -%}
 
@@ -53,7 +53,7 @@
       </div>
       <div class="flex flex-col gap-3">
         <div class="flex justify-end gap-2">
-          <button type="submit" form="story-edit-form" class="btn btn-sm btn-primary w-38" {% if has_rt_id %}disabled{% endif %}>
+          <button type="submit" form="story-edit-form" class="btn btn-sm btn-primary w-38" {% if not story.can_edit %}disabled{% endif %}>
             {{ heroicon_mini("check", class="h-4 w-4") }}
             <span>Save changes</span>
           </button>
@@ -97,6 +97,7 @@
                       class="btn btn-sm justify-between {% if like_active %}btn-success text-success-content{% else %}btn-outline{% endif %}"
                       hx-post="{{ vote_endpoint }}"
                       hx-vals='{"vote": "like"}'
+                      {% if not story.can_edit %}disabled{% endif %}
                       hx-target="#{{ card_id }}"
                       hx-swap="outerHTML"
                       hx-status:400="target:#notification-bar"
@@ -112,6 +113,7 @@
                       class="btn btn-sm justify-between {% if dislike_active %}btn-error text-error-content{% else %}btn-outline{% endif %}"
                       hx-post="{{ vote_endpoint }}"
                       hx-vals='{"vote": "dislike"}'
+                      {% if not story.can_edit %}disabled{% endif %}
                       hx-target="#{{ card_id }}"
                       hx-swap="outerHTML"
                       hx-status:400="target:#notification-bar"
@@ -166,7 +168,7 @@
             hx-status:4xx="target:#notification-bar"
             hx-status:5xx="target:#notification-bar">
         <input type="hidden" name="csrf_token" value="{{ request.cookies.get(config['JWT_ACCESS_CSRF_COOKIE_NAME'], '') }}">
-        <div class="card-body space-y-1">
+        <fieldset class="card-body space-y-1" {% if not story.can_edit %}disabled{% endif %}>
           <header class="flex items-center justify-between">
             <h2 class="card-title text-xl">Editor</h2>
           </header>
@@ -214,9 +216,9 @@
           </div>
 
           <footer class="flex flex-col gap-3 sm:flex-row sm:items-center">
-            {% if has_rt_id %}<p class="text-xs text-error sm:ml-4">Editing disabled for RT managed stories.</p>{% endif %}
+            {% if not story.can_edit %}<p class="text-xs text-error sm:ml-4">Editing is unavailable for this story.</p>{% endif %}
           </footer>
-        </div>
+        </fieldset>
       </form>
     </div>
 
@@ -245,7 +247,7 @@
                   hx-target="#notification-bar"
                   hx-swap="innerHTML">
               <input type="hidden" name="bot_id" value="summary_bot">
-              <button type="submit" class="btn btn-outline btn-accent" {% if has_rt_id %}disabled{% endif %}>Generate summary & title</button>
+              <button type="submit" class="btn btn-outline btn-accent" {% if not story.can_edit %}disabled{% endif %}>Generate summary & title</button>
             </form>
 
             <form class="flex flex-col"
@@ -253,7 +255,7 @@
                   hx-target="#notification-bar"
                   hx-swap="innerHTML">
               <input type="hidden" name="bot_id" value="sentiment_analysis_bot">
-              <button type="submit" class="btn btn-outline btn-accent" {% if has_rt_id %}disabled{% endif %}>Run sentiment analysis</button>
+              <button type="submit" class="btn btn-outline btn-accent" {% if not story.can_edit %}disabled{% endif %}>Run sentiment analysis</button>
             </form>
 
             <form class="flex flex-col"
@@ -261,7 +263,7 @@
                   hx-target="#notification-bar"
                   hx-swap="innerHTML">
               <input type="hidden" name="bot_id" value="cybersec_classifier_bot">
-              <button type="submit" class="btn btn-outline btn-accent" {% if has_rt_id %}disabled{% endif %}>Cybersecurity classification</button>
+              <button type="submit" class="btn btn-outline btn-accent" {% if not story.can_edit %}disabled{% endif %}>Cybersecurity classification</button>
             </form>
 
           </div>
@@ -273,7 +275,7 @@
           <div class="card-body space-y-3">
             <h3 class="card-title text-lg">MISP auto-update</h3>
             <p class="text-sm text-base-content/70">Push this story after five minutes without further changes.</p>
-            {% if can_manage_connectors %}
+            {% if can_manage_connectors and story.can_edit %}
               <label class="select w-full">
                 <span class="label">MISP connector</span>
                 <select name="misp_auto_update[connector_id]" form="story-edit-form" class="select select-bordered w-full">
@@ -304,17 +306,5 @@
     {% endif %}
   </div>
 
-  <div class="card bg-base-100 shadow-lg border border-base-200">
-    <div class="card-body space-y-5">
-      <div class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-        <h3 class="card-title text-lg">Linked news items ({{ news_count }})</h3>
-      </div>
-
-      {% if story.news_items %}
-        <div class="space-y-4">{% for item in story.news_items %}{{ news_item_card(item, story, edit_tags=(not has_rt_id)) }}{% endfor %}</div>
-      {% else %}
-        <p class="text-sm text-base-content/70">No news items are attached to this story yet.</p>
-      {% endif %}
-    </div>
-  </div>
+  {% include "assess/news_item_order.html" %}
 </section>

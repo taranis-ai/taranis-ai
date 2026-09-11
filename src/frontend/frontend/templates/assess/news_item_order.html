@@ -1,0 +1,62 @@
+{% from "assess/news_item_card.html" import news_item_card %}
+{% set order_url = url_for('assess.story_news_item_order', story_id=story.id, bookmark_id=bookmark_id or None) %}
+<div id="news-item-order"
+     class="card bg-base-100 shadow-lg border border-base-200"
+     x-data="{
+       dirty: false, saving: false, sortable: null,
+       move(button, direction) {
+         const row = button.closest('[data-order-item]');
+         const sibling = direction === -1 ? row.previousElementSibling : row.nextElementSibling;
+         if (!sibling) return;
+         row.parentNode.insertBefore(direction === -1 ? row : sibling, direction === -1 ? sibling : row);
+         this.dirty = true;
+         button.focus();
+       },
+       destroy() { this.sortable?.destroy(); }
+     }"
+     {% if story.can_edit and story.news_items | length > 1 %} x-init="sortable = Sortable.create($refs.items, {
+         handle: '[data-order-handle]', draggable: '[data-order-item]', animation: 150,
+         onEnd: (event) => { if (event.oldIndex !== event.newIndex) dirty = true; }
+       })" x-effect="sortable?.option('disabled', saving)" {% endif %}>
+  <div class="card-body space-y-5">
+    <h3 class="card-title text-lg">Linked news items ({{ story.news_items | length }})</h3>
+    {% if story.can_edit and story.news_items | length > 1 %}
+      <p class="text-sm">Drag items or use the arrow buttons, then save their order. The story title stays unchanged.</p>
+      <form id="news-item-order-form"
+            method="post"
+            action="{{ order_url }}"
+            hx-post="{{ order_url }}"
+            hx-target="#news-item-order"
+            hx-swap="outerHTML"
+            hx-status:400="target:#news-item-order-status swap:innerHTML"
+            hx-status:4xx="target:#news-item-order-status swap:innerHTML"
+            hx-status:5xx="target:#news-item-order-status swap:innerHTML"
+            @htmx:before:request="saving = true"
+            @htmx:after:request="saving = false"
+            @htmx:send:error="saving = false; $refs.status.textContent = 'Unable to save order. Please try again.'">
+        <input type="hidden" name="csrf_token" value="{{ request.cookies.get(config['JWT_ACCESS_CSRF_COOKIE_NAME'], '') }}">
+        {% for item in story.news_items %}<input type="hidden" name="expected_news_item_ids" value="{{ item.id }}">{% endfor %}
+        <button type="submit" class="btn btn-sm btn-primary" :disabled="!dirty || saving" data-testid="save-news-item-order">Save order</button>
+        <span x-show="dirty" x-cloak class="text-sm" role="status">Unsaved order</span>
+      </form>
+    {% endif %}
+    <div id="news-item-order-status" x-ref="status" role="status">{{ order_message or '' }}</div>
+    <div class="space-y-4" x-ref="items">
+      {% for item in story.news_items %}
+        <div data-order-item="{{ item.id }}">
+          {% if story.can_edit and story.news_items | length > 1 %}
+            <input type="hidden" name="news_item_ids" value="{{ item.id }}" form="news-item-order-form">
+            <div class="flex items-center gap-2 mb-2">
+              <span data-order-handle class="cursor-grab" title="Drag to reorder" aria-hidden="true">{{ heroicon_mini('bars-3', class='h-5 w-5') }}</span>
+              <button type="button" class="btn btn-xs btn-ghost" :disabled="saving" @click="move($el, -1)" aria-label="Move {{ item.title }} up">↑</button>
+              <button type="button" class="btn btn-xs btn-ghost" :disabled="saving" @click="move($el, 1)" aria-label="Move {{ item.title }} down">↓</button>
+            </div>
+          {% endif %}
+          {{ news_item_card(item, story, edit_tags=story.can_edit) }}
+        </div>
+      {% else %}
+        <p class="text-sm text-base-content/70">No news items are attached to this story yet.</p>
+      {% endfor %}
+    </div>
+  </div>
+</div>

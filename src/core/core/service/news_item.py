@@ -12,7 +12,9 @@ class NewsItemService:
         news_item = NewsItem.get(news_item_id)
         if not news_item:
             return {"error": "NewsItem not found"}, 404
-        if not news_item.allowed_with_acl(user, require_write_access=True):
+        if not news_item.allowed_with_acl(user, require_write_access=True) or (
+            news_item.story and not news_item.story.allowed_to_update(user)
+        ):
             return {"error": "User does not have write access to this news item"}, 403
         response, status = news_item.update_item(data, actor=Story.last_change_for_user(user))
         if status != 200:
@@ -53,7 +55,7 @@ class NewsItemService:
         story.news_items.remove(news_item)
         news_item.delete_item()
         if story.news_items and story.title == deleted_title:
-            story.title = story.news_items[0].title
+            story.title = story.ordered_news_items[0].title
         story.update_status(change=story_actor)
         story.record_revision(user, note="delete_news_item")
         db.session.commit()
