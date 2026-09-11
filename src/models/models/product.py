@@ -75,7 +75,7 @@ class Product(TaranisBaseModel):
     auto_publish: bool | None = None
     default_publisher: str | None = None
     product_type_id: str
-    report_items: list[str] = Field(default_factory=list[str])
+    report_items: list[str] = Field(default_factory=list)
     last_rendered: datetime | None = None
     last_published_url: str | None = None
     render_result: str | None = None

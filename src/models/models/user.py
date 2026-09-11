@@ -58,7 +58,7 @@ class ProfileSettings(TaranisBaseModel):
     split_view: bool = False
     end_of_shift: str | None = None
     highlight: bool = False
-    assess_saved_filters: list[AssessSavedFilter] = Field(default_factory=list[AssessSavedFilter])
+    assess_saved_filters: list[AssessSavedFilter] = Field(default_factory=list)
     onboarding_enabled: bool = True
     onboarding_tasks: dict[str, str] = Field(default_factory=dict)
     dashboard: ProfileSettingsDashboard = Field(default_factory=ProfileSettingsDashboard)
@@ -89,4 +89,4 @@ class UserProfile(TaranisBaseModel):
     effective_timezone: str = "UTC"
     permissions: list[str] = Field(default_factory=list)
     roles: list[dict[str, Any]] = Field(default_factory=list)
-    pending_onboarding_tasks: list[OnboardingTask] = Field(default_factory=list[OnboardingTask])
+    pending_onboarding_tasks: list[OnboardingTask] = Field(default_factory=list)

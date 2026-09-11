@@ -473,7 +473,7 @@ class BotUpdate(BotInput):
 
 class BotCreate(BotInput):
     id: str | None = None
-    name: str = ""
+    name: str
     type: BOT_TYPES
 
 
