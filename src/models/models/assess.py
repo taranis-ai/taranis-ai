@@ -71,8 +71,8 @@ def _normalize_datetime(value: str | datetime | None) -> datetime | None:
     if isinstance(value, str):
         with contextlib.suppress(ValueError):
             value = datetime.fromisoformat(value)
-        if isinstance(value, str):
-            return None
+    if isinstance(value, str):
+        return None
     if value.tzinfo is None or value.utcoffset() is None:
         return value
     return value.astimezone(UTC).replace(tzinfo=None)
@@ -292,10 +292,10 @@ class StoryBookmarkBase(TaranisBaseModel):
     @field_validator("name", mode="before")
     @classmethod
     def normalize_name(cls, value: Any) -> str:
-        name = str(value or "").strip()
-        if not name:
+        if name := str(value or "").strip():
+            return name
+        else:
             raise ValueError("Bookmark collection name is required")
-        return name
 
 
 class StoryBookmarkCreatePayload(StoryBookmarkBase):

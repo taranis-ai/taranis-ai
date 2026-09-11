@@ -41,7 +41,7 @@ def badge_class(status: str) -> str:
     """Return the CSS class for a badge based on validation status."""
     if status == "valid":
         return "badge-success"
-    elif status == "invalid":
+    if status == "invalid":
         return "badge-error"
     return "badge-neutral"
 
@@ -50,7 +50,7 @@ def badge_label(status: str) -> str:
     """Return the label for a badge based on validation status."""
     if status == "valid":
         return "Valid"
-    elif status == "invalid":
+    if status == "invalid":
         return "Invalid"
     return "Unknown"
 

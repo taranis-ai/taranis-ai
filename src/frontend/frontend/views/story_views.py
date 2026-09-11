@@ -566,9 +566,8 @@ class StoryView(BaseView):
 
         if cls._get_bookmark_id() or StoryView._get_current_url_path() == url_for("assess.assess"):
             return cls.rerender_list(notification=notification_html)
-        else:
-            content = cls._get_action_response_content(story_ids[0])
-            return make_response(notification_html + content, 200)
+        content = cls._get_action_response_content(story_ids[0])
+        return make_response(notification_html + content, 200)
 
     @classmethod
     @auth_required()
@@ -1276,7 +1275,7 @@ class StoryView(BaseView):
         if file.filename == "":
             flash("No file selected for upload", "error")
             return cls.redirect_htmx(url_for("assess.get_news_item", news_item_id="0"))
-        elif file.mimetype not in ["text/plain", "application/json"]:
+        if file.mimetype not in ["text/plain", "application/json"]:
             flash("Unsupported file type. Please upload a .txt or .json file.", "error")
             return cls.redirect_htmx(url_for("assess.get_news_item", news_item_id="0"))
 
@@ -1464,7 +1463,7 @@ class StoryView(BaseView):
                 "assess/story_edit_content.html",
                 **context,
             )
-        elif current_url == detail_path:
+        if current_url == detail_path:
             return render_template(
                 "assess/story.html",
                 detail_view=True,

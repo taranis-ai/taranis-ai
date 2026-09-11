@@ -212,7 +212,7 @@ def sftp_mock(tmp_path, monkeypatch):
             listener_socket = server._socket
             yield server
     finally:
-        # On macOS mockssh's shutdown() can fail before close(); always close the listener.
+        # mockssh skips close() when shutdown() fails on a listening socket (macOS).
         if listener_socket is not None:
             listener_socket.close()
         if listener_thread is not None:

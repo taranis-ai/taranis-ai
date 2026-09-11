@@ -216,10 +216,7 @@ class NewsItem(BaseModel):
 
     def upsert(self):
         """Insert a NewsItem into the database or skip if hash exists."""
-        if db.engine.dialect.name == "postgresql":
-            insert_stmt = pg_insert(NewsItem)
-        else:
-            insert_stmt = sqlite_insert(NewsItem)
+        insert_stmt = pg_insert(NewsItem) if db.engine.dialect.name == "postgresql" else sqlite_insert(NewsItem)
 
         stmt = insert_stmt.values(self.to_upsert_dict()).on_conflict_do_nothing(index_elements=["hash"]).returning(NewsItem)
 
@@ -526,8 +523,7 @@ class NewsItem(BaseModel):
     def get_filter_query_with_acl(cls, filter_args: dict, user: User) -> Select:
         query = cls.get_filter_query(filter_args)
         rbac = RBACQuery(user=user, resource_type=ItemType.OSINT_SOURCE)
-        query = RoleBasedAccessService.filter_query_with_acl(query, rbac)
-        return query
+        return RoleBasedAccessService.filter_query_with_acl(query, rbac)
 
     def delete_item(self):
         db.session.delete(self)

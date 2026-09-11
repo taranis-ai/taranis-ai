@@ -95,11 +95,11 @@ class NewsItemTag(BaseModel):
 
         if sort_str == "size_desc":
             return query.order_by(size_column.desc(), name_column.asc())
-        elif sort_str == "size_asc":
+        if sort_str == "size_asc":
             return query.order_by(size_column.asc(), name_column.asc())
-        elif sort_str == "name_asc":
+        if sort_str == "name_asc":
             return query.order_by(name_column.asc())
-        elif sort_str == "name_desc":
+        if sort_str == "name_desc":
             return query.order_by(name_column.desc())
 
         return query
@@ -131,7 +131,7 @@ class NewsItemTag(BaseModel):
     def parse_tags(cls, tags: list | dict) -> dict[str, "NewsItemTag"]:
         if isinstance(tags, dict):
             return cls._parse_dict_tags(tags)
-        elif isinstance(tags, list):
+        if isinstance(tags, list):
             return cls._parse_list_tags(tags)
 
         logger.warning(f"Invalid tags format: {type(tags).__name__} - expected list or dict")
