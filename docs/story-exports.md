@@ -2,7 +2,7 @@
 
 In **Settings → Export Stories**, administrators can download an instance-wide JSON array. **All Stories** contains story IDs, creation dates, and news-item IDs, titles, and content. **All Stories With Metadata** also contains story attributes, news-item attributes/tags, and the existing story metadata.
 
-From and To are inclusive bounds on the story's creation date, entered in **UTC**. Empty fields leave that bound open; From alone ends at the current time. Future dates and a To earlier than From are rejected. API clients may send explicit timezone offsets, which Core normalizes to UTC.
+From and To are inclusive bounds on the story's creation date, entered in **your profile timezone**, shown beside the form. The application converts them to UTC using the daylight-saving offset for each date. Empty fields leave that bound open; From alone ends at the current time. Future dates and a To earlier than From are rejected. Times skipped or repeated during a daylight-saving transition are rejected; choose an unambiguous boundary. Core API clients retain the UTC/explicit-offset date contract.
 
 In **Assess → story actions → Share → Export to JSON**, the download contains the selected stories as `{ "total_count": ..., "items": [...] }`. The same action supports bulk selections. Exports read fresh data and include story and news-item attributes. If any selected story is missing or inaccessible, no partial file is downloaded: reload Assess and retry with an accessible selection. Read-only access is sufficient, but every linked source and both story/news-item TLP levels must be accessible.
 

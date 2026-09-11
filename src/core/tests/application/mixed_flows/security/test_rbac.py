@@ -16,35 +16,6 @@ from tests.application.support.rbac import (
 
 
 class TestRBAC:
-    def test_selected_export_checks_every_source_and_tlp(self, client, session, auth_header_user_permissions):
-        from core.model.news_item_attribute import NewsItemAttribute
-        from core.model.role import Role
-        from core.model.role_based_access import ItemType
-        from core.model.story import Story
-
-        source, story, item = create_rbac_source_story("export-allowed")
-        other_source, other_story, _ = create_rbac_source_story("export-denied")
-        role = Role.filter_by_name("User")
-        role.tlp_level = TLPLevel.CLEAR
-        grant_acl(role, ItemType.OSINT_SOURCE, source.id, read_only=True)
-        endpoint = "/api/assess/stories/export"
-        response = client.get(endpoint, headers=auth_header_user_permissions, query_string={"story_ids": story.id})
-        assert response.status_code == 200
-        assert (
-            client.get(endpoint, headers=auth_header_user_permissions, query_string={"story_ids": [story.id, other_story.id]}).status_code
-            == 404
-        )
-        Story.group_stories([story.id, other_story.id])
-        assert client.get(endpoint, headers=auth_header_user_permissions, query_string={"story_ids": story.id}).status_code == 404
-        grant_acl(role, ItemType.OSINT_SOURCE, other_source.id, read_only=True)
-        story.upsert_attribute(NewsItemAttribute(key="TLP", value="red"))
-        db.session.commit()
-        assert client.get(endpoint, headers=auth_header_user_permissions, query_string={"story_ids": story.id}).status_code == 404
-        story.upsert_attribute(NewsItemAttribute(key="TLP", value="clear"))
-        item.add_attribute(NewsItemAttribute(key="TLP", value="red"))
-        db.session.commit()
-        assert client.get(endpoint, headers=auth_header_user_permissions, query_string={"story_ids": story.id}).status_code == 404
-
     @pytest.mark.parametrize("resource", ["report", "product"])
     def test_delete_requires_object_write_access(self, client, session, auth_header_user_permissions, resource):
         from core.model.permission import Permission

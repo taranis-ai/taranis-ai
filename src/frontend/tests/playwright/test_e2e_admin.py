@@ -1,6 +1,7 @@
 import json
 import uuid
 from datetime import UTC, datetime
+from zoneinfo import ZoneInfo
 
 import pytest
 from base_e2e_test import BaseE2ETest
@@ -1439,8 +1440,9 @@ class TestEndToEndAdmin(BaseE2ETest):
                 exported = json.load(f)
 
             assert all("attributes" in story for story in exported)
-            tf = datetime.fromisoformat(time_from)
-            tt = datetime.fromisoformat(time_to)
+            timezone = ZoneInfo(export_dialog.locator("form[data-timezone]").get_attribute("data-timezone"))
+            tf = datetime.fromisoformat(time_from).replace(tzinfo=timezone).astimezone(UTC).replace(tzinfo=None)
+            tt = datetime.fromisoformat(time_to).replace(tzinfo=timezone).astimezone(UTC).replace(tzinfo=None)
 
             expected = {
                 (

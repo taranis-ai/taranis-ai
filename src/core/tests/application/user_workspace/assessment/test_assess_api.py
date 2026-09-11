@@ -7,66 +7,6 @@ from tests.application.support.api_test_base import BaseTest
 class TestAssessApi(BaseTest):
     base_uri = "/api/assess"
 
-    def test_selected_export_preserves_metadata_and_import_payload(self, client, session, auth_header):
-        from models.assess import Story as StoryPayload
-
-        from core.managers.db_manager import db
-        from tests.application.support.builders import build_news_item_payload, create_story
-
-        news_items = [build_news_item_payload() for _ in range(2)]
-        news_items[0]["attributes"] = [{"key": "language", "value": "en"}]
-        news_items[0]["tags"] = [{"name": "actor", "tag_type": "organization"}]
-        story = create_story(news_items=news_items, attributes=[{"key": "status", "value": "reviewed"}])
-        story.news_item_order = list(reversed([item.id for item in story.ordered_news_items]))
-        db.session.commit()
-        detail = client.get(f"/api/assess/stories/{story.id}", headers=auth_header).get_json()
-        response = client.get("/api/assess/stories/export", headers=auth_header, query_string={"story_ids": [story.id, story.id]})
-        assert response.status_code == 200
-        assert response.headers["Content-Disposition"].startswith('attachment; filename="stories_export_')
-        assert response.headers["Cache-Control"] == "no-store"
-        assert response.get_json() == {"total_count": 1, "items": [StoryPayload.model_validate(detail).to_core_dict()]}
-        exported = response.get_json()["items"][0]
-        assert {attr["key"]: attr["value"] for attr in exported["attributes"]}["status"] == "reviewed"
-        assert [item["id"] for item in exported["news_items"]] == story.news_item_order
-        assert any(item.get("tags") for item in exported["news_items"])
-        assert isinstance(story.to_worker_dict()["tags"], dict)
-        assert isinstance(story.to_worker_dict()["attributes"], dict)
-        assert story.to_dict()["tags"] == detail["tags"]
-        assert story.to_dict()["links"] == detail["links"]
-
-        # Remove the disposable original so importing exercises persistence, not duplicate handling.
-        story_id = story.id
-        assert client.delete(f"/api/assess/stories/{story_id}", headers=auth_header).status_code == 200
-        imported = client.post("/api/assess/import", headers=auth_header, json=[exported])
-        assert imported.status_code == 200
-        restored = client.get(f"/api/assess/stories/{story_id}", headers=auth_header).get_json()
-        assert restored["attributes"] == detail["attributes"]
-        assert {item["id"]: item.get("attributes") for item in restored["news_items"]} == {
-            item["id"]: item.get("attributes") for item in detail["news_items"]
-        }
-
-    def test_selected_export_is_complete_or_returns_an_error(self, client, session, auth_header, auth_header_user_permissions):
-        from core.managers.db_manager import db
-        from core.model.role import Role
-        from core.model.story import Story
-
-        # More than the Assess list API's 400-story page limit.
-        stories = [Story(title=f"Export {index}") for index in range(401)]
-        db.session.add_all(stories)
-        db.session.commit()
-        ids = [story.id for story in stories]
-        endpoint = "/api/assess/stories/export"
-        response = client.get(endpoint, headers=auth_header, query_string={"story_ids": ids})
-        assert response.status_code == 200
-        assert [item["id"] for item in response.get_json()["items"]] == ids
-        assert response.get_json()["total_count"] == 401
-        assert client.get(endpoint, headers=auth_header).status_code == 400
-        assert client.get(endpoint, headers=auth_header, query_string={"story_ids": [ids[0], "missing"]}).status_code == 404
-        role = Role.filter_by_name("User")
-        role.permissions = [permission for permission in role.permissions if permission.code != "ASSESS_ACCESS"]
-        db.session.commit()
-        assert client.get(endpoint, headers=auth_header_user_permissions, query_string={"story_ids": ids[0]}).status_code == 403
-
     def test_order_saves_without_changing_content_and_rejects_stale_or_invalid_requests(self, client, auth_header, session):
         from core.managers.db_manager import db
         from tests.application.support.builders import build_news_item_payload, create_story

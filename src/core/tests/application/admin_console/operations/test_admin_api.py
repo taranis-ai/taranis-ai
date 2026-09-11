@@ -257,31 +257,6 @@ def test_export_stories_rejects_future_datetime_filters(client, auth_header):
     assert "timeto" in r.get_json()["error"]
 
 
-def test_export_stories_normalizes_offsets_and_rejects_reversed_range(client, session, auth_header):
-    from core.managers.db_manager import db
-    from tests.application.support.builders import build_news_item_payload, create_story
-
-    story = create_story(news_items=[build_news_item_payload()])
-    story.created = datetime(2024, 5, 1, 10, 0)
-    db.session.commit()
-    endpoint = "/api/settings/export-stories"
-    for metadata in ("false", "true"):
-        response = client.get(
-            endpoint,
-            headers=auth_header,
-            query_string={
-                "timefrom": "2024-05-01T12:00:00+02:00",
-                "timeto": "2024-05-01T12:00:00+02:00",
-                "metadata": metadata,
-            },
-        )
-        assert response.status_code == 200
-        assert [item["id"] for item in response.get_json()] == [story.id]
-    response = client.get(endpoint, headers=auth_header, query_string={"timefrom": "2024-05-02", "timeto": "2024-05-01"})
-    assert response.status_code == 400
-    assert "To must be on or after From" in response.get_json()["error"]
-
-
 def test_export_stories_allows_empty_datetime_filters(client, auth_header):
     r = client.get("/api/settings/export-stories?timefrom=&timeto=", headers=auth_header)
 

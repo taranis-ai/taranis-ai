@@ -1,4 +1,7 @@
+from datetime import datetime
 from typing import cast
+from urllib.parse import parse_qs, urlparse
+from zoneinfo import ZoneInfo
 
 from flask import render_template
 
@@ -66,18 +69,28 @@ def test_settings_export_error_returns_oob_notification(app, monkeypatch):
     assert "&lt;section id=&quot;notification-bar&quot;" not in body
 
 
-def test_story_transfer_partial_guards_future_export_dates(app):
-    with app.test_request_context("/admin/settings/"):
-        body = render_template(
-            "settings/story_transfer.html",
-            links={"export_stories": "/api/settings/export-stories"},
-        )
+def test_story_transfer_partial_guards_future_export_dates(authenticated_client, auth_user, responses):
+    from frontend.cache import add_user_to_cache
+    from frontend.config import Config
+
+    user = auth_user.model_copy(deep=True)
+    user.profile.timezone = "Europe/Vienna"
+    add_user_to_cache(user.model_dump(mode="json"))
+    responses.get(f"{Config.TARANIS_CORE_URL}/settings/settings", json={"items": [{"settings": {}}]})
+    body = authenticated_client.get("/admin/settings/").get_data(as_text=True)
 
     assert 'data-testid="story-export-time-from"' in body
     assert 'data-testid="story-export-time-to"' in body
-    assert body.count('x-bind:max="maxDateTimeLocal"') == 2
-    assert "maxDateTimeLocal = new Date().toISOString().slice(0, 16);" in body
-    assert "Dates are in UTC" in body
+    assert body.count(f'max="{datetime.now(ZoneInfo("Europe/Vienna")).strftime("%Y-%m-%dT%H:%M")}"') == 2
+    assert "profile timezone (Europe/Vienna)" in body
+    responses.get(f"{Config.TARANIS_CORE_URL}/settings/export-stories", json=[])
+    response = authenticated_client.get("/admin/settings/export-stories?timefrom=2024-01-01T12:00&timeto=2024-07-01T12:00&metadata=true")
+    assert response.status_code == 200
+    assert parse_qs(urlparse(responses.calls[-1].request.url).query) == {
+        "timefrom": ["2024-01-01T11:00:00+00:00"],
+        "timeto": ["2024-07-01T10:00:00+00:00"],
+        "metadata": ["true"],
+    }
 
 
 def test_settings_patch_action_sends_only_submitted_fields(app, monkeypatch):
