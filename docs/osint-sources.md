@@ -16,6 +16,6 @@ Collection always skips near-identical article bodies from the same OSINT source
 
 Fuzzy rejection applies to worker news-item ingestion. Manual-source items, explicit Assess creation, JSON imports, MISP/RT story synchronization, and conflict resolution retain their existing identity rules. A match skips the incoming item and preserves the existing story. Duplicate-only collector runs report `NOT_MODIFIED`.
 
-The PostgreSQL migration automatically populates existing fingerprints without changing article timestamps or deleting duplicates. Content edits recompute fingerprints, which remain internal metadata. Migration time depends on the stored article volume.
+The PostgreSQL migration automatically populates missing fingerprints for items collected in the preceding 30 days, using the same UTC window as duplicate detection. Older and future-dated items are excluded. It does not change article timestamps or delete duplicates. Content edits recompute fingerprints, which remain internal metadata.
 
-CTPH scores measure textual similarity, not semantic equivalence: a small but meaningful correction can still score 100.
+CTPH scores measure textual similarity, not semantic equivalence: a small but meaningful correction can still score 100. RSS content may be a summary or description, so unrelated headlines sharing boilerplate can match. Adding the title to a long body does not reliably prevent this; title agreement would need a separate check. Content-only hashing allows duplicate articles with rewritten headlines to match, while short and empty bodies remain exact-only.

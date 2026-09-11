@@ -11,7 +11,8 @@ News-item fingerprints, collection deduplication, or the fuzzy-hash migration.
 - The `collection=True` argument identifies the ingestion boundary. Manual/missing sources, explicit creation, JSON imports, MISP/RT synchronization, and conflict resolution retain their existing identity rules.
 - Hold the PostgreSQL source-row lock through check and insertion; release it after each skipped item before processing another source. SQLite does not enforce row locks.
 - Preserve `All news items were skipped`, which collectors translate to `NOT_MODIFIED`. Never merge or delete existing items.
-- The PostgreSQL migration adds the column/index and fills existing fingerprints in its transaction using a bounded cursor. It preserves content and timestamps. There is no separate CLI operation.
+- The PostgreSQL migration adds the column/index and fills missing fingerprints only within the same UTC 30-day window, using a bounded cursor in its transaction. It preserves content and timestamps. There is no separate CLI operation.
+- RSS can supply summaries/descriptions rather than full articles; shared boilerplate can produce false matches. Concatenating titles into the body hash does not reliably distinguish different headlines. Content-only matching deliberately tolerates rewritten headlines.
 
 ## Entry Points
 

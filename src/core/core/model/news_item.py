@@ -170,7 +170,6 @@ class NewsItem(BaseModel):
     @staticmethod
     def get_fuzzy_hash(content: str | None) -> str | None:
         body = " ".join(unicodedata.normalize("NFC", content or "").split()).encode("utf-8")
-        # Short snippets do not provide enough context for automatic rejection.
         return ppdeep.hash(body) if len(body) >= 256 else None
 
     @classmethod
@@ -178,8 +177,6 @@ class NewsItem(BaseModel):
         if not (fingerprint := cls.get_fuzzy_hash(payload.content)):
             return None
 
-        # Held through insertion/commit by add_news_items; concurrent collectors for
-        # the same source must see the preceding collector's committed candidates.
         source = db.session.execute(
             db.select(OSINTSource).where(OSINTSource.id == payload.osint_source_id).with_for_update()
         ).scalar_one_or_none()
@@ -193,8 +190,6 @@ class NewsItem(BaseModel):
             cls.collected <= now,
             cls.fuzzy_hash.is_not(None),
         )
-        # ponytail: linear scan of one source's window; add CTPH block-size
-        # candidate filtering if measured collection latency warrants it.
         with db.session.execute(query.execution_options(yield_per=500)) as candidates:
             for item_id, story_id, candidate in candidates:
                 score = ppdeep.compare(fingerprint, candidate)
