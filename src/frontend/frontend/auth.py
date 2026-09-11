@@ -244,7 +244,7 @@ def api_key_required(fn):
     return wrapper
 
 
-def update_current_user_cache() -> None | UserProfile:
+def update_current_user_cache() -> UserProfile | None:
     if result := CoreApi().api_get("/users"):
         return add_user_to_cache(user=result)
     return None

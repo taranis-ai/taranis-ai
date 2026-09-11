@@ -22,7 +22,7 @@ class AnalystBot(BaseBot):
         self.regexp = regex.replace(" ", "").split(",")
         self.attr_name = attr.replace(" ", "").split(",")
 
-        bots_params = dict(zip(self.regexp, self.attr_name))
+        bots_params = dict(zip(self.regexp, self.attr_name, strict=False))
         if not (data := self.get_stories(parameters)):
             return {"message": "No new stories found", "result": {}}
         for story in data:

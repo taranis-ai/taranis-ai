@@ -71,8 +71,7 @@ class Product(BaseModel):
     def get_filter_query_with_acl(cls, filter_args: dict, user: User) -> Select:
         query = cls.get_filter_query(filter_args)
         rbac = RBACQuery(user=user, resource_type=ItemType.PRODUCT_TYPE)
-        query = RoleBasedAccessService.filter_query_with_acl(query, rbac)
-        return query
+        return RoleBasedAccessService.filter_query_with_acl(query, rbac)
 
     def get_supported_reports(self) -> list[ReportItem]:
         """Returns list of ReportItems that are have the correct 'report_item_type' of that is set by the 'product_type' of the current 'product'"""

@@ -282,10 +282,7 @@ class Bot(BaseModel):
 
     @staticmethod
     def parse_run_after_bots(value: Any) -> tuple[str, ...]:
-        if isinstance(value, list):
-            raw_values = value
-        else:
-            raw_values = str(value or "").split(",")
+        raw_values = value if isinstance(value, list) else str(value or "").split(",")
         result: list[str] = []
         for raw_value in raw_values:
             if not (value_text := str(raw_value).strip()):

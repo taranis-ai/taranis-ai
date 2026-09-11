@@ -450,8 +450,7 @@ class ReportItem(BaseModel):
         query = cls.get_filter_query(filter_args)
         rbac = RBACQuery(user=user, resource_type=ItemType.REPORT_ITEM_TYPE)
         query = RoleBasedAccessService.filter_query_with_acl(query, rbac)
-        query = RoleBasedAccessService.filter_report_query_with_tlp(query, user)
-        return query
+        return RoleBasedAccessService.filter_report_query_with_tlp(query, user)
 
     @classmethod
     def get_by_cpe(cls, cpes):
