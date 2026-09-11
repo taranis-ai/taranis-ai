@@ -50,10 +50,12 @@ class SettingsView(AdminBaseView):
             if not response.ok:
                 logger.error(f"Failed to download file from {action_url}: {response.status_code} - {response.text}")
                 notification = cls.get_notification_from_response(response)
-                static_view, static_response = cls.static_view()
+                static_view, _ = cls.static_view()
                 notification += static_view
-                return notification, static_response
-            return CoreApi().stream_proxy(response, "stories_export.json")
+                return notification, response.status_code
+            download = CoreApi.stream_proxy(response, "stories_export.json")
+            download.headers["Cache-Control"] = "no-store"
+            return download
 
         if method == "patch":
             payload = parse_formdata(request.form) if request.form else None

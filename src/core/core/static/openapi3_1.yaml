@@ -6135,6 +6135,38 @@ paths:
           description: forbidden
         '404':
           $ref: '#/components/responses/404NotFound'
+  /assess/stories/export:
+    get:
+      security:
+      - UserAuth: []
+      tags:
+      - assess
+      description: Export selected stories as an import-compatible JSON download. Requires ASSESS_ACCESS and read access to every linked item. No pagination or partial results.
+      operationId: assess.story_export.get
+      parameters:
+      - name: story_ids
+        in: query
+        required: true
+        style: form
+        explode: true
+        schema:
+          type: array
+          minItems: 1
+          items:
+            type: string
+      responses:
+        '200':
+          description: JSON attachment containing total_count and items, including story and news-item attributes.
+        '400':
+          description: No story IDs supplied.
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: ASSESS_ACCESS required.
+        '404':
+          description: One or more selected stories are missing or inaccessible.
+        '500':
+          description: Export failed.
   /assess/stories/{story_id}:
     parameters:
     - name: story_id
@@ -8686,11 +8718,29 @@ paths:
       - UserAuth: []
       tags:
       - config
-      description: export stories
+      description: Export all stories as a JSON array. Requires ADMIN_OPERATIONS. Metadata includes story and news-item attributes. Dates filter story creation time in UTC with inclusive bounds.
       operationId: settings.export_stories.get
+      parameters:
+      - name: metadata
+        in: query
+        schema:
+          type: boolean
+          default: false
+      - name: timefrom
+        in: query
+        schema:
+          type: string
+          format: date-time
+      - name: timeto
+        in: query
+        schema:
+          type: string
+          format: date-time
       responses:
         '200':
           description: success
+        '400':
+          description: Invalid, future, or reversed date bounds.
         '401':
           $ref: '#/components/responses/401Unauthorized'
         '403':

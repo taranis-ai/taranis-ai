@@ -22,7 +22,8 @@
                   action="{{ export_url }}"
                   class="space-y-4"
                   x-data="{ maxDateTimeLocal: '' }"
-                  x-init="const now = new Date(); now.setMinutes(now.getMinutes() - now.getTimezoneOffset()); maxDateTimeLocal = now.toISOString().slice(0, 16);">
+                  x-init="maxDateTimeLocal = new Date().toISOString().slice(0, 16);">
+              <p class="text-sm">Dates are in UTC and filter the story's creation time.</p>
               <div class="grid grid-cols-2 gap-3">
                 <label class="input w-full p-1">
                   <span class="label text-xs font-medium text-base-content/70 pr-1 mr-1">From</span>

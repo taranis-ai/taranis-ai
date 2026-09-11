@@ -22,6 +22,27 @@ def expected_search_trigger(input_id: str) -> str:
     return f"input changed delay:500ms from:#{input_id}, search from:#{input_id}"
 
 
+@pytest.mark.parametrize("status", [200, 404, 500])
+def test_story_export_download_uses_fresh_core_payload(authenticated_client_basic, responses_mock, status):
+    payload = {"total_count": 1, "items": [{"id": "story-1", "attributes": [{"key": "status", "value": "reviewed"}]}]}
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/assess/stories/export",
+        json=payload if status == 200 else {"error": "unavailable"},
+        status=status,
+        headers={"Content-Disposition": 'attachment; filename="stories_export_test.json"'},
+    )
+    response = authenticated_client_basic.get("/story/export?story_ids=story-1&story_ids=story-2")
+    assert response.status_code == status
+    assert parse_qs(urlparse(responses_mock.calls[-1].request.url).query) == {"story_ids": ["story-1", "story-2"]}
+    if status == 200:
+        assert response.get_json() == payload
+        assert response.headers["Content-Disposition"] == 'attachment; filename="stories_export_test.json"'
+        assert response.headers["Cache-Control"] == "no-store"
+    else:
+        assert "Content-Disposition" not in response.headers
+        assert b"Failed to export stories" in response.data
+
+
 def test_news_item_order_returns_local_safe_error_when_core_is_unavailable(authenticated_client_basic, responses_mock, htmx_header):
     responses_mock.put(
         f"{Config.TARANIS_CORE_URL}/assess/stories/story-1/news-item-order",

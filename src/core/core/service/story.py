@@ -5,7 +5,10 @@ from typing import TYPE_CHECKING, Any
 
 from flask import Response, abort, jsonify
 from flask_jwt_extended import current_user
+from models.assess import Story as StoryPayload
 from sqlalchemy import Row, bindparam, func
+from sqlalchemy.orm import selectinload
+from sqlalchemy.sql import Select
 
 from core.log import logger
 from core.managers import queue_manager
@@ -112,7 +115,7 @@ class StoryService:
         for row in result:
             if getattr(row, "news_item_id", None) is None:
                 continue
-            story = stories.setdefault(row.id, {"id": row.id, "created": row.created.isoformat(), "news_items": []})
+            story = stories.setdefault(row.id, {"id": row.id, "created": Story.serialize_datetime(row.created), "news_items": []})
 
             story["news_items"].append(
                 {
@@ -151,9 +154,43 @@ class StoryService:
             query = query.where(Story.created >= time_from)
         if time_to is not None:
             query = query.where(Story.created <= time_to)
-        stories: list[Story] = list(db.session.execute(query).scalars().unique().all())
-        payload = [story.to_dict() for story in stories]
+        payload = [story.to_export_dict() for story in cls._load_export_stories(query)]
         return json.dumps(payload).encode("utf-8")
+
+    @staticmethod
+    def _load_export_stories(query: Select) -> list[Story]:
+        query = query.options(
+            selectinload(Story.attributes),
+            selectinload(Story.misp_auto_update),
+            selectinload(Story.news_items).selectinload(NewsItem.attributes),
+            selectinload(Story.news_items).selectinload(NewsItem.tags),
+            selectinload(Story.news_items).selectinload(NewsItem.osint_source),
+        )
+        return list(db.session.scalars(query).unique().all())
+
+    @classmethod
+    def export_selected(cls, story_ids: list[str], user: User) -> Response | tuple[dict[str, str], int]:
+        story_ids = list(dict.fromkeys(story_ids))
+        if not story_ids or any(not story_id for story_id in story_ids):
+            return {"error": "Select at least one story to export"}, 400
+        stories = cls._load_export_stories(db.select(Story).where(Story.id.in_(story_ids)))
+        accessible_tlps = user.get_highest_tlp().get_accessible_levels()
+        if len(stories) != len(story_ids) or any(
+            story.tlp_level.value not in accessible_tlps
+            or any(
+                item.tlp_level.value not in accessible_tlps or not item.allowed_with_acl(user, require_write_access=False)
+                for item in story.news_items
+            )
+            for story in stories
+        ):
+            return {"error": "One or more selected stories are unavailable"}, 404
+        stories_by_id = {story.id: story for story in stories}
+        payload = [StoryPayload.model_validate(stories_by_id[story_id].to_export_dict()).to_core_dict() for story_id in story_ids]
+        response = jsonify({"total_count": len(payload), "items": payload})
+        timestamp = Story.utcnow().strftime("%Y%m%d_%H%M%S")
+        response.headers["Content-Disposition"] = f'attachment; filename="stories_export_{timestamp}.json"'
+        response.headers["Cache-Control"] = "no-store"
+        return response
 
     @classmethod
     def get_story_clusters(cls, days: int = 7, limit: int = 10):

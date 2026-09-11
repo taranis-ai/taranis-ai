@@ -1438,6 +1438,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             with open(download_path, "r", encoding="utf-8") as f:
                 exported = json.load(f)
 
+            assert all("attributes" in story for story in exported)
             tf = datetime.fromisoformat(time_from)
             tt = datetime.fromisoformat(time_to)
 

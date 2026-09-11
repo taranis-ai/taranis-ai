@@ -574,6 +574,9 @@ class TestEndToEndUser(BaseE2ETest):
         assert exported_story["title"] in possible_story_titles
         assert len(exported_story["news_items"]) >= 1
         assert exported_story["news_items"][0]["title"] == expected_news_item_title
+        assert "attributes" in exported_story
+        assert any(attribute["key"] == "TLP" for attribute in exported_story["attributes"])
+        assert not {"detail_view", "in_reports_count", "news_item_order", "can_edit"} & exported_story.keys()
 
     def test_user_analyze(
         self,

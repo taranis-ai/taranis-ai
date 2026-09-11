@@ -60,7 +60,7 @@ def test_settings_export_error_returns_oob_notification(app, monkeypatch):
     with app.test_request_context("/admin/settings/api/settings/export-stories"):
         body, status = cast(tuple[str, int], settings_views.SettingsView.settings_action("/settings/export-stories"))
 
-    assert status == 200
+    assert status == 500
     assert 'hx-swap-oob="true"' in body
     assert '<span id="notification-message">Failed to export stories.</span>' in body
     assert "&lt;section id=&quot;notification-bar&quot;" not in body
@@ -76,7 +76,8 @@ def test_story_transfer_partial_guards_future_export_dates(app):
     assert 'data-testid="story-export-time-from"' in body
     assert 'data-testid="story-export-time-to"' in body
     assert body.count('x-bind:max="maxDateTimeLocal"') == 2
-    assert "maxDateTimeLocal = now.toISOString().slice(0, 16);" in body
+    assert "maxDateTimeLocal = new Date().toISOString().slice(0, 16);" in body
+    assert "Dates are in UTC" in body
 
 
 def test_settings_patch_action_sends_only_submitted_fields(app, monkeypatch):
