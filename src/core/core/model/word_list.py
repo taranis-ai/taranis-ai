@@ -269,7 +269,7 @@ class WordList(BaseModel):
         headers = [header.lower() for header in next(cr)]
         if len(headers) < 2 or len(headers) > 3:
             raise ValueError("Invalid CSV file")
-        return [dict(zip(headers, row, strict=False)) for row in cr]
+        return [dict(zip(headers, row, strict=True)) for row in cr]
 
     @classmethod
     def parse_json(cls, content) -> list | None:
