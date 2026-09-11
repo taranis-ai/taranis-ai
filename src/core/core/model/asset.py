@@ -307,8 +307,7 @@ class AssetGroup(BaseModel):
                     "id": "default",
                 }
             )
-        else:
-            raise RuntimeError("Default organization not found. Cannot create default asset group.")
+        raise RuntimeError("Default organization not found. Cannot create default asset group.")
 
     @classmethod
     def get(cls, item_id: str | None) -> "AssetGroup | None":

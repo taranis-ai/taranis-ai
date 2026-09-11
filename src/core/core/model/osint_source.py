@@ -384,8 +384,7 @@ class OSINTSource(BaseModel):
     def get_filter_query_with_acl(cls, filter_args: dict, user) -> Select:
         query = cls.get_filter_query(filter_args)
         rbac = RBACQuery(user=user, resource_type=ItemType.OSINT_SOURCE)
-        query = RoleBasedAccessService.filter_query_with_acl(query, rbac)
-        return query
+        return RoleBasedAccessService.filter_query_with_acl(query, rbac)
 
     @classmethod
     def get_filter_query(cls, filter_args: dict) -> Select:
@@ -1105,10 +1104,7 @@ class OSINTSource(BaseModel):
     @classmethod
     def get_all_for_assess_api(cls, user=None) -> tuple[dict[str, Any], int]:
         filter_args = {}
-        if user:
-            query = cls.get_filter_query_with_acl(filter_args, user)
-        else:
-            query = cls.get_filter_query(filter_args)
+        query = cls.get_filter_query_with_acl(filter_args, user) if user else cls.get_filter_query(filter_args)
         if items := cls.get_filtered(query):
             return {"items": [item.to_assess_dict() for item in items]}, 200
 
@@ -1162,8 +1158,7 @@ class OSINTSourceGroup(BaseModel):
     def get_filter_query_with_acl(cls, filter_args: dict, user) -> Select:
         query = cls.get_filter_query(filter_args)
         rbac = RBACQuery(user=user, resource_type=ItemType.OSINT_SOURCE_GROUP)
-        query = RoleBasedAccessService.filter_query_with_acl(query, rbac)
-        return query
+        return RoleBasedAccessService.filter_query_with_acl(query, rbac)
 
     @classmethod
     def get_filter_query(cls, filter_args: dict) -> Select:
@@ -1279,10 +1274,7 @@ class OSINTSourceGroup(BaseModel):
     @classmethod
     def get_all_for_assess_api(cls, user=None) -> tuple[dict[str, Any], int]:
         filter_args = {}
-        if user:
-            query = cls.get_filter_query_with_acl(filter_args, user)
-        else:
-            query = cls.get_filter_query(filter_args)
+        query = cls.get_filter_query_with_acl(filter_args, user) if user else cls.get_filter_query(filter_args)
         if items := cls.get_filtered(query):
             return {"items": [item.to_assess_dict() for item in items]}, 200
 

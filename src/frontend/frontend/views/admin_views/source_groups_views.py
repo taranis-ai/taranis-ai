@@ -43,7 +43,8 @@ class SourceGroupView(AdminBaseView):
     @classmethod
     def get_columns(cls) -> list[dict[str, Any]]:
         columns = super().get_columns()
-        return columns + [
+        return [
+            *columns,
             {
                 "title": "Sources",
                 "field": "osint_sources",

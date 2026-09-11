@@ -78,7 +78,7 @@ class PPNCollector(BaseCollector):
         dataset_files = os.listdir(path)
         for file in dataset_files:
             if file[-4:] == "json":
-                with open(path / file, "r") as f:
+                with open(path / file) as f:
                     lines = f.readlines()[0]
                 doc_json = json.loads(lines)
                 if doc_json["language"] in languages:

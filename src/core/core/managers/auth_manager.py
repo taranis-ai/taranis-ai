@@ -155,11 +155,10 @@ def api_key_or_auth_required(permissions: list | str | None = None):
                 g.authenticated_user = None
                 return fn(*args, **kwargs)
 
-            elif auth_error := _jwt_authorize(permissions_set):
+            if auth_error := _jwt_authorize(permissions_set):
                 return auth_error
-            else:
-                # log that second auth method succeeded after first failed
-                logger.info("Authenticated with JWT after failed API key attempt")
+            # log that second auth method succeeded after first failed
+            logger.info("Authenticated with JWT after failed API key attempt")
 
             return fn(*args, **kwargs)
 
@@ -180,6 +179,6 @@ def user_identity_lookup(user: "User") -> str:
 
 
 @jwt.token_in_blocklist_loader
-def check_if_token_is_revoked(jwt_header, jwt_payload: dict):
+def check_if_token_is_revoked(_jwt_header, jwt_payload: dict):
     jti = jwt_payload["jti"]
     return TokenBlacklist.invalid(jti)

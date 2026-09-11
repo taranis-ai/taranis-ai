@@ -125,6 +125,7 @@ class BaseCollector:
             processed_stories = self.set_attr_key_to_existing_stories(processed_stories, story_attribute_key, source)
             for story in processed_stories:
                 self.core_api.add_or_update_story(story)
+        return None
 
     def set_attr_key_to_existing_stories(self, new_stories: list[dict], story_attribute_key: str, source: dict) -> list[dict]:
         # sourcery skip: use-next

@@ -99,13 +99,11 @@ class RoleBasedAccessService:
         TLPAttr = aliased(NewsItemAttribute)
         SNA = aliased(StoryNewsItemAttribute)
 
-        query = (
+        return (
             query.outerjoin(SNA, SNA.story_id == Story.id)
             .outerjoin(TLPAttr, db.and_(TLPAttr.id == SNA.news_item_attribute_id, TLPAttr.key == "TLP"))
             .filter(db.or_(TLPAttr.value.in_(accessible_tlps), TLPAttr.id.is_(None)))
         )
-
-        return query
 
     @classmethod
     def filter_report_query_with_tlp(cls, query: Select, user: User) -> Select:

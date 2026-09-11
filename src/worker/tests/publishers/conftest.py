@@ -196,12 +196,8 @@ def smtp_mock():
 
 
 @pytest.fixture
-def sftp_mock():
-    import glob
-    import os
-
-    from tests.publishers.publishers_data import product_text
-
+def sftp_mock(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
     users = {
         "user": {"type": "password", "password": "password"},
     }
@@ -209,12 +205,16 @@ def sftp_mock():
     server.handler_cls = SFTPTestHandler
     server.handlers = []
     listener_thread = None
+    listener_socket = None
     try:
         with server:
             listener_thread = server._thread
+            listener_socket = server._socket
             yield server
     finally:
-        # mockssh closes its listener but does not join any of its threads.
+        # mockssh skips close() when shutdown() fails on a listening socket (macOS).
+        if listener_socket is not None:
+            listener_socket.close()
         if listener_thread is not None:
             listener_thread.join(timeout=5)
             assert not listener_thread.is_alive(), "SFTP listener did not stop"
@@ -223,6 +223,3 @@ def sftp_mock():
             assert handler.finished.wait(timeout=5), "SFTP handler did not stop"
             handler.thread.join(timeout=5)
             assert not handler.thread.is_alive(), "SFTP handler thread did not stop"
-
-    for product in glob.glob(f"{product_text['title']}*"):
-        os.remove(product)

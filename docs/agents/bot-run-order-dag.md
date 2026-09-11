@@ -6,6 +6,7 @@ Bot dependencies, `RUN_AFTER_COLLECTOR`, `RUN_AFTER_BOTS`, DAG previews, or post
 
 ## Contracts
 
+- Bot creation requires an explicitly supplied `name`; `BotCreate` overrides the optional input default. Updates may omit it. Invalid create payloads return a static 400 error, covered by `TestBotConfigApi` in `test_config_api.py`.
 - Nodes are configured `Bot.id` UUIDs, never bot types (multiple instances may share a type). `RUN_AFTER_COLLECTOR=true` defines roots; `RUN_AFTER_BOTS` stores comma-separated parent UUIDs edited through the run-order UI.
 - Core validates dependencies, self-links, and cycles. Collector runs enqueue the reachable enabled DAG once. Successful manual/cron runs schedule downstream nodes for their `worker_id`; dependent jobs inherit filters and suppress further dependent triggering.
 - Multi-parent nodes wait only for parents in the current chain. Missing/disabled parents do not block it, but previews warn about them.
