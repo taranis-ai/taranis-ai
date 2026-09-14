@@ -32,6 +32,8 @@ class Settings(BaseModel):
         merged.setdefault("default_collector_proxy", "")
         merged.setdefault("default_collector_interval", "0 */8 * * *")
         merged.setdefault("rss_collector_max_entries", 42)
+        merged.setdefault("collection_group_threshold", 85)
+        merged.setdefault("collection_lookback_days", 30)
         merged.setdefault("default_bot_lookback_days", 7)
         merged.setdefault("default_tlp_level", TLPLevel.CLEAR.value)
         merged.setdefault("default_story_conflict_retention", "200")
@@ -57,6 +59,10 @@ class Settings(BaseModel):
             update_data = cls._normalize_update_data(dict(raw_update_data))
         except (TypeError, ValueError):
             return {"error": "Invalid timezone"}, 400
+        try:
+            cls._normalize_collection_settings(update_data)
+        except (TypeError, ValueError):
+            return {"error": "Collection threshold must be 1–100 and lookback days must be 1–36500"}, 400
         if "default_bot_lookback_days" in update_data:
             try:
                 update_data["default_bot_lookback_days"] = cls._validate_non_negative_int(update_data["default_bot_lookback_days"])
@@ -99,6 +105,7 @@ class Settings(BaseModel):
             settings.settings = cls.with_defaults(settings.settings)
         else:
             seed = cls._normalize_update_data(Config.PRE_SEED_SETTINGS)
+            cls._normalize_collection_settings(seed)
             for key in ("default_bot_lookback_days", "rss_collector_max_entries"):
                 if key in seed:
                     seed[key] = cls._validate_non_negative_int(seed[key])
@@ -168,6 +175,15 @@ class Settings(BaseModel):
         if normalized < 0:
             raise ValueError("Invalid non-negative integer")
         return normalized
+
+    @classmethod
+    def _normalize_collection_settings(cls, data: dict) -> None:
+        for key, maximum in (("collection_group_threshold", 100), ("collection_lookback_days", 36500)):
+            if key in data:
+                value = cls._validate_non_negative_int(data[key])
+                if not 1 <= value <= maximum:
+                    raise ValueError("Invalid collection setting")
+                data[key] = value
 
     @classmethod
     def get_settings_entry(cls) -> "Settings | None":

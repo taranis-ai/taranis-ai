@@ -1305,6 +1305,8 @@ class TestEndToEndAdmin(BaseE2ETest):
         collector_proxy_input = settings_form.get_by_test_id("settings-default-collector-proxy").first
         collector_interval_input = settings_form.get_by_test_id("settings-default-collector-interval").first
         rss_entry_limit_input = settings_form.get_by_test_id("settings-rss-collector-max-entries").first
+        collection_threshold_input = settings_form.get_by_test_id("settings-collection-group-threshold").first
+        collection_lookback_input = settings_form.get_by_test_id("settings-collection-lookback-days").first
         rss_entry_limit_warning = settings_form.get_by_test_id("settings-rss-collector-max-entries-warning").first
         story_conflict_input = settings_form.get_by_test_id("settings-default-story-conflict-retention").first
         news_conflict_input = settings_form.get_by_test_id("settings-default-news-item-conflict-retention").first
@@ -1324,6 +1326,8 @@ class TestEndToEndAdmin(BaseE2ETest):
             expect(collector_interval_input).to_have_attribute("required", "")
             expect(collector_interval_input).to_have_value("0 */8 * * *")
             expect(rss_entry_limit_input).to_have_value("42")
+            expect(collection_threshold_input).to_have_value("85")
+            expect(collection_lookback_input).to_have_value("30")
             expect(rss_entry_limit_warning).not_to_be_visible()
             expect(story_conflict_input).to_have_attribute("required", "")
             expect(story_conflict_input).to_have_value("200")
@@ -1337,6 +1341,8 @@ class TestEndToEndAdmin(BaseE2ETest):
             collector_proxy_input.fill("https://test")
             collector_interval_input.fill("0 */8 * * 1")
             rss_entry_limit_input.fill("101")
+            collection_threshold_input.fill("90")
+            collection_lookback_input.fill("45")
             expect(rss_entry_limit_warning).to_be_visible()
             rss_entry_limit_input.fill("19")
             expect(rss_entry_limit_warning).to_be_visible()
@@ -1354,6 +1360,8 @@ class TestEndToEndAdmin(BaseE2ETest):
             expect(collector_proxy_input).to_have_value("https://test/")
             expect(collector_interval_input).to_have_value("0 */8 * * 1")
             expect(rss_entry_limit_input).to_have_value("19")
+            expect(collection_threshold_input).to_have_value("90")
+            expect(collection_lookback_input).to_have_value("45")
             expect(rss_entry_limit_warning).to_be_visible()
             expect(story_conflict_input).to_have_value("20")
             expect(news_conflict_input).to_have_value("21")
@@ -1519,6 +1527,8 @@ class TestEndToEndAdmin(BaseE2ETest):
             expect(collector_interval_input).to_be_visible()
             collector_interval_input.fill("0 */8 * * *")
             rss_entry_limit_input.fill("42")
+            collection_threshold_input.fill("85")
+            collection_lookback_input.fill("30")
             story_conflict_input.fill("200")
             news_conflict_input.fill("200")
             with page.expect_response(settings_update_url) as response_info:

@@ -91,7 +91,7 @@ class TestWorkerApi:
         assert item.collected == collected
         assert item.review == "Analyst review"
         assert (story.title, story.summary, story.read) == ("Analyst headline", "Analyst summary", False)
-        assert story.id in session.execute(Story.get_filter_query({"range": "shift"}).with_only_columns(Story.id)).scalars()
+        assert story.id not in session.execute(Story.get_filter_query({"range": "shift"}).with_only_columns(Story.id)).scalars()
 
         revisions = (
             session.execute(session.query(StoryRevision).filter_by(story_id=story.id).order_by(StoryRevision.revision)).scalars().all()
@@ -140,14 +140,14 @@ class TestWorkerApi:
         assert "error" in response.json
 
     @pytest.mark.parametrize("threshold", [85, 86])
-    def test_collection_group_threshold_is_inclusive(self, client, api_header, session, monkeypatch, threshold):
+    def test_collection_group_threshold_is_inclusive(self, client, api_header, session, auth_header, threshold):
         import fuzzbite
 
-        from core.config import Config
         from core.model.news_item import NewsItem
         from tests.application.support.builders import build_news_item_payload, create_osint_source, create_story
 
-        monkeypatch.setattr(Config, "COLLECTION_GROUP_THRESHOLD", threshold)
+        response = client.patch("/api/settings/settings", json={"settings": {"collection_group_threshold": threshold}}, headers=auth_header)
+        assert response.status_code == 200
         source = create_osint_source(rank=0)
         body = NewsItem.normalized_content((Path(__file__).parents[2] / "test_data" / "fuzzy_article.txt").read_text())
         assert fuzzbite.compare(NewsItem.get_fuzzy_hash(body), NewsItem.get_fuzzy_hash(body[497:])) == 85
@@ -157,11 +157,14 @@ class TestWorkerApi:
         assert response.status_code == 200
         assert response.json["counts"]["grouped" if threshold == 85 else "created"] == 1
 
-    def test_fuzzy_collection_respects_source_and_time(self, client, api_header, session):
+    @pytest.mark.parametrize("lookback_days", [30, 60])
+    def test_fuzzy_collection_respects_source_and_time(self, client, api_header, session, auth_header, lookback_days):
         from core.model.news_item import NewsItem
         from tests.application.support.builders import build_news_item_payload, create_osint_source, create_story
 
         source = create_osint_source(rank=0)
+        response = client.patch("/api/settings/settings", json={"settings": {"collection_lookback_days": lookback_days}}, headers=auth_header)
+        assert response.status_code == 200
         other_source = create_osint_source(rank=1)
         body = (Path(__file__).parents[2] / "test_data" / "fuzzy_article.txt").read_text()
         old = build_news_item_payload(source.id, content=body)
@@ -172,6 +175,7 @@ class TestWorkerApi:
         response = client.post(f"{self.base_uri}/news-items", json=[incoming], headers=api_header)
         assert response.status_code == 200
         assert response.json["news_item_ids"] == [incoming["id"]]
+        assert response.json["counts"]["created" if lookback_days == 30 else "grouped"] == 1
 
     @pytest.mark.parametrize(
         ("add_result", "should_notify"),

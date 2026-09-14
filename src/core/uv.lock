@@ -1521,7 +1521,7 @@ requires-dist = [
     { name = "flask-cors" },
     { name = "flask-jwt-extended" },
     { name = "flask-sqlalchemy" },
-    { name = "fuzzbite", specifier = "==0.1.1" },
+    { name = "fuzzbite" },
     { name = "granian" },
     { name = "pillow" },
     { name = "playwright", marker = "extra == 'dev'" },

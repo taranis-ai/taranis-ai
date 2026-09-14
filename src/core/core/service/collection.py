@@ -80,7 +80,7 @@ class CollectionService:
         collection_hash = hashlib.sha256(json.dumps(identity, ensure_ascii=False).encode()).hexdigest()
         if item := cls._find_existing_item(payload, collection_hash):
             return cls._update_item(item, payload, now)
-        return cls._create_item(payload, collection_hash, now)
+        return cls._create_item(payload, collection_hash)
 
     @staticmethod
     def _find_existing_item(payload: AssessNewsItem, collection_hash: str) -> NewsItem | None:
@@ -126,10 +126,10 @@ class CollectionService:
         item.fuzzy_hash = NewsItem.get_fuzzy_hash(item.content)
         item.published = published
         item.updated = now
-        return cls._record_change(item, story, "updated", now)
+        return cls._record_change(item, story, "updated")
 
     @classmethod
-    def _create_item(cls, payload: AssessNewsItem, collection_hash: str, now: datetime) -> tuple[dict, int]:
+    def _create_item(cls, payload: AssessNewsItem, collection_hash: str) -> tuple[dict, int]:
         match = NewsItem.find_collection_match(payload)
         story = None
         if match:
@@ -150,14 +150,13 @@ class CollectionService:
             story.news_items.append(item)
             db.session.add(story)
             action = "created"
-        return cls._record_change(item, story, action, now)
+        return cls._record_change(item, story, action)
 
     @staticmethod
-    def _record_change(item: NewsItem, story: Story, action: Literal["created", "updated", "grouped"], now: datetime) -> tuple[dict, int]:
+    def _record_change(item: NewsItem, story: Story, action: Literal["created", "updated", "grouped"]) -> tuple[dict, int]:
         actor = Story.last_change_for_source(item.osint_source)
         item.last_change = actor or "external"
         story.read = False
-        story.collection_updated_at = now
         db.session.flush()
         Story.refresh_tag_summaries_for_news_items([item])
         story.update_status(change=actor)

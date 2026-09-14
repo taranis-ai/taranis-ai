@@ -40,7 +40,6 @@ class Story(BaseModel):
     description: Mapped[str] = db.Column(db.String())
     created: Mapped[datetime] = db.Column(db.DateTime)
     updated: Mapped[datetime] = db.Column(db.DateTime, default=BaseModel.utcnow)
-    collection_updated_at: Mapped[datetime | None] = db.Column(db.DateTime, nullable=True)
 
     read: Mapped[bool] = db.Column(db.Boolean, default=False)
     important: Mapped[bool] = db.Column(db.Boolean, default=False)
@@ -463,7 +462,7 @@ class Story(BaseModel):
                 days = int(filter_range[4:])
                 date_limit -= timedelta(days=days)
 
-            query = query.filter(db.or_(cls.created >= date_limit, cls.collection_updated_at >= date_limit))
+            query = query.filter(cls.created >= date_limit)
 
         if timefrom := filter_args.get("timefrom"):
             normalized_timefrom = StoryPayload.model_validate({"created": timefrom}).created

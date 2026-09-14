@@ -50,6 +50,13 @@
             {{ form_input('Default Collector Proxy', 'settings[default_collector_proxy]', current_settings.default_collector_proxy, required=False, preserve=False, data_testid='settings-default-collector-proxy') }}
           </div>
 
+          <div class="p-4 border rounded-lg hover:bg-base-200 transition">
+            <h3 class="font-semibold text-lg mb-2">Collection Similarity Matching</h3>
+            <p class="text-sm text-gray-500 mb-3">Group similar articles from the same source. Higher thresholds require closer text matches.</p>
+            {{ form_input('Collection Group Threshold', 'settings[collection_group_threshold]', current_settings.collection_group_threshold, type='number', preserve=False, data_testid='settings-collection-group-threshold', min_value=1, max_value=100) }}
+            {{ form_input('Collection Lookback Days', 'settings[collection_lookback_days]', current_settings.collection_lookback_days, type='number', preserve=False, data_testid='settings-collection-lookback-days', min_value=1, max_value=36500) }}
+          </div>
+
           <!-- Setting 3 -->
           <div class="p-4 border rounded-lg hover:bg-base-200 transition">
             <h3 class="font-semibold text-lg mb-2">Default Collector Interval</h3>

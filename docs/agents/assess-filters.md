@@ -17,7 +17,7 @@ Assess sidebar/search/default filters, `/assess`, `/api/assess/filter-lists`, om
 - Browser tests use `_get_assess_story_counts` to wait for both Alpine counts; wrapper visibility is insufficient.
 - Search submits on debounce and changed-value blur. Before opening card menus, tests wait for filtering and the blur-triggered HTMX request.
 
-Collection changes also qualify stories for relative date windows through `collection_updated_at`; explicit `timefrom` keeps its publication-date meaning. Unchanged fetches do not advance story activity. See [Collection Updates](fuzzy-deduplication.md).
+Relative date windows and explicit `timefrom` use the publication-derived story `created` date. Collection changes mark stories unread but do not force old stories into the current Shift window. See [Collection Updates](fuzzy-deduplication.md).
 
 ## Entry Points
 

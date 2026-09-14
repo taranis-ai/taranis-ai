@@ -14,7 +14,6 @@ from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import Mapped, relationship
 from sqlalchemy.sql import Select
 
-from core.config import Config
 from core.log import logger
 from core.managers.db_manager import db
 from core.model.base_model import UUID_STR_LENGTH, BaseModel
@@ -183,9 +182,11 @@ class NewsItem(BaseModel):
             return None
 
         now = cls.utcnow()
+        settings = Settings.get_settings()
+        threshold = settings["collection_group_threshold"]
         query = db.select(cls.id, cls.story_id, cls.fuzzy_hash).where(
             cls.osint_source_id == payload.osint_source_id,
-            cls.collected >= now - timedelta(days=30),
+            cls.collected >= now - timedelta(days=settings["collection_lookback_days"]),
             cls.collected <= now,
             cls.fuzzy_hash.is_not(None),
             cls.story_id.is_not(None),
@@ -196,7 +197,7 @@ class NewsItem(BaseModel):
             for batch in candidates.partitions():
                 for item_id, story_id, candidate_hash in batch:
                     score = fuzzbite.compare(fingerprint, candidate_hash)
-                    if score < Config.COLLECTION_GROUP_THRESHOLD:
+                    if score < threshold:
                         continue
                     if best is None or score > best[2]:
                         best = (item_id, story_id, score)
