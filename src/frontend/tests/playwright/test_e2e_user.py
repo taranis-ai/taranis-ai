@@ -1,6 +1,7 @@
 import json
 import re
 import uuid
+from pathlib import Path
 
 import pytest
 from base_e2e_test import BaseE2ETest
@@ -448,6 +449,54 @@ class TestEndToEndUser(BaseE2ETest):
             expect(page.get_by_test_id("assess_story_selection_count")).to_have_text("1 stories selected")
             expect(page.get_by_test_id(f"story-card-{primary_id}")).to_have_attribute("aria-selected", "true")
             expect(page.get_by_test_id(f"story-card-{secondary_id}")).to_have_count(0)
+
+    def test_collected_article_updates_and_grouping(
+        self, non_admin_logged_in_page, forward_console_and_page_errors_non_admin, core_request_client, api_header, fake_source
+    ):
+        page = non_admin_logged_in_page
+        allow_requests_passthru()
+        marker = uuid.uuid4().hex
+        body = (Path(__file__).parents[3] / "core/tests/test_data/fuzzy_article.txt").read_text()
+        article = {
+            "osint_source_id": fake_source,
+            "title": f"Collection update {marker}",
+            "link": f"https://example.invalid/{marker}",
+            "content": body,
+        }
+        result = core_request_client.json_request("POST", "/worker/news-items", json_data=[article], headers=api_header, authenticated=False)
+        story_id = result["story_ids"][0]
+        item_id = result["news_item_ids"][0]
+        try:
+            core_request_client.patch(f"/assess/stories/{story_id}", json_data={"read": True})
+            corrected = article | {"content": body + " Correction: 100 affected systems."}
+            result = core_request_client.json_request(
+                "POST", "/worker/news-items", json_data=[corrected], headers=api_header, authenticated=False
+            )
+            assert result["counts"]["updated"] == 1
+            assert result["news_item_ids"] == [item_id]
+            story = core_request_client.json_request("GET", f"/assess/stories/{story_id}")
+            assert story["read"] is False
+            assert len(story["news_items"]) == 1
+            revision = story["revision_count"]
+            page.goto(url_for("assess.story_diff", story_id=story_id, from_rev=revision - 1, to_rev=revision, _external=True))
+            expect(page.get_by_text(f"News item {item_id}: Content", exact=True)).to_be_visible()
+            expect(page.locator("body")).to_contain_text("100 affected systems")
+
+            result = core_request_client.json_request(
+                "POST", "/worker/news-items", json_data=[corrected], headers=api_header, authenticated=False
+            )
+            assert result["counts"]["unchanged"] == 1
+            assert core_request_client.json_request("GET", f"/assess/stories/{story_id}")["revision_count"] == revision
+            related = corrected | {"title": "Related coverage", "link": article["link"] + "/related"}
+            result = core_request_client.json_request(
+                "POST", "/worker/news-items", json_data=[related], headers=api_header, authenticated=False
+            )
+            assert result["counts"]["grouped"] == 1
+            assert result["story_ids"] == [story_id]
+            page.goto(url_for("assess.story_edit", story_id=story_id, _external=True))
+            expect(page.locator("#news-item-order [data-order-item]")).to_have_count(2)
+        finally:
+            core_request_client.delete(f"/assess/stories/{story_id}", raise_for_status=False)
 
     def test_news_item_order(self, non_admin_logged_in_page, forward_console_and_page_errors_non_admin, core_request_client):
         page = non_admin_logged_in_page

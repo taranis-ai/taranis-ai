@@ -186,7 +186,7 @@ def test_primary_http_validator_lifecycle(base_web_collector, requests_mock):
     assert "If-Modified-Since" not in request.headers
 
 
-def test_rss_last_modified_validator_is_sent_to_secondary_resources(rss_collector, requests_mock):
+def test_rss_validators_are_not_sent_to_secondary_resources(rss_collector, requests_mock):
     feed_url = "https://example.com/feed"
     article_url = "https://example.com/article"
     icon_url = "https://example.com/favicon.ico"
@@ -204,7 +204,7 @@ def test_rss_last_modified_validator_is_sent_to_secondary_resources(rss_collecto
 
     for request in requests_mock.request_history:
         assert "If-None-Match" not in request.headers
-        assert request.headers["If-Modified-Since"] == stored_validators["last_modified"]
+        assert "If-Modified-Since" not in request.headers
 
 
 @pytest.mark.parametrize("entry_limit", [1, 3, 42])
@@ -308,7 +308,7 @@ def test_gather_news_items_uses_playwright(browser_web_collector_mock, browser_w
     items = browser_web_collector_instance.gather_news_items()
     browser_web_collector_mock.fetch_content_with_js.assert_called_once_with(browser_web_collector_instance.web_url, "")
     browser_web_collector_mock.stop_playwright_if_needed.assert_called_once()
-    assert browser_web_collector_mock.request_headers["If-Modified-Since"] == last_modified
+    assert "If-Modified-Since" not in browser_web_collector_mock.request_headers
 
     story = items[0]
     assert isinstance(items, list)

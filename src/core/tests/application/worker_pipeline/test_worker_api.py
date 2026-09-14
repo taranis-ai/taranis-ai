@@ -23,7 +23,7 @@ class TestWorkerApi:
     base_uri = "/api/worker"
 
     @pytest.mark.parametrize("preceding_candidates", [0, 501])
-    def test_fuzzy_collection_skips_near_duplicates(self, client, api_header, session, preceding_candidates):
+    def test_fuzzy_collection_groups_distinct_urls(self, client, api_header, session, preceding_candidates):
         from core.model.news_item import NewsItem
         from tests.application.support.builders import build_news_item_payload, create_osint_source, create_story
 
@@ -40,12 +40,118 @@ class TestWorkerApi:
         duplicate = build_news_item_payload(source.id, content=body.replace("on Tuesday", "on Wednesday"))
         response = client.post(f"{self.base_uri}/news-items", json=[original, duplicate], headers=api_header)
         assert response.status_code == 200
-        assert response.json["news_item_ids"] == [original["id"]]
+        assert response.json["news_item_ids"] == [original["id"], duplicate["id"]]
+        assert response.json["counts"]["grouped"] == 1
+        assert NewsItem.get(original["id"]).story_id == NewsItem.get(duplicate["id"]).story_id
         assert NewsItem.get(original["id"]).fuzzy_hash
 
         response = client.post(f"{self.base_uri}/news-items", json=[duplicate], headers=api_header)
         assert response.status_code == 200
         assert response.json["message"] == "All news items were skipped"
+
+    @pytest.mark.parametrize("body", ["A short report: 10 affected systems.", None])
+    def test_collection_url_updates_preserve_history_and_analyst_work(self, client, api_header, session, body):
+        from models.revision_diff import build_story_revision_diff_payload
+
+        from core.model.news_item import NewsItem
+        from core.model.revision import StoryRevision
+        from core.model.story import Story
+        from tests.application.support.builders import build_news_item_payload, create_osint_source
+
+        source = create_osint_source(rank=0)
+        body = body or (Path(__file__).parents[2] / "test_data" / "fuzzy_article.txt").read_text()
+        original = build_news_item_payload(source.id, content=body)
+        original["published"] = original["collected"] = (NewsItem.utcnow() - timedelta(days=90)).isoformat()
+        response = client.post(f"{self.base_uri}/news-items", json=[original], headers=api_header)
+        assert response.status_code == 200
+        item = NewsItem.get(original["id"])
+        story = item.story
+        story.read = True
+        story.title = "Analyst headline"
+        story.summary = "Analyst summary"
+        item.review = "Analyst review"
+        session.commit()
+        published, collected = item.published, item.collected
+        corrected = original | {
+            "id": str(uuid.uuid4()),
+            "title": "Corrected source headline",
+            "content": body + " Correction: 100 affected systems.",
+            "collected": NewsItem.utcnow().isoformat(),
+        }
+        response = client.post(f"{self.base_uri}/news-items", json=[corrected], headers=api_header)
+        assert response.status_code == 200
+        assert response.json["counts"]["updated"] == 1
+        assert response.json["news_item_ids"] == [item.id]
+        assert len(story.news_items) == 1
+        assert item.content == corrected["content"]
+        assert item.title == corrected["title"]
+        assert (item.published, item.collected) == (published, collected)
+        assert item.review == "Analyst review"
+        assert (story.title, story.summary, story.read) == ("Analyst headline", "Analyst summary", False)
+        assert story.id in session.execute(Story.get_filter_query({"range": "shift"}).with_only_columns(Story.id)).scalars()
+
+        revisions = (
+            session.execute(session.query(StoryRevision).filter_by(story_id=story.id).order_by(StoryRevision.revision)).scalars().all()
+        )
+        assert revisions[-2].data["news_items"][0]["content"] == body
+        assert revisions[-1].data["news_items"][0]["content"] == corrected["content"]
+        diff = build_story_revision_diff_payload(story.id, story.title, revisions[-2].to_dict(), revisions[-1].to_dict())
+        assert any(change.field.endswith(": Content") for change in diff.changes)
+        revision_count = story.revision
+        for retry in (corrected, original, corrected | {"collected": NewsItem.utcnow().isoformat()}):
+            response = client.post(f"{self.base_uri}/news-items", json=[retry], headers=api_header)
+            assert response.status_code == 200
+            assert response.json["message"] == "All news items were skipped"
+            assert item.content == corrected["content"]
+            assert story.revision == revision_count
+
+        # Identical URLs and titles in a different source are separate evidence.
+        other_source = create_osint_source(rank=1)
+        response = client.post(f"{self.base_uri}/news-items", json=[corrected | {"osint_source_id": other_source.id}], headers=api_header)
+        assert response.status_code == 200
+        assert response.json["counts"]["created"] == 1
+
+    def test_collection_invalid_batch_is_not_unchanged(self, client, api_header, session):
+        response = client.post(f"{self.base_uri}/news-items", json=[{"osint_source_id": "missing"}], headers=api_header)
+        assert response.status_code == 400
+        assert "error" in response.json
+
+    def test_collection_selects_strongest_match_and_avoids_tied_stories(self, client, api_header, session):
+        from core.model.news_item import NewsItem
+        from tests.application.support.builders import build_news_item_payload, create_osint_source, create_story
+
+        source = create_osint_source(rank=0)
+        body = NewsItem.normalized_content((Path(__file__).parents[2] / "test_data" / "fuzzy_article.txt").read_text())
+        incoming_body = body[497:]
+        create_story(news_items=[build_news_item_payload(source.id, content=body)])
+        strongest = create_story(news_items=[build_news_item_payload(source.id, content=incoming_body)])
+        incoming = build_news_item_payload(source.id, content=incoming_body)
+        response = client.post(f"{self.base_uri}/news-items", json=[incoming], headers=api_header)
+        assert response.status_code == 200
+        assert response.json["story_ids"] == [strongest.id]
+        create_story(news_items=[build_news_item_payload(source.id, content=incoming_body)])
+        incoming = build_news_item_payload(source.id, content=incoming_body)
+        response = client.post(f"{self.base_uri}/news-items", json=[incoming], headers=api_header)
+        assert response.status_code == 200
+        assert response.json["counts"]["created"] == 1
+
+    @pytest.mark.parametrize("threshold", [85, 86])
+    def test_collection_group_threshold_is_inclusive(self, client, api_header, session, monkeypatch, threshold):
+        import fuzzbite
+
+        from core.config import Config
+        from core.model.news_item import NewsItem
+        from tests.application.support.builders import build_news_item_payload, create_osint_source, create_story
+
+        monkeypatch.setattr(Config, "COLLECTION_GROUP_THRESHOLD", threshold)
+        source = create_osint_source(rank=0)
+        body = NewsItem.normalized_content((Path(__file__).parents[2] / "test_data" / "fuzzy_article.txt").read_text())
+        assert fuzzbite.compare(NewsItem.get_fuzzy_hash(body), NewsItem.get_fuzzy_hash(body[497:])) == 85
+        create_story(news_items=[build_news_item_payload(source.id, content=body)])
+        incoming = build_news_item_payload(source.id, content=body[497:])
+        response = client.post(f"{self.base_uri}/news-items", json=[incoming], headers=api_header)
+        assert response.status_code == 200
+        assert response.json["counts"]["grouped" if threshold == 85 else "created"] == 1
 
     def test_fuzzy_collection_respects_source_and_time(self, client, api_header, session):
         from core.model.news_item import NewsItem
@@ -216,7 +322,7 @@ class TestWorkerApi:
     def test_post_collection_bots_forwards_user_id(self, client, api_header, monkeypatch):
         captured = {}
 
-        def fake_post_collection_bots(source_id, user_id=None):
+        def fake_post_collection_bots(source_id, user_id=None, story_ids=None):
             captured["source_id"] = source_id
             captured["user_id"] = user_id
             return {"message": "scheduled"}, 200

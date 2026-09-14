@@ -72,8 +72,8 @@ class BaseWebCollector(BaseCollector):
         if modified_since:
             request_headers["If-Modified-Since"] = modified_since.strftime("%a, %d %b %Y %H:%M:%S GMT")
 
-        if self.http_validators is not None and self.use_conditional_requests:
-            if self.http_validators["url"] == url and (etag := self.http_validators.get("etag")):
+        if self.http_validators is not None and self.use_conditional_requests and self.http_validators["url"] == url:
+            if etag := self.http_validators.get("etag"):
                 request_headers["If-None-Match"] = etag
             if last_modified := self.http_validators.get("last_modified"):
                 request_headers["If-Modified-Since"] = last_modified

@@ -14,6 +14,7 @@ from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import Mapped, relationship
 from sqlalchemy.sql import Select
 
+from core.config import Config
 from core.log import logger
 from core.managers.db_manager import db
 from core.model.base_model import UUID_STR_LENGTH, BaseModel
@@ -38,6 +39,7 @@ class NewsItem(BaseModel):
     id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), primary_key=True, default=BaseModel.uuid7_str)
     hash: Mapped[str] = db.Column(db.String(), index=True, unique=True, nullable=False)
     fuzzy_hash: Mapped[str | None] = db.Column(db.String(), nullable=True)
+    collection_seen_at: Mapped[datetime | None] = db.Column(db.DateTime, nullable=True)
 
     title: Mapped[str] = db.Column(db.String())
     review: Mapped[str] = db.Column(db.String())
@@ -168,37 +170,43 @@ class NewsItem(BaseModel):
         return db.session.execute(db.select(db.exists().where(cls.hash == hash))).scalar_one()
 
     @staticmethod
+    def normalized_content(content: str | None) -> str:
+        return " ".join(unicodedata.normalize("NFC", content or "").split())
+
+    @staticmethod
     def get_fuzzy_hash(content: str | None) -> str | None:
-        body = " ".join(unicodedata.normalize("NFC", content or "").split()).encode("utf-8")
+        body = NewsItem.normalized_content(content).encode("utf-8")
         return fuzzbite.hash(body) if len(body) >= 256 else None
 
     @classmethod
-    def find_collection_duplicate(cls, payload: AssessNewsItem) -> tuple[str, str | None] | None:
+    def find_collection_match(cls, payload: AssessNewsItem) -> tuple[str, str, int] | None:
         if not (fingerprint := cls.get_fuzzy_hash(payload.content)):
-            return None
-
-        source = db.session.execute(
-            db.select(OSINTSource).where(OSINTSource.id == payload.osint_source_id).with_for_update()
-        ).scalar_one_or_none()
-        if source is None or source.key == "manual":
             return None
 
         now = cls.utcnow()
         query = db.select(cls.id, cls.story_id, cls.fuzzy_hash).where(
-            cls.osint_source_id == source.id,
+            cls.osint_source_id == payload.osint_source_id,
             cls.collected >= now - timedelta(days=30),
             cls.collected <= now,
             cls.fuzzy_hash.is_not(None),
+            cls.story_id.is_not(None),
         )
-        matcher = fuzzbite.Matcher(fingerprint)
+        best = None
+        ambiguous = False
         with db.session.execute(query.execution_options(yield_per=500)) as candidates:
             for batch in candidates.partitions():
-                if match := matcher.find_match([row.fuzzy_hash for row in batch], threshold=90):
-                    index, score = match
-                    item_id, story_id, _ = batch[index]
-                    logger.info(f"Fuzzy duplicate skipped: source={source.id} matched_item={item_id} score={score}")
-                    return item_id, story_id
-        return None
+                for item_id, story_id, candidate_hash in batch:
+                    score = fuzzbite.compare(fingerprint, candidate_hash)
+                    if score < Config.COLLECTION_GROUP_THRESHOLD:
+                        continue
+                    if best is None or score > best[2]:
+                        best = (item_id, story_id, score)
+                        ambiguous = False
+                    elif score == best[2]:
+                        ambiguous |= story_id != best[1]
+                        if item_id < best[0]:
+                            best = (item_id, story_id, score)
+        return None if ambiguous else best
 
     @classmethod
     def find_by_hash(cls, hash):
@@ -209,6 +217,13 @@ class NewsItem(BaseModel):
         if not hash:
             return None
         return cls.get_first(db.select(cls).where(cls.hash == hash))
+
+    @classmethod
+    def get_by_payload_identity(cls, payload: AssessNewsItem) -> "NewsItem | None":
+        # Collection hashes are source/URL scoped; explicit imports retain title/URL identity.
+        return cls.get_by_hash(payload.hash) or cls.get_first(
+            db.select(cls).where(cls.title == (payload.title or ""), cls.link == (payload.link or ""))
+        )
 
     @classmethod
     def latest_collected(cls) -> str | None:
@@ -242,6 +257,7 @@ class NewsItem(BaseModel):
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
         data.pop("fuzzy_hash", None)
+        data.pop("collection_seen_at", None)
         data["tags"] = [tag.to_dict() for tag in self.tags]
         return data
 
@@ -472,7 +488,7 @@ class NewsItem(BaseModel):
         except ValidationError as exc:
             return AssessNewsItem.validation_error_response(exc, prefix="Invalid news item data"), 400
 
-        if (duplicate_item := self.get_by_hash(payload.hash)) and duplicate_item.id != self.id:
+        if (duplicate_item := self.get_by_payload_identity(payload)) and duplicate_item.id != self.id:
             return {
                 "error": "Identical news item found. Skipping...",
                 "conflicting_news_item_id": duplicate_item.id,

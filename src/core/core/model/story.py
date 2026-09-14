@@ -40,6 +40,7 @@ class Story(BaseModel):
     description: Mapped[str] = db.Column(db.String())
     created: Mapped[datetime] = db.Column(db.DateTime)
     updated: Mapped[datetime] = db.Column(db.DateTime, default=BaseModel.utcnow)
+    collection_updated_at: Mapped[datetime | None] = db.Column(db.DateTime, nullable=True)
 
     read: Mapped[bool] = db.Column(db.Boolean, default=False)
     important: Mapped[bool] = db.Column(db.Boolean, default=False)
@@ -462,7 +463,7 @@ class Story(BaseModel):
                 days = int(filter_range[4:])
                 date_limit -= timedelta(days=days)
 
-            query = query.filter(cls.created >= date_limit)
+            query = query.filter(db.or_(cls.created >= date_limit, cls.collection_updated_at >= date_limit))
 
         if timefrom := filter_args.get("timefrom"):
             normalized_timefrom = StoryPayload.model_validate({"created": timefrom}).created
@@ -777,18 +778,12 @@ class Story(BaseModel):
             return {"error": "Failed to add story"}, 400
 
     @classmethod
-    def add_from_news_item(cls, news_item: AssessNewsItem, user: User | None = None, *, collection: bool = False) -> "tuple[dict, int]":
-        if news_item_obj := NewsItem.get_by_hash(news_item.hash):
+    def add_from_news_item(cls, news_item: AssessNewsItem, user: User | None = None) -> "tuple[dict, int]":
+        if news_item_obj := NewsItem.get_by_payload_identity(news_item):
             logger.warning("Identical news item found. Skipping...")
             return {
                 "error": "Identical news item found. Skipping...",
                 "skipped_news_item_story_id": news_item_obj.story_id if news_item_obj else None,
-            }, 409
-
-        if collection and (duplicate := NewsItem.find_collection_duplicate(news_item)):
-            return {
-                "error": "Similar news item found. Skipping...",
-                "skipped_news_item_story_id": duplicate[1],
             }, 409
 
         data = {
@@ -842,6 +837,11 @@ class Story(BaseModel):
 
     @classmethod
     def add_news_items(cls, news_items_list: list[dict], user: User | None = None, *, collection: bool = False):
+        if collection:
+            from core.service.collection import CollectionService
+
+            return CollectionService.ingest(news_items_list)
+
         story_ids = []
         news_item_ids = []
         skipped_count = 0
@@ -855,7 +855,7 @@ class Story(BaseModel):
                 if normalized_news_item is None:
                     skipped_count += 1
                     continue
-                message, status = cls.add_from_news_item(normalized_news_item, user=user, collection=collection)
+                message, status = cls.add_from_news_item(normalized_news_item, user=user)
                 # Release a skipped item's source lock before processing another source.
                 db.session.commit()
                 if status > 299:

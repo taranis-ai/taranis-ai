@@ -321,7 +321,12 @@ class PostCollectionBots(MethodView):
         if not (data := request.json):
             return {"error": "No data provided"}, 400
         if source_id := data.get("source_id", None):
-            return queue_manager.queue_manager.post_collection_bots(source_id=source_id, user_id=data.get("user_id"))
+            story_ids = data.get("story_ids")
+            if story_ids is not None and (
+                not isinstance(story_ids, list) or not story_ids or any(not isinstance(item, str) for item in story_ids)
+            ):
+                return {"error": "Invalid story IDs"}, 400
+            return queue_manager.queue_manager.post_collection_bots(source_id=source_id, user_id=data.get("user_id"), story_ids=story_ids)
         return {"error": "No source_id provided"}, 400
 
 

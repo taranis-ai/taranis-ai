@@ -89,6 +89,7 @@ class Settings(BaseSettings):
     SENTRY_SEND_DEFAULT_PII: bool = False
     SENTRY_ENABLE_DB_QUERY_SOURCE: bool = False
     DISABLE_PPN_COLLECTOR: bool = True
+    COLLECTION_GROUP_THRESHOLD: Annotated[int, Field(ge=1, le=100)] = 85
     MAX_CONTENT_LENGTH: int = 50 * 1024 * 1024
     OSINT_SOURCE_ICON_MAX_BYTES: int = 5 * 1024 * 1024
     OSINT_SOURCE_ICON_PIXELS: int = 64

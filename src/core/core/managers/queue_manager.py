@@ -1166,7 +1166,7 @@ class QueueManager:
         logger.error(f"Could not schedule publishing for product {product_id} with publisher {publisher_id}")
         return {"error": "Could not reach Redis"}, 500
 
-    def post_collection_bots(self, source_id: str, user_id: str | None = None):
+    def post_collection_bots(self, source_id: str, user_id: str | None = None, story_ids: list[str] | None = None):
         """Run post-collection bots"""
         from core.model.bot import Bot
 
@@ -1177,7 +1177,7 @@ class QueueManager:
         if not self._enqueue_bot_graph(
             post_collection_bots,
             dependencies_by_id,
-            filter={"SOURCE": source_id},
+            filter={"SOURCE": source_id, **({"STORY_IDS": story_ids} if story_ids else {})},
             job_suffix=source_id,
             user_id=user_id,
             trigger_dependents=False,
