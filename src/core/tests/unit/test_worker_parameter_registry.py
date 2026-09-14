@@ -210,3 +210,15 @@ def test_kafka_security_protocols_match_worker_contract():
             "KAFKA_SASL_PASSWORD": "secret",
         }
         assert effective_parameter_values("KAFKA_PUBLISHER", parameters)["KAFKA_SECURITY_PROTOCOL"] == security_protocol
+
+
+def test_sftp_requires_explicit_host_trust():
+    parameters = {"SFTP_URL": "sftp://user@example.test/"}
+    for missing_trust in ({}, {"HOST_KEY": "  "}, {"ACCEPT_ANY_HOST_KEY": "false"}):
+        with pytest.raises(ValidationError, match="Provide a server host public key"):
+            effective_parameter_values("SFTP_PUBLISHER", parameters | missing_trust)
+
+    trusted = effective_parameter_values("SFTP_PUBLISHER", parameters | {"HOST_KEY": "ssh-ed25519 AAAA"})
+    assert trusted["ACCEPT_ANY_HOST_KEY"] is False
+    configured = normalize_parameter_values("SFTP_PUBLISHER", parameters | {"ACCEPT_ANY_HOST_KEY": "true"})
+    assert configured["ACCEPT_ANY_HOST_KEY"] is True

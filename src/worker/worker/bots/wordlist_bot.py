@@ -39,7 +39,7 @@ class WordlistBot(BaseBot):
     def _get_word_list_entries(self):
         if word_lists := self.core_api.get_words_for_tagging_bot():
             return [entry for word_list in word_lists["items"] for entry in word_list["entries"]]
-        return
+        return None
 
     def _find_tags_for_stories(self, data, word_list_entries, override_existing_tags, ignore_case) -> dict[str, dict[str, str]]:
         found_tags = {}

@@ -2,16 +2,16 @@
 
 ## When To Load
 
-Seeded users, onboarding tasks/settings, `pre_seed_default_user`, or `SKIP_INITIAL_USER_ONBOARDING`.
+Seeded users, onboarding tasks/settings, `pre_seed_default_user`, or `PRE_SEED_SETTINGS`.
 
 ## Contracts
 
-- `SKIP_INITIAL_USER_ONBOARDING=false` by default. It initializes only a missing persistent global `onboarding_enabled` setting; `true` presets that setting to disabled. Later Admin Settings values are authoritative.
+- Onboarding defaults to enabled. Set `PRE_SEED_SETTINGS='{"onboarding_enabled":false}'` to disable it during settings initialization; later Admin Settings values remain authoritative.
 - An actual global value change copies the flag to every existing user's profile. Saving the unchanged value preserves per-user overrides. New users inherit the global value unless explicitly overridden at creation.
 - The global value is a bulk default, not a runtime gate: individual users can be enabled while it is disabled. Disabling hides pending tasks without rewriting task completion/dismissal state.
 - Administrator tours require `ADMIN_OPERATIONS`; there is no catch-all `ALL` permission.
 - Fresh databases seed `admin`/`user` as Default Admin/Default User in one Default Organization.
-- `PRE_SEED_SETTINGS` accepts a flat JSON object for any global settings. `Settings.initialize()` applies it only when no singleton settings row exists
+- `PRE_SEED_SETTINGS` accepts a flat JSON object for any global settings. `Settings.initialize()` applies it only when no singleton settings row exists, filling omitted keys with normal defaults and copying onboarding to existing profiles. Subsequent startup preserves persisted settings. An existing row missing `onboarding_enabled` receives the default `true`. JSON parsing uses Pydantic Settings and initialization reuses existing timezone, integer, and boolean validators. Compose forwards `PRE_SEED_SETTINGS` with a `{}` default; Kubernetes exposes the same ConfigMap key and Helm exposes the JSON string `config.preSeedSettings`. Deployment examples are in `docker/README.md` and `deploy/README.md`.
 
 ## Entry Points and Coverage
 

@@ -6,6 +6,8 @@ Worker-backed actions, queue warnings/priority, task results, `/health`, My Task
 
 ## Queue and Result Contracts
 
+Task entry points and RQ failure hooks own their HTTP session scope, including result persistence on error. See [HTTP Client Lifetimes](http-clients.md) for cleanup and no-retry service behavior.
+
 - Accepted jobs report queue success. Only cached core health `services.workers == "down"` changes this to a queued-but-no-worker warning; failed/missing health checks retain the original notice. Do not change queue endpoint status codes or poll for final failures through this notification.
 - Authenticated runs, including auto-render after product edits, carry `user_id`; scheduler runs do not. Propagate attribution through dependencies and post-collection bots.
 - User jobs enqueue at the front of their functional queue (LIFO); background jobs remain FIFO. Workers check presenters, publishers, connectors, misc, bots, then collectors. Priority does not preempt running jobs or affect workers subscribed to other queues.

@@ -34,6 +34,7 @@ class CoreHealth(TaranisBaseModel):
 
 class TaskStatusTotals(BaseModel):
     successes: int = 0
+    warnings: int = 0
     failures: int = 0
     total: int = 0
     success_pct: int = 0

@@ -106,8 +106,7 @@ def _normalized_tag_names(data: dict[str, Any]) -> set[str]:
         name = tag.get("name")
         if not isinstance(name, str):
             continue
-        normalized_name = name.strip()
-        if normalized_name:
+        if normalized_name := name.strip():
             tag_names.add(normalized_name)
     return tag_names
 

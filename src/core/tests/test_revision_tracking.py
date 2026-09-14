@@ -240,17 +240,21 @@ def test_news_item_attribute_update_creates_story_revisions():
 
 
 @pytest.mark.usefixtures("session")
-def test_delete_primary_news_item_promotes_story_title_to_remaining_item(admin_user):
+@pytest.mark.parametrize("action", ["delete", "ungroup"])
+@pytest.mark.parametrize("custom_title", [False, True])
+def test_primary_news_item_removal_uses_saved_order_and_preserves_custom_title(admin_user, action, custom_title):
     first_item = _news_item_payload(source="manual")
     first_item["title"] = "Primary title"
     second_item = _news_item_payload(source="manual")
-    second_item["title"] = "Fallback title"
+    second_item["title"] = "Other title"
+    third_item = _news_item_payload(source="manual")
+    third_item["title"] = "Fallback title"
 
     result, status = Story.add(
         {
-            "title": "Primary title",
+            "title": "Analyst title" if custom_title else "Primary title",
             "description": "initial desc",
-            "news_items": [first_item, second_item],
+            "news_items": [first_item, second_item, third_item],
         }
     )
     assert status == 200
@@ -258,13 +262,19 @@ def test_delete_primary_news_item_promotes_story_title_to_remaining_item(admin_u
     story = Story.get(result["story_id"])
     assert story is not None
 
-    response, status = NewsItemService.delete(story.news_items[0].id, admin_user)
+    story.news_item_order = [first_item["id"], third_item["id"], second_item["id"]]
+    db.session.commit()
+    if action == "delete":
+        response, status = NewsItemService.delete(first_item["id"], admin_user)
+    else:
+        response, status = Story.ungroup_news_items_from_story([first_item["id"]], admin_user)
+        detached = Story.get(response["new_stories_ids"][0])
+        assert detached.title == "Primary title"
 
     assert status == 200
-    assert response["story_id"] == story.id
-
     db.session.refresh(story)
-    assert story.title == "Fallback title"
+    assert story.title == ("Analyst title" if custom_title else "Fallback title")
+    assert [item.id for item in story.ordered_news_items] == [third_item["id"], second_item["id"]]
 
 
 @pytest.mark.usefixtures("session")

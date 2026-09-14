@@ -28,6 +28,16 @@ class TestStoryAssessWorkerUpdates:
         assert response.status_code == 200
         full_story_news_items_ids = [item.get("id") for item in response.get_json().get("news_items")]
 
+        saved_order = [item["id"] for item in reversed(news_items)]
+        for story_id, original_ids in ((misp_story_id, [item["id"] for item in news_items]), (full_story_id, full_story_news_items_ids)):
+            response = client.put(
+                f"{self.base_uri_assess}/stories/{story_id}/news-item-order",
+                headers=auth_header,
+                json={"news_item_ids": list(reversed(original_ids)), "expected_news_item_ids": original_ids},
+            )
+            assert response.status_code == 200
+        full_story_news_items_ids.reverse()
+
         # 3. Ungroup the specified news item from the full story
         ungroup_item_id = "04129597-592d-45cb-9a80-3218108b29a1"  # News item ID to ungroup
         ungroup_resp = client.put(f"{self.base_uri_assess}/news-items/ungroup", json=[ungroup_item_id], headers=auth_header)
@@ -46,13 +56,11 @@ class TestStoryAssessWorkerUpdates:
         grouped_resp = client.get(f"{self.base_uri_assess}/story/{clustered_id}", headers=auth_header)
         assert grouped_resp.status_code == 200
         items = grouped_resp.get_json()["news_items"]
-        expected_ids = list(
-            set([news_item.get("id") for news_item in story_data["news_items"]] + full_story_news_items_ids) - {ungroup_item_id}
-        )
+        expected_ids = list(dict.fromkeys(item_id for item_id in saved_order + full_story_news_items_ids if item_id != ungroup_item_id))
         actual_ids = [news_item.get("id") for news_item in items]
 
         assert len(actual_ids) == 4
-        assert sorted(expected_ids) == sorted(actual_ids), "Grouped story should contain all news items except the ungrouped one"
+        assert expected_ids == actual_ids, "Grouping should preserve destination and source order"
 
         # Update worker_story with the original worker story_data
         story_data["id"] = misp_story_id
@@ -82,7 +90,9 @@ class TestStoryAssessWorkerUpdates:
         response_data = response.get_json()
         assert response.status_code == 200
         assert response_data.get("id") == misp_story_id, "The worker story should remain unchanged after grouping"
-        assert len(response_data.get("news_items")) == 3, "The worker story should have the same number of news items"
+        resolved_ids = {item["id"] for item in story_conflict_resolution_1["resolution"]["news_items"]}
+        expected_resolved_order = [item_id for item_id in expected_ids if item_id in resolved_ids] + sorted(resolved_ids - set(expected_ids))
+        assert [item["id"] for item in response_data["news_items"]] == expected_resolved_order
         assert response_data.get("title") == story_conflict_resolution_1.get("resolution").get("title"), (
             "The worker story title should be updated correctly"
         )

@@ -35,7 +35,7 @@
               <td class="relative max-w-[50ch] p-0">
                 <a href="{{ edit_route }}" class="flex w-full items-center px-3 py-1 truncate" data-testid="{{ table_id }}_{{ col.field }}">
                   {% if col.renderer %}
-                    {% if 'render_args' in col %}
+                    {% if "render_args" in col %}
                       {{ col.renderer(item, **col.render_args) }}
                     {% else %}
                       {{ col.renderer(item) }}
@@ -158,8 +158,8 @@
          {% if container_id %} hx-boost="select:#{{ container_id }} target:#{{ container_id }} swap:outerHTML" {% else %} hx-boost="true" hx-target="closest table" {% endif %}
          class="link link-hover">
         {{ column.title }}
-        {% if request.args.get('order', '').startswith(column.field) %}
-          {% if request.args.get('order').endswith('_asc') %}
+        {% if request.args.get("order", "").startswith(column.field) %}
+          {% if request.args.get("order").endswith("_asc") %}
             ▲
           {% else %}
             ▼

@@ -16,7 +16,7 @@ config:
   sqlalchemyPoolTimeout: "3600"
   sqlalchemyPoolRecycle: "3600"
   authenticator: database
-  skipInitialUserOnboarding: "false"
+  preSeedSettings: "{}"
   summaryApiEndpoint: http://llm-bot:8000/summarize
   titleApiEndpoint: http://llm-bot:8000/title
   nlpApiEndpoint: http://llm-bot:8000/ner

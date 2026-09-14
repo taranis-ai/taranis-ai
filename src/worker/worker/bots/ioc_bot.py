@@ -18,16 +18,7 @@ class IOCBot(BaseBot):
         self.type = "IOC_BOT"
         self.name = "IOC Bot"
         self.description = "Bot for finding indicators of compromise in news items"
-        self.included_ioc_types = list(
-            dict.fromkeys(
-                IOC_FINDER_TYPES
-                + [
-                    "bitcoin_addresses",
-                    "ssdeeps",
-                    "registry_key_paths",
-                ]
-            )
-        )
+        self.included_ioc_types = list(dict.fromkeys([*IOC_FINDER_TYPES, "bitcoin_addresses", "ssdeeps", "registry_key_paths"]))
 
     def execute(self, parameters: dict[str, Any] | None = None) -> dict[str, Any]:
         if not parameters:

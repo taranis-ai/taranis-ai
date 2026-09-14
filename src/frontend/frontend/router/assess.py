@@ -1,5 +1,9 @@
-from flask import Blueprint, Flask
+from typing import cast
 
+from flask import Blueprint, Flask
+from flask.typing import RouteCallable
+
+from frontend.auth import auth_required
 from frontend.views.analyst_review_views import AnalystReviewView
 from frontend.views.story_bookmark_views import StoryBookmarkView
 from frontend.views.story_views import StoryView
@@ -49,7 +53,9 @@ def init(app: Flask):
         "/story/<string:story_id>", view_func=StoryView.patch_story, methods=["POST", "PUT", "PATCH"], endpoint="story_update"
     )
     assess_bp.add_url_rule("/story/<string:story_id>", view_func=StoryView.delete_story, methods=["DELETE"], endpoint="story_delete")
-    assess_bp.add_url_rule("/story/<string:story_id>/edit", view_func=StoryView.as_view("story_edit"))
+    assess_bp.add_url_rule(
+        "/story/<string:story_id>/edit", view_func=cast(RouteCallable, auth_required("ASSESS_UPDATE")(StoryView.as_view("story_edit")))
+    )
     assess_bp.add_url_rule(
         "/story/<string:story_id>/bots", view_func=StoryView.trigger_bot_action, methods=["POST"], endpoint="story_trigger_bot"
     )
@@ -105,6 +111,12 @@ def init(app: Flask):
     )
     assess_bp.add_url_rule("/story/cluster", view_func=StoryView.get_cluster_dialog, methods=["GET"], endpoint="cluster_story")
     assess_bp.add_url_rule("/story/cluster", view_func=StoryView.submit_cluster_dialog, methods=["POST"], endpoint="submit_cluster_story")
+    assess_bp.add_url_rule(
+        "/story/<string:story_id>/news-item-order",
+        view_func=StoryView.news_item_order,
+        methods=["GET", "POST"],
+        endpoint="story_news_item_order",
+    )
     assess_bp.add_url_rule("/story/export", view_func=StoryView.export_stories, methods=["GET"], endpoint="export_stories")
     assess_bp.add_url_rule("/story/import", view_func=StoryView.import_stories, methods=["POST"], endpoint="import_stories")
     assess_bp.add_url_rule("/tags", view_func=StoryView.get_tags, methods=["GET"], endpoint="get_tags")

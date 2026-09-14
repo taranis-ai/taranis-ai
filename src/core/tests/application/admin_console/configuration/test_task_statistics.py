@@ -10,6 +10,8 @@ from core.model.task import Task
     [
         ({"successes": 0, "failures": 0, "total": 0}, "No Runs", "ghost"),
         ({"successes": 3, "failures": 0, "total": 3}, "All Success", "success"),
+        ({"successes": 0, "warnings": 1, "failures": 0, "total": 1}, "Warning", "warning"),
+        ({"successes": 3, "warnings": 1, "failures": 0, "total": 4}, "Warning", "warning"),
         ({"successes": 0, "failures": 1, "total": 1}, "First Failure", "warning"),
         ({"successes": 8, "failures": 2, "total": 10, "success_pct": 80}, "Mostly Success", "warning"),
         ({"successes": 0, "failures": 2, "total": 2, "success_pct": 0}, "Some Failures", "warning"),
@@ -55,7 +57,14 @@ def test_get_task_statistics_includes_worker_metadata(monkeypatch):
     assert task_stats["last_success"] == last_success.isoformat()
 
 
-def test_get_status_counts_by_task_counts_latest_worker_outcomes_once(app):
+@pytest.mark.parametrize(
+    ("latest_status", "message", "reason"),
+    [
+        ("FAILURE", "boom", "collection_failed"),
+        ("WARNING", "Collection limited", "rss_entry_limit"),
+    ],
+)
+def test_get_status_counts_by_task_counts_latest_worker_outcomes_once(app, latest_status, message, reason):
     from core.model.task import Task
 
     task_ids = [
@@ -92,8 +101,8 @@ def test_get_status_counts_by_task_counts_latest_worker_outcomes_once(app):
                     "task": "collector_task",
                     "worker_id": "source-1",
                     "worker_type": "rss_collector",
-                    "status": "FAILURE",
-                    "result": {"message": "boom", "reason": "collection_failed", "retryable": False, "data": {"source_id": "source-1"}},
+                    "status": latest_status,
+                    "result": {"message": message, "reason": reason, "retryable": False, "data": {"source_id": "source-1"}},
                 }
             )
 
@@ -103,13 +112,15 @@ def test_get_status_counts_by_task_counts_latest_worker_outcomes_once(app):
             rss_stats_with_timestamps = stats_with_timestamps["rss_collector"]
 
             assert rss_stats["successes"] == 1
-            assert rss_stats["failures"] == 1
+            assert rss_stats["failures"] == int(latest_status == "FAILURE")
+            assert rss_stats["warnings"] == int(latest_status == "WARNING")
             assert rss_stats["total"] == 2
             assert rss_stats["success_pct"] == 50
             assert "last_run" not in rss_stats
             assert "last_success" not in rss_stats
             assert rss_stats_with_timestamps["successes"] == 1
-            assert rss_stats_with_timestamps["failures"] == 1
+            assert rss_stats_with_timestamps["failures"] == int(latest_status == "FAILURE")
+            assert rss_stats_with_timestamps["warnings"] == int(latest_status == "WARNING")
             assert rss_stats_with_timestamps["total"] == 2
             assert rss_stats_with_timestamps["success_pct"] == 50
             assert rss_stats_with_timestamps["last_run"] is not None
@@ -186,6 +197,7 @@ def test_get_status_totals_counts_latest_worker_statuses(app):
             assert stats[test_worker_type]["failures"] == 1
             assert totals == {
                 "successes": sum(task_stats["successes"] for task_stats in stats.values()),
+                "warnings": sum(task_stats["warnings"] for task_stats in stats.values()),
                 "failures": sum(task_stats["failures"] for task_stats in stats.values()),
                 "total": sum(task_stats["total"] for task_stats in stats.values()),
                 "success_pct": int((totals["successes"] * 100) / totals["total"]),

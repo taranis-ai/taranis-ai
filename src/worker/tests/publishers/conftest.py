@@ -1,9 +1,35 @@
+from threading import Event, current_thread
 from unittest.mock import patch
 
 import mockssh
 import pytest
+from mockssh.server import Handler
 
 from worker import publishers
+
+
+class SFTPTestHandler(Handler):
+    def __init__(self, server, client_conn):
+        super().__init__(server, client_conn)
+        self.finished = Event()
+        server.handlers.append(self)
+
+    def run(self):
+        self.thread = current_thread()
+        try:
+            self.transport.start_server(server=self)
+            channels = []
+            while self.transport.is_active():
+                channel = self.transport.accept(timeout=0.1)
+                if channel is not None:
+                    # Paramiko runs the SFTP subsystem; no SSH command thread is needed.
+                    channels.append(channel)
+        except (EOFError, ConnectionResetError):
+            # Rejecting a changed host key disconnects during SSH negotiation.
+            pass
+        finally:
+            self.transport.close()
+            self.finished.set()
 
 
 class MockProduct:
@@ -170,17 +196,30 @@ def smtp_mock():
 
 
 @pytest.fixture
-def sftp_mock(request):
-    import glob
-    import os
-
-    from tests.publishers.publishers_data import product_text
-
+def sftp_mock(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
     users = {
         "user": {"type": "password", "password": "password"},
     }
-    with mockssh.Server(users) as s:  # type: ignore
-        yield s
-
-    for product in glob.glob(f"{product_text['title']}*"):
-        os.remove(product)
+    server = mockssh.Server(users)  # type: ignore
+    server.handler_cls = SFTPTestHandler
+    server.handlers = []
+    listener_thread = None
+    listener_socket = None
+    try:
+        with server:
+            listener_thread = server._thread
+            listener_socket = server._socket
+            yield server
+    finally:
+        # mockssh skips close() when shutdown() fails on a listening socket (macOS).
+        if listener_socket is not None:
+            listener_socket.close()
+        if listener_thread is not None:
+            listener_thread.join(timeout=5)
+            assert not listener_thread.is_alive(), "SFTP listener did not stop"
+        for handler in server.handlers:
+            handler.transport.close()
+            assert handler.finished.wait(timeout=5), "SFTP handler did not stop"
+            handler.thread.join(timeout=5)
+            assert not handler.thread.is_alive(), "SFTP handler thread did not stop"

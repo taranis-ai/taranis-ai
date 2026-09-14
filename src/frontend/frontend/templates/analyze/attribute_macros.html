@@ -9,13 +9,13 @@
   {% set description = attr.description %}
   {% set required = attr.required %}
   <div class="mb-5">
-    {% if attr.type in ['TEXT', 'RICH_TEXT'] %}
+    {% if attr.type in ["TEXT", "RICH_TEXT"] %}
       {{ form_textarea(label=label, name=base_name, value=value, placeholder=description, required=required, input_id=field_id, preserve=False) }}
-    {% elif attr.type == 'STRING' %}
+    {% elif attr.type == "STRING" %}
       {{ form_input_content(label=label, name=base_name, value=value, placeholder=description, required=required, input_id=field_id, preserve=False) }}
-    {% elif attr.type == 'NUMBER' %}
+    {% elif attr.type == "NUMBER" %}
       {{ form_input_content(label=label, name=base_name, value=value, type='number', placeholder=description, required=required, input_id=field_id, preserve=False) }}
-    {% elif attr.type == 'BOOLEAN' %}
+    {% elif attr.type == "BOOLEAN" %}
       <fieldset class="fieldset bg-base-100 border-base-300 rounded-box border px-4 py-2 mb-5 w-full">
         <legend class="fieldset-legend">
           <span>
@@ -37,7 +37,7 @@
           <span class="text-base-content hidden peer-checked:inline">Yes</span>
         </label>
       </fieldset>
-    {% elif attr.type in ['ENUM', 'CPE'] %}
+    {% elif attr.type in ["ENUM", "CPE"] %}
       <label class="select w-full">
         <span class="label justify-between">
           <span>{{ label }}</span>
@@ -53,7 +53,7 @@
       {% if read_only %}<input type="hidden" name="{{ base_name }}" value="{{ value }}">{% endif %}
       {% if description %}<p class="text-xs text-base-content/60 mt-1">{{ description }}</p>{% endif %}
 
-    {% elif attr.type == 'RADIO' %}
+    {% elif attr.type == "RADIO" %}
       <fieldset class="fieldset border border-base-300 rounded-box px-4 py-3">
         <legend class="fieldset-legend text-sm font-semibold">
           {{ label }}
@@ -74,7 +74,7 @@
         </div>
       </fieldset>
 
-    {% elif attr.type == 'TLP' %}
+    {% elif attr.type == "TLP" %}
       <div class="floating-label w-full">{{ tlp_levels(value, name=base_name, required=required) }}</div>
 
       {# djlint:off #}

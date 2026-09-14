@@ -71,8 +71,8 @@ def _normalize_datetime(value: str | datetime | None) -> datetime | None:
     if isinstance(value, str):
         with contextlib.suppress(ValueError):
             value = datetime.fromisoformat(value)
-        if isinstance(value, str):
-            return None
+    if isinstance(value, str):
+        return None
     if value.tzinfo is None or value.utcoffset() is None:
         return value
     return value.astimezone(UTC).replace(tzinfo=None)
@@ -200,6 +200,8 @@ class MispAutoUpdatePayload(TaranisBaseModel):
 
 
 class Story(TaranisBaseModel):
+    can_edit: bool = False
+
     _core_endpoint = "/assess/stories"
     _model_name = "story"
     _pretty_name = "Story"
@@ -290,10 +292,10 @@ class StoryBookmarkBase(TaranisBaseModel):
     @field_validator("name", mode="before")
     @classmethod
     def normalize_name(cls, value: Any) -> str:
-        name = str(value or "").strip()
-        if not name:
+        if name := str(value or "").strip():
+            return name
+        else:
             raise ValueError("Bookmark collection name is required")
-        return name
 
 
 class StoryBookmarkCreatePayload(StoryBookmarkBase):
@@ -325,6 +327,13 @@ class StoryBookmark(StoryBookmarkBase):
     story_count: int = 0
     story_ids: list[str] = Field(default_factory=list)
     stories: list[Story] = Field(default_factory=list)
+
+
+class StoryNewsItemOrderPayload(TaranisBaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    news_item_ids: list[str]
+    expected_news_item_ids: list[str]
 
 
 class StoryUpdatePayload(TaranisBaseModel):

@@ -14,11 +14,8 @@ def test_bot_api_timeout_resolve(timeout_input, expected_value):
 
 
 @pytest.mark.parametrize("request_method", ["get", "post"])
-def test_bot_api_reports_transport_failure(request_method, monkeypatch, caplog):
-    def raise_request_error(**_):
-        raise RequestException("connection refused")
-
-    monkeypatch.setattr(f"worker.bot_api.requests.{request_method}", raise_request_error)
+def test_bot_api_reports_transport_failure(request_method, requests_mock, caplog):
+    requests_mock.register_uri(request_method.upper(), "http://bot.example/analyze", exc=RequestException("connection refused"))
     caplog.set_level(logging.ERROR)
 
     with pytest.raises(BotServiceUnavailableError) as exc_info:

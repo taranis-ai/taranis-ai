@@ -30,7 +30,7 @@ class PublisherView(AdminBaseView):
         publisher = base_context.get(cls.model_name())
         if publisher and (hasattr(publisher, "type") and (publisher_type := publisher.type)):
             parameter_values = publisher.parameters
-            parameters = cls.get_worker_parameters(worker_type=publisher_type.name.lower())
+            parameters = cls.get_worker_parameters(worker_type=PUBLISHER_TYPES(publisher_type).name.lower())
 
         base_context |= {
             "publisher_types": cls.publisher_types.values(),

@@ -41,7 +41,13 @@ class SFTPPublisher(BasePublisher):
         if private_key:
             private_key = self.parse_private_key(private_key)
 
-        self.upload_to_sftp(server_config, data_to_upload, private_key=private_key)
+        self.upload_to_sftp(
+            server_config,
+            data_to_upload,
+            private_key=private_key,
+            host_key=parameters.get("HOST_KEY", ""),
+            accept_any_host_key=parameters.get("ACCEPT_ANY_HOST_KEY", False) is True,
+        )
 
         return "SFTP Publisher Task Successful"
 
@@ -63,7 +69,14 @@ class SFTPPublisher(BasePublisher):
                 return pkey_class.from_private_key(StringIO(private_key))
         raise ValueError("Invalid private key format for SFTP")
 
-    def upload_to_sftp(self, server_config: ParseResult, data_to_upload: BytesIO, private_key: paramiko.PKey | None = None):
+    def upload_to_sftp(
+        self,
+        server_config: ParseResult,
+        data_to_upload: BytesIO,
+        private_key: paramiko.PKey | None = None,
+        host_key: str = "",
+        accept_any_host_key: bool = False,
+    ):
         ssh_port = server_config.port or 22
         remote_path = server_config.path + self.file_name
         connect_password = None if private_key else server_config.password
@@ -73,16 +86,31 @@ class SFTPPublisher(BasePublisher):
 
         logger.debug(f"Uploading to SFTP: {server_config.hostname}:{ssh_port} {remote_path}")
 
-        self.ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        self.ssh.connect(
-            hostname=hostname,
-            port=ssh_port,
-            username=server_config.username,
-            password=connect_password,
-            pkey=private_key,
-            look_for_keys=False,
-            allow_agent=False,
-        )
-        with self.ssh.open_sftp() as sftp:
-            sftp.putfo(data_to_upload, remote_path)
-        self.ssh.close()
+        self.ssh = paramiko.SSHClient()
+        if accept_any_host_key:
+            # codeql[py/paramiko-missing-host-key-validation] Admin explicitly accepts this risk; disabled by default.
+            self.ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        else:
+            if not host_key.strip():
+                raise ValueError("A server host public key is required for SFTP")
+            try:
+                key_type, key_data, *_ = host_key.split()
+                key = paramiko.PKey.from_type_string(key_type, b64decode(key_data, validate=True))
+            except Exception:
+                logger.exception("Invalid SFTP server host public key")
+                raise ValueError("Invalid SFTP server host public key; use OpenSSH public key format") from None
+            host = hostname if ssh_port == 22 else f"[{hostname}]:{ssh_port}"
+            self.ssh.get_host_keys().add(host, key.get_name(), key)
+            self.ssh.set_missing_host_key_policy(paramiko.RejectPolicy())
+        with self.ssh:
+            self.ssh.connect(
+                hostname=hostname,
+                port=ssh_port,
+                username=server_config.username,
+                password=connect_password,
+                pkey=private_key,
+                look_for_keys=False,
+                allow_agent=False,
+            )
+            with self.ssh.open_sftp() as sftp:
+                sftp.putfo(data_to_upload, remote_path)

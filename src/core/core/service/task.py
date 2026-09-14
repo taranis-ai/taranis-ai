@@ -105,7 +105,7 @@ class TaskService:
                 submission.user_id,
                 submission.status,
             )
-        if submission.status == "SUCCESS" and submission.result is not None:
+        if submission.status in {"SUCCESS", "WARNING"} and submission.result is not None:
             cls._handle_success_result(submission)
         elif task_kind in {"collector_task", "bot_task"}:
             cache_invalidation_module.cache_invalidation_service.invalidate_model("admin_menu_badges")

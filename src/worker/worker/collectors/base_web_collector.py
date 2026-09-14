@@ -11,8 +11,8 @@ from trafilatura import extract, extract_metadata
 
 from worker.collectors.base_collector import BaseCollector, NoChangeError
 from worker.collectors.playwright_manager import PlaywrightManager
-from worker.config import Config
 from worker.core_api import IconFile
+from worker.http_client import http_request
 from worker.log import logger
 
 
@@ -25,6 +25,13 @@ def parse_datetime(value: str) -> datetime.datetime | None:
     if isinstance(parsed, datetime.datetime):
         return NewsItem.normalize_datetime(parsed)
     return None
+
+
+class HTTPNotModifiedError(NoChangeError):
+    def __init__(self, url: str, *, primary_resource: bool):
+        super().__init__(f"{url} was not modified")
+        self.url = url
+        self.primary_resource = primary_resource
 
 
 class BaseWebCollector(BaseCollector):
@@ -81,15 +88,25 @@ class BaseWebCollector(BaseCollector):
         http_validators = self.http_validators
         primary_request = http_validators is not None and http_validators["url"] == url
 
-        with requests.Session(disable_http3=Config.DISABLE_HTTP3) as session:
-            response = session.get(url, headers=self._request_headers(url, modified_since), proxies=self.proxies, timeout=self.timeout)
+        try:
+            response = http_request(
+                "GET", url, external=True, headers=self._request_headers(url, modified_since), proxies=self.proxies, timeout=self.timeout
+            )
+        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as exc:
+            logger.error(f"Collector HTTP request failed: {exc}")
+            logger.exception("Collector HTTP request failed")
+            raise requests.exceptions.RequestException(
+                "The request to the source or proxy failed or timed out. "
+                "Check DNS resolution and network access from the worker container, "
+                "and verify the source's PROXY_SERVER setting if a proxy is required. See worker logs for technical details."
+            ) from None
         if http_validators is not None and primary_request and response.status_code == 200:
             http_validators["etag"] = response.headers.get("ETag")
             http_validators["last_modified"] = response.headers.get("Last-Modified")
         if response.status_code == 200 and not response.content:
             logger.info(f"Request to {url} got Response 200 OK, but returned no content")
         if response.status_code == 304:
-            raise NoChangeError(f"{url} was not modified")
+            raise HTTPNotModifiedError(url, primary_resource=primary_request)
         if response.status_code == 429:
             raise requests.exceptions.HTTPError("Got Response 429 Too Many Requests. Try decreasing REFRESH_INTERVAL.")
         response.raise_for_status()
@@ -126,8 +143,7 @@ class BaseWebCollector(BaseCollector):
         return None
 
     def _fetch_icon(self, icon_url: str) -> requests.Response:
-        with requests.Session(disable_http3=Config.DISABLE_HTTP3) as session:
-            return session.get(icon_url, headers=self._request_headers(icon_url), proxies=self.proxies, timeout=5)
+        return http_request("GET", icon_url, external=True, headers=self._request_headers(icon_url), proxies=self.proxies, timeout=5)
 
     def update_favicon(self, web_url: str, osint_source_id: str):
         # TODO: Try getting apple-touch-icon first

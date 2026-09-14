@@ -189,13 +189,83 @@ def test_empty_rss_feed_result_is_preserved_after_not_modified_response(current_
     assert feed_requests[-1].headers["If-None-Match"] == validators["etag"]
 
 
+@pytest.mark.parametrize(
+    ("publish_message", "result_prefix", "recovered_status", "expected_bot_runs"),
+    [
+        ("News items added", "'Source 1': News items added", "SUCCESS", 1),
+        ("All news items were skipped", "No changes: All news items were skipped", "NOT_MODIFIED", 0),
+    ],
+)
+@pytest.mark.parametrize("skipped_entries", [1, 2])
+def test_rss_entry_limit_warning_and_recovery(
+    current_job, requests_mock, publish_message, result_prefix, recovered_status, expected_bot_runs, skipped_entries
+):
+    feed_url = "https://example.com/feed"
+    source = {
+        "id": "source-1",
+        "name": "Source 1",
+        "type": "rss_collector",
+        "rss_collector_max_entries": 2,
+        "parameters": {"FEED_URL": feed_url, "USE_FEED_CONTENT": True},
+    }
+    entries = "".join(f"<item><title>Item {i}</title><description>Content {i}</description></item>" for i in range(2 + skipped_entries))
+    feed = f"<rss version='2.0'><channel><title>Feed</title>{entries}</channel></rss>"
+    requests_mock.get(
+        feed_url,
+        [{"text": feed, "headers": {"ETag": '"feed"'}}, {"status_code": 304}, {"status_code": 304}, {"text": feed}],
+    )
+    requests_mock.get("https://example.com/favicon.ico", status_code=404)
+    source_endpoint = f"{Config.TARANIS_CORE_URL}/worker/osint-sources/source-1"
+    requests_mock.get(source_endpoint, json=source)
+    requests_mock.post(f"{Config.TARANIS_CORE_URL}/worker/news-items", json={"message": publish_message})
+    bots = requests_mock.put(f"{Config.TARANIS_CORE_URL}/worker/post-collection-bots", json={})
+    requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
+
+    warning = (
+        "Only 2 entries were considered, in the order provided by the feed (starting at the top). "
+        f"{skipped_entries} additional entries were skipped."
+    )
+    expected_message = f"{result_prefix} {warning}"
+    assert collector_tasks.collector_task("source-1") == expected_message
+    payload = requests_mock.request_history[-1].json()
+    assert payload["status"] == current_job.meta["status"] == "WARNING"
+    assert payload["result"]["reason"] == "rss_entry_limit"
+    assert payload["result"]["retryable"] is False
+    published = next(request.json() for request in requests_mock.request_history if request.url.endswith("/worker/news-items"))
+    assert [item["title"] for item in published] == ["Item 0", "Item 1"]
+    assert bots.call_count == expected_bot_runs
+
+    source["rss_collector_max_entries"] = 2 + skipped_entries
+    for _ in range(2):
+        source["status"] = payload
+        source["http_validators"] = payload["result"]["data"]["http_validators"]
+        requests_mock.get(source_endpoint, json=source)
+        assert collector_tasks.collector_task("source-1") == expected_message
+        payload = requests_mock.request_history[-1].json()
+        assert payload["status"] == "WARNING"
+
+    source["status"] = payload
+    requests_mock.get(source_endpoint, json=source)
+    collector_tasks.collector_task("source-1", manual=True)
+    payload = requests_mock.request_history[-1].json()
+    assert payload["status"] == recovered_status
+    assert payload["result"]["reason"] != "rss_entry_limit"
+    assert warning not in payload["result"]["message"]
+    assert bots.call_count == expected_bot_runs * 2
+
+    feed_requests = [request for request in requests_mock.request_history if request.url == feed_url]
+    assert feed_requests[1].headers["If-None-Match"] == '"feed"'
+    assert feed_requests[2].headers["If-None-Match"] == '"feed"'
+    assert "If-None-Match" not in feed_requests[3].headers
+
+
 def test_rss_parse_failure_cleans_up_persists_failure_and_skips_bots(
     current_job, requests_mock, monkeypatch, rss_collector_mock, rss_collector
 ):
     from tests.testdata import rss_collector_source_data
 
     source = deepcopy(rss_collector_source_data)
-    source |= {"name": "Source 1", "type": "rss_collector"}
+    source |= {"name": "Source 1", "type": "rss_collector", "rss_collector_max_entries": 1}
     source["parameters"] |= {"BROWSER_MODE": "true", "DIGEST_SPLITTING": "false"}
     playwright_manager = MagicMock()
     monkeypatch.setattr("worker.collectors.rss_collector.PlaywrightManager", lambda *_: playwright_manager)
@@ -250,6 +320,20 @@ def test_rss_parse_failure_is_not_reclassified_as_not_modified(current_job, requ
     assert feed_requests[-1].headers["If-None-Match"] == '"invalid-feed"'
     task_requests = [request for request in requests_mock.request_history if request.method == "POST"]
     assert task_requests[-1].json()["status"] == "FAILURE"
+
+    source["parameters"]["USE_FEED_CONTENT"] = True
+    requests_mock.get(
+        feed_url,
+        text="<rss version='2.0'><channel><title>Recovered</title><item><title>Existing item</title></item></channel></rss>",
+    )
+    requests_mock.post(f"{Config.TARANIS_CORE_URL}/worker/news-items", json={"message": "All news items were skipped"})
+
+    collector_tasks.collector_task("source-1", manual=True)
+
+    recovered = requests_mock.request_history[-1].json()
+    assert recovered["status"] == "NOT_MODIFIED"
+    assert recovered["result"]["reason"] == "collector_not_modified"
+    assert recovered["result"]["message"] == "No changes: All news items were skipped"
 
 
 def test_fetch_single_news_item_accepts_simple_web_source_payload_and_persists_success_result(current_job, requests_mock, monkeypatch):

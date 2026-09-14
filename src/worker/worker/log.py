@@ -64,6 +64,7 @@ class TaranisLogger:
         for h in self.logger.handlers:
             if isinstance(h, logging.StreamHandler):
                 return h
+        return None
 
 
 class TaranisLogFormatter(logging.Formatter):

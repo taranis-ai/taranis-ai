@@ -15,10 +15,7 @@ class ReportItemTypeView(AdminBaseView):
     @classmethod
     def _normalize_form_data(cls, form_data: dict[str, Any]) -> dict[str, Any]:
         attribute_groups = form_data.get("attribute_groups", {})
-        if isinstance(attribute_groups, dict):
-            attribute_groups = list(attribute_groups.values())
-        else:
-            attribute_groups = list(attribute_groups or [])
+        attribute_groups = list(attribute_groups.values()) if isinstance(attribute_groups, dict) else list(attribute_groups or [])
 
         for group in attribute_groups:
             if items := group.get("attribute_group_items"):

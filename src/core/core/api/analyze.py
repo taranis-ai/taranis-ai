@@ -114,6 +114,11 @@ class ReportItem(MethodView):
     def delete(self, report_item_id: str | None = None):
         if not report_item_id:
             return {"error": "No report_item_id provided"}, 400
+        selected_report = report_item.ReportItem.get(report_item_id)
+        if selected_report is None:
+            return {"error": "Report not found"}, 404
+        if not selected_report.access_allowed(current_user, require_write_access=True):
+            return {"error": "User is not allowed to delete report"}, 403
         result, code = report_item.ReportItem.delete(report_item_id)
         if code == 200:
             realtime_publisher.report_item_changed(report_item_id, current_user.organization_id, "deleted")

@@ -12,6 +12,7 @@
 - Core filters/orders/pages RQ lists after collecting registry entries; they are not SQL-backed. Endpoints always return paginated `items`/`total_count`, cached separately per endpoint/query.
 - Schedule counts include unique configured cron jobs, registry jobs, and housekeeping without fetching/annotating full rows. Admin Dashboard count must match the full Scheduled Jobs dataset.
 - History statistics arrive as an aggregate mapping, filtered/ordered/paged in frontend; totals/statistics describe the full matching dataset.
+- History and dashboard task totals count `WARNING` separately from successes and failures. Warnings contribute to total outcomes but not the full-success percentage; a warning-only/mixed-success group shows a yellow warning badge instead of All Success. Warnings still update last-success tracking because collection completed without failing.
 - Source/Bot badges use latest persisted results for configured workers, not transient Queue Failures. Select latest statuses in SQL before counting/paging; exclude one-off `simple_web_collector` fetches. Failure filters preserve other query settings and reset pagination.
 - Display UTC values in profile timezone via `format_datetime`. Pass curated failure messages to the browser with Jinja JSON encoding.
 - Core owns `rq:cron:def`: startup treats current source/bot/housekeeping specs as an allowlist and removes other persisted definitions and artifacts.

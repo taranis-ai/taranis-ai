@@ -48,6 +48,8 @@
                   <span class="badge badge-success badge-sm">Success</span>
                 {% elif task.status == "NOT_MODIFIED" %}
                   <span class="badge badge-info badge-sm">Not Modified</span>
+                {% elif task.status == "WARNING" %}
+                  <span class="badge badge-warning badge-sm">Warning</span>
                 {% elif task.status == "FAILURE" %}
                   <span class="badge badge-error badge-sm">Failed</span>
                 {% else %}

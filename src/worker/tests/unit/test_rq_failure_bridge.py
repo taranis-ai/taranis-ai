@@ -2,6 +2,7 @@
 
 from typing import cast
 
+import pytest
 from models.task import TaskResult
 from rq.job import Job
 from rq.timeouts import JobTimeoutException
@@ -110,10 +111,11 @@ def test_killed_work_horse_persists_synthetic_failure(monkeypatch):
     }
 
 
-def test_bridge_skips_when_terminal_task_result_exists(monkeypatch):
+@pytest.mark.parametrize("status", ["FAILURE", "WARNING"])
+def test_bridge_skips_when_terminal_task_result_exists(monkeypatch, status):
     class FakeCoreApi:
         def api_get(self, url):
-            return {"status": "FAILURE"}
+            return {"status": status}
 
         def save_task_result(self, *args, **kwargs):
             raise AssertionError("save_task_result should not be called")

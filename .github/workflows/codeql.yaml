@@ -33,6 +33,7 @@ jobs:
         uses: github/codeql-action/init@v4
         with:
           languages: ${{ matrix.language }}
+          packs: ${{ matrix.language == 'python' && 'codeql/python-queries:AlertSuppression.ql' || '' }}
           config: |
             paths-ignore:
               - '**/tests/**'

@@ -77,8 +77,7 @@ class RTCollector(BaseWebCollector):
 
     def decode64(self, ticket_content: Any) -> str:
         if isinstance(ticket_content, str):
-            ticket_content = base64.b64decode(ticket_content).decode("utf-8")
-            return ticket_content
+            return base64.b64decode(ticket_content).decode("utf-8")
         raise ValueError("Ticket content is not a string")
 
     def get_unique_content_from_hyperlinks(self, hyperlinks_full: list[dict]) -> list[dict]:

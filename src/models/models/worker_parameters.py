@@ -364,9 +364,27 @@ class FTPPublisherParameters(WorkerParameters):
 
 class SFTPPublisherParameters(WorkerParameters):
     SFTP_URL: str = Field(min_length=1, title="SFTP URL", description="Destination SFTP URL.")
+    HOST_KEY: str = Field(
+        "",
+        max_length=16384,
+        title="Server host public key",
+        description="Upload or paste the server's OpenSSH public key (key-type base64-key), verified with its administrator.",
+        json_schema_extra={"widget": "public-key"},
+    )
+    ACCEPT_ANY_HOST_KEY: bool = Field(
+        False,
+        title="Accept any server host key (insecure)",
+        description="Disable server identity verification, ignoring the supplied host key. Allows man-in-the-middle attacks.",
+    )
     PRIVATE_KEY: SecretStr = Field(
         SecretStr(""), title="Private key", description="Optional SSH private key.", json_schema_extra={"widget": "textarea"}
     )
+
+    @model_validator(mode="after")
+    def require_host_trust(self):
+        if not self.HOST_KEY.strip() and not self.ACCEPT_ANY_HOST_KEY:
+            raise ValueError("Provide a server host public key or explicitly enable accepting any server host key.")
+        return self
 
 
 class S3PublisherParameters(WorkerParameters):

@@ -1,0 +1,8 @@
+<p>{{ message }}</p>
+{% if stale %}
+  <button type="button"
+          class="btn btn-sm btn-outline"
+          hx-get="{{ url_for('assess.story_news_item_order', story_id=story_id, bookmark_id=request.args.get('bookmark_id')) }}"
+          hx-target="#news-item-order"
+          hx-swap="outerHTML">Reload news items</button>
+{% endif %}

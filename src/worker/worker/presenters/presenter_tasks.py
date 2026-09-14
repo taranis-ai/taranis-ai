@@ -12,12 +12,14 @@ from rq import get_current_job
 
 import worker.presenters
 from worker.core_api import CoreApi, build_failure_task_result, build_success_task_result
+from worker.http_client import http_session_scope
 from worker.log import logger
 from worker.presenters.base_presenter import BasePresenter
 from worker.telemetry import instrument_job
 
 
 @instrument_job
+@http_session_scope()
 def presenter_task(product_id: str):
     """Generate a product/report in the specified format.
 
@@ -47,10 +49,7 @@ def presenter_task(product_id: str):
 
     # Get template if needed
     type_id = str(product["type_id"])
-    if "TEMPLATE_PATH" in product.get("parameters", {}):
-        template = _get_template(core_api, type_id)
-    else:
-        template = None
+    template = _get_template(core_api, type_id) if "TEMPLATE_PATH" in product.get("parameters", {}) else None
 
     logger.info(f"Rendering product {product_id} with presenter {presenter.type}")
 

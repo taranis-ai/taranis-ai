@@ -14,6 +14,8 @@ Read matching memories before planning or editing related features, routes, mode
 ## Feature Memories
 
 - [Telemetry](telemetry.md) - Sentry initialization, OTLP traces and metrics, RQ trace propagation, and the optional Grafana LGTM Compose profile.
+- [Global Settings](global-settings.md): transaction-scoped read caching, defaults, and invalidation.
+- [News Item Ordering](news-item-ordering.md) - local shared item order, editor controls, conflict normalization, and ungrouping title fallback.
 - [Assess Filters](assess-filters.md): sidebar queries, saved filters, pagination, and cache invalidation.
 - [Story Bookmarks](story-bookmarks.md): private collections, ordering, and Assess action context.
 - [Analyst Review](analyst-review.md): Shift/Unread triage and Report-to-Publish handoff.
@@ -21,6 +23,7 @@ Read matching memories before planning or editing related features, routes, mode
 - [PizzINT Dashboard](pizzint-dashboard.md): opt-in external signal, cache, and stale fallback.
 - [OSINT Source Management](osint-source-management.md): bulk creation/deletion, curated lists, and transactions.
 - [Collector HTTP State](collector-http-state.md): validators, request scoping, dates, and 304 handling.
+- [HTTP Client Lifetimes](http-clients.md): pooling, service/source policies, credentials, streaming cleanup, and SDK boundaries.
 - [RSS Source Health](rss-source-health.md): feed detection, empty feeds, and entry limits.
 - [Mastodon Collector](mastodon-collector.md): timelines, pagination, tokens, and cursors.
 - [Bot Run Order DAG](bot-run-order-dag.md): bot dependencies and scheduling.

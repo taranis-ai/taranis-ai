@@ -32,7 +32,6 @@ def get_meta_string(meta: dict[str, Any] | None, key: str) -> str | None:
 
 
 def _normalize_short_name(func_name: str) -> str | None:
-    short_name = func_name.rsplit(".", 1)[-1].strip()
-    if not short_name:
-        return None
-    return "collector_task" if short_name == "fetch_single_news_item" else short_name
+    if short_name := func_name.rsplit(".", 1)[-1].strip():
+        return "collector_task" if short_name == "fetch_single_news_item" else short_name
+    return None

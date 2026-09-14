@@ -496,8 +496,7 @@ def explain_probe_error(body: Any) -> list[str]:
     lines: list[str] = []
     if isinstance(errors, dict):
         lines.extend(detail_lines(errors.get("detail")))
-        for item in errors.get("analyzers_requested", []):
-            lines.append(str(item))
+        lines.extend(str(item) for item in errors.get("analyzers_requested", []))
     elif errors:
         lines.append(str(errors))
     return lines or ["No JSON error detail returned."]

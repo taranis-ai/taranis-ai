@@ -15,7 +15,7 @@ from core.model.base_model import UUID_STR_LENGTH, BaseModel
 class Task(BaseModel):
     __tablename__ = "task"
 
-    SUCCESS_STATUSES = frozenset({"SUCCESS", "NOT_MODIFIED"})
+    SUCCESS_STATUSES = frozenset({"SUCCESS", "NOT_MODIFIED", "WARNING"})
     FAILURE_STATUSES = frozenset({"FAILURE"})
     USER_TASK_TERMINAL_STATUSES = SUCCESS_STATUSES | FAILURE_STATUSES | {"PREVIEW"}
     DEFAULT_RESULT: ClassVar[dict[str, object]] = {
@@ -210,11 +210,13 @@ class Task(BaseModel):
     @staticmethod
     def _sum_status_counts(task_stats: dict[str, dict[str, Any]]) -> dict[str, int]:
         successes = sum(int(stats.get("successes", 0) or 0) for stats in task_stats.values())
+        warnings = sum(int(stats.get("warnings", 0) or 0) for stats in task_stats.values())
         failures = sum(int(stats.get("failures", 0) or 0) for stats in task_stats.values())
-        total = successes + failures
+        total = successes + warnings + failures
 
         return {
             "successes": successes,
+            "warnings": warnings,
             "failures": failures,
             "total": total,
             "success_pct": int((successes * 100) / total) if total else 0,
@@ -222,7 +224,7 @@ class Task(BaseModel):
 
     @classmethod
     def get_status_totals(cls) -> dict[str, int]:
-        """Return overall success and failure counts for current worker status."""
+        """Return overall outcome counts for current worker status."""
         return cls._sum_status_counts(cls.get_status_counts_by_task())
 
     @classmethod
@@ -301,6 +303,7 @@ class Task(BaseModel):
                 entry: dict[str, Any] = {
                     "failures": 0,
                     "successes": 0,
+                    "warnings": 0,
                     "success_pct": 0,
                     "total": 0,
                     "worker_type": row.worker_type or task_type,
@@ -333,13 +336,16 @@ class Task(BaseModel):
 
             if row.status in cls.FAILURE_STATUSES:
                 entry["failures"] += 1
+            elif row.status == "WARNING":
+                entry["warnings"] += 1
             elif row.status in cls.SUCCESS_STATUSES:
                 entry["successes"] += 1
 
         for entry in data.values():
             failures = int(entry.get("failures") or 0)
             successes = int(entry.get("successes") or 0)
-            total = failures + successes
+            warnings = int(entry.get("warnings") or 0)
+            total = failures + successes + warnings
             entry["failures"] = failures
             entry["successes"] = successes
             entry["total"] = total
@@ -349,13 +355,16 @@ class Task(BaseModel):
     @staticmethod
     def _build_task_status_badge(stats: dict[str, Any]) -> dict[str, str]:
         successes = int(stats.get("successes") or 0)
+        warnings = int(stats.get("warnings") or 0)
         failures = int(stats.get("failures") or 0)
-        total_runs = int(stats.get("total") or successes + failures)
+        total_runs = int(stats.get("total") or successes + warnings + failures)
         success_pct = int(stats.get("success_pct") or 0)
 
         if total_runs == 0:
             return {"variant": "ghost", "label": "No Runs"}
         if failures == 0:
+            if warnings:
+                return {"variant": "warning", "label": "Warning"}
             return {"variant": "success", "label": "All Success"}
         if failures == 1 and total_runs == 1:
             return {"variant": "warning", "label": "First Failure"}
@@ -397,6 +406,7 @@ class Task(BaseModel):
             "task_stats": task_stats,
             "totals": {
                 "successes": totals["successes"],
+                "warnings": totals["warnings"],
                 "failures": totals["failures"],
                 "overall_success_rate": totals["success_pct"],
             },
