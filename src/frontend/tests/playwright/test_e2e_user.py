@@ -320,9 +320,10 @@ class TestEndToEndUser(BaseE2ETest):
 
     def test_user_assess(self, non_admin_logged_in_page: Page, forward_console_and_page_errors_non_admin, pre_seed_stories):
         page = non_admin_logged_in_page
+        assess_url = url_for("assess.assess", source=pre_seed_stories[0]["osint_source_id"], _external=True)
 
         def go_to_assess():
-            page.goto(url_for("assess.assess", _external=True))
+            page.goto(assess_url)
             expect(page.get_by_test_id("assess")).to_be_visible()
             expect(page.get_by_test_id("assess_story_count")).to_be_visible(timeout=30000)
             visible_count, total_count = self._get_assess_story_counts(page)
@@ -392,7 +393,7 @@ class TestEndToEndUser(BaseE2ETest):
             expect(page.get_by_test_id("story-title")).to_contain_text(edited_title)
 
         def infinite_scroll_all_items(expected_total: int):
-            page.goto(url_for("assess.assess", _external=True))
+            page.goto(assess_url)
 
             expect(page.get_by_test_id("assess")).to_be_visible()
             initial_visible_count, initial_total = self._get_assess_story_counts(page)
