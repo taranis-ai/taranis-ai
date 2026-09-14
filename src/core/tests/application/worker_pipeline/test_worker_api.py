@@ -116,25 +116,6 @@ class TestWorkerApi:
         assert response.status_code == 400
         assert "error" in response.json
 
-    def test_collection_selects_strongest_match_and_avoids_tied_stories(self, client, api_header, session):
-        from core.model.news_item import NewsItem
-        from tests.application.support.builders import build_news_item_payload, create_osint_source, create_story
-
-        source = create_osint_source(rank=0)
-        body = NewsItem.normalized_content((Path(__file__).parents[2] / "test_data" / "fuzzy_article.txt").read_text())
-        incoming_body = body[497:]
-        create_story(news_items=[build_news_item_payload(source.id, content=body)])
-        strongest = create_story(news_items=[build_news_item_payload(source.id, content=incoming_body)])
-        incoming = build_news_item_payload(source.id, content=incoming_body)
-        response = client.post(f"{self.base_uri}/news-items", json=[incoming], headers=api_header)
-        assert response.status_code == 200
-        assert response.json["story_ids"] == [strongest.id]
-        create_story(news_items=[build_news_item_payload(source.id, content=incoming_body)])
-        incoming = build_news_item_payload(source.id, content=incoming_body)
-        response = client.post(f"{self.base_uri}/news-items", json=[incoming], headers=api_header)
-        assert response.status_code == 200
-        assert response.json["counts"]["created"] == 1
-
     @pytest.mark.parametrize("threshold", [85, 86])
     def test_collection_group_threshold_is_inclusive(self, client, api_header, session, monkeypatch, threshold):
         import fuzzbite

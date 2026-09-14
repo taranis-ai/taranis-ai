@@ -2,7 +2,8 @@
 
 import hashlib
 import json
-from datetime import timedelta
+from datetime import datetime, timedelta
+from typing import Literal
 
 from models.assess import NewsItem as AssessNewsItem
 from pydantic import ValidationError
@@ -58,8 +59,9 @@ class CollectionService:
             "news_item_ids": list(dict.fromkeys(item_ids)),
         }, 200
 
-    @staticmethod
-    def ingest_item(payload: AssessNewsItem) -> tuple[dict, int]:
+    @classmethod
+    def ingest_item(cls, payload: AssessNewsItem) -> tuple[dict, int]:
+        """Resolve collection identity while holding the source lock until the caller commits."""
         source = db.session.execute(
             db.select(OSINTSource).where(OSINTSource.id == payload.osint_source_id).with_for_update()
         ).scalar_one_or_none()
@@ -78,69 +80,82 @@ class CollectionService:
         # Keep the legacy title/URL hash contract outside this ingestion boundary.
         identity = [source.id, payload.link] if payload.link else [source.id, payload.title, payload.content]
         collection_hash = hashlib.sha256(json.dumps(identity, ensure_ascii=False).encode()).hexdigest()
+        if item := cls._find_existing_item(payload, collection_hash):
+            return cls._update_item(item, payload, observed, now)
+        return cls._create_item(payload, collection_hash, observed, now)
+
+    @staticmethod
+    def _find_existing_item(payload: AssessNewsItem, collection_hash: str) -> NewsItem | None:
         item = NewsItem.get_by_hash(collection_hash)
-        if item is None and payload.link:
-            item = db.session.execute(
-                db.select(NewsItem)
-                .where(NewsItem.osint_source_id == source.id, NewsItem.link == payload.link)
-                .order_by(NewsItem.collected.desc(), NewsItem.id.desc())
-                .limit(1)
-            ).scalar_one_or_none()
+        if item is not None or not payload.link:
+            return item
+        return db.session.execute(
+            db.select(NewsItem)
+            .where(NewsItem.osint_source_id == payload.osint_source_id, NewsItem.link == payload.link)
+            .order_by(NewsItem.collected.desc(), NewsItem.id.desc())
+            .limit(1)
+        ).scalar_one_or_none()
 
-        if item:
-            if item.collection_seen_at and observed <= item.collection_seen_at:
-                return {"action": "stale"}, 200
-            if not payload.content and item.content:
-                return {"error": "Collected article content is empty; existing content was preserved"}, 400
-            incoming = {
-                "content": payload.content or "",
-                "title": payload.title or item.title,
-                "author": payload.author or item.author,
-                "language": payload.language or item.language,
-            }
-            changed = any(
-                NewsItem.normalized_content(getattr(item, field)) != NewsItem.normalized_content(value) for field, value in incoming.items()
-            )
-            if not changed:
-                db.session.execute(
-                    db.update(NewsItem).where(NewsItem.id == item.id).values(collection_seen_at=observed, updated=item.updated)
-                )
-                return {"action": "unchanged"}, 200
-            story = db.session.execute(db.select(Story).where(Story.id == item.story_id).with_for_update()).scalar_one_or_none()
-            if story is None or any(attribute.key == "rt_id" for attribute in story.attributes):
-                return {"error": "Collected article belongs to a story that cannot be updated"}, 409
-            # Preserve the actual pre-change state, including items moved into this story.
-            story.record_revision(note="before_collection_update")
-            for field, value in incoming.items():
-                setattr(item, field, value)
-            item.fuzzy_hash = NewsItem.get_fuzzy_hash(item.content)
-            item.collection_seen_at = observed
-            item.updated = now
-            # The story title and all analyst-owned fields remain untouched.
-            action = "updated"
+    @classmethod
+    def _update_item(cls, item: NewsItem, payload: AssessNewsItem, observed: datetime, now: datetime) -> tuple[dict, int]:
+        if item.collection_seen_at and observed <= item.collection_seen_at:
+            return {"action": "stale"}, 200
+        if not payload.content and item.content:
+            return {"error": "Collected article content is empty; existing content was preserved"}, 400
+
+        incoming = {
+            "content": payload.content or "",
+            "title": payload.title or item.title,
+            "author": payload.author or item.author,
+            "language": payload.language or item.language,
+        }
+        changed = any(
+            NewsItem.normalized_content(getattr(item, field)) != NewsItem.normalized_content(value) for field, value in incoming.items()
+        )
+        if not changed:
+            db.session.execute(db.update(NewsItem).where(NewsItem.id == item.id).values(collection_seen_at=observed, updated=item.updated))
+            return {"action": "unchanged"}, 200
+
+        story = db.session.execute(db.select(Story).where(Story.id == item.story_id).with_for_update()).scalar_one_or_none()
+        if story is None or any(attribute.key == "rt_id" for attribute in story.attributes):
+            return {"error": "Collected article belongs to a story that cannot be updated"}, 409
+        # Preserve the actual pre-change state, including items moved into this story.
+        story.record_revision(note="before_collection_update")
+        for field, value in incoming.items():
+            setattr(item, field, value)
+        item.fuzzy_hash = NewsItem.get_fuzzy_hash(item.content)
+        item.collection_seen_at = observed
+        item.updated = now
+        return cls._record_change(item, story, "updated", now)
+
+    @classmethod
+    def _create_item(cls, payload: AssessNewsItem, collection_hash: str, observed: datetime, now: datetime) -> tuple[dict, int]:
+        match = NewsItem.find_collection_match(payload)
+        story = None
+        if match:
+            story = db.session.execute(db.select(Story).where(Story.id == match[1]).with_for_update()).scalar_one_or_none()
+            if story and any(attribute.key == "rt_id" for attribute in story.attributes):
+                story = None
+
+        order = [entry.id for entry in story.ordered_news_items] if story else []
+        item = NewsItem.from_payload(payload)
+        item.hash = collection_hash
+        item.collection_seen_at = observed
+        if story:
+            story.news_items.append(item)
+            db.session.flush()
+            story.news_item_order = [*order, item.id]
+            action = "grouped"
         else:
-            match = NewsItem.find_collection_match(payload)
-            story = None
-            if match:
-                story = db.session.execute(db.select(Story).where(Story.id == match[1]).with_for_update()).scalar_one_or_none()
-                if story and any(attribute.key == "rt_id" for attribute in story.attributes):
-                    story = None
-            order = [entry.id for entry in story.ordered_news_items] if story else []
-            item = NewsItem.from_payload(payload)
-            item.hash = collection_hash
-            item.collection_seen_at = observed
-            if story:
-                story.news_items.append(item)
-                db.session.flush()
-                story.news_item_order = [*order, item.id]
-                action = "grouped"
-            else:
-                story = Story(title=payload.title or "", news_items=[])
-                story.news_items.append(item)
-                db.session.add(story)
-                action = "created"
+            story = Story(title=payload.title or "", news_items=[])
+            story.news_items.append(item)
+            db.session.add(story)
+            action = "created"
+        return cls._record_change(item, story, action, now)
 
-        actor = Story.last_change_for_source(source)
+    @staticmethod
+    def _record_change(item: NewsItem, story: Story, action: Literal["created", "updated", "grouped"], now: datetime) -> tuple[dict, int]:
+        actor = Story.last_change_for_source(item.osint_source)
         item.last_change = actor or "external"
         story.read = False
         story.collection_updated_at = now
