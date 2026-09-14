@@ -12,7 +12,9 @@ Changing the period does not change the lifetime total. Recent activity uses the
 
 ## Fuzzy deduplication
 
-Collection always skips near-identical article bodies from the same OSINT source collected in the preceding 30 days (UTC), using a CTPH score of at least 90. Exact title/URL hash deduplication runs first. Bodies shorter than 256 UTF-8 bytes use exact deduplication only. The body is normalized for Unicode and whitespace before hashing; titles and URLs do not affect the fuzzy fingerprint.
+Collection always skips near-identical article bodies from the same OSINT source collected in the preceding 30 days (UTC), using a fuzzbite CTPH score of at least 90. Exact title/URL hash deduplication runs first. Bodies shorter than 256 UTF-8 bytes use exact deduplication only. The body is normalized for Unicode and whitespace before hashing; titles and URLs do not affect the fuzzy fingerprint.
+
+Fuzzbite uses ffuzzy's ssdeep scoring, which can differ from ppdeep at the same threshold. Existing fingerprints retain their format and do not require a rehash for this library change.
 
 Fuzzy rejection applies to worker news-item ingestion. Manual-source items, explicit Assess creation, JSON imports, MISP/RT story synchronization, and conflict resolution retain their existing identity rules. A match skips the incoming item and preserves the existing story. Duplicate-only collector runs report `NOT_MODIFIED`.
 

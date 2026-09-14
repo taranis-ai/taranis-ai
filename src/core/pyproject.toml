@@ -34,7 +34,7 @@ dependencies = [
     "taranis-models",
     "sentry-sdk[flask]",
     "sentry-sdk[sqlalchemy]",
-    "ppdeep",
+    "fuzzbite==0.1.0",
 ]
 dynamic = ["version"]
 
@@ -140,6 +140,7 @@ reportIncompatibleMethodOverride = "none"
 [tool.uv]
 config-settings = { editable_mode = "compat" }
 exclude-newer = "1 week"
+exclude-newer-package = { fuzzbite = "2026-09-12T00:00:00Z" }
 
 required-environments = [
   "sys_platform == 'linux' and platform_machine == 'x86_64'",

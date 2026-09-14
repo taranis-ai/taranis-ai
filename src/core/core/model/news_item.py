@@ -4,7 +4,7 @@ from collections.abc import Sequence
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
-import ppdeep
+import fuzzbite
 from models.assess import NewsItem as AssessNewsItem
 from models.assess import Story as AssessStory
 from models.assess import validate_bcp47
@@ -170,7 +170,7 @@ class NewsItem(BaseModel):
     @staticmethod
     def get_fuzzy_hash(content: str | None) -> str | None:
         body = " ".join(unicodedata.normalize("NFC", content or "").split()).encode("utf-8")
-        return ppdeep.hash(body) if len(body) >= 256 else None
+        return fuzzbite.hash(body) if len(body) >= 256 else None
 
     @classmethod
     def find_collection_duplicate(cls, payload: AssessNewsItem) -> tuple[str, str | None] | None:
@@ -190,10 +190,12 @@ class NewsItem(BaseModel):
             cls.collected <= now,
             cls.fuzzy_hash.is_not(None),
         )
+        matcher = fuzzbite.Matcher(fingerprint)
         with db.session.execute(query.execution_options(yield_per=500)) as candidates:
-            for item_id, story_id, candidate in candidates:
-                score = ppdeep.compare(fingerprint, candidate)
-                if score >= 90:
+            for batch in candidates.partitions():
+                if match := matcher.find_match([row.fuzzy_hash for row in batch], threshold=90):
+                    index, score = match
+                    item_id, story_id, _ = batch[index]
                     logger.info(f"Fuzzy duplicate skipped: source={source.id} matched_item={item_id} score={score}")
                     return item_id, story_id
         return None

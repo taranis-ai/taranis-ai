@@ -22,11 +22,19 @@ def _expected_story_tag_names(story: dict) -> set[str]:
 class TestWorkerApi:
     base_uri = "/api/worker"
 
-    def test_fuzzy_collection_skips_near_duplicates(self, client, api_header, session):
+    @pytest.mark.parametrize("preceding_candidates", [0, 501])
+    def test_fuzzy_collection_skips_near_duplicates(self, client, api_header, session, preceding_candidates):
         from core.model.news_item import NewsItem
-        from tests.application.support.builders import build_news_item_payload, create_osint_source
+        from tests.application.support.builders import build_news_item_payload, create_osint_source, create_story
 
         source = create_osint_source(rank=0)
+        if preceding_candidates:
+            create_story(
+                news_items=[
+                    build_news_item_payload(source.id, content="The botanical gardens open their new orchid exhibition this weekend. " * 20)
+                    for _ in range(preceding_candidates)
+                ]
+            )
         body = (Path(__file__).parents[2] / "test_data" / "fuzzy_article.txt").read_text()
         original = build_news_item_payload(source.id, content=body)
         duplicate = build_news_item_payload(source.id, content=body.replace("on Tuesday", "on Wednesday"))

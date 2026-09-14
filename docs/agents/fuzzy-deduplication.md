@@ -6,7 +6,8 @@ News-item fingerprints, collection deduplication, or the fuzzy-hash migration.
 
 ## Contracts
 
-- Core hashes sanitized content with `ppdeep` after NFC and whitespace normalization. Bodies under 256 UTF-8 bytes remain NULL. Recompute on content edits; exclude fingerprints from serialization and untrusted import fields.
+- Core hashes sanitized content with `fuzzbite` after NFC and whitespace normalization. Bodies under 256 UTF-8 bytes remain NULL. Recompute on content edits; exclude fingerprints from serialization and untrusted import fields.
+- Reuse one `fuzzbite.Matcher` per incoming item across cursor partitions of 500 fingerprints. Return the first qualifying item's ID and story ID. Fingerprints remain ssdeep-compatible; scores use ffuzzy semantics and can differ from ppdeep at the same threshold.
 - Worker news-item ingestion always checks fuzzy similarity after the globally unique exact title/URL hash. Compare the same source's items collected in the inclusive UTC interval `[now - 30 days, now]`; skip at score 90 or higher.
 - The `collection=True` argument identifies the ingestion boundary. Manual/missing sources, explicit creation, JSON imports, MISP/RT synchronization, and conflict resolution retain their existing identity rules.
 - Hold the PostgreSQL source-row lock through check and insertion; release it after each skipped item before processing another source. SQLite does not enforce row locks.

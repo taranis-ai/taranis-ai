@@ -12,6 +12,9 @@ required-markers = [
 exclude-newer = "0001-01-01T00:00:00Z" # This has no effect and is included for backwards compatibility when using relative exclude-newer values.
 exclude-newer-span = "P1W"
 
+[options.exclude-newer-package]
+fuzzbite = "2026-09-12T00:00:00Z"
+
 [[package]]
 name = "annotated-types"
 version = "0.8.0"
@@ -402,6 +405,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/91/53/b0a9fcc1b1297f51e68b69ed3b7c3c40d8c45be1391d77ae198712914392/flask_sqlalchemy-3.1.1.tar.gz", hash = "sha256:e4b68bb881802dda1a7d878b2fc84c06d1ee57fb40b874d3dc97dabfa36b8312", size = 81899, upload-time = "2023-09-11T21:42:36.147Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/1d/6a/89963a5c6ecf166e8be29e0d1bf6806051ee8fe6c82e232842e3aeac9204/flask_sqlalchemy-3.1.1-py3-none-any.whl", hash = "sha256:4ba4be7f419dc72f4efd8802d69974803c37259dd42f3913b0dcf75c9447e0a0", size = 25125, upload-time = "2023-09-11T21:42:34.514Z" },
+]
+
+[[package]]
+name = "fuzzbite"
+version = "0.1.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/dd/62/544c4cb0a4ea002617fb150e964e66e311ad528ccff019decc08c299d51b/fuzzbite-0.1.0.tar.gz", hash = "sha256:6a3541bacef95c0435c643da1c13b5595f767867eb90d26a6a6dbc823ef20f18", size = 50502, upload-time = "2026-09-11T12:12:20.323Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/26/0a/d6bbea7f4547116984ea51818939786ac577166b090f9c0fe7802147f850/fuzzbite-0.1.0-cp310-abi3-macosx_11_0_arm64.whl", hash = "sha256:f03424b6b2db145d64ea64cd0b9bca9df8578fd0a88aabdedf3a2a58fc8dc5c5", size = 261707, upload-time = "2026-09-11T12:12:18.872Z" },
 ]
 
 [[package]]
@@ -913,15 +925,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/f9/e2/3e91f31a7d2b083fe6ef3fa267035b518369d9511ffab804f839851d2779/pluggy-1.6.0.tar.gz", hash = "sha256:7dcc130b76258d33b90f61b658791dede3486c3e6bfb003ee5c9bfb396dd22f3", size = 69412, upload-time = "2025-05-15T12:30:07.975Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/54/20/4d324d65cc6d9205fabedc306948156824eb9f0ee1633355a8f7ec5c66bf/pluggy-1.6.0-py3-none-any.whl", hash = "sha256:e920276dd6813095e9377c0bc5566d94c932c33b27a3e3945d8389c374dd4746", size = 20538, upload-time = "2025-05-15T12:30:06.134Z" },
-]
-
-[[package]]
-name = "ppdeep"
-version = "20260221"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/ef/6c/4b97c7c1f7dcb4ee0c8d3534284e7f1a638dee6dccd5d0a8f7d9fa6dac3c/ppdeep-20260221.tar.gz", hash = "sha256:8be1f4164b7ad2f7c40a51a664d3176701e40b2f9c1b96d18eeffaf06dfeff94", size = 4579, upload-time = "2026-02-21T08:23:44.357Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/26/78/71a6ae21b086f979ebf6a4f169c94f8e005e45df317cc6bc63187aae439e/ppdeep-20260221-py3-none-any.whl", hash = "sha256:e46d5130afeb0c73155568df9fcab41e2ff1ff04e95a29970b3da5b129f0ec34", size = 4763, upload-time = "2026-02-21T08:23:43.09Z" },
 ]
 
 [[package]]
@@ -1473,9 +1476,9 @@ dependencies = [
     { name = "flask-cors" },
     { name = "flask-jwt-extended" },
     { name = "flask-sqlalchemy" },
+    { name = "fuzzbite" },
     { name = "granian" },
     { name = "pillow" },
-    { name = "ppdeep" },
     { name = "psycopg" },
     { name = "pydantic-settings" },
     { name = "python-dotenv" },
@@ -1516,10 +1519,10 @@ requires-dist = [
     { name = "flask-cors" },
     { name = "flask-jwt-extended" },
     { name = "flask-sqlalchemy" },
+    { name = "fuzzbite", specifier = "==0.1.0" },
     { name = "granian" },
     { name = "pillow" },
     { name = "playwright", marker = "extra == 'dev'" },
-    { name = "ppdeep" },
     { name = "psycopg" },
     { name = "pydantic-settings" },
     { name = "pyrefly", marker = "extra == 'dev'", specifier = ">=1.1.1" },
