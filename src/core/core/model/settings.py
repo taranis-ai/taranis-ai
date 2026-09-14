@@ -1,14 +1,25 @@
 from collections.abc import Mapping
+from copy import deepcopy
 from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from sqlalchemy.orm import Mapped
+from sqlalchemy import event
+from sqlalchemy.orm import Mapped, Session
 
 from core.config import Config
 from core.log import logger
 from core.managers.db_manager import db
 from core.model.base_model import UUID_STR_LENGTH, BaseModel
 from core.model.role import TLPLevel
+
+
+_SETTINGS_CACHE_KEY = "core.settings"
+
+
+@event.listens_for(Session, "after_flush")
+@event.listens_for(Session, "after_transaction_end")
+def _clear_settings_cache(session, _context):
+    session.info.pop(_SETTINGS_CACHE_KEY, None)
 
 
 class Settings(BaseModel):
@@ -126,11 +137,17 @@ class Settings(BaseModel):
 
     @classmethod
     def get_settings(cls) -> dict:
+        session = db.session()
+        # Keep normal query autoflush semantics when there are pending writes.
+        if _SETTINGS_CACHE_KEY in session.info and not (session.new or session.dirty or session.deleted):
+            return deepcopy(session.info[_SETTINGS_CACHE_KEY])
         settings = cls.get_settings_entry()
         if settings is None:
             logger.debug("No Settings entry found")
             return {}
-        return cls.with_defaults(settings.settings)
+        snapshot = deepcopy(cls.with_defaults(settings.settings))
+        session.info[_SETTINGS_CACHE_KEY] = snapshot
+        return deepcopy(snapshot)
 
     @classmethod
     def _normalize_update_data(cls, data: dict) -> dict:
