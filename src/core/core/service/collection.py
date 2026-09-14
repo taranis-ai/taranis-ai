@@ -2,7 +2,7 @@
 
 import hashlib
 import json
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Literal
 
 from models.assess import NewsItem as AssessNewsItem
@@ -74,15 +74,13 @@ class CollectionService:
             return {**result, "action": "created"}, status
 
         now = NewsItem.utcnow()
-        observed = payload.collected or now
-        if observed > now + timedelta(minutes=5):
-            return {"error": "Collection timestamp is in the future"}, 400
+        payload.published = payload.published or now
         # Keep the legacy title/URL hash contract outside this ingestion boundary.
         identity = [source.id, payload.link] if payload.link else [source.id, payload.title, payload.content]
         collection_hash = hashlib.sha256(json.dumps(identity, ensure_ascii=False).encode()).hexdigest()
         if item := cls._find_existing_item(payload, collection_hash):
-            return cls._update_item(item, payload, observed, now)
-        return cls._create_item(payload, collection_hash, observed, now)
+            return cls._update_item(item, payload, now)
+        return cls._create_item(payload, collection_hash, now)
 
     @staticmethod
     def _find_existing_item(payload: AssessNewsItem, collection_hash: str) -> NewsItem | None:
@@ -97,8 +95,9 @@ class CollectionService:
         ).scalar_one_or_none()
 
     @classmethod
-    def _update_item(cls, item: NewsItem, payload: AssessNewsItem, observed: datetime, now: datetime) -> tuple[dict, int]:
-        if item.collection_seen_at and observed <= item.collection_seen_at:
+    def _update_item(cls, item: NewsItem, payload: AssessNewsItem, now: datetime) -> tuple[dict, int]:
+        published = payload.published or now
+        if item.published and published < item.published:
             return {"action": "stale"}, 200
         if not payload.content and item.content:
             return {"error": "Collected article content is empty; existing content was preserved"}, 400
@@ -113,7 +112,8 @@ class CollectionService:
             NewsItem.normalized_content(getattr(item, field)) != NewsItem.normalized_content(value) for field, value in incoming.items()
         )
         if not changed:
-            db.session.execute(db.update(NewsItem).where(NewsItem.id == item.id).values(collection_seen_at=observed, updated=item.updated))
+            if published != item.published:
+                db.session.execute(db.update(NewsItem).where(NewsItem.id == item.id).values(published=published, updated=item.updated))
             return {"action": "unchanged"}, 200
 
         story = db.session.execute(db.select(Story).where(Story.id == item.story_id).with_for_update()).scalar_one_or_none()
@@ -124,12 +124,12 @@ class CollectionService:
         for field, value in incoming.items():
             setattr(item, field, value)
         item.fuzzy_hash = NewsItem.get_fuzzy_hash(item.content)
-        item.collection_seen_at = observed
+        item.published = published
         item.updated = now
         return cls._record_change(item, story, "updated", now)
 
     @classmethod
-    def _create_item(cls, payload: AssessNewsItem, collection_hash: str, observed: datetime, now: datetime) -> tuple[dict, int]:
+    def _create_item(cls, payload: AssessNewsItem, collection_hash: str, now: datetime) -> tuple[dict, int]:
         match = NewsItem.find_collection_match(payload)
         story = None
         if match:
@@ -140,7 +140,6 @@ class CollectionService:
         order = [entry.id for entry in story.ordered_news_items] if story else []
         item = NewsItem.from_payload(payload)
         item.hash = collection_hash
-        item.collection_seen_at = observed
         if story:
             story.news_items.append(item)
             db.session.flush()

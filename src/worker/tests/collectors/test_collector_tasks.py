@@ -240,7 +240,6 @@ def test_rss_entry_limit_warning_and_recovery(
     assert bots.call_count == expected_bot_runs
     if expected_bot_runs:
         assert bots.last_request.json()["story_ids"] == ["story-1"]
-        assert all(item["collected"] for item in published)
 
     source["rss_collector_max_entries"] = 2 + skipped_entries
     for _ in range(2):

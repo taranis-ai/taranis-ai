@@ -50,7 +50,8 @@ class TestWorkerApi:
         assert response.json["message"] == "All news items were skipped"
 
     @pytest.mark.parametrize("body", ["A short report: 10 affected systems.", None])
-    def test_collection_url_updates_preserve_history_and_analyst_work(self, client, api_header, session, body):
+    @pytest.mark.parametrize("publication_days_later", [0, 1])
+    def test_collection_url_updates_preserve_history_and_analyst_work(self, client, api_header, session, body, publication_days_later):
         from models.revision_diff import build_story_revision_diff_payload
 
         from core.model.news_item import NewsItem
@@ -77,6 +78,7 @@ class TestWorkerApi:
             "title": "Corrected source headline",
             "content": body + " Correction: 100 affected systems.",
             "collected": NewsItem.utcnow().isoformat(),
+            "published": (published + timedelta(days=publication_days_later)).isoformat(),
         }
         response = client.post(f"{self.base_uri}/news-items", json=[corrected], headers=api_header)
         assert response.status_code == 200
@@ -85,7 +87,8 @@ class TestWorkerApi:
         assert len(story.news_items) == 1
         assert item.content == corrected["content"]
         assert item.title == corrected["title"]
-        assert (item.published, item.collected) == (published, collected)
+        assert item.published == published + timedelta(days=publication_days_later)
+        assert item.collected == collected
         assert item.review == "Analyst review"
         assert (story.title, story.summary, story.read) == ("Analyst headline", "Analyst summary", False)
         assert story.id in session.execute(Story.get_filter_query({"range": "shift"}).with_only_columns(Story.id)).scalars()
@@ -98,12 +101,32 @@ class TestWorkerApi:
         diff = build_story_revision_diff_payload(story.id, story.title, revisions[-2].to_dict(), revisions[-1].to_dict())
         assert any(change.field.endswith(": Content") for change in diff.changes)
         revision_count = story.revision
-        for retry in (corrected, original, corrected | {"collected": NewsItem.utcnow().isoformat()}):
+        older = original | {"published": (item.published - timedelta(seconds=1)).isoformat()}
+        for retry, expected_action in (
+            (corrected, "unchanged"),
+            (older, "stale"),
+            (corrected | {"collected": NewsItem.utcnow().isoformat()}, "unchanged"),
+        ):
             response = client.post(f"{self.base_uri}/news-items", json=[retry], headers=api_header)
             assert response.status_code == 200
             assert response.json["message"] == "All news items were skipped"
+            assert response.json["counts"][expected_action] == 1
             assert item.content == corrected["content"]
             assert story.revision == revision_count
+
+        # A newer date alone advances the comparison date without creating a content revision.
+        newer_published = item.published + timedelta(days=1)
+        unchanged = corrected | {"published": newer_published.isoformat()}
+        updated = item.updated
+        response = client.post(f"{self.base_uri}/news-items", json=[unchanged], headers=api_header)
+        assert response.status_code == 200
+        assert response.json["counts"]["unchanged"] == 1
+        assert item.published == newer_published
+        assert (item.updated, story.revision) == (updated, revision_count)
+        response = client.post(f"{self.base_uri}/news-items", json=[corrected | {"content": body}], headers=api_header)
+        assert response.status_code == 200
+        assert response.json["counts"]["stale"] == 1
+        assert item.content == corrected["content"]
 
         # Identical URLs and titles in a different source are separate evidence.
         other_source = create_osint_source(rank=1)

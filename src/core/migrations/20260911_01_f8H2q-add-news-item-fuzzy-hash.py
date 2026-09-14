@@ -26,10 +26,6 @@ def backfill(connection):
 
 steps = [
     step(
-        "ALTER TABLE news_item ADD COLUMN IF NOT EXISTS collection_seen_at TIMESTAMP",
-        "ALTER TABLE news_item DROP COLUMN IF EXISTS collection_seen_at",
-    ),
-    step(
         "ALTER TABLE story ADD COLUMN IF NOT EXISTS collection_updated_at TIMESTAMP",
         "ALTER TABLE story DROP COLUMN IF EXISTS collection_updated_at",
     ),

@@ -39,7 +39,6 @@ class NewsItem(BaseModel):
     id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), primary_key=True, default=BaseModel.uuid7_str)
     hash: Mapped[str] = db.Column(db.String(), index=True, unique=True, nullable=False)
     fuzzy_hash: Mapped[str | None] = db.Column(db.String(), nullable=True)
-    collection_seen_at: Mapped[datetime | None] = db.Column(db.DateTime, nullable=True)
 
     title: Mapped[str] = db.Column(db.String())
     review: Mapped[str] = db.Column(db.String())
@@ -257,7 +256,6 @@ class NewsItem(BaseModel):
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
         data.pop("fuzzy_hash", None)
-        data.pop("collection_seen_at", None)
         data["tags"] = [tag.to_dict() for tag in self.tags]
         return data
 

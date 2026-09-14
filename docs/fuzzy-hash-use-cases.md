@@ -13,17 +13,17 @@ Article identity is the URL within its OSINT source. Use the sanitized URL as st
 | Known URL, unchanged normalized source fields | Skip without a revision |
 | Known URL, changed content/title/author/language | Update the existing item; preserve before/after story revisions |
 | Known URL, empty replacement body | Reject and preserve existing content |
-| Older/equal collection delivery for a known item | Skip as stale |
+| Strictly older publication date for a known item | Skip as stale |
 | Different URL, strongest same-source score at least the grouping threshold | Keep both items in the same story |
 | No qualifying match, tied strongest matches across stories, or ineligible target | Create a separate story |
 
-The initial grouping threshold is 85, configurable through Core's `COLLECTION_GROUP_THRESHOLD`. The proposed 95-point discard band is deliberately not implemented: URL identity decides whether there is one article, and similarity cannot justify deleting a different article's evidence. Known URLs are updated even below 85 and for short bodies without fingerprints.
+The initial grouping threshold is 85, configurable through Core's `COLLECTION_GROUP_THRESHOLD`. The proposed 95-point discard band is deliberately not implemented: URL identity decides whether there is one article, and similarity cannot justify deleting a different article's evidence. Known URLs are updated even below 85 and for short bodies without fingerprints. Equal publication dates permit content changes; only strictly older dates are rejected. Newer accepted dates replace the stored publication date, without generating revisions for date-only changes.
 
 Story snapshots provide revision storage; the diff compares individual news-item fields. Story titles, summaries, review notes, tags, and membership are preserved by collection updates. Changed stories become unread and re-enter relative date windows. Affected story IDs reach post-collection bots; normal bot behavior and MISP scheduling apply. Analyst review queues already in progress remain fixed snapshots.
 
 Implementation: `src/core/core/service/collection.py`, `src/core/core/model/news_item.py`, `src/models/models/revision_diff.py`, and the existing worker collection and post-collection bot pipeline. See [OSINT source collection](osint-sources.md#collection-updates-and-fuzzy-grouping) for operational details.
 
-Limitations: detection depends on a fresh collection delivering the article; there is no independent article revisit job. Run timestamps prevent older overlapping deliveries, but cannot prove publisher version order. History remains attached to story lifetime, not an independent permanent article archive. Existing historic duplicate URLs are retained. Similarity thresholds still require evaluation against representative content, especially boilerplate-heavy RSS summaries.
+Limitations: detection depends on a fresh collection delivering the article; there is no independent article revisit job. The publication-date check cannot distinguish different source versions with equal dates. Missing dates use the existing fallback; no additional per-item collection timestamp is stored. History remains attached to story lifetime, not an independent permanent article archive. Existing historic duplicate URLs are retained. Similarity thresholds still require evaluation against representative content, especially boilerplate-heavy RSS summaries.
 
 ## Use case 2: proposed cross-source story clustering
 
