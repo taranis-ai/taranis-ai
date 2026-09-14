@@ -422,11 +422,15 @@ class CoreApi:
         except requests.exceptions.RequestException:
             return None
 
-    def run_post_collection_bots(self, source_id) -> dict | None:
+    def run_post_collection_bots(self, source_id, story_ids: list[str] | None = None) -> dict | None:
         try:
             return self.api_put(
                 "/worker/post-collection-bots",
-                json_data={"source_id": source_id, "user_id": self._get_current_job_user_id()},
+                json_data={
+                    "source_id": source_id,
+                    "user_id": self._get_current_job_user_id(),
+                    **({"story_ids": story_ids} if story_ids else {}),
+                },
             )
         except requests.exceptions.RequestException:
             logger.exception("Can't run Post Collection Bots")
@@ -479,10 +483,23 @@ class CoreApi:
             return None
 
     def add_news_items(self, news_items) -> dict | None:
-        response = self.api_post(url="/worker/news-items", json_data=news_items)
-        if response is None:
-            raise RuntimeError("Cannot add news items")
-        return response
+        response = http_request(
+            "POST",
+            url=f"{self.api_url}/worker/news-items",
+            headers=self.headers,
+            verify=self.verify,
+            json=news_items,
+            timeout=self.timeout,
+        )
+        try:
+            result = response.json()
+        except requests.exceptions.JSONDecodeError:
+            raise RuntimeError("Cannot add news items") from None
+        if not isinstance(result, dict):
+            raise TypeError("Cannot add news items")
+        if not response.ok:
+            result["error"] = "Cannot add news items"
+        return result
 
     def add_or_update_story(self, story: dict):
         """

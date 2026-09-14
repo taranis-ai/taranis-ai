@@ -25,6 +25,8 @@ class TestAdminApi(BaseTest):
                 "default_collector_proxy": "http://test_server:1111",
                 "default_collector_interval": "5 5 * * *",
                 "rss_collector_max_entries": "75",
+                "collection_group_threshold": "90",
+                "collection_lookback_days": "45",
                 "default_tlp_level": "clear",
                 "default_story_conflict_retention": "150",
                 "default_news_item_conflict_retention": "150",
@@ -36,7 +38,11 @@ class TestAdminApi(BaseTest):
         response_settings = response.get_json()
 
         assert response_settings["message"] == "Successfully updated settings"
-        expected_settings = test_settings["settings"] | {"rss_collector_max_entries": 75}
+        expected_settings = test_settings["settings"] | {
+            "rss_collector_max_entries": 75,
+            "collection_group_threshold": 90,
+            "collection_lookback_days": 45,
+        }
         for key, value in expected_settings.items():
             assert response_settings["settings"][key] == value
 
@@ -83,16 +89,25 @@ class TestAdminApi(BaseTest):
         assert response.status_code == 400
         assert response.get_json()["error"] == "Invalid bot lookback setting"
 
-    @pytest.mark.parametrize("value", [0, -1, "invalid"])
-    def test_settings_rejects_invalid_rss_collector_entry_limit(self, client, auth_header, value):
+    @pytest.mark.parametrize(
+        ("key", "value"),
+        [("rss_collector_max_entries", value) for value in (0, -1, "invalid")]
+        + [("collection_group_threshold", value) for value in (0, 101, True)]
+        + [("collection_lookback_days", value) for value in (0, 36501, "invalid")],
+    )
+    def test_settings_rejects_invalid_collection_limits(self, client, auth_header, key, value):
         response = client.put(
             self.concat_url("settings"),
-            json={"settings": {"rss_collector_max_entries": value}},
+            json={"settings": {key: value}},
             headers=auth_header,
         )
 
         assert response.status_code == 400
-        assert response.get_json()["error"] == "Invalid RSS collector entry limit"
+        assert response.get_json()["error"] == (
+            "Invalid RSS collector entry limit"
+            if key == "rss_collector_max_entries"
+            else "Collection threshold must be 1–100 and lookback days must be 1–36500"
+        )
 
     def test_settings_rejects_invalid_default_timezone(self, client, auth_header):
         response = client.put(

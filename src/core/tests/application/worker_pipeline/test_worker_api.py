@@ -2,7 +2,7 @@
 import importlib.util
 import sys
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from unittest.mock import Mock
 
@@ -22,6 +22,190 @@ def _expected_story_tag_names(story: dict) -> set[str]:
 class TestWorkerApi:
     base_uri = "/api/worker"
 
+    @pytest.mark.parametrize("preceding_candidates", [0, 501])
+    def test_fuzzy_collection_groups_distinct_urls(self, client, api_header, session, preceding_candidates):
+        from core.model.news_item import NewsItem
+        from tests.application.support.builders import build_news_item_payload, create_osint_source, create_story
+
+        source = create_osint_source(rank=0)
+        if preceding_candidates:
+            create_story(
+                news_items=[
+                    build_news_item_payload(source.id, content="The botanical gardens open their new orchid exhibition this weekend. " * 20)
+                    for _ in range(preceding_candidates)
+                ]
+            )
+        body = (Path(__file__).parents[2] / "test_data" / "fuzzy_article.txt").read_text()
+        original = build_news_item_payload(source.id, content=body)
+        duplicate = build_news_item_payload(source.id, content=body.replace("on Tuesday", "on Wednesday"))
+        response = client.post(f"{self.base_uri}/news-items", json=[original, duplicate], headers=api_header)
+        assert response.status_code == 200
+        assert response.json["news_item_ids"] == [original["id"], duplicate["id"]]
+        assert response.json["counts"]["grouped"] == 1
+        assert NewsItem.get(original["id"]).story_id == NewsItem.get(duplicate["id"]).story_id
+        assert NewsItem.get(original["id"]).fuzzy_hash
+
+        response = client.post(f"{self.base_uri}/news-items", json=[duplicate], headers=api_header)
+        assert response.status_code == 200
+        assert response.json["message"] == "All news items were skipped"
+
+    @pytest.mark.parametrize("body", ["A short report: 10 affected systems.", None])
+    @pytest.mark.parametrize("publication_days_later", [0, 1])
+    def test_collection_url_updates_preserve_history_and_analyst_work(self, client, api_header, session, body, publication_days_later):
+        from models.revision_diff import build_story_revision_diff_payload
+
+        from core.model.news_item import NewsItem
+        from core.model.revision import StoryRevision
+        from core.model.story import Story
+        from tests.application.support.builders import build_news_item_payload, create_osint_source
+
+        source = create_osint_source(rank=0)
+        body = body or (Path(__file__).parents[2] / "test_data" / "fuzzy_article.txt").read_text()
+        original = build_news_item_payload(source.id, content=body)
+        original["published"] = original["collected"] = (NewsItem.utcnow() - timedelta(days=90)).isoformat()
+        response = client.post(f"{self.base_uri}/news-items", json=[original], headers=api_header)
+        assert response.status_code == 200
+        item = NewsItem.get(original["id"])
+        story = item.story
+        story.read = True
+        story.title = "Analyst headline"
+        story.summary = "Analyst summary"
+        item.review = "Analyst review"
+        session.commit()
+        published, collected = item.published, item.collected
+        corrected = original | {
+            "id": str(uuid.uuid4()),
+            "title": "Corrected source headline",
+            "content": body + " Correction: 100 affected systems.",
+            "collected": NewsItem.utcnow().isoformat(),
+            "published": (published + timedelta(days=publication_days_later)).isoformat(),
+        }
+        response = client.post(f"{self.base_uri}/news-items", json=[corrected], headers=api_header)
+        assert response.status_code == 200
+        assert response.json["counts"]["updated"] == 1
+        assert response.json["news_item_ids"] == [item.id]
+        assert len(story.news_items) == 1
+        assert item.content == corrected["content"]
+        assert item.title == corrected["title"]
+        assert item.published == published + timedelta(days=publication_days_later)
+        assert item.collected == collected
+        assert item.review == "Analyst review"
+        assert (story.title, story.summary, story.read) == ("Analyst headline", "Analyst summary", False)
+        assert story.id not in session.execute(Story.get_filter_query({"range": "shift"}).with_only_columns(Story.id)).scalars()
+
+        revisions = (
+            session.execute(session.query(StoryRevision).filter_by(story_id=story.id).order_by(StoryRevision.revision)).scalars().all()
+        )
+        assert revisions[-2].data["news_items"][0]["content"] == body
+        assert revisions[-1].data["news_items"][0]["content"] == corrected["content"]
+        diff = build_story_revision_diff_payload(story.id, story.title, revisions[-2].to_dict(), revisions[-1].to_dict())
+        assert any(change.field.endswith(": Content") for change in diff.changes)
+        revision_count = story.revision
+        older = original | {"published": (item.published - timedelta(seconds=1)).isoformat()}
+        for retry, expected_action in (
+            (corrected, "unchanged"),
+            (older, "stale"),
+            (corrected | {"collected": NewsItem.utcnow().isoformat()}, "unchanged"),
+        ):
+            response = client.post(f"{self.base_uri}/news-items", json=[retry], headers=api_header)
+            assert response.status_code == 200
+            assert response.json["message"] == "All news items were skipped"
+            assert response.json["counts"][expected_action] == 1
+            assert item.content == corrected["content"]
+            assert story.revision == revision_count
+
+        # A newer date alone advances the comparison date without creating a content revision.
+        newer_published = item.published + timedelta(days=1)
+        unchanged = corrected | {"published": newer_published.isoformat()}
+        updated = item.updated
+        response = client.post(f"{self.base_uri}/news-items", json=[unchanged], headers=api_header)
+        assert response.status_code == 200
+        assert response.json["counts"]["unchanged"] == 1
+        assert item.published == newer_published
+        assert (item.updated, story.revision) == (updated, revision_count)
+        response = client.post(f"{self.base_uri}/news-items", json=[corrected | {"content": body}], headers=api_header)
+        assert response.status_code == 200
+        assert response.json["counts"]["stale"] == 1
+        assert item.content == corrected["content"]
+
+        # Identical URLs and titles in a different source are separate evidence.
+        other_source = create_osint_source(rank=1)
+        response = client.post(f"{self.base_uri}/news-items", json=[corrected | {"osint_source_id": other_source.id}], headers=api_header)
+        assert response.status_code == 200
+        assert response.json["counts"]["created"] == 1
+
+    def test_collection_invalid_batch_is_not_unchanged(self, client, api_header, session, monkeypatch):
+        from core.model.news_item import NewsItem
+        from tests.application.support.builders import build_news_item_payload, create_osint_source
+
+        # Keep per-item commits and rollbacks independent inside the fixture's transaction.
+        if session.get_bind().dialect.name == "sqlite":
+            session.get_bind().exec_driver_sql("BEGIN")
+        session().join_transaction_mode = "create_savepoint"
+        response = client.post(f"{self.base_uri}/news-items", json=[{"osint_source_id": "missing"}], headers=api_header)
+        assert response.status_code == 400
+        assert "error" in response.json
+
+        source = create_osint_source(rank=0)
+        incoming = build_news_item_payload(source.id, content="Retained after a later failure")
+        missing_source_item = build_news_item_payload(str(uuid.uuid4()))
+        response = client.post(f"{self.base_uri}/news-items", json=[incoming, missing_source_item], headers=api_header)
+        assert response.status_code == 400
+        item = NewsItem.get(response.json["news_item_ids"][0])
+        assert item.content == incoming["content"]
+        assert response.json["story_ids"] == [item.story_id]
+        assert response.json["counts"] == {"created": 1, "updated": 0, "grouped": 0, "unchanged": 0, "stale": 0}
+
+        monkeypatch.setattr(
+            "core.service.collection.refresh_misp_auto_update_jobs", Mock(side_effect=RuntimeError("private failure details"))
+        )
+        incoming = build_news_item_payload(source.id, content="Committed before scheduling failed")
+        response = client.post(f"{self.base_uri}/news-items", json=[incoming], headers=api_header)
+        assert response.status_code == 500
+        assert response.json["error"] == "Failed to ingest collected news items"
+        item = NewsItem.get(response.json["news_item_ids"][0])
+        assert item.content == incoming["content"]
+        assert response.json["story_ids"] == [item.story_id]
+        assert response.json["counts"]["created"] == 1
+
+    @pytest.mark.parametrize("threshold", [85, 86])
+    def test_collection_group_threshold_is_inclusive(self, client, api_header, session, auth_header, threshold):
+        import fuzzbite
+
+        from core.model.news_item import NewsItem
+        from tests.application.support.builders import build_news_item_payload, create_osint_source, create_story
+
+        response = client.patch("/api/settings/settings", json={"settings": {"collection_group_threshold": threshold}}, headers=auth_header)
+        assert response.status_code == 200
+        source = create_osint_source(rank=0)
+        body = NewsItem.normalized_content((Path(__file__).parents[2] / "test_data" / "fuzzy_article.txt").read_text())
+        assert fuzzbite.compare(NewsItem.get_fuzzy_hash(body), NewsItem.get_fuzzy_hash(body[497:])) == 85
+        create_story(news_items=[build_news_item_payload(source.id, content=body)])
+        incoming = build_news_item_payload(source.id, content=body[497:])
+        response = client.post(f"{self.base_uri}/news-items", json=[incoming], headers=api_header)
+        assert response.status_code == 200
+        assert response.json["counts"]["grouped" if threshold == 85 else "created"] == 1
+
+    @pytest.mark.parametrize("lookback_days", [30, 60])
+    def test_fuzzy_collection_respects_source_and_time(self, client, api_header, session, auth_header, lookback_days):
+        from core.model.news_item import NewsItem
+        from tests.application.support.builders import build_news_item_payload, create_osint_source, create_story
+
+        source = create_osint_source(rank=0)
+        response = client.patch("/api/settings/settings", json={"settings": {"collection_lookback_days": lookback_days}}, headers=auth_header)
+        assert response.status_code == 200
+        other_source = create_osint_source(rank=1)
+        body = (Path(__file__).parents[2] / "test_data" / "fuzzy_article.txt").read_text()
+        old = build_news_item_payload(source.id, content=body)
+        old["collected"] = (NewsItem.utcnow() - timedelta(days=31)).isoformat()
+        create_story(news_items=[old, build_news_item_payload(other_source.id, content=body)])
+
+        incoming = build_news_item_payload(source.id, content=body)
+        response = client.post(f"{self.base_uri}/news-items", json=[incoming], headers=api_header)
+        assert response.status_code == 200
+        assert response.json["news_item_ids"] == [incoming["id"]]
+        assert response.json["counts"]["created" if lookback_days == 30 else "grouped"] == 1
+
     @pytest.mark.parametrize(
         ("add_result", "should_notify"),
         [
@@ -31,13 +215,19 @@ class TestWorkerApi:
     )
     def test_news_item_ingestion_notifies_only_when_items_are_added(self, client, api_header, monkeypatch, add_result, should_notify):
         assess_changed = Mock()
-        monkeypatch.setattr("core.api.worker.Story.add_news_items", lambda _: (add_result, 200))
+        monkeypatch.setattr("core.api.worker.Story.add_news_items", lambda _, **kwargs: (add_result, 200))
         monkeypatch.setattr("core.api.worker.realtime_publisher.assess_changed", assess_changed)
 
         response = client.post(f"{self.base_uri}/news-items", json=[{"id": "news-1"}], headers=api_header)
 
         assert response.status_code == 200
         assert response.get_json() == add_result
+        assert assess_changed.call_count == int(should_notify)
+
+        assess_changed.reset_mock()
+        monkeypatch.setattr("core.api.worker.Story.add_news_items", lambda _, **kwargs: (add_result, 400))
+        response = client.post(f"{self.base_uri}/news-items", json=[{"id": "news-1"}], headers=api_header)
+        assert response.status_code == 400
         assert assess_changed.call_count == int(should_notify)
 
     def test_rss_source_includes_global_entry_limit(self, client, api_header, fake_source, monkeypatch):
@@ -175,7 +365,7 @@ class TestWorkerApi:
     def test_post_collection_bots_forwards_user_id(self, client, api_header, monkeypatch):
         captured = {}
 
-        def fake_post_collection_bots(source_id, user_id=None):
+        def fake_post_collection_bots(source_id, user_id=None, story_ids=None):
             captured["source_id"] = source_id
             captured["user_id"] = user_id
             return {"message": "scheduled"}, 200

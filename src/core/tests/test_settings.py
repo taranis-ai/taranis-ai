@@ -277,6 +277,8 @@ def test_pre_seed_settings_initialization(session, admin_user, monkeypatch):
         "default_timezone": " Europe/Vienna ",
         "rss_collector_max_entries": 100,
         "default_bot_lookback_days": 0,
+        "collection_group_threshold": 90,
+        "collection_lookback_days": 45,
         "onboarding_enabled": False,
         "default_collector_proxy": "http://proxy:8080",
     }
