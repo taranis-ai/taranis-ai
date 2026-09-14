@@ -26,6 +26,7 @@ _HTMX_SUPPORT_SCRIPT = r"""
     lastAfterRequest: 0,
     lastAfterSwap: 0,
     lastAfterSettle: 0,
+    lastAfterProcess: 0,
     lastActivity: now(),
     lastReset: now(),
     lastError: null,
@@ -97,12 +98,23 @@ _HTMX_SUPPORT_SCRIPT = r"""
     markActivity();
   }, true);
 
+  // htmx:after:process fires once htmx has finished binding behavior (e.g. hx-get
+  // click listeners) to a swapped-in subtree. It fires *after* htmx:after:settle
+  // for the same content, so we must also track it to avoid treating the page as
+  // settled before newly swapped elements (like the share-story trigger) are
+  // actually interactive.
+  document.addEventListener("htmx:after:process", () => {
+    state.lastAfterProcess = now();
+    markActivity();
+  }, true);
+
   window.__taranisResetHtmxTestState = () => {
     state.pendingRequests = 0;
     state.lastBeforeRequest = 0;
     state.lastAfterRequest = 0;
     state.lastAfterSwap = 0;
     state.lastAfterSettle = 0;
+    state.lastAfterProcess = 0;
     state.lastActivity = now();
     state.lastReset = state.lastActivity;
     state.lastError = null;
