@@ -320,7 +320,7 @@ class TestEndToEndUser(BaseE2ETest):
 
     def test_user_assess(self, non_admin_logged_in_page: Page, forward_console_and_page_errors_non_admin, pre_seed_stories):
         page = non_admin_logged_in_page
-        assess_url = url_for("assess.assess", source=pre_seed_stories[0]["osint_source_id"], _external=True)
+        assess_url = url_for("assess.assess", source="manual", _external=True)
 
         def go_to_assess():
             page.goto(assess_url)
