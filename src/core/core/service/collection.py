@@ -28,12 +28,15 @@ class CollectionService:
         counts = dict.fromkeys(("created", "updated", "grouped", "unchanged", "stale"), 0)
         story_ids: list[str] = []
         item_ids: list[str] = []
+        error = {}
+        status = 200
         try:
             for payload in payloads:
                 result, status = CollectionService.ingest_item(payload)
                 if status >= 300:
                     db.session.rollback()
-                    return result, status
+                    error = result
+                    break
                 db.session.commit()
                 action = result["action"]
                 counts[action] += 1
@@ -44,7 +47,8 @@ class CollectionService:
         except Exception:
             db.session.rollback()
             logger.exception("Failed to ingest collected news items")
-            return {"error": "Failed to ingest collected news items"}, 500
+            error = {"error": "Failed to ingest collected news items"}
+            status = 500
 
         message = (
             f"{counts['created']} created, {counts['updated']} updated, {counts['grouped']} grouped, "
@@ -53,11 +57,11 @@ class CollectionService:
             else "All news items were skipped"
         )
         return {
-            "message": message,
+            **(error or {"message": message}),
             "counts": counts,
             "story_ids": list(dict.fromkeys(story_ids)),
             "news_item_ids": list(dict.fromkeys(item_ids)),
-        }, 200
+        }, status
 
     @classmethod
     def ingest_item(cls, payload: AssessNewsItem) -> tuple[dict, int]:

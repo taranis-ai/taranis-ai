@@ -483,10 +483,23 @@ class CoreApi:
             return None
 
     def add_news_items(self, news_items) -> dict | None:
-        response = self.api_post(url="/worker/news-items", json_data=news_items)
-        if response is None:
-            raise RuntimeError("Cannot add news items")
-        return response
+        response = http_request(
+            "POST",
+            url=f"{self.api_url}/worker/news-items",
+            headers=self.headers,
+            verify=self.verify,
+            json=news_items,
+            timeout=self.timeout,
+        )
+        try:
+            result = response.json()
+        except requests.exceptions.JSONDecodeError:
+            raise RuntimeError("Cannot add news items") from None
+        if not isinstance(result, dict):
+            raise TypeError("Cannot add news items")
+        if not response.ok:
+            result["error"] = "Cannot add news items"
+        return result
 
     def add_or_update_story(self, story: dict):
         """

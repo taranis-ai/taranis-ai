@@ -144,6 +144,18 @@ def test_rss_publish_error_propagates(rss_collector, requests_mock):
     with pytest.raises(RuntimeError, match="Cannot add news items"):
         rss_collector.publish([NewsItem(osint_source_id="source-1", title="Item")], {"parameters": {}})
 
+    requests_mock.post(
+        f"{Config.TARANIS_CORE_URL}/worker/news-items",
+        status_code=400,
+        json={"error": "Later item failed", "story_ids": ["committed-story"]},
+    )
+    bots = requests_mock.put(f"{Config.TARANIS_CORE_URL}/worker/post-collection-bots", json={})
+    with pytest.raises(RuntimeError, match="Cannot add news items"):
+        rss_collector.publish([NewsItem(osint_source_id="source-1", title="Item")], {"id": "source-1", "parameters": {}})
+    assert rss_collector.affected_story_ids == {"committed-story"}
+    assert bots.call_count == 1
+    assert bots.last_request.json()["story_ids"] == ["committed-story"]
+
 
 def test_primary_http_validator_lifecycle(base_web_collector, requests_mock):
     from worker.collectors.base_web_collector import NoChangeError

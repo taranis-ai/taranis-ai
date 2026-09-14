@@ -134,10 +134,39 @@ class TestWorkerApi:
         assert response.status_code == 200
         assert response.json["counts"]["created"] == 1
 
-    def test_collection_invalid_batch_is_not_unchanged(self, client, api_header, session):
+    def test_collection_invalid_batch_is_not_unchanged(self, client, api_header, session, monkeypatch):
+        from core.model.news_item import NewsItem
+        from tests.application.support.builders import build_news_item_payload, create_osint_source
+
+        # Keep per-item commits and rollbacks independent inside the fixture's transaction.
+        if session.get_bind().dialect.name == "sqlite":
+            session.get_bind().exec_driver_sql("BEGIN")
+        session().join_transaction_mode = "create_savepoint"
         response = client.post(f"{self.base_uri}/news-items", json=[{"osint_source_id": "missing"}], headers=api_header)
         assert response.status_code == 400
         assert "error" in response.json
+
+        source = create_osint_source(rank=0)
+        incoming = build_news_item_payload(source.id, content="Retained after a later failure")
+        missing_source_item = build_news_item_payload(str(uuid.uuid4()))
+        response = client.post(f"{self.base_uri}/news-items", json=[incoming, missing_source_item], headers=api_header)
+        assert response.status_code == 400
+        item = NewsItem.get(response.json["news_item_ids"][0])
+        assert item.content == incoming["content"]
+        assert response.json["story_ids"] == [item.story_id]
+        assert response.json["counts"] == {"created": 1, "updated": 0, "grouped": 0, "unchanged": 0, "stale": 0}
+
+        monkeypatch.setattr(
+            "core.service.collection.refresh_misp_auto_update_jobs", Mock(side_effect=RuntimeError("private failure details"))
+        )
+        incoming = build_news_item_payload(source.id, content="Committed before scheduling failed")
+        response = client.post(f"{self.base_uri}/news-items", json=[incoming], headers=api_header)
+        assert response.status_code == 500
+        assert response.json["error"] == "Failed to ingest collected news items"
+        item = NewsItem.get(response.json["news_item_ids"][0])
+        assert item.content == incoming["content"]
+        assert response.json["story_ids"] == [item.story_id]
+        assert response.json["counts"]["created"] == 1
 
     @pytest.mark.parametrize("threshold", [85, 86])
     def test_collection_group_threshold_is_inclusive(self, client, api_header, session, auth_header, threshold):
@@ -193,6 +222,12 @@ class TestWorkerApi:
 
         assert response.status_code == 200
         assert response.get_json() == add_result
+        assert assess_changed.call_count == int(should_notify)
+
+        assess_changed.reset_mock()
+        monkeypatch.setattr("core.api.worker.Story.add_news_items", lambda _, **kwargs: (add_result, 400))
+        response = client.post(f"{self.base_uri}/news-items", json=[{"id": "news-1"}], headers=api_header)
+        assert response.status_code == 400
         assert assess_changed.call_count == int(should_notify)
 
     def test_rss_source_includes_global_entry_limit(self, client, api_header, fake_source, monkeypatch):
