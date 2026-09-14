@@ -318,9 +318,12 @@ class TestEndToEndUser(BaseE2ETest):
         relog_in()
         change_password_back()
 
-    def test_user_assess(self, non_admin_logged_in_page: Page, forward_console_and_page_errors_non_admin, pre_seed_stories):
+    def test_user_assess(
+        self, non_admin_logged_in_page: Page, forward_console_and_page_errors_non_admin, pre_seed_stories, core_request_client
+    ):
         page = non_admin_logged_in_page
-        assess_url = url_for("assess.assess", source="manual", _external=True)
+        seeded_story = core_request_client.get(f"/assess/stories/{pre_seed_stories[0]['story_id']}").json()
+        assess_url = url_for("assess.assess", source=seeded_story["news_items"][0]["osint_source_id"], _external=True)
 
         def go_to_assess():
             page.goto(assess_url)

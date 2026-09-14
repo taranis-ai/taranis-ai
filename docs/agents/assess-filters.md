@@ -14,7 +14,7 @@ Assess sidebar/search/default filters, `/assess`, `/api/assess/filter-lists`, om
 - Paged navigation replaces `#story-list` and out-of-band `#story-pagination`, scrolls to the top, and keeps the sticky top bar mounted. Errors notify without replacing/appending stories. Stable search-input IDs preserve focus.
 - `Shift+Space` prevents native page-up on keydown and performs read/unread on keyup only with a selection. Bookmark detail shares this behavior and the [global shortcut/selection rules](frontend-development.md).
 - Successful clustering replaces the saved Assess selection with the first story in the submitted dialog order before the list swap; merged-away IDs must not survive into the next action. Failed clustering preserves selection and the open dialog. `test_user_assess` in `test_e2e_user.py` requires three cards and performs two merges, checking the surviving selection and removal of each secondary card.
-- The Assess pagination/editing browser workflow filters to the manual source used by its Assess API fixtures so scheduled collection from other sources cannot change its expected total.
+- The Assess pagination/editing browser workflow reads the stored source ID from its seeded story and filters to that source so scheduled collection from other sources cannot change its expected total.
 - Browser tests use `_get_assess_story_counts` to wait for both Alpine counts; wrapper visibility is insufficient.
 - Search submits on debounce and changed-value blur. Before opening card menus, tests wait for filtering and the blur-triggered HTMX request.
 
