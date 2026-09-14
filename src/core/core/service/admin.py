@@ -22,9 +22,8 @@ class AdminService:
         try:
             query = ExportStoriesQuery.model_validate(request_args.to_dict())
         except ValidationError as exc:
-            errors = exc.errors(include_url=False)
-            logger.warning(f"Invalid export stories query: {errors}")
-            return {"error": errors}, 400
+            logger.warning("Invalid export stories query")
+            return {"error": ExportStoriesQuery.format_validation_errors(exc)}, 400
 
         try:
             export_method = StoryService.export_with_metadata if query.metadata else StoryService.export

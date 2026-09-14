@@ -249,6 +249,16 @@ class Stories(MethodView):
         return result_dict, 200
 
 
+class StoryExport(MethodView):
+    @auth_required("ASSESS_ACCESS")
+    def get(self):
+        try:
+            return StoryService.export_selected(request.args.getlist("story_ids"), current_user)
+        except Exception:
+            logger.exception("Failed to export selected stories")
+            return {"error": "Failed to export stories"}, 500
+
+
 class AnalystReviewSnapshot(MethodView):
     @auth_required("ASSESS_ACCESS")
     def get(self):
@@ -603,6 +613,7 @@ def initialize(app: Flask):
     assess_bp = Blueprint("assess", __name__, url_prefix=f"{Config.APPLICATION_ROOT}api/assess")
 
     assess_bp.add_url_rule("/stories", view_func=Stories.as_view("stories"))
+    assess_bp.add_url_rule("/stories/export", view_func=StoryExport.as_view("story_export"))
     assess_bp.add_url_rule("/analyst-review/snapshot", view_func=AnalystReviewSnapshot.as_view("analyst_review_snapshot"))
     assess_bp.add_url_rule("/analyst-review/actions", view_func=AnalystReviewAction.as_view("analyst_review_action"))
     assess_bp.add_url_rule("/bookmarks", view_func=StoryBookmarks.as_view("bookmarks"))

@@ -1,4 +1,7 @@
+from datetime import UTC, datetime
 from typing import Any
+from urllib.parse import urlencode
+from zoneinfo import ZoneInfo
 
 from flask import render_template, request, url_for
 from flask.typing import ResponseReturnValue
@@ -6,7 +9,7 @@ from models.admin import Settings
 
 from frontend.core_api import CoreApi
 from frontend.data_persistence import DataPersistenceLayer
-from frontend.i18n import get_timezone_options
+from frontend.i18n import get_timezone_options, select_timezone
 from frontend.log import logger
 from frontend.utils.form_data_parser import parse_formdata
 from frontend.views.admin_views.admin_base_view import AdminBaseView
@@ -28,6 +31,8 @@ class SettingsView(AdminBaseView):
         base_context["_is_admin"] = cls._is_admin
         base_context["settings"] = dpl.get_first(Settings)
         base_context["timezone_options"] = get_timezone_options()
+        base_context["export_timezone"] = select_timezone()
+        base_context["export_max_datetime"] = datetime.now(ZoneInfo(base_context["export_timezone"])).strftime("%Y-%m-%dT%H:%M")
         base_context["frontend_actions"] = [
             {
                 "label": "Invalidate Cache",
@@ -42,6 +47,31 @@ class SettingsView(AdminBaseView):
         return f"{cls.model._model_name}"
 
     @classmethod
+    def export_stories(cls):
+        params = request.args.copy()
+        timezone = ZoneInfo(select_timezone())
+        try:
+            for field in ("timefrom", "timeto"):
+                if value := params.get(field):
+                    local_time = datetime.fromisoformat(value)
+                    if local_time.tzinfo is None:
+                        zoned_time = local_time.replace(tzinfo=timezone)
+                        if (
+                            zoned_time.astimezone(UTC).astimezone(timezone).replace(tzinfo=None) != local_time
+                            or zoned_time.utcoffset() != zoned_time.replace(fold=1).utcoffset()
+                        ):
+                            raise ValueError("Nonexistent or ambiguous local time")
+                        local_time = zoned_time
+                    params[field] = local_time.astimezone(UTC).isoformat()
+        except ValueError:
+            notification = cls.render_response_notification(
+                {"error": "Enter valid dates in your profile timezone. Avoid times skipped or repeated by daylight saving changes."}
+            )
+            view, _ = cls.static_view()
+            return notification + view, 400
+        return cls.settings_action(f"/settings/export-stories?{urlencode(list(params.items(multi=True)))}")
+
+    @classmethod
     def settings_action(cls, action_url, method="download"):
         logger.debug(f"Calling settings action: {action_url}")
 
@@ -50,10 +80,12 @@ class SettingsView(AdminBaseView):
             if not response.ok:
                 logger.error(f"Failed to download file from {action_url}: {response.status_code} - {response.text}")
                 notification = cls.get_notification_from_response(response)
-                static_view, static_response = cls.static_view()
+                static_view, _ = cls.static_view()
                 notification += static_view
-                return notification, static_response
-            return CoreApi().stream_proxy(response, "stories_export.json")
+                return notification, response.status_code
+            download = CoreApi.stream_proxy(response, "stories_export.json")
+            download.headers["Cache-Control"] = "no-store"
+            return download
 
         if method == "patch":
             payload = parse_formdata(request.form) if request.form else None
