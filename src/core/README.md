@@ -9,7 +9,7 @@ It offers API Endpoints to the Frontend, is the sole persistence layer (via SQLA
 * Python version 3.14 or greater.
 * SQLite or PostgreSQL
 * Redis
-* Rust (at least 1.83), Cargo, and a C linker when building fuzzbite from source (including Linux). The core image installs these in its builder stage only.
+* Fuzzbite 0.1.1 provides prebuilt wheels for Linux x86_64/aarch64 (glibc 2.17+) and macOS arm64; these installs need no Rust or Cargo. Other platforms require a Rust toolchain and a C linker for source builds.
 
 
 ## Installation
