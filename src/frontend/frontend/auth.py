@@ -244,7 +244,7 @@ def api_key_required(fn):
     return wrapper
 
 
-def update_current_user_cache() -> None | UserProfile:
+def update_current_user_cache() -> UserProfile | None:
     if result := CoreApi().api_get("/users"):
         return add_user_to_cache(user=result)
     return None
@@ -264,7 +264,7 @@ def user_identity_lookup(user: UserProfile) -> str:
 
 
 @jwt.token_in_blocklist_loader
-def check_if_token_is_revoked(jwt_header, jwt_payload: dict[str, Any]) -> bool:
+def check_if_token_is_revoked(_jwt_header, _jwt_payload: dict[str, Any]) -> bool:
     """
     jtw token blacklisting is handled by core
     cached userdata is invalidated, when userdata is changed
@@ -273,7 +273,7 @@ def check_if_token_is_revoked(jwt_header, jwt_payload: dict[str, Any]) -> bool:
 
 
 @jwt.expired_token_loader
-def expired_token_callback(jwt_header, jwt_payload):
+def expired_token_callback(_jwt_header, _jwt_payload):
     return _redirect_expired_session_to_login()
 
 

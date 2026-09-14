@@ -177,8 +177,7 @@ class ReportItemType(BaseModel):
     def get_filter_query_with_acl(cls, filter_args: dict, user) -> Select:
         query = cls.get_filter_query(filter_args)
         rbac = RBACQuery(user=user, resource_type=ItemType.REPORT_ITEM_TYPE)
-        query = RoleBasedAccessService.filter_query_with_acl(query, rbac)
-        return query
+        return RoleBasedAccessService.filter_query_with_acl(query, rbac)
 
     def allowed_with_acl(self, user, require_write_access) -> bool:
         if not RoleBasedAccess.is_enabled() or not user:

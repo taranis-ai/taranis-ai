@@ -172,8 +172,7 @@ def _task_result_reason(task_result: "Task | None") -> str | None:
 def _format_utc_timestamp(value: datetime | None) -> str | None:
     if normalized := _as_naive_utc(value):
         return f"{normalized.strftime('%Y-%m-%d %H:%M:%S')} UTC"
-    else:
-        return None
+    return None
 
 
 def _annotate_jobs(jobs: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -201,7 +200,7 @@ def _annotate_jobs(jobs: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 job["status_badge"] = {"variant": variant, "label": label}
                 job["is_overdue"] = False
                 continue
-            elif prev_run_dt and last_run_dt >= prev_run_dt or not prev_run_dt:
+            if (prev_run_dt and last_run_dt >= prev_run_dt) or not prev_run_dt:
                 label = "On schedule"
                 variant = "success"
 

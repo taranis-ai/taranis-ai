@@ -48,6 +48,7 @@ class WordListEntry(BaseModel):
             return "WordList not found", 404
         db.session.execute(db.delete(cls).where(cls.word_list_id == word_list_id).where(cls.value == value))
         db.session.commit()
+        return None
 
     @classmethod
     def update_word_list_entries(cls, id, entries_data):
@@ -164,17 +165,13 @@ class WordList(BaseModel):
     def get_filter_query_with_acl(cls, filter_args: dict, user: User) -> Select:
         query = cls.get_filter_query(filter_args)
         rbac = RBACQuery(user=user, resource_type=ItemType.WORD_LIST)
-        query = RoleBasedAccessService.filter_query_with_acl(query, rbac)
-        return query
+        return RoleBasedAccessService.filter_query_with_acl(query, rbac)
 
     @classmethod
     def get_all_for_api(cls, filter_args: dict | None, with_count: bool = False, user=None) -> tuple[dict[str, Any], int]:
         filter_args = filter_args or {}
         logger.debug(f"Filtering {cls.__name__} with {filter_args}")
-        if user:
-            query = cls.get_filter_query_with_acl(filter_args, user)
-        else:
-            query = cls.get_filter_query(filter_args)
+        query = cls.get_filter_query_with_acl(filter_args, user) if user else cls.get_filter_query(filter_args)
         items = cls.get_filtered(query) or []
         result_items = [item.to_dict() for item in items]
         if with_count:
@@ -272,7 +269,7 @@ class WordList(BaseModel):
         headers = [header.lower() for header in next(cr)]
         if len(headers) < 2 or len(headers) > 3:
             raise ValueError("Invalid CSV file")
-        return [dict(zip(headers, row)) for row in cr]
+        return [dict(zip(headers, row, strict=True)) for row in cr]
 
     @classmethod
     def parse_json(cls, content) -> list | None:
@@ -336,7 +333,7 @@ class WordList(BaseModel):
         file_data = file.read().decode("utf8")
         if file.content_type == "text/csv":
             return [{"entries": cls.parse_csv(file_data), "name": file.filename}]
-        elif file.content_type == "application/json":
+        if file.content_type == "application/json":
             return cls.parse_json(file_data)
 
         return None

@@ -100,7 +100,7 @@ def connector_task(connector_id: str, story_ids: list[str] | None, auto_update: 
 
 
 def drop_utf16_surrogates(data: str) -> str:
-    """Drop any leftover UTF-16 surrogates (U+D800–U+DFFF).
+    """Drop any leftover UTF-16 surrogates (U+D800-U+DFFF).
 
     MISP does not support surrogate pairs. This function cleans them out.
 

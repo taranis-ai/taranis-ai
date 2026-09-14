@@ -41,9 +41,9 @@ class TaranisJSONProvider(DefaultJSONProvider):
     def _transform(self, obj):
         if isinstance(obj, BaseModel):
             return obj.model_dump(exclude_none=True)
-        elif isinstance(obj, list):
+        if isinstance(obj, list):
             return [self._transform(item) for item in obj]
-        elif isinstance(obj, dict):
+        if isinstance(obj, dict):
             return {key: self._transform(value) for key, value in obj.items()}
         return obj
 

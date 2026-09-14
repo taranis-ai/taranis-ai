@@ -123,8 +123,7 @@ class MispCollector(BaseCollector):
         osint_source = self.core_api.get_osint_source(osint_source_id)
         if osint_source is not None and osint_source.get("id", ""):
             return osint_source_id
-        else:
-            return ""
+        return ""
 
     @staticmethod
     def remove_duplicate_news_items(news_items: list[NewsItem]) -> list[NewsItem]:

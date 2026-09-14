@@ -31,9 +31,6 @@ def pending_onboarding_tasks_for_template(user: Any) -> list[dict[str, str]]:
     if not user:
         return []
 
-    pending_tasks: list[dict[str, str]] = []
-    for task in getattr(user, "pending_onboarding_tasks", None) or []:
-        if task_dict := _task_to_dict(task):
-            pending_tasks.append(task_dict)
+    pending_tasks = [task_dict for task in getattr(user, "pending_onboarding_tasks", None) or [] if (task_dict := _task_to_dict(task))]
 
     return _sort_onboarding_tasks(pending_tasks)

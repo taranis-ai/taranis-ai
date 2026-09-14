@@ -55,6 +55,4 @@ def _is_list(type_: type) -> bool:
     origin = get_origin(type_)
     if origin is list:
         return True
-    if origin is Union:
-        return any(_is_list(t) for t in get_args(type_))
-    return False
+    return any(_is_list(t) for t in get_args(type_)) if origin is Union else False

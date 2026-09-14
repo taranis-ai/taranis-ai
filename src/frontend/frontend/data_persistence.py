@@ -144,6 +144,7 @@ class DataPersistenceLayer:
             cache.set(key=cache_key, value=cache_object.model_dump(mode="json"), timeout=getattr(object_model, "_cache_timeout", None))
             return cache_object
         logger.warning(f"Failed to fetch object from: {endpoint}")
+        return None
 
     def get_core_health(self) -> CoreHealth | None:
         cache_key = self.make_detail_cache_key(CoreHealth)
@@ -157,6 +158,7 @@ class DataPersistenceLayer:
             cache.set(key=cache_key, value=health.model_dump(mode="json"), timeout=CoreHealth._cache_timeout)
             return health
         logger.warning(f"Failed to fetch object from: {CoreHealth._core_endpoint}")
+        return None
 
     def invalidate_cache(self, suffix: str | None = None) -> Response:
         if not suffix:

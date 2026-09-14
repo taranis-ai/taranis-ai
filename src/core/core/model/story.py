@@ -587,9 +587,7 @@ class Story(BaseModel):
 
         query = query.outerjoin(vote_subquery, Story.id == vote_subquery.c.item_id)
         query = query.add_columns(func.coalesce(vote_subquery.c.user_vote, "").label("user_vote"))
-        query = query.group_by(Story.id, vote_subquery.c.user_vote)
-
-        return query
+        return query.group_by(Story.id, vote_subquery.c.user_vote)
 
     @classmethod
     def enhance_with_report_count(cls, query: Select) -> Select:
@@ -601,8 +599,7 @@ class Story(BaseModel):
         )
         query = query.outerjoin(report_subquery, Story.id == report_subquery.c.story_id)
         query = query.add_columns(func.coalesce(report_subquery.c.report_count, 0).label("report_count"))
-        query = query.group_by(Story.id, report_subquery.c.report_count)
-        return query
+        return query.group_by(Story.id, report_subquery.c.report_count)
 
     @classmethod
     def get_by_filter(cls, filter_args: dict[str, Any], user: User | None = None) -> tuple[list[dict[str, Any]], dict[str, int] | None]:
@@ -684,8 +681,7 @@ class Story(BaseModel):
 
         if data.pop("conflict", None):
             return cls.update_with_conflicts(story_id, data)
-        else:
-            return cls._handle_existing_story_update(data)
+        return cls._handle_existing_story_update(data)
 
     @classmethod
     def _handle_new_story_add(cls, data) -> "tuple[dict, int]":
@@ -1543,7 +1539,7 @@ class NewsItemVote(BaseModel):
     def user_vote(self):
         if self.like:
             return "like"
-        elif self.dislike:
+        if self.dislike:
             return "dislike"
         return ""
 

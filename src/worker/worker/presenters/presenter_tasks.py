@@ -47,10 +47,7 @@ def presenter_task(product_id: str):
 
     # Get template if needed
     type_id = str(product["type_id"])
-    if "TEMPLATE_PATH" in product.get("parameters", {}):
-        template = _get_template(core_api, type_id)
-    else:
-        template = None
+    template = _get_template(core_api, type_id) if "TEMPLATE_PATH" in product.get("parameters", {}) else None
 
     logger.info(f"Rendering product {product_id} with presenter {presenter.type}")
 

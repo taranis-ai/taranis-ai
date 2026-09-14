@@ -147,8 +147,10 @@ class RSSCollector(BaseWebCollector):
 
     def link_transformer(self, link: str, transform_str: str = "") -> str:
         parsed_url = urlparse(link)
-        segments = [parsed_url.netloc] + parsed_url.path.strip("/").split("/")
-        transformed_segments = [operation.replace("{}", segment) for segment, operation in zip(segments, transform_str.split("/"))]
+        segments = [parsed_url.netloc, *parsed_url.path.strip("/").split("/")]
+        transformed_segments = [
+            operation.replace("{}", segment) for segment, operation in zip(segments, transform_str.split("/"), strict=False)
+        ]
         return f"{parsed_url.scheme}://{'/'.join(transformed_segments)}"
 
     def parse_feed_entry(

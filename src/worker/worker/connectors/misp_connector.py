@@ -125,9 +125,8 @@ class MispConnector:
         if results := misp.search(controller="events", uuid=event_uuid, pythonify=True):
             logger.debug(f"Event to update exists: {results}")
             return results[0]  # type: ignore
-        else:
-            logger.error(f"Requested event to update with UUID: {event_uuid} does not exist")
-            return None
+        logger.error(f"Requested event to update with UUID: {event_uuid} does not exist")
+        return None
 
     def add_story_properties_to_event(self, story: dict, event: MISPEvent) -> None:
         if news_items := story.pop("news_items", None):
@@ -233,9 +232,8 @@ class MispConnector:
                 if shadow_attributes := self._add_attribute_proposal_to_event(story, misp_event_uuid, event, misp):
                     logger.info(f"{len(shadow_attributes)} attribute proposals submitted.")
                     return "proposed", shadow_attributes
-                else:
-                    logger.warning("No attribute proposals were submitted.")
-                    return ("failed",)
+                logger.warning("No attribute proposals were submitted.")
+                return ("failed",)
 
             self.remove_missing_objects_from_misp(misp, event, story)
             ids_in_misp = self.get_event_object_ids(event)
@@ -313,7 +311,7 @@ class MispConnector:
 
     def _create_extension_event(self, existing_event: MISPEvent, hashes_to_add: list[str], misp: PyMISP) -> MISPEvent | None:
         new_event = MISPEvent()
-        new_event.info = f"Extension of Event {existing_event.id} – new news items added"
+        new_event.info = f"Extension of Event {existing_event.id} - new news items added"
         new_event.distribution = existing_event.distribution
         new_event.threat_level_id = existing_event.threat_level_id
         new_event.analysis = existing_event.analysis
@@ -380,7 +378,7 @@ class MispConnector:
     def _find_existing_extension_by_org(self, misp: PyMISP, parent_event: MISPEvent) -> MISPEvent | None:
         # sourcery skip: use-next
         """
-        Work around the non‐working 'extends_uuid' filter by retrieving a
+        Work around the non-working 'extends_uuid' filter by retrieving a
         reasonable subset of recent events and then returning the first one
         whose .extends_uuid == parent_event.uuid and .org_id == self.org_id.
         """
@@ -431,7 +429,7 @@ class MispConnector:
 
         hashes_to_remove = self._check_news_item_to_remove(existing_hashes, new_hashes)
         if not hashes_to_remove:
-            logger.info("No news‐item hashes to propose for removal.")
+            logger.info("No news-item hashes to propose for removal.")
             return
 
         for h in hashes_to_remove:
@@ -464,12 +462,12 @@ class MispConnector:
 
             if extension_event_id is not None:
                 proposal.comment = (
-                    f"This news‐item can be removed. Please review the new items in extension Event "
+                    f"This news-item can be removed. Please review the new items in extension Event "
                     f"{extension_event_id} and consider adding any relevant items from there."
                 )
             else:
                 proposal.comment = (
-                    "This news‐item is not considered a good fit for the story. Please consider deletion and update of this event."
+                    "This news-item is not considered a good fit for the story. Please consider deletion and update of this event."
                 )
 
             try:
@@ -477,7 +475,7 @@ class MispConnector:
                 if isinstance(shadow_attr, dict) and shadow_attr.get("errors"):
                     logger.error(f"Failed to propose update on attribute (hash={h}, attr_id={found_attr.id}): {shadow_attr['errors']}")
                 else:
-                    logger.info(f"Proposed attribute update on news‐item (hash={h}, attr_id={found_attr.id}).")
+                    logger.info(f"Proposed attribute update on news-item (hash={h}, attr_id={found_attr.id}).")
             except exceptions.PyMISPError as e:
                 logger.error(f"PyMISP error while proposing attribute update for hash={h}, attr_id={found_attr.id}: {e}")
             except Exception as e:

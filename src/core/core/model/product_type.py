@@ -79,17 +79,13 @@ class ProductType(BaseModel):
     def get_filter_query_with_acl(cls, filter_args: dict, user) -> Select:
         query = cls.get_filter_query(filter_args)
         rbac = RBACQuery(user=user, resource_type=ItemType.PRODUCT_TYPE)
-        query = RoleBasedAccessService.filter_query_with_acl(query, rbac)
-        return query
+        return RoleBasedAccessService.filter_query_with_acl(query, rbac)
 
     @classmethod
     def get_all_for_api(cls, filter_args: dict | None, with_count: bool = False, user=None) -> tuple[dict[str, Any], int]:
         filter_args = filter_args or {}
         logger.debug(f"Filtering {cls.__name__} with {filter_args}")
-        if user:
-            query = cls.get_filter_query_with_acl(filter_args, user)
-        else:
-            query = cls.get_filter_query(filter_args)
+        query = cls.get_filter_query_with_acl(filter_args, user) if user else cls.get_filter_query(filter_args)
         items = cls.get_filtered(query)
         if not items:
             return {"items": []}, 200
@@ -193,7 +189,7 @@ class ProductType(BaseModel):
             data_format = self.parameters.get("CONVERT_TO")
             if data_format == "docx":
                 return "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-            elif data_format == "odt":
+            if data_format == "odt":
                 return "application/vnd.oasis.opendocument.text"
         if self.type.startswith("pdf"):
             return "application/pdf"

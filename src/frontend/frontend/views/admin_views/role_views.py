@@ -28,12 +28,13 @@ class RoleView(AdminBaseView):
     @classmethod
     def get_columns(cls):
         columns = super().get_columns()
-        return columns + [
+        return [
+            *columns,
             {
                 "title": "Permissions",
                 "field": "permissions",
                 "sortable": False,
                 "renderer": render_count,
                 "render_args": {"field": "permissions"},
-            }
+            },
         ]

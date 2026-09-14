@@ -239,7 +239,7 @@ def migrate_user_profile(user_profile: dict, template: dict) -> dict:
     if end_of_shift := out.get("end_of_shift"):
         out["end_of_shift"] = f"{end_of_shift['hours']}:{end_of_shift['minutes']}" if isinstance(end_of_shift, dict) else end_of_shift
     for key, value in template.items():
-        if key in out and isinstance(value, dict) and not isinstance(out[key], dict) or key not in out:
+        if (key in out and isinstance(value, dict) and not isinstance(out[key], dict)) or key not in out:
             out[key] = deepcopy(value)
         elif isinstance(value, dict):
             out[key] = migrate_user_profile(out[key], value)
@@ -308,12 +308,12 @@ def migrate_use_feed_content():
 def convert_interval_to_cron(interval: int) -> str:
     if interval < 1:
         return "0 */8 * * *"
-    elif interval < 60:
+    if interval < 60:
         return f"*/{interval} * * * *"
-    elif interval < 1440:
+    if interval < 1440:
         hours = interval // 60
         return "0 * * * *" if hours == 1 else f"0 */{hours} * * *"
-    elif interval <= 40000:
+    if interval <= 40000:
         days = interval // 1440
         return "0 4 0 * *" if days == 1 else f"0 4 */{days} * *"
     return "0 */8 * * *"

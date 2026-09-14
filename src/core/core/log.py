@@ -143,7 +143,7 @@ class Logger(TaranisLogger):
         self.logger.error("Auth Error: (%s)", log_data)
 
     def store_user_activity(self, user, activity_type, activity_detail):
-        self.logger.debug(f"User: {user.name} activity_type: {activity_type} activity_detail: {activity_detail}")
+        self.logger.debug("User: %s activity_type: %s activity_detail: %s", user.name, activity_type, activity_detail)
 
 
 logger = Logger(module=Config.MODULE_ID, colored=Config.COLORED_LOGS, debug=Config.DEBUG, syslog_address=None)
