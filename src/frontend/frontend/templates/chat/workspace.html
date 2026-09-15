@@ -87,7 +87,7 @@
           hx-swap="outerHTML"
           hx-indicator="#chat-answer-loading"
           hx-disabled-elt="#chat-message-input, #chat-send"
-          hx-on::before-request="window.taranisChat?.begin(this)"
+          hx-on::before:request="window.taranisChat?.begin(this)"
           data-testid="chat-form">
       <input type="hidden" name="turn_id" value="{{ turn_id }}">
       <label class="sr-only" for="chat-message-input">{{ _("Message") }}</label>
