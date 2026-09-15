@@ -21,6 +21,7 @@ dependencies = [
     "python-dotenv",
     "pydantic-settings",
     "taranis-models",
+    "opentelemetry-exporter-otlp-proto-http",
     # Collector
     "beautifulsoup4",
     "trafilatura",
