@@ -120,6 +120,8 @@ def test_chat_page_shows_configuration_warning_on_load(authenticated_client_basi
 
     assert response.status_code == 200
     body = response.get_data(as_text=True)
+    assert body.count('data-testid="chat-suggestion"') == 4
+    assert "Chat cannot inspect collector schedules" in body
     assert ('data-testid="chat-configuration-warning"' in body) is not configured
     if not configured:
         assert "Chat is not configured yet" in body

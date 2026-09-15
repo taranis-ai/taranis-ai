@@ -57,11 +57,43 @@
           </div>
         {% endfor %}
       {% else %}
-        <div class="flex flex-1 items-center justify-center text-center text-base-content/60" data-chat-empty>
-          <div>
-            {{ heroicon_outline("chat-bubble-left-right", class="mx-auto mb-3 h-12 w-12") }}
-            <p>{{ _("Ask a question or search the stories available to you in Taranis.") }}</p>
-            <p class="mt-2 text-xs">{{ _("Messages and selected story summaries are sent to the configured LLM provider.") }}</p>
+        <div class="flex flex-1 items-center justify-center" data-chat-empty data-testid="chat-help">
+          <div class="w-full max-w-2xl rounded-box border border-base-300 bg-base-200/40 p-5 sm:p-7">
+            {{ heroicon_outline("chat-bubble-left-right", class="mb-3 h-10 w-10 text-primary") }}
+            <h2 class="text-xl font-semibold">{{ _("What can I ask?") }}</h2>
+            <p class="mt-2 text-sm text-base-content/70">
+              {{ _("Explore the stories you are allowed to access in Taranis, or ask general knowledge questions.") }}
+            </p>
+
+            <div class="mt-5">
+              <h3 class="text-sm font-semibold">{{ _("Try asking") }}</h3>
+              <ul class="mt-2 grid gap-2 sm:grid-cols-2">
+                {% for suggestion in [
+                  _("Show me important ransomware stories from the last seven days."),
+                  _("How many unread stories mention Austria?"),
+                  _("Summarize the latest German-language stories about energy."),
+                  _("Show relevant cybersecurity stories included in a report.")
+                ] %}
+                  <li>
+                    <button type="button"
+                            class="btn btn-outline h-auto min-h-0 w-full justify-start whitespace-normal px-4 py-3 text-left font-normal"
+                            data-chat-suggestion="{{ suggestion }}"
+                            data-testid="chat-suggestion"
+                            onclick="window.taranisChat?.submitSuggestion(this)">{{ suggestion }}</button>
+                  </li>
+                {% endfor %}
+              </ul>
+            </div>
+
+            <p class="mt-5 text-sm text-base-content/70">
+              {{ _("Story searches can use text, dates, sources, groups, tags, languages, and review statuses such as read, important, relevant, or included in a report. You can also ask follow-up questions about recent search results.") }}
+            </p>
+            <p class="mt-3 text-sm text-base-content/70">
+              {{ _("Chat cannot inspect collector schedules, source configuration, worker status, report contents, or other administrative and system data.") }}
+            </p>
+            <p class="mt-4 border-t border-base-300 pt-4 text-xs text-base-content/60">
+              {{ _("Messages and selected story summaries are sent to the configured LLM provider.") }}
+            </p>
           </div>
         </div>
       {% endif %}
@@ -86,7 +118,7 @@
           hx-target="#chat-workspace"
           hx-swap="outerHTML"
           hx-indicator="#chat-answer-loading"
-          hx-disabled-elt="#chat-message-input, #chat-send"
+          hx-disabled-elt="#chat-message-input, #chat-send, [data-chat-suggestion]"
           hx-on::before:request="window.taranisChat?.begin(this)"
           data-testid="chat-form">
       <input type="hidden" name="turn_id" value="{{ turn_id }}">

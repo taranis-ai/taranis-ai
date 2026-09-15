@@ -147,17 +147,27 @@ def test_chat_stream_shows_optimistic_message_and_applies_newest_matching_snapsh
         """
         <div id="chat-workspace" data-chat-turn-id="turn-1" data-chat-sequence="0"
              data-chat-stage-planning="Planning" data-chat-stage-answering="Writing">
-          <div id="chat-messages"><div data-chat-empty></div>
+          <div id="chat-messages"><div data-chat-empty>
+            <button type="button" data-chat-suggestion="Suggested question"
+                    onclick="taranisChat.submitSuggestion(this)">Suggestion</button>
+          </div>
             <div class="hidden" data-chat-pending-user><span data-chat-pending-user-content></span></div>
             <div data-chat-stream-status><span data-chat-stream-stage></span></div><span data-chat-stream-content></span></div>
-          <form><textarea id="chat-message-input">Question</textarea></form>
+          <form onsubmit="event.preventDefault(); window.submittedChat = new FormData(this).get('content')">
+            <textarea id="chat-message-input" name="content">Question</textarea>
+          </form>
         </div>
         """
     )
     page.add_script_tag(path=str(CHAT_JS_PATH))
+    page.get_by_role("button", name="Suggestion").click()
+
+    assert page.evaluate("window.submittedChat") == "Suggested question"
+
     page.evaluate(
         """
         () => {
+          document.querySelector("#chat-message-input").value = "Question";
           taranisChat.begin(document.querySelector("#chat-workspace form"));
           for (const [turn_id, sequence, content] of [
             ["other-turn", 1, "Wrong"],

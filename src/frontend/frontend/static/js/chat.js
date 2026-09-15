@@ -43,6 +43,20 @@
     scrollToLatest(workspace);
   }
 
+  function submitSuggestion(button) {
+    const workspace = button.closest("#chat-workspace");
+    const input = workspace?.querySelector("#chat-message-input");
+    const form = input?.form;
+    const suggestion = button.dataset.chatSuggestion;
+    if (!input || !form || !suggestion) {
+      return;
+    }
+
+    input.value = suggestion;
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    form.requestSubmit();
+  }
+
   function update(event) {
     const data = event?.data;
     const workspace = document.getElementById("chat-workspace");
@@ -70,5 +84,5 @@
     scrollToLatest(workspace);
   }
 
-  self.taranisChat = { begin, update };
+  self.taranisChat = { begin, submitSuggestion, update };
 })();

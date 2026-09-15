@@ -18,7 +18,7 @@ Chat routes, `CHAT_ENABLED`, `chat_*` settings, provider integration, conversati
 - A non-blocking Redis lease covers the owned conversation or the user's pending new conversation; overlap returns 409. Redis is required, realtime is optional; Chat runs in core independently of workers.
 - One 540-second deadline covers the entire turn, including continuous response reads and persistence checks. Lease: 570 seconds; frontend timeout: 600 seconds; provider per-read timeout remains configurable.
 - Roll back database work before outbound provider calls. Re-fetch the owned conversation and commit both messages together only after success. Store canonical filters, total count, and selected IDs as search metadata, never story text.
-- Frontend escapes plain-text answers and builds the Assess link. Chat bypasses frontend model caching. Failed deletion retains the conversation.
+- Frontend escapes plain-text answers and builds the Assess link. The empty workspace explains supported story searches with clickable starter prompts and states that administrative and system data are outside Chat's scope. Chat bypasses frontend model caching. Failed deletion retains the conversation.
 - Cumulative realtime snapshots carry turn ID, increasing sequence, stage, and text on `user:#<user_id>`; text updates are throttled to 200 ms. Ignore other turns/older sequences. Final HTMX replaces transient content. Never log snapshots or enable channel history.
 
 ## Configuration
