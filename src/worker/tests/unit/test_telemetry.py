@@ -1,5 +1,6 @@
 from types import SimpleNamespace
 from unittest.mock import patch
+from uuid import UUID
 
 import pytest
 from opentelemetry.sdk.metrics.export import InMemoryMetricReader
@@ -71,11 +72,15 @@ def test_instrument_job_exports_trace_and_metrics(monkeypatch):
     assert spans[0].attributes["messaging.destination.name"] == "bots"
     assert spans[0].attributes["rq.job.status"] == "success"
     assert spans[0].resource.attributes["service.name"] == service_name
-    assert spans[0].resource.attributes["service.instance.id"] == service_name
+    instance_id = spans[0].resource.attributes["service.instance.id"]
+    assert isinstance(instance_id, str)
+    assert UUID(instance_id).version == 4
+    assert instance_id != service_name
     span_exporter_factory.assert_called_once_with(endpoint=f"{endpoint}/v1/traces", timeout=0.5)
     metric_exporter_factory.assert_called_once_with(endpoint=f"{endpoint}/v1/metrics", timeout=0.5)
 
     metrics_data = metric_reader.get_metrics_data()
     assert metrics_data is not None
+    assert all(resource.resource.attributes["service.instance.id"] == instance_id for resource in metrics_data.resource_metrics)
     metric_names = {metric.name for resource in metrics_data.resource_metrics for scope in resource.scope_metrics for metric in scope.metrics}
     assert metric_names == {"taranis.worker.job.duration", "taranis.worker.jobs"}

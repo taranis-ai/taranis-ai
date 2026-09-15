@@ -2,6 +2,7 @@ from collections.abc import Callable
 from functools import wraps
 from time import perf_counter
 from typing import ParamSpec, TypeVar
+from uuid import uuid4
 
 from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
@@ -39,7 +40,7 @@ def _initialize() -> bool:
         return False
 
     service_name = Config.OTEL_SERVICE_NAME
-    resource = Resource.create({SERVICE_NAME: service_name, "service.instance.id": service_name})
+    resource = Resource.create({SERVICE_NAME: service_name, "service.instance.id": str(uuid4())})
     _tracer_provider = TracerProvider(resource=resource)
     _tracer_provider.add_span_processor(
         BatchSpanProcessor(OTLPSpanExporter(endpoint=f"{endpoint}/v1/traces", timeout=_EXPORT_TIMEOUT_MILLIS / 1_000))

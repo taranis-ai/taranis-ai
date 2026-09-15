@@ -1,4 +1,5 @@
 from unittest.mock import patch
+from uuid import UUID
 
 from flask import Flask
 from opentelemetry.sdk.metrics.export import InMemoryMetricReader
@@ -35,9 +36,13 @@ def test_initialize_instruments_flask_requests(monkeypatch):
     assert span.attributes is not None
     assert span.attributes["http.route"] == "/test"
     assert span.resource.attributes["service.name"] == service_name
-    assert span.resource.attributes["service.instance.id"] == service_name
+    instance_id = span.resource.attributes["service.instance.id"]
+    assert isinstance(instance_id, str)
+    assert UUID(instance_id).version == 4
+    assert instance_id != service_name
     exporter_factory.assert_called_once_with(endpoint=f"{endpoint}/v1/traces")
     metric_exporter_factory.assert_called_once_with(endpoint=f"{endpoint}/v1/metrics")
     metrics_data = metric_reader.get_metrics_data()
     assert metrics_data is not None
+    assert all(resource.resource.attributes["service.instance.id"] == instance_id for resource in metrics_data.resource_metrics)
     assert any(scope.metrics for resource in metrics_data.resource_metrics for scope in resource.scope_metrics)

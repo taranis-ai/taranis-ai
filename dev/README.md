@@ -94,6 +94,8 @@ To start the optional Grafana LGTM telemetry stack as well:
 docker compose -f dev/compose.yml --profile telemetry up -d
 ```
 
+Grafana and OTLP ports bind to `127.0.0.1` only. Use an SSH tunnel for remote access.
+
 Set `OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318` in the core, frontend, and worker environments, then open Grafana at `http://localhost:3000`. The automated workflow bundles both steps:
 
 ```bash

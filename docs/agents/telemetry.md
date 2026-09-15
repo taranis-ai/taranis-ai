@@ -4,9 +4,9 @@
 OpenTelemetry, OTLP, Sentry, Grafana LGTM, Flask instrumentation, RQ job traces, worker metrics, or trace-context propagation.
 
 ## Expected Behavior
-Sentry and OpenTelemetry are optional. Core and frontend initialize every configured telemetry integration through one component-level entry point. A normalized `OTEL_EXPORTER_OTLP_ENDPOINT` base URL enables OTLP/HTTP traces and metrics; no endpoint disables both. Each component's `OTEL_SERVICE_NAME` setting controls its OpenTelemetry service and instance resource name and defaults to `taranis-core`, `taranis-frontend`, or `taranis-worker`. Core and frontend emit Flask request metrics and spans. Frontend calls to core remain in the incoming trace. RQ jobs continue that trace and emit bounded completed-job and duration metrics.
+Sentry and OpenTelemetry are optional. Core and frontend initialize every configured telemetry integration through one component-level entry point. A normalized `OTEL_EXPORTER_OTLP_ENDPOINT` base URL enables OTLP/HTTP traces and metrics; no endpoint disables both. Each component's `OTEL_SERVICE_NAME` setting controls its OpenTelemetry service resource name and defaults to `taranis-core`, `taranis-frontend`, or `taranis-worker`. Each telemetry initialization generates a UUID for `service.instance.id`, shared by its traces and metrics. Worker initialization runs in the RQ work-horse process. Core and frontend emit Flask request metrics and spans. Frontend calls to core remain in the incoming trace. RQ jobs continue that trace and emit bounded completed-job and duration metrics.
 
-The bundled Grafana LGTM service is opt-in through the `telemetry` Compose profile. External OTLP backends remain supported by configuring their base URL without enabling the profile.
+The bundled Grafana LGTM service is opt-in through the `telemetry` Compose profile. Grafana and OTLP host ports bind to loopback only in every Compose variant. Remote Grafana exposure requires a unique password, TLS, and access controls; existing volumes require a password change in Grafana. External OTLP backends remain supported by configuring their base URL without enabling the profile.
 
 ## Code Paths
 - Core configuration and initialization: `src/core/core/config.py`, `src/core/core/managers/telemetry_manager.py`

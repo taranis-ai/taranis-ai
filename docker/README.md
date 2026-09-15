@@ -132,6 +132,8 @@ Every Compose configuration includes an optional [Grafana OpenTelemetry LGTM](ht
 OTEL_EXPORTER_OTLP_ENDPOINT=http://telemetry:4318 docker compose --profile telemetry up -d
 ```
 
+Grafana and OTLP host ports bind to `127.0.0.1` only in every Compose configuration. For remote access, use an SSH tunnel. Before exposing Grafana through a reverse proxy or changing its binding, set a unique `GRAFANA_ADMIN_PASSWORD` and configure TLS and access controls. Keep the unauthenticated OTLP ports private. For an existing `telemetry_data` volume, change the password in Grafana; the environment variable only initializes new data.
+
 Open Grafana at `http://localhost:${GRAFANA_PORT:-3000}` and sign in with `${GRAFANA_ADMIN_USER:-admin}` / `${GRAFANA_ADMIN_PASSWORD:-admin}`. The `telemetry_data` volume persists the local LGTM data. To use an external OTLP backend instead, omit the profile and set its base URL in `OTEL_EXPORTER_OTLP_ENDPOINT`.
 
 Frontend HTTP client spans, core request spans, and RQ job spans share W3C trace context. Workers also export completed-job counts and job-duration histograms. `OTEL_METRIC_EXPORT_INTERVAL` is expressed in milliseconds and defaults to `60000`.

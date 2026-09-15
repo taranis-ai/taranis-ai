@@ -1,4 +1,5 @@
 from typing import Any, cast
+from uuid import uuid4
 
 import sentry_sdk
 from flask import Flask, g, redirect, render_template, url_for
@@ -145,7 +146,7 @@ def _setup_opentelemetry(app: Flask):
         return
 
     service_name = Config.OTEL_SERVICE_NAME
-    resource = Resource.create({SERVICE_NAME: service_name, "service.instance.id": service_name})
+    resource = Resource.create({SERVICE_NAME: service_name, "service.instance.id": str(uuid4())})
     tracer_provider = TracerProvider(resource=resource)
     tracer_provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter(endpoint=f"{endpoint}/v1/traces")))
     meter_provider = MeterProvider(
