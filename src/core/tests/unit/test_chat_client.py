@@ -1,12 +1,17 @@
 import io
 import json
+import socket
+import time
+from threading import Event, Thread
 
 import fakeredis
 import pytest
 import requests
+from urllib3.connection import HTTPConnection
+from urllib3.response import HTTPResponse
 
 from core.model.settings import Settings
-from core.service.chat import ChatClient, ChatProviderError, ChatService
+from core.service.chat import ChatClient, ChatProviderError, ChatProviderTimeoutError, ChatService
 from tests.application.support.builders import build_news_item_payload, create_story
 
 
@@ -42,7 +47,9 @@ def _chat_stream(*deltas: dict, finish_reason: str = "stop") -> requests.Respons
 
 @pytest.fixture(params=["responses", "chat_completions"])
 def configured_chat(monkeypatch, request):
-    settings = Settings.with_defaults({"chat_llm_base_url": "https://llm.example/v1", "chat_llm_model": "test-model"})
+    settings = Settings.with_defaults(
+        {"chat_llm_base_url": "https://llm.example/v1", "chat_llm_model": "test-model", "chat_llm_api_key": "test-secret"}
+    )
     settings["chat_llm_api_format"] = request.param
     monkeypatch.setattr(Settings, "get_settings", classmethod(lambda cls: settings))
     monkeypatch.setattr("core.service.chat.queue_manager.queue_manager._redis", fakeredis.FakeRedis())
@@ -104,6 +111,7 @@ def test_story_search_supplies_context_and_saves_answer(configured_chat, db_pers
     requests_sent = []
 
     def post(*args, **kwargs):
+        assert kwargs["headers"]["Authorization"] == "Bearer test-secret"
         assert args[0].endswith("/chat/completions" if configured_chat == "chat_completions" else "/responses")
         requests_sent.append(kwargs["json"])
         if len(requests_sent) == 1:
@@ -161,3 +169,50 @@ def test_answer_works_when_provider_does_not_support_streaming(configured_chat, 
 
     assert ChatClient.output_text(result) == "Hello"
     assert received == ["Hello"]
+
+
+def test_turn_deadline_closes_continuously_streaming_response(configured_chat, monkeypatch):
+    reader, writer = socket.socketpair()
+    connection = HTTPConnection("localhost")
+    connection.sock = reader
+    response = requests.Response()
+    response.status_code = 200
+    response.headers["Content-Type"] = "text/event-stream"
+    response.raw = HTTPResponse(body=reader.makefile("rb"), preload_content=False, connection=connection, sock_shutdown=reader.shutdown)
+    event = (
+        {"choices": [{"index": 0, "delta": {"content": "Still streaming "}, "finish_reason": None}]}
+        if configured_chat == "chat_completions"
+        else {"type": "response.output_text.delta", "delta": "Still streaming "}
+    )
+    chunk = f"data: {json.dumps(event)}\n\n".encode()
+    stopped = Event()
+
+    def send_stream():
+        try:
+            until = time.monotonic() + 5
+            while not stopped.is_set() and time.monotonic() < until:
+                writer.sendall(chunk)
+                stopped.wait(0.005)
+        except OSError:
+            pass
+        finally:
+            writer.close()
+
+    sender = Thread(target=send_stream)
+    monkeypatch.setattr(requests, "post", lambda *args, **kwargs: response)
+    received = []
+    sender.start()
+    started = time.monotonic()
+    try:
+        with pytest.raises(ChatProviderTimeoutError):
+            ChatClient(deadline=started + 1).create_response([], received.append)
+        assert received
+        assert response.raw.closed
+        assert time.monotonic() - started < 3
+    finally:
+        stopped.set()
+        response.close()
+        reader.close()
+        writer.close()
+        sender.join(timeout=5)
+    assert not sender.is_alive()
