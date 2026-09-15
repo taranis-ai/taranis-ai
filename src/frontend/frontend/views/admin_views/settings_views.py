@@ -55,7 +55,7 @@ class SettingsView(AdminBaseView):
                 return notification, static_response
             return CoreApi().stream_proxy(response, "stories_export.json")
 
-        if method == "patch":
+        if method == "patch" or (request.form and action_url == "/settings/settings"):
             payload = parse_formdata(request.form) if request.form else None
             if payload and "onboarding_enabled" in payload.get("settings", {}):
                 payload["settings"]["onboarding_enabled"] = payload["settings"]["onboarding_enabled"].lower() == "true"

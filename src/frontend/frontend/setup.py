@@ -72,6 +72,7 @@ def jinja_setup(app: Flask):
             "get_locale": get_locale,
             "get_timezone": get_timezone,
             "pending_onboarding_tasks_for_template": pending_onboarding_tasks_for_template,
+            "chat_enabled": app.config["CHAT_ENABLED"],
         }
     )
 

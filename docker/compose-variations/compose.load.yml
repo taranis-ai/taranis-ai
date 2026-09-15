@@ -43,6 +43,7 @@ services:
       JWT_COOKIE_SUFFIX: ""
       API_KEY: load_testing_api_key
       DEBUG: "true"
+      CHAT_ENABLED: "${CHAT_ENABLED:-False}"
       REALTIME_ENABLED: "false"
       TARANIS_CORE_SENTRY_DSN: ""
     depends_on:
@@ -72,6 +73,7 @@ services:
       JWT_COOKIE_SUFFIX: ""
       REDIS_URL: redis://redis:6379/0
       REDIS_PASSWORD: ""
+      CHAT_ENABLED: "${CHAT_ENABLED:-False}"
       REALTIME_ENABLED: "false"
       DEBUG: "true"
     depends_on:
