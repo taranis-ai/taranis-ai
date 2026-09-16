@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-08-14 13:19+0200\n"
+"POT-Creation-Date: 2026-09-15 12:58+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,11 +17,11 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.18.0\n"
 
-#: frontend/i18n.py:111
+#: frontend/i18n.py:107
 msgid "English"
 msgstr ""
 
-#: frontend/i18n.py:112
+#: frontend/i18n.py:108
 msgid "German"
 msgstr ""
 
@@ -29,15 +29,15 @@ msgstr ""
 msgid "Taranis AI - Open-Source Intelligence leveraging AI"
 msgstr ""
 
-#: frontend/templates/base.html:25 frontend/templates/login/index.html:21
+#: frontend/templates/base.html:23 frontend/templates/login/index.html:20
 msgid "OK"
 msgstr ""
 
-#: frontend/templates/base.html:26 frontend/templates/login/index.html:21
+#: frontend/templates/base.html:24 frontend/templates/login/index.html:20
 msgid "Delete"
 msgstr ""
 
-#: frontend/templates/base.html:27 frontend/templates/login/index.html:21
+#: frontend/templates/base.html:25 frontend/templates/login/index.html:20
 msgid "Cancel"
 msgstr ""
 
@@ -53,34 +53,34 @@ msgstr ""
 msgid "No stories to choose from"
 msgstr ""
 
-#: frontend/templates/assess/assess_top_bar.html:73
+#: frontend/templates/assess/assess_top_bar.html:68
 msgid "Edit"
 msgstr ""
 
-#: frontend/templates/assess/assess_top_bar.html:87
+#: frontend/templates/assess/assess_top_bar.html:82
 msgid "Cluster"
 msgstr ""
 
-#: frontend/templates/assess/assess_top_bar.html:122
+#: frontend/templates/assess/assess_top_bar.html:117
 msgid "Remove selected"
 msgstr ""
 
-#: frontend/templates/assess/assess_top_bar.html:155
+#: frontend/templates/assess/assess_top_bar.html:150
 msgid "Actions"
 msgstr ""
 
-#: frontend/templates/assess/assess_top_bar.html:171
+#: frontend/templates/assess/assess_top_bar.html:166
 msgid "Select all"
 msgstr ""
 
-#: frontend/templates/assess/assess_top_bar.html:185
+#: frontend/templates/assess/assess_top_bar.html:180
 msgid "Clear selection"
 msgstr ""
 
 #: frontend/templates/assess/bookmarks_bar.html:9
 #: frontend/templates/bookmarks/bookmark_detail.html:7
 #: frontend/templates/bookmarks/bookmark_list.html:4
-#: frontend/templates/partials/navbar.html:65
+#: frontend/templates/partials/navbar.html:79
 msgid "Bookmarks"
 msgstr ""
 
@@ -96,15 +96,138 @@ msgstr ""
 msgid "No attributes to choose from"
 msgstr ""
 
-#: frontend/templates/dashboard/edit.html:34
-msgid "Select tags"
+#: frontend/templates/chat/workspace.html:5
+#: frontend/templates/chat/workspace.html:109
+msgid "Planning…"
+msgstr ""
+
+#: frontend/templates/chat/workspace.html:6
+msgid "Searching stories…"
+msgstr ""
+
+#: frontend/templates/chat/workspace.html:7
+msgid "Writing answer…"
+msgstr ""
+
+#: frontend/templates/chat/workspace.html:9
+msgid "Chat history"
+msgstr ""
+
+#: frontend/templates/chat/workspace.html:10
+msgid "New Chat"
+msgstr ""
+
+#: frontend/templates/chat/workspace.html:19
+msgid "Delete chat"
+msgstr ""
+
+#: frontend/templates/chat/workspace.html:23
+msgid "Delete this chat conversation?"
+msgstr ""
+
+#: frontend/templates/chat/workspace.html:27
+msgid "No saved conversations yet."
+msgstr ""
+
+#: frontend/templates/chat/workspace.html:32
+msgid "Analyst chat"
+msgstr ""
+
+#: frontend/templates/chat/workspace.html:37
+msgid "Chat is not configured yet"
+msgstr ""
+
+#: frontend/templates/chat/workspace.html:38
+msgid ""
+"Ask an administrator to configure the provider in Admin Settings > Chat "
+"before sending a message."
+msgstr ""
+
+#: frontend/templates/chat/workspace.html:50
+#: frontend/templates/chat/workspace.html:101
+msgid "You"
+msgstr ""
+
+#: frontend/templates/chat/workspace.html:50
+#: frontend/templates/chat/workspace.html:105
+msgid "Taranis Chat"
+msgstr ""
+
+#: frontend/templates/chat/workspace.html:54
+#, python-format
+msgid "View %(count)s matching stories in Assess"
+msgstr ""
+
+#: frontend/templates/chat/workspace.html:63
+msgid "What can I ask?"
+msgstr ""
+
+#: frontend/templates/chat/workspace.html:65
+msgid ""
+"Explore the stories you are allowed to access in Taranis, or ask general "
+"knowledge questions."
+msgstr ""
+
+#: frontend/templates/chat/workspace.html:69
+msgid "Try asking"
+msgstr ""
+
+#: frontend/templates/chat/workspace.html:72
+msgid "Show me important ransomware stories from the last seven days."
+msgstr ""
+
+#: frontend/templates/chat/workspace.html:73
+msgid "How many unread stories mention Austria?"
+msgstr ""
+
+#: frontend/templates/chat/workspace.html:74
+msgid "Summarize the latest German-language stories about energy."
+msgstr ""
+
+#: frontend/templates/chat/workspace.html:75
+msgid "Show relevant cybersecurity stories included in a report."
+msgstr ""
+
+#: frontend/templates/chat/workspace.html:89
+msgid ""
+"Story searches can use text, dates, sources, groups, tags, languages, and"
+" review statuses such as read, important, relevant, or included in a "
+"report. You can also ask follow-up questions about recent search results."
+msgstr ""
+
+#: frontend/templates/chat/workspace.html:92
+msgid ""
+"Chat cannot inspect collector schedules, source configuration, worker "
+"status, report contents, or other administrative and system data."
+msgstr ""
+
+#: frontend/templates/chat/workspace.html:95
+msgid ""
+"Messages and selected story summaries are sent to the configured LLM "
+"provider."
+msgstr ""
+
+#: frontend/templates/chat/workspace.html:125
+msgid "Message"
+msgstr ""
+
+#: frontend/templates/chat/workspace.html:133
+msgid "Ask Taranis…"
+msgstr ""
+
+#: frontend/templates/chat/workspace.html:136
+msgid "Send"
 msgstr ""
 
 #: frontend/templates/dashboard/edit.html:35
-msgid "No tags found"
+msgid "Select tags"
 msgstr ""
 
 #: frontend/templates/dashboard/edit.html:36
+msgid "No tags found"
+msgstr ""
+
+#: frontend/templates/dashboard/edit.html:37
 msgid "No tags to choose from"
 msgstr ""
 
@@ -112,7 +235,7 @@ msgstr ""
 msgid "Taranis AI - Your AI-powered assistant platform."
 msgstr ""
 
-#: frontend/templates/login/index.html:29
+#: frontend/templates/login/index.html:28
 msgid "Error contacting Core API"
 msgstr ""
 
@@ -123,7 +246,7 @@ msgstr ""
 
 #: frontend/templates/login/login.html:16
 #: frontend/templates/login/login.html:17
-#: frontend/templates/user_profile/settings_content.html:242
+#: frontend/templates/user_profile/settings_content.html:244
 msgid "Password"
 msgstr ""
 
@@ -147,7 +270,7 @@ msgstr ""
 msgid "Dashboard"
 msgstr ""
 
-#: frontend/templates/partials/navbar.html:32
+#: frontend/templates/partials/navbar.html:33
 #: frontend/templates/user_profile/hotkey_kbd.html:9
 #: frontend/templates/user_profile/hotkey_kbd.html:20
 #: frontend/templates/user_profile/hotkey_kbd.html:42
@@ -157,39 +280,43 @@ msgstr ""
 msgid "Assess"
 msgstr ""
 
-#: frontend/templates/partials/navbar.html:38
+#: frontend/templates/partials/navbar.html:40
+msgid "Chat"
+msgstr ""
+
+#: frontend/templates/partials/navbar.html:49
 #: frontend/templates/user_profile/hotkey_kbd.html:76
 msgid "Analyze"
 msgstr ""
 
-#: frontend/templates/partials/navbar.html:44
+#: frontend/templates/partials/navbar.html:57
 #: frontend/templates/user_profile/hotkey_kbd.html:77
 msgid "Publish"
 msgstr ""
 
-#: frontend/templates/partials/navbar.html:50
+#: frontend/templates/partials/navbar.html:64
 msgid "Assets"
 msgstr ""
 
-#: frontend/templates/partials/navbar.html:59
+#: frontend/templates/partials/navbar.html:73
 msgid "Profile"
 msgstr ""
 
-#: frontend/templates/partials/navbar.html:62
+#: frontend/templates/partials/navbar.html:76
 msgid "User Settings"
 msgstr ""
 
-#: frontend/templates/partials/navbar.html:68
+#: frontend/templates/partials/navbar.html:82
 #: frontend/templates/user_tasks/index.html:5
 msgid "My Tasks"
 msgstr ""
 
-#: frontend/templates/partials/navbar.html:71
+#: frontend/templates/partials/navbar.html:85
 #: frontend/templates/user_notifications/index.html:6
 msgid "Notification Center"
 msgstr ""
 
-#: frontend/templates/partials/navbar.html:78
+#: frontend/templates/partials/navbar.html:92
 msgid "Logout"
 msgstr ""
 
@@ -464,39 +591,39 @@ msgstr ""
 msgid "Reset onboarding tours"
 msgstr ""
 
-#: frontend/templates/user_profile/settings_content.html:243
+#: frontend/templates/user_profile/settings_content.html:245
 msgid "Change your password"
 msgstr ""
 
-#: frontend/templates/user_profile/settings_content.html:244
+#: frontend/templates/user_profile/settings_content.html:246
 msgid "Keep this secure and avoid reusing passwords from other systems."
 msgstr ""
 
-#: frontend/templates/user_profile/settings_content.html:250
+#: frontend/templates/user_profile/settings_content.html:252
 msgid "Current password"
 msgstr ""
 
-#: frontend/templates/user_profile/settings_content.html:262
+#: frontend/templates/user_profile/settings_content.html:264
 msgid "New password"
 msgstr ""
 
-#: frontend/templates/user_profile/settings_content.html:269
+#: frontend/templates/user_profile/settings_content.html:271
 msgid "Confirm new password"
 msgstr ""
 
-#: frontend/templates/user_profile/settings_content.html:275
+#: frontend/templates/user_profile/settings_content.html:277
 msgid "Update password"
 msgstr ""
 
-#: frontend/templates/user_profile/settings_content.html:287
+#: frontend/templates/user_profile/settings_content.html:289
 msgid "Keyboard Shortcuts"
 msgstr ""
 
-#: frontend/templates/user_profile/settings_content.html:289
+#: frontend/templates/user_profile/settings_content.html:291
 msgid "HotKeys are currently static only."
 msgstr ""
 
-#: frontend/templates/user_profile/settings_content.html:291
+#: frontend/templates/user_profile/settings_content.html:293
 msgid "tracks progress on making them configurable."
 msgstr ""
 

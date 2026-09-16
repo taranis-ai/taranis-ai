@@ -1,3 +1,5 @@
+# Core and frontend run on the host and read CHAT_ENABLED from their .env files
+# (copied from dev/env.dev; disabled by default). This stack is infrastructure only.
 services:
   database:
     image: "postgres:${POSTGRES_TAG:-17-alpine}"

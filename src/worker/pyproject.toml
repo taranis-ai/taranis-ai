@@ -16,7 +16,7 @@ dependencies = [
     # Core
     "rq",
     "redis",
-    "croniter>=6.0.0",
+    "croniter",
     "click",
     "python-dotenv",
     "pydantic-settings",
@@ -45,9 +45,9 @@ dependencies = [
     "ioc-finder",
     "ioc-fanger",
     "pyintelowl",
-    "pypandoc-binary>=1.15",
+    "pypandoc-binary",
     "niquests",
-    "confluent-kafka>=2.14.2",
+    "confluent-kafka",
 ]
 dynamic = ["version"]
 
