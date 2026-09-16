@@ -359,13 +359,10 @@ class TestEndToEndUser(BaseE2ETest):
             story_card().get_by_test_id("story-actions-menu").click()
             share_story = story_card().get_by_test_id("share-story")
             # The story card was just replaced (outerHTML swap) by the toggle-important
-            # request above; htmx binds its hx-get click handler to the new share-story
-            # anchor asynchronously as part of processing that swap. Wait for htmx to be
-            # fully settled (including processing of the swapped-in subtree) before
-            # dispatching the click, otherwise the click can fall through to the
-            # anchor's plain href (no-JS fallback) and navigate instead of opening the
-            # sharing dialog.
-            wait_for_htmx_settled(page)
+            # request above. We wrap the sharing action in with_htmx_wait to ensure
+            # the page is fully settled before dispatching the click, preventing
+            # a potential race where the click could fall through to the anchor's
+            # plain href if dispatched before the hx-get handler is bound.
             with_htmx_wait(page, lambda: share_story.dispatch_event("click"))
             page.get_by_role("button", name="✕").click()
             story_card().get_by_test_id("open-detail-view").click()
