@@ -1,6 +1,7 @@
 from urllib.parse import urlencode
 
 import niquests as requests
+from opentelemetry.propagate import inject
 
 from worker.config import Config
 from worker.http_client import http_request
@@ -34,6 +35,11 @@ class BotApi:
             return {}
         return {"Authorization": f"Bearer {self.api_key}", "Content-type": "application/json"}
 
+    def get_request_headers(self) -> dict[str, str]:
+        headers = self.headers.copy()
+        inject(headers)
+        return headers
+
     def update_parameters(self, api_url: str, api_key: str | None = None):
         self.api_url = api_url
         self.api_key = api_key or Config.BOT_API_KEY
@@ -52,7 +58,9 @@ class BotApi:
         if not json_data:
             json_data = {}
         try:
-            response = http_request("POST", url=url, headers=self.headers, verify=self.verify, json=json_data, timeout=self.timeout)
+            response = http_request(
+                "POST", url=url, headers=self.get_request_headers(), verify=self.verify, json=json_data, timeout=self.timeout
+            )
         except requests.exceptions.RequestException as exc:
             logger.error(f"Bot service POST request to {url} failed: {exc}")
             raise BotServiceUnavailableError from None
@@ -63,7 +71,7 @@ class BotApi:
         if params:
             url += f"?{urlencode(params)}"
         try:
-            response = http_request("GET", url=url, headers=self.headers, verify=self.verify, timeout=self.timeout)
+            response = http_request("GET", url=url, headers=self.get_request_headers(), verify=self.verify, timeout=self.timeout)
         except requests.exceptions.RequestException as exc:
             logger.error(f"Bot service GET request to {url} failed: {exc}")
             raise BotServiceUnavailableError from None
