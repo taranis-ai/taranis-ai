@@ -2,13 +2,44 @@ import json
 from types import SimpleNamespace
 
 import pytest
+import responses
 from flask import Flask, render_template, url_for
 from lxml import html
 from models.admin import Bot
 from models.types import BOT_TYPES
 
+from frontend.config import Config
 from frontend.views.admin_views.admin_base_view import AdminBaseView
-from frontend.views.admin_views.bot_views import BotView
+from frontend.views.admin_views.bot_views import BotView, render_bot_run_order
+
+
+@pytest.mark.parametrize(
+    "parameters, expected",
+    [({}, {}), ({"REQUESTS_TIMEOUT": ""}, {"REQUESTS_TIMEOUT": None}), ({"REQUESTS_TIMEOUT": "90"}, {"REQUESTS_TIMEOUT": 90})],
+)
+def test_bot_parameter_patch_preserves_submitted_fields(app, parameters, expected):
+    with app.test_request_context(), responses.RequestsMock() as upstream:
+        upstream.patch(f"{Config.TARANIS_CORE_URL}/config/bots/bot-1", json={"message": "Updated"})
+        result, error = BotView.store_form_data({"name": "NLP", "type": "nlp_bot", "parameters": parameters}, "bot-1")
+
+        assert error is None
+        assert result == {"message": "Updated"}
+        assert json.loads(upstream.calls[0].request.body)["parameters"] == expected
+
+
+@pytest.mark.parametrize(
+    "parameters, expected",
+    [
+        ({}, "Manual"),
+        ({"RUN_AFTER_COLLECTOR": False}, "Manual"),
+        ({"RUN_AFTER_COLLECTOR": True}, "Collector"),
+        ({"RUN_AFTER_COLLECTOR": True, "RUN_AFTER_BOTS": ["parent"]}, "Collector Parent"),
+    ],
+)
+def test_bot_run_order_labels(parameters, expected):
+    bot = Bot(name="Bot", type=BOT_TYPES.IOC_BOT, parameters=parameters)
+    tree = html.fromstring(render_bot_run_order(bot, {"parent": "Parent"}))
+    assert " ".join(tree.itertext()) == expected
 
 
 @pytest.mark.parametrize(

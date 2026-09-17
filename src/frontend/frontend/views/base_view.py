@@ -151,16 +151,14 @@ class BaseView(MethodView):
             if parameters := processed_data.get("parameters"):
                 processed_data["parameters"] = {name: None if value == "__CLEAR_SECRET__" else value for name, value in parameters.items()}
                 if getattr(cls.model, "_parameter_patch", False) and (worker_type := processed_data.get("type")):
-                    removable = {name: value for name, value in processed_data["parameters"].items() if value is None}
                     complete = cls.is_create_object_id(object_id) and str(processed_data.get("enabled", "true")).lower() != "false"
-                    processed_data["parameters"] = {
-                        **normalize_parameter_values(
-                            worker_type,
-                            {name: value for name, value in processed_data["parameters"].items() if value is not None},
-                            complete=complete,
-                        ),
-                        **removable,
-                    }
+                    normalized = normalize_parameter_values(
+                        worker_type,
+                        {name: value for name, value in processed_data["parameters"].items() if value is not None},
+                        complete=complete,
+                    )
+                    # Normalization drops nulls; submitted clears must survive as PATCH removal markers.
+                    processed_data["parameters"] = {name: normalized.get(name) for name in processed_data["parameters"]}
             obj = cls.model(**processed_data)
             dpl = DataPersistenceLayer()
             result = dpl.store_object(obj) if cls.is_create_object_id(object_id) else dpl.update_object(obj, object_id)
