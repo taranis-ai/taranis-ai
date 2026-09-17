@@ -6,6 +6,7 @@ import niquests as requests
 from models.product import WorkerProduct as Product
 from models.task import TaskResult, TaskSubmission
 from niquests.typing import MultiPartFilesAltType
+from opentelemetry.propagate import inject
 from pydantic import ValidationError
 from rq import get_current_job
 
@@ -108,6 +109,11 @@ class CoreApi:
     def get_headers(self) -> dict[str, str]:
         return {"Authorization": f"Bearer {self.api_key}", "Content-type": "application/json"}
 
+    def get_request_headers(self) -> dict[str, str]:
+        headers = self.headers.copy()
+        inject(headers)
+        return headers
+
     def check_response(self, response: requests.Response, url: str):
         try:
             if response.ok:
@@ -121,33 +127,35 @@ class CoreApi:
         url = f"{self.api_url}{url}"
         if not json_data:
             json_data = {}
-        response = http_request("PUT", url=url, headers=self.headers, verify=self.verify, json=json_data, timeout=self.timeout)
+        response = http_request("PUT", url=url, headers=self.get_request_headers(), verify=self.verify, json=json_data, timeout=self.timeout)
         return self.check_response(response, url)
 
     def api_patch(self, url, json_data=None):
         url = f"{self.api_url}{url}"
         if not json_data:
             json_data = {}
-        response = http_request("PATCH", url=url, headers=self.headers, verify=self.verify, json=json_data, timeout=self.timeout)
+        response = http_request(
+            "PATCH", url=url, headers=self.get_request_headers(), verify=self.verify, json=json_data, timeout=self.timeout
+        )
         return self.check_response(response, url)
 
     def api_post(self, url, json_data=None):
         url = f"{self.api_url}{url}"
         if not json_data:
             json_data = {}
-        response = http_request("POST", url=url, headers=self.headers, verify=self.verify, json=json_data, timeout=self.timeout)
+        response = http_request("POST", url=url, headers=self.get_request_headers(), verify=self.verify, json=json_data, timeout=self.timeout)
         return self.check_response(response, url)
 
     def api_get(self, url: str, params=None):
         url = f"{self.api_url}{url}"
         if params:
             url += f"?{urlencode(params, doseq=True)}"
-        response = http_request("GET", url=url, headers=self.headers, verify=self.verify, timeout=self.timeout)
+        response = http_request("GET", url=url, headers=self.get_request_headers(), verify=self.verify, timeout=self.timeout)
         return self.check_response(response, url)
 
     def api_delete(self, url: str):
         url = f"{self.api_url}{url}"
-        response = http_request("DELETE", url=url, headers=self.headers, verify=self.verify, timeout=self.timeout)
+        response = http_request("DELETE", url=url, headers=self.get_request_headers(), verify=self.verify, timeout=self.timeout)
         return self.check_response(response, url)
 
     def submit_task_result(self, submission: TaskSubmission) -> dict | None:
@@ -271,7 +279,7 @@ class CoreApi:
     def cleanup_task_history(self) -> dict | None:
         url = f"{self.api_url}/worker/tasks/history/cleanup"
         try:
-            response = http_request("POST", url=url, headers=self.headers, verify=self.verify, json={}, timeout=self.timeout)
+            response = http_request("POST", url=url, headers=self.get_request_headers(), verify=self.verify, json={}, timeout=self.timeout)
         except requests.exceptions.RequestException:
             logger.exception("Can't cleanup task history")
             return None
@@ -308,7 +316,7 @@ class CoreApi:
     def get_product_render(self, product_id: str) -> Product | None:
         try:
             url = f"{self.api_url}/worker/products/{product_id}/render"
-            response = http_request("GET", url=url, headers=self.headers, verify=self.verify, timeout=self.timeout)
+            response = http_request("GET", url=url, headers=self.get_request_headers(), verify=self.verify, timeout=self.timeout)
             if not response.ok:
                 logger.error(f"Call to {url} failed {response.status_code}")
                 return None
@@ -328,7 +336,7 @@ class CoreApi:
 
     def get_template(self, presenter_id: str) -> str | None:
         url = f"{self.api_url}/worker/presenters/{presenter_id}"
-        response = http_request("GET", url=url, headers=self.headers, verify=self.verify, timeout=self.timeout)
+        response = http_request("GET", url=url, headers=self.get_request_headers(), verify=self.verify, timeout=self.timeout)
         return response.text if response.ok else None
 
     def get_word_list(self, word_list_id: str) -> dict | None:
@@ -349,7 +357,7 @@ class CoreApi:
         """
         try:
             url = f"{self.api_url}/worker/word-list/{word_list_id}"
-            headers = {**self.headers, "Content-Type": content_type}
+            headers = {**self.get_request_headers(), "Content-Type": content_type}
 
             if content_type == "application/json":
                 response = http_request("PUT", url=url, headers=headers, json=content, verify=self.verify, timeout=self.timeout)
@@ -443,7 +451,7 @@ class CoreApi:
                 logger.warning(f"Skipping empty icon upload for OSINT source {osint_source_id}")
                 return None
             url = f"{self.api_url}/worker/osint-sources/{osint_source_id}/icon"
-            headers = self.headers.copy()
+            headers = self.get_request_headers()
             headers.pop("Content-type", None)
             files: MultiPartFilesAltType = {"file": (filename, content)}
             return self.check_response(
@@ -458,7 +466,7 @@ class CoreApi:
                 "PUT",
                 f"{self.api_url}/bots/stories/group",
                 json=data,
-                headers=self.headers,
+                headers=self.get_request_headers(),
                 timeout=self.timeout,
             )
             return response.status_code
@@ -471,7 +479,7 @@ class CoreApi:
                 "PUT",
                 f"{self.api_url}/bots/stories/group-multiple",
                 json=data,
-                headers=self.headers,
+                headers=self.get_request_headers(),
                 timeout=self.timeout,
             )
             return response.status_code

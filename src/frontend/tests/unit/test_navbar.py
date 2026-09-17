@@ -2,9 +2,9 @@ from flask import render_template
 from lxml import html
 
 
-def test_navbar_hides_primary_labels_below_wide_breakpoint(app):
+def test_navbar_hides_primary_labels_below_wide_breakpoint(app, auth_user):
     with app.test_request_context("/"):
-        markup = render_template("partials/navbar.html", is_admin=True)
+        markup = render_template("partials/navbar.html", is_admin=True, current_user=auth_user, chat_enabled=False)
 
     tree = html.fromstring(f"<div>{markup}</div>")
     nav = tree.xpath("//nav")[0]

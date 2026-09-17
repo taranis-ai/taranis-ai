@@ -73,6 +73,40 @@ class TestAdminApi(BaseTest):
 
         assert response.get_json()["settings"]["default_bot_lookback_days"] == 0
 
+    def test_chat_settings_save_preserve_and_clear_secret(self, client, auth_header, app):
+        from core.model.settings import Settings
+        from core.service.chat import ChatClient
+
+        values = {
+            "chat_llm_base_url": "https://provider.example/v1",
+            "chat_llm_api_key": "private-test-key",
+            "chat_llm_model": "analyst-model",
+            "chat_llm_api_format": "chat_completions",
+            "chat_llm_timeout": "90",
+            "chat_max_stories": "8",
+        }
+        response = self.assert_patch_ok(client, "settings", {"settings": values}, auth_header)
+        assert "private-test-key" not in response.get_data(as_text=True)
+        assert response.get_json()["settings"]["chat_llm_api_key_configured"] is True
+        response = client.get(self.concat_url("settings"), headers=auth_header)
+        assert response.status_code == 200
+        assert "private-test-key" not in response.get_data(as_text=True)
+
+        self.assert_patch_ok(client, "settings", {"settings": {"chat_llm_api_key": "", "default_bot_lookback_days": 7}}, auth_header)
+        with app.app_context():
+            provider = ChatClient()
+            assert provider.base_url == values["chat_llm_base_url"]
+            assert provider.api_key == values["chat_llm_api_key"]
+            assert provider.model == values["chat_llm_model"]
+            assert provider.api_format == "chat_completions"
+            assert provider.timeout == 90
+            assert Settings.get_settings()["chat_max_stories"] == 8
+
+        response = self.assert_patch_ok(client, "settings", {"settings": {"chat_llm_api_key_clear": "true"}}, auth_header)
+        assert response.get_json()["settings"]["chat_llm_api_key_configured"] is False
+        with app.app_context():
+            assert ChatClient().api_key == ""
+
     def test_settings_rejects_negative_bot_lookback(self, client, auth_header):
         response = client.put(
             self.concat_url("settings"),

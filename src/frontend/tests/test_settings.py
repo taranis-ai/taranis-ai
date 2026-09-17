@@ -3,6 +3,7 @@ from typing import cast
 from urllib.parse import parse_qs, urlparse
 from zoneinfo import ZoneInfo
 
+import pytest
 from flask import render_template
 
 
@@ -94,7 +95,8 @@ def test_story_transfer_partial_guards_future_export_dates(authenticated_client,
     }
 
 
-def test_settings_patch_action_sends_only_submitted_fields(app, monkeypatch):
+@pytest.mark.parametrize("method", ["patch", "post"])
+def test_settings_patch_action_sends_only_submitted_fields(app, monkeypatch, method):
     from frontend.views.admin_views import settings_views
 
     calls = []
@@ -122,10 +124,10 @@ def test_settings_patch_action_sends_only_submitted_fields(app, monkeypatch):
 
     with app.test_request_context(
         "/admin/settings/settings",
-        method="PATCH",
+        method=method.upper(),
         data={"settings[default_collector_proxy]": "http://proxy.test", "settings[onboarding_enabled]": "false"},
     ):
-        body, status = cast(tuple[str, int], settings_views.SettingsView.settings_action("/settings/settings", method="patch"))
+        body, status = cast(tuple[str, int], settings_views.SettingsView.settings_action("/settings/settings", method=method))
 
     assert status == 200
     assert calls == [
