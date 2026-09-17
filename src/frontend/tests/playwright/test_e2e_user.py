@@ -376,7 +376,12 @@ class TestEndToEndUser(BaseE2ETest):
             news_item_card.get_by_test_id("news-item-tag-value-input").nth(1).fill("value2")
             page.get_by_role("button", name="Save tags").click()
             page.get_by_role("button", name="Add attribute").click()
-            page.get_by_test_id("attribute-key-input").nth(1).fill("attr")
+            attribute_key = page.get_by_test_id("attribute-key-input").nth(1)
+            for reserved_key in ("TLP", "tlp_override"):
+                attribute_key.fill(reserved_key)
+                assert attribute_key.evaluate("element => element.validity.patternMismatch")
+            attribute_key.fill("attr")
+            assert attribute_key.evaluate("element => element.checkValidity()")
             page.get_by_test_id("attribute-value-input").nth(1).fill("value attr")
             page.get_by_role("button", name="Save changes").click()
             page.get_by_role("link", name="Advanced").click()

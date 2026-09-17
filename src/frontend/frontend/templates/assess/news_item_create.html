@@ -187,7 +187,7 @@
             <div class="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h2 class="text-lg font-semibold">Attributes</h2>
-                <p class="text-xs text-base-content/60">Optional key/value tags like sentiment, TLP, or classification.</p>
+                <p class="text-xs text-base-content/60">Optional key/value tags like sentiment or classification. Use the TLP selector above for TLP.</p>
               </div>
               <button type="button" class="btn btn-outline btn-sm" @click="addAttribute()" {% if read_only %}disabled{% endif %}>Add attribute</button>
             </div>
@@ -199,6 +199,8 @@
                          type="text"
                          x-model="attribute.key"
                          name="attributes[][key]"
+                         pattern="(?!(?:TLP|tlp_override)$).*"
+                         title="Use the TLP selector to set classification."
                          placeholder="Key (e.g. sentiment_category)"
                          {% if read_only %}disabled{% endif %}>
                   <input class="input input-bordered input-sm flex-1"

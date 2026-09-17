@@ -12,6 +12,8 @@ RoleBasedAccess, ACLs, TLP, content/reference visibility, source-group inheritan
 - Assess content and source/group reference lists use the same visibility rules.
 - `Story.visible_query` requires access to every item source and the stored story `TLP`, before counts/pagination. News-item details also check parent-story access.
 - Item TLP uses its explicit attribute, then source TLP, then the global default. Story creation, item updates, and override changes refresh the stored `TLP`; access checks only read it. Source/global changes apply on the next refresh.
+- TLP attributes accept only known levels or an empty inheritance value. Malformed persisted levels are logged and treated as RED on reads/transfers. Custom attribute inputs reserve `TLP` and `tlp_override` for the dedicated selectors.
+- Startup backfills missing story `TLP` attributes in bounded batches before serving queries, using item/source/global inheritance and story overrides; existing stored classifications are preserved.
 - `tlp_override` is an ordinary story attribute: empty/absent means inherit; otherwise the most restrictive item/override wins. Grouping preserves the stricter override; splitting copies it. Both refresh `TLP`.
 - Manual story/report bot actions enforce item-level write access and TLP before queueing; the worker API key cannot elevate a user's request.
 - Core report/product deletion requires object-level write access in addition to module delete permission. Reports also enforce TLP; products use their current Product Type ACL. Denials precede deletion and cache/realtime notifications.

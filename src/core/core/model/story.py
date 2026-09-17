@@ -1354,7 +1354,9 @@ class Story(BaseModel):
             created=news_item.published,
             description=news_item.review or news_item.content,
             news_items=[news_item],
-            attributes=[inherited_override.to_small_dict()] if inherited_override else None,
+            attributes=[{"key": "tlp_override", "value": inherited_override.tlp_level.value}]
+            if inherited_override and inherited_override.value
+            else None,
             last_change=change,
         )
         db.session.add(new_story)
@@ -1447,13 +1449,13 @@ class Story(BaseModel):
     def refresh_tlp(self) -> None:
         levels = [item.tlp_level for item in self.news_items]
         if (override := self.find_attribute_by_key("tlp_override")) and override.value:
-            levels.append(TLPLevel(override.value))
+            levels.append(override.tlp_level)
         self.upsert_attribute(NewsItemAttribute("TLP", TLPLevel.get_most_restrictive_tlp(levels).value))
 
     @property
     def tlp_level(self) -> TLPLevel:
         attribute = self.find_attribute_by_key("TLP")
-        return TLPLevel(attribute.value) if attribute else TLPLevel.CLEAR
+        return attribute.tlp_level if attribute else TLPLevel.CLEAR
 
     @property
     def ordered_news_items(self) -> list[NewsItem]:

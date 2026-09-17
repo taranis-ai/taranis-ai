@@ -7,10 +7,21 @@ from urllib.parse import quote, unquote
 
 import language_tags
 from bs4 import BeautifulSoup
-from pydantic import BeforeValidator, ConfigDict, Field, ValidationInfo, field_validator, model_validator
+from pydantic import BeforeValidator, ConfigDict, Field, TypeAdapter, ValidationInfo, field_validator, model_validator
 
 from models.base import TaranisBaseModel
 from models.types import CONNECTOR_TYPES, TLPLevel
+
+
+def validate_attribute(value: Any) -> Any:
+    if isinstance(value, dict) and value.get("key") in {"TLP", "tlp_override"}:
+        level = value.get("value", "")
+        if level != "" and TLPLevel.get_tlp_level(level) is None:
+            raise ValueError("Invalid TLP attribute value")
+    return value
+
+
+Attribute = Annotated[dict[str, Any], BeforeValidator(validate_attribute)]
 
 
 NEWS_ITEM_IMPORT_FIELDS = frozenset(
@@ -190,7 +201,9 @@ class NewsItem(TaranisBaseModel):
     @classmethod
     def from_input(cls, data: Any) -> Self:
         """Untrusted input: run validators + sanitizers."""
-        return cls.model_validate(data)
+        item = cls.model_validate(data)
+        TypeAdapter(list[str | Attribute]).validate_python(item.attributes or [])
+        return item
 
     @classmethod
     def from_db(cls, data: dict[str, Any]) -> Self:
@@ -402,7 +415,7 @@ class StoryUpdatePayload(TaranisBaseModel):
     summary: str | None = None
     relevance: int | None = None
     relevance_override: int | None = None
-    attributes: list[dict[str, Any]] | None = None
+    attributes: list[Attribute] | None = None
     misp_auto_update: MispAutoUpdatePayload | None = None
 
     @model_validator(mode="before")

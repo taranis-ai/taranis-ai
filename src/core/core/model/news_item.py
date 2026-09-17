@@ -293,7 +293,10 @@ class NewsItem(BaseModel):
         if isinstance(attributes, dict):
             attributes = attributes.get("attributes", attributes)
 
-        attributes = NewsItemAttribute.load_multiple(attributes)
+        try:
+            attributes = NewsItemAttribute.load_multiple(attributes)
+        except ValueError:
+            return {"error": "Invalid attributes"}, 400
         if attributes is None:
             return {"error": "Invalid attributes"}, 400
 
@@ -428,7 +431,7 @@ class NewsItem(BaseModel):
             if self.osint_source
             else TLPLevel(Settings.get_settings().get("default_tlp_level", TLPLevel.CLEAR.value))
         )
-        overrides = [TLPLevel(attr.value) for attr in self.attributes if attr.key == "TLP" and attr.value]
+        overrides = [attr.tlp_level for attr in self.attributes if attr.key == "TLP" and attr.value]
         return TLPLevel.get_most_restrictive_tlp(overrides) if overrides else source_tlp
 
     def update_item(self, data, actor: str | None = None) -> tuple[dict, int]:

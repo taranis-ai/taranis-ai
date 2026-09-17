@@ -144,7 +144,7 @@ class StoryOperationsService:
             from core.model.role import TLPLevel
 
             overrides = [story.find_attribute_by_key("tlp_override") for story in (target_story, source_story)]
-            if levels := [TLPLevel(attribute.value) for attribute in overrides if attribute and attribute.value]:
+            if levels := [attribute.tlp_level for attribute in overrides if attribute and attribute.value]:
                 target_story.upsert_attribute(NewsItemAttribute("tlp_override", TLPLevel.get_most_restrictive_tlp(levels).value))
             if news_item in source_story.news_items:
                 source_story.news_items.remove(news_item)

@@ -218,7 +218,7 @@
               <div class="mt-4 flex flex-col gap-3">
                 <template x-for="(attribute, index) in attributes" :key="index">
                   <div class="flex gap-3">
-                    <input class="input input-bordered input-sm flex-grow" type="text" x-model="attribute.key" name="attributes[][key]" data-testid="attribute-key-input" placeholder="Key">
+                    <input class="input input-bordered input-sm flex-grow" type="text" x-model="attribute.key" name="attributes[][key]" pattern="(?!(?:TLP|tlp_override)$).*" title="Use the TLP selector to set classification." data-testid="attribute-key-input" placeholder="Key">
                     <input class="input input-bordered input-sm flex-grow" type="text" x-model="attribute.value" name="attributes[][value]" data-testid="attribute-value-input" placeholder="Value">
                     <button type="button" class="btn btn-ghost btn-xs text-error flex-shrink" @click="removeAttribute(index)">Remove</button>
                   </div>

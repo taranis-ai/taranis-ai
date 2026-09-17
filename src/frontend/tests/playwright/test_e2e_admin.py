@@ -199,6 +199,12 @@ class TestEndToEndAdmin(BaseE2ETest):
             "textbox",
             name="Link Providing a URL helps others trace the original source.",
         ).fill("http://blubb.xxx")
+        attribute_key = page.get_by_placeholder("Key (e.g. sentiment_category)")
+        for reserved_key in ("TLP", "tlp_override"):
+            attribute_key.fill(reserved_key)
+            assert attribute_key.evaluate("element => element.validity.patternMismatch")
+        attribute_key.fill("sentiment")
+        assert attribute_key.evaluate("element => element.checkValidity()")
         page.get_by_role("textbox", name="Language ISO 639 language code").fill("xx")
 
         with page.expect_response(create_news_item_url) as response_info:

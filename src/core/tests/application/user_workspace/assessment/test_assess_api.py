@@ -327,6 +327,12 @@ class TestAssessNewsItems(BaseTest):
         assert news_item["language"] == "de"
         assert news_item["published"] == "2023-12-31T22:00:00+00:00"
         assert news_item["hash"] == NewsItem.get_hash(title="Updated News Item", link="https://url/updated%20path?q=c%20d")
+        response = client.put(
+            f"/api/assess/news-items/{cleanup_news_item['id']}",
+            json={"attributes": [{"key": "TLP", "value": "invalid"}]},
+            headers=auth_header,
+        )
+        assert response.status_code == 400
         for attributes in ([{"key": "TLP", "value": "clear"}, {"key": "custom", "value": "kept"}], []):
             self.assert_put_ok(client, f"news-items/{cleanup_news_item['id']}", {"attributes": attributes}, auth_header)
             saved = self.assert_get_ok(client, f"news-items/{cleanup_news_item['id']}", auth_header).json
@@ -542,6 +548,11 @@ class TestAssessStories(BaseTest):
         monkeypatch.setattr("core.api.assess.realtime_publisher.assess_changed", assess_changed)
         story_url = f"/api/assess/stories/{stories[0]}"
         original_read = client.get(story_url, headers=auth_header).get_json()["read"]
+
+        for key in ("TLP", "tlp_override"):
+            response = client.patch(story_url, json={"attributes": [{"key": key, "value": "invalid"}]}, headers=auth_header)
+            assert response.status_code == 400
+        assess_changed.assert_not_called()
 
         try:
             response = client.patch(story_url, json={"read": not original_read}, headers=auth_header)
