@@ -1103,12 +1103,9 @@ class OSINTSource(BaseModel):
 
     @classmethod
     def get_all_for_assess_api(cls, user=None) -> tuple[dict[str, Any], int]:
-        filter_args = {}
-        query = cls.get_filter_query_with_acl(filter_args, user) if user else cls.get_filter_query(filter_args)
-        if items := cls.get_filtered(query):
-            return {"items": [item.to_assess_dict() for item in items]}, 200
+        from core.model.filter_data import FilterData
 
-        return {"items": []}, 200
+        return {"items": FilterData._build_sources(user)}, 200
 
     @classmethod
     def delete_all(cls) -> tuple[dict[str, Any], int]:
@@ -1273,12 +1270,9 @@ class OSINTSourceGroup(BaseModel):
 
     @classmethod
     def get_all_for_assess_api(cls, user=None) -> tuple[dict[str, Any], int]:
-        filter_args = {}
-        query = cls.get_filter_query_with_acl(filter_args, user) if user else cls.get_filter_query(filter_args)
-        if items := cls.get_filtered(query):
-            return {"items": [item.to_assess_dict() for item in items]}, 200
+        from core.model.filter_data import FilterData
 
-        return {"items": []}, 404
+        return {"items": FilterData._build_groups(user)}, 200
 
 
 class OSINTSourceGroupOSINTSource(BaseModel):

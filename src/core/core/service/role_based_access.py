@@ -88,21 +88,23 @@ class RoleBasedAccessService:
     @classmethod
     def filter_query_with_tlp(cls, query: Select, user: User) -> Select:
         from core.model.news_item_attribute import NewsItemAttribute
-        from core.model.story import Story, StoryNewsItemAttribute
+        from core.model.story import Story
 
-        user_tlp_level = user.get_highest_tlp()
-        if user_tlp_level.value == "red":
+        accessible_tlps = user.get_highest_tlp().get_accessible_levels()
+        return query.where(Story.attributes.any(db.and_(NewsItemAttribute.key == "TLP", NewsItemAttribute.value.in_(accessible_tlps))))
+
+    @classmethod
+    def filter_story_query_with_acl(cls, query: Select, user: User) -> Select:
+        from core.model.news_item import NewsItem
+        from core.model.osint_source import OSINTSource
+        from core.model.story import Story
+
+        rbac = RBACQuery(user=user, resource_type=ItemType.OSINT_SOURCE)
+        if cls._user_bypasses_acl(user) or not cls._is_enabled_for_resource_type(rbac.resource_type):
             return query
-
-        accessible_tlps = user_tlp_level.get_accessible_levels()
-
-        TLPAttr = aliased(NewsItemAttribute)
-        SNA = aliased(StoryNewsItemAttribute)
-
-        return (
-            query.outerjoin(SNA, SNA.story_id == Story.id)
-            .outerjoin(TLPAttr, db.and_(TLPAttr.id == SNA.news_item_attribute_id, TLPAttr.key == "TLP"))
-            .filter(db.or_(TLPAttr.value.in_(accessible_tlps), TLPAttr.id.is_(None)))
+        readable_sources = cls.filter_query_with_acl(select(OSINTSource.id), rbac)
+        return query.where(
+            ~Story.news_items.any(db.or_(NewsItem.osint_source_id.is_(None), NewsItem.osint_source_id.not_in(readable_sources)))
         )
 
     @classmethod

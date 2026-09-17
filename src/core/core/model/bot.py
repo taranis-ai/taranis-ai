@@ -331,10 +331,12 @@ class Bot(BaseModel):
                 "description": stored_bot.description if stored_bot else "",
                 "type": bot_type.value,
                 "index": int(index) if index not in ("", None) else stored_bot.index if stored_bot else cls.get_highest_index() + 1,
-                "enabled": str(candidate.get("enabled", stored_bot.enabled if stored_bot else True)).lower() == "true",
+                # Previews validate scheduling fields without requiring execution parameters.
+                "enabled": False,
                 "parameters": parameters,
             }
         )
+        candidate_bot.enabled = str(candidate.get("enabled", stored_bot.enabled if stored_bot else True)).lower() == "true"
         bots = [bot for bot in bots if bot.id != candidate_bot.id]
         bots.append(candidate_bot)
         bots.sort(key=lambda bot: bot.index)

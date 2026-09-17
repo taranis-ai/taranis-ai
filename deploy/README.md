@@ -98,6 +98,8 @@ Both API formats stream general answers directly. Story questions first call the
 
 Chat turns share a 540-second deadline across provider planning, retries, search, and answering, checked again before persistence. Provider reads retain the configured per-read timeout; the total deadline stops active response reads even when bytes keep arriving. The Redis lease lasts 570 seconds, reserving 30 seconds for transaction cleanup and release. The frontend HTTP timeout remains 600 seconds.
 
+The shipped ingress allows 660 seconds between upstream reads on `<base-path>chat/`. When updating a deployment with a custom or outer reverse proxy, set its Chat response timeout to at least 660 seconds too; realtime progress uses a separate connection and cannot keep the message POST alive.
+
 Enabling Chat creates `chat_conversation` and `chat_message` tables at core startup. Conversations and answers remain in Taranis until their owner deletes them. The provider receives the analyst's prompt, up to the latest 10 saved chat messages, the analyst-visible filter catalog, and, for search answers, up to the configured `chat_max_stories` bounded story summaries. Raw news-item content and provider credentials are not saved in chat metadata.
 
 This is a data-egress boundary: analyst prompts and selected story titles, dates, and summaries leave Taranis for the configured provider. For Responses, Core requests `store: false`; Chat Completions omits that parameter. Provider implementations and abuse-monitoring policies may apply their own retention. Select and contract with the provider accordingly, and configure transport security and provider-side retention controls before enabling the feature.

@@ -22,7 +22,7 @@ class RTCollector(BaseWebCollector):
         self.api: str = "/REST/2.0/"
         self.ticket_path: str = "/Ticket/Display.html?id="
         self.search_query: str = "*"
-        self.fields_to_include: list
+        self.fields_to_include: list[str] = []
         self.timeout: int = 60
         self.last_attempted: datetime.datetime | None = None
 
@@ -42,9 +42,6 @@ class RTCollector(BaseWebCollector):
             raise ValueError("No RT_TOKEN set")
         self.headers = {"Authorization": f"token {rt_token}"}
 
-    def parse_fields_to_include(self, fields_to_include: str):
-        self.fields_to_include = [field.strip() for field in fields_to_include.split(",")]
-
     def setup_collector(self, source: dict):
         self.set_auth_header(source.get("parameters", {}).get("RT_TOKEN", ""))
         super().parse_source(source)
@@ -53,8 +50,7 @@ class RTCollector(BaseWebCollector):
 
         if search_query := source.get("parameters", {}).get("SEARCH_QUERY", None):
             self.search_query = search_query
-        if fields_to_include := source.get("parameters", {}).get("FIELDS_TO_INCLUDE", None):
-            self.parse_fields_to_include(fields_to_include)
+        self.fields_to_include = source.get("parameters", {}).get("FIELDS_TO_INCLUDE", [])
 
     def preview_collector(self, source: dict) -> list[dict]:
         self.setup_collector(source)

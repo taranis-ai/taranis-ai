@@ -196,6 +196,28 @@ class TestRBAC:
         result_titles = {n.title for story in results for n in story.news_items}
         assert result_titles == {"TLP News Item", "Plain News Item", "Another TLP News Item"}
 
+        from core.model.news_item_attribute import NewsItemAttribute
+        from core.service.story_operations import StoryOperationsService
+
+        source, target = results[:2]
+        source.upsert_attribute(NewsItemAttribute("tlp_override", "clear"))
+        source.find_attribute_by_key("tlp_override").value = "invalid"
+        item = source.news_items[0]
+        item.upsert_attribute(NewsItemAttribute("TLP", "clear"))
+        item.find_attribute_by_key("TLP").value = "invalid"
+        db.session.commit()
+        db.session.expire_all()
+        assert item.tlp_level == TLPLevel.RED
+        source.refresh_tlp()
+        assert source.tlp_level == TLPLevel.RED
+        StoryOperationsService.transfer_news_item_to_story(target, item, {})
+        target.refresh_tlp()
+        assert target.tlp_level == TLPLevel.RED
+        db.session.commit()
+        target.find_attribute_by_key("tlp_override").value = "invalid"
+        split_id = Story.create_from_item(item)
+        assert Story.get(split_id).tlp_level == TLPLevel.RED
+
         db.session.remove()
 
 

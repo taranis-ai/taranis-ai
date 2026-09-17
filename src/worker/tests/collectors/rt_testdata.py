@@ -7,7 +7,7 @@ rt_collector_source_data = {
         "BASE_URL": "http://rt.taranis.ai/",
         "RT_TOKEN": "1-11-11111111111111111111111111111111",
         "SEARCH_QUERY": "Started > '2018-04-04' AND Status != 'resolved'",
-        "FIELDS_TO_INCLUDE": "One, Two, Three, Four",
+        "FIELDS_TO_INCLUDE": ["One", "Two", "Three", "Four"],
     },
 }
 
@@ -32,7 +32,7 @@ rt_collector_no_tickets_source_data = {
         "BASE_URL": f"{rt_base_url}",
         "RT_TOKEN": "1-11-11111111111111111111111111111111",
         "SEARCH_QUERY": "Started > '2018-04-04' AND Started < '2018-04-06'",
-        "FIELDS_TO_INCLUDE": "One, Two, Three, Four",
+        "FIELDS_TO_INCLUDE": ["One", "Two", "Three", "Four"],
     },
 }
 
@@ -43,7 +43,7 @@ rt_malformed_json_source_data = {
         "BASE_URL": f"{rt_base_url}",
         "RT_TOKEN": "1-11-11111111111111111111111111111111",
         "SEARCH_QUERY": "Started > '2018-04-04' AND Started < ''",
-        "FIELDS_TO_INCLUDE": "",
+        "FIELDS_TO_INCLUDE": [],
     },
 }
 

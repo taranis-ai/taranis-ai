@@ -5,7 +5,7 @@ import uuid
 import pytest
 from base_e2e_test import BaseE2ETest
 from flask import url_for
-from htmx_helpers import with_htmx_wait
+from htmx_helpers import reset_htmx_state, wait_for_htmx_settled, with_htmx_wait
 from playwright.sync_api import Error, Page, expect
 
 from tests.external_e2e import allow_requests_passthru
@@ -376,7 +376,12 @@ class TestEndToEndUser(BaseE2ETest):
             news_item_card.get_by_test_id("news-item-tag-value-input").nth(1).fill("value2")
             page.get_by_role("button", name="Save tags").click()
             page.get_by_role("button", name="Add attribute").click()
-            page.get_by_test_id("attribute-key-input").nth(1).fill("attr")
+            attribute_key = page.get_by_test_id("attribute-key-input").nth(1)
+            for reserved_key in ("TLP", "tlp_override"):
+                attribute_key.fill(reserved_key)
+                assert attribute_key.evaluate("element => element.validity.patternMismatch")
+            attribute_key.fill("attr")
+            assert attribute_key.evaluate("element => element.checkValidity()")
             page.get_by_test_id("attribute-value-input").nth(1).fill("value attr")
             page.get_by_role("button", name="Save changes").click()
             page.get_by_role("link", name="Advanced").click()
@@ -499,9 +504,22 @@ class TestEndToEndUser(BaseE2ETest):
             with page.expect_response(lambda response: response.url.endswith("/news-item-order") and response.status == 409):
                 order_panel.get_by_test_id("save-news-item-order").click()
             expect(page.locator("#news-item-order-status")).to_contain_text("News items changed")
+            with pytest.raises(AssertionError, match=r"HTMX response error .* for POST .*/news-item-order returned 409"):
+                wait_for_htmx_settled(page)
+            reset_htmx_state(page)
             order_panel.get_by_role("button", name="Reload news items").click()
             expect(order_panel.get_by_test_id("save-news-item-order")).to_be_disabled()
             expect(rows.first).to_have_attribute("data-order-item", original_order[1])
+
+            tlp_override = page.locator('[data-test-id="tlp-select"]')
+            expect(tlp_override).to_have_value("")
+            for value in ("clear", ""):
+                tlp_override.select_option(value)
+                with_htmx_wait(page, page.get_by_role("button", name="Save changes", exact=True).click)
+                page.reload()
+                expect(tlp_override).to_have_value(value)
+                saved = core_request_client.json_request("GET", f"/assess/stories/{story_id}")
+                assert next(a["value"] for a in saved["attributes"] if a["key"] == "tlp_override") == value
 
             core_request_client.patch(
                 f"/assess/stories/{story_id}",

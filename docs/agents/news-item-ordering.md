@@ -27,6 +27,7 @@ Core payload validation lives in the existing `test_assess_api.py` suite. Existi
 
 ## Pitfalls
 - Never trust order supplied by imported content or use it to move items between stories.
+- After asserting the expected stale-order 409, wait for HTMX to settle and reset its test state before the next action.
 - Keep reorder swaps limited to the linked-item area; replacing the full editor loses unsaved content.
 - SortableJS already ships in the vendor bundle. Initialize and destroy it with the owning Alpine component.
 - The additive PostgreSQL migration runs during normal core startup. Application rollback may leave the unused column in place.
