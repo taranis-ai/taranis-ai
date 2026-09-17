@@ -1,5 +1,6 @@
 import niquests as requests
 import pytest
+from models.worker_parameters import effective_parameter_values
 
 from tests.testdata import news_items
 from worker.config import Config
@@ -365,8 +366,28 @@ def test_simple_web_collector_digest_splitting(simple_web_collector_mock, simple
 def test_rt_collector_collect(rt_mock, rt_collector, requests_mock):
     from tests.collectors import rt_testdata
 
-    result = rt_collector.collect(rt_testdata.rt_collector_source_data)
+    source = {
+        **rt_testdata.rt_collector_source_data,
+        "parameters": effective_parameter_values(
+            "RT_COLLECTOR",
+            {**rt_testdata.rt_collector_source_data["parameters"], "FIELDS_TO_INCLUDE": "Subject,Status"},
+        ),
+    }
+    result = rt_collector.collect(source)
     assert result is None
+    published = requests_mock.request_history[-1].json()
+    assert published["attributes"] == [
+        {"key": "Status", "value": "new"},
+        {"key": "Subject", "value": "Test Ticket 1"},
+        {"key": "rt_id", "value": "1/2024-01-01T12:00:00Z"},
+    ]
+    assert rt_collector.preview_collector(source)[0]["title"] == "attachment"
+
+    source["parameters"].pop("FIELDS_TO_INCLUDE")
+    source["parameters"] = effective_parameter_values("RT_COLLECTOR", source["parameters"])
+    assert rt_collector.collect(source) is None
+    published = requests_mock.request_history[-1].json()
+    assert {attribute["key"] for attribute in published["attributes"]} >= {"Subject", "Status", "Created", "IP", "rt_id"}
 
     requests_mock.get(rt_testdata.rt_attachment_1_url, exc=requests.exceptions.ConnectionError("connection failed"))
     assert rt_collector.get_attachment_values(rt_testdata.rt_attachment_1_url) == {}
@@ -374,7 +395,7 @@ def test_rt_collector_collect(rt_mock, rt_collector, requests_mock):
     assert rt_collector.get_ticket_attachments(1) == []
     requests_mock.get(rt_testdata.rt_ticket_url, exc=requests.exceptions.ConnectTimeout("connect timed out"))
     assert rt_collector.get_ticket(1) == {}
-    assert rt_collector.collect(rt_testdata.rt_collector_source_data) is None
+    assert rt_collector.collect(source) is None
 
 
 def test_rt_collector_no_tickets_error(rt_mock, rt_collector):
