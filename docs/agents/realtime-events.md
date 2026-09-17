@@ -14,13 +14,22 @@ Centrifugo/SSE, `/sse`, connect proxy, `REALTIME_ENABLED`, reconnects, broadcast
 
 ## Delivery and Recovery
 
-Core publishes small UUIDv7/versioned envelopes after domain commits through fixed global/organization/user methods and internal `/api/broadcast`. Use IDs/status, not domain payloads. The pooled HTTP client uses 200 ms connect/300 ms read timeouts and no retries. Network, HTTP, malformed, and top-level/per-channel Centrifugo errors (even HTTP 200) return false without changing domain success.
+Core publishes small UUIDv7/versioned envelopes after domain commits through fixed global/organization/user methods and internal `/api/broadcast`. Domain invalidations use IDs/status, not domain payloads; Analyst Chat is the sole content-bearing user event. The pooled HTTP client uses 200 ms connect/300 ms read timeouts and no retries. Network, HTTP, malformed, and top-level/per-channel Centrifugo errors (even HTTP 200) return false without changing domain success.
 
 One frontend module owns one EventSource per authenticated tab, validates version/type, and emits `realtime:<event-type>`. Terminal disconnects stop; temporary failures retry eight times with jittered exponential backoff capped at 60 seconds and show one degraded notice after 15 seconds. Successful connection resets the budget; logout/teardown closes it.
 
 Reconnect recovery coalesces authoritative-state refresh into `realtime:resync` after 300 ms. Control/heartbeat frames do not imply data changes. No broker history or Last-Event-ID replay is assumed. Assess/Analyze/Publish show a refresh notice; Assess refetches the filtered `#assess` fragment or navigates normally and retains its top bar/counter on empty results.
 
 Terminal user source previews publish source ID/status only. Matching waiting fragments refetch HTML; retain reconnect and the existing 20-second fallback because delivery is best-effort. This is an explicit exception to the [general event-driven UI rule](frontend-development.md).
+
+## Analyst Chat
+
+- An active Analyst Chat turn publishes `chat.turn.updated` to its owner's user-limited channel. Snapshots contain a client-generated turn ID, increasing sequence, progress stage, and cumulative plain-text answer. The chat browser boundary applies only the matching newest snapshot; the final synchronous Chat response remains authoritative.
+- Chat snapshots may contain sensitive analyst and provider text. Publish them only to `user:#<user_id>`, render through `textContent`, do not log them, and do not enable history or cache recovery on the shared user namespace.
+
+During an Analyst Chat turn, core publishes immediate stage changes and cumulative answer snapshots at most every 200 ms. The first publication failure disables further realtime attempts for that turn without interrupting provider generation or persistence. No Centrifugo history or recovery is enabled; a later cumulative snapshot repairs missed content, and the completed HTMX response repairs complete realtime loss.
+
+Producer and consumer: `src/core/core/service/chat.py`, `src/frontend/frontend/static/js/chat.js`.
 
 ## Broadcasts, Presence, and Locks
 

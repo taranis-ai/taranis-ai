@@ -1,5 +1,21 @@
-from worker.config import Config
+from worker import core_api
+from worker.config import Config, Settings
 from worker.core_api import CoreApi
+
+
+def test_otlp_endpoint_is_normalized():
+    settings = Settings(OTEL_EXPORTER_OTLP_ENDPOINT="  http://telemetry:4318/  ")
+
+    assert settings.OTEL_EXPORTER_OTLP_ENDPOINT == "http://telemetry:4318"
+
+
+def test_core_api_injects_current_trace_context(monkeypatch):
+    monkeypatch.setattr(core_api, "inject", lambda carrier: carrier.update({"traceparent": "test-trace"}))
+
+    api = CoreApi()
+
+    assert "traceparent" not in api.headers
+    assert api.get_request_headers()["traceparent"] == "test-trace"
 
 
 def test_update_osint_source_icon_skips_empty_file(requests_mock):

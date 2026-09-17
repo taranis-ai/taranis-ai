@@ -8,7 +8,7 @@ Assess sidebar/search/default filters, `/assess`, `/api/assess/filter-lists`, om
 
 - Without JavaScript, search and the native sidebar filters submit through one GET form, and the form exposes an explicit Apply filters button. Source, language, group, and tag filters are hidden because their token-selection workflows require JavaScript.
 - Filter lists contain current user-visible tags, sources, groups, and languages. Core builds them on request; frontend caches per user. Writes affecting those options must invalidate the relevant frontend scope.
-- Sidebar submissions, profile defaults, and dashboard shortcuts share canonical query parameters; source/group/language/tag values remain list-shaped. Saving an existing filter name updates it; identical criteria under a different name are rejected.
+- Sidebar submissions, profile defaults, and dashboard shortcuts share canonical query parameters; source/group/language/tag values remain list-shaped. Saving an existing filter name updates it; identical criteria under a different name are rejected after canonical validation and serialization, including case normalization of choice fields.
 - Dashboard shortcuts reuse saved-filter normalization, delete routes, and Assess URLs. Show the first three by default, with the rest behind Show more.
 - Omnisearch fetches filter lists lazily, only for value resolution/suggestions.
 - Paged navigation replaces `#story-list` and out-of-band `#story-pagination`, scrolls to the top, and keeps the sticky top bar mounted. Errors notify without replacing/appending stories. Stable search-input IDs preserve focus.
@@ -17,6 +17,8 @@ Assess sidebar/search/default filters, `/assess`, `/api/assess/filter-lists`, om
 - The Assess pagination/editing browser workflow reads the stored source ID from its seeded story and filters to that source so scheduled collection from other sources cannot change its expected total.
 - Browser tests use `_get_assess_story_counts` to wait for both Alpine counts; wrapper visibility is insufficient.
 - Search submits on debounce and changed-value blur. Before opening card menus, tests wait for filtering and the blur-triggered HTMX request.
+- `AssessSearchFilters` owns filter validation and serialization for Core, saved filters, and Chat; paging/internal controls stay separate. Chat links use canonical `/assess` queries with doseq encoding.
+- Before `Story.get_by_filter(filter_args, current_user)`, Core validates model-proposed source, group, tag, language, and recent-story references against the user's visible catalog. Chat must never bypass this validation or turn proposed filters into raw SQL.
 
 Relative date windows and explicit `timefrom` use the publication-derived story `created` date. Collection changes mark stories unread but do not force old stories into the current Shift window. See [Collection Updates](fuzzy-deduplication.md).
 
@@ -26,6 +28,7 @@ Relative date windows and explicit `timefrom` use the publication-derived story 
 - Contract: `src/models/models/assess.py`
 - Frontend: `src/frontend/frontend/views/story_views.py` (`get_filter_lists`), `src/frontend/frontend/views/dashboard_views.py`, `src/frontend/frontend/omnisearch.py`
 - Templates: `src/frontend/frontend/templates/assess/sidebar/`, `src/frontend/frontend/templates/assess/saved_filter_cards.html`
+- Chat: `src/core/core/service/chat.py`, `src/frontend/frontend/views/chat_views.py`
 
 ## Coverage
 
