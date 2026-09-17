@@ -8,6 +8,7 @@ Start analyst review, `/analyst-review/*`, `/api/assess/analyst-review/*`, Add/D
 
 - Start with an incomplete Report or create one with a title and Report Type. Core supplies a fixed newest-first snapshot of Shift/Unread Story IDs; frontend stores queue/progress in user-scoped Redis with a four-hour expiry.
 - Add attaches the Story, marks it read, and clears important in one core transaction, including membership-derived attributes/revisions. Dismiss marks read and clears important. Skip only advances Redis state.
+- Add/Dismiss require story write access: invisible stories return 404, read-only stories return 403. Add also requires report write access; read-only stories allow only Skip.
 - Advance Add/Dismiss only after core succeeds; failures retain the Story and progress. `A`/`D`/`S` use the shared Assess shortcut guard.
 - After the queue empties, enter Report editing when requested or when the Report has a Story field or incomplete required field. Review state is valid only for that run's Report. Saving continues to Publish.
 - Publish opens the sole Product already containing the Report, or a new Product with that Report preselected when there are zero/multiple matches. Delete review state at this handoff; never publish automatically.

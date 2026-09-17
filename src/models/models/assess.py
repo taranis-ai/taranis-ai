@@ -10,7 +10,7 @@ from bs4 import BeautifulSoup
 from pydantic import BeforeValidator, ConfigDict, Field, ValidationInfo, field_validator, model_validator
 
 from models.base import TaranisBaseModel
-from models.types import CONNECTOR_TYPES
+from models.types import CONNECTOR_TYPES, TLPLevel
 
 
 NEWS_ITEM_IMPORT_FIELDS = frozenset(
@@ -172,6 +172,7 @@ class NewsItem(TaranisBaseModel):
     language: BCP47 = None
     last_change: str | None = None
     osint_source_key: str | None = None
+    tlp_level: TLPLevel | None = None
 
     @model_validator(mode="before")
     @classmethod
@@ -249,6 +250,7 @@ class MispAutoUpdatePayload(TaranisBaseModel):
 
 class Story(TaranisBaseModel):
     can_edit: bool = False
+    tlp_level: TLPLevel | None = None
 
     _core_endpoint = "/assess/stories"
     _model_name = "story"
@@ -288,6 +290,10 @@ class Story(TaranisBaseModel):
             return value
 
         normalized = dict(value)
+        attributes = normalized.get("attributes") or []
+        if isinstance(attributes, dict):
+            attributes = list(attributes.values())
+            normalized["attributes"] = attributes
         tags = normalized.get("tags")
         if isinstance(tags, dict):
             normalized["tags"] = list(tags.values())

@@ -6,13 +6,14 @@
             class="btn w-full {{ classes }}"
             hx-post="{{ url_for('assess.analyst_review_action', run_id=run_id) }}"
             hx-include="closest form"
-            hx-trigger="click, keyup[event.key.toLowerCase() == '{{ key | lower }}' && canUseAssessShortcut(event)] from:body"
+            hx-trigger="click{% if action == 'skip' or story.can_edit %}, keyup[event.key.toLowerCase() == '{{ key | lower }}' && canUseAssessShortcut(event)] from:body{% endif %}"
             hx-target="#analyst-review"
             hx-swap="outerHTML"
             hx-status:400="target:#analyst-review"
             hx-status:4xx="target:#analyst-review"
             hx-status:5xx="target:#analyst-review"
-            data-testid="analyst-review-{{ action }}">
+            data-testid="analyst-review-{{ action }}"
+            {% if action != "skip" and not story.can_edit %}disabled{% endif %}>
       {{ label }} <kbd class="kbd kbd-sm">{{ key }}</kbd>
     </button>
   </form>

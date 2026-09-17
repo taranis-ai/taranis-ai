@@ -83,4 +83,6 @@ class SimpleWebCollector(BaseWebCollector):
         source_parameters["id"] = "manual"
         self.parse_source(source_parameters)
         self.news_items = self.gather_news_items()
+        if tlp := source_parameters.get("parameters", {}).get("TLP_LEVEL"):
+            self.add_tlp(self.news_items, tlp)
         return self.publish(self.news_items, source_parameters)

@@ -7,7 +7,7 @@
   {% set content = news_item.content or '' %}
   {% set osint_source_id = news_item.osint_source_id or 'manual' %}
   {% set published = news_item.published or '' %}
-  {% set attributes_list = news_item.attributes or [] %}
+  {% set attributes_list = (news_item.attributes or []) | rejectattr("key", "equalto", "TLP") | list %}
   {% set item_id = news_item.id %}
 
   {% set read_only = source and source != 'manual' %}
@@ -171,6 +171,17 @@
                       {% if read_only %}readonly{% endif %}>{{ review }}</textarea>
           </label>
 
+          {% set tlp_attribute = (news_item.attributes or []) | selectattr("key", "equalto", "TLP") | first %}
+          <label class="form-control">
+            <span class="label-text font-semibold">News item TLP</span>
+            <input type="hidden" name="attributes[][key]" value="TLP">
+            <select name="attributes[][value]" data-test-id="tlp-select" class="select select-bordered w-full" {% if read_only %}disabled{% endif %}>
+              <option value="" {% if not tlp_attribute or not tlp_attribute.value %}selected{% endif %}>Inherit from source</option>
+              {% for level in ['clear', 'green', 'amber', 'amber+strict', 'red'] %}
+                <option value="{{ level }}" {% if tlp_attribute and tlp_attribute.value == level %}selected{% endif %}>{{ level | upper }}</option>
+              {% endfor %}
+            </select>
+          </label>
           <section class="rounded-2xl border border-base-200 bg-base-200/40 p-5"
                    x-data='{ attributes: {{ attributes_list | tojson }}, init() { if (!Array.isArray(this.attributes)) { this.attributes = Object.values(this.attributes || {}); } this.attributes = this.attributes.map(attr => { if (!attr) return { key: "", value: "" }; if (typeof attr === "string") return { key: attr, value: "" }; return { key: attr.key || "", value: attr.value || "" }; }); if (this.attributes.length === 0) { this.attributes.push({ key: "", value: "" }); } }, addAttribute() { this.attributes.push({ key: "", value: "" }); }, removeAttribute(index) { this.attributes.splice(index, 1); if (this.attributes.length === 0) { this.attributes.push({ key: "", value: "" }); } } }'>
             <div class="flex flex-wrap items-center justify-between gap-3">

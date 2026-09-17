@@ -109,6 +109,9 @@ def test_worker_parameter_form_renders_native_boolean_and_object_values(app):
     assert tree.xpath('//input[@name="parameters[USE_GLOBAL_PROXY]"][@type="checkbox"][@checked]')
     headers = tree.xpath('//textarea[@name="parameters[ADDITIONAL_HEADERS]"]')[0]
     assert json.loads(headers.text) == {"X-Test": "1"}
+    tlp = tree.xpath('//select[@name="parameters[TLP_LEVEL]"]')[0]
+    assert tlp.xpath('./option[@value=""]')[0].text == "Inherit"
+    assert tlp.xpath('./option[@value="clear"]')
 
 
 def test_summary_bot_parameters_include_split_summary_and_title_endpoints(authenticated_client, htmx_header):

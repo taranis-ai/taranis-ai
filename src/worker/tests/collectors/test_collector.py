@@ -82,6 +82,18 @@ def test_rss_collector(rss_collector_mock, rss_collector):
     assert result is None
 
 
+def test_collection_preserves_inherited_and_explicit_item_classification(rss_collector):
+    from models.assess import NewsItem
+
+    for source_tlp in (None, "clear", "red"):
+        source = {"parameters": effective_parameter_values("RSS_COLLECTOR", {"FEED_URL": "https://example.test", "TLP_LEVEL": source_tlp})}
+        inherited = NewsItem(title="Inherited", osint_source_id="source")
+        explicit = NewsItem(title="Explicit", osint_source_id="source", attributes=[{"key": "TLP", "value": "amber"}])
+        preview = rss_collector.preview([inherited, explicit], source)
+        assert not preview[0].get("attributes")
+        assert preview[1]["attributes"] == [{"key": "TLP", "value": "amber"}]
+
+
 def test_rss_collector_get_feed(rss_collector_mock, rss_collector):
     from tests.testdata import (
         rss_collector_source_data_no_content,

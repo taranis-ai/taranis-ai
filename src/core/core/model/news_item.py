@@ -188,7 +188,11 @@ class NewsItem(BaseModel):
     def get_for_api(cls, item_id: str, user: User | None = None) -> tuple[dict[str, Any], int]:
         logger.debug(f"Getting {cls.__name__} {item_id}")
         if item := cls.get(item_id):
-            if user and not item.allowed_with_acl(user, require_write_access=False):
+            if user and (
+                not item.allowed_with_acl(user, require_write_access=False)
+                or item.tlp_level.value not in user.get_highest_tlp().get_accessible_levels()
+                or (item.story and not item.story.allowed_to_read(user))
+            ):
                 return {"error": "User does not have access to this news item"}, 403
             return item.to_detail_dict(), 200
         return {"error": f"{cls.__name__} not found"}, 404
@@ -204,6 +208,8 @@ class NewsItem(BaseModel):
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
         data["tags"] = [tag.to_dict() for tag in self.tags]
+        data["attributes"] = [attribute.to_small_dict() for attribute in self.attributes]
+        data["tlp_level"] = self.tlp_level.value
         return data
 
     def get_sentiment(self) -> str:
@@ -422,7 +428,8 @@ class NewsItem(BaseModel):
             if self.osint_source
             else TLPLevel(Settings.get_settings().get("default_tlp_level", TLPLevel.CLEAR.value))
         )
-        return next((TLPLevel(attr.value) for attr in self.attributes if attr.key == "TLP"), source_tlp)
+        overrides = [TLPLevel(attr.value) for attr in self.attributes if attr.key == "TLP" and attr.value]
+        return TLPLevel.get_most_restrictive_tlp(overrides) if overrides else source_tlp
 
     def update_item(self, data, actor: str | None = None) -> tuple[dict, int]:
         if not self.osint_source or self.osint_source.key != "manual":
@@ -449,6 +456,8 @@ class NewsItem(BaseModel):
         self.published = payload.published or self.published
         self.hash = payload.hash or self.hash
 
+        if "attributes" in data:
+            self.attributes = list(NewsItemAttribute.parse_attributes(payload.attributes or []).values())
         self._update_status(actor or "internal")
 
         self.updated = self.utcnow()

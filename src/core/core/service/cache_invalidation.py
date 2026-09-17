@@ -41,8 +41,8 @@ SCOPE_MODEL_NAMES: dict[str, tuple[str, ...]] = {
     ),
     SCOPE_TRENDING_CLUSTERS: ("trending_clusters",),
     SCOPE_ASSESS_VIEWS: ("story", "news_item", "filter_lists", "story_bookmark"),
-    SCOPE_STORY_VIEWS: ("story", "news_item", "report_item", "story_bookmark"),
-    SCOPE_STORY_REPORT_VIEWS: ("story", "report_item"),
+    SCOPE_STORY_VIEWS: ("story", "news_item", "report_item", "story_bookmark", "filter_lists"),
+    SCOPE_STORY_REPORT_VIEWS: ("story", "news_item", "report_item", "story_bookmark", "filter_lists"),
     SCOPE_REPORT_VIEWS: ("report", "story", "product"),
     SCOPE_PUBLISH_VIEWS: ("product",),
     SCOPE_USER_VIEWS: (
