@@ -15,8 +15,10 @@ from worker.core_api import CoreApi, build_failure_task_result, build_success_ta
 from worker.http_client import http_session_scope
 from worker.log import logger
 from worker.presenters.base_presenter import BasePresenter
+from worker.telemetry import instrument_job
 
 
+@instrument_job
 @http_session_scope()
 def presenter_task(product_id: str):
     """Generate a product/report in the specified format.
