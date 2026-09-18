@@ -158,6 +158,7 @@ class Settings(BaseSettings):
     def parse_pre_seed_settings(cls, value: Any) -> Any:
         return json.loads(value) if isinstance(value, str) else value
 
+    QUEUE_ENABLED: bool = True
     REDIS_URL: str = "redis://localhost:6379"
     REDIS_PASSWORD: SecretStr | None = None
     RQ_DEFAULT_JOB_TIMEOUT: int = 180
