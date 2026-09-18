@@ -1,11 +1,14 @@
 import logging
 from datetime import UTC, datetime, timedelta, timezone
 from typing import cast
+from unittest.mock import Mock
 
+import pytest
+from models.scheduler import ScheduledJob
 from redis import Redis
+from redis.exceptions import ConnectionError
 from rq import Queue
 
-from core.managers import queue_manager as qm_module
 from core.managers.queue_manager import QueueManager
 from core.model.bot import Bot
 from core.model.osint_source import OSINTSource
@@ -67,15 +70,8 @@ def test_get_scheduled_jobs_skips_zero_count_registry_debug_logs(monkeypatch, ca
     assert "Queue bots: found 0 scheduled jobs in registry" not in caplog.text
 
 
-def test_annotate_jobs_does_not_mark_late_cron_runs_as_missed(monkeypatch):
+def test_annotate_jobs_does_not_mark_late_cron_runs_as_missed():
     fixed_now = datetime(2025, 12, 12, 12, 40, tzinfo=UTC)
-
-    class _FixedDateTime(datetime):
-        @classmethod
-        def now(cls, tz=None):  # pragma: no cover - helper for monkeypatch
-            return fixed_now if tz else fixed_now.replace(tzinfo=None)
-
-    monkeypatch.setattr(qm_module, "datetime", _FixedDateTime)
 
     job = {
         "type": "cron",
@@ -84,7 +80,7 @@ def test_annotate_jobs_does_not_mark_late_cron_runs_as_missed(monkeypatch):
         "next_run_time": datetime(2025, 12, 12, 16, 0, 0),
     }
 
-    annotated_job = qm_module._annotate_jobs([job])[0]
+    annotated_job = ScheduledJob.model_validate(job).model_dump(context={"now": fixed_now.replace(tzinfo=None)})
 
     assert annotated_job["status_badge"]["variant"] == "ghost"
     assert annotated_job["status_badge"]["label"] == "Pending"
@@ -92,15 +88,8 @@ def test_annotate_jobs_does_not_mark_late_cron_runs_as_missed(monkeypatch):
     assert annotated_job["next_run_display"] == "2025-12-12 16:00:00 UTC"
 
 
-def test_annotate_jobs_does_not_mark_future_slot(monkeypatch):
+def test_annotate_jobs_does_not_mark_future_slot():
     fixed_now = datetime(2025, 12, 12, 7, 59, tzinfo=UTC)
-
-    class _FixedDateTime(datetime):
-        @classmethod
-        def now(cls, tz=None):  # pragma: no cover - helper for monkeypatch
-            return fixed_now if tz else fixed_now.replace(tzinfo=None)
-
-    monkeypatch.setattr(qm_module, "datetime", _FixedDateTime)
 
     job = {
         "type": "cron",
@@ -109,21 +98,14 @@ def test_annotate_jobs_does_not_mark_future_slot(monkeypatch):
         "next_run_time": datetime(2025, 12, 12, 16, 0, 0),
     }
 
-    annotated_job = qm_module._annotate_jobs([job])[0]
+    annotated_job = ScheduledJob.model_validate(job).model_dump(context={"now": fixed_now.replace(tzinfo=None)})
 
     assert annotated_job["status_badge"]["variant"] == "ghost"
     assert annotated_job["status_badge"]["label"] == "Pending"
 
 
-def test_annotate_jobs_pending_first_run(monkeypatch):
+def test_annotate_jobs_pending_first_run():
     fixed_now = datetime(2025, 12, 12, 7, 59, tzinfo=UTC)
-
-    class _FixedDateTime(datetime):
-        @classmethod
-        def now(cls, tz=None):  # pragma: no cover - helper for monkeypatch
-            return fixed_now if tz else fixed_now.replace(tzinfo=None)
-
-    monkeypatch.setattr(qm_module, "datetime", _FixedDateTime)
 
     job = {
         "type": "cron",
@@ -132,7 +114,7 @@ def test_annotate_jobs_pending_first_run(monkeypatch):
         "next_run_time": datetime(2025, 12, 12, 16, 0, 0),
     }
 
-    annotated_job = qm_module._annotate_jobs([job])[0]
+    annotated_job = ScheduledJob.model_validate(job).model_dump(context={"now": fixed_now.replace(tzinfo=None)})
 
     assert annotated_job["status_badge"]["variant"] == "ghost"
     assert annotated_job["status_badge"]["label"] == "Pending first run"
@@ -141,15 +123,8 @@ def test_annotate_jobs_pending_first_run(monkeypatch):
     assert annotated_job["next_run_display"] == "2025-12-12 16:00:00 UTC"
 
 
-def test_annotate_jobs_ignores_many_missed_cron_slots(monkeypatch):
+def test_annotate_jobs_ignores_many_missed_cron_slots():
     fixed_now = datetime(2026, 4, 29, 10, 34, 4, tzinfo=UTC)
-
-    class _FixedDateTime(datetime):
-        @classmethod
-        def now(cls, tz=None):  # pragma: no cover - helper for monkeypatch
-            return fixed_now if tz else fixed_now.replace(tzinfo=None)
-
-    monkeypatch.setattr(qm_module, "datetime", _FixedDateTime)
 
     job = {
         "type": "cron",
@@ -159,22 +134,15 @@ def test_annotate_jobs_ignores_many_missed_cron_slots(monkeypatch):
         "next_run_time": datetime(2026, 4, 29, 10, 35, 0),
     }
 
-    annotated_job = qm_module._annotate_jobs([job])[0]
+    annotated_job = ScheduledJob.model_validate(job).model_dump(context={"now": fixed_now.replace(tzinfo=None)})
 
     assert annotated_job["status_badge"]["variant"] == "ghost"
     assert annotated_job["status_badge"]["label"] == "Pending"
     assert annotated_job["is_overdue"] is False
 
 
-def test_annotate_jobs_normalizes_aware_timestamps_to_utc(monkeypatch):
+def test_annotate_jobs_normalizes_aware_timestamps_to_utc():
     fixed_now = datetime(2025, 12, 12, 12, 40, tzinfo=UTC)
-
-    class _FixedDateTime(datetime):
-        @classmethod
-        def now(cls, tz=None):  # pragma: no cover - helper for monkeypatch
-            return fixed_now if tz else fixed_now.replace(tzinfo=None)
-
-    monkeypatch.setattr(qm_module, "datetime", _FixedDateTime)
 
     plus_two = timezone(timedelta(hours=2))
     job = {
@@ -183,10 +151,49 @@ def test_annotate_jobs_normalizes_aware_timestamps_to_utc(monkeypatch):
         "next_run_time": datetime(2025, 12, 12, 14, 45, 0, tzinfo=plus_two),
     }
 
-    annotated_job = qm_module._annotate_jobs([job])[0]
+    annotated_job = ScheduledJob.model_validate(job).model_dump(context={"now": fixed_now.replace(tzinfo=None)})
 
     assert annotated_job["last_run"] == datetime(2025, 12, 12, 12, 30, 0)
     assert annotated_job["next_run_time"] == datetime(2025, 12, 12, 12, 45, 0)
     assert annotated_job["last_run_display"] == "2025-12-12 12:30:00 UTC"
     assert annotated_job["next_run_display"] == "2025-12-12 12:45:00 UTC"
     assert annotated_job["next_run_relative"] == "in 5m"
+
+
+@pytest.mark.parametrize("queue_enabled", [False, True])
+def test_core_startup_without_redis_requires_explicit_queue_disable(app, auth_header, monkeypatch, queue_enabled):
+    from core import create_app
+    from core.config import Config
+    from core.managers import queue_manager
+    from core.service.cache_invalidation import FrontendCacheInvalidationService
+
+    monkeypatch.setattr(Config, "QUEUE_ENABLED", queue_enabled)
+    monkeypatch.setattr(Config, "CACHE_ENABLED", True)
+    monkeypatch.setattr(Config, "CACHE_REDIS_URL", None)
+    monkeypatch.setattr(queue_manager, "queue_manager", queue_manager.queue_manager)
+    connect = Mock(side_effect=ConnectionError("Redis unavailable"))
+    monkeypatch.setattr("redis.Redis.from_url", connect)
+
+    if queue_enabled:
+        with pytest.raises(ConnectionError):
+            create_app(initial_setup=False)
+        connect.assert_called_once()
+        return
+
+    disabled_app = create_app(initial_setup=False)
+    manager = disabled_app.extensions["rq"]
+    manager.post_init()
+    assert manager.redis is None
+    assert manager.enqueue_task("misc", "gather_word_list", "test") is False
+    assert manager.get_scheduled_job("missing")[1] == 503
+    assert FrontendCacheInvalidationService()._get_client() is None
+
+    client = disabled_app.test_client()
+    response = client.get("/api/health")
+    assert response.status_code == 200
+    assert response.json["services"]["broker"] == "n/a"
+    assert response.json["services"]["workers"] == "n/a"
+    response = client.post("/api/config/word-lists/gather/test", headers=auth_header)
+    assert response.status_code == 503
+    assert response.json == {"error": "Queue is disabled"}
+    connect.assert_not_called()
