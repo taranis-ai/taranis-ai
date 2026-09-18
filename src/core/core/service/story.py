@@ -171,10 +171,8 @@ class StoryService:
     @classmethod
     def export_selected(cls, story_ids: list[str], user: User) -> Response | tuple[dict[str, str], int]:
         story_ids = list(dict.fromkeys(story_ids))
-        if not all(story_ids):
+        if not story_ids or not all(story_ids):
             return {"error": "Select at least one story to export"}, 400
-        stories = cls._load_export_stories(db.select(Story).where(Story.id.in_(story_ids)))
-        accessible_tlps = user.get_highest_tlp().get_accessible_levels()
         if len(stories) != len(story_ids) or any(
             story.tlp_level.value not in accessible_tlps
             or any(
