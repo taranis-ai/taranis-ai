@@ -9,6 +9,8 @@ class SettingsAction(MethodView):
     @admin_required()
     def get(self, action: str):
         action_path = action.replace("_", "-")
+        if action_path == "export-stories":
+            return SettingsView.export_stories()
         query_string = request.query_string.decode()
         action_url = f"/settings/{action_path}"
         if query_string:
