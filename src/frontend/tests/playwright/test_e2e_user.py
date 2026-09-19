@@ -5,7 +5,7 @@ import uuid
 import pytest
 from base_e2e_test import BaseE2ETest
 from flask import url_for
-from htmx_helpers import wait_for_htmx_settled, with_htmx_wait
+from htmx_helpers import with_htmx_wait
 from playwright.sync_api import Error, Page, expect
 
 from tests.external_e2e import allow_requests_passthru
@@ -359,10 +359,9 @@ class TestEndToEndUser(BaseE2ETest):
             story_card().get_by_test_id("story-actions-menu").click()
             share_story = story_card().get_by_test_id("share-story")
             # The story card was just replaced (outerHTML swap) by the toggle-important
-            # request above. We wrap the sharing action in with_htmx_wait to ensure
-            # the page is fully settled before dispatching the click, preventing
-            # a potential race where the click could fall through to the anchor's
-            # plain href if dispatched before the hx-get handler is bound.
+            # request above. Wrap the sharing action in with_htmx_wait so the page is
+            # settled before dispatching the click, guarding against #1089 (share
+            # opening a page instead of a dialog).
             with_htmx_wait(page, lambda: share_story.dispatch_event("click"))
             page.get_by_role("button", name="✕").click()
             story_card().get_by_test_id("open-detail-view").click()

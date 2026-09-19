@@ -99,8 +99,9 @@ _HTMX_SUPPORT_SCRIPT = r"""
   }, true);
 
   // htmx:after:process fires once htmx has finished binding behavior (e.g. hx-get
-  // click listeners) to a swapped-in subtree. We track it to ensure the page is
-  // not treated as settled until newly swapped elements are fully initialized.
+  // click listeners) to a swapped-in subtree. We track it (via markActivity) so
+  // that it extends the quiet window below, without requiring it to fire after
+  // every settle event.
   document.addEventListener("htmx:after:process", () => {
     state.lastAfterProcess = now();
     markActivity();
@@ -123,13 +124,6 @@ _HTMX_SUPPORT_SCRIPT = r"""
   window.__taranisIsHtmxSettled = (quietWindowMs) => {
     const unresolvedClasses = document.querySelector(".htmx-request, .htmx-swapping, .htmx-settling");
     if (state.pendingRequests !== 0 || unresolvedClasses) {
-      return false;
-    }
-
-    // Explicitly check that htmx:after:process has caught up with htmx:after:settle.
-    // While HTMX typically runs process() synchronously after settle, this ensures
-    // we don't treat the page as settled if a processing event is still pending.
-    if (state.lastAfterSettle > state.lastAfterProcess) {
       return false;
     }
 
