@@ -206,7 +206,9 @@ Use the migration harness to reproduce production-like upgrades from the current
 
 This harness requires Podman, or Docker with `CONTAINER_CLI=docker`.
 
-The script creates a temporary git worktree from `origin/master`, or from the release ref passed as its first argument, starts a disposable PostgreSQL container, initializes and seeds a fresh base database, copies it, then starts the current branch against the copy so pending yoyo migrations are applied. It finally runs a configurable pytest target against the migrated database, defaulting to `tests/unit`.
+The script creates a temporary git worktree from `origin/master`, or from the release ref passed as its first argument, starts a disposable PostgreSQL container, initializes and seeds a fresh base database, and copies it. It renames the copy's `public` schema to a unique test schema and sets the database's `search_path` before starting the current branch so pending yoyo migrations are applied. Hard-coded application schema references therefore fail during the upgrade. It finally runs a configurable pytest target against the migrated database, defaulting to `tests/unit`.
+
+The Core unit suite also checks SQL strings in every migration for schema-qualified application objects, including rollback SQL and Python callbacks. PostgreSQL catalog references (`information_schema` and `pg_catalog`) are allowed; application objects must respect the active schema.
 
 Useful options:
 
