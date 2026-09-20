@@ -11,8 +11,6 @@ from flask_jwt_extended import current_user
 from models.assess import (
     ASSESS_FILTER_KEYS,
     ASSESS_FILTER_MULTI_KEYS,
-    NEWS_ITEM_IMPORT_FIELDS,
-    STORY_IMPORT_FIELDS,
     AssessSearchFilters,
     AssessSource,
     BulkAction,
@@ -45,32 +43,6 @@ from frontend.views.base_view import BaseView
 
 
 _quote_via = cast(Any, quote)
-
-
-def _sanitize_news_item_import_payload(news_item_data: dict[str, Any], story_id: str | None = None) -> dict[str, Any]:
-    sanitized_payload = {key: value for key, value in news_item_data.items() if key in NEWS_ITEM_IMPORT_FIELDS}
-    if story_id:
-        sanitized_payload["story_id"] = story_id
-    return sanitized_payload
-
-
-def _sanitize_story_import_payload(story_data: dict[str, Any]) -> dict[str, Any]:
-    sanitized_payload = {key: value for key, value in story_data.items() if key in STORY_IMPORT_FIELDS}
-    if news_items := story_data.get("news_items"):
-        sanitized_payload["news_items"] = [
-            _sanitize_news_item_import_payload(news_item_data, sanitized_payload.get("id")) for news_item_data in news_items
-        ]
-    return sanitized_payload
-
-
-def _normalize_story_import_payload(json_data: dict[str, Any] | list[dict[str, Any]]) -> dict[str, Any] | list[dict[str, Any]]:
-    if isinstance(json_data, dict) and isinstance(json_data.get("items"), list):
-        json_data = json_data["items"]
-    if isinstance(json_data, list) and all(isinstance(story_data, dict) for story_data in json_data):
-        return [_sanitize_story_import_payload(story_data) for story_data in json_data]
-    if isinstance(json_data, dict):
-        return _sanitize_story_import_payload(json_data)
-    return json_data
 
 
 ASSESS_SAVED_FILTER_SESSION_KEY = "assess_saved_filter_active"
@@ -1269,8 +1241,11 @@ class StoryView(BaseView):
             data = file.read()
             json_data = json.loads(data)
             core_response = CoreApi().api_post("/assess/import", json_data=json_data)
-            cls.add_flash_notification(core_response)
-            return cls.redirect_htmx(url_for("assess.get_news_item", news_item_id=core_response.json().get("id", "0")))
+            if core_response.ok:
+                flash("File imported successfully", "success")
+            else:
+                cls.add_flash_notification(core_response)
+            return cls.redirect_htmx(url_for("assess.assess") if core_response.ok else url_for("assess.get_news_item", news_item_id="0"))
         except HTTPException:
             raise
         except Exception:
@@ -1290,8 +1265,7 @@ class StoryView(BaseView):
 
         try:
             json_data = json.loads(upload_file.read())
-            normalized_payload = _normalize_story_import_payload(json_data)
-            core_response = CoreApi().api_post("/assess/import", json_data=normalized_payload)
+            core_response = CoreApi().api_post("/assess/import", json_data=json_data)
         except JSONDecodeError:
             logger.warning("Failed to decode story import JSON payload.")
             return make_response(cls.render_response_notification({"error": "Invalid JSON file."}), 400)
@@ -1309,8 +1283,11 @@ class StoryView(BaseView):
                 notification_html = cls.render_response_notification({"error": "Failed to import stories."})
             return make_response(notification_html, status_code)
 
-        imported_count = len(core_response.json().get("imported_stories", []))
-        flash(f"Imported {imported_count} stor{'y' if imported_count == 1 else 'ies'} successfully", "success")
+        result = core_response.json()
+        imported_count = len(result.get("imported_stories", result.get("imported_news_items", [])))
+        singular, plural = ("story", "stories") if "imported_stories" in result else ("news item", "news items")
+        kind = singular if imported_count == 1 else plural
+        flash(f"Imported {imported_count} {kind} successfully", "success")
 
         response = make_response("", 204)
         response.headers["HX-Refresh"] = "true"

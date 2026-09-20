@@ -316,6 +316,11 @@ class StoryService:
         imported_stories = []
         try:
             for story_data in json_data:
+                story_data = {
+                    "title": next((item.get("title") for item in story_data["news_items"] if item.get("title")), ""),
+                    **story_data,
+                    "news_items": [{"osint_source_id": "manual", **item} for item in story_data["news_items"]],
+                }
                 story = Story.from_dict(story_data)
                 db.session.add(story)
                 story.record_revision(user, note="created")
@@ -336,8 +341,10 @@ class StoryService:
         imported_news_items = []
         try:
             for news_item_data in json_data:
-                news_item = NewsItem.from_dict(news_item_data)
-                db.session.add(news_item)
+                news_item = NewsItem.from_dict({"osint_source_id": "manual", **news_item_data, "story_id": None})
+                story = Story(title=news_item.title, news_items=[news_item])
+                db.session.add(story)
+                story.record_revision(user, note="created")
                 imported_news_items.append(news_item)
             db.session.commit()
             invalidate_frontend_cache_on_success(200, full=True)
@@ -353,16 +360,20 @@ class StoryService:
             return None
 
         has_story_fields = "news_items" in item
-        has_news_item_fields = "source" in item
-        if has_story_fields == has_news_item_fields:
-            return None
-        return "story" if has_story_fields else "news_item"
+        has_news_item_fields = "source" in item or "title" in item or "content" in item
+        if has_story_fields:
+            return "story"
+        return "news_item" if has_news_item_fields else None
 
     @staticmethod
     def import_stories(json_data: dict[str, Any] | list[dict[str, Any]], user: User) -> Response:
         """
         Import stories or news items from JSON data. Could be either a single story or a list of stories as well as a single news item or a list of news items.
         """
+        if isinstance(json_data, dict) and "items" in json_data:
+            json_data = json_data["items"]
+            if not isinstance(json_data, list):
+                abort(400, description="Invalid JSON data for import.")
         if not isinstance(json_data, list):
             json_data = [json_data]
         if not json_data:

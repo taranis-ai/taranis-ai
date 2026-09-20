@@ -275,6 +275,52 @@ def test_import_stories_ignores_export_only_fields(client, auth_header):
     assert imported_story["news_items"][0]["link"] == "https://example.com/news"
 
 
+@pytest.mark.parametrize("export_kind", ["assess", "admin", "admin_metadata", "news_item"])
+def test_export_import_round_trip(client, auth_header, export_kind):
+    story_id = str(uuid.uuid4())
+    news_items = [
+        {"id": str(uuid.uuid4()), "title": f"Transfer {uuid.uuid4()}", "content": "Exported content", "osint_source_id": "manual"}
+        for _ in range(2)
+    ]
+    payload = {"id": story_id, "title": "Transfer story", "news_items": news_items}
+    response = client.post("/api/assess/import", json=payload, headers=auth_header)
+    assert response.status_code == 200
+    if export_kind in ("assess", "news_item"):
+        response = client.get("/api/assess/stories/export", query_string={"story_ids": [story_id]}, headers=auth_header)
+    else:
+        response = client.get(
+            "/api/settings/export-stories", query_string={"metadata": "true"} if export_kind == "admin_metadata" else {}, headers=auth_header
+        )
+    assert response.status_code == 200
+    exported = response.get_json()
+    if export_kind == "news_item":
+        exported = exported["items"][0]["news_items"][0]
+        news_items = [exported]
+    elif export_kind.startswith("admin"):
+        exported = [item for item in exported if item["id"] == story_id]
+    assert client.delete(f"/api/assess/stories/{story_id}", headers=auth_header).status_code == 200
+    response = client.post("/api/assess/import", json=exported, headers=auth_header)
+    assert response.status_code == 200, response.get_json()
+    if export_kind == "news_item":
+        imported = response.get_json()["imported_news_items"][0]
+        assert imported["story_id"] and imported["story_id"] != story_id
+        story_id = imported["story_id"]
+    response = client.get(f"/api/assess/stories/{story_id}", headers=auth_header)
+    assert response.status_code == 200
+    imported = response.get_json()
+    assert {item["id"] for item in imported["news_items"]} == {item["id"] for item in news_items}
+    assert all(item["content"] == "Exported content" for item in imported["news_items"])
+
+
+@pytest.mark.parametrize("invalid_item", [None, {"news_items": "invalid"}, {"title": ""}])
+def test_import_rolls_back_invalid_batch(client, auth_header, invalid_item):
+    story_id = str(uuid.uuid4())
+    story = {"id": story_id, "title": "Atomic import", "news_items": [{"title": f"Atomic {story_id}"}]}
+    response = client.post("/api/assess/import", json={"items": [story, invalid_item]}, headers=auth_header)
+    assert response.status_code == 400
+    assert client.get(f"/api/assess/stories/{story_id}", headers=auth_header).status_code == 404
+
+
 def test_export_stories_rejects_invalid_datetime_filters(client, auth_header):
     r = client.get("/api/settings/export-stories?timefrom=invalid", headers=auth_header)
 

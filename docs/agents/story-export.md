@@ -12,6 +12,8 @@ Settings story transfers, Assess card/bulk JSON sharing, story serializers, and 
 - `Story.to_export_dict()` adds attributes to the base payload without UI-only detail counts. Worker payload maps remain distinct because NLP/MISP consumers require them. Export relationships are loaded in batches.
 - Local news-item order is reflected in exported arrays, but the local order column is excluded and is not restored on import. These transfers are content exports, not full database backups; user votes, bookmarks, and report relationships are not restored.
 
+- Both Admin import and Assess “Create from file” forward the original JSON to Core `/api/assess/import`. Core accepts the Assess `{total_count, items}` envelope, Admin arrays (minimal or metadata), and single story/news-item objects or homogeneous arrays. Minimal news items default to the manual source. Standalone news items receive new parent stories, ignoring exported parent IDs, so they appear in Assess. Imports are atomic; duplicate IDs/hashes fail without overwriting existing content. Successful file creation returns to Assess.
+
 ## Entry Points and Validation
 `src/core/core/model/story.py`, `src/core/core/service/story.py`, `src/core/core/service/admin.py`, `src/core/core/api/assess.py`, `src/models/models/admin.py`, and frontend `story_views.py`/`admin_views/settings_views.py`.
 
