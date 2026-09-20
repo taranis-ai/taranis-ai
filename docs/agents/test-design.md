@@ -18,7 +18,7 @@ Before keeping a new test, compare existing coverage and extend the nearest rele
 - Prefer frontend E2E coverage for cross-component cache invalidation, scheduling, and seeding. Reuse established test selectors; prefer `data-test-id` for new ones.
 - Worker SFTP tests use a real local SSH server. The `sftp_mock` fixture and `SFTPTestHandler` handle the expected server-side EOF or connection reset when the client rejects a host key and join listener/connection threads during teardown. Keep thread warnings fatal in `src/worker/tests/publishers/test_sftp_publisher.py`; otherwise a leaked SSH thread can report its failure against an unrelated later test (including TAXII).
 - SFTP tests run in a per-test temporary working directory so uploads cannot contaminate later cases. Explicitly close the saved listener socket before joining: mockssh can skip `close()` when `shutdown()` fails on macOS.
-- Migration SQL must respect the active PostgreSQL schema. `src/core/tests/unit/test_migration_schemas.py` checks forward/rollback SQL strings for hard-coded application object qualifiers while allowing PostgreSQL catalogs. `dev/test_master_to_branch_migration.sh` renames the restored schema and sets the database search path before applying pending migrations, covering dynamically constructed SQL against a real database.
+- Migration SQL must respect the active PostgreSQL schema. `dev/test_master_to_branch_migration.sh` renames the restored schema and sets the database search path before applying pending migrations, covering dynamically constructed SQL against a real database.
 
 ## Entry Points
 
