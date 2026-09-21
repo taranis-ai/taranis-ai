@@ -45,7 +45,7 @@ def test_core_settings_default_rq_timeout_is_180():
 
 
 @pytest.mark.parametrize("bot_id", [None, 7, "bad id!"])
-def test_execute_bot_task_rejects_invalid_job_id_component(bot_id):
-    queue_manager = QueueManager.__new__(QueueManager)
+def test_execute_bot_task_rejects_invalid_job_id_component(bot_id, monkeypatch):
+    queue_manager, _ = _build_queue_manager(monkeypatch, [])
 
     assert queue_manager.execute_bot_task(bot_id) == ({"error": "Invalid bot_id"}, 400)
