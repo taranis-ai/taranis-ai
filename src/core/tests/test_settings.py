@@ -120,6 +120,12 @@ def test_core_sentry_dsn_is_read_from_settings():
     assert settings.TARANIS_CORE_SENTRY_DSN == "https://core@example.invalid/2"
 
 
+def test_core_otlp_endpoint_is_normalized():
+    settings = Settings(OTEL_EXPORTER_OTLP_ENDPOINT="  http://telemetry:4318/  ")
+
+    assert settings.OTEL_EXPORTER_OTLP_ENDPOINT == "http://telemetry:4318"
+
+
 def test_sqlalchemy_pool_timeout_from_env_var(monkeypatch, clear_pool_env_vars):
     """Test that SQLALCHEMY_POOL_TIMEOUT is correctly read from environment and added to engine options."""
     monkeypatch.setenv("SQLALCHEMY_POOL_TIMEOUT", "666")
@@ -302,3 +308,44 @@ def test_pre_seed_settings_initialization(session, admin_user, monkeypatch):
 
     assert PersistentSettings.get_settings() == {**expected, "rss_collector_max_entries": 25}
     assert admin_user.profile["onboarding_enabled"] is False
+
+
+def test_persistent_settings_cache(session):
+    from sqlalchemy import event
+
+    from core.model.settings import Settings as PersistentSettings
+
+    queries = []
+
+    def record_settings_query(conn, cursor, statement, parameters, context, executemany):
+        if statement.lstrip().upper().startswith("SELECT") and "FROM settings" in statement:
+            queries.append(statement)
+
+    connection = session.connection()
+    event.listen(connection, "before_cursor_execute", record_settings_query)
+    try:
+        original = PersistentSettings.get_settings()
+        for _ in range(10):
+            assert PersistentSettings.get_settings() == original
+        assert len(queries) == 1
+
+        _, status = PersistentSettings.update({"settings": {"default_timezone": "Europe/Vienna", "custom": {"items": [1]}}})
+        assert status == 200
+        updated = PersistentSettings.get_settings()
+        assert updated["default_timezone"] == "Europe/Vienna"
+        updated["custom"]["items"].append(2)
+        assert PersistentSettings.get_settings()["custom"] == {"items": [1]}
+
+        nested = session.begin_nested()
+        entry = PersistentSettings.get_settings_entry()
+        entry.settings = {**entry.settings, "default_timezone": "UTC"}
+        assert PersistentSettings.get_settings()["default_timezone"] == "UTC"
+        nested.rollback()
+        assert PersistentSettings.get_settings()["default_timezone"] == "Europe/Vienna"
+
+        before = len(queries)
+        session.commit()
+        assert PersistentSettings.get_settings()["default_timezone"] == "Europe/Vienna"
+        assert len(queries) == before + 1
+    finally:
+        event.remove(connection, "before_cursor_execute", record_settings_query)

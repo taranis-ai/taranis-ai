@@ -17,6 +17,7 @@ from worker.collectors.rss_collector import EmptyRSSFeedError, RSSCollector
 from worker.core_api import CoreApi, build_failure_task_result, build_success_task_result, build_task_result
 from worker.http_client import http_session_scope
 from worker.log import TaranisLogFormatter, TaranisLogger, logger
+from worker.telemetry import instrument_job
 
 
 @contextmanager
@@ -104,6 +105,7 @@ def _persist_and_return_result(
     return result_message
 
 
+@instrument_job
 @http_session_scope()
 def collector_task(osint_source_id: str, manual: bool = False):
     """Collect news from an OSINT source.
@@ -292,6 +294,7 @@ def collector_task(osint_source_id: str, manual: bool = False):
     return result_message
 
 
+@instrument_job
 @http_session_scope()
 def collector_preview(osint_source_id: str):
     """Preview collection from an OSINT source without saving.
@@ -363,6 +366,7 @@ def collector_preview(osint_source_id: str):
     return preview_result
 
 
+@instrument_job
 @http_session_scope()
 def fetch_single_news_item(parameters: dict[str, Any]):
     job = get_current_job()

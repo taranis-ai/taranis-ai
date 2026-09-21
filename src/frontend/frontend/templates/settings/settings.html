@@ -12,236 +12,158 @@
   "update_settings": "/api/settings/settings"
 } %}
 
-<div class="container mx-auto p-2"
+<div class="container mx-auto max-w-6xl space-y-6 p-4 lg:p-6"
      id="settings-container"
      hx-target:inherited="#settings-container"
      hx-select:inherited="#settings-container"
      hx-swap:inherited="outerHTML">
-  <!-- Header -->
-  <div class="w-full px-2 mt-2">
-    <h1 class="text-2xl font-bold">Admin Settings</h1>
-  </div>
+  <header class="border-b border-base-300 pb-5">
+    <p class="text-xs font-semibold uppercase tracking-widest text-base-content/50 mb-2">Administration</p>
+    <h1 class="text-3xl font-bold tracking-tight">Admin Settings</h1>
+    <p class="mt-2 text-sm text-base-content/60">Manage application defaults, connected services, and maintenance.</p>
+  </header>
 
-  <!-- Default Settings -->
-  <div class="w-full px-2 mt-2">
-    <div class="card bg-base-100 shadow-xl p-3">
-      <div class="card-body">
-        <h2 class="card-title mb-4">General Defaults</h2>
-        <form class="form-control w-full space-y-6"
-              id="admin-settings-form"
-              method="post"
-              action="{{ links.update_settings | admin_action }}"
-              hx-post="{{ links.update_settings | admin_action }}"
-              hx-target="#settings-container"
-              hx-select="#settings-container"
-              hx-swap="outerHTML">
-
-          <!-- Setting 1 -->
-          <div class="p-4 border rounded-lg hover:bg-base-200 transition">
-            <h3 class="font-semibold text-lg mb-2">Default TLP Level</h3>
-            <p class="text-sm text-gray-500 mb-3">Set the default TLP Level for new Sources, Roles, and Reports.</p>
-            {{ tlp_levels(selected=current_settings.default_tlp_level, name='settings[default_tlp_level]', input_id='tlp_level', data_testid='settings-default-tlp-level') }}
+  <details class="collapse collapse-arrow border border-base-300 bg-base-100 rounded-box shadow-sm" data-testid="settings-general-section" open>
+    <summary class="collapse-title px-6 py-5 pr-12">
+      <h2 class="text-lg font-semibold">General Defaults</h2>
+      <p class="mt-1 text-sm font-normal text-base-content/60">Defaults for new content, collection, and user profiles.</p>
+    </summary>
+    <div class="collapse-content px-6">
+      <form class="space-y-8 border-t border-base-300 pt-6"
+            id="admin-settings-form"
+            method="post"
+            action="{{ links.update_settings | admin_action }}"
+            hx-post="{{ links.update_settings | admin_action }}"
+            hx-target="#settings-container"
+            hx-select="#settings-container"
+            hx-swap="outerHTML">
+        <section aria-labelledby="settings-collection-heading">
+          <h3 id="settings-collection-heading" class="text-xs font-semibold uppercase tracking-widest text-base-content/50 mb-5">Collection &amp; locale</h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
+            <div class="min-w-0">
+              {{ form_input('Default Collector Proxy', 'settings[default_collector_proxy]', current_settings.default_collector_proxy, required=False, preserve=False, data_testid='settings-default-collector-proxy') }}
+              <p class="text-xs text-base-content/60 -mt-3">Optional proxy used by new sources.</p>
+            </div>
+            <div class="min-w-0">
+              {{ form_input('Default Collector Interval', 'settings[default_collector_interval]', current_settings.default_collector_interval, preserve=False, data_testid='settings-default-collector-interval') }}
+              <p class="text-xs text-base-content/60 -mt-3">Cron schedule used by new sources.</p>
+            </div>
+            <div class="min-w-0">
+              <label class="block text-sm font-medium mb-2" for="tlp_level">Default TLP Level</label>
+              {{ tlp_levels(selected=current_settings.default_tlp_level, name='settings[default_tlp_level]', input_id='tlp_level', data_testid='settings-default-tlp-level') }}
+              <p class="text-xs text-base-content/60 mt-2">Applied to new sources, roles, and reports.</p>
+            </div>
+            <div class="min-w-0">
+              <label class="block text-sm font-medium mb-2" for="default-timezone-select">Default Timezone</label>
+              <select id="default-timezone-select"
+                      x-data="{}"
+                      x-init="initChoices('default-timezone-select')"
+                      name="settings[default_timezone]"
+                      class="select select-bordered w-full"
+                      data-testid="settings-default-timezone"
+                      data-choices-placeholder-value="Select timezone"
+                      data-choices-no-results-text="No timezones found"
+                      data-choices-no-choices-text="No timezones to choose from">
+                <option value="" {% if not current_settings.default_timezone %}selected{% endif %}>UTC for new users</option>
+                {% for timezone in timezone_options %}
+                  <option value="{{ timezone }}" {% if timezone == current_settings.default_timezone %}selected{% endif %}>{{ timezone }}</option>
+                {% endfor %}
+              </select>
+              <p class="text-xs text-base-content/60 mt-2">Copied into new user profiles when no timezone is supplied.</p>
+            </div>
           </div>
+        </section>
 
-          <!-- Setting 2 -->
-          <div class="p-4 border rounded-lg hover:bg-base-200 transition">
-            <h3 class="font-semibold text-lg mb-2">Default Collector Proxy</h3>
-            <p class="text-sm text-gray-500 mb-3">Set the default Collector Proxy and Interval for new Sources.</p>
-            {{ form_input('Default Collector Proxy', 'settings[default_collector_proxy]', current_settings.default_collector_proxy, required=False, preserve=False, data_testid='settings-default-collector-proxy') }}
-          </div>
-
-          <!-- Setting 3 -->
-          <div class="p-4 border rounded-lg hover:bg-base-200 transition">
-            <h3 class="font-semibold text-lg mb-2">Default Collector Interval</h3>
-            <p class="text-sm text-gray-500 mb-3">Set the default Collector Interval for new Sources.</p>
-            {{ form_input('Default Collector Interval', 'settings[default_collector_interval]', current_settings.default_collector_interval, preserve=False, data_testid='settings-default-collector-interval') }}
-          </div>
-
-          <div class="p-4 border rounded-lg hover:bg-base-200 transition"
-               x-data="{ rssEntryLimit: {{ current_settings.rss_collector_max_entries | tojson }} }"
-               x-on:input="rssEntryLimit = $event.target.value">
-            <h3 class="font-semibold text-lg mb-2">RSS Collector Entry Limit</h3>
-            <p class="text-sm text-gray-500 mb-3">Set the maximum number of entries processed from each RSS feed per collection.</p>
-            {{ form_input('RSS Collector Maximum Entries', 'settings[rss_collector_max_entries]', current_settings.rss_collector_max_entries, type='number', preserve=False, data_testid='settings-rss-collector-max-entries', min_value=1) }}
-            <div class="alert alert-warning"
+        <section class="border-t border-base-300 pt-6" aria-labelledby="settings-limits-heading">
+          <h3 id="settings-limits-heading" class="text-xs font-semibold uppercase tracking-widest text-base-content/50 mb-5">Limits &amp; retention</h3>
+          <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+            <div class="rounded-box bg-base-200/50 border border-base-300 p-4"
+                 x-data="{ rssEntryLimit: {{ current_settings.rss_collector_max_entries | tojson }} }"
+                 x-on:input="rssEntryLimit = $event.target.value">
+              {{ form_input('RSS entries', 'settings[rss_collector_max_entries]', current_settings.rss_collector_max_entries, type='number', preserve=False, data_testid='settings-rss-collector-max-entries', min_value=1) }}
+              <p class="text-xs text-base-content/60 -mt-2">Maximum entries per feed, per collection. Recommended: 20-100.</p>
+              <p class="text-xs text-warning mt-3"
                  role="status"
                  aria-live="polite"
                  data-testid="settings-rss-collector-max-entries-warning"
                  x-cloak
                  x-show="rssEntryLimit !== '' && rssEntryLimit !== null && (rssEntryLimit < 20 || rssEntryLimit > 100)"
-                 x-transition>
-              {{ heroicon_mini('exclamation-triangle', class='h-5 w-5 flex-shrink-0') }}
-              <span>This value is outside the recommended range of 20–100 and may produce unexpected results. You can still save it.</span>
+                 x-transition>Outside the recommended range. You can still save this value.</p>
+            </div>
+            <div class="rounded-box bg-base-200/50 border border-base-300 p-4">
+              {{ form_input('Bot lookback (days)', 'settings[default_bot_lookback_days]', current_settings.default_bot_lookback_days, type='number', preserve=False, data_testid='settings-default-bot-lookback-days', min_value=0) }}
+              <p class="text-xs text-base-content/60 -mt-2">How far back bots process by default. Use 0 for all stories.</p>
+            </div>
+            <div class="rounded-box bg-base-200/50 border border-base-300 p-4">
+              {{ form_input('Story conflicts', 'settings[default_story_conflict_retention]', current_settings.default_story_conflict_retention, type='number', preserve=False, data_testid='settings-default-story-conflict-retention', min_value=0) }}
+              <p class="text-xs text-base-content/60 -mt-2">Number of story conflicts retained.</p>
+            </div>
+            <div class="rounded-box bg-base-200/50 border border-base-300 p-4">
+              {{ form_input('News item conflicts', 'settings[default_news_item_conflict_retention]', current_settings.default_news_item_conflict_retention, type='number', preserve=False, data_testid='settings-default-news-item-conflict-retention', min_value=0) }}
+              <p class="text-xs text-base-content/60 -mt-2">Number of news item conflicts retained.</p>
             </div>
           </div>
+        </section>
 
-          <div class="p-4 border rounded-lg hover:bg-base-200 transition">
-            <h3 class="font-semibold text-lg mb-2">Default Bot Lookback</h3>
-            <p class="text-sm text-gray-500 mb-3">Set how many days bots process when no explicit start time is provided. Set to 0 to process all available stories.</p>
-            {{ form_input('Default Bot Lookback Days', 'settings[default_bot_lookback_days]', current_settings.default_bot_lookback_days, type='number', preserve=False, data_testid='settings-default-bot-lookback-days', min_value=0) }}
+        <section class="border-t border-base-300 pt-6 grid grid-cols-1 md:grid-cols-2 gap-6" aria-labelledby="settings-onboarding-heading">
+          <div>
+            <h3 id="settings-onboarding-heading" class="font-semibold">User onboarding</h3>
+            <p class="text-sm text-base-content/60 mt-2">Changing this updates every existing user. Individual users can be changed afterwards.</p>
           </div>
-
-          <!-- Setting 4 -->
-          <div class="p-4 border rounded-lg hover:bg-base-200 transition">
-            <h3 class="font-semibold text-lg mb-2">Default Conflict Retention Settings</h3>
-            <p class="text-sm text-gray-500 mb-3">
-              Set the default number of <b>Story Conflicts</b> that are retained.
-            </p>
-            {{ form_input('Default Story Conflict Retention', 'settings[default_story_conflict_retention]', current_settings.default_story_conflict_retention, preserve=False, data_testid='settings-default-story-conflict-retention') }}
-            <p class="text-sm text-gray-500 mb-3">
-              Set the default number of <b>News Item Conflicts</b> that are retained.
-            </p>
-            {{ form_input('Default News Item Conflict Retention', 'settings[default_news_item_conflict_retention]', current_settings.default_news_item_conflict_retention, preserve=False, data_testid='settings-default-news-item-conflict-retention') }}
-          </div>
-          <div class="p-4 border rounded-lg hover:bg-base-200 transition">
-            <h3 class="font-semibold text-lg mb-2">Default Timezone</h3>
-            <p class="text-sm text-gray-500 mb-3">Set the timezone copied into new user profiles when none is supplied.</p>
-            <select id="default-timezone-select"
-                    name="settings[default_timezone]"
-                    class="select select-bordered w-full"
-                    data-testid="settings-default-timezone"
-                    data-choices-placeholder-value="Select timezone"
-                    data-choices-no-results-text="No timezones found"
-                    data-choices-no-choices-text="No timezones to choose from">
-              <option value="" {% if not current_settings.default_timezone %}selected{% endif %}>UTC for new users</option>
-              {% for timezone in timezone_options %}
-                <option value="{{ timezone }}" {% if timezone == current_settings.default_timezone %}selected{% endif %}>{{ timezone }}</option>
-              {% endfor %}
-            </select>
-          </div>
-          <div class="p-4 border rounded-lg hover:bg-base-200 transition">
-            <h3 class="font-semibold text-lg mb-2">Onboarding</h3>
-            <p class="text-sm text-gray-500 mb-3">
-              Changing this setting updates onboarding for every existing user. Individual users can be changed afterwards.
-            </p>
-            {{ form_switch('Onboarding enabled', 'settings[onboarding_enabled]', current_settings.onboarding_enabled, yes_val=true, no_val=false, required=False, preserve=False, input_id='settings-onboarding-enabled') }}
-          </div>
-          <input type="submit" class="btn btn-primary w-full mt-4" value="Update Settings" data-testid="settings-submit" />
-        </form>
-        <script>
-          (function () {
-            function initDefaultTimezoneSelect() {
-              if (typeof initChoices === "function") {
-                initChoices("default-timezone-select");
-              }
-            }
-
-            if (document.readyState === "loading" && typeof initChoices !== "function") {
-              document.addEventListener("DOMContentLoaded", initDefaultTimezoneSelect, { once: true });
-            } else {
-              initDefaultTimezoneSelect();
-            }
-          })();
-        </script>
-      </div>
-    </div>
-  </div>
-
-  {% include "settings/story_transfer.html" %}
-
-  <!-- Frontend Actions -->
-  <div class="w-full px-2 mt-4">
-    <div class="card bg-base-100 shadow-xl p-3">
-      <div class="card-body">
-        <h2 class="card-title">Frontend Actions</h2>
-        {% for action in frontend_actions %}<button class="btn btn-primary" hx-post="{{ action.url }}">{{ action.label }}</button>{% endfor %}
-      </div>
-    </div>
-  </div>
-
-  <!-- Danger Zone -->
-  <div class="w-full px-2 mt-6">
-    <div tabindex="0" class="collapse collapse-arrow border border-error bg-error/10 rounded-box">
-      <input type="checkbox" />
-      <div class="collapse-title text-lg font-semibold text-error">
-        <strong>Everything in this section is dangerous. You can break things. Be careful.</strong>
-      </div>
-      <div class="collapse-content p-0">
-        <div class="flex flex-wrap gap-4 p-4">
-          <!-- Clear Worker Queues -->
-          <div class="w-[32%]">
-            <div class="card bg-base-100 shadow">
-              <div class="card-body">
-                <h3 class="card-title">Clear all Worker Queues</h3>
-                <p>Delete all messages from all worker queues. This action cannot be undone.</p>
-                <div class="card-actions tooltip" data-tip="Delete all Worker Queues">
-                  <button class="btn btn-error btn-outline w-full"
-                          hx-post="{{ links.clear_queues | admin_action }}"
-                          hx-confirm="Are you sure you want to delete all worker queues?">Delete all Worker Queues</button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Delete all Tags -->
-          <div class="w-[32%]">
-            <div class="card bg-base-100 shadow">
-              <div class="card-body">
-                <h3 class="card-title">Delete all Tags</h3>
-                <p>Delete all tags from all News Items in the system. This action cannot be undone.</p>
-                <div class="card-actions tooltip" data-tip="Delete all Tags from all News Items">
-                  <button class="btn btn-error btn-outline w-full"
-                          hx-post="{{ links.delete_tags | admin_action }}"
-                          hx-confirm="Are you sure you want to delete all tags?">Delete all Tags</button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Ungroup all Stories -->
-          <div class="w-[32%]">
-            <div class="card bg-base-100 shadow">
-              <div class="card-body">
-                <h3 class="card-title">Ungroup all Stories</h3>
-                <p>Ungroup all Stories in the system. This action cannot be undone.</p>
-                <div class="card-actions tooltip" data-tip="Not yet implemented">
-                  <button class="btn btn-error btn-outline w-full pointer-events-auto"
-                          hx-post="{{ links.ungroup_stories | admin_action }}"
-                          hx-confirm="Are you sure you want to ungroup all stories?"
-                          title="Not yet implemented"
-                          disabled>Ungroup all Stories</button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Delete all Stories -->
-          <div class="w-[49%]">
-            <div class="card bg-base-100 shadow h-48">
-              <div class="card-body">
-                <h3 class="card-title">Delete all Stories</h3>
-                <p>Delete all Stories in the system. This action cannot be undone.</p>
-                <div class="card-actions tooltip" data-tip="Not yet implemented">
-                  <button class="btn btn-error btn-outline w-full"
-                          hx-post="{{ links.delete_stories | admin_action }}"
-                          hx-confirm="Are you sure you want to delete all stories?"
-                          disabled>Delete all Stories</button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Delete Everything -->
-          <div class="w-[49%]">
-            <div class="card bg-base-100 shadow h-48">
-              <div class="card-body">
-                <h3 class="card-title">Delete Everything</h3>
-                <p>
-                  This may potentially fail and completely break the system.
-                  Tries to delete all Report Items, Products, News Items and Stories.
-                </p>
-                <div class="card-actions tooltip" data-tip="Not yet implemented">
-                  <button class="btn btn-error btn-outline w-full"
-                          hx-post="{{ links.reset_database | admin_action }}"
-                          hx-confirm="Are you absolutely sure you want to delete EVERYTHING?"
-                          disabled>Delete Everything</button>
-                </div>
-              </div>
-            </div>
-          </div>
+          {{ form_switch('Onboarding enabled', 'settings[onboarding_enabled]', current_settings.onboarding_enabled, yes_val=true, no_val=false, required=False, preserve=False, input_id='settings-onboarding-enabled') }}
+        </section>
+        <div class="border-t border-base-300 pt-5 flex justify-end">
+          <input type="submit" class="btn btn-primary w-full sm:w-auto" value="Update Settings" data-testid="settings-submit" />
         </div>
+      </form>
+    </div>
+  </details>
 
+  {% if chat_enabled %}
+    {% include "settings/chat.html" %}
+  {% endif %}
+
+  <section aria-labelledby="settings-data-heading">
+    <h2 id="settings-data-heading" class="text-xs font-semibold uppercase tracking-widest text-base-content/50 mb-4">Data management</h2>
+    {% include "settings/story_transfer.html" %}
+  </section>
+
+  <section class="rounded-box border border-base-300 bg-base-100 p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+           aria-labelledby="settings-maintenance-heading">
+    <div>
+      <h2 id="settings-maintenance-heading" class="font-semibold">Frontend maintenance</h2>
+      <p class="text-sm text-base-content/60 mt-1">Clear cached data so the frontend fetches fresh values.</p>
+    </div>
+    {% for action in frontend_actions %}<button class="btn btn-outline shrink-0" hx-post="{{ action.url }}">{{ action.label }}</button>{% endfor %}
+  </section>
+
+  <details class="collapse collapse-arrow border border-error/30 bg-base-100 rounded-box">
+    <summary class="collapse-title px-6 py-5 pr-12">
+      <h2 class="text-lg font-semibold text-error">Danger zone</h2>
+      <p class="mt-1 text-sm font-normal text-base-content/60">Destructive actions. Changes here cannot be undone.</p>
+    </summary>
+    <div class="collapse-content px-6">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-error/20 pt-5">
+        {% set danger_actions = [
+          ('Clear Worker Queues', 'Delete all queued worker messages.', links.clear_queues, 'Delete all Worker Queues', 'Are you sure you want to delete all worker queues?', false),
+          ('Delete Tags', 'Delete every tag from all news items.', links.delete_tags, 'Delete all Tags', 'Are you sure you want to delete all tags?', false),
+          ('Ungroup Stories', 'Ungroup all stories in the system.', links.ungroup_stories, 'Ungroup all Stories', 'Are you sure you want to ungroup all stories?', true),
+          ('Delete Stories', 'Delete every story in the system.', links.delete_stories, 'Delete all Stories', 'Are you sure you want to delete all stories?', true),
+          ('Reset Database', 'Delete all reports, products, news items, and stories. This may break the application.', links.reset_database, 'Delete Everything', 'Are you absolutely sure you want to delete EVERYTHING?', true)
+        ] %}
+        {% for title, description, url, label, confirmation, disabled in danger_actions %}
+          <div class="rounded-box border border-base-300 p-4 flex flex-col items-start gap-3">
+            <div>
+              <h3 class="font-semibold">{{ title }}</h3>
+              <p class="text-sm text-base-content/60 mt-1">{{ description }}</p>
+            </div>
+            <button class="btn btn-sm btn-outline btn-error mt-auto"
+                    hx-post="{{ url | admin_action }}"
+                    hx-confirm="{{ confirmation }}"
+                    {% if disabled %}disabled title="Not yet implemented"{% endif %}>{{ label }}</button>
+          </div>
+        {% endfor %}
       </div>
     </div>
-  </div>
+  </details>
 </div>

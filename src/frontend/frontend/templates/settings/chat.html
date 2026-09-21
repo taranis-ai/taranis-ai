@@ -1,0 +1,44 @@
+{% from "macros/forms.html" import form_input, form_select %}
+<div class="w-full">
+  <details class="collapse collapse-arrow border border-base-300 bg-base-100 rounded-box shadow-sm" data-testid="settings-chat-section">
+    <summary class="collapse-title px-6 py-5 pr-12 text-lg font-semibold">
+      Chat
+      <span class="badge badge-outline ml-2">{{ 'Configured' if current_settings.chat_llm_base_url else 'Setup required' }}</span>
+    </summary>
+    <div class="collapse-content px-6">
+      <p class="text-sm text-base-content/70 mb-6">
+        Connect analyst Chat to a Responses or Chat Completions API. Saved changes apply to the next message.
+        Prompts and selected story summaries are sent to this provider.
+      </p>
+      <form method="post"
+            action="{{ links.update_settings | admin_action }}"
+            hx-patch="{{ links.update_settings | admin_action }}"
+            hx-target="#settings-container"
+            hx-select="#settings-container"
+            hx-swap="outerHTML"
+            data-testid="settings-chat-form">
+        {{ form_select('API format', 'settings[chat_llm_api_format]', current_settings.chat_llm_api_format, options=[{'id': 'responses', 'name': 'Responses'}, {'id': 'chat_completions', 'name': 'Chat Completions'}], data_testid='settings-chat-api-format') }}
+        <p class="text-sm text-base-content/70 mb-4">
+          Choose the API format supported by your provider and model: Responses uses /responses;
+          Chat Completions uses /chat/completions. Both require support for function calling.
+          Enter only the base URL; the selected endpoint is added automatically.
+        </p>
+        {{ form_input('Provider base URL', 'settings[chat_llm_base_url]', current_settings.chat_llm_base_url, type='url', required=False, preserve=False, placeholder='https://provider.example/v1', data_testid='settings-chat-base-url') }}
+        {{ form_input('Model', 'settings[chat_llm_model]', current_settings.chat_llm_model, required=False, preserve=False, placeholder='Provider default', data_testid='settings-chat-model') }}
+        {{ form_input('API key', 'settings[chat_llm_api_key]', '', type='password', required=False, preserve=False, placeholder='Leave blank to keep the saved key', data_testid='settings-chat-api-key') }}
+        <p class="text-sm text-base-content/70 mb-4">
+          {{ 'An API key is saved.' if current_settings.chat_llm_api_key_configured else 'No API key saved. Optional for providers without authentication.' }}
+        </p>
+        <label class="flex items-center gap-3 mb-6">
+          <input type="checkbox" class="checkbox checkbox-sm" name="settings[chat_llm_api_key_clear]" value="true" data-testid="settings-chat-clear-key" />
+          Remove saved API key
+        </label>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {{ form_input('Provider timeout (seconds)', 'settings[chat_llm_timeout]', current_settings.chat_llm_timeout, type='number', preserve=False, min_value=1, data_testid='settings-chat-timeout') }}
+          {{ form_input('Maximum stories per answer', 'settings[chat_max_stories]', current_settings.chat_max_stories, type='number', preserve=False, min_value=1, max_value=20, data_testid='settings-chat-max-stories') }}
+        </div>
+        <button type="submit" class="btn btn-primary" data-testid="settings-chat-submit">Save Chat Settings</button>
+      </form>
+    </div>
+  </details>
+</div>

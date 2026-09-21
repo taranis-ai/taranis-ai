@@ -20,6 +20,7 @@ def initialize(app):
     core_api.assets.initialize(app)
     core_api.auth.initialize(app)
     core_api.bots.initialize(app)
+    core_api.chat.initialize(app)
     core_api.config.initialize(app)
     core_api.connectors.initialize(app)
     core_api.dashboard.initialize(app)
