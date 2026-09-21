@@ -187,6 +187,15 @@ run_step "Copy master database into branch database"
 "$CONTAINER_CLI" exec "$PG_CONTAINER" pg_dump --no-owner --no-privileges -U "$PG_USER" -d "$MASTER_DB" >"$DUMP_FILE"
 "$CONTAINER_CLI" exec -i "$PG_CONTAINER" psql -v ON_ERROR_STOP=1 -U "$PG_USER" -d "$BRANCH_DB" <"$DUMP_FILE" >/dev/null
 
+run_step "Move copied database into a non-default schema"
+# Leave no public schema behind: hard-coded application schema references must
+# fail instead of silently reading or changing the wrong objects.
+"$CONTAINER_CLI" exec -i "$PG_CONTAINER" psql -v ON_ERROR_STOP=1 -U "$PG_USER" -d "$BRANCH_DB" \
+  -v branch_db="$BRANCH_DB" -v migration_schema="migration_${RUN_ID//-/_}" <<'SQL'
+ALTER SCHEMA public RENAME TO :"migration_schema";
+ALTER DATABASE :"branch_db" SET search_path TO :"migration_schema";
+SQL
+
 run_core_db_setup "$ROOT_DIR/src/core" "$BRANCH_DATABASE_URL" "Apply current branch migrations to copied master database"
 run_pytest_validation "$ROOT_DIR/src/core" "$BRANCH_DATABASE_URL" "$PYTEST_TARGET"
 
