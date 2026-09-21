@@ -854,6 +854,8 @@ class OSINTSources(MethodView):
 class OSINTSourceCollect(MethodView):
     @auth_required("CONFIG_OSINT_SOURCE_UPDATE")
     def post(self, source_id: str | None = None):
+        if error := queue_manager.queue_manager.queue_action_error():
+            return error
         if source_id:
             if source := osint_source.OSINTSource.get(source_id):
                 return queue_manager.queue_manager.collect_osint_source(source_id, task_id=source.task_id, user_id=current_user.id)

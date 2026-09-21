@@ -645,10 +645,21 @@ class QueueManager:
             logger.error(f"Failed to get task {task_id}: {e}")
             return {"status": "NOT_FOUND", "error": "Task not found"}, 404
 
+    def queue_action_error(self) -> tuple[dict[str, str], int] | None:
+        """Reject unavailable queue actions before validation or side effects."""
+        if not Config.QUEUE_ENABLED:
+            return {"error": "Queue is disabled"}, 503
+        if self.error:
+            return {"error": self.error}, 500
+        return None
+
     def collect_osint_source(self, source_id: str, task_id: str, user_id: str | None = None):
         """Trigger OSINT source collection"""
         from core.model.osint_source import OSINTSource
         from core.service.worker_parameters import effective_parameters
+
+        if error := self.queue_action_error():
+            return error
 
         if not (source := OSINTSource.get(source_id)):
             return {"error": "OSINT source not found"}, 404
@@ -684,6 +695,9 @@ class QueueManager:
         """Preview OSINT source collection"""
         from core.model.osint_source import OSINTSource
         from core.service.worker_parameters import effective_parameters
+
+        if error := self.queue_action_error():
+            return error
 
         if not (source := OSINTSource.get(source_id)):
             return {"error": "OSINT source not found"}, 404
@@ -900,6 +914,9 @@ class QueueManager:
         from core.model.bot import Bot
         from core.service.worker_parameters import effective_parameters
 
+        if error := self.queue_action_error():
+            return error
+
         if not isinstance(bot_id, str) or not RQ_JOB_ID_COMPONENT_RE.fullmatch(bot_id):
             return {"error": "Invalid bot_id"}, 400
         if not (bot := Bot.get(bot_id)):
@@ -1023,6 +1040,9 @@ class QueueManager:
         """Run post-collection bots"""
         from core.model.bot import Bot
 
+        if error := self.queue_action_error():
+            return error
+
         post_collection_bots, dependencies_by_id = Bot.get_collector_run_graph()
         if not post_collection_bots:
             return {"message": "No post collection bots found"}, 200
@@ -1042,6 +1062,9 @@ class QueueManager:
     def schedule_bot_dependents(self, bot_id: str, filter: dict | None = None, user_id: str | None = None):
         """Schedule bots that depend on a completed bot instance."""
         from core.model.bot import Bot
+
+        if error := self.queue_action_error():
+            return error
 
         dependent_bots, dependencies_by_id = Bot.get_dependent_run_graph(bot_id)
         if not dependent_bots:

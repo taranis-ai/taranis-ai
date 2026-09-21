@@ -196,4 +196,39 @@ def test_core_startup_without_redis_requires_explicit_queue_disable(app, auth_he
     response = client.post("/api/config/word-lists/gather/test", headers=auth_header)
     assert response.status_code == 503
     assert response.json == {"error": "Queue is disabled"}
+    for path in (
+        "/api/config/osint-sources/missing/collect",
+        "/api/config/osint-sources/missing/preview",
+        "/api/config/bots/missing/execute",
+    ):
+        response = client.post(path, headers=auth_header)
+        assert response.status_code == 503
+        assert response.json == {"error": "Queue is disabled"}
+    assert manager.execute_bot_task("invalid.id") == ({"error": "Queue is disabled"}, 503)
+    assert manager.collect_osint_source("missing", "missing") == ({"error": "Queue is disabled"}, 503)
+    assert manager.post_collection_bots("missing") == ({"error": "Queue is disabled"}, 503)
+    assert manager.schedule_bot_dependents("missing") == ({"error": "Queue is disabled"}, 503)
+
+    with disabled_app.app_context():
+        from core.managers.db_manager import db
+        from core.model.osint_source import OSINTSourceGroup
+
+        curated_list = OSINTSource.get_curated_catalog().lists[0]
+        source_ids = set(db.session.scalars(db.select(OSINTSource.id)))
+        group_ids = set(db.session.scalars(db.select(OSINTSourceGroup.id)))
+        try:
+            response = client.post(
+                "/api/config/curated-osint-source-lists",
+                json={"list_names": [curated_list.name]},
+                headers=auth_header,
+            )
+            assert response.status_code == 200
+            group = db.session.execute(db.select(OSINTSourceGroup).filter_by(name=curated_list.name)).scalar_one()
+            assert {source.name for source in group.osint_sources} == set(curated_list.sources)
+        finally:
+            for source in db.session.scalars(db.select(OSINTSource).where(OSINTSource.id.not_in(source_ids))):
+                db.session.delete(source)
+            for group in db.session.scalars(db.select(OSINTSourceGroup).where(OSINTSourceGroup.id.not_in(group_ids))):
+                db.session.delete(group)
+            db.session.commit()
     connect.assert_not_called()

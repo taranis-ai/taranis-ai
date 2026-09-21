@@ -1080,7 +1080,7 @@ class OSINTSource(BaseModel):
 
         scheduling_failed = False
         for source in resolved_sources.values():
-            if not source.enabled:
+            if not Config.QUEUE_ENABLED or not source.enabled:
                 continue
             try:
                 if source.schedule_osint_source() is not True:
