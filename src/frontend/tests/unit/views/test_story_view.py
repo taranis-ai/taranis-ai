@@ -15,7 +15,7 @@ from werkzeug.exceptions import Forbidden
 
 from frontend.cache import add_user_to_cache
 from frontend.config import Config
-from frontend.views.story_views import ASSESS_SAVED_FILTER_SESSION_KEY, StoryView, _normalize_story_import_payload
+from frontend.views.story_views import ASSESS_SAVED_FILTER_SESSION_KEY, StoryView
 
 
 def expected_search_trigger(input_id: str) -> str:
@@ -223,71 +223,6 @@ def test_story_diff_view_shows_no_changes_state(app, authenticated_client, respo
     assert response.status_code == 200
     html_doc = response.get_data(as_text=True)
     assert "No changes detected between these revisions." in html_doc
-
-
-def test_normalize_story_import_payload_unwraps_export_items():
-    payload = {"total_count": 1, "items": [{"id": "story-1", "news_items": [{"id": "news-1"}]}]}
-
-    normalized = _normalize_story_import_payload(payload)
-
-    assert normalized == [{"id": "story-1", "news_items": [{"id": "news-1", "story_id": "story-1"}]}]
-
-
-def test_normalize_story_import_payload_keeps_raw_story_list():
-    payload = [{"id": "story-1", "news_items": [{"id": "news-1"}]}]
-
-    normalized = _normalize_story_import_payload(payload)
-
-    assert normalized == [{"id": "story-1", "news_items": [{"id": "news-1", "story_id": "story-1"}]}]
-
-
-def test_normalize_story_import_payload_strips_export_only_fields():
-    payload = {
-        "total_count": 1,
-        "items": [
-            {
-                "id": "story-1",
-                "title": "Imported Story",
-                "relevance_override": 7,
-                "user_vote": "like",
-                "in_reports_count": 3,
-                "updated": "2026-03-12T10:00:00",
-                "links": ["https://example.com/story"],
-                "news_items": [
-                    {
-                        "id": "news-1",
-                        "title": "Imported Story News 1",
-                        "source": "https://example.com/source",
-                        "content": "content",
-                        "osint_source_id": "99",
-                        "updated": "2026-03-12T10:00:00",
-                        "tags": [{"name": "news-tag", "tag_type": "misc"}],
-                    }
-                ],
-            }
-        ],
-    }
-
-    normalized = _normalize_story_import_payload(payload)
-
-    assert normalized == [
-        {
-            "id": "story-1",
-            "title": "Imported Story",
-            "relevance_override": 7,
-            "news_items": [
-                {
-                    "id": "news-1",
-                    "title": "Imported Story News 1",
-                    "source": "https://example.com/source",
-                    "content": "content",
-                    "osint_source_id": "99",
-                    "tags": [{"name": "news-tag", "tag_type": "misc"}],
-                    "story_id": "story-1",
-                }
-            ],
-        }
-    ]
 
 
 def test_story_to_core_dict_strips_export_only_fields():
