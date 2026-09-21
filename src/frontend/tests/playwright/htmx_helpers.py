@@ -98,10 +98,6 @@ _HTMX_SUPPORT_SCRIPT = r"""
     markActivity();
   }, true);
 
-  // htmx:after:process fires once htmx has finished binding behavior (e.g. hx-get
-  // click listeners) to a swapped-in subtree. We track it (via markActivity) so
-  // that it extends the quiet window below, without requiring it to fire after
-  // every settle event.
   document.addEventListener("htmx:after:process", () => {
     state.lastAfterProcess = now();
     markActivity();

@@ -358,10 +358,6 @@ class TestEndToEndUser(BaseE2ETest):
             with_htmx_wait(page, story_card().get_by_test_id("toggle-important").click)
             story_card().get_by_test_id("story-actions-menu").click()
             share_story = story_card().get_by_test_id("share-story")
-            # The story card was just replaced (outerHTML swap) by the toggle-important
-            # request above. Wrap the sharing action in with_htmx_wait so the page is
-            # settled before dispatching the click, guarding against #1089 (share
-            # opening a page instead of a dialog).
             with_htmx_wait(page, lambda: share_story.dispatch_event("click"))
             page.get_by_role("button", name="✕").click()
             story_card().get_by_test_id("open-detail-view").click()
