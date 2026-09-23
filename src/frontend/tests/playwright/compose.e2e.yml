@@ -52,7 +52,8 @@ services:
     image: ghcr.io/astral-sh/uv:python3.13-trixie-slim
     working_dir: /app/worker
     command: >-
-      sh -lc "uv sync --frozen --python 3.13 &&
+      sh -lc "apt-get update && apt-get install -y --no-install-recommends git &&
+      uv sync --frozen --python 3.13 &&
       touch /tmp/.venv/.e2e-ready &&
       exec /tmp/.venv/bin/taranis-worker"
     environment:
