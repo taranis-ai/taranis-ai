@@ -12,6 +12,7 @@ from .base_bot import BaseBot
 class StoryBotPayload(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
+    id: str = Field(min_length=1)
     tags: dict[str, Any] = Field(default_factory=dict)
     summary: str | None = None
 

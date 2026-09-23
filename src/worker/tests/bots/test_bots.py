@@ -43,19 +43,32 @@ def test_ioc_bot(story_get_mock):
     assert story_get_mock.call_count == 1
 
 
-@pytest.mark.parametrize("summary,tags", [("Short summary", {"security": {"name": "security", "type": "misc"}}), (None, {})])
-def test_story_bot_sends_only_tags_and_summary(stories, requests_mock, summary, tags):
+@pytest.mark.parametrize("summary,tags", [("Short summary", {"security": {"name": "security", "tag_type": "misc"}}), (None, {})])
+def test_story_bot_preserves_ids_in_reduced_payload(stories, requests_mock, summary, tags):
     from worker import bots
 
-    story = {**stories[0], "summary": summary, "tags": tags}
-    requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/stories", json=[story])
-    clustering = requests_mock.post("http://story-bot.test/", json={"message": "Processed", "cluster_ids": {}})
+    input_stories = [{**story, "summary": summary, "tags": tags} for story in stories[:2]]
+    requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/stories", json=input_stories)
+    clustering = requests_mock.post(
+        "http://story-bot.test/",
+        json=lambda request, context: {
+            "message": "Processed",
+            "cluster_ids": {"event_clusters": [[story["id"] for story in request.json()["stories"]]]},
+        },
+    )
+    grouping = requests_mock.put(f"{Config.TARANIS_CORE_URL}/bots/stories/group-multiple", json={"message": "success"})
 
     result = bots.StoryBot().execute({"BOT_ENDPOINT": "http://story-bot.test"})
 
-    assert result == {"message": "Processed. No clusters found."}
+    assert result == {"message": "Processed"}
     assert clustering.call_count == 1
-    assert clustering.last_request.json() == {"stories": [{"tags": tags, "summary": summary}]}
+    assert clustering.last_request.json() == {"stories": [{"id": story["id"], "tags": tags, "summary": summary} for story in input_stories]}
+    assert grouping.call_count == 1
+    assert grouping.last_request.json() == [[story["id"] for story in input_stories]]
+
+    requests_mock.post("http://story-bot.test/", json={"message": "Processed", "cluster_ids": {}})
+    assert bots.StoryBot().execute({"BOT_ENDPOINT": "http://story-bot.test"}) == {"message": "Processed. No clusters found."}
+    assert grouping.call_count == 1
 
 
 def test_analyst_bot_returns_meaningful_result_when_no_stories(monkeypatch):
