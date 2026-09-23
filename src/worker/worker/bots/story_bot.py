@@ -1,8 +1,19 @@
+from typing import Any
+
+from pydantic import BaseModel, ConfigDict, Field
+
 from worker.bot_api import BotApi
 from worker.config import Config
 from worker.log import logger
 
 from .base_bot import BaseBot
+
+
+class StoryBotPayload(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    tags: dict[str, Any] = Field(default_factory=dict)
+    summary: str | None = None
 
 
 class StoryBot(BaseBot):
@@ -27,7 +38,8 @@ class StoryBot(BaseBot):
 
         logger.info(f"Clustering {len(data)} news items")
 
-        if response := self.bot_api.api_post("/", {"stories": data}):
+        stories = [StoryBotPayload.model_validate(story).model_dump(mode="json") for story in data]
+        if response := self.bot_api.api_post("/", {"stories": stories}):
             cluster_data = response.get("cluster_ids", {})
             message = response.get("message", "")
             if not cluster_data or not cluster_data.get("event_clusters"):

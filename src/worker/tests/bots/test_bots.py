@@ -43,6 +43,21 @@ def test_ioc_bot(story_get_mock):
     assert story_get_mock.call_count == 1
 
 
+@pytest.mark.parametrize("summary,tags", [("Short summary", {"security": {"name": "security", "type": "misc"}}), (None, {})])
+def test_story_bot_sends_only_tags_and_summary(stories, requests_mock, summary, tags):
+    from worker import bots
+
+    story = {**stories[0], "summary": summary, "tags": tags}
+    requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/stories", json=[story])
+    clustering = requests_mock.post("http://story-bot.test/", json={"message": "Processed", "cluster_ids": {}})
+
+    result = bots.StoryBot().execute({"BOT_ENDPOINT": "http://story-bot.test"})
+
+    assert result == {"message": "Processed. No clusters found."}
+    assert clustering.call_count == 1
+    assert clustering.last_request.json() == {"stories": [{"tags": tags, "summary": summary}]}
+
+
 def test_analyst_bot_returns_meaningful_result_when_no_stories(monkeypatch):
     from worker import bots
 
