@@ -12,6 +12,9 @@ required-markers = [
 exclude-newer = "0001-01-01T00:00:00Z" # This has no effect and is included for backwards compatibility when using relative exclude-newer values.
 exclude-newer-span = "P1W"
 
+[options.exclude-newer-package]
+taranis-llm-bot = false
+
 [[package]]
 name = "aiofiles"
 version = "25.1.0"
@@ -1940,8 +1943,8 @@ wheels = [
 
 [[package]]
 name = "taranis-llm-bot"
-version = "0.1.2.dev1"
-source = { git = "https://github.com/taranis-ai/llm-bot.git?rev=bfe6a5d236dd329f3e69578eb930bd1a7a8fd0c7#bfe6a5d236dd329f3e69578eb930bd1a7a8fd0c7" }
+version = "0.1.2"
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "granian" },
     { name = "langcodes", extra = ["data"] },
@@ -1949,6 +1952,10 @@ dependencies = [
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "quart" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/cd/9f/2b9e2e1e7464ddbbfdbb5963e6d6d1702a37b9f0084f3899f107b2aabde6/taranis_llm_bot-0.1.2.tar.gz", hash = "sha256:4b93b852833c8a108e7fc5174bd4712d95f02f5186f2b18897f34fd8dc211e68", size = 118636, upload-time = "2026-09-23T21:38:39.883Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d3/40/3bed19a698ffde2cf5d894286af70dbd41f1ce845e527486945608827933/taranis_llm_bot-0.1.2-py3-none-any.whl", hash = "sha256:21b544413379093430bd5a11b70a23857afc99f659256d4f856d9ad3aef73e73", size = 69558, upload-time = "2026-09-23T21:38:38.896Z" },
 ]
 
 [[package]]
@@ -2069,7 +2076,7 @@ requires-dist = [
     { name = "ruff", marker = "extra == 'dev'" },
     { name = "setuptools", marker = "extra == 'dev'" },
     { name = "setuptools-scm", marker = "extra == 'dev'" },
-    { name = "taranis-llm-bot", git = "https://github.com/taranis-ai/llm-bot.git?rev=bfe6a5d236dd329f3e69578eb930bd1a7a8fd0c7" },
+    { name = "taranis-llm-bot", specifier = "==0.1.2" },
     { name = "taranis-models", editable = "../models" },
     { name = "taxii2-client" },
     { name = "trafilatura" },

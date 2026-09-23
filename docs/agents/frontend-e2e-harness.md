@@ -10,7 +10,6 @@ Playwright stack setup, `--e2e-ci`, Compose service selection, RQ readiness, scr
 - Local sessions create and remove an isolated Compose project with fresh SQLite/Redis state and random host ports. Core readiness uses `/isalive`: aggregate `/health` is degraded without workers. RQ fixtures separately check worker registration and cron leadership.
 - The frontend runs in a session-scoped spawned Werkzeug process. `pytest-flask`'s fork-based live server is unsafe with native threads on Python 3.14; the separate process also isolates Core requests from per-test HTTP mocks.
 - Worker prepares the shared RQ environment once; cron waits for `.e2e-ready`.
-- The slim worker test image installs Git before dependency sync while `taranis-llm-bot` uses a commit-pinned source. The production worker builder already includes Git.
 - Authenticated page fixtures complete onboarding tasks; onboarding tests explicitly reset them.
 - `dev/testpipeline.sh` prepares component environments, then runs one complete E2E suite alongside lint/unit tests. CI likewise runs the full suite in one job; disposable GitHub runners skip container teardown.
 - `--e2e-ci` omits documentation screenshots and successful-test traces. CI reruns failures with unique traces under `test-results/e2e-traces/`; unconditional tracing adds substantial teardown cost.

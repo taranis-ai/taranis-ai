@@ -48,7 +48,7 @@ dependencies = [
     "pypandoc-binary",
     "niquests",
     "confluent-kafka",
-    "taranis-llm-bot",
+    "taranis-llm-bot==0.1.2",
 ]
 dynamic = ["version"]
 
@@ -144,6 +144,7 @@ reportIncompatibleMethodOverride = "none"
 [tool.uv]
 config-settings = { editable_mode = "compat" }
 exclude-newer = "1 week"
+exclude-newer-package = { "taranis-llm-bot" = false }
 required-environments = [
   "sys_platform == 'linux' and platform_machine == 'x86_64'",
   "sys_platform == 'linux' and platform_machine == 'aarch64'",
@@ -153,8 +154,6 @@ required-environments = [
 
 [tool.uv.sources]
 taranis-models = { path = "../models", editable = true }
-# Use the schema warning fix until it is available in a PyPI release.
-taranis-llm-bot = { git = "https://github.com/taranis-ai/llm-bot.git", rev = "bfe6a5d236dd329f3e69578eb930bd1a7a8fd0c7" }
 
 [tool.pyrefly]
 infer-with-first-use = false
