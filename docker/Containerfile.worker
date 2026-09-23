@@ -7,7 +7,8 @@ WORKDIR /app/
 
 ARG build_version=0.0.dev0
 ENV UV_COMPILE_BYTECODE=1
-ENV SETUPTOOLS_SCM_PRETEND_VERSION=${build_version}
+ENV SETUPTOOLS_SCM_PRETEND_VERSION_FOR_TARANIS_WORKER=${build_version}
+ENV SETUPTOOLS_SCM_PRETEND_VERSION_FOR_TARANIS_MODELS=${build_version}
 
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     apt-get update && \
