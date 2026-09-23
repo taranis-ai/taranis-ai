@@ -36,7 +36,7 @@ dependencies = [
     "minio",
     "taxii2-client",
     # Presenters
-    "weasyprint>=70.0",
+    "weasyprint",
     "jinja2",
     "misp-stix",
     # Connectors
@@ -144,7 +144,7 @@ reportIncompatibleMethodOverride = "none"
 [tool.uv]
 config-settings = { editable_mode = "compat" }
 exclude-newer = "1 week"
-exclude-newer-package = { "weasyprint" = false, "taranis-llm-bot" = false }
+exclude-newer-package = { "taranis-llm-bot" = false }
 required-environments = [
   "sys_platform == 'linux' and platform_machine == 'x86_64'",
   "sys_platform == 'linux' and platform_machine == 'aarch64'",
