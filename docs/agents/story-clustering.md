@@ -2,12 +2,16 @@
 
 ## When To Load
 
-Story bot request payloads or external clustering integration.
+Story bot inputs, clustering execution, or LLM provider configuration.
 
 ## Contract
 
-`src/worker/worker/bots/story_bot.py` serializes each story through `StoryBotPayload` before posting to the clustering service. The `stories` list contains only `id`, `tags`, and `summary`; all other fields, including news-item content, are discarded. Each story must retain its non-empty original `id` so the service can return cluster membership. Tags retain the worker API's name-keyed dictionary structure. Missing tags default to `{}` and missing or null summaries serialize as `null`.
+`src/worker/worker/bots/story_bot.py` calls `llm_bot.tasks.cluster.cluster_stories` from the pinned `taranis-llm-bot` dependency inside the synchronous RQ job using `asyncio.run`. Only story clustering uses the library; other LLM bot functions still call the bot HTTP service.
 
-The response must contain `cluster_ids.event_clusters` as lists of those original story IDs for core's grouping endpoint. The external clustering service must support the reduced request: `taranis-ai/llm-bot` at `616dd73fb550639a2f241c3cc2eb95a1f69697f7` still requires `news_items`, so that version is incompatible even with IDs preserved.
+Each `ClusterRequest` story contains only its original non-empty `id`, name-keyed `tags` dictionary, and nullable `summary`. Missing tags default to `{}`. Each tag requires `tag_type`. News-item content and other story fields are discarded before entering the library. The library constructs the prompt, truncates summaries, validates cluster membership, and maps its temporary numeric IDs back to original story IDs. Only clusters with multiple stories reach Core's grouping endpoint; singleton-only results report no clusters. Empty input skips the LLM call.
 
-Coverage: `src/worker/tests/bots/test_bots.py::test_story_bot_preserves_ids_in_reduced_payload` checks the outgoing HTTP JSON using full story fixtures, returns cluster membership from the transmitted IDs, verifies the grouping request, and preserves the no-cluster behavior. It does not run the external clustering service.
+The library reads `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL`, `LLM_API_MODE` (default `responses`), and `LLM_TIMEOUT` (default 120 seconds) from the worker environment or `.env` at import time. `REQUESTS_TIMEOUT` overrides the provider timeout for an individual bot. Persisted `BOT_ENDPOINT` and `BOT_API_KEY` remain accepted for configuration compatibility but are unused for clustering; `STORY_API_ENDPOINT` is no longer used. Restart workers after changing provider settings.
+
+Provider transport/HTTP errors become the existing retryable `bot_service_unavailable` failure. Invalid input/output and other library errors fail the job with a static message. Details stay in server logs and underlying exception chains are suppressed. The library can attempt one repair of invalid model output. Queue identity, filters, scheduling, and dependency execution retain the existing bot UUID workflow.
+
+Coverage: `src/worker/tests/bots/test_bots.py::test_story_bot_clusters_via_library` runs the real library request/prompt/parser path with only the provider response mocked, verifies reduced input, provider settings, original-ID grouping, singleton-only results, and empty input. `src/worker/tests/bots/test_bot_tasks.py::TestBotTask::test_story_clustering_failure_is_safe` checks real task failure persistence for provider errors and invalid output. These tests do not assess live model quality.

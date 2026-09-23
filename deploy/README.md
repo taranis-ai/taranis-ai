@@ -32,6 +32,14 @@ Optional analyst Chat:
 - API keys are write-only in the admin form: leave blank to keep the saved key, or select **Remove saved API key** to clear it. Keys are stored in the application database; protect database access and backups. Settings API responses and logs omit the key.
 - Realtime Chat progress uses the existing Centrifugo connection when `REALTIME_ENABLED=true`; Chat still completes through its normal HTTP response when realtime is disabled or unavailable.
 
+## Story clustering upgrade
+
+Story clustering now runs the `taranis-llm-bot` library in the worker and connects directly to the LLM provider. Before updating, configure `LLM_BASE_URL`, provider credentials in `LLM_API_KEY` when required, and `LLM_MODEL` when required on every worker that handles bots. Workers must be able to reach that provider. `LLM_API_MODE` defaults to `responses`; set `chat_completions` for a compatible provider. `LLM_TIMEOUT` defaults to 120 seconds; a clustering bot's `REQUESTS_TIMEOUT` overrides it.
+
+The main Docker Compose file forwards these settings from its `.env`. Raw Kubernetes and Helm workers receive them through the existing ConfigMap and Secret; Helm exposes `config.llmBaseUrl`, `config.llmModel`, `config.llmApiMode`, `config.llmTimeout`, and `secrets.llmApiKey`. Keep keys in secrets or private environment files. Custom deployments must inject these settings into workers even if they already exist on the standalone `llm-bot` service.
+
+Existing clustering `BOT_ENDPOINT`, `BOT_API_KEY`, and `STORY_API_ENDPOINT` values no longer select the clustering service. Custom encoder clustering endpoints must switch to an OpenAI-compatible LLM provider for this trial. Other bots still require the standalone bot service. Pull the updated worker image, recreate workers, verify their health, and run the configured story bot against a known selection to verify its task result and grouping. No database migration is needed. To roll back, restore the previous worker image and its clustering endpoint environment; persisted endpoint/key parameters are retained.
+
 ## Initial settings
 
 Before the first startup, set `PRE_SEED_SETTINGS` in `kubernetes/00-config.yaml`, or the JSON string `config.preSeedSettings` in Helm values. Both default to `"{}"`. For example, Helm values can contain:
@@ -160,7 +168,6 @@ docker exec -it core taranis-cli set-roles user Admin
 ## Notes
 
 - These manifests expect a reachable PostgreSQL service and a reachable Redis service, but they do not create those workloads.
-- `STORY_API_ENDPOINT` now defaults to `http://llm-bot:8000/cluster`; ensure your `llm-bot` image exposes that route if you enable story clustering.
 - The `core` PVC is included because the application writes persistent data under `/app/data`.
 - The `core` readiness and liveness probes run every 5 minutes after a 15-second startup delay because the core healthcheck performs non-trivial service checks.
 - The default `core` and `frontend` images recycle Granian workers above 4096 MiB and 1024 MiB RSS respectively.

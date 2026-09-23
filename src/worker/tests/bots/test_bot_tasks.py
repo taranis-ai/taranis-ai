@@ -1,9 +1,11 @@
 """Tests for bot task execution and result handling."""
 
 import traceback
+from unittest.mock import patch
 
 # pyright: reportMissingParameterType=false
 import pytest
+from llm_bot.client import LLMClient, UpstreamLLMError
 from models.task import TaskResult
 from niquests.exceptions import RequestException
 
@@ -66,6 +68,24 @@ def stub_bots(monkeypatch):
 
 class TestBotTask:
     """Tests for bot_task function."""
+
+    @pytest.mark.parametrize("failure", [RequestException("private provider detail"), UpstreamLLMError("private provider detail"), None])
+    def test_story_clustering_failure_is_safe(self, current_job, requests_mock, failure):
+        requests_mock.real_http = False
+        requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/bots/bot-456", json={"type": "story_bot", "parameters": {}})
+        requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/stories", json=[{"id": "story-1", "tags": {}}])
+        saved = requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
+        with patch.object(LLMClient, "create_response", autospec=True, side_effect=failure) as provider:
+            provider.return_value = {"output_text": "private invalid provider output"}
+            with pytest.raises(RuntimeError) as exc_info:
+                bot_task("bot-456")
+
+        assert "private" not in "".join(traceback.format_exception(exc_info.value))
+        task_data = saved.last_request.json()
+        assert task_data["status"] == "FAILURE"
+        assert task_data["result"]["reason"] == ("bot_service_unavailable" if failure else "bot_execution_failed")
+        assert task_data["result"]["retryable"] is bool(failure)
+        assert "private" not in str(task_data["result"])
 
     def test_bot_task_success_passes_result_dict(self, current_job, requests_mock, bot_config, stub_bots):
         """Test that bot_task passes the full result dict to CoreApi.save_task_result on success."""

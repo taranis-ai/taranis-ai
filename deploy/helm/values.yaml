@@ -20,11 +20,11 @@ config:
   summaryApiEndpoint: http://llm-bot:8000/summarize
   titleApiEndpoint: http://llm-bot:8000/title
   nlpApiEndpoint: http://llm-bot:8000/ner
-  storyApiEndpoint: http://llm-bot:8000/cluster
   sentimentAnalysisApiEndpoint: http://llm-bot:8000/sentiment
   cybersecClassifierApiEndpoint: http://llm-bot:8000/cybersec-classification
   llmBaseUrl: CHANGE_ME_LLM_BASE_URL
   llmModel: ""
+  llmApiMode: responses
   llmTimeout: "120"
   cacheDefaultTimeout: "1"
   chatEnabled: "false"

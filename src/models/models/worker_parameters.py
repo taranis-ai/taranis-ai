@@ -284,7 +284,14 @@ class TaggingBotParameters(BotParameters):
 
 class StoryBotParameters(LLMParameters):
     ITEM_FILTER: str = Field("range=week", title="Item filter", description="Filter selecting items processed by the bot.")
-    BOT_ENDPOINT: str = Field("http://llm-bot:8000/cluster", title="Bot endpoint", description="Story clustering service endpoint.")
+    BOT_ENDPOINT: str = Field(
+        "http://llm-bot:8000/cluster",
+        title="Legacy bot endpoint",
+        description="Unused by story clustering; configure LLM_BASE_URL on the worker.",
+    )
+    BOT_API_KEY: SecretStr = Field(
+        SecretStr(""), title="Legacy bot API key", description="Unused by story clustering; configure LLM_API_KEY on the worker."
+    )
 
 
 class SummaryBotParameters(LLMParameters):

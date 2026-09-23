@@ -48,6 +48,14 @@ Check or configure IntelOwl from a worker install/container:
 uv run --no-sync --frozen taranis-intelowl-setup --url http://127.0.0.1:18080
 ```
 
+## Story clustering
+
+Story clustering runs through the installed `taranis-llm-bot` Python library and calls the LLM provider directly. Other LLM bot functions continue using the `llm-bot` HTTP service.
+
+Set `LLM_BASE_URL` and, when required by your provider, `LLM_API_KEY` in the worker environment or its private `.env` before startup. Set `LLM_MODEL` if the provider requires a model. `LLM_API_MODE` defaults to `responses`; use `chat_completions` for providers exposing that API. `LLM_TIMEOUT` defaults to 120 seconds, with the bot's `REQUESTS_TIMEOUT` taking precedence. Restart workers after changing these settings.
+
+Clustering uses only story IDs, summaries, and tags. Configure upstream enrichment as needed; full news-item text is not used. Existing clustering `BOT_ENDPOINT`, `BOT_API_KEY`, and `STORY_API_ENDPOINT` settings are ignored. Provider credentials belong in `LLM_API_KEY`, not the legacy bot key. The Compose worker receives the shared `LLM_*` settings automatically; custom worker deployments must supply them explicitly.
+
 ## Architecture
 
 see [docs](https://github.com/taranis-ai/taranis-ai/tree/master/doc)

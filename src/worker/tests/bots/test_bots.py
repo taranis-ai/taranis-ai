@@ -1,4 +1,9 @@
+import json
+from unittest.mock import patch
+
 import pytest
+from llm_bot.client import LLMClient
+from llm_bot.config import Config as LLMConfig
 
 from worker.bot_api import BotServiceUnavailableError
 from worker.bots.base_bot import BaseBot
@@ -43,32 +48,62 @@ def test_ioc_bot(story_get_mock):
     assert story_get_mock.call_count == 1
 
 
-@pytest.mark.parametrize("summary,tags", [("Short summary", {"security": {"name": "security", "tag_type": "misc"}}), (None, {})])
-def test_story_bot_preserves_ids_in_reduced_payload(stories, requests_mock, summary, tags):
+@pytest.mark.parametrize(
+    "summary,tags,timeout",
+    [("Short summary", {"security": {"name": "security", "tag_type": "misc"}}, 17), (None, {}, None)],
+)
+def test_story_bot_clusters_via_library(stories, requests_mock, monkeypatch, summary, tags, timeout):
     from worker import bots
 
+    requests_mock.real_http = False
+    monkeypatch.setattr(LLMConfig, "LLM_BASE_URL", "https://llm.test/v1")
+    monkeypatch.setattr(LLMConfig, "LLM_API_KEY", "provider-key")
+    monkeypatch.setattr(LLMConfig, "LLM_MODEL", "cluster-model")
+    monkeypatch.setattr(LLMConfig, "LLM_API_MODE", "chat_completions")
+    monkeypatch.setattr(LLMConfig, "LLM_TIMEOUT", 120)
     input_stories = [{**story, "summary": summary, "tags": tags} for story in stories[:2]]
     requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/stories", json=input_stories)
-    clustering = requests_mock.post(
-        "http://story-bot.test/",
-        json=lambda request, context: {
-            "message": "Processed",
-            "cluster_ids": {"event_clusters": [[story["id"] for story in request.json()["stories"]]]},
-        },
-    )
     grouping = requests_mock.put(f"{Config.TARANIS_CORE_URL}/bots/stories/group-multiple", json={"message": "success"})
+    parameters = {"BOT_ENDPOINT": "http://unused-bot.test", "BOT_API_KEY": "unused-bot-key", "REQUESTS_TIMEOUT": timeout}
 
-    result = bots.StoryBot().execute({"BOT_ENDPOINT": "http://story-bot.test"})
+    with patch.object(LLMClient, "create_response", autospec=True) as provider:
+        provider.return_value = {
+            "output_text": json.dumps(
+                {
+                    "cluster_ids": {"event_clusters": [[1, 2]]},
+                    "cluster_reasons": [{"story_ids": [1, 2], "reason": "Same event"}],
+                    "message": "Processed",
+                }
+            )
+        }
+        result = bots.StoryBot().execute(parameters)
 
-    assert result == {"message": "Processed"}
-    assert clustering.call_count == 1
-    assert clustering.last_request.json() == {"stories": [{"id": story["id"], "tags": tags, "summary": summary} for story in input_stories]}
-    assert grouping.call_count == 1
-    assert grouping.last_request.json() == [[story["id"] for story in input_stories]]
+        assert result == {"message": "Processed"}
+        provider.assert_awaited_once()
+        client = provider.call_args.args[0]
+        assert (client.base_url, client.api_key, client.model, client.api_mode, client.timeout) == (
+            "https://llm.test/v1",
+            "provider-key",
+            "cluster-model",
+            "chat_completions",
+            timeout or 120,
+        )
+        assert json.loads(provider.call_args.args[2]) == {
+            "stories": [{"id": i, "tags": {name: tag["tag_type"] for name, tag in tags.items()}, "summary": summary} for i in (1, 2)]
+        }
+        assert grouping.call_count == 1
+        assert grouping.last_request.json() == [[story["id"] for story in input_stories]]
 
-    requests_mock.post("http://story-bot.test/", json={"message": "Processed", "cluster_ids": {}})
-    assert bots.StoryBot().execute({"BOT_ENDPOINT": "http://story-bot.test"}) == {"message": "Processed. No clusters found."}
-    assert grouping.call_count == 1
+        provider.return_value = {
+            "output_text": json.dumps({"cluster_ids": {"event_clusters": [[1], [2]]}, "cluster_reasons": [], "message": "Processed"})
+        }
+        assert bots.StoryBot().execute(parameters) == {"message": "Processed. No clusters found."}
+        assert grouping.call_count == 1
+
+        provider.reset_mock()
+        requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/stories", json=[])
+        assert bots.StoryBot().execute(parameters) == {"message": "No new stories found"}
+        provider.assert_not_awaited()
 
 
 def test_analyst_bot_returns_meaningful_result_when_no_stories(monkeypatch):

@@ -1,20 +1,14 @@
-from typing import Any
+import asyncio
 
-from pydantic import BaseModel, ConfigDict, Field
+from llm_bot.client import LLMClient, UpstreamLLMError
+from llm_bot.schemas import ClusterRequest
+from llm_bot.tasks.cluster import cluster_stories
+from niquests.exceptions import RequestException
 
-from worker.bot_api import BotApi
-from worker.config import Config
+from worker.bot_api import BotServiceUnavailableError
 from worker.log import logger
 
 from .base_bot import BaseBot
-
-
-class StoryBotPayload(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-
-    id: str = Field(min_length=1)
-    tags: dict[str, Any] = Field(default_factory=dict)
-    summary: str | None = None
 
 
 class StoryBot(BaseBot):
@@ -31,22 +25,22 @@ class StoryBot(BaseBot):
             parameters = {}
         if not (data := self.get_stories(parameters)):
             return {"message": "No new stories found"}
-        self.bot_api = BotApi(
-            bot_endpoint=parameters.get("BOT_ENDPOINT", Config.STORY_API_ENDPOINT),
-            bot_api_key=parameters.get("BOT_API_KEY", Config.BOT_API_KEY),
-            requests_timeout=parameters.get("REQUESTS_TIMEOUT"),
-        )
+        logger.info(f"Clustering {len(data)} stories")
+        try:
+            request = ClusterRequest.model_validate(
+                {"stories": [{"id": story["id"], "tags": story.get("tags", {}), "summary": story.get("summary")} for story in data]}
+            )
+            response = asyncio.run(cluster_stories(request, client=LLMClient(timeout=parameters.get("REQUESTS_TIMEOUT"))))
+        except (RequestException, UpstreamLLMError):
+            logger.exception("Story clustering LLM request failed")
+            raise BotServiceUnavailableError from None
+        except Exception:
+            logger.exception("Story clustering failed")
+            raise RuntimeError("Story clustering failed") from None
 
-        logger.info(f"Clustering {len(data)} news items")
+        clusters = [cluster for cluster in response.cluster_ids.event_clusters if len(cluster) > 1]
+        if not clusters:
+            return {"message": f"{response.message}. No clusters found."}
 
-        stories = [StoryBotPayload.model_validate(story).model_dump(mode="json") for story in data]
-        if response := self.bot_api.api_post("/", {"stories": stories}):
-            cluster_data = response.get("cluster_ids", {})
-            message = response.get("message", "")
-            if not cluster_data or not cluster_data.get("event_clusters"):
-                return {"message": f"{message}. No clusters found."}
-
-            self.core_api.news_items_grouping_multiple(cluster_data.get("event_clusters", []))
-            return {"message": message}
-
-        raise RuntimeError(f"Did not receive clustering information from Story Bot at {self.bot_api.api_url}")
+        self.core_api.news_items_grouping_multiple(clusters)
+        return {"message": response.message}

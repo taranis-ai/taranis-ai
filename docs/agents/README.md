@@ -29,7 +29,7 @@ Read matching memories before planning or editing related features, routes, mode
 - [RSS Source Health](rss-source-health.md): feed detection, empty feeds, and entry limits.
 - [Mastodon Collector](mastodon-collector.md): timelines, pagination, tokens, and cursors.
 - [Bot Run Order DAG](bot-run-order-dag.md): bot dependencies and scheduling.
-- [Story Clustering](story-clustering.md): reduced external bot payload and response contract.
+- [Story Clustering](story-clustering.md): direct worker library integration, reduced input, and provider configuration.
 - [IntelOwl Enrichment](intelowl-enrichment.md): IOC persistence, CTI aggregation, and analyzer setup.
 - [MISP Auto-Update](misp-auto-update.md): scheduled pushes, proposals, and feedback prevention.
 - [Worker Parameters](worker-parameters.md): registry, configuration semantics, secrets, and migration.
