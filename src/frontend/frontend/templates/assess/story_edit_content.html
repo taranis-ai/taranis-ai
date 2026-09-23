@@ -187,12 +187,16 @@
           <div class="grid grid-cols-2 gap-8">
             <label class="floating-label">
               <span class="label">Summary</span>
-              <textarea name="summary" class="textarea textarea-bordered w-full" placeholder="Summarise the key takeaways">{{ story.summary }}</textarea>
+              <textarea name="summary"
+                        class="textarea textarea-bordered w-full"
+                        placeholder="Summarise the key takeaways">{{ story.summary }}</textarea>
             </label>
 
             <label class="floating-label">
               <span class="label">Analyst comments</span>
-              <textarea name="comments" class="textarea textarea-bordered w-full" placeholder="Capture notes, caveats, or next steps">{{ story.comments }}</textarea>
+              <textarea name="comments"
+                        class="textarea textarea-bordered w-full"
+                        placeholder="Capture notes, caveats, or next steps">{{ story.comments }}</textarea>
             </label>
             {# djlint:off #}
             <section class="rounded-2xl border border-base-200 bg-base-200/40 p-5 h-full"
@@ -247,7 +251,9 @@
                   hx-target="#notification-bar"
                   hx-swap="innerHTML">
               <input type="hidden" name="bot_id" value="summary_bot">
-              <button type="submit" class="btn btn-outline btn-accent" {% if not story.can_edit %}disabled{% endif %}>Generate summary & title</button>
+              <button type="submit"
+                      class="btn btn-outline btn-accent"
+                      {% if not story.can_edit %}disabled{% endif %}>Generate summary & title</button>
             </form>
 
             <form class="flex flex-col"
@@ -255,7 +261,9 @@
                   hx-target="#notification-bar"
                   hx-swap="innerHTML">
               <input type="hidden" name="bot_id" value="sentiment_analysis_bot">
-              <button type="submit" class="btn btn-outline btn-accent" {% if not story.can_edit %}disabled{% endif %}>Run sentiment analysis</button>
+              <button type="submit"
+                      class="btn btn-outline btn-accent"
+                      {% if not story.can_edit %}disabled{% endif %}>Run sentiment analysis</button>
             </form>
 
             <form class="flex flex-col"
@@ -263,7 +271,9 @@
                   hx-target="#notification-bar"
                   hx-swap="innerHTML">
               <input type="hidden" name="bot_id" value="cybersec_classifier_bot">
-              <button type="submit" class="btn btn-outline btn-accent" {% if not story.can_edit %}disabled{% endif %}>Cybersecurity classification</button>
+              <button type="submit"
+                      class="btn btn-outline btn-accent"
+                      {% if not story.can_edit %}disabled{% endif %}>Cybersecurity classification</button>
             </form>
 
           </div>
@@ -281,7 +291,8 @@
                 <select name="misp_auto_update[connector_id]" form="story-edit-form" class="select select-bordered w-full">
                   <option value="">Select connector</option>
                   {% for connector in misp_connectors | default([]) %}
-                    <option value="{{ connector.id }}" {% if connector.id == misp_sync.connector_id %}selected{% endif %}>{{ connector.name }}</option>
+                    <option value="{{ connector.id }}"
+                            {% if connector.id == misp_sync.connector_id %}selected{% endif %}>{{ connector.name }}</option>
                   {% endfor %}
                 </select>
               </label>
@@ -298,7 +309,10 @@
               <p class="text-sm text-base-content/70">You do not have permission to change MISP auto-update settings.</p>
             {% endif %}
             {% if proposal_url %}
-              <a class="badge badge-warning badge-outline" href="{{ proposal_url }}" target="_blank" rel="noopener">Blocked by MISP proposal</a>
+              <a class="badge badge-warning badge-outline"
+                 href="{{ proposal_url }}"
+                 target="_blank"
+                 rel="noopener">Blocked by MISP proposal</a>
             {% endif %}
           </div>
         </div>

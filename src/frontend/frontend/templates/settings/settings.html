@@ -23,7 +23,9 @@
     <p class="mt-2 text-sm text-base-content/60">Manage application defaults, connected services, and maintenance.</p>
   </header>
 
-  <details class="collapse collapse-arrow border border-base-300 bg-base-100 rounded-box shadow-sm" data-testid="settings-general-section" open>
+  <details class="collapse collapse-arrow border border-base-300 bg-base-100 rounded-box shadow-sm"
+           data-testid="settings-general-section"
+           open>
     <summary class="collapse-title px-6 py-5 pr-12">
       <h2 class="text-lg font-semibold">General Defaults</h2>
       <p class="mt-1 text-sm font-normal text-base-content/60">Defaults for new content, collection, and user profiles.</p>
@@ -38,7 +40,8 @@
             hx-select="#settings-container"
             hx-swap="outerHTML">
         <section aria-labelledby="settings-collection-heading">
-          <h3 id="settings-collection-heading" class="text-xs font-semibold uppercase tracking-widest text-base-content/50 mb-5">Collection &amp; locale</h3>
+          <h3 id="settings-collection-heading"
+              class="text-xs font-semibold uppercase tracking-widest text-base-content/50 mb-5">Collection &amp; locale</h3>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
             <div class="min-w-0">
               {{ form_input('Default Collector Proxy', 'settings[default_collector_proxy]', current_settings.default_collector_proxy, required=False, preserve=False, data_testid='settings-default-collector-proxy') }}
@@ -66,7 +69,8 @@
                       data-choices-no-choices-text="No timezones to choose from">
                 <option value="" {% if not current_settings.default_timezone %}selected{% endif %}>UTC for new users</option>
                 {% for timezone in timezone_options %}
-                  <option value="{{ timezone }}" {% if timezone == current_settings.default_timezone %}selected{% endif %}>{{ timezone }}</option>
+                  <option value="{{ timezone }}"
+                          {% if timezone == current_settings.default_timezone %}selected{% endif %}>{{ timezone }}</option>
                 {% endfor %}
               </select>
               <p class="text-xs text-base-content/60 mt-2">Copied into new user profiles when no timezone is supplied.</p>
@@ -75,7 +79,8 @@
         </section>
 
         <section class="border-t border-base-300 pt-6" aria-labelledby="settings-limits-heading">
-          <h3 id="settings-limits-heading" class="text-xs font-semibold uppercase tracking-widest text-base-content/50 mb-5">Limits &amp; retention</h3>
+          <h3 id="settings-limits-heading"
+              class="text-xs font-semibold uppercase tracking-widest text-base-content/50 mb-5">Limits &amp; retention</h3>
           <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
             <div class="rounded-box bg-base-200/50 border border-base-300 p-4"
                  x-data="{ rssEntryLimit: {{ current_settings.rss_collector_max_entries | tojson }} }"
@@ -134,7 +139,8 @@
       <h2 id="settings-maintenance-heading" class="font-semibold">Frontend maintenance</h2>
       <p class="text-sm text-base-content/60 mt-1">Clear cached data so the frontend fetches fresh values.</p>
     </div>
-    {% for action in frontend_actions %}<button class="btn btn-outline shrink-0" hx-post="{{ action.url }}">{{ action.label }}</button>{% endfor %}
+    {% for action in frontend_actions %}<button class="btn btn-outline shrink-0"
+        hx-post="{{ action.url }}">{{ action.label }}</button>{% endfor %}
   </section>
 
   <details class="collapse collapse-arrow border border-error/30 bg-base-100 rounded-box">

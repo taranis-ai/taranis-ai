@@ -127,7 +127,8 @@
                         </tr>
                       {% else %}
                         <tr>
-                          <td colspan="{{ columns | length + 1 }}" class="text-center py-3 text-gray-900 text-sm">No matching records found.</td>
+                          <td colspan="{{ columns | length + 1 }}"
+                              class="text-center py-3 text-gray-900 text-sm">No matching records found.</td>
                         </tr>
                       {% endfor %}
                     </tbody>
@@ -147,7 +148,8 @@
                    rel="noopener noreferrer"
                    data-testid="last-published-product-link">{{ product.last_published_url }}</a>
               {% else %}
-                <p class="text-sm text-base-content/70" data-testid="last-published-product-empty">This product has not been published yet.</p>
+                <p class="text-sm text-base-content/70"
+                   data-testid="last-published-product-empty">This product has not been published yet.</p>
               {% endif %}
             </section>
           {% endif %}
@@ -207,7 +209,10 @@
                         src="data:{{ rendered_mime_type }};charset=utf-8;base64,{{ product.render_result }}">
                 </iframe>
               {% elif rendered_mime_type == "application/pdf" %}
-                <object class="w-full h-[80vh]" data="data:application/pdf;base64,{{ rendered_product }}" type="application/pdf" data-testid="pdf-render"></object>
+                <object class="w-full h-[80vh]"
+                        data="data:application/pdf;base64,{{ rendered_product }}"
+                        type="application/pdf"
+                        data-testid="pdf-render"></object>
               {% else %}
                 <div class="alert">Preview for {{ rendered_mime_type }} is not supported. Please download the file instead.</div>
               {% endif %}

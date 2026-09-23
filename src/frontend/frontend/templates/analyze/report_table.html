@@ -14,9 +14,10 @@
     <div class="mb-4 flex flex-wrap gap-4">
       {% if routes.edit_route %}
         <div class="grow-0">
-          <a href="{{ routes.edit_route }}" hx-boost="target:#report swap:innerHTML" class="btn btn-primary" data-testid="new-{{ model_name }}-button">
-            New {{ name }}
-          </a>
+          <a href="{{ routes.edit_route }}"
+             hx-boost="target:#report swap:innerHTML"
+             class="btn btn-primary"
+             data-testid="new-{{ model_name }}-button">New {{ name }}</a>
         </div>
       {% endif %}
       <form method="get"

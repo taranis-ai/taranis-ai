@@ -22,7 +22,11 @@
                     hx-select="#story-{{ news_item.story_id }}">Ungroup</button>
           {% endif %}
           {% if edit_tags %}
-            <button type="button" class="btn btn-sm btn-outline" data-testid="edit-newsitem-tags" @click="toggleTagEditor()" aria-label="Edit news item tags">
+            <button type="button"
+                    class="btn btn-sm btn-outline"
+                    data-testid="edit-newsitem-tags"
+                    @click="toggleTagEditor()"
+                    aria-label="Edit news item tags">
               {{ heroicon_mini("tag", class="h-4 w-4") }}
               <span>Manage tags</span>
             </button>
@@ -61,7 +65,8 @@
       {% if news_item_tags %}
         <div class="flex flex-wrap gap-1" data-testid="news-item-tags">
           {% for tag in news_item_tags if tag.name %}
-            <span class="tooltip before:z-[50] badge badge-ghost badge-xs max-w-full truncate" data-tip="{{ tag.tag_type or 'misc' }}">{{ tag.name }}</span>
+            <span class="tooltip before:z-[50] badge badge-ghost badge-xs max-w-full truncate"
+                  data-tip="{{ tag.tag_type or 'misc' }}">{{ tag.name }}</span>
           {% endfor %}
         </div>
       {% endif %}

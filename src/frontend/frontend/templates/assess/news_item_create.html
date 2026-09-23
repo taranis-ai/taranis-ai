@@ -74,12 +74,17 @@
               </div>
               <label class="input w-full">
                 <span class="label-text font-semibold">URL <span class="text-error">*</span></span>
-                <input id="create-from-url" type="url" name="fetch_url" placeholder="https://example.com/story" class="input input-bordered w-full" required>
+                <input id="create-from-url"
+                       type="url"
+                       name="fetch_url"
+                       placeholder="https://example.com/story"
+                       class="input input-bordered w-full"
+                       required>
               </label>
               <div class="flex flex-col gap-2 sm:flex-row">
-                <button type="button" class="btn btn-outline sm:flex-1" onclick="document.getElementById('create_from_url_parameters_dialog').showModal()">
-                  Parameters
-                </button>
+                <button type="button"
+                        class="btn btn-outline sm:flex-1"
+                        onclick="document.getElementById('create_from_url_parameters_dialog').showModal()">Parameters</button>
                 <button type="submit" class="btn btn-outline sm:flex-1">Create from URL</button>
               </div>
             </div>
@@ -178,7 +183,10 @@
                 <h2 class="text-lg font-semibold">Attributes</h2>
                 <p class="text-xs text-base-content/60">Optional key/value tags like sentiment, TLP, or classification.</p>
               </div>
-              <button type="button" class="btn btn-outline btn-sm" @click="addAttribute()" {% if read_only %}disabled{% endif %}>Add attribute</button>
+              <button type="button"
+                      class="btn btn-outline btn-sm"
+                      @click="addAttribute()"
+                      {% if read_only %}disabled{% endif %}>Add attribute</button>
             </div>
 
             <div class="mt-4 flex flex-col gap-3">
@@ -196,9 +204,10 @@
                          name="attributes[][value]"
                          placeholder="Value"
                          {% if read_only %}disabled{% endif %}>
-                  <button type="button" class="btn btn-xs text-error font-semibold flex-shrink-0" @click="removeAttribute(index)" {% if read_only %}disabled{% endif %}>
-                    Remove
-                  </button>
+                  <button type="button"
+                          class="btn btn-xs text-error font-semibold flex-shrink-0"
+                          @click="removeAttribute(index)"
+                          {% if read_only %}disabled{% endif %}>Remove</button>
                 </div>
               </template>
             </div>

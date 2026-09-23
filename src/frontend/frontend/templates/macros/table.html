@@ -28,7 +28,12 @@
           <tr class="hover:bg-info">
             {% if selectable %}
               <td>
-                <input type="checkbox" class="checkbox checkbox-sm" value="{{ item.id }}" name="{{ input_name }}[]" x-model="selectedItems" @click.stop />
+                <input type="checkbox"
+                       class="checkbox checkbox-sm"
+                       value="{{ item.id }}"
+                       name="{{ input_name }}[]"
+                       x-model="selectedItems"
+                       @click.stop />
               </td>
             {% endif %}
             {% for col in columns %}
@@ -229,7 +234,12 @@
           hx-on::before:request="restoreSearchAfterSwap(ctx)">
       <label class="input w-full">
         {{ heroicon_outline('magnifying-glass', class="h-5 w-5") }}
-        <input type="search" id="{{ table_id }}-search" name="search" placeholder="Search..." value="{{ current_search }}" data-search-from-request />
+        <input type="search"
+               id="{{ table_id }}-search"
+               name="search"
+               placeholder="Search..."
+               value="{{ current_search }}"
+               data-search-from-request />
         {% for key in preserve_params %}
           {% for value in request.args.getlist(key) %}
             <input type="hidden" name="{{ key }}" value="{{ value }}" />
@@ -254,7 +264,12 @@
       <!-- Items per Page -->
       <div class="flex items-center gap-2">
         <span class="text-sm font-medium">Items per page:</span>
-        <form method="get" action="{{ base_url }}" class="flex items-center gap-2" hx-get="{{ base_url }}" hx-trigger="submit, change" hx-push-url="true">
+        <form method="get"
+              action="{{ base_url }}"
+              class="flex items-center gap-2"
+              hx-get="{{ base_url }}"
+              hx-trigger="submit, change"
+              hx-push-url="true">
           {% for key, values in request.args.lists() %}
             {% if key not in ["limit", "page"] %}
               {% for value in values %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endfor %}
