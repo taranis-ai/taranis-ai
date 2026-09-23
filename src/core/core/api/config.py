@@ -747,9 +747,7 @@ class ConnectorsPull(MethodView):
     def post(self, connector_id: str):
         """Trigger collection of stories from the external system."""
         try:
-            collected_stories = queue_manager.queue_manager.pull_from_connector(connector_id=connector_id, user_id=current_user.id)
-
-            return {"message": "Stories successfully collected.", "data": collected_stories}, 200
+            return queue_manager.queue_manager.pull_from_connector(connector_id=connector_id, user_id=current_user.id)
         except Exception:
             logger.exception("Failed to pull stories from connector %s", connector_id)
             return {"error": "Failed to pull stories from connector"}, 500

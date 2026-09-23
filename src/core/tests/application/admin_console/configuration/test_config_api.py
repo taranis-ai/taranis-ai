@@ -1417,7 +1417,7 @@ class TestAdminMenuBadgesConfigApi(BaseTest):
 class TestConnectorConfigApi(BaseTest):
     base_uri = "/api/config"
 
-    def test_patch_connector_state_persists(self, client, auth_header, cleanup_connector):
+    def test_patch_connector_state_and_pull(self, client, auth_header, cleanup_connector):
         connector_id = cleanup_connector["id"]
 
         response = self.assert_patch_ok(client, uri=f"connectors/{connector_id}", json_data={"state": 1}, auth_header=auth_header)
@@ -1425,6 +1425,13 @@ class TestConnectorConfigApi(BaseTest):
 
         connector_response = self.assert_get_ok(client, uri=f"connectors/{connector_id}", auth_header=auth_header)
         assert connector_response.json["state"] == 1
+
+        response = self.assert_post_ok(client, uri=f"connectors/{connector_id}/pull", json_data={}, auth_header=auth_header)
+        assert response.json == {"message": "Connector scheduled"}
+
+        response = client.post(self.concat_url("connectors/missing/pull"), headers=auth_header)
+        assert response.status_code == 404
+        assert response.json == {"error": "Connector not found"}
 
 
 class TestReportTypeConfigApi(BaseTest):

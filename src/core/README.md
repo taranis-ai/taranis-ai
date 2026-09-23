@@ -51,6 +51,10 @@ workers as `n/a`. Queue-backed actions are unavailable (HTTP 503); persisted dat
 ordinary API operations remain available. Analyst Chat turns also require Redis for
 coordination and are unavailable in this mode. PizzINT runs without its Redis cache.
 
+Connector pulls return the queue response directly: HTTP 200 means the connector was
+scheduled, not that collection completed. Connector pulls and news-item URL fetches
+return HTTP 503 when queues are disabled.
+
 Frontend cache invalidation also skips the queue Redis connection in this mode. To keep
 an independent cache, set `CACHE_REDIS_URL` explicitly. For a deployment with no Redis
 at all, also disable frontend caching (`CACHE_ENABLED=false` on frontend) and Redis-backed

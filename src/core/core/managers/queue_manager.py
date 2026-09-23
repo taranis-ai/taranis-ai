@@ -424,7 +424,7 @@ class QueueManager:
         from core.model.word_list import WordList
 
         if self.error:
-            return {"error": self.error or "Queue unavailable"}, 503 if not Config.QUEUE_ENABLED else 500
+            return {"error": self.error}, 503 if not Config.QUEUE_ENABLED else 500
 
         word_lists = WordList.get_all_for_gathering() or []
         for word_list in word_lists:
@@ -445,7 +445,7 @@ class QueueManager:
     def get_queued_tasks(self):
         """Get queued tasks from all queues"""
         if self.error:
-            return {"error": self.error or "Queue unavailable"}, 503 if not Config.QUEUE_ENABLED else 500
+            return {"error": self.error}, 503 if not Config.QUEUE_ENABLED else 500
 
         try:
             tasks = [{"name": queue_name, "messages": len(queue)} for queue_name, queue in self._queues.items()]
@@ -459,7 +459,7 @@ class QueueManager:
         """Check worker status"""
         if self.error:
             logger.error("QueueManager not initialized")
-            return {"error": self.error or "Queue unavailable"}, 503 if not Config.QUEUE_ENABLED else 500
+            return {"error": self.error}, 503 if not Config.QUEUE_ENABLED else 500
 
         try:
             from rq.worker import Worker
@@ -476,7 +476,7 @@ class QueueManager:
         except Exception as e:
             logger.error(f"Failed to ping workers: {e}")
             self.error = "Could not reach Redis"
-            return {"error": self.error or "Could not reach Redis"}, 503 if not Config.QUEUE_ENABLED else 500
+            return {"error": self.error}, 503 if not Config.QUEUE_ENABLED else 500
 
     def enqueue_task(
         self,
@@ -625,7 +625,7 @@ class QueueManager:
     def get_task(self, task_id) -> tuple[dict, int]:
         """Get task status"""
         if self.error:
-            return {"error": self.error or "Could not reach Redis"}, 503 if not Config.QUEUE_ENABLED else 500
+            return {"error": self.error}, 503 if not Config.QUEUE_ENABLED else 500
 
         try:
             job = Job.fetch(task_id, connection=self._redis)
@@ -794,7 +794,7 @@ class QueueManager:
         from core.service.worker_parameters import effective_parameters
 
         if self.error:
-            return {"error": self.error or "Could not reach Redis"}, 503 if not Config.QUEUE_ENABLED else 500
+            return {"error": self.error}, 503 if not Config.QUEUE_ENABLED else 500
 
         sources = OSINTSource.get_all_for_collector()
         for source in sources:

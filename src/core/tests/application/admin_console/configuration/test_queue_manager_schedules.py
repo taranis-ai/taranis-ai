@@ -161,7 +161,7 @@ def test_annotate_jobs_normalizes_aware_timestamps_to_utc():
 
 
 @pytest.mark.parametrize("queue_enabled", [False, True])
-def test_core_startup_without_redis_requires_explicit_queue_disable(app, auth_header, monkeypatch, queue_enabled):
+def test_core_startup_without_redis_requires_explicit_queue_disable(app, auth_header, monkeypatch, queue_enabled, cleanup_connector):
     from core import create_app
     from core.config import Config
     from core.managers import queue_manager
@@ -200,10 +200,19 @@ def test_core_startup_without_redis_requires_explicit_queue_disable(app, auth_he
         "/api/config/osint-sources/missing/collect",
         "/api/config/osint-sources/missing/preview",
         "/api/config/bots/missing/execute",
+        f"/api/config/connectors/{cleanup_connector['id']}/pull",
     ):
         response = client.post(path, headers=auth_header)
         assert response.status_code == 503
         assert response.json == {"error": "Queue is disabled"}
+    response = client.post(
+        "/api/assess/news-items/fetch",
+        json={"parameters": {"WEB_URL": "https://example.com/story"}},
+        headers=auth_header,
+    )
+    assert response.status_code == 503
+    assert response.json == {"error": "Queue is disabled"}
+    assert manager.get_task("missing") == ({"error": "Queue is disabled"}, 503)
     assert manager.execute_bot_task("invalid.id") == ({"error": "Queue is disabled"}, 503)
     assert manager.collect_osint_source("missing", "missing") == ({"error": "Queue is disabled"}, 503)
     assert manager.post_collection_bots("missing") == ({"error": "Queue is disabled"}, 503)
