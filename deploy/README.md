@@ -73,7 +73,7 @@ kubectl apply -k deploy/kubernetes-optional-bots
 ```
 
 `kubernetes` is core-only. `kubernetes-optional-bots` includes core plus `llm-bot`.
-Default bot endpoints target `llm-bot` routes: `/summarize`, `/title`, `/ner`, `/cluster`, `/sentiment`, and `/cybersec-classification`.
+Service bot endpoints target `llm-bot` routes: `/ner`, `/sentiment`, and `/cybersec-classification`. Configure clustering and summaries in Admin Settings as described above.
 
 ## Helm
 

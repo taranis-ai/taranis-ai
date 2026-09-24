@@ -133,7 +133,7 @@ class LLMEndpoints(MethodView):
     def post(self, endpoint_id: str | None = None):
         response, status = Settings.save_llm_endpoint(request.get_json(silent=True), endpoint_id)
         invalidate_frontend_cache_on_success(status, models=("settings",))
-        return response, status
+        return jsonify(response), status
 
 
 class DeleteLLMEndpoint(MethodView):
@@ -141,7 +141,7 @@ class DeleteLLMEndpoint(MethodView):
     def post(self, endpoint_id: str):
         response, status = Settings.save_llm_endpoint({}, endpoint_id, delete=True)
         invalidate_frontend_cache_on_success(status, models=("settings",))
-        return response, status
+        return jsonify(response), status
 
 
 def initialize(app: Flask):

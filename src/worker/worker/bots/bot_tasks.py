@@ -99,8 +99,6 @@ def bot_task(bot_id: str, filter: dict | None = None, trigger_dependents: bool =
                 data={"bot_id": bot_id, "filter": filter, "trigger_dependents": trigger_dependents},
             ),
         )
-        if isinstance(exc, BotServiceUnavailableError):
-            raise
         raise
 
 

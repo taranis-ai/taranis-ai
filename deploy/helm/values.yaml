@@ -17,8 +17,6 @@ config:
   sqlalchemyPoolRecycle: "3600"
   authenticator: database
   preSeedSettings: "{}"
-  summaryApiEndpoint: http://llm-bot:8000/summarize
-  titleApiEndpoint: http://llm-bot:8000/title
   nlpApiEndpoint: http://llm-bot:8000/ner
   sentimentAnalysisApiEndpoint: http://llm-bot:8000/sentiment
   cybersecClassifierApiEndpoint: http://llm-bot:8000/cybersec-classification

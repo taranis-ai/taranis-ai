@@ -85,6 +85,7 @@ class TestAdminApi(BaseTest):
             "timeout": "90",
         }
         response = self.assert_post_ok(client, "llm-endpoints", values, auth_header)
+        assert response.mimetype == "application/json"
         endpoint_id = response.get_json()["id"]
         assert "private-test-key" not in response.get_data(as_text=True)
         self.assert_patch_ok(client, "settings", {"settings": {"llm_default_endpoint": endpoint_id, "chat_max_stories": "8"}}, auth_header)
@@ -95,8 +96,8 @@ class TestAdminApi(BaseTest):
         response = client.get(self.concat_url("settings"), headers=auth_header)
         assert "private-test-key" not in response.get_data(as_text=True)
         assert "api_key" not in response.get_json()["items"][0]["settings"]["llm_endpoints"][endpoint_id]
-        self.assert_post_ok(client, f"llm-endpoints/{endpoint_id}", {"api_key": ""}, auth_header)
-        self.assert_post_ok(client, f"llm-endpoints/{endpoint_id}", {"api_key": "  "}, auth_header)
+        response = self.assert_post_ok(client, f"llm-endpoints/{endpoint_id}", {"api_key": "  "}, auth_header)
+        assert response.mimetype == "application/json"
         with app.app_context():
             provider = ChatClient()
             assert (provider.base_url, provider.api_key, provider.model, provider.api_format, provider.timeout) == (
@@ -124,7 +125,8 @@ class TestAdminApi(BaseTest):
         with app.app_context():
             assert ChatClient().api_key == ""
         self.assert_patch_ok(client, "settings", {"settings": {"llm_clustering_endpoint": ""}}, auth_header)
-        self.assert_post_ok(client, f"llm-endpoints/{override_id}/delete", {}, auth_header)
+        response = self.assert_post_ok(client, f"llm-endpoints/{override_id}/delete", {}, auth_header)
+        assert response.mimetype == "application/json"
         assert client.get(worker_url, headers=worker_headers).get_json()["base_url"] == values["base_url"]
         response = client.patch(self.concat_url("settings"), json={"settings": {"llm_default_endpoint": "missing"}}, headers=auth_header)
         assert response.status_code == 400

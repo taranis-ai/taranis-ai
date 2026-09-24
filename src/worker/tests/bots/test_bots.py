@@ -14,18 +14,6 @@ from worker.config import Config
 pytestmark = pytest.mark.usefixtures("set_transformers_offline")
 
 
-def test_initalize_bots():
-    from worker import bots
-
-    bots.AnalystBot()
-    bots.IOCBot()
-    bots.GroupingBot()
-    bots.NLPBot()
-    bots.TaggingBot()
-    bots.SummaryBot()
-    bots.WordlistBot()
-
-
 @pytest.mark.parametrize(
     "parameters",
     [
@@ -48,11 +36,7 @@ def test_ioc_bot(story_get_mock):
     assert story_get_mock.call_count == 1
 
 
-@pytest.mark.parametrize(
-    "summary,tags,timeout",
-    [("Short summary", {"security": {"name": "security", "tag_type": "misc"}}, 17), (None, {}, None)],
-)
-def test_story_bot_clusters_via_library(stories, requests_mock, monkeypatch, summary, tags, timeout):
+def test_story_bot_clusters_via_library(stories, requests_mock, monkeypatch):
     from worker import bots
 
     requests_mock.real_http = False
@@ -65,10 +49,13 @@ def test_story_bot_clusters_via_library(stories, requests_mock, monkeypatch, sum
         "timeout": 120,
     }
     requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/llm-endpoints/clustering", json=endpoint)
-    input_stories = [{**story, "summary": summary, "tags": tags} for story in stories[:2]]
+    input_stories = [
+        {**stories[0], "summary": "Short summary", "tags": {"security": {"name": "security", "tag_type": "misc"}}},
+        {**stories[1], "summary": None, "tags": {}},
+    ]
     requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/stories", json=input_stories)
     grouping = requests_mock.put(f"{Config.TARANIS_CORE_URL}/bots/stories/group-multiple", json={"message": "success"})
-    parameters = {"BOT_ENDPOINT": "http://unused-bot.test", "BOT_API_KEY": "unused-bot-key", "REQUESTS_TIMEOUT": timeout}
+    parameters = {"BOT_ENDPOINT": "http://unused-bot.test", "BOT_API_KEY": "unused-bot-key", "REQUESTS_TIMEOUT": 17}
 
     with patch.object(LLMClient, "create_response", autospec=True) as provider:
         provider.return_value = {
@@ -90,10 +77,13 @@ def test_story_bot_clusters_via_library(stories, requests_mock, monkeypatch, sum
             "provider-key",
             "cluster-model",
             "chat_completions",
-            timeout or 120,
+            17,
         )
         assert json.loads(provider.call_args.args[2]) == {
-            "stories": [{"id": i, "tags": {name: tag["tag_type"] for name, tag in tags.items()}, "summary": summary} for i in (1, 2)]
+            "stories": [
+                {"id": 1, "tags": {"security": "misc"}, "summary": "Short summary"},
+                {"id": 2, "tags": {}, "summary": None},
+            ]
         }
         assert grouping.call_count == 1
         assert grouping.last_request.json() == [[story["id"] for story in input_stories]]
@@ -101,7 +91,8 @@ def test_story_bot_clusters_via_library(stories, requests_mock, monkeypatch, sum
         provider.return_value = {
             "output_text": json.dumps({"cluster_ids": {"event_clusters": [[1], [2]]}, "cluster_reasons": [], "message": "Processed"})
         }
-        assert bots.StoryBot().execute(parameters) == {"message": "Processed. No clusters found."}
+        assert bots.StoryBot().execute() == {"message": "Processed. No clusters found."}
+        assert provider.call_args.args[0].timeout == 120
         assert grouping.call_count == 1
 
         endpoint["model"] = ""

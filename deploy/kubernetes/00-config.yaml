@@ -18,8 +18,6 @@ data:
   SQLALCHEMY_POOL_RECYCLE: "3600"
   PRE_SEED_SETTINGS: "{}"
   TARANIS_AUTHENTICATOR: database
-  SUMMARY_API_ENDPOINT: http://llm-bot:8000/summarize
-  TITLE_API_ENDPOINT: http://llm-bot:8000/title
   NLP_API_ENDPOINT: http://llm-bot:8000/ner
   SENTIMENT_ANALYSIS_API_ENDPOINT: http://llm-bot:8000/sentiment
   CYBERSEC_CLASSIFIER_API_ENDPOINT: http://llm-bot:8000/cybersec-classification

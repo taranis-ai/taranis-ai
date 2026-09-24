@@ -20,8 +20,6 @@ data:
   SQLALCHEMY_POOL_RECYCLE: {{ .Values.config.sqlalchemyPoolRecycle | quote }}
   PRE_SEED_SETTINGS: {{ .Values.config.preSeedSettings | quote }}
   TARANIS_AUTHENTICATOR: {{ .Values.config.authenticator | quote }}
-  SUMMARY_API_ENDPOINT: {{ .Values.config.summaryApiEndpoint | quote }}
-  TITLE_API_ENDPOINT: {{ .Values.config.titleApiEndpoint | quote }}
   NLP_API_ENDPOINT: {{ .Values.config.nlpApiEndpoint | quote }}
   SENTIMENT_ANALYSIS_API_ENDPOINT: {{ .Values.config.sentimentAnalysisApiEndpoint | quote }}
   CYBERSEC_CLASSIFIER_API_ENDPOINT: {{ .Values.config.cybersecClassifierApiEndpoint | quote }}

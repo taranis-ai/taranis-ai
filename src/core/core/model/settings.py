@@ -4,7 +4,6 @@ from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from models.llm import LLM_FEATURES, LLMEndpoint
-from pydantic import ValidationError
 from sqlalchemy import event
 from sqlalchemy.orm import Mapped, Session
 
@@ -77,8 +76,7 @@ class Settings(BaseModel):
 
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
-        public_settings = self.with_defaults(self.settings)
-        public_settings = deepcopy(public_settings)
+        public_settings = deepcopy(self.with_defaults(self.settings))
         for endpoint in public_settings["llm_endpoints"].values():
             endpoint["api_key_configured"] = bool(endpoint.pop("api_key", ""))
         data["settings"] = public_settings
@@ -200,7 +198,7 @@ class Settings(BaseModel):
                 elif "api_key" not in submitted or (isinstance(submitted["api_key"], str) and not submitted["api_key"].strip()):
                     submitted["api_key"] = existing.get("api_key", "")
                 endpoint = LLMEndpoint.model_validate({**existing, **submitted}).model_dump()
-            except (ValidationError, TypeError, ValueError):
+            except (TypeError, ValueError):
                 return {"error": "Invalid LLM endpoint. Check the name, base URL, API format, and positive timeout."}, 400
             if any(item["name"].casefold() == endpoint["name"].casefold() for key, item in endpoints.items() if key != endpoint_id):
                 return {"error": "An LLM endpoint with this name already exists"}, 400
