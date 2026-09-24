@@ -4,6 +4,7 @@
 Settings story transfers, Assess card/bulk JSON sharing, story serializers, and export date filters.
 
 ## Contracts
+- Stories are the primary transfer format; standalone news items are a secondary import format, with no dedicated export workflow. Both file-import screens use `assess/story_import_help.html` for accepted formats, separate parent stories, duplicate rejection, and the public transfer-guide link. Settings explains minimal versus metadata exports and their instance-wide scope.
 - Settings uses `settings/settings.html` → `settings/story_transfer.html` → the admin settings download proxy → Core `/api/settings/export-stories`. This requires `ADMIN_OPERATIONS` and exports the instance, without content ACL filtering.
 - Settings downloads remain JSON arrays. The minimal format contains story ID, UTC creation time, and news-item ID/title/content. Metadata export adds story attributes and retains its existing fields, including detailed news items. Neither export calls `to_detail_dict()` or queries report counts.
 - Date inputs and their maximum use the user's profile timezone through the existing `select_timezone()` fallback. The frontend converts local dates to UTC before forwarding to Core, using each date's daylight-saving offset. Nonexistent or ambiguous local times are rejected. Core API dates retain their UTC/explicit-offset contract; bounds are inclusive and apply to `Story.created`. Blank bounds are optional, future dates and reversed ranges are errors. A From-only range ends at the current time.
