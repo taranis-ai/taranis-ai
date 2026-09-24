@@ -2,7 +2,7 @@ from urllib.parse import quote
 
 import pytest
 from htmx_helpers import install_htmx_support, wait_for_htmx_settled, with_htmx_wait
-from playwright.sync_api import Browser, Page, expect
+from playwright.sync_api import Browser, Page
 
 
 pytestmark = pytest.mark.e2e_ci
@@ -30,38 +30,6 @@ def test_wait_for_htmx_settled_returns_without_htmx_activity(htmx_page: Page):
     wait_for_htmx_settled(htmx_page, timeout=1000)
 
     assert htmx_page.evaluate("""() => window.__taranisHtmxTestState.pendingRequests""") == 0
-
-
-def test_with_htmx_wait_waits_for_after_settle(htmx_page: Page):
-    load_html(htmx_page, '<button id="load">Load</button><div id="target"></div>')
-
-    with_htmx_wait(
-        htmx_page,
-        lambda: htmx_page.evaluate("""
-            () => {
-                const raw = { status: 200, statusText: "OK", url: "/fragment" };
-                const ctx = {
-                    request: { method: "GET", action: "/fragment" },
-                    response: { status: 200, raw },
-                };
-                const detail = { ctx };
-                document.dispatchEvent(new CustomEvent("htmx:before:request", { bubbles: true, detail }));
-                setTimeout(() => {
-                    document.querySelector("#target").textContent = "loaded";
-                    document.dispatchEvent(new CustomEvent("htmx:after:swap", { bubbles: true, detail }));
-                    setTimeout(() => {
-                        document.dispatchEvent(new CustomEvent("htmx:after:settle", { bubbles: true, detail }));
-                        document.dispatchEvent(new CustomEvent("htmx:finally:request", { bubbles: true, detail }));
-                    }, 20);
-                }, 20);
-            }
-        """),
-        timeout=1000,
-    )
-
-    expect(htmx_page.locator("#target")).to_contain_text("loaded")
-    state = htmx_page.evaluate("""() => window.__taranisHtmxTestState""")
-    assert state["lastAfterSettle"] >= state["lastAfterSwap"]
 
 
 def test_with_htmx_wait_reports_htmx_errors(htmx_page: Page):

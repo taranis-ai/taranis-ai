@@ -1,6 +1,7 @@
 import json
 import uuid
 from datetime import UTC, datetime
+from zoneinfo import ZoneInfo
 
 import pytest
 from base_e2e_test import BaseE2ETest
@@ -8,6 +9,7 @@ from flask import url_for
 from htmx_helpers import with_htmx_wait
 from playwright.sync_api import Page, expect
 
+from tests.external_e2e import allow_requests_passthru
 from tests.playwright.notification_helpers import dismiss_notifications
 
 
@@ -1297,6 +1299,61 @@ class TestEndToEndAdmin(BaseE2ETest):
         publisher_presets_update()
         publisher_presets_delete()
 
+    @pytest.mark.parametrize("destination", ["create", "admin"])
+    @pytest.mark.parametrize("export_kind", ["assess", "admin", "admin_metadata", "news_item"])
+    def test_story_file_import(self, logged_in_page, forward_console_and_page_errors, core_request_client, destination, export_kind):
+        page = logged_in_page
+        allow_requests_passthru()
+        story_id = str(uuid.uuid4())
+        title = f"File transfer {story_id}"
+        items = [{"title": f"{title} item {index}", "content": "Transferred content", "osint_source_id": "manual"} for index in range(2)]
+        core_request_client.post("/assess/import", json_data={"id": story_id, "title": title, "news_items": items})
+        cleanup_ids = [story_id]
+        try:
+            if export_kind in ("assess", "news_item"):
+                exported = core_request_client.json_request("GET", "/assess/stories/export", params={"story_ids": [story_id]})
+                if export_kind == "news_item":
+                    exported = exported["items"][0]["news_items"][0]
+            else:
+                exported = core_request_client.json_request(
+                    "GET", "/settings/export-stories", params={"metadata": "true" if export_kind == "admin_metadata" else "false"}
+                )
+                exported = [story for story in exported if story["id"] == story_id]
+            core_request_client.delete(f"/assess/stories/{story_id}")
+            if destination == "create":
+                page.goto(url_for("assess.get_news_item", news_item_id="0", _external=True))
+                form = page.locator("form").filter(has=page.get_by_role("button", name="Create from file", exact=True))
+                submit_url = url_for("assess.create_news_item", _external=True)
+            else:
+                page.goto(url_for("admin_settings.settings", _external=True))
+                form = page.locator("#stories-import-form")
+                submit_url = url_for("assess.import_stories", _external=True)
+            form.locator('input[type="file"]').set_input_files(
+                {"name": "export.json", "mimeType": "application/json", "buffer": json.dumps(exported).encode()}
+            )
+            with page.expect_response(submit_url) as response_info:
+                form.get_by_role("button", name="Create from file" if destination == "create" else "Import Stories", exact=True).click()
+            assert response_info.value.ok
+            if destination == "create":
+                expect(page).to_have_url(url_for("assess.assess", _external=True))
+            else:
+                expect(
+                    page.get_by_text("Imported 1 news item successfully" if export_kind == "news_item" else "Imported 1 story successfully")
+                ).to_be_visible()
+                page.goto(url_for("assess.assess", _external=True))
+            page.get_by_placeholder("Search stories").fill(title)
+            with_htmx_wait(page, lambda: page.get_by_placeholder("Search stories").press("Enter"))
+            card = page.locator("article", has=page.get_by_test_id("story-title").filter(has_text=title)).first
+            expect(card).to_be_visible()
+            imported_id = card.get_attribute("data-story-id")
+            cleanup_ids.append(imported_id)
+            imported = core_request_client.json_request("GET", f"/assess/stories/{imported_id}")
+            assert len(imported["news_items"]) == (1 if export_kind == "news_item" else 2)
+        finally:
+            allow_requests_passthru()
+            for cleanup_id in set(cleanup_ids):
+                core_request_client.delete(f"/assess/stories/{cleanup_id}", raise_for_status=False)
+
     def test_admin_settings(self, logged_in_page, tmp_path, pre_seed_stories):
         page = logged_in_page
         settings_update_url = url_for("admin_settings.settings_action", action="settings", _external=True)
@@ -1446,8 +1503,10 @@ class TestEndToEndAdmin(BaseE2ETest):
             with open(download_path, "r", encoding="utf-8") as f:
                 exported = json.load(f)
 
-            tf = datetime.fromisoformat(time_from)
-            tt = datetime.fromisoformat(time_to)
+            assert all("attributes" in story for story in exported)
+            timezone = ZoneInfo(export_dialog.locator("form[data-timezone]").get_attribute("data-timezone"))
+            tf = datetime.fromisoformat(time_from).replace(tzinfo=timezone).astimezone(UTC).replace(tzinfo=None)
+            tt = datetime.fromisoformat(time_to).replace(tzinfo=timezone).astimezone(UTC).replace(tzinfo=None)
 
             expected = {
                 (
