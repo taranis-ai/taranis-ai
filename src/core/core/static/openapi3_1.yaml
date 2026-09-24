@@ -8964,13 +8964,140 @@ paths:
           $ref: '#/components/responses/401Unauthorized'
         '403':
           description: forbidden
+  /settings/llm-endpoints:
+    post:
+      security:
+      - UserAuth: []
+      tags:
+      - config
+      description: >-
+        Create an LLM endpoint (ADMIN_OPERATIONS required). Fields are name,
+        base_url, model, api_format (responses or chat_completions), api_key,
+        and timeout (positive seconds, default 120). Name and base_url are required.
+        API keys are never included in the response or human settings reads.
+      operationId: settings.llm_endpoints.post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, base_url]
+      responses:
+        '200':
+          description: Endpoint saved; returns its id and a message
+        '400':
+          description: Invalid endpoint or duplicate name
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: ADMIN_OPERATIONS required
+  /settings/llm-endpoints/{endpoint_id}:
+    parameters:
+    - name: endpoint_id
+      in: path
+      required: true
+      schema:
+        type: string
+    post:
+      security:
+      - UserAuth: []
+      tags:
+      - config
+      description: >-
+        Update submitted endpoint fields. Omitted fields are preserved.
+        An omitted or blank api_key preserves the stored key; api_key_clear=true
+        removes it. Settings changes take effect on the next chat turn or bot run.
+      operationId: settings.llm_endpoint.post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Endpoint saved; returns its id and a message
+        '400':
+          description: Invalid endpoint or duplicate name
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: ADMIN_OPERATIONS required
+        '404':
+          $ref: '#/components/responses/404NotFound'
+  /settings/llm-endpoints/{endpoint_id}/delete:
+    parameters:
+    - name: endpoint_id
+      in: path
+      required: true
+      schema:
+        type: string
+    post:
+      security:
+      - UserAuth: []
+      tags:
+      - config
+      description: Delete an endpoint after removing its default and feature assignments.
+      operationId: settings.delete_llm_endpoint.post
+      responses:
+        '200':
+          description: Endpoint deleted
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: ADMIN_OPERATIONS required
+        '404':
+          $ref: '#/components/responses/404NotFound'
+        '409':
+          description: Endpoint is still assigned; reassign it before deleting
+  /worker/llm-endpoints/{feature}:
+    parameters:
+    - name: feature
+      in: path
+      required: true
+      schema:
+        type: string
+        enum: [chat, clustering, summarization]
+    get:
+      security:
+      - APIKey: []
+      tags:
+      - bots
+      description: >-
+        Resolve the explicit feature endpoint or shared default. Returns name,
+        base_url, model, api_format, timeout, and the raw api_key for worker use.
+        Responses have Cache-Control no-store; credentials must not be logged.
+      operationId: worker.llm_endpoint_worker.get
+      responses:
+        '200':
+          description: Effective provider configuration
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '503':
+          description: No LLM endpoint is configured for the feature
   /settings/settings:
     get:
       security:
       - UserAuth: []
       tags:
       - config
-      description: get settings
+      description: >-
+        Get settings including llm_endpoints (API keys omitted, api_key_configured
+        indicates whether a key is stored). Assignments use llm_default_endpoint,
+        llm_chat_endpoint, llm_clustering_endpoint, and llm_summarization_endpoint.
+        Empty feature assignments inherit the default; an empty default leaves
+        unassigned features unconfigured. Change assignments through settings
+        PATCH and manage endpoint definitions through the llm-endpoints routes.
       operationId: settings.settings.get
       responses:
         '200':
