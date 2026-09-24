@@ -1,5 +1,10 @@
-from worker.bot_api import BotApi, BotServiceUnavailableError
-from worker.config import Config
+from llm_bot.client import LLMClient
+from llm_bot.schemas import SummarizeRequest, TitleRequest
+from llm_bot.tasks.summarize import summarize
+from llm_bot.tasks.title import generate_title
+
+from worker.bot_api import BotServiceUnavailableError
+from worker.llm import get_llm_client, run_llm_task
 from worker.log import logger
 
 from .base_bot import BaseBot
@@ -18,8 +23,7 @@ class SummaryBot(BaseBot):
         if not (data := self.get_stories(parameters)):
             return {"message": "No new stories found"}
 
-        summary_api = self._build_bot_api(parameters, "SUMMARY_ENDPOINT", Config.SUMMARY_API_ENDPOINT)
-        title_api = self._build_bot_api(parameters, "TITLE_ENDPOINT", Config.TITLE_API_ENDPOINT)
+        client = get_llm_client(self.core_api, "summarization", parameters)
 
         for story in data:
             news_items = story.get("news_items", [])
@@ -27,8 +31,8 @@ class SummaryBot(BaseBot):
 
             logger.debug(f"Summarizing {story['id']} with {len(news_items)} news items")
             try:
-                summary = self.predict_summary(summary_api, story_payload)
-                title = self.predict_title(title_api, story_payload) if len(news_items) > 1 else ""
+                summary = self.predict_summary(client, story_payload)
+                title = self.predict_title(client, story_payload) if len(news_items) > 1 else ""
 
                 story_update_data = {}
                 if summary:
@@ -66,29 +70,11 @@ class SummaryBot(BaseBot):
         }
 
     @staticmethod
-    def _build_bot_api(parameters: dict, endpoint_parameter: str, default_endpoint: str | None) -> BotApi | None:
-        endpoint = parameters.get(endpoint_parameter) or default_endpoint
-        if not endpoint:
-            return None
+    def predict_summary(client: LLMClient, story_payload: dict[str, list[dict[str, str]]]) -> str:
+        request = SummarizeRequest.model_validate(story_payload)
+        return run_llm_task(summarize(request, client=client)).summary
 
-        return BotApi(
-            bot_endpoint=endpoint,
-            bot_api_key=parameters.get("BOT_API_KEY", Config.BOT_API_KEY),
-            requests_timeout=parameters.get("REQUESTS_TIMEOUT"),
-        )
-
-    def predict_summary(self, bot_api: BotApi | None, story_payload: dict[str, list[dict[str, str]]]) -> str:
-        if not bot_api:
-            return ""
-
-        if response := bot_api.api_post("", story_payload):
-            return response.get("summary", "")
-        return ""
-
-    def predict_title(self, bot_api: BotApi | None, story_payload: dict[str, list[dict[str, str]]]) -> str:
-        if not bot_api:
-            return ""
-
-        if response := bot_api.api_post("", story_payload):
-            return response.get("title", "")
-        return ""
+    @staticmethod
+    def predict_title(client: LLMClient, story_payload: dict[str, list[dict[str, str]]]) -> str:
+        request = TitleRequest.model_validate(story_payload)
+        return run_llm_task(generate_title(request, client=client)).title

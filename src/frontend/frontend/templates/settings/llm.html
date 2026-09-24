@@ -1,0 +1,70 @@
+{% from "macros/forms.html" import form_input, form_select %}
+{% set endpoints = current_settings.llm_endpoints %}
+{% set endpoint_options = [] %}
+{% for endpoint_id, endpoint in endpoints.items() %}
+  {% set _ = endpoint_options.append({'id': endpoint_id, 'name': endpoint.name}) %}
+{% endfor %}
+<section class="rounded-box border border-base-300 bg-base-100 p-6 shadow-sm" data-test-id="llm-settings">
+  <h2 class="text-lg font-semibold">LLM Endpoints</h2>
+  <p class="text-sm text-base-content/70 mt-2 mb-6">
+    Configure providers and models for Chat, story clustering, and summarization. Set a default, then override individual functions if needed.
+    Changes apply to the next message or bot run. Prompts and selected story content are sent to the assigned provider.
+  </p>
+  <form method="post"
+        action="{{ links.update_settings | admin_action }}"
+        hx-patch="{{ links.update_settings | admin_action }}"
+        data-test-id="llm-assignments">
+    <input type="hidden" name="csrf_token" value="{{ request.cookies.get(config['JWT_ACCESS_CSRF_COOKIE_NAME'], '') }}" />
+    {{ form_select('Default endpoint', 'settings[llm_default_endpoint]', current_settings.llm_default_endpoint, options=[{'id': '', 'name': 'Not configured'}] + endpoint_options, required=False) }}
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {% for feature, label in llm_features.items() %}
+        {{ form_select(label, 'settings[llm_' ~ feature ~ '_endpoint]', current_settings['llm_' ~ feature ~ '_endpoint'], options=[{'id': '', 'name': 'Use default'}] + endpoint_options, required=False) }}
+      {% endfor %}
+    </div>
+    <button class="btn btn-primary" type="submit">Save Assignments</button>
+  </form>
+  <div class="mt-6 space-y-4">
+    {% for endpoint_id, endpoint in (endpoints.items() | list) + [('', {})] %}
+      {% if llm_form is not none and endpoint_id == llm_editing_endpoint %}
+        {% set endpoint = dict(endpoint, **llm_form) %}
+      {% endif %}
+      {% set endpoint_url = url_for('admin_settings.settings_action', action='llm-endpoints' ~ ('/' ~ endpoint_id if endpoint_id else '')) %}
+      <details class="collapse collapse-arrow border border-base-300 rounded-box"
+               data-test-id="llm-endpoint"
+               {% if not endpoints or endpoint_id == llm_editing_endpoint %}open{% endif %}>
+        <summary class="collapse-title font-semibold">{{ endpoint.name if endpoint_id else 'Add LLM Endpoint' }}</summary>
+        <div class="collapse-content">
+          <form method="post" action="{{ endpoint_url }}" hx-post="{{ endpoint_url }}" data-test-id="llm-endpoint-form">
+            <input type="hidden" name="csrf_token" value="{{ request.cookies.get(config['JWT_ACCESS_CSRF_COOKIE_NAME'], '') }}" />
+            {{ form_input('Name', 'name', endpoint.name | default(''), preserve=False, required=True, input_id='llm-' ~ endpoint_id ~ '-name') }}
+            {{ form_input('Provider base URL', 'base_url', endpoint.base_url | default(''), type='url', preserve=False, required=True, placeholder='https://provider.example/v1', input_id='llm-' ~ endpoint_id ~ '-base_url') }}
+            <p class="text-sm text-base-content/70 mb-4">Enter the base URL without /responses or /chat/completions.</p>
+            {{ form_input('Model', 'model', endpoint.model | default(''), preserve=False, required=False, placeholder='Provider default', input_id='llm-' ~ endpoint_id ~ '-model') }}
+            {{ form_select('API format', 'api_format', endpoint.api_format | default('responses'), options=[{'id': 'responses', 'name': 'Responses'}, {'id': 'chat_completions', 'name': 'Chat Completions'}], input_id='llm-' ~ endpoint_id ~ '-api_format') }}
+            {{ form_input('API key', 'api_key', '', type='password', required=False, preserve=False, placeholder='Leave blank to keep the saved key', input_id='llm-' ~ endpoint_id ~ '-api_key') }}
+            <p class="text-sm text-base-content/70 mb-4">{{ 'An API key is saved.' if endpoint.api_key_configured else 'No API key saved. Optional for providers without authentication.' }}</p>
+            {% if endpoint_id %}
+              <label class="flex items-center gap-3 mb-4">
+                <input type="checkbox" class="checkbox checkbox-sm" name="api_key_clear" value="true" />
+                Remove saved API key
+              </label>
+            {% endif %}
+            {{ form_input('Timeout (seconds)', 'timeout', endpoint.timeout | default(120), type='number', preserve=False, min_value=1, input_id='llm-' ~ endpoint_id ~ '-timeout') }}
+            <button class="btn btn-primary" type="submit">{{ 'Save Endpoint' if endpoint_id else 'Add Endpoint' }}</button>
+          </form>
+          {% if endpoint_id %}
+            <form class="mt-4"
+                  method="post"
+                  action="{{ endpoint_url }}/delete"
+                  hx-post="{{ endpoint_url }}/delete"
+                  hx-status:4xx="target:#settings-container swap:outerHTML select:#settings-container">
+              <input type="hidden" name="csrf_token" value="{{ request.cookies.get(config['JWT_ACCESS_CSRF_COOKIE_NAME'], '') }}" />
+              <button class="btn btn-outline btn-error" type="submit">Delete Endpoint</button>
+              <span class="text-sm text-base-content/70 ml-2">Reassign endpoints in use before deleting them.</span>
+            </form>
+          {% endif %}
+        </div>
+      </details>
+    {% endfor %}
+  </div>
+</section>

@@ -3,9 +3,10 @@ from typing import Any
 from urllib.parse import urlencode
 from zoneinfo import ZoneInfo
 
-from flask import render_template, request, url_for
+from flask import g, render_template, request, url_for
 from flask.typing import ResponseReturnValue
 from models.admin import Settings
+from models.llm import LLM_FEATURES
 
 from frontend.core_api import CoreApi
 from frontend.data_persistence import DataPersistenceLayer
@@ -30,6 +31,9 @@ class SettingsView(AdminBaseView):
         dpl = DataPersistenceLayer()
         base_context["_is_admin"] = cls._is_admin
         base_context["settings"] = dpl.get_first(Settings)
+        base_context["llm_features"] = LLM_FEATURES
+        base_context["llm_form"] = getattr(g, "llm_form", None)
+        base_context["llm_editing_endpoint"] = getattr(g, "llm_editing_endpoint", None)
         base_context["timezone_options"] = get_timezone_options()
         base_context["export_timezone"] = select_timezone()
         base_context["export_max_datetime"] = datetime.now(ZoneInfo(base_context["export_timezone"])).strftime("%Y-%m-%dT%H:%M")
@@ -75,6 +79,17 @@ class SettingsView(AdminBaseView):
     def settings_action(cls, action_url, method="download"):
         logger.debug(f"Calling settings action: {action_url}")
 
+        if action_url.startswith("/settings/llm-endpoints") and method == "post":
+            response = CoreApi().api_post(action_url, json_data=parse_formdata(request.form))
+            notification = cls.get_notification_from_response(response)
+            if response.ok:
+                DataPersistenceLayer().invalidate_model_cache_locally(Settings)
+            elif not action_url.endswith("/delete"):
+                g.llm_editing_endpoint = action_url.removeprefix("/settings/llm-endpoints").strip("/")
+                g.llm_form = {key: request.form[key] for key in ("name", "base_url", "model", "api_format", "timeout") if key in request.form}
+            view, _ = cls.static_view()
+            return notification + view, response.status_code
+
         if method == "download":
             response = CoreApi().api_download(action_url)
             if not response.ok:
@@ -92,10 +107,12 @@ class SettingsView(AdminBaseView):
             if payload and "onboarding_enabled" in payload.get("settings", {}):
                 payload["settings"]["onboarding_enabled"] = payload["settings"]["onboarding_enabled"].lower() == "true"
             response = CoreApi().api_patch(action_url, json_data=payload)
+            if response.ok:
+                DataPersistenceLayer().invalidate_model_cache_locally(Settings)
             notification = cls.get_notification_from_response(response)
             static_view, static_response = cls.static_view()
             notification += static_view
-            return notification, static_response
+            return notification, response.status_code if not response.ok else static_response
 
         if request.form:
             response, error = cls.process_form_data(object_id="0")

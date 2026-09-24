@@ -1,11 +1,7 @@
-import asyncio
-
-from llm_bot.client import LLMClient, UpstreamLLMError
 from llm_bot.schemas import ClusterRequest
 from llm_bot.tasks.cluster import cluster_stories
-from niquests.exceptions import RequestException
 
-from worker.bot_api import BotServiceUnavailableError
+from worker.llm import get_llm_client, run_llm_task
 from worker.log import logger
 
 from .base_bot import BaseBot
@@ -26,17 +22,15 @@ class StoryBot(BaseBot):
         if not (data := self.get_stories(parameters)):
             return {"message": "No new stories found"}
         logger.info(f"Clustering {len(data)} stories")
+        client = get_llm_client(self.core_api, "clustering", parameters)
         try:
             request = ClusterRequest.model_validate(
                 {"stories": [{"id": story["id"], "tags": story.get("tags", {}), "summary": story.get("summary")} for story in data]}
             )
-            response = asyncio.run(cluster_stories(request, client=LLMClient(timeout=parameters.get("REQUESTS_TIMEOUT"))))
-        except (RequestException, UpstreamLLMError):
-            logger.exception("Story clustering LLM request failed")
-            raise BotServiceUnavailableError from None
         except Exception:
-            logger.exception("Story clustering failed")
+            logger.exception("Invalid story clustering input")
             raise RuntimeError("Story clustering failed") from None
+        response = run_llm_task(cluster_stories(request, client=client))
 
         clusters = [cluster for cluster in response.cluster_ids.event_clusters if len(cluster) > 1]
         if not clusters:

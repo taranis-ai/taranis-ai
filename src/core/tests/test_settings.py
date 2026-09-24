@@ -285,6 +285,8 @@ def test_pre_seed_settings_initialization(session, admin_user, monkeypatch):
         "default_bot_lookback_days": 0,
         "onboarding_enabled": False,
         "default_collector_proxy": "http://proxy:8080",
+        "chat_llm_base_url": "https://provider.example/v1",
+        "chat_llm_api_key": "legacy-test-key",
     }
     monkeypatch.setenv("PRE_SEED_SETTINGS", json.dumps(seed))
     config = Settings()
@@ -299,6 +301,9 @@ def test_pre_seed_settings_initialization(session, admin_user, monkeypatch):
     assert PersistentSettings.get_settings() == expected
     assert admin_user.profile["onboarding_enabled"] is False
     assert config.PRE_SEED_SETTINGS == seed
+    assert PersistentSettings.get_llm_endpoint("chat")["api_key"] == "legacy-test-key"
+    assert PersistentSettings.get_llm_endpoint("clustering") is None
+    assert "chat_llm_api_key" not in PersistentSettings.get_settings()
 
     _, status = PersistentSettings.update({"settings": {"rss_collector_max_entries": 25}})
     assert status == 200

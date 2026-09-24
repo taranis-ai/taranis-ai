@@ -28,17 +28,17 @@ Optional `llm-bot` overlay:
 
 Optional analyst Chat:
 - Set `CHAT_ENABLED=true` in configuration for both core and frontend.
-- Open **Admin Settings > Chat** to select the provider API format (`chat_llm_api_format`: `responses` by default, or `chat_completions`) and configure the base URL, model, API key, provider timeout (default 120 seconds), and maximum stories (default 5, allowed 1-20). This collapsible section appears only when Chat is enabled. Values are persisted in Settings; changes apply to the next message without restarting. Only `CHAT_ENABLED` is configured through deployment environment variables.
+- Open **Admin Settings > LLM Endpoints** to configure a provider and assign it to Chat, or set it as the shared default. This section is available even when Chat is disabled. **Admin Settings > Chat** retains maximum stories (default 5, allowed 1–20). Changes apply to the next message or bot run without restarting. Only `CHAT_ENABLED` remains deployment configuration for Chat.
 - API keys are write-only in the admin form: leave blank to keep the saved key, or select **Remove saved API key** to clear it. Keys are stored in the application database; protect database access and backups. Settings API responses and logs omit the key.
 - Realtime Chat progress uses the existing Centrifugo connection when `REALTIME_ENABLED=true`; Chat still completes through its normal HTTP response when realtime is disabled or unavailable.
 
-## Story clustering upgrade
+## Shared LLM endpoint upgrade
 
-Story clustering now runs the `taranis-llm-bot` library in the worker and connects directly to the LLM provider. Before updating, configure `LLM_BASE_URL`, provider credentials in `LLM_API_KEY` when required, and `LLM_MODEL` when required on every worker that handles bots. Workers must be able to reach that provider. `LLM_API_MODE` defaults to `responses`; set `chat_completions` for a compatible provider. `LLM_TIMEOUT` defaults to 120 seconds; a clustering bot's `REQUESTS_TIMEOUT` overrides it.
+After pulling the updated images and restarting Core, frontend, and workers, open **Admin Settings > LLM Endpoints**. Create the clustering and summarization providers there, then select a default and/or feature overrides before running those bots. Existing Chat settings become an endpoint assigned only to Chat; they do not automatically become the default. Workers now call the providers directly for both clustering and summarization/title generation and must be able to reach them.
 
-The main Docker Compose file forwards these settings from its `.env`. Raw Kubernetes and Helm workers receive them through the existing ConfigMap and Secret; Helm exposes `config.llmBaseUrl`, `config.llmModel`, `config.llmApiMode`, `config.llmTimeout`, and `secrets.llmApiKey`. Keep keys in secrets or private environment files. Custom deployments must inject these settings into workers even if they already exist on the standalone `llm-bot` service.
+Worker `LLM_*`, `SUMMARY_API_ENDPOINT`, `TITLE_API_ENDPOINT`, and the bots' old endpoint/key parameters no longer configure these functions. Copy the intended provider values from private deployment configuration into the endpoint form. NER, sentiment, and classification still need their standalone service configuration. API keys stay write-only in settings responses and remain stored in the database; protect database access and backups.
 
-Existing clustering `BOT_ENDPOINT`, `BOT_API_KEY`, and `STORY_API_ENDPOINT` values no longer select the clustering service. Custom encoder clustering endpoints must switch to an OpenAI-compatible LLM provider for this trial. Other bots still require the standalone bot service. Pull the updated worker image, recreate workers, verify their health, and run the configured story bot against a known selection to verify its task result and grouping. No database migration is needed. To roll back, restore the previous worker image and its clustering endpoint environment; persisted endpoint/key parameters are retained.
+Verify Core readiness, frontend access, worker health, and a known clustering and summarization task after updating. No database schema migration is needed. Before upgrading, retain a database backup and previous deployment configuration. Rollback requires the previous component images and the old worker/service environment; restore the prior settings JSON from backup if rolling back Chat configuration. Do not restore the entire database over newer content merely to roll back settings.
 
 ## Initial settings
 
@@ -78,7 +78,7 @@ Default bot endpoints target `llm-bot` routes: `/summarize`, `/title`, `/ner`, `
 ## Helm
 
 Use [`helm/`](./helm) if you want value-driven rendering or upgrades. The chart keeps `global.imagePullPolicy: Always` and renders pod `restartPolicy: Always` explicitly for all Deployments.
-Helm deploys one `llm-bot` workload for summarization, title generation, NER, story clustering, sentiment analysis, and cybersecurity classification.
+Helm deploys one `llm-bot` workload for NER, sentiment analysis, and cybersecurity classification. Clustering and summarization/title generation use the worker library with shared endpoint settings.
 
 ```bash
 helm template taranis deploy/helm
@@ -100,7 +100,7 @@ kubectl apply -f deploy/argocd/application.yaml
 
 ## Analyst Chat
 
-Chat is independent of `llm-bot` and workers. Core calls the configured OpenAI-compatible provider directly using `{base_url}/responses` or `{base_url}/chat/completions`. Select the matching API format in **Admin Settings > Chat** when configuring a Chat Completions provider; existing settings keep Responses. Core uses Redis only for a bounded lease per owned conversation or per user while creating a new conversation. If Redis is unavailable, new turns return 503 rather than risk out-of-order conversation history. Analysts need `ASSESS_ACCESS`; all generated Assess searches continue to enforce their source ACLs and TLP restrictions.
+Chat is independent of `llm-bot` and workers. Core calls the configured OpenAI-compatible provider directly using `{base_url}/responses` or `{base_url}/chat/completions`. Select the matching API format in **Admin Settings > LLM Endpoints** when configuring a Chat Completions provider; existing settings keep Responses. Core uses Redis only for a bounded lease per owned conversation or per user while creating a new conversation. If Redis is unavailable, new turns return 503 rather than risk out-of-order conversation history. Analysts need `ASSESS_ACCESS`; all generated Assess searches continue to enforce their source ACLs and TLP restrictions.
 
 Both API formats stream general answers directly. Story questions first call the search tool, then receive a plain-text answer with tools disabled. Providers that reject streaming before sending any content permit one retry without streaming. When realtime is enabled, Core publishes progress stage identifiers and cumulative answer snapshots to the authenticated user's existing Centrifugo channel; the frontend localizes the stages. These publications are best-effort and have no history; the final synchronous response and PostgreSQL conversation remain authoritative.
 

@@ -23,11 +23,11 @@ Chat routes, `CHAT_ENABLED`, `chat_*` settings, provider integration, conversati
 
 ## Configuration
 
-Only `CHAT_ENABLED` is deployment configuration. Compose variations pass it to their core/frontend services with a disabled default. Local development uses `CHAT_ENABLED=False` in `dev/env.dev`, copied to the application `.env` files; `dev/compose.yml` runs infrastructure only. Flat `chat_*` settings in `core/model/settings.py` hold API format (`responses` by default, or `chat_completions`), URL, model, API key, timeout (120 seconds), and maximum stories (5; range 1–20). Validate before admin saves and initial seeding; read settings each turn.
+Only `CHAT_ENABLED` is deployment configuration. Compose variations pass it to their core/frontend services with a disabled default. Local development uses `CHAT_ENABLED=False` in `dev/env.dev`, copied to the application `.env` files; `dev/compose.yml` runs infrastructure only. Shared LLM Endpoints settings hold URL, model, API format, API key, and timeout. Chat resolves its explicit endpoint assignment or the shared default on every turn. The separate Chat section retains `chat_max_stories` (5; range 1–20). Existing `chat_llm_*` configuration is converted to an endpoint assigned only to Chat, preserving behavior without opting workers into that provider. See [LLM Endpoints](llm-endpoints.md).
 
 For Mistral GLM-5.2, select **Chat Completions**, base URL `https://api.mistral.ai/v1`, model `zai-glm-5-2`, and a Mistral API key. URLs must omit the endpoint suffix. See [Mistral Chat API](https://docs.mistral.ai/api/endpoint/chat) and [model documentation](https://docs.mistral.ai/models/zai-glm-5-2). Existing settings keep Responses; no database migration is needed.
 
-The separate Chat form patches submitted fields only. Serialized settings omit API keys; blank preserves the key, explicit clear removes it. Protect database/backups. Missing configuration returns the curated 503 setup warning through the conversation-list response, without exposing admin settings.
+The Chat form patches submitted fields only. Endpoint forms own provider configuration; serialized settings omit API keys, blank preserves the key, and explicit clear removes it. Protect database/backups. Missing configuration returns the curated 503 setup warning through the conversation-list response, without exposing admin settings.
 
 ## Entry Points and Tests
 

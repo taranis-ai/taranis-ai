@@ -48,13 +48,15 @@ Check or configure IntelOwl from a worker install/container:
 uv run --no-sync --frozen taranis-intelowl-setup --url http://127.0.0.1:18080
 ```
 
-## Story clustering
+## Shared LLM settings
 
-Story clustering runs through the installed `taranis-llm-bot` Python library and calls the LLM provider directly. Other LLM bot functions continue using the `llm-bot` HTTP service.
+Chat, story clustering, and summarization share **Admin Settings > LLM Endpoints**. Add a named provider/model with a base URL, API format (`responses` or `chat_completions`), optional API key, and timeout. Select a default endpoint and optional feature overrides. Summarization and title generation share one assignment.
 
-Set `LLM_BASE_URL` and, when required by your provider, `LLM_API_KEY` in the worker environment or its private `.env` before startup. Set `LLM_MODEL` if the provider requires a model. `LLM_API_MODE` defaults to `responses`; use `chat_completions` for providers exposing that API. `LLM_TIMEOUT` defaults to 120 seconds, with the bot's `REQUESTS_TIMEOUT` taking precedence. Restart workers after changing these settings.
+Clustering and summarization run the installed `taranis-llm-bot` library directly. Workers fetch the effective endpoint from Core once per bot run; settings changes apply to the next run without restarting. The bot's optional `REQUESTS_TIMEOUT` takes precedence over the endpoint timeout. Worker `LLM_*` environment values and legacy clustering/summary service endpoints no longer select these providers.
 
-Clustering uses only story IDs, summaries, and tags. Configure upstream enrichment as needed; full news-item text is not used. Existing clustering `BOT_ENDPOINT`, `BOT_API_KEY`, and `STORY_API_ENDPOINT` settings are ignored. Provider credentials belong in `LLM_API_KEY`, not the legacy bot key. The Compose worker receives the shared `LLM_*` settings automatically; custom worker deployments must supply them explicitly.
+NER, sentiment analysis, and cybersecurity classification still use the standalone `llm-bot` service and its configuration. Workers must be able to reach the configured providers. Missing shared configuration fails the affected job with a setup message; there is no implicit environment fallback.
+
+Clustering sends only story IDs, summaries, and tags; full news-item text is not used. Configure upstream enrichment as needed.
 
 ## Architecture
 

@@ -12,6 +12,7 @@ import worker.bots
 from worker.bot_api import BotServiceUnavailableError
 from worker.core_api import CoreApi, build_failure_task_result, build_success_task_result
 from worker.http_client import http_session_scope
+from worker.llm import LLMConfigurationError
 from worker.log import logger
 from worker.telemetry import instrument_job
 
@@ -69,7 +70,7 @@ def bot_task(bot_id: str, filter: dict | None = None, trigger_dependents: bool =
     except Exception as exc:
         not_found = isinstance(exc, ValueError) and exc.args == (f"Bot with id {bot_id} not found",)
         empty_result = isinstance(exc, RuntimeError) and exc.args == (f"Bot {bot_id} returned no result",)
-        if isinstance(exc, BotServiceUnavailableError):
+        if isinstance(exc, (BotServiceUnavailableError, LLMConfigurationError)):
             error_message = exc.public_message
             reason = exc.reason
             retryable = exc.retryable
