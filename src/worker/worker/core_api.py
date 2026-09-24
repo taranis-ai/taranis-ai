@@ -494,7 +494,7 @@ class CoreApi:
         response = http_request(
             "POST",
             url=f"{self.api_url}/worker/news-items",
-            headers=self.headers,
+            headers=self.get_request_headers(),
             verify=self.verify,
             json=news_items,
             timeout=self.timeout,
