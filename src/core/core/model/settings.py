@@ -197,7 +197,7 @@ class Settings(BaseModel):
                 existing = endpoints.get(endpoint_id, {})
                 if clear_key:
                     submitted["api_key"] = ""
-                elif submitted.get("api_key") == "" or "api_key" not in submitted:
+                elif "api_key" not in submitted or (isinstance(submitted["api_key"], str) and not submitted["api_key"].strip()):
                     submitted["api_key"] = existing.get("api_key", "")
                 endpoint = LLMEndpoint.model_validate({**existing, **submitted}).model_dump()
             except (ValidationError, TypeError, ValueError):

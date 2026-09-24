@@ -96,6 +96,7 @@ class TestAdminApi(BaseTest):
         assert "private-test-key" not in response.get_data(as_text=True)
         assert "api_key" not in response.get_json()["items"][0]["settings"]["llm_endpoints"][endpoint_id]
         self.assert_post_ok(client, f"llm-endpoints/{endpoint_id}", {"api_key": ""}, auth_header)
+        self.assert_post_ok(client, f"llm-endpoints/{endpoint_id}", {"api_key": "  "}, auth_header)
         with app.app_context():
             provider = ChatClient()
             assert (provider.base_url, provider.api_key, provider.model, provider.api_format, provider.timeout) == (
