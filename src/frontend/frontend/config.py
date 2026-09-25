@@ -28,7 +28,6 @@ class Settings(BaseSettings):
     JWT_COOKIE_SUFFIX: Annotated[str, Field(pattern=r"^[A-Za-z0-9_-]*$")] = ""
     JWT_COOKIE_CSRF_PROTECT: bool = True
     JWT_CSRF_IN_COOKIES: bool = True
-    JWT_COOKIE_SECURE: bool = True
     JWT_CSRF_METHODS: list[str] = ["POST", "PUT", "PATCH", "DELETE"]
     COLORED_LOGS: bool = True
     BUILD_DATE: datetime = datetime.now(UTC)

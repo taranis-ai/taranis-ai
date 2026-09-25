@@ -6,8 +6,7 @@ This service provides the Frontend for Taranis AI. In the first iteration it wil
 
 ## Installation
 
-Use the prebuilt container image from https://github.com/orgs/taranis-ai/packages/container/package/taranis-frontend
-
+Use the prebuilt container image from <https://github.com/orgs/taranis-ai/packages/container/package/taranis-frontend>
 
 Or create a local setup for which it's recommended to use a uv to setup an virtual environment.
 
@@ -100,10 +99,10 @@ uv run pybabel compile -d frontend/translations
 
 ### 0. Read the documentation
 
-* [DaisyUI](https://daisyui.com/docs/intro/)
-* [tailwindCSS](https://tailwindcss.com/docs)
-* [Jinja](https://jinja.palletsprojects.com/en/stable/templates/)
-* [HTMX 4](https://four.htmx.org/docs/)
+- [DaisyUI](https://daisyui.com/docs/intro/)
+- [tailwindCSS](https://tailwindcss.com/docs)
+- [Jinja](https://jinja.palletsprojects.com/en/stable/templates/)
+- [HTMX 4](https://four.htmx.org/docs/)
 
 ### 1. Download and Setup Tailwind CSS
 
@@ -113,7 +112,7 @@ We use Tailwind CSS for styling the frontend. First, download the Tailwind CSS C
 ./install_and_run_tailwind.sh
 ```
 
-This will first download the **Tailwind CSS CLI** from https://github.com/tailwindlabs/tailwindcss and
+This will first download the **Tailwind CSS CLI** from <https://github.com/tailwindlabs/tailwindcss> and
 execute it in watch mode to automatically build the CSS files as you modify the styles:
 
 ### 2. Start Flask
@@ -125,7 +124,6 @@ Run the Flask development server:
 ```
 
 This will start the Flask server and run the frontend service at `http://localhost:5000`.
-
 
 ### 3. Test
 
