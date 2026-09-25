@@ -78,6 +78,16 @@
           </div>
         </section>
 
+        <section class="border-t border-base-300 pt-6" aria-labelledby="settings-similarity-heading">
+          <h3 id="settings-similarity-heading"
+              class="text-xs font-semibold uppercase tracking-widest text-base-content/50 mb-5">Collection Similarity Matching</h3>
+          <p class="text-sm text-base-content/60 mb-5">Group similar articles from the same source. Higher thresholds require closer text matches.</p>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {{ form_input('Collection Group Threshold', 'settings[collection_group_threshold]', current_settings.collection_group_threshold, type='number', preserve=False, data_testid='settings-collection-group-threshold', min_value=1, max_value=100) }}
+            {{ form_input('Collection Lookback Days', 'settings[collection_lookback_days]', current_settings.collection_lookback_days, type='number', preserve=False, data_testid='settings-collection-lookback-days', min_value=1, max_value=36500) }}
+          </div>
+        </section>
+
         <section class="border-t border-base-300 pt-6" aria-labelledby="settings-limits-heading">
           <h3 id="settings-limits-heading"
               class="text-xs font-semibold uppercase tracking-widest text-base-content/50 mb-5">Limits &amp; retention</h3>

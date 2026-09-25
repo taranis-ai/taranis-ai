@@ -76,6 +76,7 @@ def pre_seed_update(db_engine: Engine):
     migrate_use_feed_content()
     migrate_user_profiles()
     cleanup_empty_stories()
+    migrate_missing_story_tlp()
     migrate_missing_initial_revisions()
     cleanup_intelowl_email_enrichment_parameter()
     if db_engine.dialect.name == "postgresql":
@@ -162,6 +163,30 @@ def cleanup_empty_stories():
 
     empty_stories = StoryService.delete_stories_with_no_items()
     logger.info(f"Deleted {empty_stories} empty stories")
+
+
+def migrate_missing_story_tlp(batch_size: int = 100):
+    from core.managers.db_manager import db
+    from core.model.news_item import NewsItem
+    from core.model.news_item_attribute import NewsItemAttribute
+    from core.model.story import Story
+
+    while stories := list(
+        db.session.scalars(
+            db.select(Story)
+            .options(
+                selectinload(Story.attributes),
+                selectinload(Story.news_items).selectinload(NewsItem.attributes),
+                selectinload(Story.news_items).selectinload(NewsItem.osint_source),
+            )
+            .where(~Story.attributes.any(NewsItemAttribute.key == "TLP"))
+            .order_by(Story.id)
+            .limit(batch_size)
+        )
+    ):
+        for story in stories:
+            story.refresh_tlp()
+        db.session.commit()
 
 
 def migrate_missing_initial_revisions(batch_size: int = 100):

@@ -8,13 +8,11 @@ It offers API Endpoints to the Frontend, is the sole persistence layer (via SQLA
 
 * Python version 3.14 or greater.
 * SQLite or PostgreSQL
-* Redis
-
+* Redis (unless `QUEUE_ENABLED=false`)
 
 ## Installation
 
-Use the prebuilt container image from https://github.com/orgs/taranis-ai/packages/container/package/taranis-core
-
+Use the prebuilt container image from <https://github.com/orgs/taranis-ai/packages/container/package/taranis-core>
 
 Or create a local setup for which it's recommended to use a uv to setup an virtual environment.
 
@@ -39,6 +37,29 @@ Release/container builds still use the packaged `taranis-models` from the lockfi
 ```bash
 taranis-ai
 ```
+
+## Optional Queue
+
+`QUEUE_ENABLED=true` is the default. Core requires a working Redis connection at startup
+when queues are enabled; connection failures stop startup.
+
+Set `QUEUE_ENABLED=false` explicitly to run core without the queue Redis service.
+Core skips queue initialization and scheduling, and `/api/health` reports broker and
+workers as `n/a`. Queue-backed actions are unavailable (HTTP 503); persisted data and
+ordinary API operations remain available. Analyst Chat turns also require Redis for
+coordination and are unavailable in this mode. PizzINT runs without its Redis cache.
+
+Connector pulls return the queue response directly: HTTP 200 means the connector was
+scheduled, not that collection completed. Connector pulls and news-item URL fetches
+return HTTP 503 when queues are disabled.
+
+Frontend cache invalidation also skips the queue Redis connection in this mode. To keep
+an independent cache, set `CACHE_REDIS_URL` explicitly. For a deployment with no Redis
+at all, also disable frontend caching (`CACHE_ENABLED=false` on frontend) and Redis-backed
+realtime (`REALTIME_ENABLED=false` on core and frontend). Stop existing workers and the
+cron scheduler when disabling queues: this setting does not stop separate processes or
+remove their existing Redis jobs. Re-enable the setting and restart core with its normal
+initial setup to reconcile schedules.
 
 ## Operational CLI
 
@@ -68,29 +89,29 @@ kubectl exec -it deploy/core -- taranis-cli set-roles user Admin User
 
 Core owns frontend cache invalidation for write operations.
 
-- `src/models/models/cache_contract.py` holds the shared cache defaults and key helpers used by both core and frontend
-- `CACHE_ENABLED=true|false` toggles frontend-cache invalidation support in core
-- `CACHE_REDIS_URL` optionally overrides the Redis URL used for frontend cache invalidation
-- `CACHE_REDIS_PASSWORD` optionally overrides the Redis password used for frontend cache invalidation
-- `RQ_DEFAULT_JOB_TIMEOUT` sets the default RQ job execution timeout in seconds for queues created by core
-- when the cache-specific settings are unset, core falls back to `REDIS_URL` and `REDIS_PASSWORD`
-- unit tests keep cache disabled by default through `build_config_overrides`
-- admin configuration writes under `/api/config/*` currently invalidate the full frontend cache by design
-- the manual invalidation endpoint is `POST /api/admin/cache/invalidate`
-- `/api/assess/filter-lists` builds filter options from current database state on request; frontend caching may cache that response by user
+* `src/models/models/cache_contract.py` holds the shared cache defaults and key helpers used by both core and frontend
+* `CACHE_ENABLED=true|false` toggles frontend-cache invalidation support in core
+* `CACHE_REDIS_URL` optionally overrides the Redis URL used for frontend cache invalidation
+* `CACHE_REDIS_PASSWORD` optionally overrides the Redis password used for frontend cache invalidation
+* `RQ_DEFAULT_JOB_TIMEOUT` sets the default RQ job execution timeout in seconds for queues created by core
+* when the cache-specific settings are unset, core falls back to `REDIS_URL` and `REDIS_PASSWORD`
+* unit tests keep cache disabled by default through `build_config_overrides`
+* admin configuration writes under `/api/config/*` currently invalidate the full frontend cache by design
+* the manual invalidation endpoint is `POST /api/admin/cache/invalidate`
+* `/api/assess/filter-lists` builds filter options from current database state on request; frontend caching may cache that response by user
 
 ## Audit Logging
 
 Core writes v1 audit events as JSON lines to stdout.
 
-- `AUDIT_LOG_ENABLED=true|false` toggles audit logging; it defaults to `true`
-- audit events are emitted for human JWT-authenticated `POST`, `PUT`, `PATCH`, and `DELETE` API requests
-- `/api/auth/login` is audited without a JWT actor and records only the attempted username and response status
-- audit records include timestamp, method, path, endpoint, status, user id, username, organization id, client IP, and route ids
-- client IP is read from Flask's trusted `request.remote_addr`; proxy middleware must normalize it before audit logging runs
-- request bodies, passwords, tokens, connector secrets, story content, and before/after values are not logged
-- API-key-only worker and bot routes, ordinary `GET` reads, and `GET` export endpoints are not audited in v1
-- audit retention, search, and forwarding belong to the deployment log collector
+* `AUDIT_LOG_ENABLED=true|false` toggles audit logging; it defaults to `true`
+* audit events are emitted for human JWT-authenticated `POST`, `PUT`, `PATCH`, and `DELETE` API requests
+* `/api/auth/login` is audited without a JWT actor and records only the attempted username and response status
+* audit records include timestamp, method, path, endpoint, status, user id, username, organization id, client IP, and route ids
+* client IP is read from Flask's trusted `request.remote_addr`; proxy middleware must normalize it before audit logging runs
+* request bodies, passwords, tokens, connector secrets, story content, and before/after values are not logged
+* API-key-only worker and bot routes, ordinary `GET` reads, and `GET` export endpoints are not audited in v1
+* audit retention, search, and forwarding belong to the deployment log collector
 
 ## Health Endpoints
 
@@ -109,13 +130,13 @@ Core API handlers return JSON responses for structured payloads. Unexpected fail
 
 It is best to follow the [dev setup guide](../../dev/README.md)
 
-
 ### 0. Read the documentation
 
 * [Flask](https://flask.palletsprojects.com)
 * [SQLAlchemy](https://www.sqlalchemy.org/)
 
 ### 1. Setup Database
+
 Set SQLAlchemy to use a temporary SQLite database.
 
 ```bash
@@ -131,7 +152,6 @@ Run the Flask development server:
 ```
 
 This will start the Flask server and run the frontend service at `http://localhost:5000`.
-
 
 ### 3. Test
 

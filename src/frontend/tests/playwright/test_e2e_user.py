@@ -1,11 +1,12 @@
 import json
 import re
 import uuid
+from pathlib import Path
 
 import pytest
 from base_e2e_test import BaseE2ETest
 from flask import url_for
-from htmx_helpers import with_htmx_wait
+from htmx_helpers import reset_htmx_state, wait_for_htmx_settled, with_htmx_wait
 from playwright.sync_api import Error, Page, expect
 
 from tests.external_e2e import allow_requests_passthru
@@ -317,11 +318,16 @@ class TestEndToEndUser(BaseE2ETest):
         relog_in()
         change_password_back()
 
-    def test_user_assess(self, non_admin_logged_in_page: Page, forward_console_and_page_errors_non_admin, pre_seed_stories):
+    def test_user_assess(
+        self, non_admin_logged_in_page: Page, forward_console_and_page_errors_non_admin, pre_seed_stories, core_request_client
+    ):
         page = non_admin_logged_in_page
+        allow_requests_passthru()
+        seeded_story = core_request_client.get(f"/assess/stories/{pre_seed_stories[0]['story_id']}").json()
+        assess_url = url_for("assess.assess", source=seeded_story["news_items"][0]["osint_source_id"], _external=True)
 
         def go_to_assess():
-            page.goto(url_for("assess.assess", _external=True))
+            page.goto(assess_url)
             expect(page.get_by_test_id("assess")).to_be_visible()
             expect(page.get_by_test_id("assess_story_count")).to_be_visible(timeout=30000)
             visible_count, total_count = self._get_assess_story_counts(page)
@@ -380,7 +386,12 @@ class TestEndToEndUser(BaseE2ETest):
             news_item_card.get_by_test_id("news-item-tag-value-input").nth(1).fill("value2")
             page.get_by_role("button", name="Save tags").click()
             page.get_by_role("button", name="Add attribute").click()
-            page.get_by_test_id("attribute-key-input").nth(1).fill("attr")
+            attribute_key = page.get_by_test_id("attribute-key-input").nth(1)
+            for reserved_key in ("TLP", "tlp_override"):
+                attribute_key.fill(reserved_key)
+                assert attribute_key.evaluate("element => element.validity.patternMismatch")
+            attribute_key.fill("attr")
+            assert attribute_key.evaluate("element => element.checkValidity()")
             page.get_by_test_id("attribute-value-input").nth(1).fill("value attr")
             page.get_by_role("button", name="Save changes").click()
             page.get_by_role("link", name="Advanced").click()
@@ -395,7 +406,7 @@ class TestEndToEndUser(BaseE2ETest):
             expect(page.get_by_test_id("story-title")).to_contain_text(edited_title)
 
         def infinite_scroll_all_items(expected_total: int):
-            page.goto(url_for("assess.assess", _external=True))
+            page.goto(assess_url)
 
             expect(page.get_by_test_id("assess")).to_be_visible()
             initial_visible_count, initial_total = self._get_assess_story_counts(page)
@@ -453,6 +464,54 @@ class TestEndToEndUser(BaseE2ETest):
             expect(page.get_by_test_id(f"story-card-{primary_id}")).to_have_attribute("aria-selected", "true")
             expect(page.get_by_test_id(f"story-card-{secondary_id}")).to_have_count(0)
 
+    def test_collected_article_updates_and_grouping(
+        self, non_admin_logged_in_page, forward_console_and_page_errors_non_admin, core_request_client, api_header, fake_source
+    ):
+        page = non_admin_logged_in_page
+        allow_requests_passthru()
+        marker = uuid.uuid4().hex
+        body = (Path(__file__).parents[3] / "core/tests/test_data/fuzzy_article.txt").read_text()
+        article = {
+            "osint_source_id": fake_source,
+            "title": f"Collection update {marker}",
+            "link": f"https://example.invalid/{marker}",
+            "content": body,
+        }
+        result = core_request_client.json_request("POST", "/worker/news-items", json_data=[article], headers=api_header, authenticated=False)
+        story_id = result["story_ids"][0]
+        item_id = result["news_item_ids"][0]
+        try:
+            core_request_client.patch(f"/assess/stories/{story_id}", json_data={"read": True})
+            corrected = article | {"content": body + " Correction: 100 affected systems."}
+            result = core_request_client.json_request(
+                "POST", "/worker/news-items", json_data=[corrected], headers=api_header, authenticated=False
+            )
+            assert result["counts"]["updated"] == 1
+            assert result["news_item_ids"] == [item_id]
+            story = core_request_client.json_request("GET", f"/assess/stories/{story_id}")
+            assert story["read"] is False
+            assert len(story["news_items"]) == 1
+            revision = story["revision_count"]
+            page.goto(url_for("assess.story_diff", story_id=story_id, from_rev=revision - 1, to_rev=revision, _external=True))
+            expect(page.get_by_text(f"News item {item_id}: Content", exact=True)).to_be_visible()
+            expect(page.locator("body")).to_contain_text("100 affected systems")
+
+            result = core_request_client.json_request(
+                "POST", "/worker/news-items", json_data=[corrected], headers=api_header, authenticated=False
+            )
+            assert result["counts"]["unchanged"] == 1
+            assert core_request_client.json_request("GET", f"/assess/stories/{story_id}")["revision_count"] == revision
+            related = corrected | {"title": "Related coverage", "link": article["link"] + "/related"}
+            result = core_request_client.json_request(
+                "POST", "/worker/news-items", json_data=[related], headers=api_header, authenticated=False
+            )
+            assert result["counts"]["grouped"] == 1
+            assert result["story_ids"] == [story_id]
+            page.goto(url_for("assess.story_edit", story_id=story_id, _external=True))
+            expect(page.locator("#news-item-order [data-order-item]")).to_have_count(2)
+        finally:
+            core_request_client.delete(f"/assess/stories/{story_id}", raise_for_status=False)
+
     def test_news_item_order(self, non_admin_logged_in_page, forward_console_and_page_errors_non_admin, core_request_client):
         page = non_admin_logged_in_page
         allow_requests_passthru()
@@ -503,9 +562,22 @@ class TestEndToEndUser(BaseE2ETest):
             with page.expect_response(lambda response: response.url.endswith("/news-item-order") and response.status == 409):
                 order_panel.get_by_test_id("save-news-item-order").click()
             expect(page.locator("#news-item-order-status")).to_contain_text("News items changed")
+            with pytest.raises(AssertionError, match=r"HTMX response error .* for POST .*/news-item-order returned 409"):
+                wait_for_htmx_settled(page)
+            reset_htmx_state(page)
             order_panel.get_by_role("button", name="Reload news items").click()
             expect(order_panel.get_by_test_id("save-news-item-order")).to_be_disabled()
             expect(rows.first).to_have_attribute("data-order-item", original_order[1])
+
+            tlp_override = page.locator('[data-test-id="tlp-select"]')
+            expect(tlp_override).to_have_value("")
+            for value in ("clear", ""):
+                tlp_override.select_option(value)
+                with_htmx_wait(page, page.get_by_role("button", name="Save changes", exact=True).click)
+                page.reload()
+                expect(tlp_override).to_have_value(value)
+                saved = core_request_client.json_request("GET", f"/assess/stories/{story_id}")
+                assert next(a["value"] for a in saved["attributes"] if a["key"] == "tlp_override") == value
 
             core_request_client.patch(
                 f"/assess/stories/{story_id}",

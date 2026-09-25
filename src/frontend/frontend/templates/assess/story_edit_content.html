@@ -1,4 +1,4 @@
-{% set story_attributes = story.attributes or [] %}
+{% set story_attributes = (story.attributes or []) | rejectattr("key", "equalto", "tlp_override") | rejectattr("key", "equalto", "TLP") | list %}
 {% set news_count = story.news_items | length %}
 {% set read_badge = 'badge badge-success badge-sm' if story.read else 'badge badge-primary badge-sm' %}
 {% set important_badge = 'badge badge-warning badge-sm' if story.important else none %}
@@ -184,6 +184,20 @@
                    placeholder="Enter story title">
           </label>
 
+          {% set tlp_attribute = (story.attributes or []) | selectattr("key", "equalto", "tlp_override") | first %}
+          {% set calculated_tlp = (story.attributes or []) | selectattr("key", "equalto", "TLP") | first %}
+          <label class="form-control">
+            <span class="label-text font-semibold">Story TLP override</span>
+            <input type="hidden" name="attributes[][key]" value="tlp_override">
+            <select name="attributes[][value]" data-test-id="tlp-select" class="select select-bordered w-full">
+              <option value="" {% if not tlp_attribute or not tlp_attribute.value %}selected{% endif %}>Inherit from news items</option>
+              {% for level in ['clear', 'green', 'amber', 'amber+strict', 'red'] %}
+                <option value="{{ level }}"
+                        {% if tlp_attribute and tlp_attribute.value == level %}selected{% endif %}>{{ level | upper }}</option>
+              {% endfor %}
+            </select>
+            <span class="text-xs text-base-content/60">TLP: {{ calculated_tlp.value if calculated_tlp else 'clear' }}</span>
+          </label>
           <div class="grid grid-cols-2 gap-8">
             <label class="floating-label">
               <span class="label">Summary</span>
@@ -209,7 +223,7 @@
               <div class="mt-4 flex flex-col gap-3">
                 <template x-for="(attribute, index) in attributes" :key="index">
                   <div class="flex gap-3">
-                    <input class="input input-bordered input-sm flex-grow" type="text" x-model="attribute.key" name="attributes[][key]" data-testid="attribute-key-input" placeholder="Key (e.g. TLP)">
+                    <input class="input input-bordered input-sm flex-grow" type="text" x-model="attribute.key" name="attributes[][key]" pattern="(?!(?:TLP|tlp_override)$).*" title="Use the TLP selector to set classification." data-testid="attribute-key-input" placeholder="Key">
                     <input class="input input-bordered input-sm flex-grow" type="text" x-model="attribute.value" name="attributes[][value]" data-testid="attribute-value-input" placeholder="Value">
                     <button type="button" class="btn btn-ghost btn-xs text-error flex-shrink" @click="removeAttribute(index)">Remove</button>
                   </div>

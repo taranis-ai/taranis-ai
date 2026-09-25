@@ -15,6 +15,8 @@
 - History and dashboard task totals count `WARNING` separately from successes and failures. Warnings contribute to total outcomes but not the full-success percentage; a warning-only/mixed-success group shows a yellow warning badge instead of All Success. Warnings still update last-success tracking because collection completed without failing.
 - Source/Bot badges use latest persisted results for configured workers, not transient Queue Failures. Select latest statuses in SQL before counting/paging; exclude one-off `simple_web_collector` fetches. Failure filters preserve other query settings and reset pagination.
 - Display UTC values in profile timezone via `format_datetime`. Pass curated failure messages to the browser with Jinja JSON encoding.
+- `QUEUE_ENABLED=false` explicitly skips Redis initialization and startup scheduling; enabled queues fail startup if Redis is unavailable. Disabled broker/worker health is `n/a`, queue actions return 503, and cache invalidation requires an explicit `CACHE_REDIS_URL` to remain active. Independent worker/cron processes must be stopped separately.
+- Scheduler query defaults, UTC normalization, and display serialization live in Pydantic models in `src/models/models/scheduler.py`. Queue failure responses use a static message, never RQ exception text.
 - Core owns `rq:cron:def`: startup treats current source/bot/housekeeping specs as an allowlist and removes other persisted definitions and artifacts.
 
 ## Entry Points and Coverage

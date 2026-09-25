@@ -4,6 +4,7 @@ from graphlib import CycleError, TopologicalSorter
 from typing import Any
 
 from models.admin import CronSpec
+from models.scheduler import StoredTaskResult
 from models.types import BOT_TYPES
 from sqlalchemy import func, literal
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
@@ -331,10 +332,12 @@ class Bot(BaseModel):
                 "description": stored_bot.description if stored_bot else "",
                 "type": bot_type.value,
                 "index": int(index) if index not in ("", None) else stored_bot.index if stored_bot else cls.get_highest_index() + 1,
-                "enabled": str(candidate.get("enabled", stored_bot.enabled if stored_bot else True)).lower() == "true",
+                # Previews validate scheduling fields without requiring execution parameters.
+                "enabled": False,
                 "parameters": parameters,
             }
         )
+        candidate_bot.enabled = str(candidate.get("enabled", stored_bot.enabled if stored_bot else True)).lower() == "true"
         bots = [bot for bot in bots if bot.id != candidate_bot.id]
         bots.append(candidate_bot)
         bots.sort(key=lambda bot: bot.index)
@@ -504,7 +507,6 @@ class Bot(BaseModel):
         Note: All times are calculated in UTC for consistency across the system.
         """
 
-        from core.managers import queue_manager as queue_manager_module
         from core.managers.queue_manager import QueueManager
 
         now = now or datetime.now(UTC).replace(tzinfo=None)
@@ -534,7 +536,7 @@ class Bot(BaseModel):
                         last_run=task_result.last_run if task_result else None,
                         last_success=task_result.last_success if task_result else None,
                         last_status=task_result.status if task_result else None,
-                        last_reason=queue_manager_module._task_result_reason(task_result),
+                        last_reason=StoredTaskResult.model_validate(task_result).result.reason if task_result else None,
                     )
                 )
             except Exception as exc:

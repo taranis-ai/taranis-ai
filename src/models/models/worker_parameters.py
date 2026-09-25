@@ -37,6 +37,7 @@ def _string_list(value: Any) -> Any:
     return value
 
 
+InheritedTLP = Annotated[TLPLevel | None, BeforeValidator(_empty_to_none)]
 OptionalPositiveInt = Annotated[Annotated[int, Field(gt=0)] | None, BeforeValidator(_empty_to_none)]
 JsonObject = Annotated[dict[str, Any], BeforeValidator(_json_object)]
 StringList = Annotated[list[str], BeforeValidator(_string_list)]
@@ -68,7 +69,7 @@ class WebCollectorParameters(WorkerParameters):
         description="Additional HTTP headers as a JSON object.",
         json_schema_extra={"widget": "textarea"},
     )
-    TLP_LEVEL: TLPLevel = Field(TLPLevel.CLEAR, title="TLP level", description="Traffic Light Protocol level assigned to collected items.")
+    TLP_LEVEL: InheritedTLP = Field(None, title="TLP level", description="Source classification. Leave unset to inherit the global TLP.")
     REFRESH_INTERVAL: Cron = Field("", title="Refresh interval", description="Five-field cron schedule for collection.")
     DIGEST_SPLITTING: bool = Field(False, title="Digest splitting", description="Split digest-style pages into individual items.")
     DIGEST_SPLITTING_LIMIT: int = Field(30, gt=0, title="Digest splitting limit", description="Maximum number of digest entries to split.")
@@ -110,7 +111,7 @@ class MastodonCollectorParameters(WorkerParameters):
     USER_AGENT: str = Field("TaranisAI/1.0", title="User agent", description="HTTP User-Agent header sent to Mastodon.")
     PROXY_SERVER: str = Field("", title="Proxy server", description="Optional proxy URL used for Mastodon API requests.")
     USE_GLOBAL_PROXY: bool = Field(False, title="Use global proxy", description="Use the globally configured collector proxy.")
-    TLP_LEVEL: TLPLevel = Field(TLPLevel.CLEAR, title="TLP level", description="Traffic Light Protocol level assigned to collected items.")
+    TLP_LEVEL: InheritedTLP = Field(None, title="TLP level", description="Source classification. Leave unset to inherit the global TLP.")
     REFRESH_INTERVAL: Cron = Field("", title="Refresh interval", description="Five-field cron schedule for collection.")
 
     @field_validator("INSTANCE_URL")
@@ -169,15 +170,13 @@ class SimpleWebCollectorParameters(WebCollectorParameters):
 
 class PPNCollectorParameters(WorkerParameters):
     PATH: str = Field(min_length=1, title="Path", description="Path to the PPN dataset.")
-    TLP_LEVEL: TLPLevel = Field(TLPLevel.CLEAR, title="TLP level", description="Traffic Light Protocol level assigned to collected items.")
+    TLP_LEVEL: InheritedTLP = Field(None, title="TLP level", description="Source classification. Leave unset to inherit the global TLP.")
     REFRESH_INTERVAL: Cron = Field("", title="Refresh interval", description="Five-field cron schedule for collection.")
     DIGEST_SPLITTING: bool = Field(False, title="Digest splitting", description="Split digest-style records into individual items.")
 
 
 class ManualCollectorParameters(WorkerParameters):
-    TLP_LEVEL: TLPLevel = Field(
-        TLPLevel.CLEAR, title="TLP level", description="Traffic Light Protocol level assigned to manually created items."
-    )
+    TLP_LEVEL: InheritedTLP = Field(None, title="TLP level", description="Source classification. Leave unset to inherit the global TLP.")
 
 
 class RTCollectorParameters(WorkerParameters):
@@ -196,7 +195,7 @@ class RTCollectorParameters(WorkerParameters):
     FIELDS_TO_INCLUDE: StringList = Field(
         default_factory=list, title="Fields to include", description="Comma-separated Request Tracker fields to include."
     )
-    TLP_LEVEL: TLPLevel = Field(TLPLevel.CLEAR, title="TLP level", description="Traffic Light Protocol level assigned to collected items.")
+    TLP_LEVEL: InheritedTLP = Field(None, title="TLP level", description="Source classification. Leave unset to inherit the global TLP.")
     REFRESH_INTERVAL: Cron = Field("", title="Refresh interval", description="Five-field cron schedule for collection.")
 
 
@@ -227,12 +226,9 @@ class MISPCollectorParameters(MISPBaseParameters):
 
 class MISPConnectorParameters(MISPBaseParameters):
     REQUEST_TIMEOUT: OptionalPositiveInt = Field(5, title="Request timeout", description="Request timeout in seconds.")
-    DISTRIBUTION: Literal["0", "1", "2", "3", "4"] | None = Field(None, title="Distribution", description="MISP distribution level.")
-
-    @field_validator("DISTRIBUTION", mode="before")
-    @classmethod
-    def empty_distribution(cls, value: Any) -> Any:
-        return None if value == "" else value
+    DISTRIBUTION: Annotated[Literal["0", "1", "2", "3", "4"] | None, BeforeValidator(_empty_to_none)] = Field(
+        None, title="Distribution", description="MISP distribution level."
+    )
 
 
 class BotParameters(WorkerParameters):

@@ -1,8 +1,10 @@
 import hashlib
+import unicodedata
 from collections.abc import Sequence
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
+import fuzzbite
 from models.assess import NewsItem as AssessNewsItem
 from models.assess import Story as AssessStory
 from models.assess import validate_bcp47
@@ -31,9 +33,11 @@ if TYPE_CHECKING:
 
 class NewsItem(BaseModel):
     __tablename__ = "news_item"
+    __table_args__ = (db.Index("ix_news_item_source_collected", "osint_source_id", "collected"),)
 
     id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), primary_key=True, default=BaseModel.uuid7_str)
     hash: Mapped[str] = db.Column(db.String(), index=True, unique=True, nullable=False)
+    fuzzy_hash: Mapped[str | None] = db.Column(db.String(), nullable=True)
 
     title: Mapped[str] = db.Column(db.String())
     review: Mapped[str] = db.Column(db.String())
@@ -115,6 +119,7 @@ class NewsItem(BaseModel):
         self.title = payload.title or ""
         self.review = payload.review or ""
         self.content = payload.content or ""
+        self.fuzzy_hash = self.get_fuzzy_hash(self.content)
         if osint_source := OSINTSource.get(payload.osint_source_id):
             with db.session.no_autoflush:
                 self.osint_source = osint_source
@@ -162,6 +167,47 @@ class NewsItem(BaseModel):
     def identical(cls, hash) -> bool:
         return db.session.execute(db.select(db.exists().where(cls.hash == hash))).scalar_one()
 
+    @staticmethod
+    def normalized_content(content: str | None) -> str:
+        return " ".join(unicodedata.normalize("NFC", content or "").split())
+
+    @staticmethod
+    def get_fuzzy_hash(content: str | None) -> str | None:
+        body = NewsItem.normalized_content(content).encode("utf-8")
+        return fuzzbite.hash(body) if len(body) >= 256 else None
+
+    @classmethod
+    def find_collection_match(cls, payload: AssessNewsItem) -> tuple[str, str, int] | None:
+        if not (fingerprint := cls.get_fuzzy_hash(payload.content)):
+            return None
+
+        now = cls.utcnow()
+        settings = Settings.get_settings()
+        threshold = settings["collection_group_threshold"]
+        query = db.select(cls.id, cls.story_id, cls.fuzzy_hash).where(
+            cls.osint_source_id == payload.osint_source_id,
+            cls.collected >= now - timedelta(days=settings["collection_lookback_days"]),
+            cls.collected <= now,
+            cls.fuzzy_hash.is_not(None),
+            cls.story_id.is_not(None),
+        )
+        best = None
+        ambiguous = False
+        with db.session.execute(query.execution_options(yield_per=500)) as candidates:
+            for batch in candidates.partitions():
+                for item_id, story_id, candidate_hash in batch:
+                    score = fuzzbite.compare(fingerprint, candidate_hash)
+                    if score < threshold:
+                        continue
+                    if best is None or score > best[2]:
+                        best = (item_id, story_id, score)
+                        ambiguous = False
+                    elif score == best[2]:
+                        ambiguous |= story_id != best[1]
+                        if item_id < best[0]:
+                            best = (item_id, story_id, score)
+        return None if ambiguous else best
+
     @classmethod
     def find_by_hash(cls, hash):
         return cls.get_filtered(db.select(cls).where(cls.hash == hash))
@@ -171,6 +217,13 @@ class NewsItem(BaseModel):
         if not hash:
             return None
         return cls.get_first(db.select(cls).where(cls.hash == hash))
+
+    @classmethod
+    def get_by_payload_identity(cls, payload: AssessNewsItem) -> "NewsItem | None":
+        # Collection hashes are source/URL scoped; explicit imports retain title/URL identity.
+        return cls.get_by_hash(payload.hash) or cls.get_first(
+            db.select(cls).where(cls.title == (payload.title or ""), cls.link == (payload.link or ""))
+        )
 
     @classmethod
     def latest_collected(cls) -> str | None:
@@ -188,7 +241,11 @@ class NewsItem(BaseModel):
     def get_for_api(cls, item_id: str, user: User | None = None) -> tuple[dict[str, Any], int]:
         logger.debug(f"Getting {cls.__name__} {item_id}")
         if item := cls.get(item_id):
-            if user and not item.allowed_with_acl(user, require_write_access=False):
+            if user and (
+                not item.allowed_with_acl(user, require_write_access=False)
+                or item.tlp_level.value not in user.get_highest_tlp().get_accessible_levels()
+                or (item.story and not item.story.allowed_to_read(user))
+            ):
                 return {"error": "User does not have access to this news item"}, 403
             return item.to_detail_dict(), 200
         return {"error": f"{cls.__name__} not found"}, 404
@@ -203,7 +260,10 @@ class NewsItem(BaseModel):
 
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
+        data.pop("fuzzy_hash", None)
         data["tags"] = [tag.to_dict() for tag in self.tags]
+        data["attributes"] = [attribute.to_small_dict() for attribute in self.attributes]
+        data["tlp_level"] = self.tlp_level.value
         return data
 
     def get_sentiment(self) -> str:
@@ -287,7 +347,10 @@ class NewsItem(BaseModel):
         if isinstance(attributes, dict):
             attributes = attributes.get("attributes", attributes)
 
-        attributes = NewsItemAttribute.load_multiple(attributes)
+        try:
+            attributes = NewsItemAttribute.load_multiple(attributes)
+        except ValueError:
+            return {"error": "Invalid attributes"}, 400
         if attributes is None:
             return {"error": "Invalid attributes"}, 400
 
@@ -422,7 +485,8 @@ class NewsItem(BaseModel):
             if self.osint_source
             else TLPLevel(Settings.get_settings().get("default_tlp_level", TLPLevel.CLEAR.value))
         )
-        return next((TLPLevel(attr.value) for attr in self.attributes if attr.key == "TLP"), source_tlp)
+        overrides = [attr.tlp_level for attr in self.attributes if attr.key == "TLP" and attr.value]
+        return TLPLevel.get_most_restrictive_tlp(overrides) if overrides else source_tlp
 
     def update_item(self, data, actor: str | None = None) -> tuple[dict, int]:
         if not self.osint_source or self.osint_source.key != "manual":
@@ -433,7 +497,7 @@ class NewsItem(BaseModel):
         except ValidationError as exc:
             return AssessNewsItem.validation_error_response(exc, prefix="Invalid news item data"), 400
 
-        if (duplicate_item := self.get_by_hash(payload.hash)) and duplicate_item.id != self.id:
+        if (duplicate_item := self.get_by_payload_identity(payload)) and duplicate_item.id != self.id:
             return {
                 "error": "Identical news item found. Skipping...",
                 "conflicting_news_item_id": duplicate_item.id,
@@ -445,10 +509,13 @@ class NewsItem(BaseModel):
         self.author = payload.author or ""
         self.link = payload.link or ""
         self.content = payload.content or ""
+        self.fuzzy_hash = self.get_fuzzy_hash(self.content)
         self.language = payload.language or ""
         self.published = payload.published or self.published
         self.hash = payload.hash or self.hash
 
+        if "attributes" in data:
+            self.attributes = list(NewsItemAttribute.parse_attributes(payload.attributes or []).values())
         self._update_status(actor or "internal")
 
         self.updated = self.utcnow()

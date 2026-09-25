@@ -747,9 +747,7 @@ class ConnectorsPull(MethodView):
     def post(self, connector_id: str):
         """Trigger collection of stories from the external system."""
         try:
-            collected_stories = queue_manager.queue_manager.pull_from_connector(connector_id=connector_id, user_id=current_user.id)
-
-            return {"message": "Stories successfully collected.", "data": collected_stories}, 200
+            return queue_manager.queue_manager.pull_from_connector(connector_id=connector_id, user_id=current_user.id)
         except Exception:
             logger.exception("Failed to pull stories from connector %s", connector_id)
             return {"error": "Failed to pull stories from connector"}, 500
@@ -854,6 +852,8 @@ class OSINTSources(MethodView):
 class OSINTSourceCollect(MethodView):
     @auth_required("CONFIG_OSINT_SOURCE_UPDATE")
     def post(self, source_id: str | None = None):
+        if error := queue_manager.queue_manager.queue_action_error():
+            return error
         if source_id:
             if source := osint_source.OSINTSource.get(source_id):
                 return queue_manager.queue_manager.collect_osint_source(source_id, task_id=source.task_id, user_id=current_user.id)
