@@ -100,18 +100,20 @@ class TestAdminApi(BaseTest):
 
         self.assert_patch_ok(client, "settings", {"settings": {"chat_llm_api_key": "", "default_bot_lookback_days": 7}}, auth_header)
         with app.app_context():
-            provider = ChatClient()
-            assert provider.base_url == values["chat_llm_base_url"]
-            assert provider.api_key == values["chat_llm_api_key"]
-            assert provider.model == values["chat_llm_model"]
-            assert provider.api_format == "chat_completions"
-            assert provider.timeout == 90
-            assert Settings.get_settings()["chat_max_stories"] == 8
-
+            self._assert_chat_settings(ChatClient, values, Settings)
         response = self.assert_patch_ok(client, "settings", {"settings": {"chat_llm_api_key_clear": "true"}}, auth_header)
         assert response.get_json()["settings"]["chat_llm_api_key_configured"] is False
         with app.app_context():
             assert ChatClient().api_key == ""
+
+    def _assert_chat_settings(self, ChatClient, values, Settings):
+        provider = ChatClient()
+        assert provider.base_url == values["chat_llm_base_url"]
+        assert provider.api_key == values["chat_llm_api_key"]
+        assert provider.model == values["chat_llm_model"]
+        assert provider.api_format == "chat_completions"
+        assert provider.timeout == 90
+        assert Settings.get_settings()["chat_max_stories"] == 8
 
     def test_settings_rejects_negative_bot_lookback(self, client, auth_header):
         response = client.put(

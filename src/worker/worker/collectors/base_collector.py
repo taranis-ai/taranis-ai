@@ -78,8 +78,6 @@ class BaseCollector:
     def process_news_items(self, news_items: list[NewsItem], source: dict) -> list[NewsItem]:
         if word_lists := source.get("word_lists"):
             news_items = self.filter_by_word_list(news_items, word_lists)
-        if tlp_level := source["parameters"].get("TLP_LEVEL", None):
-            news_items = self.add_tlp(news_items, tlp_level)
 
         return news_items
 

@@ -3,6 +3,7 @@ import contextlib
 from datetime import datetime
 from typing import Any
 
+from models.assess import validate_attribute
 from sqlalchemy.orm import Mapped, deferred
 
 from core.log import logger
@@ -22,6 +23,7 @@ class NewsItemAttribute(BaseModel):
     created: Mapped[datetime] = db.Column(db.DateTime, default=BaseModel.utcnow)
 
     def __init__(self, key, value, binary_mime_type=None, binary_value=None, id=None):
+        validate_attribute({"key": key, "value": value})
         self.id = self.normalize_uuid_id(id)
         self.key = key
         self.value = value
@@ -47,12 +49,17 @@ class NewsItemAttribute(BaseModel):
 
     @property
     def tlp_level(self) -> TLPLevel:
-        return TLPLevel(self.value) if self.key == "TLP" else TLPLevel.CLEAR
+        if self.key not in {"TLP", "tlp_override"}:
+            return TLPLevel.CLEAR
+        if level := TLPLevel.get_tlp_level(self.value):
+            return level
+        logger.warning("Invalid stored TLP attribute %s; treating as RED", self.id)
+        return TLPLevel.RED
 
     @classmethod
     def get_tlp_level(cls, attributes: list["NewsItemAttribute"]) -> TLPLevel | None:
         if attribute := cls.get_by_key(attributes, "TLP"):
-            return TLPLevel(attribute.value)
+            return attribute.tlp_level
         return None
 
     @classmethod
