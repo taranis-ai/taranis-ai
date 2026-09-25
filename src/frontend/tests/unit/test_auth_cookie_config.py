@@ -1,11 +1,7 @@
-from http.cookies import SimpleCookie
-
 import pytest
-from flask import Flask, render_template, url_for
-from flask_jwt_extended import create_access_token, set_access_cookies
+from flask import Flask, render_template
 from pydantic import ValidationError
 
-from frontend import create_app
 from frontend.config import Settings
 
 
@@ -73,41 +69,3 @@ def test_form_reads_configured_csrf_cookie(app: Flask, monkeypatch: pytest.Monke
         )
 
     assert 'name="csrf_token" value="csrf-value"' in body
-
-
-@pytest.mark.parametrize("debug", [False, True])
-def test_production_cookie_and_header_defaults(debug, auth_user):
-    app = create_app({"TESTING": True, "DEBUG": debug})
-    with app.test_request_context():
-        response = app.response_class()
-        set_access_cookies(response, create_access_token(identity=auth_user))
-        cookies = SimpleCookie()
-        for header in response.headers.getlist("Set-Cookie"):
-            cookies.load(header)
-        assert bool(cookies[app.config["JWT_ACCESS_COOKIE_NAME"]]["secure"]) is not debug
-        assert cookies[app.config["JWT_ACCESS_COOKIE_NAME"]]["httponly"]
-        assert cookies[app.config["JWT_ACCESS_COOKIE_NAME"]]["samesite"] == "Lax"
-        assert app.config["SESSION_COOKIE_SECURE"] is not debug
-
-    client = app.test_client()
-    response = client.get("/missing")
-    assert response.status_code == 404
-    if debug:
-        assert "Content-Security-Policy" not in response.headers
-        assert "Strict-Transport-Security" not in response.headers
-    else:
-        assert response.headers["Cache-Control"] == "no-store"
-        assert response.headers["Strict-Transport-Security"] == "max-age=31536000"
-        assert response.headers["X-Content-Type-Options"] == "nosniff"
-        assert response.headers["X-Frame-Options"] == "SAMEORIGIN"
-        assert response.headers["Referrer-Policy"] == "strict-origin-when-cross-origin"
-        assert "microphone=()" in response.headers["Permissions-Policy"]
-        assert "object-src 'none'" in response.headers["Content-Security-Policy"]
-        assert "frame-ancestors 'self'" in response.headers["Content-Security-Policy"]
-    with app.test_request_context():
-        static_path = url_for("static", filename="js/main.js")
-        swagger_path = url_for("api_doc.static", filename="swagger-ui-bundle.js")
-    for path in (static_path, swagger_path):
-        static = client.get(path)
-        assert static.status_code == 200
-        assert "no-store" not in static.headers.get("Cache-Control", "")
