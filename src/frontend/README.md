@@ -29,6 +29,8 @@ uv sync --frozen
 granian app
 ```
 
+Production (`DEBUG=false`) enables Secure cookies and browser security headers; serve browser traffic over HTTPS and keep core/frontend DEBUG aligned. Development HTTP requires `DEBUG=true`. See [browser security](../../docs/agents/browser-security.md) for CSP compatibility and bundled Swagger dependency maintenance.
+
 ### Omnisearch
 
 The navbar search sends users to `GET /search?q=...`. Unqualified searches render grouped results across Stories, Reports, and Products with links to matching objects and to each filtered list view.

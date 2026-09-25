@@ -207,7 +207,7 @@
                         src="data:{{ rendered_mime_type }};charset=utf-8;base64,{{ product.render_result }}">
                 </iframe>
               {% elif rendered_mime_type == "application/pdf" %}
-                <object class="w-full h-[80vh]" data="data:application/pdf;base64,{{ rendered_product }}" type="application/pdf" data-testid="pdf-render"></object>
+                <iframe class="w-full h-[80vh]" title="{{ _('PDF preview') }}" src="data:application/pdf;base64,{{ rendered_product }}" data-testid="pdf-render"></iframe>
               {% else %}
                 <div class="alert">Preview for {{ rendered_mime_type }} is not supported. Please download the file instead.</div>
               {% endif %}

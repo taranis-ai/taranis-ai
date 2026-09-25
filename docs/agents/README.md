@@ -40,6 +40,7 @@ Read matching memories before planning or editing related features, routes, mode
 - [Public Product Publishing](public-product-publishing.md): copying, rendering, and public files.
 - [RBAC ACL Behavior](rbac-acl.md): content ACLs, TLP, and admin isolation.
 - [Authentication Cookies](authentication-cookies.md): cookie scope, renewal, and revocation.
+- [Browser Security](browser-security.md): production cookies, security headers, CSP compatibility, and bundled Swagger dependencies.
 - [Audit Logging](audit-logging.md): metadata-only JSONL security events.
 - [Admin User Import/Export](admin-user-import-export.md): JSON format, duplicates, and passwordless users.
 - [Admin User CLI](admin-user-cli.md): existing-user password and role repair.

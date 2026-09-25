@@ -38,6 +38,8 @@ Release/container builds still use the packaged `taranis-models` from the lockfi
 taranis-ai
 ```
 
+Production (`DEBUG=false`) enables Secure JWT/CSRF and session cookies plus browser security headers. Serve browser traffic over HTTPS, keep DEBUG aligned with frontend, and use `DEBUG=true` only for isolated HTTP development. See [browser security](../../docs/agents/browser-security.md).
+
 ## Optional Queue
 
 `QUEUE_ENABLED=true` is the default. Core requires a working Redis connection at startup

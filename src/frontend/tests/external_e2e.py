@@ -42,7 +42,6 @@ def configure_external_frontend_environment() -> tuple[str, str, str] | None:
     application_root = parsed.path.rstrip("/") or "/"
 
     os.environ["APPLICATION_ROOT"] = application_root
-    os.environ["JWT_COOKIE_SECURE"] = "False"
 
     return parsed.netloc, application_root, parsed.scheme
 
