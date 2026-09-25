@@ -22,7 +22,7 @@ dependencies = [
     "flask-cors",
     "click",
     "pydantic-settings",
-    "swagger-ui-py-x",
+    "swagger-ui-py-x>=26.9.25",
     "python-dotenv",
     "granian",
     "requests",
@@ -136,6 +136,7 @@ reportUnusedImport = "warning"
 [tool.uv]
 config-settings = { editable_mode = "compat" }
 exclude-newer = "1 week"
+exclude-newer-package = { swagger-ui-py-x = "2026-09-25T10:55:00Z" }
 required-environments = [
   "sys_platform == 'linux' and platform_machine == 'x86_64'",
   "sys_platform == 'linux' and platform_machine == 'aarch64'",

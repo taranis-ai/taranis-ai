@@ -27,6 +27,13 @@ def test_base_presenter_blocks_ssti_chain(base_presenter):
         _ = base_presenter.generate({}, malicious_template)
 
 
+def test_base_presenter_preserves_analyst_summary_html(base_presenter):
+    product = {"report_items": [{"stories": [{"summary": "<strong>Confirmed</strong> by two sources"}]}]}
+    template = "<div>{{ data.report_items[0].stories[0].summary }}</div>"
+
+    assert base_presenter.generate(product, template) == "<div><strong>Confirmed</strong> by two sources</div>"
+
+
 def test_pdf_presenter_successful_render(pdf_presenter, fixed_datetime, monkeypatch):
     class FakeHTML:
         def __init__(self, string):
