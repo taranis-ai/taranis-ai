@@ -8,4 +8,3 @@
 - Respect the frontend and API boundary rules in `AGENTS.md`.
 - Do not introduce `pip`-based setup or ad hoc dependency installation.
 - Keep changes small, reversible, and documented when behavior or setup changes.
-- When preparing or updating a PR, include important decisions, risks, and useful verification steps in the description, following `CONTRIBUTING.md`. Human review-time estimates are optional.

@@ -31,11 +31,8 @@ Memory files provide expected behavior, code paths, tests, and known pitfalls; i
 
 ## Pull Requests
 
-- Before preparing a contribution, read [Contributing](CONTRIBUTING.md). Use the [PR template](.github/pull_request_template.md), including for CLI/API-created PRs.
-- Preserve the actual user task prompt and material follow-up prompts for disclosure in the PR description, a PR comment, or a linked issue. Link their location from the description. Redact secrets and private information explicitly; never invent or silently paraphrase missing prompts. Ask the contributor for missing prompts before requesting review.
-- Report only validation actually performed, including failures and checks not run. Follow the existing feature signoff requirement.
+- Before preparing a contribution, follow [Contributing](CONTRIBUTING.md) and use the [PR template](.github/pull_request_template.md). Ask the contributor for any missing prompts before requesting review.
 - Leave human contributor confirmations unchecked unless the contributor explicitly provided them. An agent cannot establish a human's understanding or acceptance of responsibility.
-- Keep the description, prompt disclosure, and validation evidence current after review changes. Include relevant decisions, risks, and verification guidance in the description.
 
 ## Test Discipline
 
