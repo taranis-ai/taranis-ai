@@ -17,6 +17,9 @@ required-markers = [
 exclude-newer = "0001-01-01T00:00:00Z" # This has no effect and is included for backwards compatibility when using relative exclude-newer values.
 exclude-newer-span = "P1W"
 
+[options.exclude-newer-package]
+swagger-ui-py-x = "2026-09-25T10:55:00Z"
+
 [[package]]
 name = "annotated-types"
 version = "0.8.0"
@@ -1362,16 +1365,16 @@ wheels = [
 
 [[package]]
 name = "swagger-ui-py-x"
-version = "26.2.18"
+version = "26.9.25"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "jinja2" },
     { name = "packaging" },
     { name = "pyyaml" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/03/0d/fe2e22afaf071f4355f95fa8257a2e5e2731b8909a67d5f1f30ed96c3a9b/swagger_ui_py_x-26.2.18.tar.gz", hash = "sha256:d4cb05c01ba529885c2f44de5e2daf088681d18846cf41396b780359807cb0fb", size = 11374828, upload-time = "2026-02-18T13:24:50.064Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/00/c1/203cf7368e07ac4dd45db5608b0a3d765235012faed59c7ec8034a89d13c/swagger_ui_py_x-26.9.25.tar.gz", hash = "sha256:f6372c473d7abcfb2bc2b341e476b9bbe9805b99ecef5d54b5fb77b0e2f7cb79", size = 23570630, upload-time = "2026-09-25T10:54:18.902Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/e2/6f/1ad69f91465774ba54d9734ab18376ee43a86669a2a512ce09715c931e73/swagger_ui_py_x-26.2.18-py3-none-any.whl", hash = "sha256:eae911d51b62bd71e4d7083a5d4681eb09a77ce66959549eb7f59ce934192339", size = 11460669, upload-time = "2026-02-18T13:24:43.332Z" },
+    { url = "https://files.pythonhosted.org/packages/7a/cd/755a67d998e5c5067175d0046bd1a85cecdfb936f7ab2d0bc9a3a8e62f14/swagger_ui_py_x-26.9.25-py3-none-any.whl", hash = "sha256:8b86c2eacafca6d26000d98c152bb19ffd1f56bb99e639c9bae9dfa3bff0f1b0", size = 23551084, upload-time = "2026-09-25T10:54:16.243Z" },
 ]
 
 [[package]]
@@ -1461,7 +1464,7 @@ requires-dist = [
     { name = "sentry-sdk", extras = ["flask"] },
     { name = "setuptools" },
     { name = "setuptools-scm", marker = "extra == 'dev'" },
-    { name = "swagger-ui-py-x" },
+    { name = "swagger-ui-py-x", specifier = ">=26.9.25" },
     { name = "taranis-models", editable = "../models" },
     { name = "wheel", marker = "extra == 'dev'" },
 ]

@@ -6,6 +6,7 @@ Login/logout, JWT/CSRF cookies, implicit renewal, `JWT_COOKIE_SUFFIX`, `APPLICAT
 
 ## Contracts
 
+- Both services force Secure JWT/CSRF and session cookies outside DEBUG, and use SameSite=Lax. Access JWT/session cookies are HttpOnly; CSRF cookies remain JavaScript-readable.
 - Core/frontend must share the literal `JWT_COOKIE_SUFFIX` and base path for all auth cookies (core `APPLICATION_ROOT`, frontend `TARANIS_BASE_PATH`). The suffix defaults to empty and accepts letters, digits, `_`, and `-`. Same-domain deployments need distinct suffixes; introducing one requires affected sessions to log in again.
 - Login records `last_login` and a `LOGIN` activity, then issues access JWT/CSRF cookies. There are no refresh tokens/cookies.
 - Frontend renews authenticated access tokens within 30 minutes of expiry via core and explicitly forwards `Set-Cookie` headers. Ordinary Core API responses do not forward them automatically.

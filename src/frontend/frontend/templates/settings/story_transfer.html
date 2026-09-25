@@ -5,7 +5,9 @@
     <div class="card bg-base-100 border border-base-300 shadow-sm h-full">
       <div class="card-body p-6 h-full flex flex-col">
         <h2 class="font-semibold">Export Stories</h2>
-        <p class="text-sm text-base-content/60">Download stories as JSON, with optional metadata and a date range.</p>
+        <p class="text-sm text-base-content/70">
+          Transfer stories across the instance as JSON, optionally limited by date. This is not a full database backup.
+        </p>
         <div class="mt-4 flex flex-1 items-end" hx-boost:inherited="false">
           <button class="btn btn-outline w-full"
                   type="button"
@@ -20,6 +22,7 @@
             </form>
             <h3 class="font-bold text-lg mt-1 mb-4">Export Stories</h3>
             <form method="get" action="{{ export_url }}" class="space-y-4" data-timezone="{{ export_timezone }}">
+              <p class="text-sm">Exports include stories across the instance. Assess source access restrictions do not limit this export.</p>
               <p class="text-sm">Dates use your profile timezone ({{ export_timezone }}) and filter the story's creation time.</p>
               <div class="grid grid-cols-2 gap-3">
                 <label class="input w-full p-1">
@@ -42,6 +45,20 @@
                          data-testid="story-export-time-to">
                 </label>
               </div>
+              <dl class="space-y-2 text-sm">
+                <div>
+                  <dt class="font-semibold">All Stories</dt>
+                  <dd>
+                    Minimal content: story IDs and creation dates, plus news item IDs, titles, and content.
+                  </dd>
+                </div>
+                <div>
+                  <dt class="font-semibold">All Stories With Metadata</dt>
+                  <dd>
+                    Also retains supported story and news item metadata, including attributes and tags.
+                  </dd>
+                </div>
+              </dl>
               <div class="grid grid-cols-2 gap-2 join">
                 <button class="btn btn-outline" type="submit" data-testid="story-export-dialog-button">All Stories</button>
                 <button class="btn btn-outline"
@@ -71,6 +88,7 @@
               hx-target="#notification-bar"
               hx-swap="outerHTML"
               enctype="multipart/form-data">
+          {% include "assess/story_import_help.html" %}
           <label class="form-control w-full">
             <span class="label-text mb-2 font-medium">Import Stories from JSON</span>
             <input type="file"

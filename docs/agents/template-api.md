@@ -20,3 +20,4 @@ Core template service tests cover content states, ordering, and a filesystem-bac
 
 ## Pitfalls
 Deploy Core and Frontend together; see `docs/releasing.md`. Preserve null content when serializing missing templates. Keep exception details server-side.
+Presenter templates may intentionally render analyst-authored Story summary HTML; see [Public Product Publishing](public-product-publishing.md) and [#780](https://github.com/taranis-ai/taranis-ai/pull/780) for the separate Jinja, preview, and published-product boundaries.
