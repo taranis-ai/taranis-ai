@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any
 
 from models.admin import CronSpec, CuratedOSINTSourceCatalog, OSINTSourceUpdateModel
 from models.admin import OSINTSource as OSINTSourceModel
+from models.scheduler import StoredTaskResult
 from models.types import COLLECTOR_TYPES
 from PIL import Image, ImageOps, UnidentifiedImageError
 from sqlalchemy import String, and_, cast, func, literal
@@ -495,7 +496,6 @@ class OSINTSource(BaseModel):
         Note: All times are calculated in UTC for consistency across the system.
         """
 
-        from core.managers import queue_manager as queue_manager_module
         from core.managers.queue_manager import QueueManager
 
         now = now or datetime.now(UTC).replace(tzinfo=None)
@@ -525,7 +525,7 @@ class OSINTSource(BaseModel):
                         last_run=task_result.last_run if task_result else None,
                         last_success=task_result.last_success if task_result else None,
                         last_status=task_result.status if task_result else None,
-                        last_reason=queue_manager_module._task_result_reason(task_result),
+                        last_reason=StoredTaskResult.model_validate(task_result).result.reason if task_result else None,
                     )
                 )
             except Exception as exc:
@@ -1080,7 +1080,7 @@ class OSINTSource(BaseModel):
 
         scheduling_failed = False
         for source in resolved_sources.values():
-            if not source.enabled:
+            if not Config.QUEUE_ENABLED or not source.enabled:
                 continue
             try:
                 if source.schedule_osint_source() is not True:
@@ -1103,12 +1103,9 @@ class OSINTSource(BaseModel):
 
     @classmethod
     def get_all_for_assess_api(cls, user=None) -> tuple[dict[str, Any], int]:
-        filter_args = {}
-        query = cls.get_filter_query_with_acl(filter_args, user) if user else cls.get_filter_query(filter_args)
-        if items := cls.get_filtered(query):
-            return {"items": [item.to_assess_dict() for item in items]}, 200
+        from core.model.filter_data import FilterData
 
-        return {"items": []}, 200
+        return {"items": FilterData._build_sources(user)}, 200
 
     @classmethod
     def delete_all(cls) -> tuple[dict[str, Any], int]:
@@ -1273,12 +1270,9 @@ class OSINTSourceGroup(BaseModel):
 
     @classmethod
     def get_all_for_assess_api(cls, user=None) -> tuple[dict[str, Any], int]:
-        filter_args = {}
-        query = cls.get_filter_query_with_acl(filter_args, user) if user else cls.get_filter_query(filter_args)
-        if items := cls.get_filtered(query):
-            return {"items": [item.to_assess_dict() for item in items]}, 200
+        from core.model.filter_data import FilterData
 
-        return {"items": []}, 404
+        return {"items": FilterData._build_groups(user)}, 200
 
 
 class OSINTSourceGroupOSINTSource(BaseModel):

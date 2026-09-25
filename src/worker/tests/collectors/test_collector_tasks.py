@@ -193,6 +193,7 @@ def test_empty_rss_feed_result_is_preserved_after_not_modified_response(current_
     ("publish_message", "result_prefix", "recovered_status", "expected_bot_runs"),
     [
         ("News items added", "'Source 1': News items added", "SUCCESS", 1),
+        ("0 created, 2 updated", "'Source 1': 0 created, 2 updated", "SUCCESS", 1),
         ("All news items were skipped", "No changes: All news items were skipped", "NOT_MODIFIED", 0),
     ],
 )
@@ -217,7 +218,10 @@ def test_rss_entry_limit_warning_and_recovery(
     requests_mock.get("https://example.com/favicon.ico", status_code=404)
     source_endpoint = f"{Config.TARANIS_CORE_URL}/worker/osint-sources/source-1"
     requests_mock.get(source_endpoint, json=source)
-    requests_mock.post(f"{Config.TARANIS_CORE_URL}/worker/news-items", json={"message": publish_message})
+    requests_mock.post(
+        f"{Config.TARANIS_CORE_URL}/worker/news-items",
+        json={"message": publish_message, "story_ids": ["story-1"] if expected_bot_runs else []},
+    )
     bots = requests_mock.put(f"{Config.TARANIS_CORE_URL}/worker/post-collection-bots", json={})
     requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
 
@@ -234,6 +238,8 @@ def test_rss_entry_limit_warning_and_recovery(
     published = next(request.json() for request in requests_mock.request_history if request.url.endswith("/worker/news-items"))
     assert [item["title"] for item in published] == ["Item 0", "Item 1"]
     assert bots.call_count == expected_bot_runs
+    if expected_bot_runs:
+        assert bots.last_request.json()["story_ids"] == ["story-1"]
 
     source["rss_collector_max_entries"] = 2 + skipped_entries
     for _ in range(2):

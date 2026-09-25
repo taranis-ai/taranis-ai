@@ -25,6 +25,8 @@ class TestAdminApi(BaseTest):
                 "default_collector_proxy": "http://test_server:1111",
                 "default_collector_interval": "5 5 * * *",
                 "rss_collector_max_entries": "75",
+                "collection_group_threshold": "90",
+                "collection_lookback_days": "45",
                 "default_tlp_level": "clear",
                 "default_story_conflict_retention": "150",
                 "default_news_item_conflict_retention": "150",
@@ -36,7 +38,11 @@ class TestAdminApi(BaseTest):
         response_settings = response.get_json()
 
         assert response_settings["message"] == "Successfully updated settings"
-        expected_settings = test_settings["settings"] | {"rss_collector_max_entries": 75}
+        expected_settings = test_settings["settings"] | {
+            "rss_collector_max_entries": 75,
+            "collection_group_threshold": 90,
+            "collection_lookback_days": 45,
+        }
         for key, value in expected_settings.items():
             assert response_settings["settings"][key] == value
 
@@ -94,18 +100,20 @@ class TestAdminApi(BaseTest):
 
         self.assert_patch_ok(client, "settings", {"settings": {"chat_llm_api_key": "", "default_bot_lookback_days": 7}}, auth_header)
         with app.app_context():
-            provider = ChatClient()
-            assert provider.base_url == values["chat_llm_base_url"]
-            assert provider.api_key == values["chat_llm_api_key"]
-            assert provider.model == values["chat_llm_model"]
-            assert provider.api_format == "chat_completions"
-            assert provider.timeout == 90
-            assert Settings.get_settings()["chat_max_stories"] == 8
-
+            self._assert_chat_settings(ChatClient, values, Settings)
         response = self.assert_patch_ok(client, "settings", {"settings": {"chat_llm_api_key_clear": "true"}}, auth_header)
         assert response.get_json()["settings"]["chat_llm_api_key_configured"] is False
         with app.app_context():
             assert ChatClient().api_key == ""
+
+    def _assert_chat_settings(self, ChatClient, values, Settings):
+        provider = ChatClient()
+        assert provider.base_url == values["chat_llm_base_url"]
+        assert provider.api_key == values["chat_llm_api_key"]
+        assert provider.model == values["chat_llm_model"]
+        assert provider.api_format == "chat_completions"
+        assert provider.timeout == 90
+        assert Settings.get_settings()["chat_max_stories"] == 8
 
     def test_settings_rejects_negative_bot_lookback(self, client, auth_header):
         response = client.put(
@@ -117,16 +125,25 @@ class TestAdminApi(BaseTest):
         assert response.status_code == 400
         assert response.get_json()["error"] == "Invalid bot lookback setting"
 
-    @pytest.mark.parametrize("value", [0, -1, "invalid"])
-    def test_settings_rejects_invalid_rss_collector_entry_limit(self, client, auth_header, value):
+    @pytest.mark.parametrize(
+        ("key", "value"),
+        [("rss_collector_max_entries", value) for value in (0, -1, "invalid")]
+        + [("collection_group_threshold", value) for value in (0, 101, True)]
+        + [("collection_lookback_days", value) for value in (0, 36501, "invalid")],
+    )
+    def test_settings_rejects_invalid_collection_limits(self, client, auth_header, key, value):
         response = client.put(
             self.concat_url("settings"),
-            json={"settings": {"rss_collector_max_entries": value}},
+            json={"settings": {key: value}},
             headers=auth_header,
         )
 
         assert response.status_code == 400
-        assert response.get_json()["error"] == "Invalid RSS collector entry limit"
+        assert response.get_json()["error"] == (
+            "Invalid RSS collector entry limit"
+            if key == "rss_collector_max_entries"
+            else "Collection threshold must be 1–100 and lookback days must be 1–36500"
+        )
 
     def test_settings_rejects_invalid_default_timezone(self, client, auth_header):
         response = client.put(

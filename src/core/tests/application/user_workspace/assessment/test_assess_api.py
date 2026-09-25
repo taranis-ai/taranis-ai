@@ -33,24 +33,21 @@ class TestAssessApi(BaseTest):
             assert response.status_code == 400
         assert [item.id for item in story.ordered_news_items] == desired_ids
 
-    def test_get_OSINTSourceGroupsAssess(self, client, fake_source, auth_header):
-        """
-        This test queries the OSINTSourceGroupsAssess authenticated.
-        It expects a valid data and a valid status-code
-        """
-        response = self.assert_get_ok(client, "osint-source-group-list", auth_header)
-        assert response.get_json()["items"][0]["key"] == "default"
+    def test_source_references_require_visible_stories(self, client, session, auth_header):
+        from core.managers.db_manager import db
+        from tests.application.support.rbac import create_rbac_source_group, create_rbac_source_story
 
-    def test_get_OSINTSourcesList(self, client, fake_source, auth_header):
-        """
-        This test queries the OSINTSourcesList authenticated.
-        It expects 1 OSINTSource ("manual") returned
-        """
-        response = self.assert_get_ok(client, "osint-sources-list", auth_header)
-        items = response.get_json()["items"]
-        assert len(items) >= 1
-        item_keys = [item["key"] for item in items]
-        assert "manual" in item_keys
+        source, story, _ = create_rbac_source_story("assess-reference")
+        group = create_rbac_source_group("Assess reference group", [source])
+        endpoints = {"osint-sources-list": source.id, "osint-source-group-list": group.id}
+        for endpoint, object_id in endpoints.items():
+            response = self.assert_get_ok(client, endpoint, auth_header)
+            assert object_id in {item["id"] for item in response.json["items"]}
+        db.session.delete(story)
+        db.session.flush()
+        for endpoint, object_id in endpoints.items():
+            response = self.assert_get_ok(client, endpoint, auth_header)
+            assert object_id not in {item["id"] for item in response.json["items"]}
 
     def test_worker_story_creation_and_persistence(self, client, misp_story_from_news_items_id, auth_header):
         story_id, input_data = misp_story_from_news_items_id
@@ -330,6 +327,17 @@ class TestAssessNewsItems(BaseTest):
         assert news_item["language"] == "de"
         assert news_item["published"] == "2023-12-31T22:00:00+00:00"
         assert news_item["hash"] == NewsItem.get_hash(title="Updated News Item", link="https://url/updated%20path?q=c%20d")
+        response = client.put(
+            f"/api/assess/news-items/{cleanup_news_item['id']}",
+            json={"attributes": [{"key": "TLP", "value": "invalid"}]},
+            headers=auth_header,
+        )
+        assert response.status_code == 400
+        for attributes in ([{"key": "TLP", "value": "clear"}, {"key": "custom", "value": "kept"}], []):
+            self.assert_put_ok(client, f"news-items/{cleanup_news_item['id']}", {"attributes": attributes}, auth_header)
+            saved = self.assert_get_ok(client, f"news-items/{cleanup_news_item['id']}", auth_header).json
+            assert saved["attributes"] == attributes
+            assert saved["title"] == "Updated News Item"
 
     def test_delete_NewsItem(self, client, cleanup_news_item, auth_header):
         response = self.assert_delete_ok(client, f"news-items/{cleanup_news_item['id']}", auth_header)
@@ -540,6 +548,11 @@ class TestAssessStories(BaseTest):
         monkeypatch.setattr("core.api.assess.realtime_publisher.assess_changed", assess_changed)
         story_url = f"/api/assess/stories/{stories[0]}"
         original_read = client.get(story_url, headers=auth_header).get_json()["read"]
+
+        for key in ("TLP", "tlp_override"):
+            response = client.patch(story_url, json={"attributes": [{"key": key, "value": "invalid"}]}, headers=auth_header)
+            assert response.status_code == 400
+        assess_changed.assert_not_called()
 
         try:
             response = client.patch(story_url, json={"read": not original_read}, headers=auth_header)

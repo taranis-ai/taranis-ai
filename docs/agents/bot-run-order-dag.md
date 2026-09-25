@@ -13,6 +13,7 @@ Bot dependencies, `RUN_AFTER_COLLECTOR`, `RUN_AFTER_BOTS`, DAG previews, or post
 - Dependency preview shows the edited bot's connected component. Collector Chain shows the full enabled collector order only for bots in that chain; disabled parents may still appear in dependency badges.
 - Bot indexes are unique. Accept integers/integer strings, reject booleans/floats, treat null/empty as omitted, and preserve zero and omitted-update semantics. New forms suggest max+1; availability checks exclude the current bot. Database conflicts retain curated validation errors.
 - Use one `POST /api/config/bots/dag-preview`, sending only candidate `id`, `type`, `index`, `enabled`, and the two dependency fields. Reject unrelated fields; malformed previews return a generic 400.
+- Preview candidates validate only submitted scheduling parameters, so required execution settings do not block new or existing bot previews. Preview state is never persisted. Omitted run-order fields use their defaults; `RUN_AFTER_COLLECTOR` is a native boolean in list badges and forms.
 
 ## Entry Points and Coverage
 

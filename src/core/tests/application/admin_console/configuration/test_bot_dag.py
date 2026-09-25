@@ -31,14 +31,23 @@ def test_collector_run_graph_uses_dependency_order(app, session):
         assert dependencies_by_id[_bot("summary_bot").id] == [_bot("nlp_bot").id]
 
 
-def test_dag_preview_uses_candidate_state(app):
+@pytest.mark.parametrize(
+    "bot_type, parameters",
+    [
+        ("cybersec_classifier_bot", {}),
+        ("tagging_bot", {"REGULAR_EXPRESSION": "test"}),
+        ("intel_owl_bot", {"INTEL_OWL_URL": "https://intelowl.test", "INTEL_OWL_API_KEY": "test-key"}),
+    ],
+)
+@pytest.mark.parametrize("existing", [True, False])
+def test_dag_preview_uses_candidate_state(app, session, bot_type, parameters, existing):
     with app.app_context():
         from core.model.bot import Bot
 
-        bot = _bot("cybersec_classifier_bot")
+        bot = Bot.add({"name": "Preview bot", "type": bot_type, "parameters": parameters, "enabled": False})
         preview = Bot.get_dag_preview(
             {
-                "id": bot.id,
+                "id": bot.id if existing else None,
                 "type": bot.type,
                 "index": bot.index,
                 "enabled": True,
@@ -46,9 +55,11 @@ def test_dag_preview_uses_candidate_state(app):
             }
         )
 
-        assert "CYBERSEC_CLASSIFIER_BOT" in [node["type"] for node in preview["order"]]
+        assert bot_type.upper() in [node["type"] for node in preview["order"]]
         assert preview["edges"] == []
-        assert [node["type"] for node in preview["nodes"]] == ["CYBERSEC_CLASSIFIER_BOT"]
+        assert [node["type"] for node in preview["nodes"]] == [bot_type.upper()]
+        assert Bot.get(bot.id).enabled is False
+        assert Bot.get(bot.id).parameters == parameters
 
 
 @pytest.mark.parametrize("scenario", ["invalid_id", "self", "cycle"])

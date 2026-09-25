@@ -22,7 +22,7 @@ RUN_ORDER_PARAMETERS = {"RUN_AFTER_COLLECTOR", "RUN_AFTER_BOTS"}
 def render_bot_run_order(item: Bot, bot_names: dict[str, str]) -> Markup:
     parameters = item.parameters or {}
     parts = []
-    if parameters.get("RUN_AFTER_COLLECTOR") == "true":
+    if parameters.get("RUN_AFTER_COLLECTOR", False):
         parts.append('<span class="badge badge-primary badge-sm">Collector</span>')
     parts.extend(
         f'<span class="badge badge-outline badge-sm">{escape(bot_names.get(bot_id, bot_id))}</span>'
@@ -137,7 +137,7 @@ class BotView(AdminBaseView):
                     "type": bot_type,
                     "index": bot.index,
                     "enabled": bot.enabled,
-                    "parameters": {key: parameter_values.get(key, "") for key in RUN_ORDER_PARAMETERS},
+                    "parameters": {key: parameter_values[key] for key in RUN_ORDER_PARAMETERS if key in parameter_values},
                 }
             )
 

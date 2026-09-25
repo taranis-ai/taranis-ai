@@ -107,6 +107,7 @@ The automated workflow preserves profiles already set in `COMPOSE_PROFILES`.
 Setup nginx.
 Make sure the paths are correct. Some distributions use a different nginx configuration directory hierarchy and rely on `.conf` suffix.
 Existing installed nginx configurations are not updated automatically when `dev/nginx.conf` changes. Public product publishing requires the active server block to include the tracked `/reports` proxy; recopy or update the installed configuration before validating that route.
+Chat requires the tracked `/chat/` proxy with `proxy_read_timeout 660s` to cover the frontend's 600-second request timeout. Recopy the configuration and reload Nginx when updating an existing development setup.
 
 ```bash
 # Debian based example

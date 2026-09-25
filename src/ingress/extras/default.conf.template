@@ -29,6 +29,12 @@ server {
         proxy_pass http://frontendupstream;
     }
 
+    location ${TARANIS_BASE_PATH}chat/ {
+        proxy_pass http://frontendupstream;
+        # Allow the frontend's 600-second Chat timeout to return its response.
+        proxy_read_timeout 660s;
+    }
+
     location ${TARANIS_BASE_PATH}api {
         proxy_pass http://coreupstream;
         proxy_redirect off;

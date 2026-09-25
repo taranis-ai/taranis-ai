@@ -6,6 +6,7 @@ from typing import Any, cast
 import fakeredis
 import pytest
 import rq.registry as rq_registry
+from models.scheduler import JobFilter, ScheduledJob, StoredTaskResult
 from models.types import COLLECTOR_TYPES, PRESENTER_TYPES, PUBLISHER_TYPES
 from rq import Queue
 
@@ -150,21 +151,14 @@ def test_dashboard_schedule_count_matches_scheduled_jobs_total_for_configured_so
 def test_filter_sort_paginate_jobs_uses_defaults_for_invalid_paging(filter_args):
     jobs = [{"id": f"job-{index:02d}"} for index in range(25)]
 
-    result = qm_module._filter_sort_paginate_jobs(jobs, filter_args, default_order="id_asc")
+    result = JobFilter.model_validate(filter_args).paginate(jobs, default_order="id_asc")
 
     assert [job["id"] for job in result["items"]] == [f"job-{index:02d}" for index in range(20)]
     assert result["total_count"] == 25
 
 
-def test_annotate_jobs_ignores_scheduled_lateness(monkeypatch):
+def test_annotate_jobs_ignores_scheduled_lateness():
     fixed_now = datetime(2025, 12, 12, 8, 10, tzinfo=UTC)
-
-    class _FixedDateTime(datetime):
-        @classmethod
-        def now(cls, tz=None):
-            return fixed_now if tz else fixed_now.replace(tzinfo=None)
-
-    monkeypatch.setattr(qm_module, "datetime", _FixedDateTime)
 
     job = {
         "type": "scheduled",
@@ -172,22 +166,15 @@ def test_annotate_jobs_ignores_scheduled_lateness(monkeypatch):
         "last_run": datetime(2025, 12, 12, 7, 50, 0),
     }
 
-    annotated = qm_module._annotate_jobs([job])[0]
+    annotated = ScheduledJob.model_validate(job).model_dump(context={"now": fixed_now.replace(tzinfo=None)})
 
     assert annotated["status_badge"]["variant"] == "ghost"
     assert annotated["is_overdue"] is False
     assert annotated["last_run_relative"].endswith("ago")
 
 
-def test_annotate_jobs_marks_first_cron_run_pending(monkeypatch):
+def test_annotate_jobs_marks_first_cron_run_pending():
     fixed_now = datetime(2025, 12, 12, 8, 0, tzinfo=UTC)
-
-    class _FixedDateTime(datetime):
-        @classmethod
-        def now(cls, tz=None):
-            return fixed_now if tz else fixed_now.replace(tzinfo=None)
-
-    monkeypatch.setattr(qm_module, "datetime", _FixedDateTime)
 
     job = {
         "type": "cron",
@@ -196,7 +183,7 @@ def test_annotate_jobs_marks_first_cron_run_pending(monkeypatch):
         "next_run_time": datetime(2025, 12, 12, 10, 0, 0),
     }
 
-    annotated = qm_module._annotate_jobs([job])[0]
+    annotated = ScheduledJob.model_validate(job).model_dump(context={"now": fixed_now.replace(tzinfo=None)})
 
     assert annotated["status_badge"]["label"] == "Pending first run"
     assert annotated["is_overdue"] is False
@@ -209,7 +196,7 @@ def test_annotate_jobs_marks_completed_cron_run_on_schedule():
         "previous_run_time": datetime(2025, 12, 12, 7, 0, 0),
     }
 
-    annotated = qm_module._annotate_jobs([job])[0]
+    annotated = ScheduledJob.model_validate(job).model_dump()
 
     assert annotated["status_badge"] == {"variant": "success", "label": "On schedule"}
 
@@ -217,7 +204,7 @@ def test_annotate_jobs_marks_completed_cron_run_on_schedule():
 def test_task_result_reason_ignores_invalid_json():
     task = cast(Any, type("FakeTask", (), {"result": "{not json"})())
 
-    assert qm_module._task_result_reason(task) is None
+    assert StoredTaskResult.model_validate(task).result.reason is None
 
 
 def test_cancel_job_cancels_instance_and_cron(monkeypatch):
@@ -402,7 +389,7 @@ def test_get_failed_jobs_uses_registry(monkeypatch):
     assert status == 200
     assert payload["items"][0]["id"] == "job-9"
     assert payload["items"][0]["status"] == "failed"
-    assert payload["items"][0]["error"] == "ValueError: boom"
+    assert payload["items"][0]["error"] == "Task failed"
 
 
 def test_get_failed_jobs_removes_stale_registry_entries(monkeypatch):

@@ -18,9 +18,9 @@
             {% if disabled %}disabled {% endif %}
             {% if data_testid %} data-testid="{{ data_testid }}"{% endif %}
             class="validator select w-full">
-      {% if not value %}<option value="" selected disabled>Select an item type</option>{% endif %}
+      {% if not value and not (options | selectattr("id", "equalto", "") | list) %}<option value="" selected disabled>Select an item type</option>{% endif %}
       {% for option in options %}
-        <option value="{{ option.id }}" {% if option.id == value %}selected{% endif %}>{{ option.name }}</option>
+        <option value="{{ option.id }}" {% if option.id == value or (option.id == "" and not value) %}selected{% endif %}>{{ option.name }}</option>
       {% endfor %}
     </select>
   </label>

@@ -76,6 +76,9 @@ class AdminBaseView(BaseView):
             if variants := prop.get("anyOf"):
                 concrete = next((variant for variant in variants if variant.get("type") != "null"), {})
                 prop = {**prop, **concrete}
+            if reference := prop.pop("$ref", None):
+                prop = {**definitions[reference.rsplit("/", 1)[-1]], **prop}
+            nullable = any(variant.get("type") == "null" for variant in raw_property.get("anyOf", []))
             value = prop.get("default", "")
             if isinstance(value, bool):
                 value = "true" if value else "false"
@@ -116,7 +119,8 @@ class AdminBaseView(BaseView):
                     "pattern": prop.get("pattern", ""),
                     "minimum": minimum,
                     "maximum": maximum,
-                    "options": [{"id": option, "name": option} for option in prop.get("enum", [])],
+                    "options": ([{"id": "", "name": "Inherit"}] if nullable and prop.get("enum") else [])
+                    + [{"id": option, "name": option} for option in prop.get("enum", [])],
                     "widget": widget,
                 }
             )

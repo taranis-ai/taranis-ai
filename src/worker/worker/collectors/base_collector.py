@@ -25,6 +25,7 @@ class BaseCollector:
         self.description = "Base abstract type for all collectors"
 
         self.core_api = CoreApi()
+        self.affected_story_ids: set[str] = set()
 
     def filter_by_word_list(self, news_items: list[NewsItem], word_lists: list) -> list[NewsItem]:
         if not word_lists:
@@ -77,8 +78,6 @@ class BaseCollector:
     def process_news_items(self, news_items: list[NewsItem], source: dict) -> list[NewsItem]:
         if word_lists := source.get("word_lists"):
             news_items = self.filter_by_word_list(news_items, word_lists)
-        if tlp_level := source["parameters"].get("TLP_LEVEL", None):
-            news_items = self.add_tlp(news_items, tlp_level)
 
         return news_items
 
@@ -98,7 +97,13 @@ class BaseCollector:
         news_items_dicts = [item.model_dump(mode="json") for item in news_items]
         if not news_items_dicts:
             return None
-        if (core_response := self.core_api.add_news_items(news_items_dicts)) and (core_message := core_response.get("message")):
+        if core_response := self.core_api.add_news_items(news_items_dicts):
+            self.affected_story_ids.update(core_response.get("story_ids", []))
+            if core_response.get("error"):
+                if self.affected_story_ids:
+                    self.core_api.run_post_collection_bots(source["id"], story_ids=sorted(self.affected_story_ids))
+                raise RuntimeError("Cannot add news items")
+            core_message = core_response.get("message")
             if core_message == "All news items were skipped":
                 raise NoChangeError("All news items were skipped")
             return core_message

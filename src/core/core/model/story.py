@@ -25,10 +25,9 @@ from core.model.news_item_tag import NewsItemTag
 from core.model.osint_source import OSINTSource, OSINTSourceGroup, OSINTSourceGroupOSINTSource
 from core.model.revision import StoryRevision
 from core.model.role import TLPLevel
-from core.model.role_based_access import ItemType
 from core.model.story_conflict import StoryConflict
 from core.model.user import User
-from core.service.role_based_access import RBACQuery, RoleBasedAccessService
+from core.service.role_based_access import RoleBasedAccessService
 from core.service.story_operations import StoryOperationsService
 
 
@@ -99,6 +98,8 @@ class Story(BaseModel):
         self.relevance_override = relevance if relevance_override is None else relevance_override
         if attributes:
             self.attributes = NewsItemAttribute.load_multiple(attributes)
+        with db.session.no_autoflush:
+            self.refresh_tlp()
         self.created, self.updated = self.get_story_dates(created, updated)
         self.recompute_relevance(in_reports_count=0)
 
@@ -125,9 +126,7 @@ class Story(BaseModel):
 
     @classmethod
     def last_change_for_connector(cls, connector_id: str | None) -> str | None:
-        if not connector_id:
-            return None
-        return f"connector_{connector_id}"
+        return f"connector_{connector_id}" if connector_id else None
 
     @classmethod
     def last_change_for_worker(cls, worker_kind: str, worker_type: str | None, worker_id: str | None) -> str | None:
@@ -301,8 +300,7 @@ class Story(BaseModel):
         logger.debug(f"Getting {cls.__name__} {item_id}")
         query = db.select(cls).filter(cls.id == item_id)
         if user:
-            query = cls._add_ACL_check(query, user)
-            query = cls._add_TLP_check(query, user)
+            query = cls.visible_query(user).where(cls.id == item_id)
             query = cls.enhance_with_user_votes(query, user.id)
 
             if result := db.session.execute(query).first():
@@ -318,9 +316,7 @@ class Story(BaseModel):
     @classmethod
     def get_analyst_review_snapshot(cls, user: User) -> list[str]:
         filter_args = {"range": "shift", "read": "false", "sort": "date_desc"}
-        query = cls.get_filter_query(filter_args)
-        query = cls._add_ACL_check(query, user)
-        query = cls._add_TLP_check(query, user)
+        query = cls.visible_query(user, cls.get_filter_query(filter_args))
         query = cls._add_sorting_to_query(filter_args, query)
         story_ids = db.session.execute(query.with_only_columns(cls.id)).scalars().all()
         return list(dict.fromkeys(story_ids))
@@ -571,15 +567,6 @@ class Story(BaseModel):
         return query
 
     @classmethod
-    def _add_ACL_check(cls, query: Select, user: User) -> Select:
-        rbac = RBACQuery(user=user, resource_type=ItemType.OSINT_SOURCE)
-        return RoleBasedAccessService.filter_query_with_acl(query, rbac)
-
-    @classmethod
-    def _add_TLP_check(cls, query: Select, user: User) -> Select:
-        return RoleBasedAccessService.filter_query_with_tlp(query, user)
-
-    @classmethod
     def enhance_with_user_votes(cls, query: Select, user_id: str) -> Select:
         vote_subquery = (
             db.select(NewsItemVote.item_id, NewsItemVote.user_vote_expr.label("user_vote")).filter(NewsItemVote.user_id == user_id).subquery()
@@ -607,8 +594,7 @@ class Story(BaseModel):
             filter_args = {**filter_args, "_user": user}
         base_query = cls.get_filter_query(filter_args)
         if user:
-            base_query = cls._add_ACL_check(base_query, user)
-            base_query = cls._add_TLP_check(base_query, user)
+            base_query = cls.visible_query(user, base_query)
 
         query = cls._add_sorting_to_query(filter_args, base_query)
         query = cls._add_paging_to_query(filter_args, query)
@@ -778,7 +764,7 @@ class Story(BaseModel):
 
     @classmethod
     def add_from_news_item(cls, news_item: AssessNewsItem, user: User | None = None) -> "tuple[dict, int]":
-        if news_item_obj := NewsItem.get_by_hash(news_item.hash):
+        if news_item_obj := NewsItem.get_by_payload_identity(news_item):
             logger.warning("Identical news item found. Skipping...")
             return {
                 "error": "Identical news item found. Skipping...",
@@ -835,7 +821,12 @@ class Story(BaseModel):
             return {"error": "Failed to add news items"}, 400
 
     @classmethod
-    def add_news_items(cls, news_items_list: list[dict], user: User | None = None):
+    def add_news_items(cls, news_items_list: list[dict], user: User | None = None, *, collection: bool = False):
+        if collection:
+            from core.service.collection import CollectionService
+
+            return CollectionService.ingest(news_items_list)
+
         story_ids = []
         news_item_ids = []
         skipped_count = 0
@@ -850,6 +841,8 @@ class Story(BaseModel):
                     skipped_count += 1
                     continue
                 message, status = cls.add_from_news_item(normalized_news_item, user=user)
+                # Release a skipped item's source lock before processing another source.
+                db.session.commit()
                 if status > 299:
                     skipped_count += 1
                     continue
@@ -858,6 +851,7 @@ class Story(BaseModel):
             db.session.commit()
         except Exception:
             logger.exception("Failed to add news items")
+            db.session.rollback()
             return {"error": "Failed to add news items"}, 400
 
         result = {"story_ids": story_ids, "news_item_ids": news_item_ids, "message": f"{len(news_item_ids)} News items added successfully"}
@@ -871,15 +865,22 @@ class Story(BaseModel):
         logger.info(f"News items added successfully: {result}")
         return result, 200
 
+    @classmethod
+    def visible_query(cls, user: User, query: Select | None = None) -> Select:
+        query = db.select(cls) if query is None else query
+        query = RoleBasedAccessService.filter_story_query_with_acl(query, user)
+        return RoleBasedAccessService.filter_query_with_tlp(query, user)
+
+    def allowed_to_read(self, user: User) -> bool:
+        return db.session.execute(self.visible_query(user).where(Story.id == self.id)).scalar() is not None
+
     def allowed_to_update(self, user: User) -> bool:
         accessible_tlps = user.get_highest_tlp().get_accessible_levels()
         return (
             "ASSESS_UPDATE" in user.get_permissions()
             and not any(attribute.key == "rt_id" for attribute in self.attributes)
             and self.tlp_level.value in accessible_tlps
-            and all(
-                item.tlp_level.value in accessible_tlps and item.allowed_with_acl(user, require_write_access=True) for item in self.news_items
-            )
+            and all(item.allowed_with_acl(user, require_write_access=True) for item in self.news_items)
         )
 
     @classmethod
@@ -931,7 +932,7 @@ class Story(BaseModel):
             story.summary = data["summary"]
 
         if "attributes" in data:
-            story.set_attributes(data["attributes"])
+            story.set_attributes(data["attributes"] or [])
 
         if "relevance_override" in data:
             story.relevance_override = data["relevance_override"] or 0
@@ -943,6 +944,7 @@ class Story(BaseModel):
         if actor is not None:
             story.last_change = actor
 
+        story.refresh_tlp()
         story.update_timestamps()
         story.recompute_relevance()
         story.record_revision(user, note="update")
@@ -1022,8 +1024,6 @@ class Story(BaseModel):
         remove_attributes() for deletions.
         """
         parsed_attributes = NewsItemAttribute.parse_attributes(attributes)
-        if len(parsed_attributes) == 0:
-            return
         input_keys = set(parsed_attributes.keys())
         existing_keys = {attr.key for attr in self.attributes}
 
@@ -1033,15 +1033,18 @@ class Story(BaseModel):
         self.remove_attributes(list(keys_to_remove))
 
     def patch_attributes(self, attributes: list[NewsItemAttribute] | dict[str, dict]):
+        if not attributes:
+            return
         if isinstance(attributes, dict) or not isinstance(attributes[0], NewsItemAttribute):
             attributes = list(NewsItemAttribute.parse_attributes(attributes).values())
         for attribute in attributes:
             if isinstance(attribute, NewsItemAttribute):
                 if attribute.key == "TLP":
-                    attribute.value = self.get_story_tlp(TLPLevel.get_tlp_level(attribute.value))
+                    continue
                 self.upsert_attribute(attribute)
             else:
                 logger.warning(f"Expected NewsItemAttribute, got {type(attribute)}")
+        self.refresh_tlp()
 
     def remove_attributes(self, keys: list[str]):
         """
@@ -1051,6 +1054,7 @@ class Story(BaseModel):
             if (attr := self.find_attribute_by_key(key)) and key != "TLP":
                 self.attributes.remove(attr)
                 db.session.delete(attr)
+        self.refresh_tlp()
 
     def upsert_attribute(self, attribute: NewsItemAttribute) -> None:
         if existing_attribute := self.find_attribute_by_key(attribute.key):
@@ -1348,7 +1352,9 @@ class Story(BaseModel):
     @classmethod
     def create_from_item(cls, news_item: NewsItem, commit: bool = True, actor: str | None = None) -> str | None:
         change = actor or news_item.last_change or "internal"
-        if (source_story := cls.get(news_item.story_id)) and news_item in source_story.news_items:
+        source_story = cls.get(news_item.story_id)
+        inherited_override = source_story.find_attribute_by_key("tlp_override") if source_story else None
+        if source_story and news_item in source_story.news_items:
             source_story.news_items.remove(news_item)
 
         new_story = Story(
@@ -1356,6 +1362,9 @@ class Story(BaseModel):
             created=news_item.published,
             description=news_item.review or news_item.content,
             news_items=[news_item],
+            attributes=[{"key": "tlp_override", "value": inherited_override.tlp_level.value}]
+            if inherited_override and inherited_override.value
+            else None,
             last_change=change,
         )
         db.session.add(new_story)
@@ -1427,8 +1436,8 @@ class Story(BaseModel):
                 self.last_change = self.last_change or "internal"
 
     def update_status_attributes(self):
+        self.refresh_tlp()
         attributes = [
-            NewsItemAttribute(key="TLP", value=self.get_story_tlp()),
             NewsItemAttribute(key="cybersecurity", value=self.get_cybersecurity_status()),
             NewsItemAttribute(key="sentiment", value=self.get_story_sentiment()),
         ]
@@ -1442,29 +1451,19 @@ class Story(BaseModel):
 
     def update_timestamps(self):
         self.updated = self.utcnow()
-        published_dates = [news_item.published for news_item in self.news_items if news_item.published]
-        if published_dates:
+        if published_dates := [news_item.published for news_item in self.news_items if news_item.published]:
             self.created = min(published_dates, key=self._comparison_timestamp)
 
-    def get_story_tlp(self, input_tlp: TLPLevel | None = None) -> TLPLevel:
-        most_restrictive_tlp = input_tlp or TLPLevel.CLEAR
-
-        tlp_levels: list[TLPLevel] = []
-        for news_item in self.news_items:
-            if not news_item.tlp_level:
-                news_item.add_attribute(NewsItemAttribute("TLP", news_item.tlp_level))
-            logger.debug(f"News item {news_item.id} has TLP level")
-            tlp_levels.append(news_item.tlp_level)
-        tlp_levels += [input_tlp] if input_tlp else []
-
-        most_restrictive_tlp = TLPLevel.get_most_restrictive_tlp(tlp_levels)
-
-        logger.debug(f"Updating TLP for Story {self.id} to {most_restrictive_tlp}")
-        return most_restrictive_tlp
+    def refresh_tlp(self) -> None:
+        levels = [item.tlp_level for item in self.news_items]
+        if (override := self.find_attribute_by_key("tlp_override")) and override.value:
+            levels.append(override.tlp_level)
+        self.upsert_attribute(NewsItemAttribute("TLP", TLPLevel.get_most_restrictive_tlp(levels).value))
 
     @property
     def tlp_level(self) -> TLPLevel:
-        return next((TLPLevel(attr.value) for attr in self.attributes if attr.key == "TLP"), TLPLevel.CLEAR)
+        attribute = self.find_attribute_by_key("TLP")
+        return attribute.tlp_level if attribute else TLPLevel.CLEAR
 
     @property
     def ordered_news_items(self) -> list[NewsItem]:
@@ -1477,6 +1476,8 @@ class Story(BaseModel):
         if user is not None:
             data["can_edit"] = self.allowed_to_update(user)
         data.pop("news_item_order", None)
+        data["tlp_level"] = self.tlp_level.value
+        data["attributes"] = [attribute.to_small_dict() for attribute in self.attributes]
         data["news_items"] = [news_item.to_detail_dict() for news_item in self.ordered_news_items]
         data["tags"] = [tag.to_dict() for tag in self.tags]
         data["links"] = self.links
@@ -1487,7 +1488,6 @@ class Story(BaseModel):
 
     def to_detail_dict(self, user: User | None = None) -> dict[str, Any]:
         data = self.to_dict(user=user)
-        data["attributes"] = [attribute.to_small_dict() for attribute in self.attributes]
         data["detail_view"] = True
         data["in_reports_count"] = ReportItemStory.count(self.id)
         data["revision_count"] = self.get_revision_count()
@@ -1501,12 +1501,12 @@ class Story(BaseModel):
     def to_worker_dict(self) -> dict[str, Any]:
         data = super().to_dict()
         data.pop("news_item_order", None)
+        data["tlp_level"] = self.tlp_level.value
         data["news_items"] = [news_item.to_dict() for news_item in self.news_items]
         data["tags"] = {tag.name: tag.to_dict() for tag in self.tags}
         if self.misp_auto_update:
             data["misp_auto_update"] = self.misp_auto_update.to_dict()
-        if attributes := self.attributes:
-            data["attributes"] = {attribute.key: attribute.to_small_dict() for attribute in attributes}
+        data["attributes"] = {attribute.key: attribute.to_small_dict() for attribute in self.attributes}
         del data["search_vector"]
 
         return data
@@ -1542,7 +1542,7 @@ class NewsItemVote(BaseModel):
     def user_vote(self):
         if self.like:
             return "like"
-        if self.dislike:
+        elif self.dislike:
             return "dislike"
         return ""
 
@@ -1816,9 +1816,7 @@ class StoryBookmark(BaseModel):
     def _get_accessible_stories_by_id(cls, story_ids: list[str], user: User) -> dict[str, Story]:
         if not story_ids:
             return {}
-        query = Story.get_filter_query({"story_ids": story_ids})
-        query = Story._add_ACL_check(query, user)
-        query = Story._add_TLP_check(query, user)
+        query = Story.visible_query(user, Story.get_filter_query({"story_ids": story_ids}))
         return {story.id: story for story in db.session.execute(query).scalars().all()}
 
     @classmethod
