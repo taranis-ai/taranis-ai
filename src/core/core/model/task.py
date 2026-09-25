@@ -63,7 +63,7 @@ class Task(BaseModel):
         self.last_run = self.utcnow()
 
     @classmethod
-    def add_or_update(cls, entry_data):
+    def add_or_update(cls, entry_data, *, commit: bool = True):
         if entry := cls.get_by_job_id(entry_data["id"]):
             entry.result = cls._serialize_result(entry_data["result"])
             entry.status = entry_data.get("status")
@@ -74,9 +74,17 @@ class Task(BaseModel):
             if entry.status in cls.SUCCESS_STATUSES:
                 entry.last_success = cls.utcnow()
             entry.last_run = cls.utcnow()
-            db.session.commit()
+            if commit:
+                db.session.commit()
+            else:
+                db.session.flush()
             return entry.to_dict(), 200
-        new_entry = cls.add(entry_data)
+        if commit:
+            new_entry = cls.add(entry_data)
+        else:
+            new_entry = cls.from_dict(entry_data)
+            db.session.add(new_entry)
+            db.session.flush()
         return new_entry.to_dict(), 201
 
     def to_dict(self):

@@ -2445,6 +2445,31 @@ paths:
           description: forbidden
         '404':
           $ref: '#/components/responses/404NotFound'
+  /worker/bot-pipeline/stories:
+    post:
+      security:
+      - APIKey: []
+      description: Select the union of stories for a bot pipeline in one worker response
+      operationId: worker.bot_pipeline_stories_worker.post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [filters]
+              properties:
+                filters:
+                  type: object
+                  additionalProperties:
+                    type: object
+      responses:
+        '200':
+          description: Selected stories, per-bot story IDs, and story revisions
+        '400':
+          description: Invalid filters
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
   /worker/tags:
     get:
       security:
@@ -2539,6 +2564,8 @@ paths:
                 $ref: '#/components/schemas/task'
         '400':
           description: invalid payload
+        '409':
+          description: Story revisions changed before a bot run could commit
         '401':
           $ref: '#/components/responses/401Unauthorized'
     get:

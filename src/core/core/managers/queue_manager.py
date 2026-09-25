@@ -31,6 +31,7 @@ When a source/bot schedule is updated:
 import contextlib
 import hashlib
 import json
+import math
 import re
 import time
 from collections.abc import Callable, Iterable, Sequence
@@ -74,6 +75,7 @@ TASK_MAP = {
     "collector_task": "worker.collectors.collector_tasks.collector_task",
     "collector_preview": "worker.collectors.collector_tasks.collector_preview",
     "bot_task": "worker.bots.bot_tasks.bot_task",
+    "bot_pipeline_task": "worker.bots.bot_tasks.bot_pipeline_task",
     "presenter_task": "worker.presenters.presenter_tasks.presenter_task",
     "publisher_task": "worker.publishers.publisher_tasks.publisher_task",
     "connector_task": "worker.connectors.connector_tasks.connector_task",
@@ -922,7 +924,7 @@ class QueueManager:
         if not (bot := Bot.get(bot_id)):
             return {"error": "Bot not found"}, 404
         try:
-            effective_parameters(bot.type, bot.parameters)
+            bot_parameters = effective_parameters(bot.type, bot.parameters)
         except ValueError:
             logger.exception("Invalid bot configuration for %s", bot_id)
             return {"error": "Invalid bot configuration"}, 400
@@ -946,6 +948,7 @@ class QueueManager:
                     transform=lambda value: value.upper(),
                 ),
             ),
+            **({"job_timeout": bot_parameters["EXECUTION_TIMEOUT"]} if bot_parameters.get("EXECUTION_TIMEOUT") else {}),
             **bot_args,
         ):
             logger.info(f"Executing Bot {bot_id} scheduled")
@@ -1043,17 +1046,15 @@ class QueueManager:
         if error := self.queue_action_error():
             return error
 
-        post_collection_bots, dependencies_by_id = Bot.get_collector_run_graph()
+        post_collection_bots, _ = Bot.get_collector_run_graph()
         if not post_collection_bots:
             return {"message": "No post collection bots found"}, 200
 
         if not self._enqueue_bot_graph(
             post_collection_bots,
-            dependencies_by_id,
             filter={"SOURCE": source_id, **({"STORY_IDS": story_ids} if story_ids else {})},
             job_suffix=source_id,
             user_id=user_id,
-            trigger_dependents=False,
         ):
             return {"error": "Could not schedule post collection bot"}, 500
 
@@ -1066,17 +1067,15 @@ class QueueManager:
         if error := self.queue_action_error():
             return error
 
-        dependent_bots, dependencies_by_id = Bot.get_dependent_run_graph(bot_id)
+        dependent_bots, _ = Bot.get_dependent_run_graph(bot_id)
         if not dependent_bots:
             return {"message": "No dependent bots found"}, 200
 
         if not self._enqueue_bot_graph(
             dependent_bots,
-            dependencies_by_id,
             filter=filter,
             job_suffix=bot_id,
             user_id=user_id,
-            trigger_dependents=False,
         ):
             return {"error": "Could not schedule dependent bot"}, 500
         return {"message": "Dependent bots scheduled"}, 200
@@ -1084,44 +1083,36 @@ class QueueManager:
     def _enqueue_bot_graph(
         self,
         bots: Sequence[Any],
-        dependencies_by_id: dict[str, list[str]],
         *,
         filter: dict | None,
         job_suffix: str,
         user_id: str | None,
-        trigger_dependents: bool,
     ) -> bool:
         from core.service.worker_parameters import effective_parameters
 
         for bot in bots:
             effective_parameters(bot.type, bot.parameters)
 
-        jobs_by_bot_id: dict[str, Any] = {}
-        for bot in bots:
-            dependency_ids = dependencies_by_id.get(bot.id, [])
-            bot_type = getattr(bot, "type", None)
-            worker_type = getattr(bot_type, "value", bot_type)
-            bot_args: dict[str, str | dict | bool] = {"bot_id": bot.id, "trigger_dependents": trigger_dependents}
-            if filter:
-                bot_args["filter"] = filter
-            parent_jobs = [jobs_by_bot_id[dependency_id] for dependency_id in dependency_ids if dependency_id in jobs_by_bot_id]
-            job = self.enqueue_task(
+        timeout = math.ceil(
+            1.2
+            * sum(effective_parameters(bot.type, bot.parameters).get("EXECUTION_TIMEOUT") or Config.RQ_DEFAULT_JOB_TIMEOUT for bot in bots)
+        )
+        return bool(
+            self.enqueue_task(
                 "bots",
-                "bot_task",
-                job_id=self._build_unique_job_id("bot", f"{bot.id}_{job_suffix}"),
-                depends_on=parent_jobs or None,
+                "bot_pipeline_task",
+                [bot.id for bot in bots],
+                filter=filter,
+                job_id=self._build_unique_job_id("bot_pipeline", job_suffix),
+                job_timeout=timeout,
                 meta=self._build_task_meta(
-                    f"bot_{bot.id}",
+                    "bot_pipeline",
                     user_id=user_id,
-                    worker_id=bot.id,
-                    worker_type=str(worker_type).upper() if worker_type else "BOT_TASK",
+                    worker_id="bot_pipeline",
+                    worker_type="BOT_PIPELINE",
                 ),
-                **bot_args,
             )
-            if not job:
-                return False
-            jobs_by_bot_id[bot.id] = job
-        return True
+        )
 
     def _get_job_display_name(self, job: Job) -> str:
         """Get human-readable name for a job based on its function and args"""

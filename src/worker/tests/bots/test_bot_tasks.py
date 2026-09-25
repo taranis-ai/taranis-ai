@@ -9,7 +9,7 @@ from niquests.exceptions import RequestException
 
 import worker.bots
 from worker.bot_api import BotServiceUnavailableError
-from worker.bots.bot_tasks import bot_task
+from worker.bots.bot_tasks import bot_pipeline_task, bot_task
 from worker.config import Config
 from worker.core_api import CoreApi, build_success_task_result
 
@@ -101,6 +101,8 @@ class TestBotTask:
                 "bot_id": "bot-456",
                 "filter": {"story_id": "123"},
                 "trigger_dependents": True,
+                "bot_stages": [{"bot_id": "bot-456", "bot_type": "WORDLIST_BOT", "result": bot_execution_result}],
+                "story_revisions": {},
                 "result": bot_execution_result,
             },
         }
@@ -212,6 +214,8 @@ class TestBotTask:
             "bot_id": "bot-456",
             "filter": {"SOURCE": "source-1"},
             "trigger_dependents": False,
+            "bot_stages": [{"bot_id": "bot-456", "bot_type": "WORDLIST_BOT", "result": {"tagged_items": 1}}],
+            "story_revisions": {},
             "result": {"tagged_items": 1},
         }
 
@@ -229,6 +233,75 @@ class TestBotTask:
         assert len(put_calls) == 1
         task_data = put_calls[0].json()
         assert task_data["id"] == "bot_bot-789"
+
+
+def test_pipeline_downloads_union_once_and_summary_sees_merged_items(current_job, requests_mock, monkeypatch):
+    current_job.meta = {"user_id": "user-1"}
+    monkeypatch.setattr("worker.core_api.get_current_job", lambda: current_job)
+    bot_types = {"ner": "nlp_bot", "analyst": "analyst_bot", "cluster": "story_bot", "summary": "summary_bot"}
+    for bot_id, bot_type in bot_types.items():
+        requests_mock.get(
+            f"{Config.TARANIS_CORE_URL}/worker/bots/{bot_id}",
+            json={
+                "id": bot_id,
+                "type": bot_type,
+                "parameters": {"REGULAR_EXPRESSION": "finding", "ATTRIBUTE_NAME": "CVE"} if bot_id == "analyst" else {},
+            },
+        )
+    stories = [
+        {
+            "id": f"story-{number}",
+            "revision": 0,
+            "attributes": {},
+            "news_items": [
+                {
+                    "id": f"item-{number}",
+                    "title": f"Item {number}",
+                    "content": "CVE-2026-1234",
+                    "review": "",
+                    "tags": [],
+                    "attributes": [],
+                }
+            ],
+        }
+        for number in (1, 2)
+    ]
+    download = requests_mock.post(
+        f"{Config.TARANIS_CORE_URL}/worker/bot-pipeline/stories",
+        json={
+            "stories": stories,
+            "selected": {bot_id: [story["id"] for story in stories] for bot_id in bot_types},
+            "revisions": {story["id"]: 0 for story in stories},
+        },
+    )
+    requests_mock.post(f"{Config.NLP_API_ENDPOINT}/", json={"CVE-2026-1234": "cves"})
+    cluster = requests_mock.post(
+        f"{Config.STORY_API_ENDPOINT}/",
+        json={"cluster_ids": {"event_clusters": [["story-1", "story-2"]]}, "message": "Grouped"},
+    )
+    summary = requests_mock.post(Config.SUMMARY_API_ENDPOINT, json={"summary": "Combined summary"})
+    requests_mock.post(Config.TITLE_API_ENDPOINT, json={"title": "Combined title"})
+    submission = requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"status": "SUCCESS"})
+
+    result = bot_pipeline_task(["ner", "analyst", "cluster", "summary"], {"SOURCE": "source-1"})
+
+    assert result["stories"] == 2
+    assert download.call_count == 1
+    assert cluster.call_count == 1
+    assert cluster.request_history[0].json()["stories"][0]["news_items"][0]["tags"] == [{"name": "CVE-2026-1234", "tag_type": "cves"}]
+    assert summary.call_count == 1
+    assert len(summary.request_history[0].json()["news_items"]) == 2
+    assert submission.call_count == 1
+    payload = submission.request_history[0].json()
+    assert payload["id"] == current_job.id
+    assert payload["user_id"] == current_job.meta["user_id"]
+    assert [stage["bot_type"] for stage in payload["result"]["data"]["bot_stages"]] == [
+        "NLP_BOT",
+        "ANALYST_BOT",
+        "STORY_BOT",
+        "SUMMARY_BOT",
+    ]
+    assert all("/worker/stories" not in request.url and "/bots/story/" not in request.url for request in requests_mock.request_history)
 
 
 class TestSaveTaskResult:
