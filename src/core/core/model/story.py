@@ -778,7 +778,7 @@ class Story(BaseModel):
 
     @classmethod
     def add_from_news_item(cls, news_item: AssessNewsItem, user: User | None = None) -> "tuple[dict, int]":
-        if news_item_obj := NewsItem.get_by_hash(news_item.hash):
+        if news_item_obj := NewsItem.get_by_payload_identity(news_item):
             logger.warning("Identical news item found. Skipping...")
             return {
                 "error": "Identical news item found. Skipping...",
@@ -835,7 +835,12 @@ class Story(BaseModel):
             return {"error": "Failed to add news items"}, 400
 
     @classmethod
-    def add_news_items(cls, news_items_list: list[dict], user: User | None = None):
+    def add_news_items(cls, news_items_list: list[dict], user: User | None = None, *, collection: bool = False):
+        if collection:
+            from core.service.collection import CollectionService
+
+            return CollectionService.ingest(news_items_list)
+
         story_ids = []
         news_item_ids = []
         skipped_count = 0
@@ -850,6 +855,8 @@ class Story(BaseModel):
                     skipped_count += 1
                     continue
                 message, status = cls.add_from_news_item(normalized_news_item, user=user)
+                # Release a skipped item's source lock before processing another source.
+                db.session.commit()
                 if status > 299:
                     skipped_count += 1
                     continue
@@ -858,6 +865,7 @@ class Story(BaseModel):
             db.session.commit()
         except Exception:
             logger.exception("Failed to add news items")
+            db.session.rollback()
             return {"error": "Failed to add news items"}, 400
 
         result = {"story_ids": story_ids, "news_item_ids": news_item_ids, "message": f"{len(news_item_ids)} News items added successfully"}
