@@ -23,7 +23,9 @@
           <a class="btn btn-outline w-full"
              href="{{ url_for('assess.report_story') }}?{% for story_id in story_ids %}story_ids={{ story_id }}&{% endfor %}">Add to report</a>
           <a class="btn btn-outline w-full" href="{{ mail_sharing_link }}">Share via email</a>
-          <a class="btn btn-outline btn-info w-full" href="{{ url_for('assess.export_stories', story_ids=story_ids) }}" download>Export to JSON</a>
+          <a class="btn btn-outline btn-info w-full"
+             href="{{ url_for('assess.export_stories', story_ids=story_ids) }}"
+             download>Export to JSON</a>
         </form>
       </div>
     </div>

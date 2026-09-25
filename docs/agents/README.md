@@ -16,6 +16,7 @@ Read matching memories before planning or editing related features, routes, mode
 - [Story Export](story-export.md): Settings and Assess downloads, metadata, import contracts, dates, and access checks.
 - [Telemetry](telemetry.md) - Sentry initialization, OTLP traces and metrics, RQ trace propagation, and the optional Grafana LGTM Compose profile.
 - [Analyst Chat](analyst-chat.md) - persistent chat workflow, Responses and Chat Completions integration, Assess search planning, privacy, ownership, and deployment configuration.
+- [LLM Endpoints](llm-endpoints.md): shared provider settings, feature assignments, secrets, and worker execution.
 - [Global Settings](global-settings.md): transaction-scoped read caching, defaults, and invalidation.
 - [News Item Ordering](news-item-ordering.md) - local shared item order, editor controls, conflict normalization, and ungrouping title fallback.
 - [Assess Filters](assess-filters.md): sidebar queries, saved filters, pagination, and cache invalidation.
@@ -30,6 +31,7 @@ Read matching memories before planning or editing related features, routes, mode
 - [RSS Source Health](rss-source-health.md): feed detection, empty feeds, and entry limits.
 - [Mastodon Collector](mastodon-collector.md): timelines, pagination, tokens, and cursors.
 - [Bot Run Order DAG](bot-run-order-dag.md): bot dependencies and scheduling.
+- [Story Clustering](story-clustering.md): direct worker library integration, reduced input, and provider configuration.
 - [IntelOwl Enrichment](intelowl-enrichment.md): IOC persistence, CTI aggregation, and analyzer setup.
 - [MISP Auto-Update](misp-auto-update.md): scheduled pushes, proposals, and feedback prevention.
 - [Worker Parameters](worker-parameters.md): registry, configuration semantics, secrets, and migration.

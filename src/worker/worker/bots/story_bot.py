@@ -1,5 +1,7 @@
-from worker.bot_api import BotApi
-from worker.config import Config
+from llm_bot.schemas import ClusterRequest
+from llm_bot.tasks.cluster import cluster_stories
+
+from worker.llm import get_llm_client, run_llm_task
 from worker.log import logger
 
 from .base_bot import BaseBot
@@ -19,21 +21,20 @@ class StoryBot(BaseBot):
             parameters = {}
         if not (data := self.get_stories(parameters)):
             return {"message": "No new stories found"}
-        self.bot_api = BotApi(
-            bot_endpoint=parameters.get("BOT_ENDPOINT", Config.STORY_API_ENDPOINT),
-            bot_api_key=parameters.get("BOT_API_KEY", Config.BOT_API_KEY),
-            requests_timeout=parameters.get("REQUESTS_TIMEOUT"),
-        )
+        logger.info(f"Clustering {len(data)} stories")
+        client = get_llm_client(self.core_api, "clustering", parameters)
+        try:
+            request = ClusterRequest.model_validate(
+                {"stories": [{"id": story["id"], "tags": story.get("tags", {}), "summary": story.get("summary")} for story in data]}
+            )
+        except Exception:
+            logger.exception("Invalid story clustering input")
+            raise RuntimeError("Story clustering failed") from None
+        response = run_llm_task(cluster_stories(request, client=client))
 
-        logger.info(f"Clustering {len(data)} news items")
+        clusters = [cluster for cluster in response.cluster_ids.event_clusters if len(cluster) > 1]
+        if not clusters:
+            return {"message": f"{response.message}. No clusters found."}
 
-        if response := self.bot_api.api_post("/", {"stories": data}):
-            cluster_data = response.get("cluster_ids", {})
-            message = response.get("message", "")
-            if not cluster_data or not cluster_data.get("event_clusters"):
-                return {"message": f"{message}. No clusters found."}
-
-            self.core_api.news_items_grouping_multiple(cluster_data.get("event_clusters", []))
-            return {"message": message}
-
-        raise RuntimeError(f"Did not receive clustering information from Story Bot at {self.bot_api.api_url}")
+        self.core_api.news_items_grouping_multiple(clusters)
+        return {"message": response.message}

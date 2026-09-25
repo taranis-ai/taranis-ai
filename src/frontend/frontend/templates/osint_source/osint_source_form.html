@@ -77,7 +77,11 @@
               <span class="text-sm text-base-content/70">An icon is currently uploaded.</span>
             </div>
             <label class="label cursor-pointer justify-start gap-2 mt-2">
-              <input type="checkbox" name="delete_icon" value="true" class="checkbox checkbox-primary checkbox-sm" data-testid="delete-osint-icon-on-save" />
+              <input type="checkbox"
+                     name="delete_icon"
+                     value="true"
+                     class="checkbox checkbox-primary checkbox-sm"
+                     data-testid="delete-osint-icon-on-save" />
               <span class="label-text">Remove current icon when saving</span>
             </label>
           </fieldset>
@@ -109,9 +113,10 @@
             {% endfor %}
           </div>
           {% if not read_only %}
-            <label for="rank-0" class="btn btn-ghost btn-circle btn-xs tooltip" data-tip="Remove source rating" aria-label="Remove source rating">
-              {{ heroicon_outline("x-mark", class="h-4 w-4") }}
-            </label>
+            <label for="rank-0"
+                   class="btn btn-ghost btn-circle btn-xs tooltip"
+                   data-tip="Remove source rating"
+                   aria-label="Remove source rating">{{ heroicon_outline("x-mark", class="h-4 w-4") }}</label>
           {% endif %}
         </div>
         {% if read_only %}<input type="hidden" name="rank" value="{{ osint_source.rank | default(0) }}" />{% endif %}

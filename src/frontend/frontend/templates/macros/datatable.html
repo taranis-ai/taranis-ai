@@ -105,7 +105,11 @@
         <tr class="hover:bg-base-200 text-base-900 text-xs">
           {% if selectable %}
             <td>
-              <input type="checkbox" class="checkbox checkbox-sm" :value="item.id" :checked="selectedItems.includes(item.id)" @change="toggleItem(item.id)" />
+              <input type="checkbox"
+                     class="checkbox checkbox-sm"
+                     :value="item.id"
+                     :checked="selectedItems.includes(item.id)"
+                     @change="toggleItem(item.id)" />
             </td>
           {% endif %}
 

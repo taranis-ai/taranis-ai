@@ -6,7 +6,7 @@ from zoneinfo import ZoneInfo
 import pytest
 from base_e2e_test import BaseE2ETest
 from flask import url_for
-from htmx_helpers import with_htmx_wait
+from htmx_helpers import reset_htmx_state, with_htmx_wait
 from playwright.sync_api import Page, expect
 
 from tests.external_e2e import allow_requests_passthru
@@ -1630,8 +1630,56 @@ class TestEndToEndAdmin(BaseE2ETest):
                 settings_submit.click()
             assert response_info.value.ok, f"Expected 2xx status, but got {response_info.value.status}"
 
+        def check_llm_endpoints():
+            section = page.locator('[data-test-id="llm-settings"]')
+            new_endpoint = section.locator("details").filter(has=page.locator("summary", has_text="Add LLM Endpoint"))
+            if not new_endpoint.evaluate("element => element.open"):
+                new_endpoint.locator("summary").click()
+            form = new_endpoint.locator("form")
+            form.get_by_label("Name", exact=False).fill("E2E shared model")
+            form.get_by_label("Provider base URL").fill("https://provider.example/v1/responses")
+            form.get_by_label("API key", exact=False).fill("e2e-private-key")
+            with page.expect_response(
+                lambda response: response.request.method == "POST" and response.url.endswith("/llm-endpoints")
+            ) as invalid_response:
+                form.get_by_role("button", name="Add Endpoint", exact=True).click()
+            assert invalid_response.value.status == 400
+            expect(form.get_by_label("Name", exact=False)).to_have_value("E2E shared model")
+            expect(form.get_by_label("API key", exact=False)).to_have_value("")
+            reset_htmx_state(page)
+            form.get_by_label("Provider base URL").fill("https://provider.example/v1")
+            form.get_by_label("API key", exact=False).fill("e2e-private-key")
+            with_htmx_wait(page, lambda: form.get_by_role("button", name="Add Endpoint", exact=True).click())
+            endpoint = section.locator("details").filter(has=page.locator("summary", has_text="E2E shared model"))
+            expect(endpoint).to_have_count(1)
+            assignments = section.locator('[data-test-id="llm-assignments"]')
+            assignments.get_by_label("Default endpoint").select_option(label="E2E shared model")
+            with_htmx_wait(page, lambda: assignments.get_by_role("button", name="Save Assignments").click())
+            page.reload()
+            expect(assignments.get_by_label("Default endpoint").locator("option:checked")).to_have_text("E2E shared model")
+            endpoint.locator("summary").click()
+            expect(endpoint.locator('input[name="api_key"]')).to_have_value("")
+            expect(endpoint).to_contain_text("An API key is saved.")
+            with_htmx_wait(page, lambda: endpoint.get_by_role("button", name="Save Endpoint", exact=True).click())
+            endpoint.locator("summary").click()
+            expect(endpoint).to_contain_text("An API key is saved.")
+            with page.expect_response(
+                lambda response: response.request.method == "POST" and response.url.endswith("/delete")
+            ) as delete_response:
+                endpoint.get_by_role("button", name="Delete Endpoint").click()
+            assert delete_response.value.status == 409
+            expect(endpoint).to_have_count(1)
+            expect(page.locator("#notification-bar")).to_contain_text("Reassign this endpoint")
+            reset_htmx_state(page)
+            assignments.get_by_label("Default endpoint").select_option("")
+            with_htmx_wait(page, lambda: assignments.get_by_role("button", name="Save Assignments").click())
+            endpoint.locator("summary").click()
+            with_htmx_wait(page, lambda: endpoint.get_by_role("button", name="Delete Endpoint").click())
+            expect(endpoint).to_have_count(0)
+
         go_to_admin_settings()
         check_default_values()
+        check_llm_endpoints()
         change_default_values()
         check_new_values()
         exported_stories_file = test_export_all_stories(pre_seed_stories)

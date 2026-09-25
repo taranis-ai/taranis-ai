@@ -1,9 +1,9 @@
 from collections.abc import Mapping
 from copy import deepcopy
 from typing import Any
-from urllib.parse import urlparse
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
+from models.llm import LLM_FEATURES, LLMEndpoint
 from sqlalchemy import event
 from sqlalchemy.orm import Mapped, Session
 
@@ -37,8 +37,8 @@ class Settings(BaseModel):
         self.id = self.uuid7_str()
         self.singleton_key = self.SINGLETON_KEY
         values = dict(settings) if settings is not None else {}
-        self._validate_chat_settings(values)
         self.settings = self.with_defaults(values)
+        self._validate_llm_settings(self.settings)
 
     @classmethod
     def with_defaults(cls, settings: Mapping[str, Any] | None = None) -> dict[str, Any]:
@@ -54,18 +54,33 @@ class Settings(BaseModel):
         merged.setdefault("default_news_item_conflict_retention", "200")
         merged.setdefault("default_timezone", None)
         merged.setdefault("onboarding_enabled", True)
-        merged.setdefault("chat_llm_api_format", "responses")
-        merged.setdefault("chat_llm_base_url", "")
-        merged.setdefault("chat_llm_api_key", "")
-        merged.setdefault("chat_llm_model", "")
-        merged.setdefault("chat_llm_timeout", 120)
+        # Convert the old Chat configuration once, without opting worker jobs into it.
+        if "llm_endpoints" not in merged:
+            merged["llm_endpoints"] = {}
+            if merged.get("chat_llm_base_url"):
+                merged["llm_endpoints"]["existing-chat"] = LLMEndpoint(
+                    name="Existing Chat provider",
+                    base_url=merged["chat_llm_base_url"],
+                    api_key=merged.get("chat_llm_api_key", ""),
+                    model=merged.get("chat_llm_model", ""),
+                    api_format=merged.get("chat_llm_api_format", "responses"),
+                    timeout=merged.get("chat_llm_timeout", 120),
+                ).model_dump()
+                merged["llm_chat_endpoint"] = "existing-chat"
+        for key in list(merged):
+            if key.startswith("chat_llm_"):
+                merged.pop(key)
+        merged.setdefault("llm_default_endpoint", "")
+        for feature in LLM_FEATURES:
+            merged.setdefault(f"llm_{feature}_endpoint", "")
         merged.setdefault("chat_max_stories", 5)
         return merged
 
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
-        public_settings = self.with_defaults(self.settings)
-        public_settings["chat_llm_api_key_configured"] = bool(public_settings.pop("chat_llm_api_key", ""))
+        public_settings = deepcopy(self.with_defaults(self.settings))
+        for endpoint in public_settings["llm_endpoints"].values():
+            endpoint["api_key_configured"] = bool(endpoint.pop("api_key", ""))
         data["settings"] = public_settings
         return data
 
@@ -74,7 +89,9 @@ class Settings(BaseModel):
         if not isinstance(data, dict):
             return {"error": "Invalid settings payload"}, 400
 
-        settings = cls.get_settings_entry()
+        settings = cls.get_first(
+            db.select(cls).filter_by(singleton_key=cls.SINGLETON_KEY).with_for_update().execution_options(populate_existing=True)
+        )
         if settings is None:
             logger.debug("No Settings entry found")
             return {"error": "Error updating settings"}, 404
@@ -108,13 +125,24 @@ class Settings(BaseModel):
             except ValueError:
                 return {"error": "Invalid onboarding setting"}, 400
 
-        try:
-            cls._validate_chat_settings(update_data)
-        except (TypeError, ValueError):
-            return {"error": "Invalid chat settings"}, 400
+        current_settings = cls.with_defaults(settings.settings)
+        if "llm_endpoints" in update_data or any(key.startswith("chat_llm_") for key in update_data):
+            return {"error": "Manage providers in LLM Endpoints"}, 400
+        for key in ("llm_default_endpoint", *(f"llm_{feature}_endpoint" for feature in LLM_FEATURES)):
+            if key in update_data and (
+                not isinstance(update_data[key], str) or (update_data[key] and update_data[key] not in current_settings["llm_endpoints"])
+            ):
+                return {"error": "Select an existing LLM endpoint"}, 400
+        if "chat_max_stories" in update_data:
+            try:
+                value = cls._validate_non_negative_int(update_data["chat_max_stories"])
+                if not 1 <= value <= 20:
+                    raise ValueError
+                update_data["chat_max_stories"] = value
+            except (TypeError, ValueError):
+                return {"error": "Maximum stories must be between 1 and 20"}, 400
 
         if update_data:
-            current_settings = cls.with_defaults(settings.settings)
             onboarding_changed = (
                 "onboarding_enabled" in update_data and update_data["onboarding_enabled"] != current_settings["onboarding_enabled"]
             )
@@ -128,38 +156,71 @@ class Settings(BaseModel):
         return {"message": "Successfully updated settings", "settings": settings.to_dict()["settings"]}, 200
 
     @classmethod
-    def _validate_chat_settings(cls, update_data: dict[str, Any]) -> None:
-        update_data.pop("chat_llm_api_key_configured", None)
-        if "chat_llm_api_format" in update_data and update_data["chat_llm_api_format"] not in ("responses", "chat_completions"):
-            raise ValueError
-        for key in ("chat_llm_timeout", "chat_max_stories"):
-            if key in update_data:
-                value = cls._validate_non_negative_int(update_data[key])
-                if value == 0 or (key == "chat_max_stories" and value > 20):
-                    raise ValueError
-                update_data[key] = value
-        for key in ("chat_llm_base_url", "chat_llm_model", "chat_llm_api_key"):
-            if key in update_data:
-                if not isinstance(update_data[key], str):
-                    raise TypeError
-                update_data[key] = update_data[key].strip()
-        if base_url := update_data.get("chat_llm_base_url"):
-            parsed = urlparse(base_url)
-            if parsed.scheme not in {"http", "https"} or not parsed.hostname or parsed.username or parsed.password:
-                raise ValueError
-            if parsed.port == 0 or parsed.query or parsed.fragment or parsed.path.rstrip("/").endswith(("/responses", "/chat/completions")):
-                raise ValueError
-        clear_key = cls._validate_bool(update_data.pop("chat_llm_api_key_clear", False))
-        if clear_key:
-            update_data["chat_llm_api_key"] = ""
-        elif not update_data.get("chat_llm_api_key"):
-            update_data.pop("chat_llm_api_key", None)
+    def _validate_llm_settings(cls, values: dict) -> None:
+        endpoints = {key: LLMEndpoint.model_validate(value).model_dump() for key, value in values["llm_endpoints"].items()}
+        names = [endpoint["name"].casefold() for endpoint in endpoints.values()]
+        if len(names) != len(set(names)):
+            raise ValueError("Duplicate LLM endpoint names")
+        for key in ("llm_default_endpoint", *(f"llm_{feature}_endpoint" for feature in LLM_FEATURES)):
+            if values[key] and values[key] not in endpoints:
+                raise ValueError("Unknown LLM endpoint assignment")
+        values["llm_endpoints"] = endpoints
+        values["chat_max_stories"] = cls._validate_non_negative_int(values["chat_max_stories"])
+        if not 1 <= values["chat_max_stories"] <= 20:
+            raise ValueError("Maximum stories must be between 1 and 20")
+
+    @classmethod
+    def get_llm_endpoint(cls, feature: str, settings: dict | None = None) -> dict | None:
+        if feature not in LLM_FEATURES:
+            return None
+        values = settings if settings is not None else cls.get_settings()
+        endpoint_id = values.get(f"llm_{feature}_endpoint") or values.get("llm_default_endpoint")
+        return deepcopy(values.get("llm_endpoints", {}).get(endpoint_id))
+
+    @classmethod
+    def save_llm_endpoint(cls, data: dict | None, endpoint_id: str | None = None, *, delete: bool = False) -> tuple[dict, int]:
+        entry = cls.get_first(
+            db.select(cls).filter_by(singleton_key=cls.SINGLETON_KEY).with_for_update().execution_options(populate_existing=True)
+        )
+        if entry is None:
+            return {"error": "Settings not found"}, 404
+        values = cls.with_defaults(entry.settings)
+        endpoints = deepcopy(values["llm_endpoints"])
+        if endpoint_id is not None and endpoint_id not in endpoints:
+            return {"error": "LLM endpoint not found"}, 404
+        if delete:
+            if endpoint_id in [values.get("llm_default_endpoint"), *(values.get(f"llm_{feature}_endpoint") for feature in LLM_FEATURES)]:
+                return {"error": "Reassign this endpoint before deleting it"}, 409
+            endpoints.pop(endpoint_id)
+        else:
+            if not isinstance(data, dict):
+                return {"error": "Invalid LLM endpoint"}, 400
+            submitted = dict(data)
+            try:
+                clear_key = cls._validate_bool(submitted.pop("api_key_clear", False))
+                existing = endpoints.get(endpoint_id, {})
+                if clear_key:
+                    submitted["api_key"] = ""
+                elif "api_key" not in submitted or (isinstance(submitted["api_key"], str) and not submitted["api_key"].strip()):
+                    submitted["api_key"] = existing.get("api_key", "")
+                endpoint = LLMEndpoint.model_validate({**existing, **submitted}).model_dump()
+            except (TypeError, ValueError):
+                return {"error": "Invalid LLM endpoint. Check the name, base URL, API format, and positive timeout."}, 400
+            if any(item["name"].casefold() == endpoint["name"].casefold() for key, item in endpoints.items() if key != endpoint_id):
+                return {"error": "An LLM endpoint with this name already exists"}, 400
+            endpoint_id = endpoint_id or cls.uuid7_str()
+            endpoints[endpoint_id] = endpoint
+        values["llm_endpoints"] = endpoints
+        entry.settings = values
+        db.session.commit()
+        return {"message": "LLM endpoint deleted" if delete else "LLM endpoint saved", "id": endpoint_id}, 200
 
     @classmethod
     def initialize(cls):
         if settings := cls.get_settings_entry():
             onboarding_missing = "onboarding_enabled" not in (settings.settings or {})
             settings.settings = cls.with_defaults(settings.settings)
+            cls._validate_llm_settings(settings.settings)
         else:
             seed = cls._normalize_update_data(Config.PRE_SEED_SETTINGS)
             cls._normalize_collection_settings(seed)

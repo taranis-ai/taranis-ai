@@ -50,7 +50,7 @@ def configured_chat(monkeypatch, request):
     settings = Settings.with_defaults(
         {"chat_llm_base_url": "https://llm.example/v1", "chat_llm_model": "test-model", "chat_llm_api_key": "test-secret"}
     )
-    settings["chat_llm_api_format"] = request.param
+    settings["llm_endpoints"]["existing-chat"]["api_format"] = request.param
     monkeypatch.setattr(Settings, "get_settings", classmethod(lambda cls: settings))
     monkeypatch.setattr("core.service.chat.queue_manager.queue_manager._redis", fakeredis.FakeRedis())
     return request.param

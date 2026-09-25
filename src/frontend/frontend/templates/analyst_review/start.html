@@ -26,7 +26,10 @@
             {% if reports %}
               <label class="select w-full">
                 <span class="label">Report</span>
-                <select name="report_id" required data-testid="analyst-review-report-select" @change="reviewReport = reviewDefaults[$event.target.value] === true">
+                <select name="report_id"
+                        required
+                        data-testid="analyst-review-report-select"
+                        @change="reviewReport = reviewDefaults[$event.target.value] === true">
                   {% for report in reports %}
                     <option value="{{ report.id }}" {% if report.id | string == existing_initial_id %}selected{% endif %}>
                       {{ report.title }}{% if report.report_item_type %} — {{ report.report_item_type }}{% endif %}
@@ -80,7 +83,8 @@
                       @change="reviewReport = reviewDefaults[$event.target.value] === true">
                 <option value="" disabled {% if not selected_type_id %}selected{% endif %}>Select a report type</option>
                 {% for report_type in report_types %}
-                  <option value="{{ report_type.id }}" {% if report_type.id | string == selected_type_id %}selected{% endif %}>{{ report_type.title }}</option>
+                  <option value="{{ report_type.id }}"
+                          {% if report_type.id | string == selected_type_id %}selected{% endif %}>{{ report_type.title }}</option>
                 {% endfor %}
               </select>
             </label>
@@ -96,7 +100,9 @@
                 <span class="block text-sm text-base-content/70">Defaults on for Report Types with required or Story-selection fields.</span>
               </span>
             </label>
-            <button type="submit" class="btn btn-primary mt-auto" data-testid="create-and-start-analyst-review">Create and start review</button>
+            <button type="submit"
+                    class="btn btn-primary mt-auto"
+                    data-testid="create-and-start-analyst-review">Create and start review</button>
           </form>
         </section>
       </div>

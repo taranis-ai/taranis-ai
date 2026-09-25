@@ -5,7 +5,8 @@
   {% set field_value = parameter_values.get(field.name, field.value) %}
   {% set field_required = field.required and field.name not in optional_parameters %}
   {% set full_width = field.type in ['textarea', 'word-list-table', 'cron_interval'] %}
-  <div class="relative {% if full_width %}md:col-span-2{% elif field.type == 'switch' %}md:-mt-4{% endif %}" data-parameter="{{ field.name }}">
+  <div class="relative {% if full_width %}md:col-span-2{% elif field.type == 'switch' %}md:-mt-4{% endif %}"
+       data-parameter="{{ field.name }}">
     {% if field.description %}
       <span class="tooltip tooltip-left absolute right-2 top-2 z-10"
             data-tip="{{ field.description }}"
@@ -135,7 +136,6 @@
     {% endif %}
   </section>
 {% elif worker_parameters_selected | default(false) %}
-  <div class="mb-5 rounded-box border border-base-300 bg-base-100 px-4 py-3 text-sm text-base-content/70" data-testid="worker-parameter-empty-state">
-    No additional worker configuration is required.
-  </div>
+  <div class="mb-5 rounded-box border border-base-300 bg-base-100 px-4 py-3 text-sm text-base-content/70"
+       data-testid="worker-parameter-empty-state">No additional worker configuration is required.</div>
 {% endif %}

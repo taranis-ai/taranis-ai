@@ -35,7 +35,11 @@
 
       <label class="select w-full" x-show="mode === 'existing'">
         <span class="label">Collection</span>
-        <select name="bookmark_id" class="select w-full" :disabled="mode !== 'existing'" :required="mode === 'existing'" data-testid="bookmark-select">
+        <select name="bookmark_id"
+                class="select w-full"
+                :disabled="mode !== 'existing'"
+                :required="mode === 'existing'"
+                data-testid="bookmark-select">
           <option value="" selected disabled>Select a collection</option>
           {% for bookmark in bookmarks %}<option value="{{ bookmark.id }}">{{ bookmark.name }} ({{ bookmark.story_count }})</option>{% endfor %}
         </select>

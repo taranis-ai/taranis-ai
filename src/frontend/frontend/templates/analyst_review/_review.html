@@ -73,7 +73,10 @@
               {% for item in story.news_items %}
                 <section class="border-t border-base-200 pt-3 first:border-0 first:pt-0">
                   <h3 class="font-semibold">{{ item.title or "Untitled news item" }}</h3>
-                  {% if item.link %}<a href="{{ item.link }}" target="_blank" rel="noopener" class="link link-primary text-sm">Open article</a>{% endif %}
+                  {% if item.link %}<a href="{{ item.link }}"
+   target="_blank"
+   rel="noopener"
+   class="link link-primary text-sm">Open article</a>{% endif %}
                   {% if item.content %}<p class="mt-2 whitespace-pre-line text-sm text-base-content/75">{{ item.content }}</p>{% endif %}
                 </section>
               {% endfor %}

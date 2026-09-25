@@ -280,14 +280,26 @@ class TaggingBotParameters(BotParameters):
 
 class StoryBotParameters(LLMParameters):
     ITEM_FILTER: str = Field("range=week", title="Item filter", description="Filter selecting items processed by the bot.")
-    BOT_ENDPOINT: str = Field("http://llm-bot:8000/cluster", title="Bot endpoint", description="Story clustering service endpoint.")
+    BOT_ENDPOINT: str = Field(
+        "http://llm-bot:8000/cluster",
+        title="Legacy bot endpoint",
+        description="Unused by story clustering; configure LLM Endpoints in Admin Settings.",
+    )
+    BOT_API_KEY: SecretStr = Field(
+        SecretStr(""),
+        title="Legacy bot API key",
+        description="Unused by story clustering; configure credentials in Admin Settings > LLM Endpoints.",
+    )
 
 
 class SummaryBotParameters(LLMParameters):
+    BOT_API_KEY: SecretStr = Field(SecretStr(""), title="Legacy bot API key", description="Unused; configure credentials in LLM Endpoints.")
     SUMMARY_ENDPOINT: str = Field(
-        "http://llm-bot:8000/summarize", title="Summary endpoint", description="Summary generation service endpoint."
+        "http://llm-bot:8000/summarize", title="Legacy summary endpoint", description="Unused; configure LLM Endpoints in Admin Settings."
     )
-    TITLE_ENDPOINT: str = Field("http://llm-bot:8000/title", title="Title endpoint", description="Title generation service endpoint.")
+    TITLE_ENDPOINT: str = Field(
+        "http://llm-bot:8000/title", title="Legacy title endpoint", description="Unused; titles use the summarization LLM endpoint."
+    )
 
 
 class WordlistBotParameters(BotParameters):

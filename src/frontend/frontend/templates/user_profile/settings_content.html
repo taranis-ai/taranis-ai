@@ -156,7 +156,9 @@
                   {% endfor %}
                 </select>
               </div>
-              <button type="button" class="btn btn-outline w-full sm:w-auto sm:shrink-0" data-use-browser-timezone>{{ _("Use browser timezone") }}</button>
+              <button type="button"
+                      class="btn btn-outline w-full sm:w-auto sm:shrink-0"
+                      data-use-browser-timezone>{{ _("Use browser timezone") }}</button>
             </div>
             <div class="label">
               <span class="label-text-alt text-base-content/70">{{ _("Choose how local times are displayed.") }}</span>
@@ -169,7 +171,11 @@
             <div class="label">
               <span class="label-text font-semibold text-base-content">{{ _("End of shift") }}</span>
             </div>
-            <input id="end-of-shift" name="end_of_shift" type="time" value="{{ profile.end_of_shift or '' }}" class="input input-bordered w-full" />
+            <input id="end-of-shift"
+                   name="end_of_shift"
+                   type="time"
+                   value="{{ profile.end_of_shift or '' }}"
+                   class="input input-bordered w-full" />
             <div class="label">
               <span class="label-text-alt text-base-content/70">{{ _("Used to plan notifications and highlights.") }}</span>
             </div>
@@ -219,7 +225,11 @@
         <h3 class="card-title text-2xl">{{ _("Onboarding Tours") }}</h3>
         <p class="text-sm text-base-content/70">{{ _("Reset your completed onboarding tours and show them again.") }}</p>
       </div>
-      <form method="post" hx-post="{{ url_for('user.settings') }}" hx-target="#user-settings-page" hx-select="#user-settings-page" hx-swap="outerHTML">
+      <form method="post"
+            hx-post="{{ url_for('user.settings') }}"
+            hx-target="#user-settings-page"
+            hx-select="#user-settings-page"
+            hx-swap="outerHTML">
         <input type="hidden" name="reset_onboarding_tasks" value="true">
         <button type="submit" class="btn btn-outline" data-testid="user-reset-onboarding-tours">{{ _("Reset onboarding tours") }}</button>
       </form>
@@ -263,14 +273,24 @@
               <div class="label">
                 <span class="label-text font-semibold text-base-content">{{ _("New password") }}</span>
               </div>
-              <input id="new-password-input" name="new_password" type="password" class="input input-bordered w-full" autocomplete="new-password" required>
+              <input id="new-password-input"
+                     name="new_password"
+                     type="password"
+                     class="input input-bordered w-full"
+                     autocomplete="new-password"
+                     required>
             </label>
 
             <label class="form-control w-full" for="confirm-password-input">
               <div class="label">
                 <span class="label-text font-semibold text-base-content">{{ _("Confirm new password") }}</span>
               </div>
-              <input id="confirm-password-input" name="confirm_password" type="password" class="input input-bordered w-full" autocomplete="new-password" required>
+              <input id="confirm-password-input"
+                     name="confirm_password"
+                     type="password"
+                     class="input input-bordered w-full"
+                     autocomplete="new-password"
+                     required>
             </label>
 
             <div class="flex items-center justify-end">

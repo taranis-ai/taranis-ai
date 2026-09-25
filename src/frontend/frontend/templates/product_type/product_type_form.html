@@ -30,7 +30,8 @@ if (typeof htmx !== 'undefined' && htmx.onLoad) {
               data-choices-no-results-text="{{ _('No report types found') }}"
               data-choices-no-choices-text="{{ _('No report types to choose from') }}">
         {% for report_type in report_types %}
-          <option value="{{ report_type.id }}" {% if report_type.id in product_type.report_types %}selected{% endif %}>{{ report_type.title }}</option>
+          <option value="{{ report_type.id }}"
+                  {% if report_type.id in product_type.report_types %}selected{% endif %}>{{ report_type.title }}</option>
         {% endfor %}
       </select>
     </div>

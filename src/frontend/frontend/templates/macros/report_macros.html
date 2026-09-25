@@ -14,9 +14,11 @@
           <div class="flex-1">
             {{ form_input_content(label='Group Title', name=name_prefix ~ '[title]', value=group.title or '', input_class="input-sm") }}
           </div>
-          <button type="button" name="delete_group" class="btn btn-sm btn-error ml-2" title="Delete Group" @click.stop="$el.closest('.card').remove()">
-            Delete Group
-          </button>
+          <button type="button"
+                  name="delete_group"
+                  class="btn btn-sm btn-error ml-2"
+                  title="Delete Group"
+                  @click.stop="$el.closest('.card').remove()">Delete Group</button>
         </div>
 
         {{ form_textarea(label='Group Description', name=name_prefix ~ '[description]', value=group.description or '', required=False) }}

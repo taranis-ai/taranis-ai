@@ -1,14 +1,15 @@
 """Tests for bot task execution and result handling."""
 
 import traceback
+from unittest.mock import patch
 
 # pyright: reportMissingParameterType=false
 import pytest
+from llm_bot.client import LLMClient, UpstreamLLMError
 from models.task import TaskResult
 from niquests.exceptions import RequestException
 
 import worker.bots
-from worker.bot_api import BotServiceUnavailableError
 from worker.bots.bot_tasks import bot_task
 from worker.config import Config
 from worker.core_api import CoreApi, build_success_task_result
@@ -66,6 +67,40 @@ def stub_bots(monkeypatch):
 
 class TestBotTask:
     """Tests for bot_task function."""
+
+    @pytest.mark.parametrize(
+        "failure", [RequestException("private provider detail"), UpstreamLLMError("private provider detail"), None, "unconfigured"]
+    )
+    def test_story_clustering_failure_is_safe(self, current_job, requests_mock, failure):
+        requests_mock.real_http = False
+        requests_mock.get(
+            f"{Config.TARANIS_CORE_URL}/worker/llm-endpoints/clustering", json={"name": "Test", "base_url": "https://llm.test/v1"}
+        )
+        requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/bots/bot-456", json={"type": "story_bot", "parameters": {}})
+        requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/stories", json=[{"id": "story-1", "tags": {}}])
+        if failure == "unconfigured":
+            requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/llm-endpoints/clustering", status_code=503, json={"error": "Not configured"})
+        saved = requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
+        with patch.object(LLMClient, "create_response", autospec=True, side_effect=failure) as provider:
+            provider.return_value = {"output_text": "private invalid provider output"}
+            with pytest.raises(RuntimeError) as exc_info:
+                bot_task("bot-456")
+
+        assert "private" not in "".join(traceback.format_exception(exc_info.value))
+        task_data = saved.last_request.json()
+        assert task_data["status"] == "FAILURE"
+        if failure == "unconfigured":
+            assert task_data["result"]["reason"] == "llm_not_configured"
+            assert task_data["result"]["retryable"] is False
+            assert "Admin Settings > LLM Endpoints" in task_data["result"]["message"]
+        else:
+            assert task_data["result"]["reason"] == ("bot_service_unavailable" if failure else "bot_execution_failed")
+            assert task_data["result"]["retryable"] is bool(failure)
+            if failure:
+                assert task_data["result"]["message"] == (
+                    "Bot service is unavailable. Check its configured endpoint and ensure the service is running."
+                )
+        assert "private" not in str(task_data["result"])
 
     def test_bot_task_success_passes_result_dict(self, current_job, requests_mock, bot_config, stub_bots):
         """Test that bot_task passes the full result dict to CoreApi.save_task_result on success."""
@@ -156,27 +191,6 @@ class TestBotTask:
         assert isinstance(task_data["result"], dict)
         assert task_data["result"]["message"] == "Bot execution failed"
         assert task_data["result"]["reason"] == "bot_execution_failed"
-
-    def test_bot_task_reports_unavailable_service(self, current_job, requests_mock, bot_config, stub_bots):
-        requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/bots/bot-456", json=bot_config)
-        requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
-
-        def _raise(*_):
-            raise BotServiceUnavailableError
-
-        stub_bots._execute_impl = staticmethod(_raise)
-
-        with pytest.raises(BotServiceUnavailableError, match="Bot service is unavailable") as exc_info:
-            bot_task("bot-456")
-
-        assert "_raise" in {frame.name for frame in traceback.extract_tb(exc_info.value.__traceback__)}
-        task_data = next(req.json() for req in requests_mock.request_history if req.method == "POST" and req.url.endswith("/tasks"))
-        assert task_data["result"] == {
-            "message": "Bot service is unavailable. Check its configured endpoint and ensure the service is running.",
-            "reason": "bot_service_unavailable",
-            "retryable": True,
-            "data": {"bot_id": "bot-456", "filter": None, "trigger_dependents": True},
-        }
 
     def test_bot_task_none_result_is_reported_as_failure(self, current_job, requests_mock, bot_config, stub_bots):
         requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/bots/bot-456", json=bot_config)
