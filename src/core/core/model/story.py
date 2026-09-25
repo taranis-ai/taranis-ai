@@ -1196,6 +1196,8 @@ class Story(BaseModel):
         story_ids: Sequence[str],
         user: User | None = None,
         actor: str | None = None,
+        *,
+        commit: bool = True,
     ):
         actor = cls.resolve_actor(user=user, actor=actor)
         try:
@@ -1226,7 +1228,8 @@ class Story(BaseModel):
             for story in processed_stories:
                 story.record_revision(user, note="group_stories")
             cls.refresh_tag_summaries_for_stories(processed_stories)
-            db.session.commit()
+            if commit:
+                db.session.commit()
             return {"message": "Clustering Stories successful", "id": first_story.id}, 200
         except Exception:
             logger.exception("Grouping Stories Failed")

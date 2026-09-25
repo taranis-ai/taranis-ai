@@ -15,7 +15,7 @@ class BaseBot:
         self.model: str | None = None
         self.bot_api: Any = None
 
-    def execute(self, parameters: dict | None = None) -> dict[str, dict[str, str] | str]:
+    def execute(self, parameters: dict | None = None) -> dict[str, Any]:
         if not parameters:
             parameters = {}
         return {"message": "No action defined for this bot"}
@@ -48,11 +48,14 @@ class BaseBot:
         return filter_dict
 
     def get_stories(self, parameters: dict) -> list:
+        if hasattr(self, "pipeline_stories"):
+            return self.pipeline_stories
         filter_dict = self.get_filter_dict(parameters)
         data = self.core_api.get_stories(filter_dict)
         if not data:
             logger.debug(f"No Stories for filter: {filter_dict}")
             return []
+        self.story_revisions = {story["id"]: story["revision"] for story in data if "revision" in story}
         return data
 
     def refresh(self):

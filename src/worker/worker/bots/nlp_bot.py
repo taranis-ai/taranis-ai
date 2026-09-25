@@ -50,6 +50,12 @@ class NLPBot(BaseBot):
 
     def _extract_ner(self, text: str, is_cybersecurity: bool = False) -> dict:
         if keywords := self.bot_api.api_post("/", {"text": text, "cybersecurity": is_cybersecurity}):
+            if isinstance(keywords, list):
+                return {
+                    keyword["word"]: keyword["entity"]
+                    for keyword in keywords
+                    if isinstance(keyword, dict) and isinstance(keyword.get("word"), str) and isinstance(keyword.get("entity"), str)
+                }
             return keywords
         return {}
 

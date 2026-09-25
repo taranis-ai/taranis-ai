@@ -51,7 +51,7 @@ class IOC(BaseModel):
         return {row.value: row for row in rows}
 
     @classmethod
-    def upsert_many(cls, enrichments: list[dict[str, Any]]) -> None:
+    def upsert_many(cls, enrichments: list[dict[str, Any]], *, commit: bool = True) -> None:
         normalized: dict[str, tuple[str, dict[str, Any]]] = {}
         for payload in enrichments:
             if not (ioc_type := normalize_ioc_type(payload.get("ioc_type"))):
@@ -79,11 +79,14 @@ class IOC(BaseModel):
                 row.completed_at = cls._parse_datetime(payload.get("completed_at")) or row.completed_at
                 row.updated_at = BaseModel.utcnow()
             try:
-                db.session.commit()
+                if commit:
+                    db.session.commit()
+                else:
+                    db.session.flush()
                 return
             except IntegrityError:
                 db.session.rollback()
-                if attempt:
+                if attempt or not commit:
                     raise
 
     def to_cti_model(self) -> CTIEnrichment:

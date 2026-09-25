@@ -25,6 +25,7 @@ class AnalystBot(BaseBot):
         bots_params = dict(zip(self.regexp, self.attr_name, strict=False))
         if not (data := self.get_stories(parameters)):
             return {"message": "No new stories found", "result": {}}
+        item_attributes = {}
         for story in data:
             for item in story.get("news_items", []):
                 news_item_id = item["id"]
@@ -47,9 +48,6 @@ class AnalystBot(BaseBot):
 
                             attributes.append(news_attribute)
 
-                            self.core_api.update_news_item_attributes(
-                                news_item_id,
-                                attributes,
-                            )
+                            item_attributes.setdefault(news_item_id, []).extend(attributes)
 
-        return {"message": "Analyst bot completed", "result": {}}
+        return {"message": "Analyst bot completed", "result": {}, "changes": {"item_attributes": item_attributes}}

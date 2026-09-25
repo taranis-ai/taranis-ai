@@ -101,8 +101,6 @@ def test_nlp_bot_uses_requests_timeout_parameter(story_get_mock, ner_bot_mock):
 
 def test_summary_bot_uses_configured_summary_and_default_title_endpoints(
     stories,
-    story_update_mock,
-    story_attribute_update_mock,
     requests_mock,
     monkeypatch,
 ):
@@ -117,29 +115,27 @@ def test_summary_bot_uses_configured_summary_and_default_title_endpoints(
     summary_bot = bots.SummaryBot()
     result_msg = summary_bot.execute({"SUMMARY_ENDPOINT": "http://summary-bot.test/summary"})
 
-    assert result_msg == {"message": "Summarized 1 stories"}
+    assert result_msg["message"] == "Summarized 1 stories"
+    assert result_msg["changes"]["story_updates"][story["id"]] == {
+        "summary": "Configured summary",
+        "title": "Configured title",
+    }
+    assert result_msg["changes"]["story_attributes"][story["id"]] == [{"key": "SUMMARY_BOT", "value": 1}]
     assert story_get_mock.call_count == 1
 
     summary_calls = [req for req in requests_mock.request_history if req.url == "http://summary-bot.test/summary"]
     title_calls = [req for req in requests_mock.request_history if req.url == "http://summary-bot.test/title"]
-    update_calls = [req for req in story_update_mock.request_history if req.method == "PUT"]
-
     assert len(summary_calls) == 1
     assert len(title_calls) == 1
-    assert len(update_calls) == 1
     assert all("news_items" in call.json() for call in summary_calls)
     assert all("news_items" in call.json() for call in title_calls)
     assert all(all(set(item.keys()) == {"title", "content"} for item in call.json()["news_items"]) for call in summary_calls + title_calls)
-    assert all("summary" in call.json() for call in update_calls)
-    assert all("title" in call.json() for call in update_calls)
-    assert story_attribute_update_mock.call_count == 1
+    assert all("/bots/story/" not in call.url for call in requests_mock.request_history)
 
 
 def test_summary_bot_skips_title_generation_when_title_endpoint_is_unset(
     stories,
     story_get_mock,
-    story_update_mock,
-    story_attribute_update_mock,
     requests_mock,
 ):
     from worker import bots
@@ -152,24 +148,19 @@ def test_summary_bot_skips_title_generation_when_title_endpoint_is_unset(
     summary_bot = bots.SummaryBot()
     result_msg = summary_bot.execute()
 
-    assert result_msg == {"message": f"Summarized {len(stories)} stories"}
+    assert result_msg["message"] == f"Summarized {len(stories)} stories"
     assert story_get_mock.call_count == 1
     summary_calls = [req for req in requests_mock.request_history if req.url == Config.SUMMARY_API_ENDPOINT]
     assert len(summary_calls) == len(stories)
     assert all("news_items" in call.json() for call in summary_calls)
     assert all(all(set(item.keys()) == {"title", "content"} for item in call.json()["news_items"]) for call in summary_calls)
-    assert story_update_mock.call_count == len(stories)
-    assert all(list(call.json().keys()) == ["summary"] for call in story_update_mock.request_history if call.method == "PUT")
-    assert story_attribute_update_mock.call_count >= len(stories)
+    assert len(result_msg["changes"]["story_updates"]) == len(stories)
+    assert all(set(update) == {"summary"} for update in result_msg["changes"]["story_updates"].values())
+    assert all("/bots/story/" not in call.url for call in requests_mock.request_history)
 
 
-def test_cybersec_class_bot(stories, story_get_mock, news_item_attribute_update_mock, story_attribute_update_mock, cybersec_classifier_mock):
+def test_cybersec_class_bot(stories, story_get_mock, cybersec_classifier_mock):
     from worker import bots
-
-    def extract_attributes(request_json):
-        if isinstance(request_json, dict):
-            return request_json.get("attributes", [])
-        return request_json
 
     num_stories = len(stories)
     num_news_items = sum(len(story.get("news_items", [])) for story in stories)
@@ -184,25 +175,26 @@ def test_cybersec_class_bot(stories, story_get_mock, news_item_attribute_update_
     cybersec_class_bot = bots.CyberSecClassifierBot()
     Config.CYBERSEC_CLASSIFIER_THRESHOLD = 0.65
     result_msg = cybersec_class_bot.execute()
-    assert result_msg == {"message": f"Classified {num_news_items} news items"}
+    assert result_msg["message"] == f"Classified {num_news_items} news items"
     assert story_get_mock.call_count == 1
-    assert news_item_attribute_update_mock.call_count == num_news_items
-    assert story_attribute_update_mock.call_count == num_stories
-
-    request_json_list = [req.json() for req in story_attribute_update_mock.request_history if req.method == "PATCH"][:num_stories]
+    assert len(result_msg["changes"]["item_attributes"]) == len({item["id"] for story in stories for item in story["news_items"]})
+    assert len(result_msg["changes"]["story_attributes"]) == num_stories
     cybersec_status_list = [
-        d["value"] for attributes_list in request_json_list for d in extract_attributes(attributes_list) if d["key"] == "cybersecurity"
+        d["value"]
+        for attributes_list in result_msg["changes"]["story_attributes"].values()
+        for d in attributes_list
+        if d["key"] == "cybersecurity"
     ]
     assert set(cybersec_status_list) == {"no"}
 
     # threshold 0.5 -> all news items classified as yes
     Config.CYBERSEC_CLASSIFIER_THRESHOLD = 0.5
-    _ = cybersec_class_bot.execute()
-    request_json_list = [req.json() for req in story_attribute_update_mock.request_history if req.method == "PATCH"][
-        num_stories : 2 * num_stories
-    ]
+    result_msg = cybersec_class_bot.execute()
     cybersec_status_list = [
-        d["value"] for attributes_list in request_json_list for d in extract_attributes(attributes_list) if d["key"] == "cybersecurity"
+        d["value"]
+        for attributes_list in result_msg["changes"]["story_attributes"].values()
+        for d in attributes_list
+        if d["key"] == "cybersecurity"
     ]
     assert set(cybersec_status_list) == {"yes"}
 
@@ -219,7 +211,6 @@ def test_cybersec_class_bot(stories, story_get_mock, news_item_attribute_update_
 def test_sentiment_analysis_bot_accepts_flat_response_and_normalizes_label(
     stories,
     story_get_mock,
-    news_item_attribute_update_mock,
     requests_mock,
 ):
     from worker import bots
@@ -232,13 +223,14 @@ def test_sentiment_analysis_bot_accepts_flat_response_and_normalizes_label(
     sentiment_bot = bots.SentimentAnalysisBot()
     result_msg = sentiment_bot.execute()
 
-    assert result_msg == {"message": "Sentiment analysis complete"}
+    assert result_msg["message"] == "Sentiment analysis complete"
     assert story_get_mock.call_count == 1
-    assert news_item_attribute_update_mock.call_count > 0
-
-    request_json_list = [req.json() for req in news_item_attribute_update_mock.request_history if req.method == "PUT"]
     sentiment_categories = [
-        attr["value"] for payload in request_json_list for attr in payload.get("attributes", []) if attr["key"] == "sentiment_category"
+        attr["value"]
+        for payload in result_msg["changes"]["item_attributes"].values()
+        for attr in payload
+        if attr["key"] == "sentiment_category"
     ]
     assert sentiment_categories
     assert set(sentiment_categories) == {"neutral"}
+    assert all("/bots/news-item/" not in call.url for call in requests_mock.request_history)
