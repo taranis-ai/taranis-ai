@@ -4,6 +4,7 @@ from graphlib import CycleError, TopologicalSorter
 from typing import Any
 
 from models.admin import CronSpec
+from models.scheduler import StoredTaskResult
 from models.types import BOT_TYPES
 from sqlalchemy import func, literal
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
@@ -506,7 +507,6 @@ class Bot(BaseModel):
         Note: All times are calculated in UTC for consistency across the system.
         """
 
-        from core.managers import queue_manager as queue_manager_module
         from core.managers.queue_manager import QueueManager
 
         now = now or datetime.now(UTC).replace(tzinfo=None)
@@ -536,7 +536,7 @@ class Bot(BaseModel):
                         last_run=task_result.last_run if task_result else None,
                         last_success=task_result.last_success if task_result else None,
                         last_status=task_result.status if task_result else None,
-                        last_reason=queue_manager_module._task_result_reason(task_result),
+                        last_reason=StoredTaskResult.model_validate(task_result).result.reason if task_result else None,
                     )
                 )
             except Exception as exc:

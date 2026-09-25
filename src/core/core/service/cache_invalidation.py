@@ -72,7 +72,7 @@ class FrontendCacheInvalidationService:
         return set(SCOPE_MODEL_NAMES)
 
     def _get_client(self) -> Redis | None:
-        if self._disabled or not Config.CACHE_ENABLED:
+        if self._disabled or not Config.CACHE_ENABLED or (not Config.QUEUE_ENABLED and not Config.CACHE_REDIS_URL):
             return None
         if self._client is not None:
             return self._client
