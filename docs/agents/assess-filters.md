@@ -8,6 +8,8 @@ Assess sidebar/search/default filters, `/assess`, `/api/assess/filter-lists`, om
 
 - Without JavaScript, search and the native sidebar filters submit through one GET form, and the form exposes an explicit Apply filters button. Source, language, group, and tag filters are hidden because their token-selection workflows require JavaScript.
 - Filter lists contain current user-visible tags, sources, groups, and languages. Core builds them on request; frontend caches per user. Writes affecting those options must invalidate the relevant frontend scope.
+- Assess, Chat, and source/group references share `FilterData`, limited to ACL/TLP-visible stories. Sources/groups without visible stories are omitted; reference ACLs still apply.
+- Story/report writes also invalidate news-item, bookmark, and filter caches. Admin ACL/role/source/group/settings writes invalidate all frontend caches.
 - Sidebar submissions, profile defaults, and dashboard shortcuts share canonical query parameters; source/group/language/tag values remain list-shaped. Saving an existing filter name updates it; identical criteria under a different name are rejected after canonical validation and serialization, including case normalization of choice fields.
 - Dashboard shortcuts reuse saved-filter normalization, delete routes, and Assess URLs. Show the first three by default, with the rest behind Show more.
 - Omnisearch fetches filter lists lazily, only for value resolution/suggestions.

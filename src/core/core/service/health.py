@@ -4,6 +4,7 @@ from redis.exceptions import RedisError
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
+from core.config import Config
 from core.managers import queue_manager
 from core.managers.db_manager import db
 
@@ -31,7 +32,7 @@ def get_health_response() -> tuple[dict[str, bool | dict[str, HealthStatus]], in
 
 def broker_health_applicable() -> bool:
     qm = getattr(queue_manager, "queue_manager", None)
-    return bool(qm and getattr(qm, "redis_url", None))
+    return Config.QUEUE_ENABLED and bool(qm and getattr(qm, "redis_url", None))
 
 
 def check_database() -> HealthStatus:

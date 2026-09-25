@@ -13,12 +13,13 @@ from core.service.report_story_sync import ReportStorySyncService
 class AnalystReviewService:
     @classmethod
     def triage(cls, payload: AnalystReviewActionPayload, user: User) -> tuple[dict[str, Any], int]:
-        story_query = db.select(Story).filter(Story.id == payload.story_id)
-        story_query = Story._add_ACL_check(story_query, user)
-        story_query = Story._add_TLP_check(story_query, user)
+        story_query = Story.visible_query(user).where(Story.id == payload.story_id)
         story = db.session.execute(story_query).scalar()
         if not story:
             return {"error": "Story not found"}, 404
+
+        if not story.allowed_to_update(user):
+            return {"error": "User is not allowed to update story"}, 403
 
         report = None
         story_attached = False

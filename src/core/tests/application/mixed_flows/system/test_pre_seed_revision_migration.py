@@ -18,6 +18,10 @@ def test_pre_seed_update_backfills_missing_story_and_report_revisions(session, s
     legacy_report = create_report(seed_report_payload_factory())
     current_report = create_report(seed_report_payload_factory())
 
+    from core.model.news_item_attribute import NewsItemAttribute
+
+    legacy_story.attributes = [NewsItemAttribute("tlp_override", "amber")]
+    current_tlp_id = current_story.find_attribute_by_key("TLP").id
     db.session.execute(db.delete(StoryRevision).where(StoryRevision.story_id == legacy_story.id))
     db.session.execute(db.text("UPDATE story SET revision = -1 WHERE id = :story_id"), {"story_id": legacy_story.id})
     db.session.execute(db.delete(ReportRevision).where(ReportRevision.report_item_id == legacy_report.id))
@@ -51,6 +55,11 @@ def test_pre_seed_update_backfills_missing_story_and_report_revisions(session, s
     )
 
     assert legacy_story is not None
+    assert legacy_story.tlp_level.value == "amber"
+    assert current_story.find_attribute_by_key("TLP").id == current_tlp_id
+    pre_seed_update(db.engine)
+    assert legacy_story.tlp_level.value == "amber"
+    assert current_story.find_attribute_by_key("TLP").id == current_tlp_id
     assert legacy_story.revision == 1
     assert [revision.note for revision in legacy_story_revisions] == ["initial"]
 

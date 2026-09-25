@@ -8,7 +8,7 @@ It offers API Endpoints to the Frontend, is the sole persistence layer (via SQLA
 
 * Python version 3.14 or greater.
 * SQLite or PostgreSQL
-* Redis
+* Redis (unless `QUEUE_ENABLED=false`)
 
 ## Installation
 
@@ -37,6 +37,31 @@ Release/container builds still use the packaged `taranis-models` from the lockfi
 ```bash
 taranis-ai
 ```
+
+Production (`DEBUG=false`) enables Secure JWT/CSRF and session cookies plus browser security headers. Serve browser traffic over HTTPS, keep DEBUG aligned with frontend, and use `DEBUG=true` only for isolated HTTP development.
+
+## Optional Queue
+
+`QUEUE_ENABLED=true` is the default. Core requires a working Redis connection at startup
+when queues are enabled; connection failures stop startup.
+
+Set `QUEUE_ENABLED=false` explicitly to run core without the queue Redis service.
+Core skips queue initialization and scheduling, and `/api/health` reports broker and
+workers as `n/a`. Queue-backed actions are unavailable (HTTP 503); persisted data and
+ordinary API operations remain available. Analyst Chat turns also require Redis for
+coordination and are unavailable in this mode. PizzINT runs without its Redis cache.
+
+Connector pulls return the queue response directly: HTTP 200 means the connector was
+scheduled, not that collection completed. Connector pulls and news-item URL fetches
+return HTTP 503 when queues are disabled.
+
+Frontend cache invalidation also skips the queue Redis connection in this mode. To keep
+an independent cache, set `CACHE_REDIS_URL` explicitly. For a deployment with no Redis
+at all, also disable frontend caching (`CACHE_ENABLED=false` on frontend) and Redis-backed
+realtime (`REALTIME_ENABLED=false` on core and frontend). Stop existing workers and the
+cron scheduler when disabling queues: this setting does not stop separate processes or
+remove their existing Redis jobs. Re-enable the setting and restart core with its normal
+initial setup to reconcile schedules.
 
 ## Operational CLI
 

@@ -49,6 +49,8 @@ Core uses `ghcr.io/taranis-ai/taranis-core`, `taranis-frontend`, `taranis-ingres
 Optional overlay uses `ghcr.io/taranis-ai/taranis-llm-bot:latest`.
 Pin explicit tags for production.
 
+Before upgrading, ensure browser access uses HTTPS and the ingress redirects HTTP to HTTPS. With `DEBUG=false` on core and frontend, JWT/CSRF and session cookies are now Secure and HSTS is enabled for one year on the serving hostname. `JWT_COOKIE_SECURE=false` no longer opts out. Keep DEBUG aligned across both services and reserve `DEBUG=true` for isolated development. HSTS omits includeSubDomains/preload, but still affects every application on the same hostname. Rollback to older images does not clear a browser's stored HSTS policy; keep HTTPS available.
+
 Deploy matching Core and frontend versions for story editability: Core supplies the user-specific `can_edit` field, and the frontend defaults missing values to read-only. No database migration is needed for this field. Verify a writable story and an RT-managed or ACL read-only story after upgrading; roll back both components together if needed.
 
 Published `core`, `frontend`, `worker`, and `ingress` images include platform-specific BuildKit SPDX SBOM attestations. The final multi-architecture `core`, `frontend`, and `worker` image digests also have signed CycloneDX attestations generated from their production `uv` lock graphs.
@@ -97,6 +99,8 @@ Chat is independent of `llm-bot` and workers. Core calls the configured OpenAI-c
 Both API formats stream general answers directly. Story questions first call the search tool, then receive a plain-text answer with tools disabled. Providers that reject streaming before sending any content permit one retry without streaming. When realtime is enabled, Core publishes progress stage identifiers and cumulative answer snapshots to the authenticated user's existing Centrifugo channel; the frontend localizes the stages. These publications are best-effort and have no history; the final synchronous response and PostgreSQL conversation remain authoritative.
 
 Chat turns share a 540-second deadline across provider planning, retries, search, and answering, checked again before persistence. Provider reads retain the configured per-read timeout; the total deadline stops active response reads even when bytes keep arriving. The Redis lease lasts 570 seconds, reserving 30 seconds for transaction cleanup and release. The frontend HTTP timeout remains 600 seconds.
+
+The shipped ingress allows 660 seconds between upstream reads on `<base-path>chat/`. When updating a deployment with a custom or outer reverse proxy, set its Chat response timeout to at least 660 seconds too; realtime progress uses a separate connection and cannot keep the message POST alive.
 
 Enabling Chat creates `chat_conversation` and `chat_message` tables at core startup. Conversations and answers remain in Taranis until their owner deletes them. The provider receives the analyst's prompt, up to the latest 10 saved chat messages, the analyst-visible filter catalog, and, for search answers, up to the configured `chat_max_stories` bounded story summaries. Raw news-item content and provider credentials are not saved in chat metadata.
 

@@ -251,6 +251,8 @@ All other Centrifugo server behavior is configured through native `CENTRIFUGO_*`
 
 When multiple deployments share a domain, give each deployment a unique `JWT_COOKIE_SUFFIX` including its separator, such as `_q` for `TARANIS_BASE_PATH=/q/`. Core and frontend must receive the same suffix and base path. The access-token and CSRF cookies are also scoped to that base path.
 
+With `DEBUG=false`, core and frontend require HTTPS browser access: JWT/CSRF and session cookies are Secure, and responses include HSTS and browser security headers. Dynamic responses use `Cache-Control: no-store`; static assets retain caching. Terminate TLS and redirect HTTP at your ingress. Keep DEBUG aligned between both services; the old `JWT_COOKIE_SECURE` override no longer disables Secure cookies. Use `DEBUG=true` only for isolated HTTP development.
+
 ### `ingress`
 
 | Environment variable     | Description                                       | Default      |
