@@ -12,6 +12,9 @@ required-markers = [
 exclude-newer = "0001-01-01T00:00:00Z" # This has no effect and is included for backwards compatibility when using relative exclude-newer values.
 exclude-newer-span = "P1W"
 
+[options.exclude-newer-package]
+fuzzbite = "2026-09-15T00:00:00Z"
+
 [[package]]
 name = "annotated-types"
 version = "0.8.0"
@@ -402,6 +405,17 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/91/53/b0a9fcc1b1297f51e68b69ed3b7c3c40d8c45be1391d77ae198712914392/flask_sqlalchemy-3.1.1.tar.gz", hash = "sha256:e4b68bb881802dda1a7d878b2fc84c06d1ee57fb40b874d3dc97dabfa36b8312", size = 81899, upload-time = "2023-09-11T21:42:36.147Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/1d/6a/89963a5c6ecf166e8be29e0d1bf6806051ee8fe6c82e232842e3aeac9204/flask_sqlalchemy-3.1.1-py3-none-any.whl", hash = "sha256:4ba4be7f419dc72f4efd8802d69974803c37259dd42f3913b0dcf75c9447e0a0", size = 25125, upload-time = "2023-09-11T21:42:34.514Z" },
+]
+
+[[package]]
+name = "fuzzbite"
+version = "0.1.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/bf/da/387becd460f7c02850062a4f80fd867022d2b05a828afd606c527e2a3159/fuzzbite-0.1.1.tar.gz", hash = "sha256:15b6ee4cce473b1d8aac7a07f207b457fefcbf6ed3db9843e163e108a283f33d", size = 51753, upload-time = "2026-09-14T07:35:19.282Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/25/05/a902de65faabb20e2a55f525ca83a76d31aefc875c19c513c274e693b414/fuzzbite-0.1.1-cp310-abi3-macosx_11_0_arm64.whl", hash = "sha256:d0c989a6bc6718f07e036dc0ce457cabadcd3f66cfeddd511c0a87f6820c0c97", size = 262194, upload-time = "2026-09-14T07:35:15.026Z" },
+    { url = "https://files.pythonhosted.org/packages/d9/0e/d2d79f8b115eae0cd8cc7850a4d4da09ff2d52db9bb8aadd651506d46e27/fuzzbite-0.1.1-cp310-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:259e4783edd0a37024a0ddee8d7d4ec2830a149601bb8993beceda54c8e9bb61", size = 293724, upload-time = "2026-09-14T07:35:16.653Z" },
+    { url = "https://files.pythonhosted.org/packages/38/1c/b1e6d61edb982f6941ff9418296cf75734b07efe59ee8e2939ee0d86b902/fuzzbite-0.1.1-cp310-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:c7bc0d93add3faf6b454b5187974f8e10dfc0185f6735f93c6b594c3b67c52bd", size = 300539, upload-time = "2026-09-14T07:35:18.084Z" },
 ]
 
 [[package]]
@@ -1628,6 +1642,7 @@ dependencies = [
     { name = "flask-cors" },
     { name = "flask-jwt-extended" },
     { name = "flask-sqlalchemy" },
+    { name = "fuzzbite" },
     { name = "granian" },
     { name = "opentelemetry-exporter-otlp-proto-http" },
     { name = "opentelemetry-instrumentation-flask" },
@@ -1672,6 +1687,7 @@ requires-dist = [
     { name = "flask-cors" },
     { name = "flask-jwt-extended" },
     { name = "flask-sqlalchemy" },
+    { name = "fuzzbite" },
     { name = "granian" },
     { name = "opentelemetry-exporter-otlp-proto-http" },
     { name = "opentelemetry-instrumentation-flask" },

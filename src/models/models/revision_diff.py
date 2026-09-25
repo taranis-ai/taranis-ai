@@ -191,6 +191,17 @@ def build_story_revision_diff_payload(
     from_news_ids = {item.get("id") for item in from_news_items}
     to_news_ids = {item.get("id") for item in to_news_items}
 
+    old_items = {item["id"]: item for item in from_news_items if item.get("id")}
+    for item in to_news_items:
+        if old_item := old_items.get(item.get("id")):
+            for field in ("title", "content", "author", "link", "language"):
+                _append_change(
+                    changes,
+                    f"News item {item['id']}: {field.title()}",
+                    old_item.get(field),
+                    item.get(field),
+                )
+
     added_items = to_news_ids - from_news_ids
     removed_items = from_news_ids - to_news_ids
 
