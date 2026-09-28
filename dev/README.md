@@ -225,12 +225,13 @@ This harness requires Podman, or Docker with `CONTAINER_CLI=docker`.
 
 The script creates a temporary git worktree from `origin/master`, or from the release ref passed as its first argument, starts a disposable PostgreSQL container, initializes and seeds a fresh base database, and copies it. It renames the copy's `public` schema to a unique test schema and sets the database's `search_path` before starting the current branch so pending yoyo migrations are applied. Hard-coded application schema references therefore fail during the upgrade. It finally runs a configurable pytest target against the migrated database, defaulting to `tests/unit`.
 
+The development Compose database and this migration harness default to PostgreSQL 18. The development database uses the new `database_data_18` volume; old `database_data` volumes are not read by PostgreSQL 18. Restore data into the new volume if needed, or remove the old volume after confirming it is disposable.
+
 Useful options:
 
 ```bash
 BASE_REF=master ./dev/test_master_to_branch_migration.sh
 KEEP_MIGRATION_TEST_DB=1 ./dev/test_master_to_branch_migration.sh
-PG_IMAGE=docker.io/library/postgres:16-alpine ./dev/test_master_to_branch_migration.sh
 PYTEST_TARGET=tests ./dev/test_master_to_branch_migration.sh
 CONTAINER_CLI=docker BASE_REF=1.4.1 ./dev/test_master_to_branch_migration.sh
 ```
