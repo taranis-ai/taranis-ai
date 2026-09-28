@@ -37,7 +37,11 @@ legitimate human co-author attribution or required third-party notices.
 ## Preparing a PR
 
 Use the [PR template](.github/pull_request_template.md), including when opening a
-PR through a CLI or API. Human contributors must complete the contributor
+PR through a CLI or API. Complete its Summary, Review guidance, LLM assistance,
+and Contributor confirmation sections. Keep those sections current when review
+changes alter the implementation.
+
+Human contributors must complete the contributor
 confirmations themselves or explicitly authorize an agent to record them.
 
 Include a concise explanation of the change and actual validation results in
