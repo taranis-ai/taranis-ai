@@ -55,7 +55,7 @@ class SummaryBot(BaseBot):
                 raise
             except Exception:
                 logger.exception(f"Could not generate summary for {story['id']}")
-                continue
+                raise RuntimeError("Story summarization failed") from None
 
             logger.debug(f"Created summary for : {story['id']}")
         return {"message": f"Summarized {len(data)} stories"}

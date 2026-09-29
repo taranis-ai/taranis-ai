@@ -71,15 +71,19 @@ class TestBotTask:
     @pytest.mark.parametrize(
         "failure", [RequestException("private provider detail"), UpstreamLLMError("private provider detail"), None, "unconfigured"]
     )
-    def test_story_clustering_failure_is_safe(self, current_job, requests_mock, failure):
+    @pytest.mark.parametrize(("bot_type", "feature"), [("story_bot", "clustering"), ("summary_bot", "summarization")])
+    def test_llm_bot_failure_is_safe(self, current_job, requests_mock, failure, bot_type, feature):
         requests_mock.real_http = False
         requests_mock.get(
-            f"{Config.TARANIS_CORE_URL}/worker/llm-endpoints/clustering", json={"name": "Test", "base_url": "https://llm.test/v1"}
+            f"{Config.TARANIS_CORE_URL}/worker/llm-endpoints/{feature}", json={"name": "Test", "base_url": "https://llm.test/v1"}
         )
-        requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/bots/bot-456", json={"type": "story_bot", "parameters": {}})
-        requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/stories", json=[{"id": "story-1", "tags": {}}])
+        requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/bots/bot-456", json={"type": bot_type, "parameters": {}})
+        requests_mock.get(
+            f"{Config.TARANIS_CORE_URL}/worker/stories",
+            json=[{"id": "story-1", "tags": {}, "news_items": [{"title": "Story", "content": "Content"}]}],
+        )
         if failure == "unconfigured":
-            requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/llm-endpoints/clustering", status_code=503, json={"error": "Not configured"})
+            requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/llm-endpoints/{feature}", status_code=503, json={"error": "Not configured"})
         saved = requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
         with patch.object(LLMClient, "create_response", autospec=True, side_effect=failure) as provider:
             provider.return_value = {"output_text": "private invalid provider output"}

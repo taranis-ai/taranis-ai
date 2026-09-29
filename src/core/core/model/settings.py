@@ -36,8 +36,7 @@ class Settings(BaseModel):
     def __init__(self, settings: dict | None = None):
         self.id = self.uuid7_str()
         self.singleton_key = self.SINGLETON_KEY
-        values = dict(settings) if settings is not None else {}
-        self.settings = self.with_defaults(values)
+        self.settings = self.with_defaults(settings)
         self._validate_llm_settings(self.settings)
 
     @classmethod
@@ -185,14 +184,16 @@ class Settings(BaseModel):
         if entry is None:
             return {"error": "Settings not found"}, 404
         values = cls.with_defaults(entry.settings)
-        endpoints = deepcopy(values["llm_endpoints"])
-        if (delete or endpoint_id is not None) and endpoint_id not in endpoints:
-            return {"error": "LLM endpoint not found"}, 404
+        endpoints = dict(values["llm_endpoints"])
         if delete:
+            if endpoint_id not in endpoints:
+                return {"error": "LLM endpoint not found"}, 404
             if endpoint_id in [values.get("llm_default_endpoint"), *(values.get(f"llm_{feature}_endpoint") for feature in LLM_FEATURES)]:
                 return {"error": "Reassign this endpoint before deleting it"}, 409
             endpoints.pop(endpoint_id)
         else:
+            if endpoint_id is not None and endpoint_id not in endpoints:
+                return {"error": "LLM endpoint not found"}, 404
             if not isinstance(data, dict):
                 return {"error": "Invalid LLM endpoint"}, 400
             submitted = dict(data)
