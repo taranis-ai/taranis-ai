@@ -10,6 +10,7 @@ from models.cache_contract import (
 )
 from redis import Redis
 from redis.exceptions import RedisError
+from redis.maint_notifications import MaintNotificationsConfig
 
 from core.config import Config
 from core.log import logger
@@ -83,7 +84,12 @@ class FrontendCacheInvalidationService:
 
         try:
             redis_password = get_secret_value(Config.CACHE_REDIS_PASSWORD) or get_secret_value(Config.REDIS_PASSWORD)
-            self._client = Redis.from_url(redis_url, password=redis_password, decode_responses=True)
+            self._client = Redis.from_url(
+                redis_url,
+                password=redis_password,
+                decode_responses=True,
+                maint_notifications_config=MaintNotificationsConfig(enabled=False),
+            )
             self._client.ping()
         except (RedisError, ValueError):
             logger.exception("Failed to initialize frontend cache invalidation Redis client")

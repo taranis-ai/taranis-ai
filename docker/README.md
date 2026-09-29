@@ -175,6 +175,8 @@ Any configuration options are available at [https://hub.docker.com/\_/postgres](
 
 ### `core`
 
+Taranis Python clients use redis-py's default RESP3 protocol with maintenance notifications disabled. Redis Cloud and Redis Software Smart Client Handoffs are therefore not used; clients rely on their normal reconnect behavior during server maintenance.
+
 | Environment variable          | Description                                | Default       |
 | ----------------------------- | ------------------------------------------ | ------------- |
 | `TARANIS_AUTHENTICATOR`       | Authentication method for users.           | `database`    |

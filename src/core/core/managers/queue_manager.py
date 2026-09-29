@@ -46,6 +46,7 @@ from opentelemetry.propagate import inject
 from pydantic import TypeAdapter
 from redis import Redis
 from redis.exceptions import RedisError
+from redis.maint_notifications import MaintNotificationsConfig
 from rq import Queue
 from rq.exceptions import NoSuchJobError
 from rq.job import Dependency, Job
@@ -109,6 +110,7 @@ class QueueManager:
             self.redis_url,
             password=self.redis_password,
             decode_responses=False,
+            maint_notifications_config=MaintNotificationsConfig(enabled=False),
         )
 
         # Test connection

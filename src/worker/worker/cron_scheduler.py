@@ -11,6 +11,7 @@ from pydantic import ValidationError
 from redis import Redis
 from rq import Queue
 
+from worker import get_redis_connection
 from worker.config import Config
 from worker.log import logger
 
@@ -165,7 +166,7 @@ def run_scheduler(
     poll_interval_seconds: float = 15.0,
     redis_password: str | None = None,
 ) -> None:
-    redis = Redis.from_url(redis_url, password=redis_password or None, decode_responses=False)
+    redis = get_redis_connection(redis_url, redis_password)
     queues: dict[str, Queue] = {}
     ttl_seconds = int(max(2 * poll_interval_seconds, 30, Config.CRON_POLL_INTERVAL_SECONDS))
 
