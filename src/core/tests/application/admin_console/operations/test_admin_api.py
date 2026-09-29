@@ -95,6 +95,9 @@ class TestAdminApi(BaseTest):
         assert response.mimetype == "application/json"
         endpoint_id = response.get_json()["id"]
         assert "private-test-key" not in response.get_data(as_text=True)
+        with app.app_context():
+            assert Settings.save_llm_endpoint({}, delete=True) == ({"error": "LLM endpoint not found"}, 404)
+            assert endpoint_id in Settings.get_settings()["llm_endpoints"]
         self.assert_patch_ok(client, "settings", {"settings": {"llm_default_endpoint": endpoint_id, "chat_max_stories": "8"}}, auth_header)
         monkeypatch.setattr("core.api.chat.Config.CHAT_ENABLED", True)
         chat_response = client.get("/api/chat/conversations", headers=auth_header)

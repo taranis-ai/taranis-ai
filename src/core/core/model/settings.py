@@ -186,7 +186,7 @@ class Settings(BaseModel):
             return {"error": "Settings not found"}, 404
         values = cls.with_defaults(entry.settings)
         endpoints = deepcopy(values["llm_endpoints"])
-        if endpoint_id is not None and endpoint_id not in endpoints:
+        if (delete or endpoint_id is not None) and endpoint_id not in endpoints:
             return {"error": "LLM endpoint not found"}, 404
         if delete:
             if endpoint_id in [values.get("llm_default_endpoint"), *(values.get(f"llm_{feature}_endpoint") for feature in LLM_FEATURES)]:
