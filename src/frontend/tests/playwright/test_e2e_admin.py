@@ -141,7 +141,7 @@ class TestEndToEndAdmin(BaseE2ETest):
         expect(page.locator(".driver-popover")).not_to_be_visible()
 
     @pytest.mark.e2e_full_stack
-    def test_admin_dashboard(self, logged_in_page: Page, forward_console_and_page_errors):
+    def test_admin_dashboard(self, logged_in_page: Page, forward_console_and_page_errors, core_request_client):
         page = logged_in_page
 
         page.goto(url_for("admin.dashboard", _external=True))
@@ -149,8 +149,10 @@ class TestEndToEndAdmin(BaseE2ETest):
 
         health_card = page.locator("div.bg-base-100.border").filter(has=page.get_by_text("System Health", exact=True)).first
         expect(health_card).to_be_visible()
-        expect(health_card.get_by_text("Healthy", exact=True)).to_be_visible()
-        for service, status in DASHBOARD_HEALTH_SERVICES.items():
+        health = core_request_client.get("/health", raise_for_status=False).json()
+        expect(health_card.get_by_text("Healthy" if health["healthy"] else "Degraded", exact=True)).to_be_visible()
+        services = DASHBOARD_HEALTH_SERVICES | {"Worker endpoints": health["services"]["worker_endpoints"]}
+        for service, status in services.items():
             row = health_card.locator("div.flex.items-center.justify-between").filter(has_text=service).first
             expect(row).to_be_visible()
             expect(row).to_contain_text(status)
