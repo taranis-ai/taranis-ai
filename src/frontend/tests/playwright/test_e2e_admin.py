@@ -149,6 +149,7 @@ class TestEndToEndAdmin(BaseE2ETest):
 
         health_card = page.locator("div.bg-base-100.border").filter(has=page.get_by_text("System Health", exact=True)).first
         expect(health_card).to_be_visible()
+        allow_requests_passthru(core_request_client.base_url)
         health = core_request_client.get("/health", raise_for_status=False).json()
         expect(health_card.get_by_text("Healthy" if health["healthy"] else "Degraded", exact=True)).to_be_visible()
         services = DASHBOARD_HEALTH_SERVICES | {"Worker endpoints": health["services"]["worker_endpoints"]}

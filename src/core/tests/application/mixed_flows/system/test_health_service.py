@@ -114,3 +114,20 @@ def test_endpoint_health_lifecycle(client, auth_header, api_header, app, db_pers
             Settings.get_settings_entry().settings = original_settings
             session.commit()
             worker.register_death()
+
+
+@pytest.mark.parametrize("failed_service", ["worker_endpoints", "database", "seed_data", "broker", "workers"])
+def test_core_process_probe_keeps_endpoint_failures_repairable(monkeypatch, failed_service):
+    import json
+
+    import requests
+
+    from core.healthcheck import main
+
+    services = dict.fromkeys(("database", "seed_data", "broker", "workers", "worker_endpoints"), "up")
+    services[failed_service] = "down"
+    response = requests.Response()
+    response.status_code = 503
+    response._content = json.dumps({"healthy": False, "services": services}).encode()
+    monkeypatch.setattr("core.healthcheck.requests.get", lambda *args, **kwargs: response)
+    assert main() == (0 if failed_service == "worker_endpoints" else 1)
