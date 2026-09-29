@@ -78,7 +78,10 @@ class Settings(BaseModel):
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
         public_settings = deepcopy(self.with_defaults(self.settings))
-        for endpoint in public_settings["llm_endpoints"].values():
+        from core.service.endpoint_health import get_status
+
+        for endpoint_id, endpoint in public_settings["llm_endpoints"].items():
+            endpoint["health"] = get_status("llm", endpoint_id, dict(endpoint))
             endpoint["api_key_configured"] = bool(endpoint.pop("api_key", ""))
         data["settings"] = public_settings
         return data
@@ -214,6 +217,9 @@ class Settings(BaseModel):
         values["llm_endpoints"] = endpoints
         entry.settings = values
         db.session.commit()
+        from core.service.endpoint_health import schedule_check
+
+        schedule_check("llm", endpoint_id)
         return {"message": "LLM endpoint deleted" if delete else "LLM endpoint saved", "id": endpoint_id}, 200
 
     @classmethod

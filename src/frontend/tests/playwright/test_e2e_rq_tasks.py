@@ -413,3 +413,32 @@ def test_rq_scheduled_wordlist_bot_cron(
     assert payload.get("task") == f"bot_{bot_id}"
     _, next_run_after_execution = rq_harness.assert_cron_registration(cron_job_id, expected_cron=cron_expression)
     assert next_run_after_execution > forced_due_timestamp
+
+
+@pytest.mark.e2e_ci
+def test_endpoint_check_marks_bot_and_health(worker_process: None, rq_harness: RqE2EHarness) -> None:
+    bot_id = rq_harness.create_bot(
+        {
+            "name": f"Endpoint check {uuid.uuid4().hex}",
+            "type": "nlp_bot",
+            "parameters": {"BOT_ENDPOINT": "http://127.0.0.1:1/ner", "REQUESTS_TIMEOUT": 1},
+        }
+    )
+    route = f"/config/bots/{bot_id}"
+    try:
+        deadline = time.monotonic() + 30
+        while True:
+            bot = rq_harness.core_client.json_request("GET", route)
+            if bot["endpoint_health"]["status"] == "down":
+                break
+            assert time.monotonic() < deadline, "Worker did not report endpoint failure"
+            time.sleep(0.2)
+        response = rq_harness.core_client.get("/health", raise_for_status=False)
+        assert response.status_code == 503
+        assert response.json()["services"]["worker_endpoints"] == "down"
+        failed = rq_harness.core_client.json_request("GET", "/config/bots?state=failure")
+        assert bot_id in {item["id"] for item in failed["items"]}
+        rq_harness.core_client.patch(route, json_data={"enabled": False})
+        assert rq_harness.core_client.json_request("GET", route)["endpoint_health"] is None
+    finally:
+        rq_harness.core_client.delete(route)

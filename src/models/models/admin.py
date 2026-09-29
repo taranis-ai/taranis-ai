@@ -495,6 +495,7 @@ class Bot(BotCreate):
 
     enabled: bool = True
     status: Task | None = None
+    endpoint_health: dict[str, Any] | None = None
 
 
 class Connector(TaranisBaseModel):

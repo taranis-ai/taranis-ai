@@ -186,6 +186,9 @@ paths:
                         - up
                         - down
                         - n/a
+                      worker_endpoints:
+                        type: string
+                        enum: [up, down, n/a]
                       workers:
                         type: string
                         enum:
@@ -218,6 +221,9 @@ paths:
                         - up
                         - down
                         - n/a
+                      worker_endpoints:
+                        type: string
+                        enum: [up, down, n/a]
                       workers:
                         type: string
                         enum:
@@ -9051,6 +9057,61 @@ paths:
           $ref: '#/components/responses/404NotFound'
         '409':
           description: Endpoint is still assigned; reassign it before deleting
+  /worker/endpoint-health/{kind}/{endpoint_id}:
+    parameters:
+    - name: kind
+      in: path
+      required: true
+      schema:
+        type: string
+        enum: [llm, bot]
+    - name: endpoint_id
+      in: path
+      required: true
+      schema:
+        type: string
+    get:
+      security:
+      - APIKey: []
+      tags: [bots]
+      operationId: worker.endpoint_health_worker.get
+      description: Returns current probe configuration with credentials, or skip for an obsolete check. Responses are not cacheable.
+      parameters:
+      - name: generation
+        in: query
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Current configuration or skip
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+    post:
+      security:
+      - APIKey: []
+      tags: [bots]
+      operationId: worker.endpoint_health_worker.post
+      description: Save a check result only if it still matches the current endpoint configuration and generation.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [generation, healthy]
+              properties:
+                generation:
+                  type: string
+                healthy:
+                  type: boolean
+      responses:
+        '200':
+          description: Result accepted or ignored as obsolete
+        '400':
+          description: Invalid result payload
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
   /worker/llm-endpoints/{feature}:
     parameters:
     - name: feature

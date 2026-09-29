@@ -107,7 +107,9 @@ class SettingsView(MethodView):
     def put(self):
         if data := request.json:
             response, status = Settings.update(data)
-            invalidate_frontend_cache_on_success(status, models=("settings",), user_profiles=("*",))
+            invalidate_frontend_cache_on_success(
+                status, models=("settings", "bot", "core_health", "dashboard", "admin_menu_badges"), user_profiles=("*",)
+            )
             return response, status
         return {"error": "No data provided"}, 400
 
@@ -115,7 +117,9 @@ class SettingsView(MethodView):
     def post(self):
         if data := request.json:
             response, status = Settings.update(data)
-            invalidate_frontend_cache_on_success(status, models=("settings",), user_profiles=("*",))
+            invalidate_frontend_cache_on_success(
+                status, models=("settings", "bot", "core_health", "dashboard", "admin_menu_badges"), user_profiles=("*",)
+            )
             return response, status
         return {"error": "No data provided"}, 400
 
@@ -123,7 +127,9 @@ class SettingsView(MethodView):
     def patch(self):
         if data := request.json:
             response, status = Settings.update(data)
-            invalidate_frontend_cache_on_success(status, models=("settings",), user_profiles=("*",))
+            invalidate_frontend_cache_on_success(
+                status, models=("settings", "bot", "core_health", "dashboard", "admin_menu_badges"), user_profiles=("*",)
+            )
             return response, status
         return {"error": "No data provided"}, 400
 
@@ -132,7 +138,7 @@ class LLMEndpoints(MethodView):
     @auth_required("ADMIN_OPERATIONS")
     def post(self, endpoint_id: str | None = None):
         response, status = Settings.save_llm_endpoint(request.get_json(silent=True), endpoint_id)
-        invalidate_frontend_cache_on_success(status, models=("settings",))
+        invalidate_frontend_cache_on_success(status, models=("settings", "bot", "core_health", "dashboard", "admin_menu_badges"))
         return jsonify(response), status
 
 
@@ -140,7 +146,7 @@ class DeleteLLMEndpoint(MethodView):
     @auth_required("ADMIN_OPERATIONS")
     def post(self, endpoint_id: str):
         response, status = Settings.save_llm_endpoint({}, endpoint_id, delete=True)
-        invalidate_frontend_cache_on_success(status, models=("settings",))
+        invalidate_frontend_cache_on_success(status, models=("settings", "bot", "core_health", "dashboard", "admin_menu_badges"))
         return jsonify(response), status
 
 

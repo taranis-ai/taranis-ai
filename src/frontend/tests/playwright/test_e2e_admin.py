@@ -1652,6 +1652,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             with_htmx_wait(page, lambda: form.get_by_role("button", name="Add Endpoint", exact=True).click())
             endpoint = section.locator("details").filter(has=page.locator("summary", has_text="E2E shared model"))
             expect(endpoint).to_have_count(1)
+            expect(endpoint.locator('[data-test-id="endpoint-health"]')).to_contain_text("Endpoint")
             assignments = section.locator('[data-test-id="llm-assignments"]')
             assignments.get_by_label("Default endpoint").select_option(label="E2E shared model")
             with_htmx_wait(page, lambda: assignments.get_by_role("button", name="Save Assignments").click())

@@ -15,6 +15,7 @@ class DashboardHealthServices(BaseModel):
     seed_data: DashboardHealthState
     broker: DashboardHealthState
     workers: DashboardHealthState
+    worker_endpoints: DashboardHealthState = "n/a"
 
 
 class DashboardHealth(BaseModel):

@@ -86,6 +86,9 @@ class Bot(BaseModel):
             cls.validate_dependency_config()
             db.session.commit()
             bot.schedule_bot()
+            from core.service.endpoint_health import schedule_check
+
+            schedule_check("bot", bot.id)
             return bot
         except Exception:
             db.session.rollback()
@@ -139,6 +142,9 @@ class Bot(BaseModel):
             raise
 
         bot._refresh_schedule_registration()
+        from core.service.endpoint_health import schedule_check
+
+        schedule_check("bot", bot.id)
 
         return bot
 
@@ -421,6 +427,9 @@ class Bot(BaseModel):
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
         data["parameters"] = configured_parameters(self.type, self.parameters)
+        from core.service.endpoint_health import bot_status
+
+        data["endpoint_health"] = bot_status(self)
         if status := self.status:
             data["status"] = status
         return data
@@ -442,8 +451,15 @@ class Bot(BaseModel):
         )
 
     @classmethod
+    def failure_condition(cls):
+        from core.service.endpoint_health import bot_status
+
+        failed_ids = [bot.id for bot in cls.get_all_for_collector() if (status := bot_status(bot)) and status["status"] == "down"]
+        return db.or_(cls._latest_task_status() == "FAILURE", cls.id.in_(failed_ids))
+
+    @classmethod
     def get_current_failure_count(cls) -> int:
-        query = db.select(func.count()).select_from(cls).where(cls._latest_task_status() == "FAILURE")
+        query = db.select(func.count()).select_from(cls).where(cls.failure_condition())
         return db.session.execute(query).scalar_one()
 
     @classmethod
@@ -461,6 +477,9 @@ class Bot(BaseModel):
         )
         db.session.delete(bot)
         db.session.commit()
+        from core.service.endpoint_health import schedule_check
+
+        schedule_check("bot", id)
         return {"message": "Bot deleted"}, 200
 
     def get_schedule(self) -> str:
@@ -552,7 +571,7 @@ class Bot(BaseModel):
             query = query.filter(db.or_(Bot.name.ilike(f"%{search}%"), Bot.description.ilike(f"%{search}%")))
 
         if str(filter_args.get("state") or "").strip().lower() == "failure":
-            query = query.where(cls._latest_task_status() == "FAILURE")
+            query = query.where(cls.failure_condition())
 
         return query
 
