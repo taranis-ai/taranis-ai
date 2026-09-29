@@ -1678,7 +1678,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             for bot_type in ("story_bot", "summary_bot"):
                 page.goto(url_for("admin.bots", _external=True))
                 page.get_by_test_id("new-bot-button").click()
-                selector = page.get_by_label("LLM endpoint", exact=True)
+                selector = page.get_by_role("combobox", name="LLM endpoint", exact=True)
                 self.select_dynamic_type_and_wait(page, bot_type, selector)
                 expect(selector.locator("option:checked")).to_contain_text("E2E shared model")
                 expect(page.locator('input[name="parameters[BOT_API_KEY]"]')).to_have_count(0)
