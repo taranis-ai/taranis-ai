@@ -135,6 +135,9 @@ def _execute_by_config(bot_config: dict, filter: dict | None = None, bot_id: str
         raise ValueError(f"Bot type '{bot_type}' not implemented")
     bot_params: dict[str, Any] = effective_parameter_values(bot_type, bot_config.get("parameters", {}))
 
+    if bot_type in {"story_bot", "summary_bot"}:
+        bot_params["llm_endpoint"] = bot_config.get("llm_endpoint")
+
     if filter:
         # Runtime filters are transient task data, not persisted parameters.
         bot_params["filter"] = filter

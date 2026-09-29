@@ -71,19 +71,21 @@ class TestBotTask:
     @pytest.mark.parametrize(
         "failure", [RequestException("private provider detail"), UpstreamLLMError("private provider detail"), None, "unconfigured"]
     )
-    @pytest.mark.parametrize(("bot_type", "feature"), [("story_bot", "clustering"), ("summary_bot", "summarization")])
-    def test_llm_bot_failure_is_safe(self, current_job, requests_mock, failure, bot_type, feature):
+    @pytest.mark.parametrize("bot_type", ["story_bot", "summary_bot"])
+    def test_llm_bot_failure_is_safe(self, current_job, requests_mock, failure, bot_type):
         requests_mock.real_http = False
         requests_mock.get(
-            f"{Config.TARANIS_CORE_URL}/worker/llm-endpoints/{feature}", json={"name": "Test", "base_url": "https://llm.test/v1"}
+            f"{Config.TARANIS_CORE_URL}/worker/bots/bot-456",
+            json={
+                "type": bot_type,
+                "parameters": {},
+                "llm_endpoint": None if failure == "unconfigured" else {"name": "Test", "base_url": "https://llm.test/v1"},
+            },
         )
-        requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/bots/bot-456", json={"type": bot_type, "parameters": {}})
         requests_mock.get(
             f"{Config.TARANIS_CORE_URL}/worker/stories",
             json=[{"id": "story-1", "tags": {}, "news_items": [{"title": "Story", "content": "Content"}]}],
         )
-        if failure == "unconfigured":
-            requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/llm-endpoints/{feature}", status_code=503, json={"error": "Not configured"})
         saved = requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
         with patch.object(LLMClient, "create_response", autospec=True, side_effect=failure) as provider:
             provider.return_value = {"output_text": "private invalid provider output"}
@@ -105,6 +107,7 @@ class TestBotTask:
                     "Bot service is unavailable. Check its configured endpoint and ensure the service is running."
                 )
         assert "private" not in str(task_data["result"])
+        assert not any("/worker/llm-endpoints/" in req.url for req in requests_mock.request_history)
 
     def test_bot_task_success_passes_result_dict(self, current_job, requests_mock, bot_config, stub_bots):
         """Test that bot_task passes the full result dict to CoreApi.save_task_result on success."""

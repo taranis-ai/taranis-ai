@@ -5,7 +5,7 @@
 {% for endpoint_id, endpoint in endpoints.items() %}
   {% set _ = endpoint_options.append({'id': endpoint_id, 'name': endpoint.name}) %}
 {% endfor %}
-<section class="rounded-box border border-base-300 bg-base-100 p-6 shadow-sm" data-test-id="llm-settings">
+<section id="llm-endpoints" class="rounded-box border border-base-300 bg-base-100 p-6 shadow-sm" data-test-id="llm-settings">
   <h2 class="text-lg font-semibold">LLM Endpoints</h2>
   <p class="text-sm text-base-content/70 mt-2 mb-6">
     Configure providers and models for Chat, story clustering, and summarization. Set a default, then override individual functions if needed.

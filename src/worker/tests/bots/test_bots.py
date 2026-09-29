@@ -48,14 +48,13 @@ def test_story_bot_clusters_via_library(stories, requests_mock, monkeypatch):
         "api_format": "chat_completions",
         "timeout": 120,
     }
-    requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/llm-endpoints/clustering", json=endpoint)
     input_stories = [
         {**stories[0], "summary": "Short summary", "tags": {"security": {"name": "security", "tag_type": "misc"}}},
         {**stories[1], "summary": None, "tags": {}},
     ]
     requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/stories", json=input_stories)
     grouping = requests_mock.put(f"{Config.TARANIS_CORE_URL}/bots/stories/group-multiple", json={"message": "success"})
-    parameters = {"BOT_ENDPOINT": "http://unused-bot.test", "BOT_API_KEY": "unused-bot-key", "REQUESTS_TIMEOUT": 17}
+    parameters = {"llm_endpoint": endpoint, "REQUESTS_TIMEOUT": 17}
 
     with patch.object(LLMClient, "create_response", autospec=True) as provider:
         provider.return_value = {
@@ -91,13 +90,12 @@ def test_story_bot_clusters_via_library(stories, requests_mock, monkeypatch):
         provider.return_value = {
             "output_text": json.dumps({"cluster_ids": {"event_clusters": [[1], [2]]}, "cluster_reasons": [], "message": "Processed"})
         }
-        assert bots.StoryBot().execute() == {"message": "Processed. No clusters found."}
+        assert bots.StoryBot().execute({"llm_endpoint": endpoint}) == {"message": "Processed. No clusters found."}
         assert provider.call_args.args[0].timeout == 120
         assert grouping.call_count == 1
 
         endpoint["model"] = ""
         endpoint["api_key"] = ""
-        requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/llm-endpoints/clustering", json=endpoint)
         monkeypatch.setattr(LLMConfig, "LLM_MODEL", "ignored-environment-model")
         monkeypatch.setattr(LLMConfig, "LLM_API_KEY", "ignored-environment-key")
         bots.StoryBot().execute(parameters)
@@ -174,19 +172,16 @@ def test_summary_bot_uses_library(stories, story_update_mock, story_attribute_up
     if multiple_items:
         story["news_items"].append(stories[1]["news_items"][0])
     requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/stories", json=[story])
-    requests_mock.get(
-        f"{Config.TARANIS_CORE_URL}/worker/llm-endpoints/summarization",
-        json={
-            "name": "Summary",
-            "base_url": "https://summary.test/v1",
-            "model": "summary-model",
-            "api_key": "summary-key",
-            "timeout": 42,
-        },
-    )
+    endpoint = {
+        "name": "Summary",
+        "base_url": "https://summary.test/v1",
+        "model": "summary-model",
+        "api_key": "summary-key",
+        "timeout": 42,
+    }
     with patch.object(LLMClient, "create_response", autospec=True) as provider:
         provider.side_effect = [{"output_text": '{"summary": "Concise summary"}'}, {"output_text": '{"title": "Generated title"}'}]
-        assert bots.SummaryBot().execute() == {"message": "Summarized 1 stories"}
+        assert bots.SummaryBot().execute({"llm_endpoint": endpoint}) == {"message": "Summarized 1 stories"}
         assert provider.await_count == (2 if multiple_items else 1)
         client = provider.call_args.args[0]
         assert (client.base_url, client.model, client.api_key, client.timeout) == (

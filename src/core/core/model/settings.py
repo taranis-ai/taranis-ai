@@ -189,9 +189,13 @@ class Settings(BaseModel):
         values = cls.with_defaults(entry.settings)
         endpoints = dict(values["llm_endpoints"])
         if delete:
+            from core.model.bot import Bot
+
             if endpoint_id not in endpoints:
                 return {"error": "LLM endpoint not found"}, 404
             if endpoint_id in [values.get("llm_default_endpoint"), *(values.get(f"llm_{feature}_endpoint") for feature in LLM_FEATURES)]:
+                return {"error": "Reassign this endpoint before deleting it"}, 409
+            if any(bot.parameters.get("LLM_ENDPOINT") == endpoint_id for bot in db.session.execute(db.select(Bot)).scalars()):
                 return {"error": "Reassign this endpoint before deleting it"}, 409
             endpoints.pop(endpoint_id)
         else:

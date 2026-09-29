@@ -118,27 +118,39 @@ class TestAdminApi(BaseTest):
                 90,
             )
             assert Settings.get_settings()["chat_max_stories"] == 8
-        worker_url = "/api/worker/llm-endpoints/clustering"
+        bot_response = client.post("/api/config/bots", json={"name": "Endpoint selection", "type": "story_bot"}, headers=auth_header)
+        assert bot_response.status_code == 201
+        bot_id = bot_response.json["id"]
+        worker_url = f"/api/worker/bots/{bot_id}"
         assert client.get(worker_url).status_code == 401
         worker_headers = {"Authorization": "Bearer test_key"}
         response = client.get(worker_url, headers=worker_headers)
         assert response.status_code == 200
         assert response.headers["Cache-Control"] == "no-store"
-        assert response.get_json()["api_key"] == values["api_key"]
+        assert response.get_json()["llm_endpoint"]["api_key"] == values["api_key"]
         override_id = self.assert_post_ok(
             client, "llm-endpoints", {"name": "Clustering", "base_url": "http://local-model/v1"}, auth_header
         ).get_json()["id"]
         self.assert_patch_ok(client, "settings", {"settings": {"llm_clustering_endpoint": override_id}}, auth_header)
-        assert client.get(worker_url, headers=worker_headers).get_json()["base_url"] == "http://local-model/v1"
+        assert client.get(worker_url, headers=worker_headers).get_json()["llm_endpoint"]["base_url"] == "http://local-model/v1"
         response = client.post(self.concat_url(f"llm-endpoints/{override_id}/delete"), headers=auth_header)
         assert response.status_code == 409
         self.assert_post_ok(client, f"llm-endpoints/{endpoint_id}", {"api_key_clear": "true"}, auth_header)
         with app.app_context():
             assert ChatClient().api_key == ""
         self.assert_patch_ok(client, "settings", {"settings": {"llm_clustering_endpoint": ""}}, auth_header)
+        bot_url = f"/api/config/bots/{bot_id}"
+        assert client.patch(bot_url, json={"parameters": {"LLM_ENDPOINT": override_id}}, headers=auth_header).status_code == 200
+        assert client.get(worker_url, headers=worker_headers).json["llm_endpoint"]["base_url"] == "http://local-model/v1"
+        assert "llm_endpoint" not in client.get(bot_url, headers=auth_header).json
+        assert "private-test-key" not in client.get("/api/config/bots", headers=auth_header).text
+        assert client.post(self.concat_url(f"llm-endpoints/{override_id}/delete"), headers=auth_header).status_code == 409
+        assert client.patch(bot_url, json={"parameters": {"LLM_ENDPOINT": "missing"}}, headers=auth_header).status_code == 400
+        assert client.patch(bot_url, json={"parameters": {"LLM_ENDPOINT": ""}}, headers=auth_header).status_code == 200
+
         response = self.assert_post_ok(client, f"llm-endpoints/{override_id}/delete", {}, auth_header)
         assert response.mimetype == "application/json"
-        assert client.get(worker_url, headers=worker_headers).get_json()["base_url"] == values["base_url"]
+        assert client.get(worker_url, headers=worker_headers).get_json()["llm_endpoint"]["base_url"] == values["base_url"]
         response = client.patch(self.concat_url("settings"), json={"settings": {"llm_default_endpoint": "missing"}}, headers=auth_header)
         assert response.status_code == 400
         response = client.post(
@@ -148,6 +160,9 @@ class TestAdminApi(BaseTest):
         )
         assert response.status_code == 400
         assert "private-test-key" not in response.get_data(as_text=True)
+        self.assert_patch_ok(client, "settings", {"settings": {"llm_default_endpoint": ""}}, auth_header)
+        assert client.get(worker_url, headers=worker_headers).json["llm_endpoint"] is None
+        assert client.delete(bot_url, headers=auth_header).status_code == 200
 
     def test_settings_rejects_negative_bot_lookback(self, client, auth_header):
         response = client.put(

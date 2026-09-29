@@ -72,9 +72,9 @@ def bot_status(bot) -> dict | None:
     if bot.type.value in BOT_SERVICE_TYPES:
         config = {"type": bot.type.value, "parameters": bot.to_worker_dict()["parameters"]}
         return get_status("bot", bot.id, config)
-    if feature := LLM_BOT_FEATURES.get(bot.type.value):
+    if bot.type.value in LLM_BOT_FEATURES:
         settings = Settings.get_settings()
-        endpoint_id = settings.get(f"llm_{feature}_endpoint") or settings.get("llm_default_endpoint")
+        endpoint_id = bot.get_llm_endpoint_id(settings)
         if endpoint_id and (config := settings["llm_endpoints"].get(endpoint_id)):
             return get_status("llm", endpoint_id, config)
         return None

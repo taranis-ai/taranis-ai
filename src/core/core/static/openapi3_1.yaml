@@ -2365,7 +2365,10 @@ paths:
     get:
       security:
       - APIKey: []
-      description: Get all bots
+      description: >-
+        Get all bots with effective parameters. LLM bots include llm_endpoint
+        with the selected provider, or feature/default fallback, including its
+        raw api_key. Responses have Cache-Control no-store.
       operationId: worker.bots_worker.get
       responses:
         '200':
@@ -9112,40 +9115,6 @@ paths:
           description: Invalid result payload
         '401':
           $ref: '#/components/responses/401Unauthorized'
-  /worker/llm-endpoints/{feature}:
-    parameters:
-    - name: feature
-      in: path
-      required: true
-      schema:
-        type: string
-        enum: [chat, clustering, summarization]
-    get:
-      security:
-      - APIKey: []
-      tags:
-      - bots
-      description: >-
-        Resolve the explicit feature endpoint or shared default. Returns name,
-        base_url, model, api_format, timeout, and the raw api_key for worker use.
-        Responses have Cache-Control no-store; credentials must not be logged.
-      operationId: worker.llm_endpoint_worker.get
-      responses:
-        '200':
-          description: Effective provider configuration
-          headers:
-            Cache-Control:
-              schema:
-                type: string
-                const: no-store
-          content:
-            application/json:
-              schema:
-                type: object
-        '401':
-          $ref: '#/components/responses/401Unauthorized'
-        '503':
-          description: No LLM endpoint is configured for the feature
   /settings/settings:
     get:
       security:
@@ -9308,7 +9277,11 @@ paths:
     get:
       security:
       - APIKey: []
-      description: get bots
+      description: >-
+        Get bot configuration with effective parameters. For LLM bots,
+        llm_endpoint contains the selected provider or feature/default fallback,
+        including its raw api_key, or null when unconfigured. Responses have
+        Cache-Control no-store. Provider credentials must not be logged.
       operationId: worker.bot_info_worker.get
       responses:
         '200':

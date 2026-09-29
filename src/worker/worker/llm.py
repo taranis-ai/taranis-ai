@@ -7,7 +7,6 @@ from models.llm import LLMEndpoint
 from niquests.exceptions import RequestException
 
 from worker.bot_api import BotServiceUnavailableError
-from worker.core_api import CoreApi
 from worker.log import logger
 
 
@@ -20,8 +19,8 @@ class LLMConfigurationError(RuntimeError):
         super().__init__(self.public_message)
 
 
-def get_llm_client(core_api: CoreApi, feature: str, parameters: dict) -> LLMClient:
-    endpoint = core_api.api_get(f"/worker/llm-endpoints/{feature}")
+def get_llm_client(parameters: dict) -> LLMClient:
+    endpoint = parameters.get("llm_endpoint")
     if not endpoint:
         raise LLMConfigurationError
     config = LLMEndpoint.model_validate(endpoint)

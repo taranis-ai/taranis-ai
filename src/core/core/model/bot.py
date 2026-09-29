@@ -485,9 +485,22 @@ class Bot(BaseModel):
     def get_schedule(self) -> str:
         return self.parameters.get("REFRESH_INTERVAL", "")
 
+    def get_llm_endpoint_id(self, settings: dict) -> str | None:
+        from core.service.endpoint_health import LLM_BOT_FEATURES
+
+        if feature := LLM_BOT_FEATURES.get(self.type.value):
+            return self.parameters.get("LLM_ENDPOINT") or settings.get(f"llm_{feature}_endpoint") or settings.get("llm_default_endpoint")
+        return None
+
     def to_worker_dict(self) -> dict[str, Any]:
+        from core.model.settings import Settings
+        from core.service.endpoint_health import LLM_BOT_FEATURES
+
         data = super().to_dict()
         data["parameters"] = effective_parameters(self.type, self.parameters)
+        if self.type.value in LLM_BOT_FEATURES:
+            settings = Settings.get_settings()
+            data["llm_endpoint"] = settings["llm_endpoints"].get(self.get_llm_endpoint_id(settings))
         return data
 
     def get_cron_spec(self) -> CronSpec:

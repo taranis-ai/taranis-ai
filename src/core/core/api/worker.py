@@ -124,16 +124,6 @@ class CronJobs(MethodView):
         return queue_manager.queue_manager.get_cron_job_configs()
 
 
-class LLMEndpoint(MethodView):
-    @api_key_required
-    def get(self, feature: str):
-        endpoint = Settings.get_llm_endpoint(feature)
-        response = jsonify(endpoint if endpoint else {"error": "Configure an LLM endpoint in Admin Settings"})
-        response.status_code = 200 if endpoint else 503
-        response.headers["Cache-Control"] = "no-store"
-        return response
-
-
 class EndpointHealth(MethodView):
     @api_key_required
     def get(self, kind: str, endpoint_id: str):
@@ -321,6 +311,11 @@ class IOCs(MethodView):
 
 
 class BotInfo(MethodView):
+    def dispatch_request(self, *args, **kwargs):
+        response = make_response(super().dispatch_request(*args, **kwargs))
+        response.headers["Cache-Control"] = "no-store"
+        return response
+
     @api_key_required
     @extract_args("search", "fetch_all")
     def get(self, bot_id=None, filter_args=None):
@@ -422,7 +417,6 @@ def initialize(app: Flask):
     worker_bp.add_url_rule("/connectors/<string:connector_id>", view_func=Connectors.as_view("connectors_worker"))
     worker_bp.add_url_rule("/news-items", view_func=AddNewsItems.as_view("news_items_worker"))
     worker_bp.add_url_rule("/endpoint-health/<string:kind>/<string:endpoint_id>", view_func=EndpointHealth.as_view("endpoint_health_worker"))
-    worker_bp.add_url_rule("/llm-endpoints/<string:feature>", view_func=LLMEndpoint.as_view("llm_endpoint_worker"))
     worker_bp.add_url_rule("/bots", view_func=BotInfo.as_view("bots_worker"))
     worker_bp.add_url_rule("/tags", view_func=Tags.as_view("tags_worker"))
     worker_bp.add_url_rule("/iocs", view_func=IOCs.as_view("iocs_worker"))

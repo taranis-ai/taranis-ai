@@ -64,8 +64,11 @@ def test_endpoint_health_lifecycle(client, auth_header, api_header, app, db_pers
             assert public.json["items"][0]["settings"]["llm_endpoints"][endpoint_id]["health"]["status"] == "down"
             assert client.get("/api/health").status_code == 503
 
-            client.patch("/api/settings/settings", json={"settings": {"llm_default_endpoint": endpoint_id}}, headers=auth_header)
-            response = client.post("/api/config/bots", json={"name": "Summary health", "type": "summary_bot"}, headers=auth_header)
+            response = client.post(
+                "/api/config/bots",
+                json={"name": "Summary health", "type": "summary_bot", "parameters": {"LLM_ENDPOINT": endpoint_id}},
+                headers=auth_header,
+            )
             assert response.status_code == 201
             bot_id = response.json["id"]
             assert client.get(f"/api/config/bots/{bot_id}", headers=auth_header).json["endpoint_health"]["status"] == "down"

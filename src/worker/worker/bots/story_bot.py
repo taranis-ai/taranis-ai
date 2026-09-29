@@ -22,7 +22,7 @@ class StoryBot(BaseBot):
         if not (data := self.get_stories(parameters)):
             return {"message": "No new stories found"}
         logger.info(f"Clustering {len(data)} stories")
-        client = get_llm_client(self.core_api, "clustering", parameters)
+        client = get_llm_client(parameters)
         try:
             request = ClusterRequest.model_validate(
                 {"stories": [{"id": story["id"], "tags": story.get("tags", {}), "summary": story.get("summary")} for story in data]}

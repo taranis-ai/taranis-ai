@@ -1,2 +1,12 @@
+{% from "macros/forms.html" import form_select %}
+{% if llm_endpoint_options is not none and llm_endpoint_options is defined %}
+  <div data-test-id="bot-llm-endpoint">
+    {{ form_select('LLM endpoint', 'parameters[LLM_ENDPOINT]', parameter_values.get('LLM_ENDPOINT', ''), options=llm_endpoint_options, required=False) }}
+    <p class="text-sm mb-5">
+      Choose a provider for this bot, or inherit its shared assignment and default.
+      <a class="link link-primary" href="{{ url_for('admin_settings.settings', _anchor='llm-endpoints') }}">Manage LLM endpoints</a>
+    </p>
+  </div>
+{% endif %}
 {% include "partials/worker_parameters.html" %}
 {% include "bot/bot_run_order.html" %}

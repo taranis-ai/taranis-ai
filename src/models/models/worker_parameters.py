@@ -15,6 +15,7 @@ from pydantic import (
     field_validator,
     model_validator,
 )
+from pydantic.json_schema import SkipJsonSchema
 
 from models.types import WORKER_CATEGORY, WORKER_TYPES, TLPLevel
 
@@ -278,28 +279,21 @@ class TaggingBotParameters(BotParameters):
     )
 
 
-class StoryBotParameters(LLMParameters):
+class SharedLLMBotParameters(BotParameters):
+    LLM_ENDPOINT: str = Field("", title="LLM endpoint", description="Use a configured endpoint or inherit the shared assignment.")
+    REQUESTS_TIMEOUT: OptionalPositiveInt = Field(None, title="Requests timeout", description="Override the endpoint timeout in seconds.")
+    # Accept stored service credentials without offering unused controls in the form.
+    BOT_API_KEY: SkipJsonSchema[SecretStr] = SecretStr("")
+
+
+class StoryBotParameters(SharedLLMBotParameters):
     ITEM_FILTER: str = Field("range=week", title="Item filter", description="Filter selecting items processed by the bot.")
-    BOT_ENDPOINT: str = Field(
-        "http://llm-bot:8000/cluster",
-        title="Legacy bot endpoint",
-        description="Unused by story clustering; configure LLM Endpoints in Admin Settings.",
-    )
-    BOT_API_KEY: SecretStr = Field(
-        SecretStr(""),
-        title="Legacy bot API key",
-        description="Unused by story clustering; configure credentials in Admin Settings > LLM Endpoints.",
-    )
+    BOT_ENDPOINT: SkipJsonSchema[str] = "http://llm-bot:8000/cluster"
 
 
-class SummaryBotParameters(LLMParameters):
-    BOT_API_KEY: SecretStr = Field(SecretStr(""), title="Legacy bot API key", description="Unused; configure credentials in LLM Endpoints.")
-    SUMMARY_ENDPOINT: str = Field(
-        "http://llm-bot:8000/summarize", title="Legacy summary endpoint", description="Unused; configure LLM Endpoints in Admin Settings."
-    )
-    TITLE_ENDPOINT: str = Field(
-        "http://llm-bot:8000/title", title="Legacy title endpoint", description="Unused; titles use the summarization LLM endpoint."
-    )
+class SummaryBotParameters(SharedLLMBotParameters):
+    SUMMARY_ENDPOINT: SkipJsonSchema[str] = "http://llm-bot:8000/summarize"
+    TITLE_ENDPOINT: SkipJsonSchema[str] = "http://llm-bot:8000/title"
 
 
 class WordlistBotParameters(BotParameters):

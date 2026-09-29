@@ -22,7 +22,7 @@ class SummaryBot(BaseBot):
         if not (data := self.get_stories(parameters)):
             return {"message": "No new stories found"}
 
-        client = get_llm_client(self.core_api, "summarization", parameters)
+        client = get_llm_client(parameters)
 
         for story in data:
             news_items = story.get("news_items", [])
