@@ -147,7 +147,7 @@ if $run_core; then
 fi
 
 if $run_database; then
-    check_volume_exists "database_data_18"
+    check_volume_exists "database_data"
 fi
 
 # Restore operations
@@ -158,7 +158,7 @@ if $run_core; then
 fi
 
 if $run_database; then
-    restore_postgresql "$database_backup_file" "database_data_18"
+    restore_postgresql "$database_backup_file" "database_data"
 fi
 
 echo "Restore completed successfully."

@@ -16,7 +16,7 @@ services:
       timeout: 3s
       retries: 3
     volumes:
-      - "database_data_18:/var/lib/postgresql"
+      - "database_data:/var/lib/postgresql"
 
   redis:
     image: "redis:8-alpine"
@@ -85,5 +85,5 @@ services:
       start_period: 10s
 
 volumes:
-  database_data_18:
+  database_data:
   telemetry_data:

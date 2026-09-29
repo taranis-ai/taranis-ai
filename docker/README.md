@@ -68,17 +68,15 @@ http://<url>:<TARANIS_PORT>/login
 
 ### Upgrade the bundled PostgreSQL database to 18
 
-The Compose database defaults to PostgreSQL 18. Its data lives in `database_data_18`, mounted at `/var/lib/postgresql`; the [official 18 image](https://hub.docker.com/_/postgres) stores the cluster below `/var/lib/postgresql/18/docker`. An existing PostgreSQL 14–17 `database_data` volume cannot be started with the 18 image.
+The Compose database defaults to PostgreSQL 18. Its data lives in `database_data`, mounted at `/var/lib/postgresql`; the [official 18 image](https://hub.docker.com/_/postgres) stores the cluster below `/var/lib/postgresql/18/docker`. An existing PostgreSQL 14–17 `database_data` volume cannot be started with the 18 image.
 
-Before upgrading, ensure `POSTGRES_TAG` is unset or set to `18-alpine`, allow enough free space for a full backup and a second database volume, and stop any clients that write directly to PostgreSQL. From the repository root, run:
+Before upgrading, ensure `POSTGRES_TAG` is unset or set to `18-alpine`, allow enough free space for a full backup, and stop any clients that write directly to PostgreSQL. From the repository root, run:
 
 ```bash
 ./docker/database/upgrade-database.sh
 ```
 
-The script confirms the running server version, pulls the 18 image, stops application writers, saves the core files and a logical database dump under `docker/backups/`, restores into the new volume, restarts the stack, and checks readiness and the server version. Keep that backup private: it contains application data. The old `database_data` volume remains intact. Do not delete it until the upgraded application and data have been checked.
-
-If the restore fails, keep the backup and old volume. To roll back, use the previous release's Compose files and PostgreSQL image with the old `database_data` volume, then start and check the application. Writes made after the upgrade will not be present in that old volume; recover those from an appropriate backup before switching back.
+The script confirms the running server version, pulls the 18 image, stops application writers, saves the core files and a logical database dump under `docker/backups/`, recreates the database volume and restores the dump, restarts the stack, and checks readiness and the server version. Keep that backup private: it contains application data.
 
 ## Public reports
 

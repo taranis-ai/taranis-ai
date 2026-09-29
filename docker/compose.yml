@@ -112,7 +112,7 @@ services:
       timeout: 3s
       retries: 3
     volumes:
-      - "database_data_18:/var/lib/postgresql"
+      - "database_data:/var/lib/postgresql"
     logging:
       driver: "json-file"
       options:
@@ -377,7 +377,7 @@ services:
 
 
 volumes:
-  database_data_18:
+  database_data:
   core_data:
   redis_data:
   telemetry_data:
