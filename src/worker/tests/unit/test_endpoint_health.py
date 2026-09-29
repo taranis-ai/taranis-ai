@@ -12,7 +12,7 @@ from worker.endpoint_health import check_endpoint
             "llm",
             {"base_url": "http://model.test/v1", "api_format": "responses", "model": "test-model", "api_key": "test-secret", "timeout": 10},
             "http://model.test/v1/responses",
-            {"status": "completed", "output": [{"type": "message", "content": [{"type": "output_text", "text": "OK"}]}]},
+            {"status": "completed", "error": None, "output": [{"type": "message", "content": [{"type": "output_text", "text": "OK"}]}]},
         ),
         (
             "llm",

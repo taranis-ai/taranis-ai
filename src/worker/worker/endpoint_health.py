@@ -57,7 +57,7 @@ def probe(kind: str, config: dict) -> bool:
         )
         response.raise_for_status()
         result = response.json()
-        if not isinstance(result, dict) or "error" in result:
+        if not isinstance(result, dict) or result.get("error") is not None:
             return False
         if kind == "llm":
             if chat:
