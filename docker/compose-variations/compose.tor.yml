@@ -1,4 +1,19 @@
 services:
+  llm-inference:
+    image: "${LLM_INFERENCE_IMAGE:-ghcr.io/taranis-ai/gemma4-e4b-gguf:cpu}"
+    platform: linux/amd64
+    restart: unless-stopped
+    shm_size: 4gb
+    command: ["--ctx-size", "8192", "--jinja"]
+    expose:
+      - "8000"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 5m
+
   ingress:
     ports:
     - "${TARANIS_PORT:-8080}:80"
@@ -52,6 +67,7 @@ services:
 
       PRE_SEED_PASSWORD_ADMIN: "${PRE_SEED_PASSWORD_ADMIN:-admin}"
       PRE_SEED_PASSWORD_USER: "${PRE_SEED_PASSWORD_USER:-user}"
+      DEFAULT_LLM_ENDPOINT: '${DEFAULT_LLM_ENDPOINT:-{"name":"Bundled inference","base_url":"http://llm-inference:8000/v1","model":"unsloth/gemma-4-E4B-it-GGUF","api_format":"chat_completions","timeout":120}}'
       PRE_SEED_SETTINGS: "${PRE_SEED_SETTINGS:-{}}"
       JWT_SECRET_KEY: "${JWT_SECRET_KEY}"
       JWT_COOKIE_SUFFIX: "${JWT_COOKIE_SUFFIX:-}"
@@ -181,23 +197,6 @@ services:
         max-size: "200k"
         max-file: "10"
 
-  summary_bot:
-    depends_on:
-      workers:
-        condition: service_healthy
-    deploy:
-      restart_policy:
-        condition: always
-    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-summarize-bot:${TARANIS_BOT_TAG:-stable}"
-    environment:
-      API_KEY: "${API_KEY}"
-      DEBUG: "${DEBUG:-False}"
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "200k"
-        max-file: "10"
-
   nlp_bot:
     depends_on:
       workers:
@@ -206,23 +205,6 @@ services:
       restart_policy:
         condition: always
     image: "${DOCKER_IMAGE_NAMESPACE}/taranis-natural-language-processing:${TARANIS_BOT_TAG:-stable}"
-    environment:
-      API_KEY: "${API_KEY}"
-      DEBUG: "${DEBUG:-False}"
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "200k"
-        max-file: "10"
-
-  clustering_bot:
-    depends_on:
-      workers:
-        condition: service_healthy
-    deploy:
-      restart_policy:
-        condition: always
-    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-story-clustering:${TARANIS_BOT_TAG:-stable}"
     environment:
       API_KEY: "${API_KEY}"
       DEBUG: "${DEBUG:-False}"

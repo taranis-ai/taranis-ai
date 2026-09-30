@@ -3,7 +3,7 @@
 Deployment options:
 
 - [`kubernetes/`](./kubernetes): raw Kubernetes core stack
-- [`kubernetes-optional-bots/`](./kubernetes-optional-bots): raw Kubernetes overlay that adds `llm-bot`
+- [`kubernetes-optional-bots/`](./kubernetes-optional-bots): compatibility entry point for the base Kubernetes stack (inference is now included)
 - [`helm/`](./helm): Helm chart
 - [`argocd/`](./argocd): ArgoCD example using the Helm chart
 
@@ -19,22 +19,13 @@ Always required:
 - When multiple deployments share a domain, set a unique `JWT_COOKIE_SUFFIX` such as `_q` for each deployment and keep it aligned between core and frontend. Helm exposes the same setting as `config.jwtCookieSuffix`.
 - The raw manifest keeps the public realtime endpoint at `/sse`; ingress rewrites it to Centrifugo's `/connection/uni_sse`.
 
-Optional `llm-bot` overlay:
+Bundled inference is included in both the raw Kubernetes base and Helm chart. Before updating, ensure an amd64 node has capacity for the model (6 GiB memory requested, 12 GiB limit). The image is `ghcr.io/taranis-ai/gemma4-e4b-gguf:cpu`; it listens internally on port 8000, has a ten-minute startup probe, and does not expose an ingress. See [bundled inference](../docker/README.md#bundled-llm-inference) for model, settings, and resource details.
 
-- In `kubernetes/00-config.yaml`, set `LLM_BASE_URL`; optionally set `LLM_TIMEOUT` and `LLM_MODEL`.
-- In `kubernetes/01-secrets.yaml`, set `BOT_API_KEY`; optionally set `LLM_API_KEY` for providers that require one.
-- For Helm, set `config.llmBaseUrl`; optionally set `config.llmTimeout`, `config.llmModel`, and `secrets.llmApiKey`.
-- Set ingress hostname in `kubernetes/40-ingress.yaml` (or Helm values).
-
-Optional analyst Chat:
-- Set `CHAT_ENABLED=true` in configuration for both core and frontend.
-- Open **Admin Settings > LLM Endpoints** to configure a provider and assign it to Chat, or set it as the shared default. This section is available even when Chat is disabled. **Admin Settings > Chat** retains maximum stories (default 5, allowed 1–20). Changes apply to the next message or bot run without restarting. Only `CHAT_ENABLED` remains deployment configuration for Chat.
-- API keys are write-only in the admin form: leave blank to keep the saved key, or select **Remove saved API key** to clear it. Keys are stored in the application database; protect database access and backups. Settings API responses and logs omit the key.
-- Realtime Chat progress uses the existing Centrifugo connection when `REALTIME_ENABLED=true`; Chat still completes through its normal HTTP response when realtime is disabled or unavailable.
+Remove the old `llm-bot` Deployment and Service after applying the new raw manifests; `kubectl apply -k` does not remove obsolete resources. Compose uses `up -d --remove-orphans`; Helm removes workloads absent from the updated chart. NER, sentiment, and classification require separately configured HTTP services; the inference image does not provide those routes. Retain the previous images/configuration for rollback and restore the old bot service only if reverting.
 
 ## Shared LLM endpoint upgrade
 
-After pulling the updated images and restarting Core, frontend, and workers, open **Admin Settings > LLM Endpoints**. Create the clustering and summarization providers there, then select a default and/or feature overrides before running those bots. Existing Chat settings become an endpoint assigned only to Chat; they do not automatically become the default. Workers now call the providers directly for both clustering and summarization/title generation and must be able to reach them.
+After pulling the updated images and restarting Core, frontend, and workers, open **Admin Settings > LLM Endpoints**. Verify the default and any feature overrides before running those bots. Startup selects bundled inference only when the shared default is empty; existing defaults and Chat/feature assignments are preserved. Existing Chat settings become an endpoint assigned only to Chat; they do not automatically become the default. Workers now call the providers directly for both clustering and summarization/title generation and must be able to reach them.
 
 Worker `LLM_*`, `SUMMARY_API_ENDPOINT`, `TITLE_API_ENDPOINT`, and the bots' old endpoint/key parameters no longer configure these functions. Copy the intended provider values from private deployment configuration into the endpoint form. NER, sentiment, and classification still need their standalone service configuration. API keys stay write-only in settings responses and remain stored in the database; protect database access and backups.
 
@@ -42,7 +33,7 @@ Verify Core readiness, frontend access, worker health, and a known clustering an
 
 ## Initial settings
 
-Before the first startup, set `PRE_SEED_SETTINGS` in `kubernetes/00-config.yaml`, or the JSON string `config.preSeedSettings` in Helm values. Both default to `"{}"`. For example, Helm values can contain:
+Before the first startup, set `PRE_SEED_SETTINGS` in `kubernetes/00-config.yaml`, or the JSON string `config.preSeedSettings` in Helm values. Both default to `"{}"`. Separately, `DEFAULT_LLM_ENDPOINT` (`config.defaultLlmEndpoint` in Helm) registers bundled inference on fresh databases or upgrades only if the shared default is empty. Set it to the JSON string `"{}"` to disable automatic registration. Keep endpoint credentials in Secrets rather than ConfigMaps. For example, Helm values can contain:
 
 ```yaml
 config:
@@ -54,7 +45,7 @@ This initializes a fresh settings row only; restarts and upgrades preserve saved
 ## Images
 
 Core uses `ghcr.io/taranis-ai/taranis-core`, `taranis-frontend`, `taranis-ingress`, and `taranis-worker` (for `collector`, `worker`, and `cron`). Realtime uses the pinned `centrifugo/centrifugo:v6.9` image.
-Optional overlay uses `ghcr.io/taranis-ai/taranis-llm-bot:latest`.
+Inference uses `ghcr.io/taranis-ai/gemma4-e4b-gguf:cpu`.
 Pin explicit tags for production.
 
 Before upgrading, ensure browser access uses HTTPS and the ingress redirects HTTP to HTTPS. With `DEBUG=false` on core and frontend, JWT/CSRF and session cookies are now Secure and HSTS is enabled for one year on the serving hostname. `JWT_COOKIE_SECURE=false` no longer opts out. Keep DEBUG aligned across both services and reserve `DEBUG=true` for isolated development. HSTS omits includeSubDomains/preload, but still affects every application on the same hostname. Rollback to older images does not clear a browser's stored HSTS policy; keep HTTPS available.
@@ -74,13 +65,12 @@ kubectl apply -k deploy/kubernetes
 kubectl apply -k deploy/kubernetes-optional-bots
 ```
 
-`kubernetes` is core-only. `kubernetes-optional-bots` includes core plus `llm-bot`.
-Service bot endpoints target `llm-bot` routes: `/ner`, `/sentiment`, and `/cybersec-classification`. Configure clustering and summaries in Admin Settings as described above.
+`kubernetes` includes application services and inference. `kubernetes-optional-bots` remains a compatible entry point to the same stack. Configure separately hosted NLP services explicitly.
 
 ## Helm
 
 Use [`helm/`](./helm) if you want value-driven rendering or upgrades. The chart keeps `global.imagePullPolicy: Always` and renders pod `restartPolicy: Always` explicitly for all Deployments.
-Helm deploys one `llm-bot` workload for NER, sentiment analysis, and cybersecurity classification. Clustering and summarization/title generation use the worker library with shared endpoint settings.
+Helm deploys the private `llm-inference` workload. Override `images.llmInference`, `resources.llmInference`, and `replicas.llmInference` as needed. Clustering and summarization/title generation use the worker library with shared endpoint settings.
 
 ```bash
 helm template taranis deploy/helm
@@ -102,7 +92,7 @@ kubectl apply -f deploy/argocd/application.yaml
 
 ## Analyst Chat
 
-Chat is independent of `llm-bot` and workers. Core calls the configured OpenAI-compatible provider directly using `{base_url}/responses` or `{base_url}/chat/completions`. Select the matching API format in **Admin Settings > LLM Endpoints** when configuring a Chat Completions provider; existing settings keep Responses. Core uses Redis only for a bounded lease per owned conversation or per user while creating a new conversation. If Redis is unavailable, new turns return 503 rather than risk out-of-order conversation history. Analysts need `ASSESS_ACCESS`; all generated Assess searches continue to enforce their source ACLs and TLP restrictions.
+Chat calls inference directly and is independent of workers. Core calls the configured OpenAI-compatible provider directly using `{base_url}/responses` or `{base_url}/chat/completions`. Select the matching API format in **Admin Settings > LLM Endpoints** when configuring a Chat Completions provider; existing settings keep Responses. Core uses Redis only for a bounded lease per owned conversation or per user while creating a new conversation. If Redis is unavailable, new turns return 503 rather than risk out-of-order conversation history. Analysts need `ASSESS_ACCESS`; all generated Assess searches continue to enforce their source ACLs and TLP restrictions.
 
 Both API formats stream general answers directly. Story questions first call the search tool, then receive a plain-text answer with tools disabled. Providers that reject streaming before sending any content permit one retry without streaming. When realtime is enabled, Core publishes progress stage identifiers and cumulative answer snapshots to the authenticated user's existing Centrifugo channel; the frontend localizes the stages. These publications are best-effort and have no history; the final synchronous response and PostgreSQL conversation remain authoritative.
 
@@ -131,11 +121,11 @@ kubectl rollout status deploy/collector
 kubectl rollout status deploy/cron
 ```
 
-If optional overlay is enabled:
+Verify inference:
 
 ```bash
-kubectl rollout status deploy/llm-bot
-kubectl get endpoints llm-bot
+kubectl rollout status deploy/llm-inference
+kubectl get endpoints llm-inference
 ```
 
 Useful logs:

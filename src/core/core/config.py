@@ -151,9 +151,10 @@ class Settings(BaseSettings):
     OPENID_METADATA_URL: str = "http://keycloak/realms/master/.well-known/openid-configuration"
     PRE_SEED_PASSWORD_ADMIN: str = "admin"
     PRE_SEED_PASSWORD_USER: str = "user"
+    DEFAULT_LLM_ENDPOINT: Annotated[dict[str, Any], NoDecode] = Field(default_factory=dict, repr=False)
     PRE_SEED_SETTINGS: Annotated[dict[str, Any], NoDecode] = Field(default_factory=dict, repr=False)
 
-    @field_validator("PRE_SEED_SETTINGS", mode="before")
+    @field_validator("PRE_SEED_SETTINGS", "DEFAULT_LLM_ENDPOINT", mode="before")
     @classmethod
     def parse_pre_seed_settings(cls, value: Any) -> Any:
         return json.loads(value) if isinstance(value, str) else value

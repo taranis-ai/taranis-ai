@@ -448,64 +448,41 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: llm-bot
+  name: llm-inference
   labels:
     {{- include "taranis.labels" . | nindent 4 }}
 spec:
-  replicas: {{ .Values.replicas.llmBot }}
+  replicas: {{ .Values.replicas.llmInference }}
   strategy:
     type: Recreate
   selector:
     matchLabels:
-      app: llm-bot
+      app: llm-inference
   template:
     metadata:
       labels:
-        app: llm-bot
+        app: llm-inference
     spec:
+      nodeSelector:
+        kubernetes.io/arch: amd64
       restartPolicy: Always
       containers:
-        - name: llm-bot
-          image: {{ include "taranis.image" .Values.images.llmBot | quote }}
+        - name: llm-inference
+          image: {{ include "taranis.image" .Values.images.llmInference | quote }}
           imagePullPolicy: {{ .Values.global.imagePullPolicy }}
-          env:
-            - name: DEBUG
-              valueFrom:
-                configMapKeyRef:
-                  name: taranis-config
-                  key: DEBUG
-                  optional: true
-            - name: API_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: taranis-secrets
-                  key: BOT_API_KEY
-            - name: LLM_BASE_URL
-              valueFrom:
-                configMapKeyRef:
-                  name: taranis-config
-                  key: LLM_BASE_URL
-            - name: LLM_MODEL
-              valueFrom:
-                configMapKeyRef:
-                  name: taranis-config
-                  key: LLM_MODEL
-                  optional: true
-            - name: LLM_TIMEOUT
-              valueFrom:
-                configMapKeyRef:
-                  name: taranis-config
-                  key: LLM_TIMEOUT
-                  optional: true
-            - name: LLM_API_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: taranis-secrets
-                  key: LLM_API_KEY
-                  optional: true
+          args: ["--ctx-size", "8192", "--jinja"]
+          volumeMounts:
+            - name: shm
+              mountPath: /dev/shm
           ports:
             - containerPort: 8000
               name: http
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            periodSeconds: 10
+            failureThreshold: 60
           readinessProbe:
             httpGet:
               path: /health
@@ -519,4 +496,9 @@ spec:
             initialDelaySeconds: 40
             periodSeconds: 30
           resources:
-            {{- toYaml .Values.resources.llmBot | nindent 12 }}
+            {{- toYaml .Values.resources.llmInference | nindent 12 }}
+      volumes:
+        - name: shm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 4Gi

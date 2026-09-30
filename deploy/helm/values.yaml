@@ -16,14 +16,11 @@ config:
   sqlalchemyPoolTimeout: "3600"
   sqlalchemyPoolRecycle: "3600"
   authenticator: database
+  defaultLlmEndpoint: '{"name":"Bundled inference","base_url":"http://llm-inference:8000/v1","model":"unsloth/gemma-4-E4B-it-GGUF","api_format":"chat_completions","timeout":120}'
   preSeedSettings: "{}"
-  nlpApiEndpoint: http://llm-bot:8000/ner
-  sentimentAnalysisApiEndpoint: http://llm-bot:8000/sentiment
-  cybersecClassifierApiEndpoint: http://llm-bot:8000/cybersec-classification
-  llmBaseUrl: CHANGE_ME_LLM_BASE_URL
-  llmModel: ""
-  llmApiMode: responses
-  llmTimeout: "120"
+  nlpApiEndpoint: ""
+  sentimentAnalysisApiEndpoint: ""
+  cybersecClassifierApiEndpoint: ""
   cacheDefaultTimeout: "1"
   chatEnabled: "false"
 
@@ -33,7 +30,6 @@ secrets:
   centrifugoApiKey: CHANGE_ME_CENTRIFUGO_API_KEY
   centrifugoConnectProxySecret: CHANGE_ME_CENTRIFUGO_CONNECT_PROXY_SECRET
   botApiKey: CHANGE_ME_BOT_API_KEY
-  llmApiKey: ""
   preSeedPasswordAdmin: CHANGE_ME_ADMIN_PASSWORD
   preSeedPasswordUser: CHANGE_ME_DEFAULT_USER_PASSWORD
 
@@ -90,9 +86,9 @@ images:
   worker:
     repository: ghcr.io/taranis-ai/taranis-worker
     tag: latest
-  llmBot:
-    repository: ghcr.io/taranis-ai/taranis-llm-bot
-    tag: latest
+  llmInference:
+    repository: ghcr.io/taranis-ai/gemma4-e4b-gguf
+    tag: cpu
 
 replicas:
   core: 1
@@ -102,7 +98,7 @@ replicas:
   collector: 1
   worker: 1
   cron: 1
-  llmBot: 1
+  llmInference: 1
 
 resources:
   core:
@@ -154,10 +150,10 @@ resources:
     requests:
       cpu: 100m
       memory: 128Mi
-  llmBot:
+  llmInference:
     limits:
-      cpu: "2"
-      memory: 4Gi
+      cpu: "4"
+      memory: 12Gi
     requests:
       cpu: 500m
-      memory: 1Gi
+      memory: 6Gi

@@ -267,9 +267,10 @@ def test_sqlalchemy_pool_recycle_accepts_minus_one(clear_pool_env_vars):
     assert settings.SQLALCHEMY_ENGINE_OPTIONS["pool_recycle"] == -1
 
 
+@pytest.mark.parametrize("variable", ["PRE_SEED_SETTINGS", "DEFAULT_LLM_ENDPOINT"])
 @pytest.mark.parametrize("payload", ["{", "[]", "null", '"value"'])
-def test_pre_seed_settings_requires_json_object(monkeypatch, payload):
-    monkeypatch.setenv("PRE_SEED_SETTINGS", payload)
+def test_pre_seed_settings_requires_json_object(monkeypatch, payload, variable):
+    monkeypatch.setenv(variable, payload)
 
     with pytest.raises((SettingsError, ValidationError)):
         Settings()
@@ -356,3 +357,69 @@ def test_persistent_settings_cache(session):
         assert len(queries) == before + 1
     finally:
         event.remove(connection, "before_cursor_execute", record_settings_query)
+
+
+def test_deployment_llm_default_initialization(session, monkeypatch):
+    from core.model.settings import Config
+    from core.model.settings import Settings as PersistentSettings
+
+    endpoint = {
+        "name": "Bundled inference",
+        "base_url": "http://llm-inference:8000/v1",
+        "model": "unsloth/gemma-4-E4B-it-GGUF",
+        "api_format": "chat_completions",
+    }
+    monkeypatch.setenv("DEFAULT_LLM_ENDPOINT", json.dumps(endpoint))
+    monkeypatch.setattr(Config, "DEFAULT_LLM_ENDPOINT", Settings().DEFAULT_LLM_ENDPOINT)
+    monkeypatch.setattr(Config, "PRE_SEED_SETTINGS", {})
+    session.delete(PersistentSettings.get_settings_entry())
+    session.flush()
+    PersistentSettings.initialize()
+    saved = PersistentSettings.get_settings()
+    assert len(saved["llm_endpoints"]) == 1
+    assert PersistentSettings.get_llm_endpoint("clustering")["base_url"] == endpoint["base_url"]
+    assert PersistentSettings.get_llm_endpoint("summarization")["api_format"] == "chat_completions"
+
+    # Restarts preserve saved edits and explicit feature assignments.
+    endpoint_id = saved["llm_default_endpoint"]
+    _, status = PersistentSettings.save_llm_endpoint({"model": "administrator-model", "api_key": "saved-key"}, endpoint_id)
+    assert status == 200
+    PersistentSettings.update({"settings": {"llm_chat_endpoint": endpoint_id}})
+    PersistentSettings.initialize()
+    assert PersistentSettings.get_llm_endpoint("chat")["model"] == "administrator-model"
+    assert PersistentSettings.get_llm_endpoint("chat")["api_key"] == "saved-key"
+
+    # An existing database with no default reuses the saved local endpoint.
+    PersistentSettings.update({"settings": {"llm_default_endpoint": ""}})
+    PersistentSettings.initialize()
+    assert PersistentSettings.get_settings()["llm_default_endpoint"] == endpoint_id
+    assert len(PersistentSettings.get_settings()["llm_endpoints"]) == 1
+    assert PersistentSettings.get_llm_endpoint("clustering")["model"] == "administrator-model"
+
+    # A configured external default is authoritative even on deployment updates.
+    result, status = PersistentSettings.save_llm_endpoint({"name": "External", "base_url": "https://provider.example/v1"})
+    assert status == 200
+    PersistentSettings.update({"settings": {"llm_default_endpoint": result["id"]}})
+    PersistentSettings.initialize()
+    assert PersistentSettings.get_llm_endpoint("clustering")["base_url"] == "https://provider.example/v1"
+    assert PersistentSettings.get_llm_endpoint("chat")["base_url"] == endpoint["base_url"]
+
+    monkeypatch.setattr(Config, "DEFAULT_LLM_ENDPOINT", {})
+    PersistentSettings.update({"settings": {"llm_default_endpoint": ""}})
+    PersistentSettings.initialize()
+    assert PersistentSettings.get_llm_endpoint("clustering") is None
+
+    # A saved, unassigned provider may already use the bundled display name.
+    entry = PersistentSettings.get_settings_entry()
+    values = PersistentSettings.get_settings()
+    values["llm_endpoints"] = {"custom": {**endpoint, "base_url": "https://custom.example/v1"}}
+    values["llm_chat_endpoint"] = "custom"
+    entry.settings = values
+    session.commit()
+    monkeypatch.setattr(Config, "DEFAULT_LLM_ENDPOINT", endpoint)
+    PersistentSettings.initialize()
+    values = PersistentSettings.get_settings()
+    assert len(values["llm_endpoints"]) == 2
+    assert values["llm_default_endpoint"] != "custom"
+    assert values["llm_endpoints"]["custom"]["name"] == "Bundled inference"
+    assert PersistentSettings.get_llm_endpoint("chat")["base_url"] == "https://custom.example/v1"

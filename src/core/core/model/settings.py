@@ -246,6 +246,21 @@ class Settings(BaseModel):
             onboarding_missing = True
             db.session.add(settings)
 
+        # Deployment defaults fill only an unassigned default, including on upgrades.
+        if Config.DEFAULT_LLM_ENDPOINT and not settings.settings["llm_default_endpoint"]:
+            endpoint = LLMEndpoint.model_validate(Config.DEFAULT_LLM_ENDPOINT).model_dump()
+            values = deepcopy(settings.settings)
+            endpoints = values["llm_endpoints"]
+            endpoint_id = next((key for key, item in endpoints.items() if item["base_url"] == endpoint["base_url"]), None)
+            if endpoint_id is None:
+                endpoint_id = cls.uuid7_str()
+                if any(item["name"].casefold() == endpoint["name"].casefold() for item in endpoints.values()):
+                    endpoint["name"] = f"{endpoint['name'][:61]} ({endpoint_id})"
+                endpoints[endpoint_id] = endpoint
+            values["llm_default_endpoint"] = endpoint_id
+            cls._validate_llm_settings(values)
+            settings.settings = values
+
         if onboarding_missing:
             from core.model.user import User
 

@@ -1,4 +1,19 @@
 services:
+  llm-inference:
+    image: "${LLM_INFERENCE_IMAGE:-ghcr.io/taranis-ai/gemma4-e4b-gguf:cpu}"
+    platform: linux/amd64
+    restart: unless-stopped
+    shm_size: 4gb
+    command: ["--ctx-size", "8192", "--jinja"]
+    expose:
+      - "8000"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 5m
+
   database:
     image: "docker.io/library/postgres:17-alpine"
     shm_size: 512mb
@@ -38,6 +53,7 @@ services:
       REDIS_PASSWORD: ""
       PRE_SEED_PASSWORD_ADMIN: admin
       PRE_SEED_PASSWORD_USER: test
+      DEFAULT_LLM_ENDPOINT: '${DEFAULT_LLM_ENDPOINT:-{"name":"Bundled inference","base_url":"http://llm-inference:8000/v1","model":"unsloth/gemma-4-E4B-it-GGUF","api_format":"chat_completions","timeout":120}}'
       PRE_SEED_SETTINGS: "${PRE_SEED_SETTINGS:-{}}"
       JWT_SECRET_KEY: load_testing_secret_key
       JWT_COOKIE_SUFFIX: ""
