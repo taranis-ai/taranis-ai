@@ -19,6 +19,13 @@ spec:
         - name: llm-inference
           image: ghcr.io/taranis-ai/gemma4-e4b-gguf:cpu
           imagePullPolicy: Always
+          env:
+            - name: LLAMA_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: taranis-secrets
+                  key: LLM_INFERENCE_API_KEY
+                  optional: true
           args: ["--ctx-size", "8192", "--jinja"]
           volumeMounts:
             - name: shm

@@ -3,6 +3,8 @@ services:
     image: "${LLM_INFERENCE_IMAGE:-ghcr.io/taranis-ai/gemma4-e4b-gguf:cpu}"
     restart: unless-stopped
     shm_size: 4gb
+    environment:
+      LLAMA_API_KEY: "${LLM_INFERENCE_API_KEY:-}"
     command: ["--ctx-size", "8192", "--jinja"]
     expose:
       - "8000"

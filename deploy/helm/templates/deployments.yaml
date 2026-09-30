@@ -40,6 +40,12 @@ spec:
                 secretKeyRef:
                   name: taranis-secrets
                   key: JWT_SECRET_KEY
+            - name: LLM_INFERENCE_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: taranis-secrets
+                  key: LLM_INFERENCE_API_KEY
+                  optional: true
             - name: API_KEY
               valueFrom:
                 secretKeyRef:
@@ -468,6 +474,13 @@ spec:
         - name: llm-inference
           image: {{ include "taranis.image" .Values.images.llmInference | quote }}
           imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          env:
+            - name: LLAMA_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: taranis-secrets
+                  key: LLM_INFERENCE_API_KEY
+                  optional: true
           args: ["--ctx-size", "8192", "--jinja"]
           volumeMounts:
             - name: shm

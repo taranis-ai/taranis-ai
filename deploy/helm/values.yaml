@@ -16,7 +16,7 @@ config:
   sqlalchemyPoolTimeout: "3600"
   sqlalchemyPoolRecycle: "3600"
   authenticator: database
-  defaultLlmEndpoint: '{"name":"Bundled inference","base_url":"http://llm-inference:8000/v1","model":"unsloth/gemma-4-E4B-it-GGUF","api_format":"chat_completions","timeout":120}'
+  defaultLlmEndpoint: '{"name":"internal","base_url":"http://llm-inference:8000/v1","model":"unsloth/gemma-4-E4B-it-GGUF","api_format":"chat_completions","timeout":120}'
   preSeedSettings: "{}"
   cacheDefaultTimeout: "1"
   chatEnabled: "false"
@@ -26,6 +26,7 @@ secrets:
   apiKey: CHANGE_ME_CORE_API_KEY
   centrifugoApiKey: CHANGE_ME_CENTRIFUGO_API_KEY
   centrifugoConnectProxySecret: CHANGE_ME_CENTRIFUGO_CONNECT_PROXY_SECRET
+  llmInferenceApiKey: ""
   botApiKey: CHANGE_ME_BOT_API_KEY
   preSeedPasswordAdmin: CHANGE_ME_ADMIN_PASSWORD
   preSeedPasswordUser: CHANGE_ME_DEFAULT_USER_PASSWORD

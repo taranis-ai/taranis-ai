@@ -151,7 +151,17 @@ class Settings(BaseSettings):
     OPENID_METADATA_URL: str = "http://keycloak/realms/master/.well-known/openid-configuration"
     PRE_SEED_PASSWORD_ADMIN: str = "admin"
     PRE_SEED_PASSWORD_USER: str = "user"
-    DEFAULT_LLM_ENDPOINT: Annotated[dict[str, Any], NoDecode] = Field(default_factory=dict, repr=False)
+    LLM_INFERENCE_API_KEY: SecretStr = Field(default=SecretStr(""), repr=False)
+    DEFAULT_LLM_ENDPOINT: Annotated[dict[str, Any], NoDecode] = Field(
+        default_factory=lambda: {
+            "name": "internal",
+            "base_url": "http://llm-inference:8000/v1",
+            "model": "unsloth/gemma-4-E4B-it-GGUF",
+            "api_format": "chat_completions",
+            "timeout": 120,
+        },
+        repr=False,
+    )
     PRE_SEED_SETTINGS: Annotated[dict[str, Any], NoDecode] = Field(default_factory=dict, repr=False)
 
     @field_validator("PRE_SEED_SETTINGS", "DEFAULT_LLM_ENDPOINT", mode="before")

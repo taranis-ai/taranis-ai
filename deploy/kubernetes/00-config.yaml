@@ -16,7 +16,7 @@ data:
   DISABLE_HTTP3: "false"
   SQLALCHEMY_POOL_TIMEOUT: "3600"
   SQLALCHEMY_POOL_RECYCLE: "3600"
-  DEFAULT_LLM_ENDPOINT: '{"name":"Bundled inference","base_url":"http://llm-inference:8000/v1","model":"unsloth/gemma-4-E4B-it-GGUF","api_format":"chat_completions","timeout":120}'
+  DEFAULT_LLM_ENDPOINT: '{"name":"internal","base_url":"http://llm-inference:8000/v1","model":"unsloth/gemma-4-E4B-it-GGUF","api_format":"chat_completions","timeout":120}'
   PRE_SEED_SETTINGS: "{}"
   TARANIS_AUTHENTICATOR: database
   CACHE_DEFAULT_TIMEOUT: "1"

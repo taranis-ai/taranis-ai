@@ -7,6 +7,7 @@ services:
       uv pip install --python /tmp/.venv/bin/python --no-deps psycopg-binary cryptography==46.0.7 &&
       /tmp/.venv/bin/python -m flask run --no-reload --host 0.0.0.0 --port 8080"
     environment:
+      DEFAULT_LLM_ENDPOINT: "{}"
       API_KEY: test_key
       JWT_SECRET_KEY: test_key_for_tests_only_do_not_use
       FLASK_DEBUG: "1"

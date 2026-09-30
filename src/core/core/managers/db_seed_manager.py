@@ -78,7 +78,6 @@ def pre_seed_update(db_engine: Engine):
     cleanup_empty_stories()
     migrate_missing_story_tlp()
     migrate_missing_initial_revisions()
-    cleanup_intelowl_email_enrichment_parameter()
     if db_engine.dialect.name == "postgresql":
         rebuild_story_search_vectors()
 
@@ -109,6 +108,38 @@ def pre_seed_update(db_engine: Engine):
     Settings.initialize()
 
 
+def migrate_bot_endpoint_parameters(settings):
+    from models.llm import LLM_BOT_FEATURES, LLMEndpoint
+
+    from core.managers.db_manager import db
+    from core.model.bot import Bot
+    from core.model.settings import Settings
+
+    if Config.DEFAULT_LLM_ENDPOINT:
+        endpoint = LLMEndpoint.model_validate(Config.DEFAULT_LLM_ENDPOINT).model_dump()
+        endpoint["api_key"] = Config.LLM_INFERENCE_API_KEY.get_secret_value()
+        values = deepcopy(settings.settings)
+        endpoints = values["llm_endpoints"]
+        endpoint_id = next((key for key, item in endpoints.items() if item["base_url"] == endpoint["base_url"]), None)
+        if endpoint_id is None:
+            endpoint_id = Settings.uuid7_str()
+            if any(item["name"].casefold() == endpoint["name"].casefold() for item in endpoints.values()):
+                endpoint["name"] = f"{endpoint['name'][:61]} ({endpoint_id})"
+            endpoints[endpoint_id] = endpoint
+        else:
+            endpoints[endpoint_id]["api_key"] = endpoint["api_key"]
+        if not values["llm_default_endpoint"]:
+            values["llm_default_endpoint"] = endpoint_id
+        Settings._validate_llm_settings(values)
+        settings.settings = values
+
+    obsolete_parameters = {"BOT_ENDPOINT", "BOT_API_KEY", "SUMMARY_ENDPOINT", "TITLE_ENDPOINT"}
+    for bot in db.session.execute(db.select(Bot)).scalars():
+        obsolete = obsolete_parameters if bot.type.value in LLM_BOT_FEATURES else {"INTEL_OWL_EMAIL_ENRICHMENT"}
+        if obsolete.intersection(bot.parameters):
+            bot.parameters = {key: value for key, value in bot.parameters.items() if key not in obsolete}
+
+
 def cleanup_invalid_source_icons():
     from core.managers.db_manager import db
     from core.model.osint_source import OSINTSource
@@ -128,21 +159,6 @@ def cleanup_invalid_source_icons():
     if removed_icons:
         db.session.commit()
         logger.info(f"Removed invalid icons from {removed_icons} OSINT sources")
-
-
-def cleanup_intelowl_email_enrichment_parameter():
-    from models.types import BOT_TYPES
-
-    from core.managers.db_manager import db
-    from core.model.bot import Bot
-
-    changed = False
-    for bot in Bot.get_all_by_type(BOT_TYPES.INTEL_OWL_BOT):
-        if "INTEL_OWL_EMAIL_ENRICHMENT" in bot.parameters:
-            bot.parameters = {key: value for key, value in bot.parameters.items() if key != "INTEL_OWL_EMAIL_ENRICHMENT"}
-            changed = True
-    if changed:
-        db.session.commit()
 
 
 def sync_presenter_templates():
