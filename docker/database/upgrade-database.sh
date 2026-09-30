@@ -1,44 +1,53 @@
 #!/usr/bin/env bash
 set -euo pipefail
+umask 077
 
-cd "$(dirname "$0")/.."
-
-if ! docker compose config --images | grep -Eq '^docker\.io/library/postgres:18([.-]|$)'; then
-    echo "Configure the database image as PostgreSQL 18 before upgrading (check POSTGRES_TAG)." >&2
+if [[ $# -gt 1 ]]; then
+    echo "Usage: $0 [existing_database_volume] (run from your Compose deployment directory)" >&2
     exit 1
 fi
+database_volume=${1:-}
+if [[ -z "$database_volume" ]]; then
+    database_volume=$(docker compose config --format json | jq -er '.volumes.database_data.name')
+fi
+upgrade_image=${UPGRADE_IMAGE:-pgautoupgrade/pgautoupgrade:18-alpine}
 
-db_container=$(docker compose ps -q database)
-[[ -n "$db_container" ]] || { echo "No running database service found." >&2; exit 1; }
-old_version=$(docker compose exec -T database sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAc "SHOW server_version_num"' </dev/null | tr -d '[:space:]')
-[[ "$old_version" =~ ^[0-9]+$ ]] || { echo "Could not determine PostgreSQL server version." >&2; exit 1; }
-old_major=$((old_version / 10000))
-if (( old_major < 14 || old_major >= 18 )); then
-    echo "Expected a running PostgreSQL 14-17 database; found version $old_major." >&2
+database_image=$(docker compose config --images database)
+if ! grep -Eq '^(docker\.io/)?(library/)?postgres:18([.@-]|$)' <<< "$database_image"; then
+    echo "Configure the Compose database image as PostgreSQL 18 before upgrading." >&2
     exit 1
 fi
+docker volume inspect "$database_volume" >/dev/null
+old_major=$(docker run --rm --network none \
+    --mount "type=volume,src=$database_volume,dst=/data,readonly" busybox cat /data/PG_VERSION)
+[[ "$old_major" =~ ^(14|15|16|17)$ ]] || { echo "Expected a PostgreSQL 14-17 cluster." >&2; exit 1; }
 
-database_volume=$(docker inspect "$db_container" --format '{{range .Mounts}}{{if eq .Destination "/var/lib/postgresql/data"}}{{.Name}}{{end}}{{end}}')
-[[ -n "$database_volume" ]] || { echo "Could not find the PostgreSQL data volume." >&2; exit 1; }
-echo "This will back up PostgreSQL $old_major and recreate volume $database_volume for PostgreSQL 18."
+echo "Upgrade PostgreSQL $old_major in volume $database_volume to 18; the stack will be stopped and backed up."
 read -r -p "Continue? (y/N): " confirm
 [[ "$confirm" == [yY] ]] || { echo "Upgrade cancelled."; exit 1; }
 
+docker pull "$upgrade_image"
 docker compose pull database
-service_list=$(docker compose config --services)
-services=()
-while IFS= read -r service; do
-    [[ "$service" == database ]] || services+=("$service")
-done <<< "$service_list"
-docker compose stop "${services[@]}"
-backup_dir=$(database/backup.sh --upgrade)
-echo "Backup saved in $backup_dir"
+mkdir -p backups
+backup_dir=$(mktemp -d "$PWD/backups/postgres-before-18.XXXXXX")
+backup_file="$backup_dir/database.tar.gz"
 
 docker compose down
-docker volume rm "$database_volume"
-database/restore.sh --database "$backup_dir"
+echo "Backing up to $backup_file"
+docker run --rm --network none \
+    --mount "type=volume,src=$database_volume,dst=/data,readonly" \
+    busybox tar -czf - -C /data . > "$backup_file"
+gzip -t "$backup_file"
+trap 'echo "Upgrade failed. Keep the backup for recovery: $backup_file" >&2' ERR
+
+echo "Upgrading with $upgrade_image"
+docker run --rm --network none \
+    --mount "type=volume,src=$database_volume,dst=/var/lib/postgresql" \
+    -e PGAUTO_ONESHOT=yes \
+    -e POSTGRES_USER="${DB_USER:-taranis}" -e POSTGRES_DB="${DB_DATABASE:-taranis}" \
+    -e POSTGRES_PASSWORD=unused "$upgrade_image"
 docker compose up -d --wait
 new_version=$(docker compose exec -T database sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAc "SHOW server_version_num"' | tr -d '[:space:]')
-[[ "$new_version" =~ ^18[0-9]{4}$ ]] || { echo "Restored database is not running PostgreSQL 18." >&2; exit 1; }
+[[ "$new_version" =~ ^18[0-9]{4}$ ]] || { echo "Database is not running PostgreSQL 18." >&2; exit 1; }
 docker compose ps
-echo "PostgreSQL 18 upgrade complete. Backup: $backup_dir"
+echo "PostgreSQL 18 upgrade complete. Keep the backup: $backup_file"
