@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 from typing import Literal
 from uuid import uuid4
 
+from models.llm import LLM_BOT_FEATURES
 from redis.exceptions import RedisError, WatchError
 from rq import Retry
 
@@ -15,8 +16,6 @@ from core.managers import queue_manager
 from core.service.cache_invalidation import invalidate_frontend_cache_on_success
 
 
-BOT_SERVICE_TYPES = {"nlp_bot", "sentiment_analysis_bot", "cybersec_classifier_bot"}
-LLM_BOT_FEATURES = {"story_bot": "clustering", "summary_bot": "summarization"}
 RETRY_INTERVALS = [10, 30, 120, 300]
 MESSAGES = {
     "pending": "Endpoint check pending.",
@@ -27,13 +26,10 @@ MESSAGES = {
 
 
 def endpoint_config(kind: str, endpoint_id: str) -> dict | None:
-    from core.model.bot import Bot
     from core.model.settings import Settings
 
     if kind == "llm":
         return Settings.get_settings()["llm_endpoints"].get(endpoint_id)
-    if kind == "bot" and (bot := Bot.get(endpoint_id)) and bot.enabled and bot.type.value in BOT_SERVICE_TYPES:
-        return {"type": bot.type.value, "parameters": bot.to_worker_dict()["parameters"]}
     return None
 
 
@@ -69,9 +65,6 @@ def bot_status(bot) -> dict | None:
 
     if not bot.enabled:
         return None
-    if bot.type.value in BOT_SERVICE_TYPES:
-        config = {"type": bot.type.value, "parameters": bot.to_worker_dict()["parameters"]}
-        return get_status("bot", bot.id, config)
     if bot.type.value in LLM_BOT_FEATURES:
         settings = Settings.get_settings()
         endpoint_id = bot.get_llm_endpoint_id(settings)
@@ -110,14 +103,10 @@ def schedule_check(kind: str, endpoint_id: str) -> None:
 
 
 def schedule_all() -> None:
-    from core.model.bot import Bot
     from core.model.settings import Settings
 
     for endpoint_id in Settings.get_settings()["llm_endpoints"]:
         schedule_check("llm", endpoint_id)
-    for bot in Bot.get_all_for_collector():
-        if bot.type.value in BOT_SERVICE_TYPES:
-            schedule_check("bot", bot.id)
 
 
 def record_result(kind: str, endpoint_id: str, generation: str, healthy: bool) -> bool:

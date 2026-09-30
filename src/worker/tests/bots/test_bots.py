@@ -5,7 +5,6 @@ import pytest
 from llm_bot.client import LLMClient
 from llm_bot.config import Config as LLMConfig
 
-from worker.bot_api import BotServiceUnavailableError
 from worker.bots.base_bot import BaseBot
 from worker.bots.tagging_content import _news_item_content_for_tagging
 from worker.config import Config
@@ -142,26 +141,25 @@ def test_wordlist_bot_respects_false_override(monkeypatch):
     assert result == {"item-1": {}}
 
 
-def test_nlp_bot(story_get_mock, ner_bot_mock):
+def test_nlp_bot(stories, story_get_mock):
     from worker import bots
 
-    nlp_bot = bots.NLPBot()
-    ner_bot_result = nlp_bot.execute()
+    endpoint = {"name": "NER", "base_url": "https://llm.test/v1", "timeout": 42}
+    with patch.object(LLMClient, "create_response", autospec=True) as provider:
+        provider.return_value = {"output_text": '{"Microsoft": "ORG"}'}
+        result = bots.NLPBot().execute({"llm_endpoint": endpoint, "REQUESTS_TIMEOUT": 17})
+        assert result == {item["id"]: {"Microsoft": "ORG"} for story in stories for item in story["news_items"]}
+        assert story_get_mock.call_count == 1
+        assert provider.await_count == sum(len(story["news_items"]) for story in stories)
+        assert provider.call_args.args[0].timeout == 17
+        assert provider.call_args.args[2] == _news_item_content_for_tagging(stories[-1]["news_items"][-1], separator="\n")
+        assert "Cybersecurity mode is disabled" in provider.call_args.args[1]
 
-    assert story_get_mock.call_count == 1
-    assert ner_bot_mock.call_count > 1
-
-    assert ner_bot_result
-    assert nlp_bot.bot_api.timeout == Config.REQUESTS_TIMEOUT
-
-
-def test_nlp_bot_uses_requests_timeout_parameter(story_get_mock, ner_bot_mock):
-    from worker import bots
-
-    nlp_bot = bots.NLPBot()
-    nlp_bot.execute({"REQUESTS_TIMEOUT": 17})
-
-    assert nlp_bot.bot_api.timeout == 17
+        cyber_story = {**stories[-1], "attributes": {"cybersecurity": {"value": "yes"}}}
+        with patch.object(bots.NLPBot, "get_stories", return_value=[cyber_story]):
+            bots.NLPBot().execute({"llm_endpoint": endpoint})
+        assert "Cybersecurity mode is enabled" in provider.call_args.args[1]
+        assert provider.call_args.args[0].timeout == 42
 
 
 @pytest.mark.parametrize("multiple_items", [True, False])
@@ -197,82 +195,38 @@ def test_summary_bot_uses_library(stories, story_update_mock, story_attribute_up
         assert story_attribute_update_mock.call_count == 1
 
 
-def test_cybersec_class_bot(stories, story_get_mock, news_item_attribute_update_mock, story_attribute_update_mock, cybersec_classifier_mock):
+@pytest.mark.parametrize("threshold, expected", [(0.65, "no"), (0.5, "yes")])
+def test_cybersec_class_bot(stories, story_get_mock, news_item_attribute_update_mock, story_attribute_update_mock, threshold, expected):
     from worker import bots
 
-    def extract_attributes(request_json):
-        if isinstance(request_json, dict):
-            return request_json.get("attributes", [])
-        return request_json
-
-    num_stories = len(stories)
-    num_news_items = sum(len(story.get("news_items", [])) for story in stories)
-
-    # setup classifier mock
-    cybersec_classifier_mock.post(
-        f"{Config.CYBERSEC_CLASSIFIER_API_ENDPOINT}/",
-        json={"cybersecurity": 0.6, "non-cybersecurity": 0.05},
+    endpoint = {"name": "Classification", "base_url": "https://llm.test/v1"}
+    with patch.object(LLMClient, "create_response", autospec=True) as provider:
+        provider.return_value = {"output_text": '{"cybersecurity": 0.6, "non-cybersecurity": 0.4}'}
+        result = bots.CyberSecClassifierBot().execute({"llm_endpoint": endpoint, "CLASSIFICATION_THRESHOLD": threshold})
+    count = sum(len(story["news_items"]) for story in stories)
+    assert result == {"message": f"Classified {count} news items"}
+    assert provider.await_count == count
+    assert news_item_attribute_update_mock.call_count == count
+    assert story_attribute_update_mock.call_count == len(stories)
+    assert all(
+        {attr["key"]: attr["value"] for attr in req.json()["attributes"]}["cybersecurity"] == expected
+        for req in story_attribute_update_mock.request_history
+    )
+    assert all(
+        {attr["key"]: attr["value"] for attr in req.json()["attributes"]}["cybersecurity_bot_score"] == "0.6"
+        for req in news_item_attribute_update_mock.request_history
     )
 
-    # threshold 0.65 -> all news items classified as no
-    cybersec_class_bot = bots.CyberSecClassifierBot()
-    Config.CYBERSEC_CLASSIFIER_THRESHOLD = 0.65
-    result_msg = cybersec_class_bot.execute()
-    assert result_msg == {"message": f"Classified {num_news_items} news items"}
-    assert story_get_mock.call_count == 1
-    assert news_item_attribute_update_mock.call_count == num_news_items
-    assert story_attribute_update_mock.call_count == num_stories
 
-    request_json_list = [req.json() for req in story_attribute_update_mock.request_history if req.method == "PATCH"][:num_stories]
-    cybersec_status_list = [
-        d["value"] for attributes_list in request_json_list for d in extract_attributes(attributes_list) if d["key"] == "cybersecurity"
-    ]
-    assert set(cybersec_status_list) == {"no"}
-
-    # threshold 0.5 -> all news items classified as yes
-    Config.CYBERSEC_CLASSIFIER_THRESHOLD = 0.5
-    _ = cybersec_class_bot.execute()
-    request_json_list = [req.json() for req in story_attribute_update_mock.request_history if req.method == "PATCH"][
-        num_stories : 2 * num_stories
-    ]
-    cybersec_status_list = [
-        d["value"] for attributes_list in request_json_list for d in extract_attributes(attributes_list) if d["key"] == "cybersecurity"
-    ]
-    assert set(cybersec_status_list) == {"yes"}
-
-    # bot API not reachable -> service failure is propagated
-    cybersec_classifier_mock.post(
-        f"{Config.CYBERSEC_CLASSIFIER_API_ENDPOINT}/",
-        json={"error": f"{Config.CYBERSEC_CLASSIFIER_API_ENDPOINT} not reachable"},
-        status_code=404,
-    )
-    with pytest.raises(BotServiceUnavailableError, match="Bot service is unavailable"):
-        cybersec_class_bot.execute()
-
-
-def test_sentiment_analysis_bot_accepts_flat_response_and_normalizes_label(
-    stories,
-    story_get_mock,
-    news_item_attribute_update_mock,
-    requests_mock,
-):
+def test_sentiment_analysis_bot(story_get_mock, news_item_attribute_update_mock):
     from worker import bots
 
-    requests_mock.post(
-        f"{Config.SENTIMENT_ANALYSIS_API_ENDPOINT}/",
-        json={"label": "Neutral", "score": 0.49320945143699646},
-    )
-
-    sentiment_bot = bots.SentimentAnalysisBot()
-    result_msg = sentiment_bot.execute()
-
-    assert result_msg == {"message": "Sentiment analysis complete"}
+    endpoint = {"name": "Sentiment", "base_url": "https://llm.test/v1"}
+    with patch.object(LLMClient, "create_response", autospec=True) as provider:
+        provider.return_value = {"output_text": '{"sentiment": {"label": "neutral", "score": 0.49}}'}
+        assert bots.SentimentAnalysisBot().execute({"llm_endpoint": endpoint}) == {"message": "Sentiment analysis complete"}
     assert story_get_mock.call_count == 1
     assert news_item_attribute_update_mock.call_count > 0
-
-    request_json_list = [req.json() for req in news_item_attribute_update_mock.request_history if req.method == "PUT"]
-    sentiment_categories = [
-        attr["value"] for payload in request_json_list for attr in payload.get("attributes", []) if attr["key"] == "sentiment_category"
-    ]
-    assert sentiment_categories
-    assert set(sentiment_categories) == {"neutral"}
+    for req in news_item_attribute_update_mock.request_history:
+        attributes = {attr["key"]: attr["value"] for attr in req.json()["attributes"]}
+        assert attributes == {"sentiment_category": "neutral", "sentiment_score": "0.49"}

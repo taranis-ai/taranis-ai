@@ -6,7 +6,7 @@ Story bot inputs, clustering execution, or LLM provider configuration.
 
 ## Contract
 
-`src/worker/worker/bots/story_bot.py` calls `llm_bot.tasks.cluster.cluster_stories` from the pinned `taranis-llm-bot` dependency inside the synchronous RQ job using `asyncio.run`. Clustering and summarization/title generation use the library; NER, sentiment, and classification still call the bot HTTP service.
+`src/worker/worker/bots/story_bot.py` calls `llm_bot.tasks.cluster.cluster_stories` from the pinned `taranis-llm-bot` dependency inside the synchronous RQ job using `asyncio.run`. Clustering, summarization/title generation, NER, sentiment, and classification use the library and shared endpoints.
 
 The dependency uses the published `taranis-llm-bot==0.1.2` release, which fixes Pydantic `schema` field-shadowing warnings without worker-side warning suppression.
 

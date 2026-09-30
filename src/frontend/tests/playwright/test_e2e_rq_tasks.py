@@ -417,11 +417,17 @@ def test_rq_scheduled_wordlist_bot_cron(
 
 @pytest.mark.e2e_ci
 def test_endpoint_check_marks_bot_and_health(worker_process: None, rq_harness: RqE2EHarness) -> None:
+    endpoint = rq_harness.core_client.json_request(
+        "POST",
+        "/settings/llm-endpoints",
+        json_data={"name": f"Endpoint check {uuid.uuid4().hex}", "base_url": "http://127.0.0.1:1/v1", "timeout": 1},
+    )
+    endpoint_id = endpoint["id"]
     bot_id = rq_harness.create_bot(
         {
             "name": f"Endpoint check {uuid.uuid4().hex}",
             "type": "nlp_bot",
-            "parameters": {"BOT_ENDPOINT": "http://127.0.0.1:1/ner", "REQUESTS_TIMEOUT": 1},
+            "parameters": {"LLM_ENDPOINT": endpoint_id},
         }
     )
     route = f"/config/bots/{bot_id}"
@@ -442,3 +448,4 @@ def test_endpoint_check_marks_bot_and_health(worker_process: None, rq_harness: R
         assert rq_harness.core_client.json_request("GET", route)["endpoint_health"] is None
     finally:
         rq_harness.core_client.delete(route)
+        rq_harness.core_client.post(f"/settings/llm-endpoints/{endpoint_id}/delete", json_data={})

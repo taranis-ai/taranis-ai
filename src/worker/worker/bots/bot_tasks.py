@@ -5,6 +5,7 @@ Functions for executing bots to process news items.
 
 from typing import Any
 
+from models.llm import LLM_BOT_FEATURES
 from models.worker_parameters import effective_parameter_values
 from rq import get_current_job
 
@@ -135,7 +136,7 @@ def _execute_by_config(bot_config: dict, filter: dict | None = None, bot_id: str
         raise ValueError(f"Bot type '{bot_type}' not implemented")
     bot_params: dict[str, Any] = effective_parameter_values(bot_type, bot_config.get("parameters", {}))
 
-    if bot_type in {"story_bot", "summary_bot"}:
+    if bot_type in LLM_BOT_FEATURES:
         bot_params["llm_endpoint"] = bot_config.get("llm_endpoint")
 
     if filter:

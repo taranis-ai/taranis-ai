@@ -52,9 +52,9 @@ uv run --no-sync --frozen taranis-intelowl-setup --url http://127.0.0.1:18080
 
 Chat, story clustering, and summarization share **Admin Settings > LLM Endpoints**. Add a named provider/model with a base URL, API format (`responses` or `chat_completions`), optional API key, and timeout. Select a default endpoint and optional feature overrides. Summarization and title generation share one assignment.
 
-Clustering and summarization run the installed `taranis-llm-bot` library directly. Core includes the effective endpoint in the worker’s bot configuration, resolving the bot selection, feature assignment, then shared default; settings changes apply to the next run without restarting. The bot's optional `REQUESTS_TIMEOUT` takes precedence over the endpoint timeout. Worker `LLM_*` environment values and legacy clustering/summary service endpoints no longer select these providers.
+NER, sentiment, cybersecurity classification, clustering, and summarization run the installed `taranis-llm-bot` library directly. Core includes the effective endpoint in the worker’s bot configuration, resolving the bot selection, feature assignment, then shared default; settings changes apply to the next run without restarting. The bot's optional `REQUESTS_TIMEOUT` takes precedence over the endpoint timeout. Worker `LLM_*` environment values and legacy bot service endpoints/keys no longer select these providers.
 
-NER, sentiment analysis, and cybersecurity classification still use the standalone `llm-bot` service and its configuration. Workers must be able to reach the configured providers. Missing shared configuration fails the affected job with a setup message; there is no implicit environment fallback.
+No standalone NLP services are required. NER preserves entity tags and cybersecurity mode; sentiment preserves category/score attributes; classification preserves item scores and story status and honors `CLASSIFICATION_THRESHOLD`. Workers must be able to reach the configured providers. Missing shared configuration fails the affected job with a setup message; there is no implicit environment fallback.
 
 Clustering sends only story IDs, summaries, and tags; full news-item text is not used. Configure upstream enrichment as needed.
 

@@ -217,42 +217,6 @@ services:
         max-file: "10"
 
 
-  nlp_bot:
-    depends_on:
-      workers:
-        condition: service_healthy
-    deploy:
-      restart_policy:
-        condition: always
-    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-natural-language-processing:${TARANIS_BOT_TAG:-stable}"
-    environment:
-      API_KEY: "${BOT_API_KEY}"
-      DEBUG: "${DEBUG:-False}"
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "200k"
-        max-file: "10"
-
-
-  sentiment_analysis_bot:
-    depends_on:
-      workers:
-        condition: service_healthy
-    deploy:
-      restart_policy:
-        condition: always
-    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-sentiment-analysis:${TARANIS_BOT_TAG:-stable}"
-    environment:
-      API_KEY: "${BOT_API_KEY}"
-      DEBUG: "${DEBUG:-False}"
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "200k"
-        max-file: "10"
-
-
   telemetry:
     profiles: ["telemetry"]
     image: "docker.io/grafana/otel-lgtm:${GRAFANA_OTEL_LGTM_TAG:-0.30.2}"

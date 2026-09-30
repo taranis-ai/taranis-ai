@@ -21,9 +21,6 @@ data:
   DEFAULT_LLM_ENDPOINT: {{ .Values.config.defaultLlmEndpoint | quote }}
   PRE_SEED_SETTINGS: {{ .Values.config.preSeedSettings | quote }}
   TARANIS_AUTHENTICATOR: {{ .Values.config.authenticator | quote }}
-  NLP_API_ENDPOINT: {{ .Values.config.nlpApiEndpoint | quote }}
-  SENTIMENT_ANALYSIS_API_ENDPOINT: {{ .Values.config.sentimentAnalysisApiEndpoint | quote }}
-  CYBERSEC_CLASSIFIER_API_ENDPOINT: {{ .Values.config.cybersecClassifierApiEndpoint | quote }}
   CACHE_DEFAULT_TIMEOUT: {{ .Values.config.cacheDefaultTimeout | quote }}
   CHAT_ENABLED: {{ .Values.config.chatEnabled | quote }}
 ---

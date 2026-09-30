@@ -71,7 +71,7 @@ class TestBotTask:
     @pytest.mark.parametrize(
         "failure", [RequestException("private provider detail"), UpstreamLLMError("private provider detail"), None, "unconfigured"]
     )
-    @pytest.mark.parametrize("bot_type", ["story_bot", "summary_bot"])
+    @pytest.mark.parametrize("bot_type", ["story_bot", "summary_bot", "nlp_bot", "sentiment_analysis_bot", "cybersec_classifier_bot"])
     def test_llm_bot_failure_is_safe(self, current_job, requests_mock, failure, bot_type):
         requests_mock.real_http = False
         requests_mock.get(

@@ -91,23 +91,19 @@ def test_endpoint_health_lifecycle(client, auth_header, api_header, app, db_pers
             assert current["status"] == "pending"
             assert client.post(route, json={"generation": current["generation"], "healthy": True}, headers=api_header).json["accepted"]
 
-            response = client.post(
-                "/api/config/bots",
-                json={"name": "NLP health", "type": "nlp_bot", "parameters": {"BOT_ENDPOINT": "http://bot.example/ner"}},
-                headers=auth_header,
-            )
-            service_bot_id = response.json["id"]
-            bot_state = read_state("bot", service_bot_id)
-            assert bot_state["status"] == "pending"
-            bot_route = f"/api/worker/endpoint-health/bot/{service_bot_id}"
-            assert client.post(bot_route, json={"generation": bot_state["generation"], "healthy": False}, headers=api_header).json["accepted"]
-            assert client.get("/api/health").status_code == 503
-            assert Bot.get_current_failure_count() == 1
-            client.patch(f"/api/config/bots/{service_bot_id}", json={"enabled": False}, headers=auth_header)
-            assert client.get("/api/health").status_code == 200
-            assert client.post(bot_route, json={"generation": bot_state["generation"], "healthy": False}, headers=api_header).json == {
-                "accepted": False
-            }
+            for bot_type in ("nlp_bot", "sentiment_analysis_bot", "cybersec_classifier_bot"):
+                response = client.post(
+                    "/api/config/bots",
+                    json={"name": bot_type, "type": bot_type, "parameters": {"LLM_ENDPOINT": endpoint_id}},
+                    headers=auth_header,
+                )
+                assert response.status_code == 201
+                shared_bot_id = response.json["id"]
+                shared_route = f"/api/config/bots/{shared_bot_id}"
+                assert client.get(shared_route, headers=auth_header).json["endpoint_health"]["status"] == "up"
+                assert read_state("bot", shared_bot_id) == {}
+                client.patch(shared_route, json={"enabled": False}, headers=auth_header)
+                assert client.get(shared_route, headers=auth_header).json["endpoint_health"] is None
         finally:
             for bot in session.query(Bot).all():
                 if bot.id not in original_bots:

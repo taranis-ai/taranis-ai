@@ -3,6 +3,7 @@ from typing import Any, ClassVar, Literal
 from flask import render_template, request, url_for
 from markupsafe import Markup, escape
 from models.admin import AdminMenuBadges, Bot, Settings, WordList
+from models.llm import LLM_BOT_FEATURES
 from models.types import BOT_TYPES
 from werkzeug.exceptions import HTTPException
 
@@ -239,12 +240,11 @@ class BotView(AdminBaseView):
 
     @classmethod
     def get_llm_endpoint_options(cls, bot_type: str) -> list[dict[str, str]] | None:
-        if bot_type.lower() not in {"story_bot", "summary_bot"}:
+        if not (feature := LLM_BOT_FEATURES.get(bot_type.lower())):
             return None
         settings = DataPersistenceLayer().get_first(Settings)
         values = settings.settings if settings else None
         endpoints = values.llm_endpoints if values else {}
-        feature = "clustering" if bot_type.lower() == "story_bot" else "summarization"
         default_id = (getattr(values, f"llm_{feature}_endpoint") or values.llm_default_endpoint) if values else ""
         default_name = endpoints.get(default_id, {}).get("name", "Not configured")
         return [{"id": "", "name": f"Use shared assignment ({default_name})"}] + [

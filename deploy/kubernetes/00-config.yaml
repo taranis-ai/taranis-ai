@@ -19,9 +19,6 @@ data:
   DEFAULT_LLM_ENDPOINT: '{"name":"Bundled inference","base_url":"http://llm-inference:8000/v1","model":"unsloth/gemma-4-E4B-it-GGUF","api_format":"chat_completions","timeout":120}'
   PRE_SEED_SETTINGS: "{}"
   TARANIS_AUTHENTICATOR: database
-  NLP_API_ENDPOINT: ""
-  SENTIMENT_ANALYSIS_API_ENDPOINT: ""
-  CYBERSEC_CLASSIFIER_API_ENDPOINT: ""
   CACHE_DEFAULT_TIMEOUT: "1"
   CHAT_ENABLED: "false"
 ---

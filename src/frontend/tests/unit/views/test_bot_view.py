@@ -71,14 +71,11 @@ def test_bot_parameters_include_optional_positive_integer_requests_timeout(authe
     assert requests_timeout_fields[0].get("min") == "1"
     assert requests_timeout_fields[0].get("required") is None
     assert refresh_interval_fields[0].get("required") is None
-    if bot_type in {"story_bot", "summary_bot"}:
-        assert tree.xpath('//select[@name="parameters[LLM_ENDPOINT]"]')
-        assert not tree.xpath(
-            '//input[@name="parameters[BOT_API_KEY]" or @name="parameters[BOT_ENDPOINT]" or @name="parameters[SUMMARY_ENDPOINT]" or @name="parameters[TITLE_ENDPOINT]"]'
-        )
-        assert tree.xpath('//a[contains(@href, "#llm-endpoints")]')
-    else:
-        assert tree.xpath('//*[@title="LLM request timeout in seconds."]')
+    assert tree.xpath('//select[@name="parameters[LLM_ENDPOINT]"]')
+    assert not tree.xpath(
+        '//input[@name="parameters[BOT_API_KEY]" or @name="parameters[BOT_ENDPOINT]" or @name="parameters[SUMMARY_ENDPOINT]" or @name="parameters[TITLE_ENDPOINT]"]'
+    )
+    assert tree.xpath('//a[contains(@href, "#llm-endpoints")]')
     assert response.text.index('name="parameters[ITEM_FILTER]"') < response.text.index('name="parameters[REQUESTS_TIMEOUT]"')
 
 

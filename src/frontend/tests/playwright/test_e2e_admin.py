@@ -1675,7 +1675,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             expect(endpoint).to_have_count(1)
             expect(page.locator("#notification-bar")).to_contain_text("Reassign this endpoint")
             reset_htmx_state(page)
-            for bot_type in ("story_bot", "summary_bot"):
+            for bot_type in ("story_bot", "summary_bot", "nlp_bot", "sentiment_analysis_bot", "cybersec_classifier_bot"):
                 page.goto(url_for("admin.bots", _external=True))
                 page.get_by_test_id("new-bot-button").click()
                 selector = page.get_by_role("combobox", name="LLM endpoint", exact=True)

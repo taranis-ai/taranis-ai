@@ -4,7 +4,23 @@ from urllib.parse import urlparse
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
-LLM_FEATURES = {"chat": "Chat", "clustering": "Story clustering", "summarization": "Summarization and titles"}
+LLM_FEATURES = {
+    "chat": "Chat",
+    "clustering": "Story clustering",
+    "summarization": "Summarization and titles",
+    "ner": "Named-entity recognition",
+    "sentiment": "Sentiment analysis",
+    "classification": "Cybersecurity classification",
+}
+
+
+LLM_BOT_FEATURES = {
+    "story_bot": "clustering",
+    "summary_bot": "summarization",
+    "nlp_bot": "ner",
+    "sentiment_analysis_bot": "sentiment",
+    "cybersec_classifier_bot": "classification",
+}
 
 
 class LLMEndpoint(BaseModel):

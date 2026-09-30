@@ -48,7 +48,7 @@ Deployment Compose stacks ship `ghcr.io/taranis-ai/gemma4-e4b-gguf:cpu` as the p
 
 Core receives `DEFAULT_LLM_ENDPOINT` as a JSON endpoint object. On fresh databases and upgrades, startup registers it and selects it only when the saved shared default is empty. A saved endpoint with the same base URL is reused without changing its model or credentials. Existing defaults and feature/bot selections remain authoritative. This is separate from `PRE_SEED_SETTINGS`, which only applies to fresh databases. Set `DEFAULT_LLM_ENDPOINT={}` to disable automatic registration; removing the variable does not remove a persisted endpoint. Change providers in **Admin Settings > LLM Endpoints**. Set `LLM_INFERENCE_IMAGE` to override the published image; update the endpoint model/API settings to match.
 
-NER, sentiment, and classification require their own HTTP services and are not supplied by the inference image. Existing PPN/Tor/bots variants retain their separate NLP containers; configure `NLP_API_ENDPOINT`, `SENTIMENT_ANALYSIS_API_ENDPOINT`, and `CYBERSEC_CLASSIFIER_API_ENDPOINT` or each bot's service endpoint explicitly. Do not point them at the inference server's OpenAI API.
+NER, sentiment, and cybersecurity classification also call this shared endpoint directly from workers. Their standalone containers are removed from the bots, PPN, and Tor Compose variations. Configure feature assignments or per-bot selections in LLM Endpoints; old service URLs and keys are unused. Classification uses each bot’s `CLASSIFICATION_THRESHOLD`.
 
 After updating, pull images, restart services, and remove obsolete bot containers:
 
@@ -58,7 +58,7 @@ docker compose up -d --remove-orphans
 docker compose ps
 ```
 
-Verify inference health, Core readiness, worker health, the selected default in Admin Settings, and a known summary/clustering job. Keep the previous images and configuration for rollback. Restore the old bot services and their endpoints if reverting; no database schema migration is needed.
+Verify inference health, Core readiness, worker health, the selected default in Admin Settings, and known NER, sentiment, classification, summary, and clustering jobs. Keep the previous images and configuration for rollback. Restore the old bot services and their endpoints if reverting; no database schema migration is needed.
 
 ## Startup & Usage
 

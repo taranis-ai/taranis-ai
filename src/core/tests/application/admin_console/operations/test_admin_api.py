@@ -79,7 +79,16 @@ class TestAdminApi(BaseTest):
 
         assert response.get_json()["settings"]["default_bot_lookback_days"] == 0
 
-    def test_llm_endpoints_assignments_and_secrets(self, client, auth_header, app, monkeypatch):
+    @pytest.mark.parametrize(
+        "bot_type, feature",
+        [
+            ("story_bot", "clustering"),
+            ("nlp_bot", "ner"),
+            ("sentiment_analysis_bot", "sentiment"),
+            ("cybersec_classifier_bot", "classification"),
+        ],
+    )
+    def test_llm_endpoints_assignments_and_secrets(self, client, auth_header, app, monkeypatch, bot_type, feature):
         from core.model.settings import Settings
         from core.service.chat import ChatClient
 
@@ -118,7 +127,7 @@ class TestAdminApi(BaseTest):
                 90,
             )
             assert Settings.get_settings()["chat_max_stories"] == 8
-        bot_response = client.post("/api/config/bots", json={"name": "Endpoint selection", "type": "story_bot"}, headers=auth_header)
+        bot_response = client.post("/api/config/bots", json={"name": "Endpoint selection", "type": bot_type}, headers=auth_header)
         assert bot_response.status_code == 201
         bot_id = bot_response.json["id"]
         worker_url = f"/api/worker/bots/{bot_id}"
@@ -131,14 +140,14 @@ class TestAdminApi(BaseTest):
         override_id = self.assert_post_ok(
             client, "llm-endpoints", {"name": "Clustering", "base_url": "http://local-model/v1"}, auth_header
         ).get_json()["id"]
-        self.assert_patch_ok(client, "settings", {"settings": {"llm_clustering_endpoint": override_id}}, auth_header)
+        self.assert_patch_ok(client, "settings", {"settings": {f"llm_{feature}_endpoint": override_id}}, auth_header)
         assert client.get(worker_url, headers=worker_headers).get_json()["llm_endpoint"]["base_url"] == "http://local-model/v1"
         response = client.post(self.concat_url(f"llm-endpoints/{override_id}/delete"), headers=auth_header)
         assert response.status_code == 409
         self.assert_post_ok(client, f"llm-endpoints/{endpoint_id}", {"api_key_clear": "true"}, auth_header)
         with app.app_context():
             assert ChatClient().api_key == ""
-        self.assert_patch_ok(client, "settings", {"settings": {"llm_clustering_endpoint": ""}}, auth_header)
+        self.assert_patch_ok(client, "settings", {"settings": {f"llm_{feature}_endpoint": ""}}, auth_header)
         bot_url = f"/api/config/bots/{bot_id}"
         assert client.patch(bot_url, json={"parameters": {"LLM_ENDPOINT": override_id}}, headers=auth_header).status_code == 200
         assert client.get(worker_url, headers=worker_headers).json["llm_endpoint"]["base_url"] == "http://local-model/v1"
@@ -163,6 +172,7 @@ class TestAdminApi(BaseTest):
         self.assert_patch_ok(client, "settings", {"settings": {"llm_default_endpoint": ""}}, auth_header)
         assert client.get(worker_url, headers=worker_headers).json["llm_endpoint"] is None
         assert client.delete(bot_url, headers=auth_header).status_code == 200
+        self.assert_post_ok(client, f"llm-endpoints/{endpoint_id}/delete", {}, auth_header)
 
     def test_settings_rejects_negative_bot_lookback(self, client, auth_header):
         response = client.put(

@@ -1,5 +1,7 @@
-from worker.bot_api import BotApi
-from worker.config import Config
+from llm_bot.schemas import NerRequest
+from llm_bot.tasks.ner import extract_entities
+
+from worker.llm import get_llm_client, run_llm_task
 
 from .base_bot import BaseBot
 from .tagging_content import _news_item_content_for_tagging
@@ -22,11 +24,7 @@ class NLPBot(BaseBot):
         if not parameters:
             parameters = {}
         if stories := self.get_stories(parameters):
-            self.bot_api = BotApi(
-                bot_endpoint=parameters.get("BOT_ENDPOINT", Config.NLP_API_ENDPOINT),
-                bot_api_key=parameters.get("BOT_API_KEY", Config.BOT_API_KEY),
-                requests_timeout=parameters.get("REQUESTS_TIMEOUT"),
-            )
+            self.llm_client = get_llm_client(parameters)
 
             for story_batch in batched(stories):
                 update_result |= self._process_stories(story_batch)
@@ -49,9 +47,5 @@ class NLPBot(BaseBot):
         return update_result
 
     def _extract_ner(self, text: str, is_cybersecurity: bool = False) -> dict:
-        if keywords := self.bot_api.api_post("/", {"text": text, "cybersecurity": is_cybersecurity}):
-            return keywords
-        return {}
-
-    # def not_in_stopwords(self, keyword: str) -> bool:
-    #    return keyword not in stopwords.words(self.language)
+        request = NerRequest(text=text, cybersecurity=is_cybersecurity)
+        return run_llm_task(extract_entities(request, client=self.llm_client)).root

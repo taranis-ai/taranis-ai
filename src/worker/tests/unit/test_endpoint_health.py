@@ -20,19 +20,6 @@ from worker.endpoint_health import check_endpoint
             "http://model.test/v1/chat/completions",
             {"choices": [{"message": {"role": "assistant", "content": "OK"}, "finish_reason": "stop"}]},
         ),
-        ("bot", {"type": "nlp_bot", "parameters": {"BOT_ENDPOINT": "http://bot.test/ner"}}, "http://bot.test/ner/", {"Austria": "location"}),
-        (
-            "bot",
-            {"type": "sentiment_analysis_bot", "parameters": {"BOT_ENDPOINT": "http://bot.test/sentiment"}},
-            "http://bot.test/sentiment/",
-            {"sentiment": {"label": "neutral", "score": 0.9}},
-        ),
-        (
-            "bot",
-            {"type": "cybersec_classifier_bot", "parameters": {"BOT_ENDPOINT": "http://bot.test/classify"}},
-            "http://bot.test/classify/",
-            {"cybersecurity": 0.1, "non-cybersecurity": 0.9},
-        ),
     ],
 )
 def test_endpoint_check_failure_and_recovery(requests_mock, kind, config, url, result):

@@ -2,7 +2,6 @@
 
 from niquests.exceptions import RequestException
 
-from worker.config import Config
 from worker.core_api import CoreApi
 from worker.http_client import http_request, http_session_scope
 from worker.log import logger
@@ -32,20 +31,15 @@ def check_endpoint(kind: str, endpoint_id: str, generation: str):
 
 def probe(kind: str, config: dict) -> bool:
     text = "Reply with OK."
-    chat = kind == "llm" and config["api_format"] == "chat_completions"
-    if kind == "llm":
-        url = f"{config['base_url']}/{'chat/completions' if chat else 'responses'}"
-        payload = {"messages": [{"role": "user", "content": text}]} if chat else {"input": text, "store": False}
-        if config.get("model"):
-            payload["model"] = config["model"]
-        api_key = config.get("api_key", "")
-        timeout = min(config["timeout"], 120)
-    else:
-        parameters = config["parameters"]
-        url = f"{parameters['BOT_ENDPOINT']}/"
-        payload = {"text": "This is an endpoint connectivity test."}
-        api_key = parameters.get("BOT_API_KEY", Config.BOT_API_KEY)
-        timeout = min(parameters.get("REQUESTS_TIMEOUT") or Config.REQUESTS_TIMEOUT, 120)
+    if kind != "llm":
+        return False
+    chat = config["api_format"] == "chat_completions"
+    url = f"{config['base_url']}/{'chat/completions' if chat else 'responses'}"
+    payload = {"messages": [{"role": "user", "content": text}]} if chat else {"input": text, "store": False}
+    if config.get("model"):
+        payload["model"] = config["model"]
+    api_key = config.get("api_key", "")
+    timeout = min(config["timeout"], 120)
     try:
         response = http_request(
             "POST",
@@ -53,33 +47,26 @@ def probe(kind: str, config: dict) -> bool:
             json=payload,
             headers={"Authorization": f"Bearer {api_key}"} if api_key else {},
             timeout=timeout,
-            verify=True if kind == "llm" else Config.SSL_VERIFICATION,
+            verify=True,
         )
         response.raise_for_status()
         result = response.json()
         if not isinstance(result, dict) or result.get("error") is not None:
             return False
-        if kind == "llm":
-            if chat:
-                return any(
-                    isinstance(choice, dict) and isinstance(choice.get("message"), dict) and bool(choice["message"].get("content"))
-                    for choice in result.get("choices", [])
-                )
-            return result.get("status") in {None, "completed"} and any(
-                isinstance(item, dict)
-                and item.get("type") == "message"
-                and any(
-                    isinstance(content, dict) and content.get("type") == "output_text" and bool(content.get("text"))
-                    for content in item.get("content", [])
-                )
-                for item in result.get("output", [])
+        if chat:
+            return any(
+                isinstance(choice, dict) and isinstance(choice.get("message"), dict) and bool(choice["message"].get("content"))
+                for choice in result.get("choices", [])
             )
-        if config["type"] == "sentiment_analysis_bot":
-            sentiment = result.get("sentiment", result)
-            return isinstance(sentiment, dict) and bool(sentiment.get("label")) and isinstance(sentiment.get("score"), (int, float))
-        if config["type"] == "cybersec_classifier_bot":
-            return isinstance(result.get("cybersecurity"), (int, float))
-        return all(isinstance(value, str) for value in result.values())
+        return result.get("status") in {None, "completed"} and any(
+            isinstance(item, dict)
+            and item.get("type") == "message"
+            and any(
+                isinstance(content, dict) and content.get("type") == "output_text" and bool(content.get("text"))
+                for content in item.get("content", [])
+            )
+            for item in result.get("output", [])
+        )
     except (RequestException, ValueError, TypeError):
         logger.exception(f"Endpoint probe failed for {kind}")
         return False

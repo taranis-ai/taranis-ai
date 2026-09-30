@@ -86,9 +86,6 @@ class Bot(BaseModel):
             cls.validate_dependency_config()
             db.session.commit()
             bot.schedule_bot()
-            from core.service.endpoint_health import schedule_check
-
-            schedule_check("bot", bot.id)
             return bot
         except Exception:
             db.session.rollback()
@@ -142,9 +139,6 @@ class Bot(BaseModel):
             raise
 
         bot._refresh_schedule_registration()
-        from core.service.endpoint_health import schedule_check
-
-        schedule_check("bot", bot.id)
 
         return bot
 
@@ -477,24 +471,22 @@ class Bot(BaseModel):
         )
         db.session.delete(bot)
         db.session.commit()
-        from core.service.endpoint_health import schedule_check
-
-        schedule_check("bot", id)
         return {"message": "Bot deleted"}, 200
 
     def get_schedule(self) -> str:
         return self.parameters.get("REFRESH_INTERVAL", "")
 
     def get_llm_endpoint_id(self, settings: dict) -> str | None:
-        from core.service.endpoint_health import LLM_BOT_FEATURES
+        from models.llm import LLM_BOT_FEATURES
 
         if feature := LLM_BOT_FEATURES.get(self.type.value):
             return self.parameters.get("LLM_ENDPOINT") or settings.get(f"llm_{feature}_endpoint") or settings.get("llm_default_endpoint")
         return None
 
     def to_worker_dict(self) -> dict[str, Any]:
+        from models.llm import LLM_BOT_FEATURES
+
         from core.model.settings import Settings
-        from core.service.endpoint_health import LLM_BOT_FEATURES
 
         data = super().to_dict()
         data["parameters"] = effective_parameters(self.type, self.parameters)

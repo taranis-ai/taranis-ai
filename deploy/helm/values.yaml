@@ -18,9 +18,6 @@ config:
   authenticator: database
   defaultLlmEndpoint: '{"name":"Bundled inference","base_url":"http://llm-inference:8000/v1","model":"unsloth/gemma-4-E4B-it-GGUF","api_format":"chat_completions","timeout":120}'
   preSeedSettings: "{}"
-  nlpApiEndpoint: ""
-  sentimentAnalysisApiEndpoint: ""
-  cybersecClassifierApiEndpoint: ""
   cacheDefaultTimeout: "1"
   chatEnabled: "false"
 
