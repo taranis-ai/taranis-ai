@@ -8,9 +8,9 @@ Or using uv:
     uv run python show_cron_jobs.py
 """
 
-from redis import Redis
 from redis.exceptions import RedisError
 
+from worker import get_redis_connection
 from worker.config import Config
 from worker.log import logger
 
@@ -23,7 +23,7 @@ LOCK_KEY = "rq:cron:leader"
 def show_cron_status():
     """Display scheduler lock state and cron definition counters."""
     try:
-        redis_conn = Redis.from_url(Config.REDIS_URL, password=Config.REDIS_PASSWORD, decode_responses=False)
+        redis_conn = get_redis_connection(Config.REDIS_URL, Config.REDIS_PASSWORD)
         logger.info(f"Connecting to Redis: {Config.REDIS_URL}")
         redis_conn.ping()
 

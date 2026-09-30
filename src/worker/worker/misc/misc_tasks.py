@@ -63,17 +63,13 @@ def _reschedule_cleanup():
     """
     try:
         # Import here to avoid circular dependency
-        import redis
         from rq import Queue
 
+        from worker import get_redis_connection
         from worker.config import Config
 
         # Get Redis connection and queue
-        redis_conn = redis.from_url(
-            Config.REDIS_URL,
-            password=Config.REDIS_PASSWORD,
-            decode_responses=False,
-        )
+        redis_conn = get_redis_connection(Config.REDIS_URL, Config.REDIS_PASSWORD)
         queue = Queue("misc", connection=redis_conn)
 
         # Calculate next run time from cron expression

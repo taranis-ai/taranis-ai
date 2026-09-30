@@ -3,6 +3,7 @@ from typing import Any
 import click
 from redis import Redis
 
+from worker import get_redis_connection
 from worker.config import Config
 
 
@@ -10,11 +11,7 @@ CRON_LEADER_KEY = "rq:cron:leader"
 
 
 def _redis_connection() -> Redis:
-    return Redis.from_url(
-        Config.REDIS_URL,
-        password=Config.REDIS_PASSWORD or None,
-        decode_responses=True,
-    )
+    return get_redis_connection(Config.REDIS_URL, Config.REDIS_PASSWORD, decode_responses=True)
 
 
 def _expected_worker_queues() -> set[str]:

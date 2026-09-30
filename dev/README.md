@@ -38,6 +38,8 @@ cp dev/env.dev src/core/.env
 cp dev/env.dev src/worker/.env
 ```
 
+`dev/env.dev` keeps redis-py's default RESP3 protocol. Taranis disables Redis maintenance notifications in its Python clients, so local `REDIS_URL` values no longer need `?protocol=2`. Remove that query parameter from existing component `.env` files; `start_dev.sh` only copies missing `.env` files.
+
 ```bash
 ./dev/start_dev.sh
 ```
