@@ -11,7 +11,10 @@
     <ul class="menu menu-sm p-2">
       {% for scope in context.scopes %}
         <li>
-          <button type="button" class="flex items-center gap-2" data-query="{{ scope.command }}: " @click="applyOmniSearch($el.dataset.query)">
+          <button type="button"
+                  class="flex items-center gap-2"
+                  data-query="{{ scope.command }}: "
+                  @click="applyOmniSearch($el.dataset.query)">
             {{ heroicon_outline(scope.icon, class='h-4 w-4') }}
             <span class="font-medium">{{ scope.command }}:</span>
             <span class="text-xs text-base-content/60">{{ scope.plural_label }}</span>
@@ -20,7 +23,10 @@
       {% endfor %}
       {% for suggestion in context.assess_suggestions %}
         <li>
-          <button type="button" class="flex items-center gap-2" data-query="{{ suggestion.replacement_query }}" @click="applyOmniSearch($el.dataset.query)">
+          <button type="button"
+                  class="flex items-center gap-2"
+                  data-query="{{ suggestion.replacement_query }}"
+                  @click="applyOmniSearch($el.dataset.query)">
             {{ heroicon_outline('funnel', class='h-4 w-4') }}
             <span class="font-medium">{{ suggestion.label }}</span>
             <span class="text-xs text-base-content/60">{{ suggestion.detail }}</span>
@@ -67,7 +73,8 @@
               {{ heroicon_outline(bucket.icon, class='h-4 w-4') }}
               {{ bucket.plural_label }}
             </span>
-            {% if bucket.total_count %}<a href="{{ bucket.search_url }}" class="link-hover normal-case">{{ bucket.total_count }} total</a>{% endif %}
+            {% if bucket.total_count %}<a href="{{ bucket.search_url }}"
+   class="link-hover normal-case">{{ bucket.total_count }} total</a>{% endif %}
           </div>
           {% if bucket.error %}
             <div class="px-3 py-2 text-sm text-error">{{ bucket.error }}</div>

@@ -1,7 +1,10 @@
 <div id="realtime-status-notification" class="toast toast-start toast-bottom z-50 hidden" role="status" aria-live="polite">
   <div class="alert alert-warning flex items-center gap-3">
     <span>{{ _("Live updates are unavailable. Data may require a manual refresh.") }}</span>
-    <button type="button" class="btn btn-ghost btn-sm" data-realtime-dismiss-status aria-label="{{ _('Dismiss realtime notification') }}">{{ _("Dismiss") }}</button>
+    <button type="button"
+            class="btn btn-ghost btn-sm"
+            data-realtime-dismiss-status
+            aria-label="{{ _('Dismiss realtime notification') }}">{{ _("Dismiss") }}</button>
   </div>
 </div>
 
@@ -16,7 +19,10 @@
   <div class="alert alert-info flex items-center gap-3">
     <span data-realtime-data-message></span>
     <a class="btn btn-primary btn-sm" data-realtime-refresh href="{{ request.full_path }}"></a>
-    <button type="button" class="btn btn-ghost btn-sm" data-realtime-dismiss-data aria-label="{{ _('Dismiss realtime notification') }}">{{ _("Dismiss") }}</button>
+    <button type="button"
+            class="btn btn-ghost btn-sm"
+            data-realtime-dismiss-data
+            aria-label="{{ _('Dismiss realtime notification') }}">{{ _("Dismiss") }}</button>
   </div>
 </div>
 
@@ -24,6 +30,9 @@
 <template id="realtime-broadcast-notification-template">
   <div class="alert alert-info flex items-center gap-3" role="alert" data-realtime-broadcast-notification>
     <span class="whitespace-pre-wrap" data-realtime-broadcast-message></span>
-    <button type="button" class="btn btn-ghost btn-sm" data-realtime-dismiss-broadcast aria-label="{{ _('Dismiss broadcast notification') }}">{{ _("Dismiss") }}</button>
+    <button type="button"
+            class="btn btn-ghost btn-sm"
+            data-realtime-dismiss-broadcast
+            aria-label="{{ _('Dismiss broadcast notification') }}">{{ _("Dismiss") }}</button>
   </div>
 </template>

@@ -54,7 +54,13 @@
         <fieldset class="fieldset w-full mb-5">
           <legend class="fieldset-legend">Shared Source Rank</legend>
           <div class="rating">
-            <input type="radio" id="bulk-rank-0" name="rank" value="0" class="rating-hidden" aria-label="Unrated" {% if rank | int == 0 %}checked{% endif %}>
+            <input type="radio"
+                   id="bulk-rank-0"
+                   name="rank"
+                   value="0"
+                   class="rating-hidden"
+                   aria-label="Unrated"
+                   {% if rank | int == 0 %}checked{% endif %}>
             {% for option in range(1, 6) %}
               <input type="radio"
                      id="bulk-rank-{{ option }}"
@@ -92,7 +98,12 @@
           <legend class="fieldset-legend">Source Group</legend>
           <input type="hidden" name="create_group" value="false">
           <label class="label justify-start gap-3 mb-3">
-            <input type="checkbox" name="create_group" value="true" class="toggle toggle-primary" x-model="createGroup" data-testid="bulk-create-source-group">
+            <input type="checkbox"
+                   name="create_group"
+                   value="true"
+                   class="toggle toggle-primary"
+                   x-model="createGroup"
+                   data-testid="bulk-create-source-group">
             <span>Create a source group containing these sources</span>
           </label>
           <div x-show="createGroup" x-cloak>

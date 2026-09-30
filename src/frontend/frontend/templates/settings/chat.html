@@ -30,7 +30,11 @@
           {{ 'An API key is saved.' if current_settings.chat_llm_api_key_configured else 'No API key saved. Optional for providers without authentication.' }}
         </p>
         <label class="flex items-center gap-3 mb-6">
-          <input type="checkbox" class="checkbox checkbox-sm" name="settings[chat_llm_api_key_clear]" value="true" data-testid="settings-chat-clear-key" />
+          <input type="checkbox"
+                 class="checkbox checkbox-sm"
+                 name="settings[chat_llm_api_key_clear]"
+                 value="true"
+                 data-testid="settings-chat-clear-key" />
           Remove saved API key
         </label>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
