@@ -5,7 +5,7 @@
     "alpinejs": "npm:alpinejs@^3.17.4",
     "choices.js": "npm:choices.js@^11.2.4",
     "driver.js": "npm:driver.js@^1.8.0",
-    "daisyui": "npm:daisyui@^5.7.43",
+    "daisyui": "npm:daisyui@^5.7.46",
     "fuse.js": "npm:fuse.js@^7.5.0",
     "highlight-search-term": "npm:highlight-search-term@^1.0.3",
     "htmx.org": "npm:htmx.org@^4.0.0",
