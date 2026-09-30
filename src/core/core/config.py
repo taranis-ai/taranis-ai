@@ -152,19 +152,9 @@ class Settings(BaseSettings):
     PRE_SEED_PASSWORD_ADMIN: str = "admin"
     PRE_SEED_PASSWORD_USER: str = "user"
     LLM_INFERENCE_API_KEY: SecretStr = Field(default=SecretStr(""), repr=False)
-    DEFAULT_LLM_ENDPOINT: Annotated[dict[str, Any], NoDecode] = Field(
-        default_factory=lambda: {
-            "name": "internal",
-            "base_url": "http://llm-inference:8000/v1",
-            "model": "unsloth/gemma-4-E4B-it-GGUF",
-            "api_format": "chat_completions",
-            "timeout": 120,
-        },
-        repr=False,
-    )
     PRE_SEED_SETTINGS: Annotated[dict[str, Any], NoDecode] = Field(default_factory=dict, repr=False)
 
-    @field_validator("PRE_SEED_SETTINGS", "DEFAULT_LLM_ENDPOINT", mode="before")
+    @field_validator("PRE_SEED_SETTINGS", mode="before")
     @classmethod
     def parse_pre_seed_settings(cls, value: Any) -> Any:
         return json.loads(value) if isinstance(value, str) else value

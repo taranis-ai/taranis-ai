@@ -16,7 +16,6 @@ config:
   sqlalchemyPoolTimeout: "3600"
   sqlalchemyPoolRecycle: "3600"
   authenticator: database
-  defaultLlmEndpoint: '{"name":"internal","base_url":"http://llm-inference:8000/v1","model":"unsloth/gemma-4-E4B-it-GGUF","api_format":"chat_completions","timeout":120}'
   preSeedSettings: "{}"
   cacheDefaultTimeout: "1"
   chatEnabled: "false"

@@ -115,23 +115,22 @@ def migrate_bot_endpoint_parameters(settings):
     from core.model.bot import Bot
     from core.model.settings import Settings
 
-    if Config.DEFAULT_LLM_ENDPOINT:
-        endpoint = LLMEndpoint.model_validate(Config.DEFAULT_LLM_ENDPOINT).model_dump()
-        endpoint["api_key"] = Config.LLM_INFERENCE_API_KEY.get_secret_value()
-        values = deepcopy(settings.settings)
-        endpoints = values["llm_endpoints"]
-        endpoint_id = next((key for key, item in endpoints.items() if item["base_url"] == endpoint["base_url"]), None)
-        if endpoint_id is None:
-            endpoint_id = Settings.uuid7_str()
-            if any(item["name"].casefold() == endpoint["name"].casefold() for item in endpoints.values()):
-                endpoint["name"] = f"{endpoint['name'][:61]} ({endpoint_id})"
-            endpoints[endpoint_id] = endpoint
-        else:
-            endpoints[endpoint_id]["api_key"] = endpoint["api_key"]
-        if not values["llm_default_endpoint"]:
-            values["llm_default_endpoint"] = endpoint_id
-        Settings._validate_llm_settings(values)
-        settings.settings = values
+    endpoint = LLMEndpoint(name="internal", base_url="http://llm-inference:8000/v1", api_format="chat_completions").model_dump()
+    endpoint["api_key"] = Config.LLM_INFERENCE_API_KEY.get_secret_value()
+    values = deepcopy(settings.settings)
+    endpoints = values["llm_endpoints"]
+    endpoint_id = next((key for key, item in endpoints.items() if item["base_url"] == endpoint["base_url"]), None)
+    if endpoint_id is None:
+        endpoint_id = Settings.uuid7_str()
+        if any(item["name"].casefold() == endpoint["name"].casefold() for item in endpoints.values()):
+            endpoint["name"] = f"{endpoint['name'][:61]} ({endpoint_id})"
+        endpoints[endpoint_id] = endpoint
+    else:
+        endpoints[endpoint_id]["api_key"] = endpoint["api_key"]
+    if not values["llm_default_endpoint"]:
+        values["llm_default_endpoint"] = endpoint_id
+    Settings._validate_llm_settings(values)
+    settings.settings = values
 
     obsolete_parameters = {"BOT_ENDPOINT", "BOT_API_KEY", "SUMMARY_ENDPOINT", "TITLE_ENDPOINT"}
     for bot in db.session.execute(db.select(Bot)).scalars():

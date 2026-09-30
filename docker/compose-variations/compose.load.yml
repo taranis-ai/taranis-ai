@@ -3,6 +3,8 @@ services:
     image: "${LLM_INFERENCE_IMAGE:-ghcr.io/taranis-ai/gemma4-e4b-gguf:cpu}"
     restart: unless-stopped
     shm_size: 4gb
+    environment:
+      LLAMA_API_KEY: "${LLM_INFERENCE_API_KEY:-}"
     command: ["--ctx-size", "8192", "--jinja"]
     expose:
       - "8000"
@@ -52,7 +54,7 @@ services:
       REDIS_PASSWORD: ""
       PRE_SEED_PASSWORD_ADMIN: admin
       PRE_SEED_PASSWORD_USER: test
-      DEFAULT_LLM_ENDPOINT: '${DEFAULT_LLM_ENDPOINT:-{"name":"Bundled inference","base_url":"http://llm-inference:8000/v1","model":"unsloth/gemma-4-E4B-it-GGUF","api_format":"chat_completions","timeout":120}}'
+      LLM_INFERENCE_API_KEY: "${LLM_INFERENCE_API_KEY:-}"
       PRE_SEED_SETTINGS: "${PRE_SEED_SETTINGS:-{}}"
       JWT_SECRET_KEY: load_testing_secret_key
       JWT_COOKIE_SUFFIX: ""

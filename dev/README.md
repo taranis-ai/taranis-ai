@@ -310,8 +310,8 @@ The frontend is served by the [Flask & HTMX REST frontend](../src/frontend/READM
 
 ## Local LLM inference
 
-`dev/compose.yml` includes the published Gemma CPU inference image, bound only to `127.0.0.1:8000`. `dev/env.dev` configures Core's `DEFAULT_LLM_ENDPOINT` for `http://localhost:8000/v1`; recopy the file into the component `.env` files or add this variable to your existing core `.env` before restarting Core. Existing shared defaults and feature assignments are preserved. Set `DEFAULT_LLM_ENDPOINT={}` to keep an unconfigured default. Override `LLM_INFERENCE_PORT` and the endpoint URL together if port 8000 is occupied.
+`dev/compose.yml` includes the published Gemma CPU inference image, bound only to `127.0.0.1:8000`. Core always registers `http://llm-inference:8000/v1`, leaving the model blank so inference selects its default. For host-based Core and workers, add `127.0.0.1 llm-inference` to your local hosts file and keep inference on port 8000. Existing shared defaults and feature assignments are preserved.
 
 The published CPU image supports amd64 and arm64; Docker and Podman select the host architecture without emulation. Allow several minutes and sufficient RAM for model loading. Test-only E2E and TLS Compose files retain their controlled services and do not start a multi-gigabyte model. See [deployment inference configuration](../docker/README.md#bundled-llm-inference).
 
-Set `LLM_INFERENCE_API_KEY` in the private Core environment and the environment used to launch dev Compose to protect local inference. The same value reaches inference as `LLAMA_API_KEY`; Core refreshes its internal endpoint key on every startup. Keep the loopback URL override in `dev/env.dev` because Core and workers run on the host.
+Set `LLM_INFERENCE_API_KEY` in the private Core environment and the environment used to launch dev Compose to protect local inference. The same value reaches inference as `LLAMA_API_KEY`; Core refreshes its internal endpoint key on every startup. Core and workers running on the host require the local hosts entry above to reach the fixed inference service address.
