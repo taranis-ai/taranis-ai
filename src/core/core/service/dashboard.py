@@ -32,6 +32,7 @@ class DashboardService:
         conflict_count = len(StoryConflict.conflict_store) + len(NewsItemConflict.conflict_store)
         health_status, _ = get_health_response()
         task_status_totals = Task.get_status_totals()
+        top_sources = NewsItem.get_source_distribution(limit=5)
         return {
             "items": [
                 {
@@ -51,6 +52,7 @@ class DashboardService:
                     "conflict_count": conflict_count,
                     "health_status": health_status,
                     "task_status_totals": task_status_totals,
+                    "top_sources": top_sources,
                 }
             ]
         }

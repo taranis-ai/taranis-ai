@@ -25,6 +25,24 @@
         <p class="font-semibold mb-1">This week</p>
         <p><strong class="tabular-nums">{{ data.news_items_this_week }}</strong> news items · <strong class="tabular-nums">{{ data.stories_this_week }}</strong> stories</p>
       </div>
+      {% if data.top_sources %}
+        <div class="text-sm" data-testid="dashboard-top-sources" title="Share of all news items by OSINT source.">
+          <p class="font-semibold mb-2">Top sources</p>
+          <ul class="space-y-2">
+            {% for source in data.top_sources %}
+              <li data-testid="dashboard-top-source">
+                <div class="flex justify-between gap-2">
+                  <span class="truncate" title="{{ source.name }}">{{ source.name }}</span>
+                  <span class="tabular-nums shrink-0">{{ source.percentage }}%</span>
+                </div>
+                <div class="w-full h-2 rounded bg-base-300 overflow-hidden">
+                  <div class="h-full bg-primary" style="width: {{ source.percentage }}%"></div>
+                </div>
+              </li>
+            {% endfor %}
+          </ul>
+        </div>
+      {% endif %}
     </div>
   {% endcall %}
 
