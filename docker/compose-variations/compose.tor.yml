@@ -1,7 +1,6 @@
 services:
   llm-inference:
     image: "${LLM_INFERENCE_IMAGE:-ghcr.io/taranis-ai/gemma4-e4b-gguf:cpu}"
-    platform: linux/amd64
     restart: unless-stopped
     shm_size: 4gb
     command: ["--ctx-size", "8192", "--jinja"]

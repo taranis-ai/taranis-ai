@@ -19,7 +19,7 @@ Always required:
 - When multiple deployments share a domain, set a unique `JWT_COOKIE_SUFFIX` such as `_q` for each deployment and keep it aligned between core and frontend. Helm exposes the same setting as `config.jwtCookieSuffix`.
 - The raw manifest keeps the public realtime endpoint at `/sse`; ingress rewrites it to Centrifugo's `/connection/uni_sse`.
 
-Bundled inference is included in both the raw Kubernetes base and Helm chart. Before updating, ensure an amd64 node has capacity for the model (6 GiB memory requested, 12 GiB limit). The image is `ghcr.io/taranis-ai/gemma4-e4b-gguf:cpu`; it listens internally on port 8000, has a ten-minute startup probe, and does not expose an ingress. See [bundled inference](../docker/README.md#bundled-llm-inference) for model, settings, and resource details.
+Bundled inference is included in both the raw Kubernetes base and Helm chart. Before updating, ensure an amd64 or arm64 node has capacity for the model (6 GiB memory requested, 12 GiB limit). The image is `ghcr.io/taranis-ai/gemma4-e4b-gguf:cpu`; it listens internally on port 8000, has a ten-minute startup probe, and does not expose an ingress. See [bundled inference](../docker/README.md#bundled-llm-inference) for model, settings, and resource details.
 
 Remove the old `llm-bot` Deployment and Service after applying the new raw manifests; `kubectl apply -k` does not remove obsolete resources. Compose uses `up -d --remove-orphans`; Helm removes workloads absent from the updated chart. NER, sentiment, and classification require separately configured HTTP services; the inference image does not provide those routes. Retain the previous images/configuration for rollback and restore the old bot service only if reverting.
 

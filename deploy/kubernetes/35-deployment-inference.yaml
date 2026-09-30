@@ -14,8 +14,6 @@ spec:
       labels:
         app: llm-inference
     spec:
-      nodeSelector:
-        kubernetes.io/arch: amd64
       restartPolicy: Always
       containers:
         - name: llm-inference
