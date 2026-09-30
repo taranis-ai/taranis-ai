@@ -79,7 +79,7 @@
     <div class="card bg-base-100 border border-base-300 shadow-sm h-full">
       <div class="card-body p-6 h-full flex flex-col">
         <h2 class="font-semibold">Import Stories</h2>
-        <form class="mt-4 flex flex-1 flex-col gap-3"
+        <form class="mt-1 flex flex-1 flex-col gap-3"
               id="stories-import-form"
               method="post"
               action="{{ url_for('assess.import_stories') }}"
@@ -89,12 +89,14 @@
               hx-swap="outerHTML"
               enctype="multipart/form-data">
           {% include "assess/story_import_help.html" %}
-          <label class="form-control w-full">
-            <span class="label-text mb-2 font-medium">Import Stories from JSON</span>
+          <label class="flex h-10 w-full items-center overflow-hidden rounded border border-base-300 focus-within:ring-2 focus-within:ring-primary">
+            <span class="flex h-full shrink-0 cursor-pointer items-center border-r border-base-300 bg-base-200 px-4 text-sm font-semibold">
+              Story JSON
+            </span>
             <input type="file"
                    name="file"
                    accept="application/json,.json"
-                   class="file-input file-input-bordered w-full"
+                   class="min-w-0 flex-1 cursor-pointer px-3 text-sm file:hidden focus:outline-none"
                    data-testid="settings-story-import-file"
                    required>
           </label>
