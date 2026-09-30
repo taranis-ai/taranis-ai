@@ -12,9 +12,9 @@ Usage:
 """
 
 import sys
-from typing import Any
 
 import redis
+from redis.maint_notifications import MaintNotificationsConfig
 from rq import Queue, SpawnWorker, Worker
 
 from worker.config import WORKER_TYPE_PRIORITIES, Config
@@ -22,16 +22,14 @@ from worker.log import logger
 from worker.rq_failure_bridge import rq_failure_exception_handler, rq_work_horse_killed_handler
 
 
-def get_redis_connection(*, spawn_safe: bool = False):
+def get_redis_connection(redis_url: str, redis_password: str | None, *, decode_responses: bool = False):
     """Get Redis connection from config."""
-    redis_kwargs: dict[str, Any] = {
-        "password": Config.REDIS_PASSWORD,
-        "decode_responses": False,
-    }
-    if spawn_safe:
-        redis_kwargs["protocol"] = 2
-
-    return redis.from_url(Config.REDIS_URL, **redis_kwargs)
+    return redis.from_url(
+        redis_url,
+        password=redis_password,
+        decode_responses=decode_responses,
+        maint_notifications_config=MaintNotificationsConfig(enabled=False),
+    )
 
 
 def get_queues():
@@ -74,7 +72,7 @@ def start_worker():
 
     worker_class = resolve_worker_class()
 
-    redis_conn = get_redis_connection(spawn_safe=worker_class is SpawnWorker)
+    redis_conn = get_redis_connection(Config.REDIS_URL, Config.REDIS_PASSWORD)
 
     queues = [Queue(name, connection=redis_conn) for name in queue_names]
 

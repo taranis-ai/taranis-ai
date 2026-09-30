@@ -164,6 +164,7 @@ docker exec -it core taranis-cli set-roles user Admin
 ## Notes
 
 - These manifests expect a reachable PostgreSQL service and a reachable Redis service, but they do not create those workloads.
+- If moving an externally managed PostgreSQL service to version 18, stop Taranis writers, back up the database, follow its provider's major-version upgrade procedure, and verify the service before restarting Taranis. The Compose upgrade script applies only to the bundled Compose database.
 - The `core` PVC is included because the application writes persistent data under `/app/data`.
 - The `core` readiness and liveness probes run every 5 minutes after a 15-second startup delay because the core healthcheck performs non-trivial service checks.
 - The default `core` and `frontend` images recycle Granian workers above 4096 MiB and 1024 MiB RSS respectively.

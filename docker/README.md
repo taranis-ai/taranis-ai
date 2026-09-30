@@ -64,6 +64,8 @@ Verify inference health, Core readiness, worker health, the selected default in 
 
 Start-up application
 
+For an existing PostgreSQL 14–17 installation, follow the [database upgrade procedure](#upgrade-the-bundled-postgresql-database-to-18) before starting the updated Compose stack; a normal startup would create an empty PostgreSQL 18 volume.
+
 ```bash
 docker compose up -d
 ```
@@ -81,6 +83,18 @@ Use the application
 ```
 http://<url>:<TARANIS_PORT>/login
 ```
+
+### Upgrade the bundled PostgreSQL database to 18
+
+The Compose database defaults to PostgreSQL 18. Its data lives in `database_data`, mounted at `/var/lib/postgresql`; the [official 18 image](https://hub.docker.com/_/postgres) stores the cluster below `/var/lib/postgresql/18/docker`. An existing PostgreSQL 14–17 `database_data` volume cannot be started with the 18 image.
+
+Before upgrading, ensure `POSTGRES_TAG` is unset or set to `18-alpine`, allow enough free space for a full backup, and stop any clients that write directly to PostgreSQL. From the repository root, run:
+
+```bash
+./docker/database/upgrade-database.sh
+```
+
+The script confirms the running server version, pulls the 18 image, stops application writers, saves the core files and a logical database dump under `docker/backups/`, recreates the database volume and restores the dump, restarts the stack, and checks readiness and the server version. Keep that backup private: it contains application data.
 
 ## Public reports
 
@@ -192,6 +206,8 @@ There are several Dockerfiles and each of them builds a different component of t
 Any configuration options are available at [https://hub.docker.com/\_/postgres](https://hub.docker.com/_/postgres).
 
 ### `core`
+
+Taranis Python clients use redis-py's default RESP3 protocol with maintenance notifications disabled. Redis Cloud and Redis Software Smart Client Handoffs are therefore not used; clients rely on their normal reconnect behavior during server maintenance.
 
 | Environment variable          | Description                                | Default       |
 | ----------------------------- | ------------------------------------------ | ------------- |

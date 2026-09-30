@@ -14,7 +14,7 @@ services:
       start_period: 5m
 
   database:
-    image: "docker.io/library/postgres:17-alpine"
+    image: "docker.io/library/postgres:18-alpine"
     shm_size: 512mb
     environment:
       POSTGRES_DB: taranis
