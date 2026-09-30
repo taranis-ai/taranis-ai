@@ -3,6 +3,6 @@ set -e
 
 pg_restore --verbose --clean --if-exists --username="$POSTGRES_USER" --dbname="$POSTGRES_DB" /tmp/database_backup.tar
 
-psql --username="$POSTGRES_USER" --dbname="$POSTGRES_DB" -c "ALTER DATABASE $POSTGRES_DB REFRESH COLLATION VERSION;"
-
-pg_ctl -D "$PGDATA" -m fast stop
+psql --set=ON_ERROR_STOP=1 --set=dbname="$POSTGRES_DB" --username="$POSTGRES_USER" --dbname="$POSTGRES_DB" <<'SQL'
+ALTER DATABASE :"dbname" REFRESH COLLATION VERSION;
+SQL

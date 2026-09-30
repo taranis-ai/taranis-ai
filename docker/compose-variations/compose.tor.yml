@@ -78,7 +78,7 @@ services:
         max-file: "10"
 
   database:
-    image: "docker.io/library/postgres:${POSTGRES_TAG:-17-alpine}"
+    image: "docker.io/library/postgres:${POSTGRES_TAG:-18-alpine}"
     # ports:
     # - 6543:5432
     deploy:
@@ -96,7 +96,7 @@ services:
       timeout: 3s
       retries: 3
     volumes:
-      - "database_data:/var/lib/postgresql/data"
+      - "database_data:/var/lib/postgresql"
     logging:
       driver: "json-file"
       options:

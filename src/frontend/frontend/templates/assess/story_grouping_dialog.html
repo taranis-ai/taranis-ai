@@ -55,7 +55,9 @@
             <div class="handle cursor-grab active:cursor-grabbing" title="Drag to reorder" aria-label="Drag story">
               <h4 class="font-semibold text-lg text-base-content leading-tight">{{ story.title or "Untitled story" }}</h4>
               <p class="text-xs text-base-content/60 my-1">Story ID: {{ story.id }}</p>
-              <span x-show="index === 0" class="badge badge-primary badge-outline text-xs uppercase tracking-wide" x-cloak>Primary story</span>
+              <span x-show="index === 0"
+                    class="badge badge-primary badge-outline text-xs uppercase tracking-wide"
+                    x-cloak>Primary story</span>
               <span x-show="index !== 0" class="badge badge-outline text-xs uppercase tracking-wide" x-cloak>Merges into primary</span>
             </div>
           </div>

@@ -17,7 +17,7 @@ check_volume_exists() {
     local volume_name=$1
     echo "Checking if the volume exists: ${compose_project_name}_$volume_name"
 
-    if docker volume ls | grep -q "${compose_project_name}_$volume_name"; then
+    if docker volume inspect "${compose_project_name}_$volume_name" >/dev/null 2>&1; then
         echo "Error: Volume ${volume_name} already exists. Ensure you have a backup of your data and delete the volume before continuing your restore."
         exit 1
     fi
@@ -27,17 +27,29 @@ check_volume_exists() {
 restore_postgresql() {
     local backup_file="$1"
     local volume_name="${compose_project_name}_${2}"
+    local restore_container="${compose_project_name}_database_restore"
     echo "Restoring PostgreSQL database from $backup_file..."
-    docker run --rm \
+    docker run -d \
         -e POSTGRES_DB="${DB_DATABASE:-taranis}" \
         -e POSTGRES_USER="${DB_USER:-taranis}" \
         -e POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-taranis}" \
-        -v $backup_file:/tmp/database_backup.tar \
-        -v ./restore_init.sh:/docker-entrypoint-initdb.d/db_init.sh:z \
-        -v $volume_name:/var/lib/postgresql/data \
-        --name "${compose_project_name}_database_restore" docker.io/library/postgres:17-alpine
+        -v "$(realpath "$backup_file"):/tmp/database_backup.tar:ro" \
+        -v "$(realpath "$(dirname "$0")/restore_init.sh"):/docker-entrypoint-initdb.d/db_init.sh:ro" \
+        -v "$volume_name:/var/lib/postgresql" \
+        --name "$restore_container" docker.io/library/postgres:18-alpine >/dev/null
 
-    if [ $? -ne 0 ]; then echo "Database restoration failed"; exit 1; fi
+    while [[ $(docker inspect --format '{{.State.Running}}' "$restore_container") == true ]]; do
+        if docker exec "$restore_container" sh -c 'pg_isready -h 127.0.0.1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"' >/dev/null 2>&1; then
+            docker stop "$restore_container" >/dev/null
+            docker rm "$restore_container" >/dev/null
+            return
+        fi
+        sleep 2
+    done
+    docker logs "$restore_container" >&2
+    docker rm "$restore_container" >/dev/null
+    echo "Database restoration failed" >&2
+    return 1
 }
 
 # Function to restore core data to a Docker volume
@@ -46,11 +58,9 @@ restore_volume_data() {
     local volume_name="${compose_project_name}_${2}"
 
     echo "Restoring data to $volume_name from $backup_file..."
-    docker run --rm -d --name "${compose_project_name}_core_restore" \
-    -v "$volume_name:/app/data" -v ./backups:/backups:z busybox \
-    tar -xzvf "$backup_file" -C /app/data
-
-    if [ $? -ne 0 ]; then echo "Core volume restoration failed"; exit 1; fi
+    docker run --rm -v "$volume_name:/app/data" \
+        -v "$(realpath "$backup_file"):/tmp/core_data.tar.gz:ro" busybox \
+        tar -xzf /tmp/core_data.tar.gz -C /app/data
 }
 
 run_core=false
@@ -108,6 +118,7 @@ fi
 backup_dir="${options[0]}"
 backup_dir="${backup_dir%/}"
 
+# shellcheck disable=SC1091
 [[ -f .env ]] && source .env
 
 # Set backup file paths

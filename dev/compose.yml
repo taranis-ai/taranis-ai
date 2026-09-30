@@ -2,7 +2,7 @@
 # (copied from dev/env.dev; disabled by default). This stack is infrastructure only.
 services:
   database:
-    image: "postgres:${POSTGRES_TAG:-17-alpine}"
+    image: "postgres:${POSTGRES_TAG:-18-alpine}"
     ports:
       - "${TARANIS_DATABASE_PORT:-5432}:5432"
     environment:
@@ -16,7 +16,7 @@ services:
       timeout: 3s
       retries: 3
     volumes:
-      - "database_data:/var/lib/postgresql/data"
+      - "database_data:/var/lib/postgresql"
 
   redis:
     image: "redis:8-alpine"
