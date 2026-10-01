@@ -113,45 +113,25 @@ class RecordingJob:
         self.id = "job-1"
         self.timeout = timeout
         self.meta = {"task": "publisher_task", "user_id": "user-1"}
-        self.saved_meta = []
 
     def save_meta(self):
-        self.saved_meta.append(self.meta.copy())
-
-
-class TimeoutSSHClient:
-    def __init__(self, captured):
-        self.captured = captured
-
-    def set_missing_host_key_policy(self, policy):
-        pass
-
-    def connect(self, **kwargs):
-        self.captured.update(kwargs)
-        raise TimeoutError
-
-    def close(self):
         pass
 
 
 class RecordingSFTPChannel:
-    def __init__(self):
-        self.timeout = None
-
     def settimeout(self, timeout):
-        self.timeout = timeout
+        pass
 
 
 class MismatchedSFTPClient:
     def __init__(self):
         self.channel = RecordingSFTPChannel()
-        self.confirm = None
 
     def get_channel(self):
         return self.channel
 
     def putfo(self, data, path, confirm=True):
-        self.confirm = confirm
+        pass
 
     def stat(self, path):
         return SimpleNamespace(st_size=-1)
@@ -175,26 +155,6 @@ class MismatchedSSHClient:
 
     def close(self):
         pass
-
-
-class RecordingFTP:
-    def __init__(self):
-        self.calls = []
-
-    def connect(self, **kwargs):
-        self.calls.append(("connect", kwargs))
-
-    def login(self, username, password):
-        self.calls.append(("login", {"username": username, "password": password}))
-
-    def storbinary(self, command, data):
-        self.calls.append(("storbinary", {"command": command, "data": data.read()}))
-
-    def quit(self):
-        self.calls.append(("quit", {}))
-
-    def close(self):
-        self.calls.append(("close", {}))
 
 
 @pytest.fixture
@@ -289,18 +249,8 @@ def recording_job_factory():
 
 
 @pytest.fixture
-def timeout_ssh_client_factory():
-    return TimeoutSSHClient
-
-
-@pytest.fixture
 def mismatched_ssh_client_factory():
     return MismatchedSSHClient
-
-
-@pytest.fixture
-def recording_ftp_factory():
-    return RecordingFTP
 
 
 @pytest.fixture

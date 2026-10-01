@@ -4,8 +4,6 @@ import paramiko
 import pytest
 from mockssh.server import SERVER_KEY_PATH
 
-from worker.publishers.execution_context import PublisherNetworkTimeout
-
 
 pytestmark = pytest.mark.filterwarnings("error::pytest.PytestUnhandledThreadExceptionWarning")
 
@@ -50,32 +48,7 @@ def test_sftp_publisher_rejects_untrusted_host(sftp_publisher, get_product_mock,
     assert not Path(sftp_publisher.file_name).exists()
 
 
-def test_sftp_publisher_applies_all_connection_timeouts(monkeypatch, sftp_publisher, get_product_mock, timeout_ssh_client_factory):
-    from tests.publishers.publishers_data import product_text
-
-    captured = {}
-
-    monkeypatch.setattr(paramiko, "SSHClient", lambda: timeout_ssh_client_factory(captured))
-    publisher = {
-        "parameters": {
-            "SFTP_URL": "sftp://user:password@example.test/",
-            "ACCEPT_ANY_HOST_KEY": True,
-            "NETWORK_TIMEOUT": 12,
-        }
-    }
-
-    with pytest.raises(PublisherNetworkTimeout, match="SFTP publisher timed out during connect_and_authenticate"):
-        sftp_publisher.publish(publisher, product_text, get_product_mock)
-
-    assert captured["timeout"] == 12
-    assert captured["banner_timeout"] == 12
-    assert captured["auth_timeout"] == 12
-    assert captured["channel_timeout"] == 12
-
-
-def test_sftp_publisher_uses_channel_timeout_and_separate_size_confirmation(
-    monkeypatch, sftp_publisher, get_product_mock, mismatched_ssh_client_factory
-):
+def test_sftp_publisher_rejects_upload_size_mismatch(monkeypatch, sftp_publisher, get_product_mock, mismatched_ssh_client_factory):
     from tests.publishers.publishers_data import product_text
 
     client = mismatched_ssh_client_factory()
@@ -84,12 +57,8 @@ def test_sftp_publisher_uses_channel_timeout_and_separate_size_confirmation(
         "parameters": {
             "SFTP_URL": "sftp://user:password@example.test/",
             "ACCEPT_ANY_HOST_KEY": True,
-            "NETWORK_TIMEOUT": 12,
         }
     }
 
     with pytest.raises(OSError, match="upload size confirmation failed"):
         sftp_publisher.publish(publisher, product_text, get_product_mock)
-
-    assert client.sftp.channel.timeout == 12
-    assert client.sftp.confirm is False

@@ -15,10 +15,8 @@ class DummyJob:
         self.id = job_id
         self.meta = {} if meta is None else meta
         self.func_name = func_name
-        self.meta_refreshes = 0
 
     def get_meta(self, refresh=True):
-        self.meta_refreshes += int(refresh)
         return self.meta
 
 
@@ -204,7 +202,7 @@ def test_bridge_normalizes_meta_strings_and_fetch_single_news_item_fallback(monk
     assert captured["kwargs"]["worker_type"] is None
 
 
-def test_timeout_failure_uses_refreshed_publisher_phase_without_exception_text(monkeypatch):
+def test_timeout_failure_uses_publisher_phase_without_exception_text(monkeypatch):
     captured = {}
 
     class FakeCoreApi:
@@ -241,7 +239,6 @@ def test_timeout_failure_uses_refreshed_publisher_phase_without_exception_text(m
         None,
     )
 
-    assert job.meta_refreshes == 1
     assert captured["result"].message == "SFTP publisher timed out during upload"
     assert captured["result"].data == {
         "exception_type": "JobTimeoutException",

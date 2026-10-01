@@ -28,7 +28,7 @@ def test_publish_without_user_input(email_publisher):
         email_publisher.publish(email_publisher_admin_input, None, None)
 
 
-def test_email_publisher_times_out_while_waiting_for_server_banner(email_publisher, stalled_tcp_server):
+def test_email_publisher_times_out_while_waiting_for_server_banner(email_publisher, get_product_mock, stalled_tcp_server):
     from tests.publishers.publishers_data import email_publisher_admin_input, product_text
 
     host, port = stalled_tcp_server
@@ -38,4 +38,4 @@ def test_email_publisher_times_out_while_waiting_for_server_banner(email_publish
     }
 
     with pytest.raises(PublisherNetworkTimeout, match="Email publisher timed out during connect"):
-        email_publisher.publish(publisher, product_text, type("Product", (), {"data": b"body", "mime_type": "text/plain"})())
+        email_publisher.publish(publisher, product_text, get_product_mock)
