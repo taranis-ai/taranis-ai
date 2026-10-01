@@ -5,8 +5,10 @@ from typing import Any
 from urllib.parse import ParseResult, urlparse
 
 import paramiko
+from rq.timeouts import JobTimeoutException
 
 from worker.log import logger
+from worker.publishers.execution_context import publisher_cleanup
 
 from .base_publisher import BasePublisher
 
@@ -97,6 +99,8 @@ class SFTPPublisher(BasePublisher):
             try:
                 key_type, key_data, *_ = host_key.split()
                 key = paramiko.PKey.from_type_string(key_type, b64decode(key_data, validate=True))
+            except JobTimeoutException:
+                raise
             except Exception as exc:
                 logger.error(f"Invalid SFTP server host public key: exception_type={type(exc).__name__}")
                 raise ValueError("Invalid SFTP server host public key; use OpenSSH public key format") from None
@@ -105,7 +109,7 @@ class SFTPPublisher(BasePublisher):
             self.ssh.set_missing_host_key_policy(paramiko.RejectPolicy())
         sftp = None
         try:
-            with self._network_phase("connect_and_authenticate", timeout):
+            with self._network_phase("connect_and_authenticate"):
                 self.ssh.connect(
                     hostname=hostname,
                     port=ssh_port,
@@ -119,23 +123,27 @@ class SFTPPublisher(BasePublisher):
                     auth_timeout=timeout,
                     channel_timeout=timeout,
                 )
-            with self._network_phase("open_channel", timeout):
-                sftp = self.ssh.open_sftp()
-                channel = sftp.get_channel()
-                if channel is None:
-                    raise paramiko.SSHException("SFTP channel unavailable")
+            with self._network_phase("open_channel"):
+                transport = self.ssh.get_transport()
+                if transport is None:
+                    raise paramiko.SSHException("SSH transport unavailable")
+                channel = transport.open_session(timeout=timeout)
                 channel.settimeout(timeout)
+                channel.invoke_subsystem("sftp")
+                sftp = paramiko.SFTPClient(channel)
             expected_size = data_to_upload.getbuffer().nbytes
-            with self._network_phase("upload", timeout):
+            with self._network_phase("upload"):
                 sftp.putfo(data_to_upload, remote_path, confirm=False)
-            with self._network_phase("confirm", timeout):
+            with self._network_phase("confirm"):
                 actual_size = sftp.stat(remote_path).st_size
                 if actual_size != expected_size:
                     raise OSError("SFTP upload size confirmation failed")
         finally:
-            self._start_close_phase()
-            if sftp is not None:
-                with contextlib.suppress(Exception):
-                    sftp.close()
-            with contextlib.suppress(Exception):
-                self.ssh.close()
+            try:
+                self._start_close_phase()
+                if sftp is not None:
+                    with publisher_cleanup():
+                        sftp.close()
+            finally:
+                with publisher_cleanup():
+                    self.ssh.close()

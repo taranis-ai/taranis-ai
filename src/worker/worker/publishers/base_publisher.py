@@ -53,8 +53,8 @@ class BasePublisher:
         if context is None or context.failure_phase is None:
             start_publisher_phase("close")
 
-    def _network_phase(self, phase: str, timeout: float):
-        return publisher_network_phase(phase, timeout, self.type)
+    def _network_phase(self, phase: str):
+        return publisher_network_phase(phase, self.type)
 
     @staticmethod
     def _require_rendered_data(rendered_product: Product) -> bytes:

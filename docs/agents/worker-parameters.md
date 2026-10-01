@@ -35,4 +35,4 @@ Tests: `src/core/tests/unit/test_worker_parameter_registry.py`, `src/core/tests/
 
 Publisher timeout and phase context: `src/worker/worker/publishers/execution_context.py`. SFTP: `src/worker/worker/publishers/sftp_publisher.py`; real SSH coverage in `src/worker/tests/publishers/test_sftp_publisher.py`; upload, persistence, bypass, and validation recovery in `src/frontend/tests/playwright/test_e2e_admin.py::TestEndToEndAdmin::test_publisher_presets`.
 
-Publisher tests cover real stalled TCP peers for SMTP/FTP, the RQ timeout cap, SFTP uploads/trust and size-mismatch rejection, and safe persisted failures. Avoid separate tests that only echo configured timeout arguments or metadata setters through mocks.
+Publisher tests cover real stalled TCP peers for SMTP/FTP, the RQ timeout cap, SFTP uploads/trust, stalled protocol negotiation and size-mismatch rejection, and safe persisted failures. The SFTP channel timeout is set before subsystem negotiation. Avoid separate tests that only echo configured timeout arguments or metadata setters through mocks.

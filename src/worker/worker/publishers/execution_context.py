@@ -130,6 +130,8 @@ class PublisherExecutionContext:
         try:
             self.job.meta[PUBLISHER_DIAGNOSTICS_META_KEY] = metadata
             self.job.save_meta()
+        except JobTimeoutException:
+            raise
         except Exception as exc:
             logger.error(f"Failed to persist publisher phase metadata: exception_type={type(exc).__name__}")
 
@@ -154,11 +156,10 @@ def effective_network_timeout(parameters: dict[str, Any]) -> float:
 
 
 @contextlib.contextmanager
-def publisher_network_phase(phase: str, timeout: float, publisher_type: str) -> Generator[None]:
+def publisher_network_phase(phase: str, publisher_type: str) -> Generator[None]:
     context = get_publisher_context()
     if context:
         context.start_phase(phase)
-    started = time.monotonic()
     try:
         yield
     except JobTimeoutException:
@@ -166,9 +167,19 @@ def publisher_network_phase(phase: str, timeout: float, publisher_type: str) -> 
             context.mark_failure(phase)
         raise
     except Exception as exc:
-        elapsed = time.monotonic() - started
         if context:
             context.mark_failure(phase)
-        if isinstance(exc, TimeoutError) or elapsed >= timeout:
+        if isinstance(exc, TimeoutError) or isinstance(exc.__cause__ or exc.__context__, TimeoutError):
             raise PublisherNetworkTimeout(publisher_type, phase) from exc
         raise
+
+
+@contextlib.contextmanager
+def publisher_cleanup() -> Generator[None]:
+    """Ignore ordinary cleanup errors while preserving the RQ deadline."""
+    try:
+        yield
+    except JobTimeoutException:
+        raise
+    except Exception as exc:
+        logger.warning(f"Publisher connection cleanup failed: exception_type={type(exc).__name__}")

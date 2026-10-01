@@ -1,5 +1,4 @@
 import base64
-import contextlib
 import smtplib
 import ssl
 from email.message import EmailMessage
@@ -7,10 +6,11 @@ from smtplib import SMTP_SSL, SMTPAuthenticationError, SMTPException
 from typing import Any
 
 from models.product import WorkerProduct as Product
+from rq.timeouts import JobTimeoutException
 
 from worker.log import logger
 from worker.publishers.base_publisher import BasePublisher
-from worker.publishers.execution_context import PublisherNetworkTimeout
+from worker.publishers.execution_context import PublisherNetworkTimeout, publisher_cleanup
 
 
 class EMAILPublisher(BasePublisher):
@@ -72,11 +72,11 @@ class EMAILPublisher(BasePublisher):
             self.attach_file(rendered_product)
             logger.debug("Product attached")
 
-    def smtp_login(self, server, timeout: float):
+    def smtp_login(self, server):
         try:
-            with self._network_phase("authenticate", timeout):
+            with self._network_phase("authenticate"):
                 server.login(self.smtp_username, self.smtp_password)
-        except PublisherNetworkTimeout:
+        except (JobTimeoutException, PublisherNetworkTimeout):
             raise
         except Exception as e:
             error_message = "SMTP authentication error" if isinstance(e, SMTPAuthenticationError) else "An SMTP error occurred"
@@ -87,9 +87,9 @@ class EMAILPublisher(BasePublisher):
         server = None
         completed = False
         try:
-            with self._network_phase("connect", timeout):
+            with self._network_phase("connect"):
                 server = SMTP_SSL(self.smtp_address, self.smtp_port, context=context, timeout=timeout)
-            result = self.send_mail(server, timeout)
+            result = self.send_mail(server)
             completed = True
             return result
         finally:
@@ -99,12 +99,12 @@ class EMAILPublisher(BasePublisher):
         server = None
         completed = False
         try:
-            with self._network_phase("connect", timeout):
+            with self._network_phase("connect"):
                 server = smtplib.SMTP(self.smtp_address, self.smtp_port, timeout=timeout)
-            result = self.send_mail(server, timeout)
+            result = self.send_mail(server)
             completed = True
             return result
-        except PublisherNetworkTimeout:
+        except (JobTimeoutException, PublisherNetworkTimeout):
             raise
         except Exception as e:
             logger.error(f"SMTP publisher operation failed: exception_type={type(e).__name__}")
@@ -112,11 +112,11 @@ class EMAILPublisher(BasePublisher):
         finally:
             self._close_server(server, graceful=completed)
 
-    def send_mail(self, server, timeout: float) -> str:
+    def send_mail(self, server) -> str:
         if self.smtp_username and self.smtp_password:
-            self.smtp_login(server, timeout)
+            self.smtp_login(server)
         try:
-            with self._network_phase("send", timeout):
+            with self._network_phase("send"):
                 server.sendmail(self.msg.get("From"), self.msg.get("To"), self.msg.as_string())
         except SMTPException as e:
             logger.error(f"SMTP publisher send failed: exception_type={type(e).__name__}")
@@ -126,9 +126,11 @@ class EMAILPublisher(BasePublisher):
     def _close_server(self, server, *, graceful: bool) -> None:
         if server is None:
             return
-        self._start_close_phase()
-        if graceful:
-            with contextlib.suppress(Exception):
-                server.quit()
-        with contextlib.suppress(Exception):
-            server.close()
+        try:
+            self._start_close_phase()
+            if graceful:
+                with publisher_cleanup():
+                    server.quit()
+        finally:
+            with publisher_cleanup():
+                server.close()

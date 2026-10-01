@@ -1,10 +1,10 @@
-import contextlib
 import ftplib
 from base64 import b64decode
 from io import BytesIO
 from urllib.parse import ParseResult, urlparse
 
 from worker.log import logger
+from worker.publishers.execution_context import publisher_cleanup
 
 from .base_publisher import BasePublisher
 
@@ -50,18 +50,20 @@ class FTPPublisher(BasePublisher):
         ftp = ftplib.FTP()
         completed = False
         try:
-            with self._network_phase("connect", timeout):
+            with self._network_phase("connect"):
                 ftp.connect(host=host_name, port=ftp_port, timeout=timeout)
             if server_config.username and server_config.password:
-                with self._network_phase("authenticate", timeout):
+                with self._network_phase("authenticate"):
                     ftp.login(server_config.username, server_config.password)
-            with self._network_phase("upload", timeout):
+            with self._network_phase("upload"):
                 ftp.storbinary(f"STOR {remote_path}", data_to_upload)
             completed = True
         finally:
-            self._start_close_phase()
-            if completed:
-                with contextlib.suppress(Exception):
-                    ftp.quit()
-            with contextlib.suppress(Exception):
-                ftp.close()
+            try:
+                self._start_close_phase()
+                if completed:
+                    with publisher_cleanup():
+                        ftp.quit()
+            finally:
+                with publisher_cleanup():
+                    ftp.close()
