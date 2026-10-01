@@ -1,3 +1,4 @@
+import contextlib
 import ftplib
 from base64 import b64decode
 from io import BytesIO
@@ -20,6 +21,7 @@ class FTPPublisher(BasePublisher):
     def publish(self, publisher, product, rendered_product):
         parameters = self._extract_parameters(publisher)
         ftp_url = parameters.get("FTP_URL")
+        timeout = self._network_timeout(parameters)
 
         self.set_file_name(product)
         server_config: ParseResult = urlparse(ftp_url)  # type: ignore
@@ -30,11 +32,11 @@ class FTPPublisher(BasePublisher):
         else:
             data_to_upload = BytesIO(b64decode(rendered_data))
 
-        self.upload_to_ftp(server_config, data_to_upload)
-        logger.info({"message": f"Successfully uploaded {self.file_name} to FTP server"})
+        self.upload_to_ftp(server_config, data_to_upload, timeout)
+        logger.info("FTP publisher upload completed")
         return "Successfully uploaded to FTP server"
 
-    def upload_to_ftp(self, server_config: ParseResult, data_to_upload: BytesIO):
+    def upload_to_ftp(self, server_config: ParseResult, data_to_upload: BytesIO, timeout: float):
         ftp_port = server_config.port or 21
         remote_path = server_config.path + self.file_name
         host_name = server_config.hostname
@@ -45,8 +47,21 @@ class FTPPublisher(BasePublisher):
         if server_config.scheme != "ftp":
             raise ValueError(f"Schema '{server_config.scheme}' not supported, choose 'ftp'")
 
-        with ftplib.FTP() as ftp:
-            ftp.connect(host=host_name, port=ftp_port)
+        ftp = ftplib.FTP()
+        completed = False
+        try:
+            with self._network_phase("connect", timeout):
+                ftp.connect(host=host_name, port=ftp_port, timeout=timeout)
             if server_config.username and server_config.password:
-                ftp.login(server_config.username, server_config.password)
-            ftp.storbinary(f"STOR {remote_path}", data_to_upload)
+                with self._network_phase("authenticate", timeout):
+                    ftp.login(server_config.username, server_config.password)
+            with self._network_phase("upload", timeout):
+                ftp.storbinary(f"STOR {remote_path}", data_to_upload)
+            completed = True
+        finally:
+            self._start_close_phase()
+            if completed:
+                with contextlib.suppress(Exception):
+                    ftp.quit()
+            with contextlib.suppress(Exception):
+                ftp.close()

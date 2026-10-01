@@ -222,3 +222,26 @@ def test_sftp_requires_explicit_host_trust():
     assert trusted["ACCEPT_ANY_HOST_KEY"] is False
     configured = normalize_parameter_values("SFTP_PUBLISHER", parameters | {"ACCEPT_ANY_HOST_KEY": "true"})
     assert configured["ACCEPT_ANY_HOST_KEY"] is True
+
+
+@pytest.mark.parametrize(
+    ("worker_type", "required_parameters"),
+    [
+        ("FTP_PUBLISHER", {"FTP_URL": "ftp://example.test/"}),
+        ("SFTP_PUBLISHER", {"SFTP_URL": "sftp://user@example.test/", "HOST_KEY": "ssh-ed25519 AAAA"}),
+        (
+            "EMAIL_PUBLISHER",
+            {
+                "SMTP_SERVER_ADDRESS": "smtp.example.test",
+                "EMAIL_SENDER": "sender@example.test",
+                "EMAIL_RECIPIENT": "recipient@example.test",
+            },
+        ),
+    ],
+)
+def test_publisher_network_timeout_contract(worker_type, required_parameters):
+    assert effective_parameter_values(worker_type, required_parameters)["NETWORK_TIMEOUT"] == 30
+    assert effective_parameter_values(worker_type, required_parameters | {"NETWORK_TIMEOUT": "17"})["NETWORK_TIMEOUT"] == 17
+
+    with pytest.raises(ValidationError):
+        effective_parameter_values(worker_type, required_parameters | {"NETWORK_TIMEOUT": 0})

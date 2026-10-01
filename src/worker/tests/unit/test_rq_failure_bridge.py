@@ -15,6 +15,11 @@ class DummyJob:
         self.id = job_id
         self.meta = {} if meta is None else meta
         self.func_name = func_name
+        self.meta_refreshes = 0
+
+    def get_meta(self, refresh=True):
+        self.meta_refreshes += int(refresh)
+        return self.meta
 
 
 def test_timeout_exception_persists_synthetic_failure(monkeypatch):
@@ -48,10 +53,10 @@ def test_timeout_exception_persists_synthetic_failure(monkeypatch):
     assert captured["kwargs"]["worker_type"] == "rss_collector"
     assert isinstance(captured["kwargs"]["result"], TaskResult)
     assert captured["kwargs"]["result"].model_dump(mode="json", exclude_none=False) == {
-        "message": "too slow",
+        "message": "Background job exceeded its execution timeout",
         "reason": "job_timeout",
         "retryable": True,
-        "data": {"exception_type": "JobTimeoutException", "message": "too slow"},
+        "data": {"exception_type": "JobTimeoutException"},
     }
 
 
@@ -104,7 +109,7 @@ def test_killed_work_horse_persists_synthetic_failure(monkeypatch):
     assert captured["args"] == ("job-1", "connector_task", "FAILURE")
     assert isinstance(captured["kwargs"]["result"], TaskResult)
     assert captured["kwargs"]["result"].model_dump(mode="json", exclude_none=False) == {
-        "message": "Work horse killed for job job-1",
+        "message": "Worker process ended before the job completed",
         "reason": "work_horse_killed",
         "retryable": True,
         "data": {"retpid": 111, "ret_val": 9},
@@ -197,3 +202,52 @@ def test_bridge_normalizes_meta_strings_and_fetch_single_news_item_fallback(monk
     assert captured["kwargs"]["user_id"] == "user-1"
     assert captured["kwargs"]["worker_id"] == "source-1"
     assert captured["kwargs"]["worker_type"] is None
+
+
+def test_timeout_failure_uses_refreshed_publisher_phase_without_exception_text(monkeypatch):
+    captured = {}
+
+    class FakeCoreApi:
+        def api_get(self, url):
+            return None
+
+        def save_task_result(self, *args, **kwargs):
+            captured["result"] = kwargs["result"]
+            return True
+
+    monkeypatch.setattr(rq_failure_bridge, "CoreApi", FakeCoreApi)
+    job = cast(
+        Job,
+        DummyJob(
+            meta={
+                "task": "publisher_task",
+                "worker_id": "publisher-1",
+                "worker_type": "sftp_publisher",
+                "publisher_diagnostics": {
+                    "product_id": "product-1",
+                    "publisher_id": "publisher-1",
+                    "publisher_type": "sftp_publisher",
+                    "phase": "upload",
+                },
+            },
+            func_name="worker.publishers.publisher_tasks.publisher_task",
+        ),
+    )
+
+    rq_failure_bridge.rq_failure_exception_handler(
+        job,
+        JobTimeoutException,
+        JobTimeoutException("secret-host.example timed out"),
+        None,
+    )
+
+    assert job.meta_refreshes == 1
+    assert captured["result"].message == "SFTP publisher timed out during upload"
+    assert captured["result"].data == {
+        "exception_type": "JobTimeoutException",
+        "product_id": "product-1",
+        "publisher_id": "publisher-1",
+        "publisher_type": "sftp_publisher",
+        "publisher_phase": "upload",
+    }
+    assert "secret-host" not in str(captured["result"].model_dump())

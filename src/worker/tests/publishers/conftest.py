@@ -1,4 +1,6 @@
-from threading import Event, current_thread
+import socket
+from threading import Event, Thread, current_thread
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import mockssh
@@ -106,9 +108,103 @@ class RecordingCoreApi:
         return bool(self.put_response)
 
 
+class RecordingJob:
+    def __init__(self, timeout=180):
+        self.id = "job-1"
+        self.timeout = timeout
+        self.meta = {"task": "publisher_task", "user_id": "user-1"}
+        self.saved_meta = []
+
+    def save_meta(self):
+        self.saved_meta.append(self.meta.copy())
+
+
+class TimeoutSSHClient:
+    def __init__(self, captured):
+        self.captured = captured
+
+    def set_missing_host_key_policy(self, policy):
+        pass
+
+    def connect(self, **kwargs):
+        self.captured.update(kwargs)
+        raise TimeoutError
+
+    def close(self):
+        pass
+
+
+class RecordingSFTPChannel:
+    def __init__(self):
+        self.timeout = None
+
+    def settimeout(self, timeout):
+        self.timeout = timeout
+
+
+class MismatchedSFTPClient:
+    def __init__(self):
+        self.channel = RecordingSFTPChannel()
+        self.confirm = None
+
+    def get_channel(self):
+        return self.channel
+
+    def putfo(self, data, path, confirm=True):
+        self.confirm = confirm
+
+    def stat(self, path):
+        return SimpleNamespace(st_size=-1)
+
+    def close(self):
+        pass
+
+
+class MismatchedSSHClient:
+    def __init__(self):
+        self.sftp = MismatchedSFTPClient()
+
+    def set_missing_host_key_policy(self, policy):
+        pass
+
+    def connect(self, **kwargs):
+        pass
+
+    def open_sftp(self):
+        return self.sftp
+
+    def close(self):
+        pass
+
+
+class RecordingFTP:
+    def __init__(self):
+        self.calls = []
+
+    def connect(self, **kwargs):
+        self.calls.append(("connect", kwargs))
+
+    def login(self, username, password):
+        self.calls.append(("login", {"username": username, "password": password}))
+
+    def storbinary(self, command, data):
+        self.calls.append(("storbinary", {"command": command, "data": data.read()}))
+
+    def quit(self):
+        self.calls.append(("quit", {}))
+
+    def close(self):
+        self.calls.append(("close", {}))
+
+
 @pytest.fixture
 def email_publisher():
     return publishers.EMAILPublisher()
+
+
+@pytest.fixture
+def ftp_publisher():
+    return publishers.FTPPublisher()
 
 
 @pytest.fixture
@@ -188,6 +284,26 @@ def recording_core_api_factory():
 
 
 @pytest.fixture
+def recording_job_factory():
+    return RecordingJob
+
+
+@pytest.fixture
+def timeout_ssh_client_factory():
+    return TimeoutSSHClient
+
+
+@pytest.fixture
+def mismatched_ssh_client_factory():
+    return MismatchedSSHClient
+
+
+@pytest.fixture
+def recording_ftp_factory():
+    return RecordingFTP
+
+
+@pytest.fixture
 def smtp_mock():
     with patch("smtplib.SMTP", autospec=True) as mock:
         smtp_instance = mock.return_value
@@ -223,3 +339,27 @@ def sftp_mock(tmp_path, monkeypatch):
             assert handler.finished.wait(timeout=5), "SFTP handler did not stop"
             handler.thread.join(timeout=5)
             assert not handler.thread.is_alive(), "SFTP handler thread did not stop"
+
+
+@pytest.fixture
+def stalled_tcp_server():
+    release = Event()
+    listener = socket.socket()
+    listener.bind(("127.0.0.1", 0))
+    listener.listen()
+    host, port = listener.getsockname()
+
+    def accept_connection():
+        connection, _address = listener.accept()
+        with connection:
+            release.wait(timeout=5)
+
+    thread = Thread(target=accept_connection)
+    thread.start()
+    try:
+        yield host, port
+    finally:
+        release.set()
+        listener.close()
+        thread.join(timeout=5)
+        assert not thread.is_alive(), "Stalled TCP server did not stop"

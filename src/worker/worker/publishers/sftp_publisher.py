@@ -25,6 +25,7 @@ class SFTPPublisher(BasePublisher):
         parameters = self._extract_parameters(publisher)
         ftp_url = parameters.get("SFTP_URL")
         private_key = parameters.get("PRIVATE_KEY")
+        timeout = self._network_timeout(parameters)
 
         self.set_file_name(product)
         server_config: ParseResult = urlparse(ftp_url)  # type: ignore
@@ -47,13 +48,14 @@ class SFTPPublisher(BasePublisher):
             private_key=private_key,
             host_key=parameters.get("HOST_KEY", ""),
             accept_any_host_key=parameters.get("ACCEPT_ANY_HOST_KEY", False) is True,
+            timeout=timeout,
         )
 
         return "SFTP Publisher Task Successful"
 
     def input_validation(self, server_config: ParseResult):
         if not server_config.username:
-            logger.error(f"{server_config.username=}")
+            logger.error("Username is required for SFTP")
             raise ValueError("Username is required for SFTP")
 
         if server_config.scheme != "sftp":
@@ -76,6 +78,7 @@ class SFTPPublisher(BasePublisher):
         private_key: paramiko.PKey | None = None,
         host_key: str = "",
         accept_any_host_key: bool = False,
+        timeout: float = 30,
     ):
         ssh_port = server_config.port or 22
         remote_path = server_config.path + self.file_name
@@ -83,8 +86,6 @@ class SFTPPublisher(BasePublisher):
         hostname = server_config.hostname
         if not hostname:
             raise ValueError("Hostname is required for SFTP")
-
-        logger.debug(f"Uploading to SFTP: {server_config.hostname}:{ssh_port} {remote_path}")
 
         self.ssh = paramiko.SSHClient()
         if accept_any_host_key:
@@ -96,21 +97,45 @@ class SFTPPublisher(BasePublisher):
             try:
                 key_type, key_data, *_ = host_key.split()
                 key = paramiko.PKey.from_type_string(key_type, b64decode(key_data, validate=True))
-            except Exception:
-                logger.exception("Invalid SFTP server host public key")
+            except Exception as exc:
+                logger.error(f"Invalid SFTP server host public key: exception_type={type(exc).__name__}")
                 raise ValueError("Invalid SFTP server host public key; use OpenSSH public key format") from None
             host = hostname if ssh_port == 22 else f"[{hostname}]:{ssh_port}"
             self.ssh.get_host_keys().add(host, key.get_name(), key)
             self.ssh.set_missing_host_key_policy(paramiko.RejectPolicy())
-        with self.ssh:
-            self.ssh.connect(
-                hostname=hostname,
-                port=ssh_port,
-                username=server_config.username,
-                password=connect_password,
-                pkey=private_key,
-                look_for_keys=False,
-                allow_agent=False,
-            )
-            with self.ssh.open_sftp() as sftp:
-                sftp.putfo(data_to_upload, remote_path)
+        sftp = None
+        try:
+            with self._network_phase("connect_and_authenticate", timeout):
+                self.ssh.connect(
+                    hostname=hostname,
+                    port=ssh_port,
+                    username=server_config.username,
+                    password=connect_password,
+                    pkey=private_key,
+                    look_for_keys=False,
+                    allow_agent=False,
+                    timeout=timeout,
+                    banner_timeout=timeout,
+                    auth_timeout=timeout,
+                    channel_timeout=timeout,
+                )
+            with self._network_phase("open_channel", timeout):
+                sftp = self.ssh.open_sftp()
+                channel = sftp.get_channel()
+                if channel is None:
+                    raise paramiko.SSHException("SFTP channel unavailable")
+                channel.settimeout(timeout)
+            expected_size = data_to_upload.getbuffer().nbytes
+            with self._network_phase("upload", timeout):
+                sftp.putfo(data_to_upload, remote_path, confirm=False)
+            with self._network_phase("confirm", timeout):
+                actual_size = sftp.stat(remote_path).st_size
+                if actual_size != expected_size:
+                    raise OSError("SFTP upload size confirmation failed")
+        finally:
+            self._start_close_phase()
+            if sftp is not None:
+                with contextlib.suppress(Exception):
+                    sftp.close()
+            with contextlib.suppress(Exception):
+                self.ssh.close()

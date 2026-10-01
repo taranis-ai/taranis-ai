@@ -6,12 +6,14 @@ Functions for publishing products to external systems.
 from models.product import WorkerProduct as Product
 from models.worker_parameters import effective_parameter_values
 from rq import get_current_job
+from rq.timeouts import JobTimeoutException
 
 import worker.publishers
 from worker.core_api import CoreApi, build_failure_task_result, build_success_task_result
 from worker.http_client import http_session_scope
 from worker.log import logger
 from worker.publishers.base_publisher import BasePublisher
+from worker.publishers.execution_context import PublisherExecutionContext, PublisherNetworkTimeout
 from worker.telemetry import instrument_job
 
 
@@ -37,28 +39,29 @@ def publisher_task(product_id: str, publisher_id: str):
     task_id = job.id if job else f"{task_name}_{publisher_id}_{product_id}"
     worker_type = "publisher_task"
 
-    logger.info(f"Starting publisher task with job id {job.id if job else 'manual'}")
+    context = PublisherExecutionContext(product_id=product_id, publisher_id=publisher_id, job=job)
+    context_token = context.activate()
 
     try:
-        # Get product, publisher, and rendered content
+        context.start_phase("fetch_product")
         product = _get_product(core_api, product_id)
+        context.start_phase("fetch_publisher")
         publisher = _get_publisher(core_api, publisher_id)
+        context.start_phase("fetch_rendered_product")
         rendered_product = _get_rendered_product(core_api, product_id)
 
         if rendered_product is None:
             raise ValueError("Rendered product is None")
 
-        logger.debug(f"Publishing to {publisher}")
-        logger.debug(f"Product: {product}")
-
-        # Get publisher implementation
         pub_type = publisher.get("type")
         if pub_type is None:
             raise ValueError(f"Publisher {publisher_id} has no type configured")
         worker_type = pub_type
+        context.set_publisher_type(pub_type)
         publisher["parameters"] = effective_parameter_values(pub_type, publisher.get("parameters", {}))
         publisher_impl = _get_publisher_impl(pub_type)
 
+        context.start_phase("prepare")
         publish_result = publisher_impl.publish(publisher, product, rendered_product)
         core_api.save_task_result(
             task_id,
@@ -73,8 +76,13 @@ def publisher_task(product_id: str, publisher_id: str):
                 none_message=f"Publisher {publisher_id} completed without returning a result",
             ),
         )
+        context.finish()
         return publish_result
-    except Exception as exc:
+    except JobTimeoutException:
+        raise
+    except PublisherNetworkTimeout as exc:
+        context.mark_failure(exc.phase)
+        context.finish(failed=True, phase=exc.phase)
         core_api.save_task_result(
             task_id,
             task_name,
@@ -83,11 +91,31 @@ def publisher_task(product_id: str, publisher_id: str):
             worker_type=worker_type,
             result=build_failure_task_result(
                 str(exc),
-                reason="publisher_failed",
-                data={"product_id": product_id, "publisher_id": publisher_id},
+                reason="publisher_network_timeout",
+                retryable=True,
+                data=context.diagnostic_data(phase=exc.phase),
             ),
         )
         raise
+    except Exception as exc:
+        context.mark_failure()
+        context.finish(failed=True)
+        logger.error(f"Publisher task failed: exception_type={type(exc).__name__}")
+        core_api.save_task_result(
+            task_id,
+            task_name,
+            "FAILURE",
+            worker_id=publisher_id,
+            worker_type=worker_type,
+            result=build_failure_task_result(
+                "Publisher task failed",
+                reason="publisher_failed",
+                data=context.diagnostic_data(),
+            ),
+        )
+        raise
+    finally:
+        context.deactivate(context_token)
 
 
 def _get_product(core_api: CoreApi, product_id: str) -> dict[str, str]:
