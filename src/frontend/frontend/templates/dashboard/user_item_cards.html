@@ -1,4 +1,5 @@
 {% from 'dashboard/cards.html' import dashboard_card %}
+{% set show_top_sources = current_user.profile.dashboard.show_charts and data.top_sources %}
 
 {% set review_action | trim %}
   {% if can_start_analyst_review | default(false) %}
@@ -12,19 +13,39 @@
 
 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pb-4" data-testid="dashboard-workflow-cards">
   {% call dashboard_card('Assess', url_for('assess.assess'), test_id='dashboard-assess-card', header_actions=review_action) %}
-    <div class="space-y-3">
-      <p class="flex items-center gap-2">
-        {{ heroicon_outline('newspaper', class="size-5 shrink-0 text-primary") }}
-        <span>There are <strong class="tabular-nums">{{ data.total_news_items }}</strong> news items</span>
-      </p>
-      <p class="flex items-center gap-2">
-        {{ heroicon_outline('inbox-stack', class="size-5 shrink-0 text-primary") }}
-        <span>There are <strong class="tabular-nums">{{ data.total_story_items }}</strong> stories</span>
-      </p>
-      <div class="rounded-lg bg-base-200 p-3 text-sm" title="Since Monday 00:00 UTC, by news publication date and story creation date.">
-        <p class="font-semibold mb-1">This week</p>
-        <p><strong class="tabular-nums">{{ data.news_items_this_week }}</strong> news items · <strong class="tabular-nums">{{ data.stories_this_week }}</strong> stories</p>
+    <div class="grid grid-cols-1 gap-6 {% if show_top_sources %}xl:grid-cols-2{% endif %}">
+      <div class="space-y-3 min-w-0">
+        <p class="flex items-center gap-2">
+          {{ heroicon_outline('newspaper', class="size-5 shrink-0 text-primary") }}
+          <span>There are <strong class="tabular-nums">{{ data.total_news_items }}</strong> news items</span>
+        </p>
+        <p class="flex items-center gap-2">
+          {{ heroicon_outline('inbox-stack', class="size-5 shrink-0 text-primary") }}
+          <span>There are <strong class="tabular-nums">{{ data.total_story_items }}</strong> stories</span>
+        </p>
+        <div class="rounded-lg bg-base-200 p-3 text-sm" title="Since Monday 00:00 UTC, by news publication date and story creation date.">
+          <p class="font-semibold mb-1">This week</p>
+          <p><strong class="tabular-nums">{{ data.news_items_this_week }}</strong> news items · <strong class="tabular-nums">{{ data.stories_this_week }}</strong> stories</p>
+        </div>
       </div>
+      {% if show_top_sources %}
+        <div class="text-sm min-w-0" data-testid="dashboard-top-sources" title="Share of all news items by OSINT source.">
+          <p class="font-semibold mb-2">Top sources</p>
+          <ul class="space-y-2">
+            {% for source in data.top_sources %}
+              <li data-testid="dashboard-top-source">
+                <div class="flex justify-between gap-2">
+                  <span class="truncate" title="{{ source.name }}">{{ source.name }}</span>
+                  <span class="tabular-nums shrink-0">{{ source.percentage }}%</span>
+                </div>
+                <div class="w-full h-2 rounded bg-base-300 overflow-hidden">
+                  <div class="h-full bg-primary" style="width: {{ source.percentage }}%"></div>
+                </div>
+              </li>
+            {% endfor %}
+          </ul>
+        </div>
+      {% endif %}
     </div>
   {% endcall %}
 
