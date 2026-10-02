@@ -16,9 +16,6 @@ class DummyJob:
         self.meta = {} if meta is None else meta
         self.func_name = func_name
 
-    def get_meta(self, refresh=True):
-        return self.meta
-
 
 def test_timeout_exception_persists_synthetic_failure(monkeypatch):
     captured = {}
@@ -39,7 +36,7 @@ def test_timeout_exception_persists_synthetic_failure(monkeypatch):
     result = rq_failure_bridge.rq_failure_exception_handler(
         job,
         JobTimeoutException,
-        JobTimeoutException("too slow"),
+        JobTimeoutException("API_KEY=secret-host.example"),
         None,
     )
 
@@ -77,13 +74,15 @@ def test_generic_exception_persists_synthetic_failure(monkeypatch):
     rq_failure_bridge.rq_failure_exception_handler(
         job,
         RuntimeError,
-        RuntimeError("boom"),
+        RuntimeError("API_KEY=secret-host.example"),
         None,
     )
 
     assert captured["args"] == ("job-1", "presenter_task", "FAILURE")
     assert captured["kwargs"]["result"].reason == "job_failed"
     assert captured["kwargs"]["result"].retryable is False
+    assert captured["kwargs"]["result"].message == "Background job failed"
+    assert "secret-host" not in str(captured["kwargs"]["result"].model_dump())
 
 
 def test_killed_work_horse_persists_synthetic_failure(monkeypatch):
@@ -200,51 +199,3 @@ def test_bridge_normalizes_meta_strings_and_fetch_single_news_item_fallback(monk
     assert captured["kwargs"]["user_id"] == "user-1"
     assert captured["kwargs"]["worker_id"] == "source-1"
     assert captured["kwargs"]["worker_type"] is None
-
-
-def test_timeout_failure_uses_publisher_phase_without_exception_text(monkeypatch):
-    captured = {}
-
-    class FakeCoreApi:
-        def api_get(self, url):
-            return None
-
-        def save_task_result(self, *args, **kwargs):
-            captured["result"] = kwargs["result"]
-            return True
-
-    monkeypatch.setattr(rq_failure_bridge, "CoreApi", FakeCoreApi)
-    job = cast(
-        Job,
-        DummyJob(
-            meta={
-                "task": "publisher_task",
-                "worker_id": "publisher-1",
-                "worker_type": "sftp_publisher",
-                "publisher_diagnostics": {
-                    "product_id": "product-1",
-                    "publisher_id": "publisher-1",
-                    "publisher_type": "sftp_publisher",
-                    "phase": "upload",
-                },
-            },
-            func_name="worker.publishers.publisher_tasks.publisher_task",
-        ),
-    )
-
-    rq_failure_bridge.rq_failure_exception_handler(
-        job,
-        JobTimeoutException,
-        JobTimeoutException("secret-host.example timed out"),
-        None,
-    )
-
-    assert captured["result"].message == "SFTP publisher timed out during upload"
-    assert captured["result"].data == {
-        "exception_type": "JobTimeoutException",
-        "product_id": "product-1",
-        "publisher_id": "publisher-1",
-        "publisher_type": "sftp_publisher",
-        "publisher_phase": "upload",
-    }
-    assert "secret-host" not in str(captured["result"].model_dump())

@@ -4,7 +4,7 @@ import paramiko
 import pytest
 from mockssh.server import SERVER_KEY_PATH
 
-from worker.publishers.execution_context import PublisherNetworkTimeout
+from worker.publishers.network import PublisherNetworkTimeout
 
 
 pytestmark = pytest.mark.filterwarnings("error::pytest.PytestUnhandledThreadExceptionWarning")

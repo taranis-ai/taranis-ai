@@ -3,8 +3,10 @@ from base64 import b64decode
 from io import BytesIO
 from urllib.parse import ParseResult, urlparse
 
+from rq.timeouts import JobTimeoutException
+
 from worker.log import logger
-from worker.publishers.execution_context import publisher_cleanup
+from worker.publishers.network import PublisherNetworkTimeout, effective_network_timeout, is_network_timeout
 
 from .base_publisher import BasePublisher
 
@@ -21,7 +23,7 @@ class FTPPublisher(BasePublisher):
     def publish(self, publisher, product, rendered_product):
         parameters = self._extract_parameters(publisher)
         ftp_url = parameters.get("FTP_URL")
-        timeout = self._network_timeout(parameters)
+        timeout = effective_network_timeout(parameters)
 
         self.set_file_name(product)
         server_config: ParseResult = urlparse(ftp_url)  # type: ignore
@@ -49,21 +51,39 @@ class FTPPublisher(BasePublisher):
 
         ftp = ftplib.FTP()
         completed = False
+        operation = "connect"
         try:
-            with self._network_phase("connect"):
-                ftp.connect(host=host_name, port=ftp_port, timeout=timeout)
+            logger.info("FTP publisher connecting")
+            ftp.connect(host=host_name, port=ftp_port, timeout=timeout)
             if server_config.username and server_config.password:
-                with self._network_phase("authenticate"):
-                    ftp.login(server_config.username, server_config.password)
-            with self._network_phase("upload"):
-                ftp.storbinary(f"STOR {remote_path}", data_to_upload)
+                operation = "authenticate"
+                logger.info("FTP publisher authenticating")
+                ftp.login(server_config.username, server_config.password)
+            operation = "upload"
+            logger.info("FTP publisher uploading")
+            ftp.storbinary(f"STOR {remote_path}", data_to_upload)
             completed = True
+        except JobTimeoutException:
+            raise
+        except Exception as exc:
+            if is_network_timeout(exc):
+                raise PublisherNetworkTimeout(self.type, operation) from exc
+            logger.error(f"FTP publisher failed: operation={operation} exception_type={type(exc).__name__}")
+            raise
         finally:
             try:
-                self._start_close_phase()
+                logger.info("FTP publisher closing connection")
                 if completed:
-                    with publisher_cleanup():
+                    try:
                         ftp.quit()
+                    except JobTimeoutException:
+                        raise
+                    except Exception as exc:
+                        logger.warning(f"FTP publisher shutdown failed: exception_type={type(exc).__name__}")
             finally:
-                with publisher_cleanup():
+                try:
                     ftp.close()
+                except JobTimeoutException:
+                    raise
+                except Exception as exc:
+                    logger.warning(f"FTP publisher close failed: exception_type={type(exc).__name__}")

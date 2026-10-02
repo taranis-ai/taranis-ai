@@ -1,6 +1,6 @@
 import pytest
 
-from worker.publishers.execution_context import PublisherNetworkTimeout
+from worker.publishers.network import PublisherNetworkTimeout
 
 
 def test_email_publisher_publish(email_publisher, get_product_mock, smtp_mock):

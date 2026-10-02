@@ -8,7 +8,7 @@ import paramiko
 from rq.timeouts import JobTimeoutException
 
 from worker.log import logger
-from worker.publishers.execution_context import publisher_cleanup
+from worker.publishers.network import PublisherNetworkTimeout, effective_network_timeout, is_network_timeout
 
 from .base_publisher import BasePublisher
 
@@ -27,7 +27,7 @@ class SFTPPublisher(BasePublisher):
         parameters = self._extract_parameters(publisher)
         ftp_url = parameters.get("SFTP_URL")
         private_key = parameters.get("PRIVATE_KEY")
-        timeout = self._network_timeout(parameters)
+        timeout = effective_network_timeout(parameters)
 
         self.set_file_name(product)
         server_config: ParseResult = urlparse(ftp_url)  # type: ignore
@@ -108,42 +108,61 @@ class SFTPPublisher(BasePublisher):
             self.ssh.get_host_keys().add(host, key.get_name(), key)
             self.ssh.set_missing_host_key_policy(paramiko.RejectPolicy())
         sftp = None
+        operation = "connect_and_authenticate"
         try:
-            with self._network_phase("connect_and_authenticate"):
-                self.ssh.connect(
-                    hostname=hostname,
-                    port=ssh_port,
-                    username=server_config.username,
-                    password=connect_password,
-                    pkey=private_key,
-                    look_for_keys=False,
-                    allow_agent=False,
-                    timeout=timeout,
-                    banner_timeout=timeout,
-                    auth_timeout=timeout,
-                    channel_timeout=timeout,
-                )
-            with self._network_phase("open_channel"):
-                transport = self.ssh.get_transport()
-                if transport is None:
-                    raise paramiko.SSHException("SSH transport unavailable")
-                channel = transport.open_session(timeout=timeout)
-                channel.settimeout(timeout)
-                channel.invoke_subsystem("sftp")
-                sftp = paramiko.SFTPClient(channel)
+            logger.info("SFTP publisher connecting and authenticating")
+            self.ssh.connect(
+                hostname=hostname,
+                port=ssh_port,
+                username=server_config.username,
+                password=connect_password,
+                pkey=private_key,
+                look_for_keys=False,
+                allow_agent=False,
+                timeout=timeout,
+                banner_timeout=timeout,
+                auth_timeout=timeout,
+                channel_timeout=timeout,
+            )
+            operation = "open_channel"
+            logger.info("SFTP publisher opening channel")
+            transport = self.ssh.get_transport()
+            if transport is None:
+                raise paramiko.SSHException("SSH transport unavailable")
+            channel = transport.open_session(timeout=timeout)
+            channel.settimeout(timeout)
+            channel.invoke_subsystem("sftp")
+            sftp = paramiko.SFTPClient(channel)
             expected_size = data_to_upload.getbuffer().nbytes
-            with self._network_phase("upload"):
-                sftp.putfo(data_to_upload, remote_path, confirm=False)
-            with self._network_phase("confirm"):
-                actual_size = sftp.stat(remote_path).st_size
-                if actual_size != expected_size:
-                    raise OSError("SFTP upload size confirmation failed")
+            operation = "upload"
+            logger.info("SFTP publisher uploading")
+            sftp.putfo(data_to_upload, remote_path, confirm=False)
+            operation = "confirm"
+            logger.info("SFTP publisher confirming upload size")
+            actual_size = sftp.stat(remote_path).st_size
+            if actual_size != expected_size:
+                raise OSError("SFTP upload size confirmation failed")
+        except JobTimeoutException:
+            raise
+        except Exception as exc:
+            if is_network_timeout(exc):
+                raise PublisherNetworkTimeout(self.type, operation) from exc
+            logger.error(f"SFTP publisher failed: operation={operation} exception_type={type(exc).__name__}")
+            raise
         finally:
             try:
-                self._start_close_phase()
+                logger.info("SFTP publisher closing connection")
                 if sftp is not None:
-                    with publisher_cleanup():
+                    try:
                         sftp.close()
+                    except JobTimeoutException:
+                        raise
+                    except Exception as exc:
+                        logger.warning(f"SFTP publisher channel close failed: exception_type={type(exc).__name__}")
             finally:
-                with publisher_cleanup():
+                try:
                     self.ssh.close()
+                except JobTimeoutException:
+                    raise
+                except Exception as exc:
+                    logger.warning(f"SFTP publisher close failed: exception_type={type(exc).__name__}")

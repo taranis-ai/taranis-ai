@@ -1,7 +1,7 @@
 import pytest
 
 from worker.publishers import publisher_tasks
-from worker.publishers.execution_context import PublisherNetworkTimeout
+from worker.publishers.network import PublisherNetworkTimeout
 
 
 def _email_publisher_config():

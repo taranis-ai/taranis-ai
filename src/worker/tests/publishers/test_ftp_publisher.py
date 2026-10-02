@@ -1,6 +1,6 @@
 import pytest
 
-from worker.publishers.execution_context import PublisherNetworkTimeout
+from worker.publishers.network import PublisherNetworkTimeout
 
 
 def test_ftp_publisher_times_out_while_waiting_for_server_banner(ftp_publisher, get_product_mock, stalled_tcp_server):

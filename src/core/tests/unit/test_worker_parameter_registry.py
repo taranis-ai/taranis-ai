@@ -44,13 +44,25 @@ def test_boundary_adapter_preserves_native_values():
     }
 
 
-def test_effective_values_expand_defaults_and_unknown_fields_are_rejected():
-    effective = effective_parameter_values("RSS_COLLECTOR", {"FEED_URL": "https://example.test/feed"})
-    assert effective["USE_GLOBAL_PROXY"] is False
-    assert effective["REFRESH_INTERVAL"] == ""
+@pytest.mark.parametrize(
+    ("worker_type", "parameters", "defaults"),
+    [
+        ("RSS_COLLECTOR", {"FEED_URL": "https://example.test/feed"}, {"USE_GLOBAL_PROXY": False, "REFRESH_INTERVAL": ""}),
+        ("FTP_PUBLISHER", {"FTP_URL": "ftp://example.test/"}, {"NETWORK_TIMEOUT": 30}),
+        ("SFTP_PUBLISHER", {"SFTP_URL": "sftp://user@example.test/", "HOST_KEY": "ssh-ed25519 AAAA"}, {"NETWORK_TIMEOUT": 30}),
+        (
+            "EMAIL_PUBLISHER",
+            {"SMTP_SERVER_ADDRESS": "smtp.example.test", "EMAIL_SENDER": "sender@example.test", "EMAIL_RECIPIENT": "recipient@example.test"},
+            {"NETWORK_TIMEOUT": 30},
+        ),
+    ],
+)
+def test_effective_values_expand_defaults_and_unknown_fields_are_rejected(worker_type, parameters, defaults):
+    effective = effective_parameter_values(worker_type, parameters)
+    assert {key: effective[key] for key in defaults} == defaults
 
     with pytest.raises(ValidationError):
-        effective_parameter_values("RSS_COLLECTOR", {"FEED_URL": "x", "UNKNOWN": "value"})
+        effective_parameter_values(worker_type, parameters | {"UNKNOWN": "value"})
 
 
 def test_secret_schema_uses_standard_password_fields():
@@ -153,6 +165,17 @@ def test_every_schema_uses_uppercase_names_and_documents_each_field():
         ("RSS_COLLECTOR", {"FEED_URL": "feed", "TLP_LEVEL": "blue"}),
         ("RSS_COLLECTOR", {"FEED_URL": "feed", "ADDITIONAL_HEADERS": "[]"}),
         ("NLP_BOT", {"REQUESTS_TIMEOUT": "0"}),
+        ("FTP_PUBLISHER", {"FTP_URL": "ftp://example.test/", "NETWORK_TIMEOUT": 0}),
+        ("SFTP_PUBLISHER", {"SFTP_URL": "sftp://user@example.test/", "HOST_KEY": "ssh-ed25519 AAAA", "NETWORK_TIMEOUT": -1}),
+        (
+            "EMAIL_PUBLISHER",
+            {
+                "SMTP_SERVER_ADDRESS": "smtp.example.test",
+                "EMAIL_SENDER": "sender@example.test",
+                "EMAIL_RECIPIENT": "recipient@example.test",
+                "NETWORK_TIMEOUT": "invalid",
+            },
+        ),
         (
             "TAXII_PUBLISHER",
             {"TAXII_COLLECTION_ID": "collection", "AUTH_TYPE": "bearer", "API_TOKEN": ""},
@@ -222,26 +245,3 @@ def test_sftp_requires_explicit_host_trust():
     assert trusted["ACCEPT_ANY_HOST_KEY"] is False
     configured = normalize_parameter_values("SFTP_PUBLISHER", parameters | {"ACCEPT_ANY_HOST_KEY": "true"})
     assert configured["ACCEPT_ANY_HOST_KEY"] is True
-
-
-@pytest.mark.parametrize(
-    ("worker_type", "required_parameters"),
-    [
-        ("FTP_PUBLISHER", {"FTP_URL": "ftp://example.test/"}),
-        ("SFTP_PUBLISHER", {"SFTP_URL": "sftp://user@example.test/", "HOST_KEY": "ssh-ed25519 AAAA"}),
-        (
-            "EMAIL_PUBLISHER",
-            {
-                "SMTP_SERVER_ADDRESS": "smtp.example.test",
-                "EMAIL_SENDER": "sender@example.test",
-                "EMAIL_RECIPIENT": "recipient@example.test",
-            },
-        ),
-    ],
-)
-def test_publisher_network_timeout_contract(worker_type, required_parameters):
-    assert effective_parameter_values(worker_type, required_parameters)["NETWORK_TIMEOUT"] == 30
-    assert effective_parameter_values(worker_type, required_parameters | {"NETWORK_TIMEOUT": "17"})["NETWORK_TIMEOUT"] == 17
-
-    with pytest.raises(ValidationError):
-        effective_parameter_values(worker_type, required_parameters | {"NETWORK_TIMEOUT": 0})

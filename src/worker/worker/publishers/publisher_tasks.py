@@ -13,7 +13,7 @@ from worker.core_api import CoreApi, build_failure_task_result, build_success_ta
 from worker.http_client import http_session_scope
 from worker.log import logger
 from worker.publishers.base_publisher import BasePublisher
-from worker.publishers.execution_context import PublisherExecutionContext, PublisherNetworkTimeout
+from worker.publishers.network import PublisherNetworkTimeout
 from worker.telemetry import instrument_job
 
 
@@ -39,15 +39,12 @@ def publisher_task(product_id: str, publisher_id: str):
     task_id = job.id if job else f"{task_name}_{publisher_id}_{product_id}"
     worker_type = "publisher_task"
 
-    context = PublisherExecutionContext(product_id=product_id, publisher_id=publisher_id, job=job)
-    context_token = context.activate()
+    result_data = {"product_id": product_id, "publisher_id": publisher_id}
+    logger.info(f"Publisher task started: job={task_id} product={product_id} publisher={publisher_id}")
 
     try:
-        context.start_phase("fetch_product")
         product = _get_product(core_api, product_id)
-        context.start_phase("fetch_publisher")
         publisher = _get_publisher(core_api, publisher_id)
-        context.start_phase("fetch_rendered_product")
         rendered_product = _get_rendered_product(core_api, product_id)
 
         if rendered_product is None:
@@ -57,11 +54,10 @@ def publisher_task(product_id: str, publisher_id: str):
         if pub_type is None:
             raise ValueError(f"Publisher {publisher_id} has no type configured")
         worker_type = pub_type
-        context.set_publisher_type(pub_type)
+        result_data["publisher_type"] = pub_type
         publisher["parameters"] = effective_parameter_values(pub_type, publisher.get("parameters", {}))
         publisher_impl = _get_publisher_impl(pub_type)
 
-        context.start_phase("prepare")
         publish_result = publisher_impl.publish(publisher, product, rendered_product)
         core_api.save_task_result(
             task_id,
@@ -76,13 +72,12 @@ def publisher_task(product_id: str, publisher_id: str):
                 none_message=f"Publisher {publisher_id} completed without returning a result",
             ),
         )
-        context.finish()
+        logger.info(f"Publisher task completed: type={worker_type} product={product_id} publisher={publisher_id}")
         return publish_result
     except JobTimeoutException:
         raise
     except PublisherNetworkTimeout as exc:
-        context.mark_failure(exc.phase)
-        context.finish(failed=True, phase=exc.phase)
+        logger.error(f"Publisher network timeout: type={exc.publisher_type} operation={exc.operation}")
         core_api.save_task_result(
             task_id,
             task_name,
@@ -90,16 +85,14 @@ def publisher_task(product_id: str, publisher_id: str):
             worker_id=publisher_id,
             worker_type=worker_type,
             result=build_failure_task_result(
-                str(exc),
+                exc.public_message,
                 reason="publisher_network_timeout",
                 retryable=True,
-                data=context.diagnostic_data(phase=exc.phase),
+                data=result_data | {"publisher_operation": exc.operation},
             ),
         )
         raise
     except Exception as exc:
-        context.mark_failure()
-        context.finish(failed=True)
         logger.error(f"Publisher task failed: exception_type={type(exc).__name__}")
         core_api.save_task_result(
             task_id,
@@ -110,12 +103,10 @@ def publisher_task(product_id: str, publisher_id: str):
             result=build_failure_task_result(
                 "Publisher task failed",
                 reason="publisher_failed",
-                data=context.diagnostic_data(),
+                data=result_data,
             ),
         )
         raise
-    finally:
-        context.deactivate(context_token)
 
 
 def _get_product(core_api: CoreApi, product_id: str) -> dict[str, str]:

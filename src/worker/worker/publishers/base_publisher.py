@@ -6,12 +6,6 @@ from models.product import WorkerProduct as Product
 
 from worker.core_api import CoreApi
 from worker.log import logger
-from worker.publishers.execution_context import (
-    effective_network_timeout,
-    get_publisher_context,
-    publisher_network_phase,
-    start_publisher_phase,
-)
 
 
 class BasePublisher:
@@ -41,20 +35,6 @@ class BasePublisher:
 
     def _extract_parameters(self, publisher: dict[str, Any]) -> dict[str, Any]:
         return publisher.get("parameters") or {}
-
-    def _network_timeout(self, parameters: dict[str, Any]) -> float:
-        return effective_network_timeout(parameters)
-
-    def _start_phase(self, phase: str) -> None:
-        start_publisher_phase(phase)
-
-    def _start_close_phase(self) -> None:
-        context = get_publisher_context()
-        if context is None or context.failure_phase is None:
-            start_publisher_phase("close")
-
-    def _network_phase(self, phase: str):
-        return publisher_network_phase(phase, self.type)
 
     @staticmethod
     def _require_rendered_data(rendered_product: Product) -> bytes:
