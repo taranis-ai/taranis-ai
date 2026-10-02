@@ -50,6 +50,8 @@ Core automatically ensures the `internal` endpoint at `http://llm-inference:8000
 
 NER, sentiment, and cybersecurity classification also call this shared endpoint directly from workers. Their standalone containers are removed from the bots, PPN, and Tor Compose variations. Configure feature assignments or per-bot selections in LLM Endpoints; old service URLs and keys are unused. Classification uses each bot’s `CLASSIFICATION_THRESHOLD`.
 
+HTTP providers, including internal inference, remain supported. HTTP sends API keys and request content without encryption; private networking does not encrypt traffic. Automatic endpoint checks send credentials to every saved provider, including unassigned providers. Use HTTPS across untrusted networks and choose HTTP only when you accept this exposure on your deployment network.
+
 After updating, pull images, restart services, and remove obsolete bot containers:
 
 ```bash
