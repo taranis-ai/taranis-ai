@@ -15,7 +15,7 @@ from core.model.story import Story
 
 
 @pytest.fixture
-def tagged_story(db, request):
+def story_with_tag_cluster(db, request):
     """One story carrying a tagged news item, cluster materialized once."""
     story = Story(title="cluster regression story")
     db.session.add(story)
@@ -39,7 +39,7 @@ def tagged_story(db, request):
     return story
 
 
-def test_refresh_twice_does_not_violate_primary_key(db, tagged_story):
+def test_refresh_twice_does_not_violate_primary_key(db, story_with_tag_cluster):
     """Re-refreshing a materialized cluster key updates in place (GH #1135)."""
     NewsItemTagCluster.refresh_for_keys({("Apple", "CVE_VENDOR")})
     db.session.commit()
@@ -48,7 +48,7 @@ def test_refresh_twice_does_not_violate_primary_key(db, tagged_story):
     assert row is not None
 
 
-def test_stale_key_removed_when_source_tags_gone(db, tagged_story):
+def test_stale_key_removed_when_source_tags_gone(db, story_with_tag_cluster):
     """Keys without source tags stay deleted after a refresh (issue acceptance)."""
     db.session.query(NewsItemTag).delete()
     db.session.commit()
