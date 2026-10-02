@@ -2,6 +2,8 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import Index, func, literal_column, tuple_
+from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import Mapped, relationship
 
 from core.log import logger
@@ -294,14 +296,29 @@ class NewsItemTagCluster(BaseModel):
             .where(NewsItemTag.name.is_not(None), NewsItemTag.name != "")
             .group_by(NewsItemTag.name, tag_type_key)
         ).all()
-        session.add_all(
-            cls(
-                name=name,
-                tag_type=tag_type,
-                tag_type_key=tag_type_key_value,
-                news_item_count=news_item_count,
-                story_count=story_count,
-                last_story_created=last_story_created,
-            )
-            for name, tag_type, tag_type_key_value, news_item_count, story_count, last_story_created in rows
+        if not rows:
+            # every source tag for these keys is gone; nothing to insert
+            return
+        # Upsert instead of a plain insert: two concurrent refreshes of the same
+        # (name, tag_type_key) would otherwise race between the delete above and
+        # this insert and violate the composite primary key (GH #1135).
+        insert_stmt = pg_insert(cls) if db.engine.dialect.name == "postgresql" else sqlite_insert(cls)
+        update_columns = {
+            column: insert_stmt.excluded[column]
+            for column in ("tag_type", "news_item_count", "story_count", "last_story_created")
+        }
+        session.execute(
+            insert_stmt.values(
+                [
+                    {
+                        "name": name,
+                        "tag_type": tag_type,
+                        "tag_type_key": tag_type_key_value,
+                        "news_item_count": news_item_count,
+                        "story_count": story_count,
+                        "last_story_created": last_story_created,
+                    }
+                    for name, tag_type, tag_type_key_value, news_item_count, story_count, last_story_created in rows
+                ]
+            ).on_conflict_do_update(index_elements=["name", "tag_type_key"], set_=update_columns)
         )
