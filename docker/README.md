@@ -90,13 +90,35 @@ http://<url>:<TARANIS_PORT>/login
 
 The Compose database defaults to PostgreSQL 18. Its data lives in `database_data`, mounted at `/var/lib/postgresql`; the [official 18 image](https://hub.docker.com/_/postgres) stores the cluster below `/var/lib/postgresql/18/docker`. An existing PostgreSQL 14–17 `database_data` volume cannot be started with the 18 image.
 
-Before upgrading, ensure `POSTGRES_TAG` is unset or set to `18-alpine`, allow enough free space for a full backup, and stop any clients that write directly to PostgreSQL. From the repository root, run:
+Run [upgrade-database.sh](database/upgrade-database.sh) from the deployment directory where `docker compose` works. It uses the published [pgautoupgrade image](https://github.com/pgautoupgrade/docker-pgautoupgrade) in one-shot mode; no other scripts or running old server are required. It also works after `docker compose down` or when PostgreSQL 18 is restarting against an old cluster.
+
+Configure Compose to use `postgres:18-alpine` and mount `database_data` at `/var/lib/postgresql`. Stop database clients outside Compose, then run:
 
 ```bash
-./docker/database/upgrade-database.sh
+./database/upgrade-database.sh
 ```
 
-The script confirms the running server version, pulls the 18 image, stops application writers, saves the core files and a logical database dump under `docker/backups/`, recreates the database volume and restores the dump, restarts the stack, and checks readiness and the server version. Keep that backup private: it contains application data.
+The script reads the resolved `database_data` volume name from Compose, including custom and external names. Automatic detection requires `jq`. You can pass an explicit volume name as an optional argument. If you downloaded the script directly into your deployment directory, use `./upgrade-database.sh` instead.
+
+After confirmation, the script pulls the required database images, stops Compose without deleting volumes, writes and checks a private physical backup under `backups/postgres-before-18.*/database.tar.gz`, upgrades the volume, restarts Compose with readiness checks, and verifies PostgreSQL 18. It prints the backup path. The upgrade runs without network access or a Docker socket mount, and preserves existing database roles and passwords. The `core_data` volume is unchanged. Keep the backup: upgrading modifies the database volume in place and removes the old cluster. Never use `docker compose down -v` here.
+
+The script defaults to database user/name `taranis`. For customized deployments, pass the existing `DB_USER` and `DB_DATABASE` values explicitly. Use `UPGRADE_IMAGE=pgautoupgrade/pgautoupgrade:18-trixie` for a Debian-based source cluster; the bundled deployment uses Alpine. For example:
+
+```bash
+DB_USER=analyst DB_DATABASE=intelligence ./database/upgrade-database.sh
+```
+
+If upgrading fails, retain the printed backup and leave Compose stopped. For rollback, set `UPGRADE_BACKUP` to that archive and extract it into a **fresh** named volume:
+
+```bash
+UPGRADE_BACKUP=/path/to/backups/postgres-before-18.XXXXXX/database.tar.gz
+docker volume create taranis_database_recovery
+docker run --rm -i --network none \
+  --mount type=volume,src=taranis_database_recovery,dst=/data \
+  busybox tar -xzf - -C /data . < "$UPGRADE_BACKUP"
+```
+
+Set the Compose `database_data` volume's `name` to `taranis_database_recovery`, revert the database image to its original PostgreSQL major and distribution, and restore the old mount at `/var/lib/postgresql/data`. Start Compose with `docker compose up -d --wait` and verify the original server version and application data. Keep the failed upgrade volume until recovery is verified. This archive is a physical backup; `database/restore.sh` accepts logical dumps and cannot restore it.
 
 ## Public reports
 
