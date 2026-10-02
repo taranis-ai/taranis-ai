@@ -8,6 +8,7 @@ from core.config import Config
 from core.log import logger
 from core.managers import queue_manager
 from core.managers.auth_manager import api_key_required
+from core.managers.db_manager import db
 from core.managers.decorators import extract_args
 from core.managers.realtime_publisher import realtime_publisher
 from core.model.bot import Bot, BotIndexConflictError
@@ -201,6 +202,60 @@ class Stories(MethodView):
         return make_response(jsonify(response), status)
 
 
+class BotPipelineStories(MethodView):
+    @api_key_required
+    def post(self):
+        payload = request.get_json(silent=True)
+        filters = payload.get("filters") if isinstance(payload, dict) else None
+        if not isinstance(filters, dict) or not filters or any(not isinstance(item, dict) for item in filters.values()):
+            return {"error": "Invalid bot pipeline filters"}, 400
+
+        allowed = {
+            "search",
+            "source",
+            "in_report",
+            "timefrom",
+            "sort",
+            "range",
+            "limit",
+            "worker",
+            "exclude_attr",
+            "include_attr",
+            "story_id",
+            "story_ids",
+            "cybersecurity",
+            "group",
+        }
+        selected: dict[str, list[str]] = {}
+        try:
+            for bot_id, raw_filter in filters.items():
+                if not isinstance(bot_id, str) or set(raw_filter) - allowed:
+                    return {"error": "Invalid bot pipeline filters"}, 400
+                filter_args = dict(raw_filter)
+                for key in ("source", "group", "story_ids"):
+                    if key in filter_args and not isinstance(filter_args[key], list):
+                        filter_args[key] = [filter_args[key]]
+                if not filter_args.get("story_id") and not filter_args.get("story_ids") and "timefrom" not in filter_args:
+                    days = Settings.get_settings()["default_bot_lookback_days"]
+                    if days > 0:
+                        filter_args["timefrom"] = (Story.utcnow() - timedelta(days=days)).isoformat()
+                query = Story._add_paging_to_query(filter_args, Story._add_sorting_to_query(filter_args, Story.get_filter_query(filter_args)))
+                selected[bot_id] = list(dict.fromkeys(db.session.execute(query.with_only_columns(Story.id)).scalars()))
+        except (TypeError, ValueError):
+            return {"error": "Invalid bot pipeline filters"}, 400
+        except Exception:
+            logger.exception("Failed to select bot pipeline stories")
+            return {"error": "Could not select bot pipeline stories"}, 500
+
+        story_ids = list(dict.fromkeys(story_id for ids in selected.values() for story_id in ids))
+        stories = {story.id: story for story in Story.get_bulk(story_ids)}
+        return {
+            "stories": [stories[story_id].to_worker_dict() for story_id in story_ids if story_id in stories],
+            "selected": selected,
+            "revisions": {story_id: stories[story_id].revision for story_id in story_ids if story_id in stories},
+        }, 200
+
+
 class MISPStories(MethodView):
     @api_key_required
     def post(self):
@@ -392,6 +447,7 @@ def initialize(app: Flask):
     worker_bp.add_url_rule("/bots/<string:bot_id>", view_func=BotInfo.as_view("bot_info_worker"))
     worker_bp.add_url_rule("/post-collection-bots", view_func=PostCollectionBots.as_view("post_collection_bots_worker"))
     worker_bp.add_url_rule("/stories", view_func=Stories.as_view("stories_worker"))
+    worker_bp.add_url_rule("/bot-pipeline/stories", view_func=BotPipelineStories.as_view("bot_pipeline_stories_worker"))
     worker_bp.add_url_rule("/misp/stories", view_func=MISPStories.as_view("misp_stories_worker"))
     worker_bp.add_url_rule("/misp/last-change", view_func=MISPStories.as_view("last_change"))
     worker_bp.add_url_rule("/word-lists", view_func=WordLists.as_view("word_lists_worker"))

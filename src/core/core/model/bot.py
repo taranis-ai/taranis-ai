@@ -472,6 +472,9 @@ class Bot(BaseModel):
         return data
 
     def get_cron_spec(self) -> CronSpec:
+        from core.config import Config
+
+        timeout = effective_parameters(self.type, self.parameters).get("EXECUTION_TIMEOUT")
         return CronSpec(
             meta={
                 "name": f"Bot: {self.name}",
@@ -484,6 +487,7 @@ class Bot(BaseModel):
             func_path="bot_task",
             args=[self.id],
             queue_name="bots",
+            job_options={"job_timeout": timeout or Config.RQ_DEFAULT_JOB_TIMEOUT},
         )
 
     def schedule_bot(self):

@@ -33,7 +33,6 @@ class StoryBot(BaseBot):
             if not cluster_data or not cluster_data.get("event_clusters"):
                 return {"message": f"{message}. No clusters found."}
 
-            self.core_api.news_items_grouping_multiple(cluster_data.get("event_clusters", []))
-            return {"message": message}
+            return {"message": message, "changes": {"groups": cluster_data.get("event_clusters", [])}}
 
         raise RuntimeError(f"Did not receive clustering information from Story Bot at {self.bot_api.api_url}")

@@ -382,6 +382,9 @@ class CoreApi:
     def get_stories(self, filter_dict: dict) -> list | None:
         return self.api_get("/worker/stories", params=filter_dict) or []
 
+    def get_pipeline_stories(self, filters: dict[str, dict]) -> dict | None:
+        return self.api_post("/worker/bot-pipeline/stories", {"filters": filters})
+
     def get_tags(self) -> dict | None:
         return self.api_get("/worker/tags")
 

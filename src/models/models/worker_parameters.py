@@ -233,6 +233,9 @@ class MISPConnectorParameters(MISPBaseParameters):
 
 class BotParameters(WorkerParameters):
     ITEM_FILTER: str = Field("", title="Item filter", description="Filter selecting items processed by the bot.")
+    EXECUTION_TIMEOUT: OptionalPositiveInt = Field(
+        None, title="Execution timeout", description="Maximum whole-bot execution time in seconds."
+    )
     RUN_AFTER_COLLECTOR: bool = Field(False, title="Run after collector", description="Run automatically after collection.")
     RUN_AFTER_BOTS: StringList = Field(default_factory=list, title="Run after bots", description="Bot identifiers that must finish first.")
     REFRESH_INTERVAL: Cron = Field("", title="Refresh interval", description="Five-field cron schedule for periodic execution.")

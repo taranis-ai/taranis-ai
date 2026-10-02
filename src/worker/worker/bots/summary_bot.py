@@ -1,3 +1,5 @@
+from typing import Any
+
 from worker.bot_api import BotApi, BotServiceUnavailableError
 from worker.config import Config
 from worker.log import logger
@@ -11,7 +13,7 @@ class SummaryBot(BaseBot):
         self.type = "SUMMARY_BOT"
         self.name = "Summary generation Bot"
 
-    def execute(self, parameters: dict | None = None) -> dict[str, dict[str, str] | str]:
+    def execute(self, parameters: dict | None = None) -> dict[str, Any]:
         if not parameters:
             parameters = {}
 
@@ -21,6 +23,8 @@ class SummaryBot(BaseBot):
         summary_api = self._build_bot_api(parameters, "SUMMARY_ENDPOINT", Config.SUMMARY_API_ENDPOINT)
         title_api = self._build_bot_api(parameters, "TITLE_ENDPOINT", Config.TITLE_API_ENDPOINT)
 
+        story_updates = {}
+        story_attributes = {}
         for story in data:
             news_items = story.get("news_items", [])
             story_payload = self._build_story_payload(news_items)
@@ -37,21 +41,19 @@ class SummaryBot(BaseBot):
                     story_update_data["title"] = title
 
                 if story_update_data:
-                    if self.core_api.update_story(story["id"], story_update_data):
-                        self.core_api.update_story_attributes(
-                            story["id"],
-                            [{"key": self.type, "value": 1}],
-                        )
-                    else:
-                        logger.warning(f"Failed to update story {story['id']}, skipping attribute update")
+                    story_updates[story["id"]] = story_update_data
+                    story_attributes[story["id"]] = [{"key": self.type, "value": 1}]
             except BotServiceUnavailableError:
                 raise
             except Exception:
                 logger.exception(f"Could not generate summary for {story['id']}")
-                continue
+                raise
 
             logger.debug(f"Created summary for : {story['id']}")
-        return {"message": f"Summarized {len(data)} stories"}
+        return {
+            "message": f"Summarized {len(data)} stories",
+            "changes": {"story_updates": story_updates, "story_attributes": story_attributes},
+        }
 
     @staticmethod
     def _build_story_payload(news_items: list[dict]) -> dict[str, list[dict[str, str]]]:
