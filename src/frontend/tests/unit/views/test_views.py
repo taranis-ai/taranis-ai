@@ -1053,8 +1053,15 @@ def _dashboard_payload(**overrides: Any) -> dict[str, Any]:
     return {"items": [{"total_news_items": 4, "total_story_items": 2, **overrides}], "total_count": 1}
 
 
-def test_dashboard_shows_top_sources_sorted_with_percentage_bars(authenticated_client, responses_mock, mock_core_get_endpoints):
+@pytest.mark.parametrize("show_charts", [True, False])
+def test_dashboard_shows_top_sources_sorted_with_percentage_bars(
+    authenticated_client, auth_user, responses_mock, mock_core_get_endpoints, show_charts
+):
     _ = mock_core_get_endpoints
+    saved_user = auth_user.model_copy(deep=True)
+    saved_user.profile.dashboard.show_charts = show_charts
+    add_user_to_cache(saved_user.model_dump(mode="json"))
+    responses_mock.get(f"{Config.TARANIS_CORE_URL}/dashboard/trending-clusters", json={"items": [], "total_count": 0})
     top_sources = [
         {"name": "CERT.at", "count": 3, "percentage": 75.0},
         {"name": "Security Blog", "count": 1, "percentage": 25.0},
@@ -1065,6 +1072,9 @@ def test_dashboard_shows_top_sources_sorted_with_percentage_bars(authenticated_c
 
     assert response.status_code == 200
     tree = html.fromstring(response.text)
+    if not show_charts:
+        assert not tree.xpath('//*[@data-testid="dashboard-top-sources"]')
+        return
     rows = tree.xpath('//*[@data-testid="dashboard-top-sources"]//*[@data-testid="dashboard-top-source"]')
     assert [" ".join(row.text_content().split()) for row in rows] == ["CERT.at 75.0%", "Security Blog 25.0%"]
     bar_widths = [bar.get("style") for bar in tree.xpath('//*[@data-testid="dashboard-top-source"]//div[contains(@class, "bg-primary")]')]

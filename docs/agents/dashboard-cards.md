@@ -10,6 +10,8 @@ Assess counts news items/stories, Analyze separates completed/in-progress report
 
 Weekly counts run from Monday 00:00 UTC through now, inclusive, excluding future content. News items use publication time; stories/reports/products use creation time. This is not a rolling seven-day window. The shared Dashboard response uses the existing 30-second frontend cache.
 
+Assess top-source percentage bars respect the per-user dashboard `show_charts` setting and are omitted when there are no sources. They sit beside the counts on wide screens and stack below them on smaller screens.
+
 ## Entry Points and Coverage
 
 `src/core/core/service/dashboard.py`, `src/models/models/dashboard.py`, `src/frontend/frontend/templates/dashboard/user_item_cards.html`.
