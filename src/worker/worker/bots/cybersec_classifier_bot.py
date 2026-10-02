@@ -1,5 +1,8 @@
-from worker.bot_api import BotApi
+from llm_bot.schemas import CybersecClassificationRequest
+from llm_bot.tasks.cybersec_classification import classify_cybersecurity_text
+
 from worker.config import Config
+from worker.llm import get_llm_client, run_llm_task
 from worker.log import logger
 
 from .base_bot import BaseBot
@@ -18,11 +21,8 @@ class CyberSecClassifierBot(BaseBot):
         if not (data := self.get_stories(parameters)):
             return {"message": "No new stories found"}
 
-        self.bot_api = BotApi(
-            bot_endpoint=parameters.get("BOT_ENDPOINT", Config.CYBERSEC_CLASSIFIER_API_ENDPOINT),
-            bot_api_key=parameters.get("BOT_API_KEY", Config.BOT_API_KEY),
-            requests_timeout=parameters.get("REQUESTS_TIMEOUT"),
-        )
+        self.llm_client = get_llm_client(parameters)
+        self.classification_threshold = parameters.get("CLASSIFICATION_THRESHOLD", Config.CYBERSEC_CLASSIFIER_THRESHOLD)
 
         num_news_items = 0
         for story in data:
@@ -53,16 +53,10 @@ class CyberSecClassifierBot(BaseBot):
         return {"message": f"Classified {num_news_items} news items"}
 
     def _classify_news_item(self, content: str) -> dict | None:
-        class_result = self.bot_api.api_post("/", {"text": content})
-
-        if not class_result:
+        if not content.strip():
             return None
-        if "error" in class_result:
-            logger.error(class_result["error"])
-            return None
-
-        logger.debug(f"Predicted class: {max(class_result, key=class_result.get)}")
-        return class_result
+        request = CybersecClassificationRequest(text=content)
+        return run_llm_task(classify_cybersecurity_text(request, client=self.llm_client)).model_dump()
 
     def _process_news_item(self, news_item: dict) -> str:
         news_item_content = news_item.get("content", "")
@@ -73,7 +67,7 @@ class CyberSecClassifierBot(BaseBot):
         if not class_result:
             return "none"
 
-        status = "yes" if class_result.get("cybersecurity", 0.0) > Config.CYBERSEC_CLASSIFIER_THRESHOLD else "no"
+        status = "yes" if class_result.get("cybersecurity", 0.0) > self.classification_threshold else "no"
 
         if self.core_api.update_news_item_attributes(
             news_item_id,

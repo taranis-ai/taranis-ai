@@ -421,6 +421,9 @@ class Bot(BaseModel):
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
         data["parameters"] = configured_parameters(self.type, self.parameters)
+        from core.service.endpoint_health import bot_status
+
+        data["endpoint_health"] = bot_status(self)
         if status := self.status:
             data["status"] = status
         return data
@@ -442,8 +445,15 @@ class Bot(BaseModel):
         )
 
     @classmethod
+    def failure_condition(cls):
+        from core.service.endpoint_health import bot_status
+
+        failed_ids = [bot.id for bot in cls.get_all_for_collector() if (status := bot_status(bot)) and status["status"] == "down"]
+        return db.or_(cls._latest_task_status() == "FAILURE", cls.id.in_(failed_ids))
+
+    @classmethod
     def get_current_failure_count(cls) -> int:
-        query = db.select(func.count()).select_from(cls).where(cls._latest_task_status() == "FAILURE")
+        query = db.select(func.count()).select_from(cls).where(cls.failure_condition())
         return db.session.execute(query).scalar_one()
 
     @classmethod
@@ -466,9 +476,23 @@ class Bot(BaseModel):
     def get_schedule(self) -> str:
         return self.parameters.get("REFRESH_INTERVAL", "")
 
+    def get_llm_endpoint_id(self, settings: dict) -> str | None:
+        from models.llm import LLM_BOT_FEATURES
+
+        if feature := LLM_BOT_FEATURES.get(self.type.value):
+            return self.parameters.get("LLM_ENDPOINT") or settings.get(f"llm_{feature}_endpoint") or settings.get("llm_default_endpoint")
+        return None
+
     def to_worker_dict(self) -> dict[str, Any]:
+        from models.llm import LLM_BOT_FEATURES
+
+        from core.model.settings import Settings
+
         data = super().to_dict()
         data["parameters"] = effective_parameters(self.type, self.parameters)
+        if self.type.value in LLM_BOT_FEATURES:
+            settings = Settings.get_settings()
+            data["llm_endpoint"] = settings["llm_endpoints"].get(self.get_llm_endpoint_id(settings))
         return data
 
     def get_cron_spec(self) -> CronSpec:
@@ -552,7 +576,7 @@ class Bot(BaseModel):
             query = query.filter(db.or_(Bot.name.ilike(f"%{search}%"), Bot.description.ilike(f"%{search}%")))
 
         if str(filter_args.get("state") or "").strip().lower() == "failure":
-            query = query.where(cls._latest_task_status() == "FAILURE")
+            query = query.where(cls.failure_condition())
 
         return query
 

@@ -79,41 +79,100 @@ class TestAdminApi(BaseTest):
 
         assert response.get_json()["settings"]["default_bot_lookback_days"] == 0
 
-    def test_chat_settings_save_preserve_and_clear_secret(self, client, auth_header, app):
+    @pytest.mark.parametrize(
+        "bot_type, feature",
+        [
+            ("story_bot", "clustering"),
+            ("nlp_bot", "ner"),
+            ("sentiment_analysis_bot", "sentiment"),
+            ("cybersec_classifier_bot", "classification"),
+        ],
+    )
+    def test_llm_endpoints_assignments_and_secrets(self, client, auth_header, app, monkeypatch, bot_type, feature):
         from core.model.settings import Settings
         from core.service.chat import ChatClient
 
         values = {
-            "chat_llm_base_url": "https://provider.example/v1",
-            "chat_llm_api_key": "private-test-key",
-            "chat_llm_model": "analyst-model",
-            "chat_llm_api_format": "chat_completions",
-            "chat_llm_timeout": "90",
-            "chat_max_stories": "8",
+            "name": "Shared model",
+            "base_url": "https://provider.example/v1",
+            "api_key": "private-test-key",
+            "model": "analyst-model",
+            "api_format": "chat_completions",
+            "timeout": "90",
         }
-        response = self.assert_patch_ok(client, "settings", {"settings": values}, auth_header)
+        response = self.assert_post_ok(client, "llm-endpoints", values, auth_header)
+        assert response.mimetype == "application/json"
+        endpoint_id = response.get_json()["id"]
         assert "private-test-key" not in response.get_data(as_text=True)
-        assert response.get_json()["settings"]["chat_llm_api_key_configured"] is True
-        response = client.get(self.concat_url("settings"), headers=auth_header)
-        assert response.status_code == 200
-        assert "private-test-key" not in response.get_data(as_text=True)
-
-        self.assert_patch_ok(client, "settings", {"settings": {"chat_llm_api_key": "", "default_bot_lookback_days": 7}}, auth_header)
         with app.app_context():
-            self._assert_chat_settings(ChatClient, values, Settings)
-        response = self.assert_patch_ok(client, "settings", {"settings": {"chat_llm_api_key_clear": "true"}}, auth_header)
-        assert response.get_json()["settings"]["chat_llm_api_key_configured"] is False
+            assert Settings.save_llm_endpoint({}, delete=True) == ({"error": "LLM endpoint not found"}, 404)
+            assert endpoint_id in Settings.get_settings()["llm_endpoints"]
+        self.assert_patch_ok(client, "settings", {"settings": {"llm_default_endpoint": endpoint_id, "chat_max_stories": "8"}}, auth_header)
+        monkeypatch.setattr("core.api.chat.Config.CHAT_ENABLED", True)
+        chat_response = client.get("/api/chat/conversations", headers=auth_header)
+        assert chat_response.status_code == 200
+        assert "private-test-key" not in chat_response.get_data(as_text=True)
+        response = client.get(self.concat_url("settings"), headers=auth_header)
+        assert "private-test-key" not in response.get_data(as_text=True)
+        assert "api_key" not in response.get_json()["items"][0]["settings"]["llm_endpoints"][endpoint_id]
+        response = self.assert_post_ok(client, f"llm-endpoints/{endpoint_id}", {"api_key": "  "}, auth_header)
+        assert response.mimetype == "application/json"
+        with app.app_context():
+            provider = ChatClient()
+            assert (provider.base_url, provider.api_key, provider.model, provider.api_format, provider.timeout) == (
+                values["base_url"],
+                values["api_key"],
+                values["model"],
+                "chat_completions",
+                90,
+            )
+            assert Settings.get_settings()["chat_max_stories"] == 8
+        bot_response = client.post("/api/config/bots", json={"name": "Endpoint selection", "type": bot_type}, headers=auth_header)
+        assert bot_response.status_code == 201
+        bot_id = bot_response.json["id"]
+        worker_url = f"/api/worker/bots/{bot_id}"
+        assert client.get(worker_url).status_code == 401
+        worker_headers = {"Authorization": "Bearer test_key"}
+        response = client.get(worker_url, headers=worker_headers)
+        assert response.status_code == 200
+        assert response.headers["Cache-Control"] == "no-store"
+        assert response.get_json()["llm_endpoint"]["api_key"] == values["api_key"]
+        override_id = self.assert_post_ok(
+            client, "llm-endpoints", {"name": "Clustering", "base_url": "http://local-model/v1"}, auth_header
+        ).get_json()["id"]
+        self.assert_patch_ok(client, "settings", {"settings": {f"llm_{feature}_endpoint": override_id}}, auth_header)
+        assert client.get(worker_url, headers=worker_headers).get_json()["llm_endpoint"]["base_url"] == "http://local-model/v1"
+        response = client.post(self.concat_url(f"llm-endpoints/{override_id}/delete"), headers=auth_header)
+        assert response.status_code == 409
+        self.assert_post_ok(client, f"llm-endpoints/{endpoint_id}", {"api_key_clear": "true"}, auth_header)
         with app.app_context():
             assert ChatClient().api_key == ""
+        self.assert_patch_ok(client, "settings", {"settings": {f"llm_{feature}_endpoint": ""}}, auth_header)
+        bot_url = f"/api/config/bots/{bot_id}"
+        assert client.patch(bot_url, json={"parameters": {"LLM_ENDPOINT": override_id}}, headers=auth_header).status_code == 200
+        assert client.get(worker_url, headers=worker_headers).json["llm_endpoint"]["base_url"] == "http://local-model/v1"
+        assert "llm_endpoint" not in client.get(bot_url, headers=auth_header).json
+        assert "private-test-key" not in client.get("/api/config/bots", headers=auth_header).text
+        assert client.post(self.concat_url(f"llm-endpoints/{override_id}/delete"), headers=auth_header).status_code == 409
+        assert client.patch(bot_url, json={"parameters": {"LLM_ENDPOINT": "missing"}}, headers=auth_header).status_code == 400
+        assert client.patch(bot_url, json={"parameters": {"LLM_ENDPOINT": ""}}, headers=auth_header).status_code == 200
 
-    def _assert_chat_settings(self, ChatClient, values, Settings):
-        provider = ChatClient()
-        assert provider.base_url == values["chat_llm_base_url"]
-        assert provider.api_key == values["chat_llm_api_key"]
-        assert provider.model == values["chat_llm_model"]
-        assert provider.api_format == "chat_completions"
-        assert provider.timeout == 90
-        assert Settings.get_settings()["chat_max_stories"] == 8
+        response = self.assert_post_ok(client, f"llm-endpoints/{override_id}/delete", {}, auth_header)
+        assert response.mimetype == "application/json"
+        assert client.get(worker_url, headers=worker_headers).get_json()["llm_endpoint"]["base_url"] == values["base_url"]
+        response = client.patch(self.concat_url("settings"), json={"settings": {"llm_default_endpoint": "missing"}}, headers=auth_header)
+        assert response.status_code == 400
+        response = client.post(
+            self.concat_url(f"llm-endpoints/{endpoint_id}"),
+            json={"base_url": "https://private-test-key@provider.example/v1"},
+            headers=auth_header,
+        )
+        assert response.status_code == 400
+        assert "private-test-key" not in response.get_data(as_text=True)
+        self.assert_patch_ok(client, "settings", {"settings": {"llm_default_endpoint": ""}}, auth_header)
+        assert client.get(worker_url, headers=worker_headers).json["llm_endpoint"] is None
+        assert client.delete(bot_url, headers=auth_header).status_code == 200
+        self.assert_post_ok(client, f"llm-endpoints/{endpoint_id}/delete", {}, auth_header)
 
     def test_settings_rejects_negative_bot_lookback(self, client, auth_header):
         response = client.put(

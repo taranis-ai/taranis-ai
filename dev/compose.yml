@@ -1,6 +1,22 @@
 # Core and frontend run on the host and read CHAT_ENABLED from their .env files
 # (copied from dev/env.dev; disabled by default). This stack is infrastructure only.
 services:
+  llm-inference:
+    image: "${LLM_INFERENCE_IMAGE:-ghcr.io/taranis-ai/gemma4-e4b-gguf:cpu}"
+    restart: unless-stopped
+    shm_size: 4gb
+    environment:
+      LLAMA_API_KEY: "${LLM_INFERENCE_API_KEY:-}"
+    command: ["--ctx-size", "8192", "--jinja"]
+    ports:
+      - "127.0.0.1:${LLM_INFERENCE_PORT:-8000}:8000"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 5m
+
   database:
     image: "postgres:${POSTGRES_TAG:-18-alpine}"
     ports:

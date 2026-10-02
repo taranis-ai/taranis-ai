@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: llm-inference
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: llm-inference
+  template:
+    metadata:
+      labels:
+        app: llm-inference
+    spec:
+      restartPolicy: Always
+      containers:
+        - name: llm-inference
+          image: ghcr.io/taranis-ai/gemma4-e4b-gguf:cpu
+          imagePullPolicy: Always
+          env:
+            - name: LLAMA_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: taranis-secrets
+                  key: LLM_INFERENCE_API_KEY
+                  optional: true
+          args: ["--ctx-size", "8192", "--jinja"]
+          volumeMounts:
+            - name: shm
+              mountPath: /dev/shm
+          ports:
+            - containerPort: 8000
+              name: http
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            periodSeconds: 10
+            failureThreshold: 60
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 20
+            periodSeconds: 15
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 40
+            periodSeconds: 30
+          resources:
+            limits:
+              cpu: "2"
+              memory: 12Gi
+            requests:
+              cpu: 500m
+              memory: 6Gi
+      volumes:
+        - name: shm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 4Gi

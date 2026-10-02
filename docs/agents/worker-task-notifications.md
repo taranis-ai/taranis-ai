@@ -19,6 +19,8 @@ Task entry points and RQ failure hooks own their HTTP session scope, including r
 - MISP results reflect completed sync/proposal operations, not dispatch success. Entire failures use one connector failure path; curated reasons include `connector_not_found` and `connector_type_missing`.
 - Bot transport failures use retryable `bot_service_unavailable` so dependents do not run. Log the transport error server-side, retain the curated exception's originating traceback, and suppress the underlying HTTP exception chain from displayed failures.
 
+Endpoint connectivity and startup probes have separate status from execution history; see [LLM Endpoints](llm-endpoints.md#endpoint-checks).
+
 ## History and UI
 
 My Tasks lists only completed persisted results owned by the authenticated user, including successful `PREVIEW` results. It never queries Redis for queued/running jobs. Omit task `result.data`; search only visible relational fields, never serialized results. This differs from [Notification Center](notification-center.md) history.

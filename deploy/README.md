@@ -3,7 +3,7 @@
 Deployment options:
 
 - [`kubernetes/`](./kubernetes): raw Kubernetes core stack
-- [`kubernetes-optional-bots/`](./kubernetes-optional-bots): raw Kubernetes overlay that adds `llm-bot`
+- [`kubernetes-optional-bots/`](./kubernetes-optional-bots): compatibility entry point for the base Kubernetes stack (inference is now included)
 - [`helm/`](./helm): Helm chart
 - [`argocd/`](./argocd): ArgoCD example using the Helm chart
 
@@ -19,22 +19,23 @@ Always required:
 - When multiple deployments share a domain, set a unique `JWT_COOKIE_SUFFIX` such as `_q` for each deployment and keep it aligned between core and frontend. Helm exposes the same setting as `config.jwtCookieSuffix`.
 - The raw manifest keeps the public realtime endpoint at `/sse`; ingress rewrites it to Centrifugo's `/connection/uni_sse`.
 
-Optional `llm-bot` overlay:
+Bundled inference is included in both the raw Kubernetes base and Helm chart. Before updating, ensure an amd64 or arm64 node has capacity for the model (6 GiB memory requested, 12 GiB limit). The image is `ghcr.io/taranis-ai/gemma4-e4b-gguf:cpu`; it listens internally on port 8000, has a ten-minute startup probe, and does not expose an ingress. See [bundled inference](../docker/README.md#bundled-llm-inference) for model, settings, and resource details.
 
-- In `kubernetes/00-config.yaml`, set `LLM_BASE_URL`; optionally set `LLM_TIMEOUT` and `LLM_MODEL`.
-- In `kubernetes/01-secrets.yaml`, set `BOT_API_KEY`; optionally set `LLM_API_KEY` for providers that require one.
-- For Helm, set `config.llmBaseUrl`; optionally set `config.llmTimeout`, `config.llmModel`, and `secrets.llmApiKey`.
-- Set ingress hostname in `kubernetes/40-ingress.yaml` (or Helm values).
+Remove the old `llm-bot` Deployment and Service after applying the new raw manifests; `kubectl apply -k` does not remove obsolete resources. Compose uses `up -d --remove-orphans`; Helm removes workloads absent from the updated chart. NER, sentiment, and classification now call shared LLM endpoints directly through workers. Remove standalone NLP/sentiment/classifier resources from custom deployments after verifying their replacement tasks. Retain the previous images/configuration for rollback and restore the old bot service only if reverting.
 
-Optional analyst Chat:
-- Set `CHAT_ENABLED=true` in configuration for both core and frontend.
-- Open **Admin Settings > Chat** to select the provider API format (`chat_llm_api_format`: `responses` by default, or `chat_completions`) and configure the base URL, model, API key, provider timeout (default 120 seconds), and maximum stories (default 5, allowed 1-20). This collapsible section appears only when Chat is enabled. Values are persisted in Settings; changes apply to the next message without restarting. Only `CHAT_ENABLED` is configured through deployment environment variables.
-- API keys are write-only in the admin form: leave blank to keep the saved key, or select **Remove saved API key** to clear it. Keys are stored in the application database; protect database access and backups. Settings API responses and logs omit the key.
-- Realtime Chat progress uses the existing Centrifugo connection when `REALTIME_ENABLED=true`; Chat still completes through its normal HTTP response when realtime is disabled or unavailable.
+## Shared LLM endpoint upgrade
+
+After pulling the updated images and restarting Core, frontend, and workers, open **Admin Settings > LLM Endpoints**. Verify the default and any feature overrides before running those bots. Startup always ensures internal inference exists, refreshes its API key from `LLM_INFERENCE_API_KEY`, and selects it only when the shared default is empty; existing defaults and Chat/feature assignments are preserved. Existing Chat settings become an endpoint assigned only to Chat; they do not automatically become the default. Workers now call the providers directly for NER, sentiment, cybersecurity classification, clustering, and summarization/title generation and must be able to reach them.
+
+Worker `LLM_*`, `SUMMARY_API_ENDPOINT`, `TITLE_API_ENDPOINT`, and the bots' old endpoint/key parameters no longer configure these functions. Copy the intended provider values from private deployment configuration into the endpoint form. `NLP_API_ENDPOINT`, `SENTIMENT_ANALYSIS_API_ENDPOINT`, and `CYBERSEC_CLASSIFIER_API_ENDPOINT` are also unused. Existing service URLs and keys remain accepted for editing saved bots but do not select a provider. Review the NER, sentiment, and classification assignments before running them; background content is sent to the selected provider. API keys stay write-only in settings responses and remain stored in the database; protect database access and backups.
+
+Verify Core readiness, frontend access, worker health, and known NER, sentiment, classification, clustering, and summarization tasks after updating. No database schema migration is needed. Before upgrading, retain a database backup and previous deployment configuration. Rollback requires the previous component images and the old worker/service environment; restore the prior settings JSON from backup if rolling back Chat configuration. Do not restore the entire database over newer content merely to roll back settings.
+
+Set `LLM_INFERENCE_API_KEY` in `taranis-secrets` (Helm: `secrets.llmInferenceApiKey`) before restarting Core and inference. Both containers receive the same secret; inference uses `LLAMA_API_KEY`. Blank disables inference authentication and clears the stored internal key on restart. Keep it private, and never put the key in a ConfigMap. Saved model settings and external default/feature/bot assignments are preserved; missing internal endpoints are recreated even with an external default. Startup removes obsolete bot service parameters, so retain the prior configuration/database snapshot for rollback.
 
 ## Initial settings
 
-Before the first startup, set `PRE_SEED_SETTINGS` in `kubernetes/00-config.yaml`, or the JSON string `config.preSeedSettings` in Helm values. Both default to `"{}"`. For example, Helm values can contain:
+Before the first startup, set `PRE_SEED_SETTINGS` in `kubernetes/00-config.yaml`, or the JSON string `config.preSeedSettings` in Helm values. Both default to `"{}"`. Core always registers internal inference at `http://llm-inference:8000/v1` on fresh databases and each restart, selecting it only if the shared default is empty. New internal endpoints leave the model blank to use the inference container’s default. Remove the obsolete `config.defaultLlmEndpoint` Helm value or endpoint environment override from custom deployment configuration. Keep endpoint credentials in Secrets rather than ConfigMaps. For example, Helm values can contain:
 
 ```yaml
 config:
@@ -46,7 +47,7 @@ This initializes a fresh settings row only; restarts and upgrades preserve saved
 ## Images
 
 Core uses `ghcr.io/taranis-ai/taranis-core`, `taranis-frontend`, `taranis-ingress`, and `taranis-worker` (for `collector`, `worker`, and `cron`). Realtime uses the pinned `centrifugo/centrifugo:v6.9` image.
-Optional overlay uses `ghcr.io/taranis-ai/taranis-llm-bot:latest`.
+Inference uses `ghcr.io/taranis-ai/gemma4-e4b-gguf:cpu`.
 Pin explicit tags for production.
 
 Before upgrading, ensure browser access uses HTTPS and the ingress redirects HTTP to HTTPS. With `DEBUG=false` on core and frontend, JWT/CSRF and session cookies are now Secure and HSTS is enabled for one year on the serving hostname. `JWT_COOKIE_SECURE=false` no longer opts out. Keep DEBUG aligned across both services and reserve `DEBUG=true` for isolated development. HSTS omits includeSubDomains/preload, but still affects every application on the same hostname. Rollback to older images does not clear a browser's stored HSTS policy; keep HTTPS available.
@@ -66,13 +67,12 @@ kubectl apply -k deploy/kubernetes
 kubectl apply -k deploy/kubernetes-optional-bots
 ```
 
-`kubernetes` is core-only. `kubernetes-optional-bots` includes core plus `llm-bot`.
-Default bot endpoints target `llm-bot` routes: `/summarize`, `/title`, `/ner`, `/cluster`, `/sentiment`, and `/cybersec-classification`.
+`kubernetes` includes application services and inference. `kubernetes-optional-bots` remains a compatible entry point to the same stack. Configure separately hosted NLP services explicitly.
 
 ## Helm
 
 Use [`helm/`](./helm) if you want value-driven rendering or upgrades. The chart keeps `global.imagePullPolicy: Always` and renders pod `restartPolicy: Always` explicitly for all Deployments.
-Helm deploys one `llm-bot` workload for summarization, title generation, NER, story clustering, sentiment analysis, and cybersecurity classification.
+Helm deploys the private `llm-inference` workload. Override `images.llmInference`, `resources.llmInference`, and `replicas.llmInference` as needed. Clustering and summarization/title generation use the worker library with shared endpoint settings.
 
 ```bash
 helm template taranis deploy/helm
@@ -94,7 +94,7 @@ kubectl apply -f deploy/argocd/application.yaml
 
 ## Analyst Chat
 
-Chat is independent of `llm-bot` and workers. Core calls the configured OpenAI-compatible provider directly using `{base_url}/responses` or `{base_url}/chat/completions`. Select the matching API format in **Admin Settings > Chat** when configuring a Chat Completions provider; existing settings keep Responses. Core uses Redis only for a bounded lease per owned conversation or per user while creating a new conversation. If Redis is unavailable, new turns return 503 rather than risk out-of-order conversation history. Analysts need `ASSESS_ACCESS`; all generated Assess searches continue to enforce their source ACLs and TLP restrictions.
+Chat calls inference directly and is independent of workers. Core calls the configured OpenAI-compatible provider directly using `{base_url}/responses` or `{base_url}/chat/completions`. Select the matching API format in **Admin Settings > LLM Endpoints** when configuring a Chat Completions provider; existing settings keep Responses. Core uses Redis only for a bounded lease per owned conversation or per user while creating a new conversation. If Redis is unavailable, new turns return 503 rather than risk out-of-order conversation history. Analysts need `ASSESS_ACCESS`; all generated Assess searches continue to enforce their source ACLs and TLP restrictions.
 
 Both API formats stream general answers directly. Story questions first call the search tool, then receive a plain-text answer with tools disabled. Providers that reject streaming before sending any content permit one retry without streaming. When realtime is enabled, Core publishes progress stage identifiers and cumulative answer snapshots to the authenticated user's existing Centrifugo channel; the frontend localizes the stages. These publications are best-effort and have no history; the final synchronous response and PostgreSQL conversation remain authoritative.
 
@@ -123,11 +123,11 @@ kubectl rollout status deploy/collector
 kubectl rollout status deploy/cron
 ```
 
-If optional overlay is enabled:
+Verify inference:
 
 ```bash
-kubectl rollout status deploy/llm-bot
-kubectl get endpoints llm-bot
+kubectl rollout status deploy/llm-inference
+kubectl get endpoints llm-inference
 ```
 
 Useful logs:
@@ -165,7 +165,6 @@ docker exec -it core taranis-cli set-roles user Admin
 
 - These manifests expect a reachable PostgreSQL service and a reachable Redis service, but they do not create those workloads.
 - If moving an externally managed PostgreSQL service to version 18, stop Taranis writers, back up the database, follow its provider's major-version upgrade procedure, and verify the service before restarting Taranis. The Compose upgrade script applies only to the bundled Compose database.
-- `STORY_API_ENDPOINT` now defaults to `http://llm-bot:8000/cluster`; ensure your `llm-bot` image exposes that route if you enable story clustering.
 - The `core` PVC is included because the application writes persistent data under `/app/data`.
 - The `core` readiness and liveness probes run every 5 minutes after a 15-second startup delay because the core healthcheck performs non-trivial service checks.
 - The default `core` and `frontend` images recycle Granian workers above 4096 MiB and 1024 MiB RSS respectively.

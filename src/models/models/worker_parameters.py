@@ -15,6 +15,7 @@ from pydantic import (
     field_validator,
     model_validator,
 )
+from pydantic.json_schema import SkipJsonSchema
 
 from models.types import WORKER_CATEGORY, WORKER_TYPES, TLPLevel
 
@@ -247,15 +248,6 @@ class GroupingBotParameters(BotParameters):
     REGULAR_EXPRESSION: str = Field("", title="Regular expression", description="Regular expression used to group related items.")
 
 
-class LLMParameters(BotParameters):
-    REQUESTS_TIMEOUT: OptionalPositiveInt = Field(None, title="Requests timeout", description="LLM request timeout in seconds.")
-    BOT_API_KEY: SecretStr = Field(SecretStr(""), title="Bot API key", description="Optional API key for the bot service.")
-
-
-class NLPBotParameters(LLMParameters):
-    BOT_ENDPOINT: str = Field("http://llm-bot:8000/ner", title="Bot endpoint", description="Named-entity recognition service endpoint.")
-
-
 class IOCBotParameters(BotParameters):
     pass
 
@@ -278,16 +270,25 @@ class TaggingBotParameters(BotParameters):
     )
 
 
-class StoryBotParameters(LLMParameters):
+class SharedLLMBotParameters(BotParameters):
+    LLM_ENDPOINT: str = Field("", title="LLM endpoint", description="Use a configured endpoint or inherit the shared assignment.")
+    REQUESTS_TIMEOUT: OptionalPositiveInt = Field(None, title="Requests timeout", description="Override the endpoint timeout in seconds.")
+    # Accept stored service credentials without offering unused controls in the form.
+    BOT_API_KEY: SkipJsonSchema[SecretStr] = SecretStr("")
+
+
+class NLPBotParameters(SharedLLMBotParameters):
+    BOT_ENDPOINT: SkipJsonSchema[str] = "http://llm-bot:8000/ner"
+
+
+class StoryBotParameters(SharedLLMBotParameters):
     ITEM_FILTER: str = Field("range=week", title="Item filter", description="Filter selecting items processed by the bot.")
-    BOT_ENDPOINT: str = Field("http://llm-bot:8000/cluster", title="Bot endpoint", description="Story clustering service endpoint.")
+    BOT_ENDPOINT: SkipJsonSchema[str] = "http://llm-bot:8000/cluster"
 
 
-class SummaryBotParameters(LLMParameters):
-    SUMMARY_ENDPOINT: str = Field(
-        "http://llm-bot:8000/summarize", title="Summary endpoint", description="Summary generation service endpoint."
-    )
-    TITLE_ENDPOINT: str = Field("http://llm-bot:8000/title", title="Title endpoint", description="Title generation service endpoint.")
+class SummaryBotParameters(SharedLLMBotParameters):
+    SUMMARY_ENDPOINT: SkipJsonSchema[str] = "http://llm-bot:8000/summarize"
+    TITLE_ENDPOINT: SkipJsonSchema[str] = "http://llm-bot:8000/title"
 
 
 class WordlistBotParameters(BotParameters):
@@ -305,15 +306,13 @@ class WordlistBotParameters(BotParameters):
     )
 
 
-class SentimentAnalysisBotParameters(LLMParameters):
-    BOT_ENDPOINT: str = Field("http://llm-bot:8000/sentiment", title="Bot endpoint", description="Sentiment analysis service endpoint.")
+class SentimentAnalysisBotParameters(SharedLLMBotParameters):
+    BOT_ENDPOINT: SkipJsonSchema[str] = "http://llm-bot:8000/sentiment"
     RUN_AFTER_COLLECTOR: bool = Field(True, title="Run after collector", description="Run automatically after collection.")
 
 
-class CybersecClassifierBotParameters(LLMParameters):
-    BOT_ENDPOINT: str = Field(
-        "http://llm-bot:8000/cybersec-classification", title="Bot endpoint", description="Cybersecurity classifier service endpoint."
-    )
+class CybersecClassifierBotParameters(SharedLLMBotParameters):
+    BOT_ENDPOINT: SkipJsonSchema[str] = "http://llm-bot:8000/cybersec-classification"
     CLASSIFICATION_THRESHOLD: float = Field(
         0.65, ge=0, le=1, title="Classification threshold", description="Minimum score classified as cybersecurity-related."
     )

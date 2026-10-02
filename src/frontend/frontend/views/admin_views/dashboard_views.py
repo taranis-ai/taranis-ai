@@ -94,6 +94,7 @@ class AdminDashboardView(AdminBaseView):
                     "Pre-seeded": services.get("seed_data", "n/a"),
                     "Redis": services.get("broker", "n/a"),
                     "Workers": services.get("workers", "n/a"),
+                    "Worker endpoints": services.get("worker_endpoints", "n/a"),
                 },
             }
 
@@ -104,6 +105,7 @@ class AdminDashboardView(AdminBaseView):
                 "Pre-seeded": "n/a",
                 "Redis": "n/a",
                 "Workers": "n/a",
+                "Worker endpoints": "n/a",
             },
         }
 

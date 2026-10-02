@@ -72,6 +72,7 @@ queue_manager: "QueueManager"
 
 # Task name to full module path mapping
 TASK_MAP = {
+    "check_endpoint": "worker.endpoint_health.check_endpoint",
     "collector_task": "worker.collectors.collector_tasks.collector_task",
     "collector_preview": "worker.collectors.collector_tasks.collector_preview",
     "bot_task": "worker.bots.bot_tasks.bot_task",
@@ -133,6 +134,9 @@ class QueueManager:
         self.clear_queues()
         self.reschedule_all()
         self.update_empty_word_lists()
+        from core.service.endpoint_health import schedule_all
+
+        schedule_all()
 
     def reschedule_all(self):
         """Reconcile Redis cron definitions with the currently enabled sources and bots."""

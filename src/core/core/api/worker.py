@@ -124,6 +124,31 @@ class CronJobs(MethodView):
         return queue_manager.queue_manager.get_cron_job_configs()
 
 
+class EndpointHealth(MethodView):
+    @api_key_required
+    def get(self, kind: str, endpoint_id: str):
+        from core.service.endpoint_health import endpoint_config, fingerprint, read_state
+
+        config = endpoint_config(kind, endpoint_id)
+        state = read_state(kind, endpoint_id)
+        if not config or state.get("generation") != request.args.get("generation") or state.get("fingerprint") != fingerprint(config):
+            response = jsonify({"skip": True})
+        else:
+            response = jsonify({"config": config})
+        response.headers["Cache-Control"] = "no-store"
+        return response
+
+    @api_key_required
+    def post(self, kind: str, endpoint_id: str):
+        from core.service.endpoint_health import record_result
+
+        data = request.get_json(silent=True)
+        if not isinstance(data, dict) or not isinstance(data.get("generation"), str) or not isinstance(data.get("healthy"), bool):
+            return {"error": "Invalid endpoint check result"}, 400
+        accepted = record_result(kind, endpoint_id, data["generation"], data["healthy"])
+        return {"accepted": accepted}, 200
+
+
 class TaskHistoryCleanup(MethodView):
     @api_key_required
     def post(self):
@@ -286,6 +311,11 @@ class IOCs(MethodView):
 
 
 class BotInfo(MethodView):
+    def dispatch_request(self, *args, **kwargs):
+        response = make_response(super().dispatch_request(*args, **kwargs))
+        response.headers["Cache-Control"] = "no-store"
+        return response
+
     @api_key_required
     @extract_args("search", "fetch_all")
     def get(self, bot_id=None, filter_args=None):
@@ -386,6 +416,7 @@ def initialize(app: Flask):
     worker_bp.add_url_rule("/publishers/<string:publisher>", view_func=Publishers.as_view("publishers_worker"))
     worker_bp.add_url_rule("/connectors/<string:connector_id>", view_func=Connectors.as_view("connectors_worker"))
     worker_bp.add_url_rule("/news-items", view_func=AddNewsItems.as_view("news_items_worker"))
+    worker_bp.add_url_rule("/endpoint-health/<string:kind>/<string:endpoint_id>", view_func=EndpointHealth.as_view("endpoint_health_worker"))
     worker_bp.add_url_rule("/bots", view_func=BotInfo.as_view("bots_worker"))
     worker_bp.add_url_rule("/tags", view_func=Tags.as_view("tags_worker"))
     worker_bp.add_url_rule("/iocs", view_func=IOCs.as_view("iocs_worker"))

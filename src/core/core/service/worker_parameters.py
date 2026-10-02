@@ -38,7 +38,16 @@ def set_parameters(
         else:
             candidate[name] = value
 
-    return normalize_parameter_values(worker_type, candidate, complete=complete)
+    normalized = normalize_parameter_values(worker_type, candidate, complete=complete)
+    if endpoint_id := normalized.get("LLM_ENDPOINT"):
+        from core.managers.db_manager import db
+        from core.model.settings import Settings
+
+        # Serialize assignments with endpoint deletion so selected endpoints cannot disappear.
+        entry = Settings.get_first(db.select(Settings).with_for_update().execution_options(populate_existing=True))
+        if entry is None or endpoint_id not in Settings.with_defaults(entry.settings)["llm_endpoints"]:
+            raise ValueError("Select a configured LLM endpoint")
+    return normalized
 
 
 def configured_parameters(worker_type: str, values: dict[str, Any] | None) -> dict[str, Any]:

@@ -42,6 +42,26 @@ Preseeding applies only when the persistent settings row does not exist. Restart
 
 Onboarding defaults to enabled. Set `PRE_SEED_SETTINGS='{"onboarding_enabled":false}'` to disable it during initialization; the value is copied to existing users. This replaces the removed `SKIP_INITIAL_USER_ONBOARDING` variable. After initialization, use Admin Settings to change values. Removing the variable does not undo persisted settings; no database migration is required.
 
+### Bundled LLM inference
+
+Deployment Compose stacks ship `ghcr.io/taranis-ai/gemma4-e4b-gguf:cpu` as the private `llm-inference` service, replacing standalone summary/clustering and `llm-bot` containers. The baked model alias is `unsloth/gemma-4-E4B-it-GGUF`; the endpoint is `http://llm-inference:8000/v1` using Chat Completions. The published CPU tag supports linux/amd64 and linux/arm64; Compose selects the host architecture automatically. Allow several minutes for loading and sufficient RAM for the model and 8192-token context. Kubernetes reserves 6 GiB and allows 12 GiB; tune this after measuring your workload. No GPU or model download at startup is needed.
+
+Core automatically ensures the `internal` endpoint at `http://llm-inference:8000/v1` exists on fresh databases and every restart. Set `LLM_INFERENCE_API_KEY` in the private deployment environment; Compose passes it to Core and to inference as `LLAMA_API_KEY`. Core refreshes the stored key on every startup, including key rotation or clearing. A saved endpoint with the same URL is reused, preserving its model/API/timeout values. Existing default and feature/bot selections remain authoritative; internal is selected only when the shared default is empty. This is separate from `PRE_SEED_SETTINGS`, which only applies to fresh databases. New internal endpoints leave the model blank so inference selects its default model. The service URL is fixed and automatic registration always runs. Change other providers in **Admin Settings > LLM Endpoints**. Set `LLM_INFERENCE_IMAGE` to override the published image; keep the endpoint model blank to use its default model.
+
+NER, sentiment, and cybersecurity classification also call this shared endpoint directly from workers. Their standalone containers are removed from the bots, PPN, and Tor Compose variations. Configure feature assignments or per-bot selections in LLM Endpoints; old service URLs and keys are unused. Classification uses each bot’s `CLASSIFICATION_THRESHOLD`.
+
+HTTP providers, including internal inference, remain supported. HTTP sends API keys and request content without encryption; private networking does not encrypt traffic. Automatic endpoint checks send credentials to every saved provider, including unassigned providers. Use HTTPS across untrusted networks and choose HTTP only when you accept this exposure on your deployment network.
+
+After updating, pull images, restart services, and remove obsolete bot containers:
+
+```bash
+docker compose pull
+docker compose up -d --remove-orphans
+docker compose ps
+```
+
+Verify inference health, Core readiness, worker health, the selected default in Admin Settings, and known NER, sentiment, classification, summary, and clustering jobs. Keep the previous images and configuration for rollback. Restore the old bot services and their endpoints if reverting; no database schema migration is needed.
+
 ## Startup & Usage
 
 Start-up application

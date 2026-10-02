@@ -8,3 +8,5 @@ resources:
   - 20-services-core.yaml
   - 30-deployments-core.yaml
   - 40-ingress.yaml
+  - 25-service-inference.yaml
+  - 35-deployment-inference.yaml
