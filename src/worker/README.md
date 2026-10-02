@@ -6,6 +6,8 @@ RSS sources expose collection health through their persisted task status. Respon
 
 Collectors using the shared HTTP request helper (including RSS, Simple Web, and RT) report guidance for connection failures and timeouts to check worker-container DNS, network access, and `PROXY_SERVER`. Read timeouts can occur after a connection succeeds. Technical exception details stay in worker logs at ERROR level, with tracebacks available at DEBUG level. Connection and timeout diagnostics remain HTTP request exceptions, preserving RT’s existing per-item error handling. This does not add automatic retries; see [deployment troubleshooting](../../deploy/README.md#collector-network-errors).
 
+Email, FTP, and SFTP publisher presets use `NETWORK_TIMEOUT` (30 seconds by default) for network inactivity. A running RQ job caps the effective value at half a finite positive job timeout. Publishers log network operations and raise curated timeout failures identifying the operation that stalled. No publisher phase state is saved in Redis; RQ deadlines and killed workers produce generic safe failures. This setting is not a total publishing deadline: DNS resolution, cumulative delays, library waits outside socket timeouts, and transfers that continue making progress may still reach the RQ timeout. No automatic retries are added.
+
 ## Install
 
 ```bash

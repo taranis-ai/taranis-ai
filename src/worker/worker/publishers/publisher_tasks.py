@@ -6,12 +6,14 @@ Functions for publishing products to external systems.
 from models.product import WorkerProduct as Product
 from models.worker_parameters import effective_parameter_values
 from rq import get_current_job
+from rq.timeouts import JobTimeoutException
 
 import worker.publishers
 from worker.core_api import CoreApi, build_failure_task_result, build_success_task_result
 from worker.http_client import http_session_scope
 from worker.log import logger
 from worker.publishers.base_publisher import BasePublisher
+from worker.publishers.network import PublisherNetworkTimeout
 from worker.telemetry import instrument_job
 
 
@@ -37,10 +39,10 @@ def publisher_task(product_id: str, publisher_id: str):
     task_id = job.id if job else f"{task_name}_{publisher_id}_{product_id}"
     worker_type = "publisher_task"
 
-    logger.info(f"Starting publisher task with job id {job.id if job else 'manual'}")
+    result_data = {"product_id": product_id, "publisher_id": publisher_id}
+    logger.info(f"Publisher task started: job={task_id} product={product_id} publisher={publisher_id}")
 
     try:
-        # Get product, publisher, and rendered content
         product = _get_product(core_api, product_id)
         publisher = _get_publisher(core_api, publisher_id)
         rendered_product = _get_rendered_product(core_api, product_id)
@@ -48,14 +50,11 @@ def publisher_task(product_id: str, publisher_id: str):
         if rendered_product is None:
             raise ValueError("Rendered product is None")
 
-        logger.debug(f"Publishing to {publisher}")
-        logger.debug(f"Product: {product}")
-
-        # Get publisher implementation
         pub_type = publisher.get("type")
         if pub_type is None:
             raise ValueError(f"Publisher {publisher_id} has no type configured")
         worker_type = pub_type
+        result_data["publisher_type"] = pub_type
         publisher["parameters"] = effective_parameter_values(pub_type, publisher.get("parameters", {}))
         publisher_impl = _get_publisher_impl(pub_type)
 
@@ -73,8 +72,12 @@ def publisher_task(product_id: str, publisher_id: str):
                 none_message=f"Publisher {publisher_id} completed without returning a result",
             ),
         )
+        logger.info(f"Publisher task completed: type={worker_type} product={product_id} publisher={publisher_id}")
         return publish_result
-    except Exception as exc:
+    except JobTimeoutException:
+        raise
+    except PublisherNetworkTimeout as exc:
+        logger.error(f"Publisher network timeout: type={exc.publisher_type} operation={exc.operation}")
         core_api.save_task_result(
             task_id,
             task_name,
@@ -82,9 +85,25 @@ def publisher_task(product_id: str, publisher_id: str):
             worker_id=publisher_id,
             worker_type=worker_type,
             result=build_failure_task_result(
-                str(exc),
+                exc.public_message,
+                reason="publisher_network_timeout",
+                retryable=True,
+                data=result_data | {"publisher_operation": exc.operation},
+            ),
+        )
+        raise
+    except Exception as exc:
+        logger.error(f"Publisher task failed: exception_type={type(exc).__name__}")
+        core_api.save_task_result(
+            task_id,
+            task_name,
+            "FAILURE",
+            worker_id=publisher_id,
+            worker_type=worker_type,
+            result=build_failure_task_result(
+                "Publisher task failed",
                 reason="publisher_failed",
-                data={"product_id": product_id, "publisher_id": publisher_id},
+                data=result_data,
             ),
         )
         raise
