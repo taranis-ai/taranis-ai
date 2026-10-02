@@ -226,8 +226,11 @@ class NewsItem(BaseModel):
         )
 
     @classmethod
-    def get_source_distribution(cls, limit: int = 5) -> list[dict[str, Any]]:
-        """Return the OSINT sources with the most news items, largest first."""
+    def get_source_distribution(cls, total: int, limit: int = 5) -> list[dict[str, Any]]:
+        """Return the top sources and an Other entry, with shares of all news items."""
+        if total == 0:
+            return []
+
         item_count = db.func.count(cls.id)
         source_name = db.func.coalesce(OSINTSource.name, "Unknown source")
         query = (
@@ -236,27 +239,16 @@ class NewsItem(BaseModel):
             .outerjoin(OSINTSource, cls.osint_source_id == OSINTSource.id)
             .group_by(source_name)
             .order_by(item_count.desc(), source_name)
+            .limit(limit)
         )
-        counts = [(name, count) for name, count in db.session.execute(query).all()]
-        return cls.summarize_source_counts(counts, limit=limit)
-
-    @staticmethod
-    def summarize_source_counts(counts: list[tuple[str, int]], limit: int = 5) -> list[dict[str, Any]]:
-        """Turn (source name, count) pairs into the dashboard's top-sources list.
-
-        Keeps the `limit` largest sources, combines the rest into a single "Other"
-        entry, and adds each entry's share of all news items as a percentage.
-        """
-        ordered = sorted(counts, key=lambda pair: (-pair[1], pair[0]))
-        total = sum(count for _, count in ordered)
-        if total == 0:
-            return []
+        counts = db.session.execute(query).all()
 
         def share(name: str, count: int) -> dict[str, Any]:
             return {"name": name, "count": count, "percentage": round(count * 100 / total, 1)}
 
-        distribution = [share(name, count) for name, count in ordered[:limit]]
-        if other_count := sum(count for _, count in ordered[limit:]):
+        distribution = [share(name, count) for name, count in counts]
+        other_count = total - sum(count for _, count in counts)
+        if other_count > 0:
             distribution.append(share("Other", other_count))
         return distribution
 
