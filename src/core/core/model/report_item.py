@@ -454,7 +454,7 @@ class ReportItem(BaseModel):
 
     @classmethod
     def get_by_cpe(cls, cpes):
-        query = db.select(cls).distinct(cls.id).join(ReportItemCpe, ReportItem.id == ReportItemCpe.report_item_id)
+        query = db.select(cls).distinct().join(ReportItemCpe, ReportItem.id == ReportItemCpe.report_item_id)
         query = query.filter(ReportItemCpe.value.in_(cpes))
         return cls.get_filtered(query)
 

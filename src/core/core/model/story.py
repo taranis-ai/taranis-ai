@@ -623,13 +623,13 @@ class Story(BaseModel):
             biggest_story = max(biggest_story, len(story_data["news_items"]))
             stories.append(story_data)
 
-        additional_counts = cls.get_additional_counts(base_query)
+        additional_counts = cls.get_additional_counts(base_query)._mapping
 
         count_dict = {
-            "total_count": additional_counts.total_count,
-            "read_count": additional_counts.read_count,
-            "important_count": additional_counts.important_count,
-            "in_reports_count": additional_counts.in_reports_count,
+            "total_count": additional_counts["total_count"],
+            "read_count": additional_counts["read_count"],
+            "important_count": additional_counts["important_count"],
+            "in_reports_count": additional_counts["in_reports_count"],
             "biggest_story": biggest_story,
         }
 
