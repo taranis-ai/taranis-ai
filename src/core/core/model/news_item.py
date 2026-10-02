@@ -2,13 +2,14 @@ import hashlib
 import unicodedata
 from collections.abc import Sequence
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import fuzzbite
 from models.assess import NewsItem as AssessNewsItem
 from models.assess import Story as AssessStory
 from models.assess import validate_bcp47
 from pydantic import ValidationError
+from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import Mapped, relationship
@@ -184,7 +185,7 @@ class NewsItem(BaseModel):
         now = cls.utcnow()
         settings = Settings.get_settings()
         threshold = settings["collection_group_threshold"]
-        query = db.select(cls.id, cls.story_id, cls.fuzzy_hash).where(
+        query = select(cls.id, cls.story_id, cls.fuzzy_hash).where(
             cls.osint_source_id == payload.osint_source_id,
             cls.collected >= now - timedelta(days=settings["collection_lookback_days"]),
             cls.collected <= now,
@@ -196,7 +197,7 @@ class NewsItem(BaseModel):
         with db.session.execute(query.execution_options(yield_per=500)) as candidates:
             for batch in candidates.partitions():
                 for item_id, story_id, candidate_hash in batch:
-                    score = fuzzbite.compare(fingerprint, candidate_hash)
+                    score = fuzzbite.compare(fingerprint, cast(str, candidate_hash))
                     if score < threshold:
                         continue
                     if best is None or score > best[2]:
