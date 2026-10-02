@@ -298,6 +298,10 @@ def sftp_mock(tmp_path, monkeypatch, request):
         with server:
             listener_thread = server._thread
             listener_socket = server._socket
+            # Complete an SSH handshake before a fast validation failure can
+            # tear down the server while its listener thread is still starting.
+            with server.client("user"):
+                pass
             yield server
     finally:
         # mockssh skips close() when shutdown() fails on a listening socket (macOS).
