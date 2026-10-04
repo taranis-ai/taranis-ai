@@ -10,7 +10,7 @@ Assess counts news items/stories, Analyze separates completed/in-progress report
 
 Weekly counts run from Monday 00:00 UTC through now, inclusive, excluding future content. News items use publication time; stories/reports/products use creation time. This is not a rolling seven-day window. The shared Dashboard response uses the existing 30-second frontend cache.
 
-Assess top-source percentage bars respect the per-user dashboard `show_charts` setting and are omitted when there are no sources. The per-user `source_distribution_limit` defaults to five and must be a positive integer; remaining sources are grouped as Other. Saving a profile invalidates the dashboard cache so the new limit is visible immediately. The authenticated API passes the limit to the dashboard service and source query. They sit beside the counts on wide screens and stack below them on smaller screens.
+Assess top-source percentage bars respect the per-user dashboard `show_charts` setting and are omitted when there are no sources. The per-user `source_distribution_limit` defaults to five and must be a positive integer; remaining sources are grouped as Other. Saving a profile invalidates the dashboard cache so the new limit is visible immediately. The authenticated API passes the user to the dashboard service and source query, which reads the limit from the user profile. Calls without a user keep the default limit. They sit beside the counts on wide screens and stack below them on smaller screens.
 
 ## Entry Points and Coverage
 

@@ -258,7 +258,7 @@ def test_user_profile(app, client, auth_header):
         assert response.json
         assert response.data
         assert response.status_code == 200
-        assert "assess_default_filters" not in response.json
+        assert response.json["assess_default_filters"] == {"read": "true"}
         assert response.json["assess_saved_filters"] == saved_filters
     finally:
         with app.app_context():

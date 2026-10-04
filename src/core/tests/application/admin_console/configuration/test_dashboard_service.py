@@ -10,6 +10,7 @@ from core.model.report_item import ReportItem
 from core.model.story import Story
 from core.model.story_conflict import StoryConflict
 from core.model.task import Task
+from core.model.user import User
 from core.service.dashboard import DashboardService
 from tests.application.support.builders import build_news_item_payload, create_story
 
@@ -252,7 +253,14 @@ def test_get_source_distribution_rounds_percentages_to_one_decimal(session):
 def test_get_source_distribution_groups_sources_beyond_limit_into_other(session):
     names = _add_sources_with_news_items(session, {"a": 4, "b": 3, "c": 2, "d": 1})
 
-    result = NewsItem.get_source_distribution(total=NewsItem.get_count(), limit=2)
+    user = User(
+        username=_unique_value("user"),
+        name="Dashboard user",
+        organization=None,
+        roles=[],
+        profile={"dashboard": {"source_distribution_limit": 2}},
+    )
+    result = NewsItem.get_source_distribution(total=NewsItem.get_count(), user=user)
 
     assert result == [
         {"name": names["a"], "count": 4, "percentage": 40.0},
@@ -264,7 +272,7 @@ def test_get_source_distribution_groups_sources_beyond_limit_into_other(session)
 def test_get_source_distribution_has_no_other_entry_when_within_limit(session):
     names = _add_sources_with_news_items(session, {"a": 2, "b": 1})
 
-    result = NewsItem.get_source_distribution(total=NewsItem.get_count(), limit=5)
+    result = NewsItem.get_source_distribution(total=NewsItem.get_count())
 
     assert [entry["name"] for entry in result] == [names["a"], names["b"]]
 
@@ -288,7 +296,14 @@ def test_get_dashboard_data_includes_top_sources(session, monkeypatch):
 
     assert [entry["name"] for entry in dashboard["top_sources"]] == list(names.values())
 
-    dashboard = DashboardService.get_dashboard_data(source_distribution_limit=2)["items"][0]
+    user = User(
+        username=_unique_value("user"),
+        name="Dashboard user",
+        organization=None,
+        roles=[],
+        profile={"dashboard": {"source_distribution_limit": 2}},
+    )
+    dashboard = DashboardService.get_dashboard_data(user=user)["items"][0]
     assert dashboard["top_sources"] == [
         {"name": names["a"], "count": 4, "percentage": 40.0},
         {"name": names["b"], "count": 3, "percentage": 30.0},
