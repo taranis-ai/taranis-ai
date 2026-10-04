@@ -20,6 +20,14 @@ Workflow:
 3. If validation fails, fix and commit the problem, then run `./dev/test_push_signoff.sh` again. Every E2E run uses a fresh isolated Compose stack.
 4. If you do not use local signoff, the normal `test and lint` GitHub Actions workflow remains the fallback path.
 
+On macOS, the pipeline and worker startup script add Homebrew's library directory to `DYLD_FALLBACK_LIBRARY_PATH` so WeasyPrint can load GLib and Pango. For manual worker commands or `uv run pytest`, set it in the same terminal first:
+
+```bash
+export DYLD_FALLBACK_LIBRARY_PATH="$(brew --prefix)/lib${DYLD_FALLBACK_LIBRARY_PATH:+:$DYLD_FALLBACK_LIBRARY_PATH}"
+```
+
+If Pango is not installed, run `brew install pango` first (the automated setup installs it).
+
 ## Easy Mode
 
 The automated setup supports macOS, Ubuntu, and Debian 13. macOS requires Homebrew; the setup uses Podman for containers. The bootstrap downloads pinned uv and Ruff installers and verifies their SHA-256 checksums before execution.

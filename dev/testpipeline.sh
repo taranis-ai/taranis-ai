@@ -111,6 +111,11 @@ cd "$ROOT_DIR"
 
 require_command uv
 
+if [ "$(uname -s)" = "Darwin" ]; then
+  require_command brew
+  export DYLD_FALLBACK_LIBRARY_PATH="$(brew --prefix)/lib${DYLD_FALLBACK_LIBRARY_PATH:+:$DYLD_FALLBACK_LIBRARY_PATH}"
+fi
+
 if ! docker compose version >/dev/null 2>&1; then
   fail "Docker Compose is required for frontend e2e tests."
 fi

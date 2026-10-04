@@ -319,7 +319,6 @@ class OSINTSource(BaseModel):
             )
             .where(cls.type != COLLECTOR_TYPES.MANUAL_COLLECTOR)
             .where(cls.enabled.is_(True))
-            .distinct(cls.id)
             .order_by(
                 cls.id,
                 TaskModel.last_success.asc().nulls_first(),
