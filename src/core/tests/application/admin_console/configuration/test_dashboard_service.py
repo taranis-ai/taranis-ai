@@ -294,7 +294,12 @@ def test_get_dashboard_data_includes_top_sources(session, monkeypatch):
 
     dashboard = DashboardService.get_dashboard_data()["items"][0]
 
-    assert [entry["name"] for entry in dashboard["top_sources"]] == list(names.values())
+    assert dashboard["top_sources"] == [
+        {"name": names["a"], "count": 4, "percentage": 40.0},
+        {"name": names["b"], "count": 3, "percentage": 30.0},
+        {"name": names["c"], "count": 2, "percentage": 20.0},
+        {"name": "Other", "count": 1, "percentage": 10.0},
+    ]
 
     user = User(
         username=_unique_value("user"),
@@ -309,3 +314,6 @@ def test_get_dashboard_data_includes_top_sources(session, monkeypatch):
         {"name": names["b"], "count": 3, "percentage": 30.0},
         {"name": "Other", "count": 3, "percentage": 30.0},
     ]
+
+    user.profile["dashboard"]["source_distribution_limit"] = 0
+    assert DashboardService.get_dashboard_data(user=user)["items"][0]["top_sources"] == []

@@ -19,7 +19,7 @@
         <fieldset class="fieldset bg-base-100 mb-4 w-full md:w-1/4">
           <legend class="fieldset-legend">Source distribution</legend>
           {{ form_input_content(label="Top Sources Limit", name="dashboard[source_distribution_limit]",
-            value=dashboard.source_distribution_limit, type='number', min_value=1) }}
+            value=dashboard.source_distribution_limit, type='number', min_value=0) }}
           <p class="text-sm text-base-content/70">Remaining sources are grouped as Other.</p>
         </fieldset>
         <div class="flex gap-2">

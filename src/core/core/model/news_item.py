@@ -235,8 +235,10 @@ class NewsItem(BaseModel):
         item_count = db.func.count(cls.id)
         source_name = db.func.coalesce(OSINTSource.name, "Unknown source")
         limit = user.get_profile().dashboard.source_distribution_limit if user else 3
+        if limit == 0:
+            return []
         query = (
-            db.select(source_name, item_count)
+            select(source_name, item_count)
             .select_from(cls)
             .outerjoin(OSINTSource, cls.osint_source_id == OSINTSource.id)
             .group_by(source_name)

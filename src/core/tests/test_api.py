@@ -269,7 +269,7 @@ def test_user_profile(app, client, auth_header):
 
 
 @pytest.mark.parametrize("method", ["put", "post"])
-@pytest.mark.parametrize("limit, valid", [(2, True), (0, False), (-1, False), ("invalid", False), (1.5, False)])
+@pytest.mark.parametrize("limit, valid", [(2, True), (0, True), (-1, False), ("invalid", False), (1.5, False)])
 def test_user_profile_persists_dashboard_settings(app, client, auth_header, method, limit, valid):
     from core.managers.db_manager import db
     from core.model.user import User
@@ -298,7 +298,10 @@ def test_user_profile_persists_dashboard_settings(app, client, auth_header, meth
                 dashboard_response = client.get("/api/dashboard", headers=auth_header)
             assert dashboard_response.status_code == 200
             sources = dashboard_response.get_json()["items"][0]["top_sources"]
-            assert len([source for source in sources if source["name"] != "Other"]) <= limit
+            if limit == 0:
+                assert sources == []
+            else:
+                assert len([source for source in sources if source["name"] != "Other"]) <= limit
         else:
             assert "dashboard.source_distribution_limit" in response.get_json()["error"]
             assert saved_profile["dashboard"] == dashboard
