@@ -267,8 +267,11 @@ class User(BaseModel):
             "username": self.username,
         }
 
-    def get_profile(self) -> dict:
-        return ProfileSettings.model_validate(self._clean_profile_payload(self.profile)).model_dump(mode="json")
+    def get_profile(self) -> ProfileSettings:
+        return ProfileSettings.model_validate(self._clean_profile_payload(self.profile))
+
+    def get_profile_dict(self) -> dict:
+        return self.get_profile().model_dump(mode="json")
 
     @classmethod
     def update_profile(cls, user: "User", data: dict) -> tuple[dict, int]:
@@ -283,7 +286,7 @@ class User(BaseModel):
         user.profile = validated.model_dump(mode="json")
 
         db.session.commit()
-        return {"message": "Profile updated", "id": user.id, "user_profile": user.get_profile()}, 200
+        return {"message": "Profile updated", "id": user.id, "user_profile": user.get_profile_dict()}, 200
 
     @classmethod
     def export(cls, user_ids=None) -> bytes:

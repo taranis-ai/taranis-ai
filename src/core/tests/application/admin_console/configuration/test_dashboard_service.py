@@ -274,15 +274,8 @@ def test_get_source_distribution_returns_empty_list_without_news_items(session):
 
 
 def test_get_dashboard_data_includes_top_sources(session, monkeypatch):
-    top_sources = [{"name": "CERT", "count": 3, "percentage": 75.0}, {"name": "Blog", "count": 1, "percentage": 25.0}]
-    calls = []
+    names = _add_sources_with_news_items(session, {"a": 4, "b": 3, "c": 2, "d": 1})
 
-    def fake_distribution(cls, total, limit=5):
-        calls.append({"total": total, "limit": limit})
-        return top_sources
-
-    monkeypatch.setattr(NewsItem, "get_count", classmethod(lambda cls, *args, **kwargs: 4))
-    monkeypatch.setattr(NewsItem, "get_source_distribution", classmethod(fake_distribution))
     monkeypatch.setattr(
         dashboard_module.queue_manager,
         "queue_manager",
@@ -293,5 +286,11 @@ def test_get_dashboard_data_includes_top_sources(session, monkeypatch):
 
     dashboard = DashboardService.get_dashboard_data()["items"][0]
 
-    assert dashboard["top_sources"] == top_sources
-    assert calls == [{"total": dashboard["total_news_items"], "limit": 5}]
+    assert [entry["name"] for entry in dashboard["top_sources"]] == list(names.values())
+
+    dashboard = DashboardService.get_dashboard_data(source_distribution_limit=2)["items"][0]
+    assert dashboard["top_sources"] == [
+        {"name": names["a"], "count": 4, "percentage": 40.0},
+        {"name": names["b"], "count": 3, "percentage": 30.0},
+        {"name": "Other", "count": 3, "percentage": 30.0},
+    ]

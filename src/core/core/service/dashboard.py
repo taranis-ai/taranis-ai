@@ -15,7 +15,7 @@ from core.service.health import get_health_response
 
 class DashboardService:
     @classmethod
-    def get_dashboard_data(cls) -> dict:
+    def get_dashboard_data(cls, source_distribution_limit: int = 5) -> dict:
         now = BaseModel.utcnow()
         week_start = (now - timedelta(days=now.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
         news_items_this_week = NewsItem.get_filtered_count(db.select(NewsItem.id).where(NewsItem.published.between(week_start, now)))
@@ -32,7 +32,7 @@ class DashboardService:
         conflict_count = len(StoryConflict.conflict_store) + len(NewsItemConflict.conflict_store)
         health_status, _ = get_health_response()
         task_status_totals = Task.get_status_totals()
-        top_sources = NewsItem.get_source_distribution(total=total_news_items, limit=5)
+        top_sources = NewsItem.get_source_distribution(total=total_news_items, limit=source_distribution_limit)
         return {
             "items": [
                 {

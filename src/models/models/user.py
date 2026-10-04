@@ -21,6 +21,7 @@ class ProfileSettingsDashboard(TaranisBaseModel):
     show_charts: bool = True
     show_pizzint: bool = False
     trending_cluster_days: int = 7
+    source_distribution_limit: int = Field(default=5, ge=1)
     trending_cluster_filter: list[Any] = Field(default_factory=list)
 
 

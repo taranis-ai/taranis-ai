@@ -125,6 +125,12 @@ class TestEndToEndUser(BaseE2ETest):
 
             page.get_by_role("link", name="Edit Dashboard").click()
             expect(page.get_by_role("group", name="Recent activity window")).to_be_visible()
+            source_limit = page.get_by_role("spinbutton", name="Top Sources Limit")
+            expect(source_limit).to_have_value("5")
+            source_limit.fill("0")
+            page.get_by_role("button", name="Update Dashboard Settings").click()
+            expect(page.locator("#edit_dashboard")).to_be_visible()
+            source_limit.fill("1")
             page.get_by_role("checkbox", name="dashboard[show_trending_clusters]").uncheck()
             page.get_by_role("checkbox", name="dashboard[show_charts]").uncheck()
             page.get_by_role("button", name="Update Dashboard Settings").click()
@@ -134,6 +140,8 @@ class TestEndToEndUser(BaseE2ETest):
             page.get_by_role("link", name="Edit Dashboard").click()
             expect(page.get_by_role("group", name="Recent activity window")).to_be_visible()
 
+            expect(source_limit).to_have_value("1")
+            source_limit.fill("5")
             page.get_by_role("checkbox", name="dashboard[show_trending_clusters]").check()
             expect(page.get_by_role("checkbox", name="dashboard[show_trending_clusters]")).to_be_visible()
             page.get_by_role("checkbox", name="dashboard[show_charts]").check()
