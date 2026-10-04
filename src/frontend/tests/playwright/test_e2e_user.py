@@ -126,7 +126,7 @@ class TestEndToEndUser(BaseE2ETest):
             page.get_by_role("link", name="Edit Dashboard").click()
             expect(page.get_by_role("group", name="Recent activity window")).to_be_visible()
             source_limit = page.get_by_role("spinbutton", name="Top Sources Limit")
-            expect(source_limit).to_have_value("5")
+            expect(source_limit).to_have_value("3")
             source_limit.fill("0")
             page.get_by_role("button", name="Update Dashboard Settings").click()
             expect(page.locator("#edit_dashboard")).to_be_visible()

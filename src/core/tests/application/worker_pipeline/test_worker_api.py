@@ -7,6 +7,7 @@ from pathlib import Path
 from unittest.mock import Mock
 
 import pytest
+from sqlalchemy import select
 
 
 def _tag_names(tags: list[dict] | dict[str, dict]) -> set[str]:
@@ -93,9 +94,7 @@ class TestWorkerApi:
         assert (story.title, story.summary, story.read) == ("Analyst headline", "Analyst summary", False)
         assert story.id not in session.execute(Story.get_filter_query({"range": "shift"}).with_only_columns(Story.id)).scalars()
 
-        revisions = (
-            session.execute(session.query(StoryRevision).filter_by(story_id=story.id).order_by(StoryRevision.revision)).scalars().all()
-        )
+        revisions = session.scalars(select(StoryRevision).where(StoryRevision.story_id == story.id).order_by(StoryRevision.revision)).all()
         assert revisions[-2].data["news_items"][0]["content"] == body
         assert revisions[-1].data["news_items"][0]["content"] == corrected["content"]
         diff = build_story_revision_diff_payload(story.id, story.title, revisions[-2].to_dict(), revisions[-1].to_dict())
