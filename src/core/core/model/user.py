@@ -138,7 +138,7 @@ class User(BaseModel):
 
     def to_user_profile(self) -> UserProfile:
         permissions = self.get_permissions()
-        profile = ProfileSettings.model_validate(self.profile)
+        profile = ProfileSettings.model_validate(self.profile or {})
         return UserProfile(
             id=self.id,
             username=self.username,
