@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import Index, func, literal_column, tuple_
+from sqlalchemy import Index, func, literal_column, select, tuple_
 from sqlalchemy.orm import Mapped, relationship
 
 from core.log import logger
@@ -43,7 +43,7 @@ class NewsItemTag(BaseModel):
         from core.model.news_item import NewsItem
 
         story_count = func.count(func.distinct(NewsItem.story_id))
-        query = db.select(cls.name, cls.tag_type, story_count.label("story_count")).join(NewsItem)
+        query = select(cls.name, cls.tag_type, story_count.label("story_count")).join(NewsItem)
 
         if search := filter_args.get("search"):
             query = query.filter(cls.name.ilike(f"%{search}%"))
@@ -60,7 +60,7 @@ class NewsItemTag(BaseModel):
         offset = filter_args.get("offset", 0)
         limit = filter_args.get("limit", 20)
         query = query.offset(offset).limit(limit)
-        result = db.session.execute(query).tuples()
+        result = db.session.execute(query)
         return {name: tag_type for name, tag_type, _ in result}
 
     @classmethod
@@ -200,7 +200,7 @@ class NewsItemTag(BaseModel):
     @classmethod
     def get_summary_keys_for_news_item_ids(cls, news_item_ids) -> set[tuple[str, str]]:
         rows = db.session.execute(
-            db.select(cls.name, func.coalesce(cls.tag_type, ""))
+            select(cls.name, func.coalesce(cls.tag_type, ""))
             .where(cls.news_item_id.in_(news_item_ids))
             .where(cls.name.is_not(None), cls.name != "")
             .distinct()
@@ -210,7 +210,7 @@ class NewsItemTag(BaseModel):
     @classmethod
     def get_summary_keys_for_name(cls, tag_name: str) -> set[tuple[str, str]]:
         rows = db.session.execute(
-            db.select(cls.name, func.coalesce(cls.tag_type, ""))
+            select(cls.name, func.coalesce(cls.tag_type, ""))
             .where(cls.name == tag_name)
             .where(cls.name.is_not(None), cls.name != "")
             .distinct()
@@ -260,7 +260,7 @@ class NewsItemTagCluster(BaseModel):
         keys = {
             (name, tag_type_key)
             for name, tag_type_key in session.execute(
-                db.select(NewsItemTag.name, func.coalesce(NewsItemTag.tag_type, ""))
+                select(NewsItemTag.name, func.coalesce(NewsItemTag.tag_type, ""))
                 .where(NewsItemTag.name.is_not(None), NewsItemTag.name != "")
                 .distinct()
             ).all()

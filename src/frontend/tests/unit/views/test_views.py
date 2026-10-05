@@ -1047,3 +1047,45 @@ def test_admin_dashboard_renders_frontend_release_info_when_core_build_info_fail
     assert "master" in html
     assert "Unavailable" in html
     assert "Task Status" in html
+
+
+def _dashboard_payload(**overrides: Any) -> dict[str, Any]:
+    return {"items": [{"total_news_items": 4, "total_story_items": 2, **overrides}], "total_count": 1}
+
+
+@pytest.mark.parametrize("show_charts", [True, False])
+def test_dashboard_shows_top_sources_sorted_with_percentage_bars(
+    authenticated_client, auth_user, responses_mock, mock_core_get_endpoints, show_charts
+):
+    _ = mock_core_get_endpoints
+    saved_user = auth_user.model_copy(deep=True)
+    saved_user.profile.dashboard.show_charts = show_charts
+    add_user_to_cache(saved_user.model_dump(mode="json"))
+    responses_mock.get(f"{Config.TARANIS_CORE_URL}/dashboard/trending-clusters", json={"items": [], "total_count": 0})
+    top_sources = [
+        {"name": "CERT.at", "count": 3, "percentage": 75.0},
+        {"name": "Security Blog", "count": 1, "percentage": 25.0},
+    ]
+    responses_mock.replace("GET", f"{Config.TARANIS_CORE_URL}/dashboard", json=_dashboard_payload(top_sources=top_sources))
+
+    response = authenticated_client.get("/")
+
+    assert response.status_code == 200
+    tree = html.fromstring(response.text)
+    if not show_charts:
+        assert not tree.xpath('//*[@data-testid="dashboard-top-sources"]')
+        return
+    rows = tree.xpath('//*[@data-testid="dashboard-top-sources"]//*[@data-testid="dashboard-top-source"]')
+    assert [" ".join(row.text_content().split()) for row in rows] == ["CERT.at 75.0%", "Security Blog 25.0%"]
+    bar_widths = [bar.get("style") for bar in tree.xpath('//*[@data-testid="dashboard-top-source"]//div[contains(@class, "bg-primary")]')]
+    assert bar_widths == ["width: 75.0%", "width: 25.0%"]
+
+
+def test_dashboard_hides_top_sources_without_news_items(authenticated_client, responses_mock, mock_core_get_endpoints):
+    _ = mock_core_get_endpoints
+    responses_mock.replace("GET", f"{Config.TARANIS_CORE_URL}/dashboard", json=_dashboard_payload(total_news_items=0, top_sources=[]))
+
+    response = authenticated_client.get("/")
+
+    assert response.status_code == 200
+    assert not html.fromstring(response.text).xpath('//*[@data-testid="dashboard-top-sources"]')

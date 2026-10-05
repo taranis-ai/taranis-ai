@@ -241,7 +241,7 @@ class BaseModel(db.Model):
 
     @classmethod
     def get_filtered_count(cls, query: Select) -> int:
-        count_query = db.select(func.count()).select_from(query).order_by(None).offset(None).limit(None)
+        count_query = db.select(func.count()).select_from(query.order_by(None).offset(None).limit(None).subquery())
         return db.session.execute(count_query).scalar() or 0
 
     @classmethod
