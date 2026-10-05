@@ -1253,6 +1253,7 @@ class TestEndToEndAdmin(BaseE2ETest):
                 expect(bypass).not_to_be_checked()
                 page.get_by_role("button", name="Create Publisher Preset").click()
                 expect(page.get_by_text("Provide a server host public key", exact=False).first).to_be_visible()
+                dismiss_notifications(page)
                 optional = page.get_by_test_id("optional-worker-parameters")
                 if not optional.evaluate("el => el.open"):
                     optional.locator("summary").click()
