@@ -20,7 +20,7 @@ class BasePublisher:
         raise NotImplementedError
 
     def print_exception(self, error):
-        logger.exception(f"Publishing Failed: {self.type} - {error}")
+        logger.error(f"Publishing failed: type={self.type} exception_type={type(error).__name__}")
 
     def set_file_name(self, product):
         self.file_name = BasePublisher.get_file_name(product)

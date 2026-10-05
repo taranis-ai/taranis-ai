@@ -121,6 +121,7 @@ if ! docker compose version >/dev/null 2>&1; then
 fi
 
 export DEBUG=true
+export OTEL_EXPORTER_OTLP_ENDPOINT=""
 
 PARALLEL_LOG_DIR="$(mktemp -d)"
 trap 'rm -rf "$PARALLEL_LOG_DIR"' EXIT

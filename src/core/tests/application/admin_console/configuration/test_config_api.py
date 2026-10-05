@@ -1595,6 +1595,7 @@ class TestPublisherPreset(BaseTest):
         assert response.json["items"][0]["description"] == "new description"
         assert response.json["items"][0]["type"] == cleanup_publisher_preset["type"]
         assert response.json["items"][0]["parameters"]["FTP_URL"] == cleanup_publisher_preset["parameters"]["FTP_URL"]
+        assert response.json["items"][0]["parameters"]["NETWORK_TIMEOUT"] == 17
 
     def test_delete_publisher_preset(self, client, auth_header, cleanup_publisher_preset, app):
         from core.model.publisher_preset import PublisherPreset
