@@ -87,7 +87,7 @@ def schedule_check(kind: str, endpoint_id: str) -> None:
         if config is None:
             qm.redis.delete(state_key(kind, endpoint_id))
             return
-        check_id = uuid4().hex  # Reject results from checks superseded by a save or restart.
+        check_id = uuid4().hex
         state = {"check_id": check_id, "fingerprint": fingerprint(config), "status": "pending"}
         qm.redis.set(state_key(kind, endpoint_id), json.dumps(state))
         job = qm.enqueue_task(
@@ -132,7 +132,7 @@ def record_result(kind: str, endpoint_id: str, check_id: str, healthy: bool) -> 
             pipe.set(key, json.dumps(state))
             pipe.execute()
     except WatchError:
-        return False  # A newer check owns this endpoint now.
+        return False
     invalidate_frontend_cache_on_success(200, models=("settings", "bot", "core_health", "dashboard", "admin_menu_badges"))
     return True
 
