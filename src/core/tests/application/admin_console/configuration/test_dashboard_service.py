@@ -1,6 +1,8 @@
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 
+import pytest
+
 import core.service.dashboard as dashboard_module
 from core.model.base_model import BaseModel
 from core.model.news_item import NewsItem
@@ -269,10 +271,18 @@ def test_get_source_distribution_groups_sources_beyond_limit_into_other(session)
     ]
 
 
-def test_get_source_distribution_has_no_other_entry_when_within_limit(session):
+@pytest.mark.parametrize("limit", [3, 2**63])
+def test_get_source_distribution_has_no_other_entry_when_within_limit(session, limit):
     names = _add_sources_with_news_items(session, {"a": 2, "b": 1})
+    user = User(
+        username=_unique_value("user"),
+        name="Dashboard user",
+        organization=None,
+        roles=[],
+        profile={"dashboard": {"source_distribution_limit": limit}},
+    )
 
-    result = NewsItem.get_source_distribution(total=NewsItem.get_count())
+    result = NewsItem.get_source_distribution(total=NewsItem.get_count(), user=user)
 
     assert [entry["name"] for entry in result] == [names["a"], names["b"]]
 

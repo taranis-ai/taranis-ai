@@ -10,8 +10,22 @@ from core.model.settings import Settings
 from core.model.user import User
 
 
-@pytest.mark.parametrize("profile", [None, null(), {}, {"dashboard": None}])
-def test_pre_seed_update_initializes_missing_profiles_and_preserves_preferences(session, profile):
+@pytest.mark.parametrize(
+    "profile, expected_days",
+    [
+        (None, 7),
+        (null(), 7),
+        ({}, 7),
+        ({"dashboard": None}, 7),
+        ({"dashboard": {"trending_cluster_days": -1}}, 0),
+        (
+            ProfileSettings(onboarding_enabled=False).model_dump(mode="json")
+            | {"dashboard": ProfileSettings().dashboard.model_dump() | {"trending_cluster_days": -1}},
+            0,
+        ),
+    ],
+)
+def test_pre_seed_update_initializes_missing_profiles_and_preserves_preferences(session, profile, expected_days):
     _, status = Settings.update({"settings": {"onboarding_enabled": False}})
     assert status == 200
     user = User(username=User.uuid7_str(), name="Missing profile", organization=None, roles=[])
@@ -31,7 +45,9 @@ def test_pre_seed_update_initializes_missing_profiles_and_preserves_preferences(
     pre_seed_update(db.engine)
     session.expire_all()
 
-    assert user.profile == ProfileSettings(onboarding_enabled=False).model_dump(mode="json")
+    assert user.profile == ProfileSettings(onboarding_enabled=False, dashboard={"trending_cluster_days": expected_days}).model_dump(
+        mode="json"
+    )
     assert customized_user.profile["dark_theme"] is True
     assert customized_user.profile["onboarding_enabled"] is True
     assert customized_user.profile["dashboard"]["source_distribution_limit"] == 0

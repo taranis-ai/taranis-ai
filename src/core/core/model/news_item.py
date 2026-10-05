@@ -243,7 +243,7 @@ class NewsItem(BaseModel):
             .outerjoin(OSINTSource, cls.osint_source_id == OSINTSource.id)
             .group_by(source_name)
             .order_by(item_count.desc(), source_name)
-            .limit(limit)
+            .limit(min(limit, total))
         )
         counts = db.session.execute(query).all()
 

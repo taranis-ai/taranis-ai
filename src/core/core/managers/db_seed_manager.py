@@ -286,6 +286,7 @@ def migrate_user_profiles():
     for user in users:
         current = user.profile if isinstance(user.profile, dict) else {}
         updated = migrate_user_profile(current, profile_template)
+        updated["dashboard"]["trending_cluster_days"] = max(updated["dashboard"]["trending_cluster_days"], 0)
         if current != updated:
             logger.debug(f"Migrating user profile for user {user.name}")
             user.profile = ProfileSettings.model_validate(updated).model_dump(mode="json")

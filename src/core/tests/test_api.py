@@ -269,7 +269,7 @@ def test_user_profile(app, client, auth_header):
 
 
 @pytest.mark.parametrize("method", ["put", "post"])
-@pytest.mark.parametrize("limit, valid", [(2, True), (0, True), (-1, False), ("invalid", False), (1.5, False)])
+@pytest.mark.parametrize("limit, valid", [(2, True), (0, True), (2**63, True), (-1, False), ("invalid", False), (1.5, False)])
 def test_user_profile_persists_dashboard_settings(app, client, auth_header, method, limit, valid):
     from core.managers.db_manager import db
     from core.model.user import User

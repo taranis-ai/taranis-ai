@@ -12,6 +12,8 @@ Weekly counts run from Monday 00:00 UTC through now, inclusive, excluding future
 
 Assess top-source percentage bars respect the per-user dashboard `show_charts` setting and are omitted when there are no sources. The per-user `source_distribution_limit` defaults to three and must be a non-negative integer. Zero disables the distribution and returns no sources, including no Other entry; positive limits group remaining sources as Other. Saving a profile invalidates the dashboard cache so the new limit is visible immediately. The authenticated API passes the user to the dashboard service and source query, which reads the limit from the user profile. Calls without a user keep the default limit. They sit beside the counts on wide screens and stack below them on smaller screens.
 
+The source query caps its SQL limit at the total news-item count, so even configured integers beyond the database's binding range show all available sources without overflowing. No fixed product maximum applies.
+
 ## Entry Points and Coverage
 
 `src/core/core/service/dashboard.py`, `src/models/models/dashboard.py`, `src/frontend/frontend/templates/dashboard/user_item_cards.html`.
