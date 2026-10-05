@@ -30,7 +30,6 @@ from core.model.settings import Settings
 
 
 PROFILE_TEMPLATE: dict[str, Any] = ProfileSettings().model_dump(mode="json")
-REMOVED_PROFILE_KEYS = frozenset({"assess_default_filters"})
 ADMIN_ONBOARDING_TASK_IDS = (ADMIN_WELCOME_TOUR_ID, ADMIN_ADVANCED_TOUR_ID)
 USER_PRODUCT_OVERVIEW_PERMISSIONS = frozenset({"ASSESS_ACCESS", "ANALYZE_ACCESS", "PUBLISH_ACCESS"})
 
@@ -137,13 +136,9 @@ class User(BaseModel):
             *cls._pending_user_onboarding_tasks(profile, permissions),
         ]
 
-    @staticmethod
-    def _clean_profile_payload(profile: dict[str, Any] | None) -> dict[str, Any]:
-        return {key: value for key, value in (profile or {}).items() if key not in REMOVED_PROFILE_KEYS}
-
     def to_user_profile(self) -> UserProfile:
         permissions = self.get_permissions()
-        profile = ProfileSettings.model_validate(self._clean_profile_payload(self.profile))
+        profile = ProfileSettings.model_validate(self.profile or {})
         return UserProfile(
             id=self.id,
             username=self.username,
@@ -184,7 +179,7 @@ class User(BaseModel):
             if not isinstance(profile_update, dict):
                 return {"error": "Invalid profile settings"}, 400
             try:
-                profile = ProfileSettings.model_validate({**cls._clean_profile_payload(user.profile), **profile_update})
+                profile = ProfileSettings.model_validate({**(user.profile), **profile_update})
             except ValidationError as exc:
                 return ProfileSettings.validation_error_response(exc, prefix="Invalid profile settings"), 400
             user.profile = profile.model_dump(mode="json")
@@ -208,7 +203,7 @@ class User(BaseModel):
     @classmethod
     def set_onboarding_enabled_for_all(cls, enabled: bool) -> None:
         for user in cls.get_all_for_collector() or []:
-            profile = ProfileSettings.model_validate(cls._clean_profile_payload(user.profile))
+            profile = ProfileSettings.model_validate(user.profile)
             user.profile = profile.model_copy(update={"onboarding_enabled": enabled}).model_dump(mode="json")
 
     def get_permissions(self) -> list[str]:
@@ -267,13 +262,16 @@ class User(BaseModel):
             "username": self.username,
         }
 
-    def get_profile(self) -> dict:
-        return ProfileSettings.model_validate(self._clean_profile_payload(self.profile)).model_dump(mode="json")
+    def get_profile(self) -> ProfileSettings:
+        return ProfileSettings.model_validate(self.profile)
+
+    def get_profile_dict(self) -> dict:
+        return self.get_profile().model_dump(mode="json")
 
     @classmethod
     def update_profile(cls, user: "User", data: dict) -> tuple[dict, int]:
         logger.debug(f"Updating profile for user {user.username} with data: {data}")
-        merged = {**cls._clean_profile_payload(user.profile), **cls._clean_profile_payload(data)}
+        merged = {**(user.profile), **(data)}
 
         try:
             validated = ProfileSettings.model_validate(merged)
@@ -283,7 +281,7 @@ class User(BaseModel):
         user.profile = validated.model_dump(mode="json")
 
         db.session.commit()
-        return {"message": "Profile updated", "id": user.id, "user_profile": user.get_profile()}, 200
+        return {"message": "Profile updated", "id": user.id, "user_profile": user.get_profile_dict()}, 200
 
     @classmethod
     def export(cls, user_ids=None) -> bytes:
