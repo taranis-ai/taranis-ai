@@ -291,14 +291,14 @@ class Task(BaseModel):
 
         stmt = db.select(*stmt_columns).where(latest_rows.c.row_number == 1).order_by(latest_rows.c.task_type, latest_rows.c.worker_key)
 
-        results = db.session.execute(stmt).all()
+        results = db.session.execute(stmt).mappings().all()
 
         data: dict[str, dict[str, Any]] = {}
         seen_workers: dict[str, set[str]] = {}
 
         for row in results:
-            task_type = row.task_type
-            worker_key_value = row.worker_key
+            task_type = row["task_type"]
+            worker_key_value = row["worker_key"]
             if task_type not in data:
                 entry: dict[str, Any] = {
                     "failures": 0,
@@ -306,39 +306,39 @@ class Task(BaseModel):
                     "warnings": 0,
                     "success_pct": 0,
                     "total": 0,
-                    "worker_type": row.worker_type or task_type,
-                    "worker_id": row.worker_id,
+                    "worker_type": row["worker_type"] or task_type,
+                    "worker_id": row["worker_id"],
                 }
                 if include_timestamps:
-                    entry["last_run"] = row.last_run
-                    entry["last_success"] = row.last_success
+                    entry["last_run"] = row["last_run"]
+                    entry["last_success"] = row["last_success"]
                 data[task_type] = entry
                 seen_workers[task_type] = set()
 
             entry = data[task_type]
             if include_timestamps:
                 current_last_run = entry.get("last_run")
-                if row.last_run and (current_last_run is None or row.last_run > current_last_run):
-                    entry["last_run"] = row.last_run
+                if row["last_run"] and (current_last_run is None or row["last_run"] > current_last_run):
+                    entry["last_run"] = row["last_run"]
 
                 current_last_success = entry.get("last_success")
-                if row.last_success and (current_last_success is None or row.last_success > current_last_success):
-                    entry["last_success"] = row.last_success
+                if row["last_success"] and (current_last_success is None or row["last_success"] > current_last_success):
+                    entry["last_success"] = row["last_success"]
 
             if worker_key_value in seen_workers[task_type]:
                 continue
 
             seen_workers[task_type].add(worker_key_value)
             if len(seen_workers[task_type]) == 1:
-                entry["worker_id"] = row.worker_id
-            elif entry.get("worker_id") != row.worker_id:
+                entry["worker_id"] = row["worker_id"]
+            elif entry.get("worker_id") != row["worker_id"]:
                 entry["worker_id"] = None
 
-            if row.status in cls.FAILURE_STATUSES:
+            if row["status"] in cls.FAILURE_STATUSES:
                 entry["failures"] += 1
-            elif row.status == "WARNING":
+            elif row["status"] == "WARNING":
                 entry["warnings"] += 1
-            elif row.status in cls.SUCCESS_STATUSES:
+            elif row["status"] in cls.SUCCESS_STATUSES:
                 entry["successes"] += 1
 
         for entry in data.values():

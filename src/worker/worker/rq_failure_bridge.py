@@ -21,14 +21,14 @@ def rq_failure_exception_handler(job: Job, exc_type: type[BaseException], exc_va
 
     reason = "job_timeout" if issubclass(exc_type, JobTimeoutException) else "job_failed"
     retryable = issubclass(exc_type, JobTimeoutException)
-    message = str(exc_value) or exc_type.__name__
+    message = "Background job exceeded its execution timeout" if retryable else "Background job failed"
 
     _persist_failure(
         job,
         message=message,
         reason=reason,
         retryable=retryable,
-        data={"exception_type": exc_type.__name__, "message": message},
+        data={"exception_type": exc_type.__name__},
     )
     return True
 
@@ -40,7 +40,7 @@ def rq_work_horse_killed_handler(job: Job, retpid: int, ret_val: int, _rusage: A
 
     _persist_failure(
         job,
-        message=f"Work horse killed for job {job.id}",
+        message="Worker process ended before the job completed",
         reason="work_horse_killed",
         retryable=True,
         data={"retpid": retpid, "ret_val": ret_val},
@@ -50,8 +50,8 @@ def rq_work_horse_killed_handler(job: Job, retpid: int, ret_val: int, _rusage: A
 def _has_terminal_task_result(job_id: str) -> bool:
     try:
         payload = CoreApi().api_get(f"/tasks/{job_id}")
-    except Exception:
-        logger.exception(f"Failed to read task result before synthetic failure persistence for {job_id}")
+    except Exception as exc:
+        logger.error(f"Failed to read task result before synthetic failure persistence for {job_id}: exception_type={type(exc).__name__}")
         return False
 
     status = payload.get("status") if isinstance(payload, dict) else None

@@ -203,3 +203,95 @@ def test_trending_clusters_uses_recent_summary_activity_with_global_counts(app, 
                     db.session.delete(news_item)
                 db.session.delete(story)
             db.session.commit()
+
+
+def _add_sources_with_news_items(session, counts: dict[str, int]) -> dict[str, str]:
+    """Create one OSINT source per entry with that many news items; return prefix -> real name."""
+    from models.types import COLLECTOR_TYPES
+
+    from core.model.osint_source import OSINTSource
+
+    names = {}
+    for prefix, amount in counts.items():
+        source = OSINTSource(name=_unique_value(prefix), description="test", type=COLLECTOR_TYPES.MANUAL_COLLECTOR)
+        session.add(source)
+        session.flush()
+        create_story(news_items=[build_news_item_payload(source_id=source.id) for _ in range(amount)])
+        names[prefix] = source.name
+    session.flush()
+    return names
+
+
+def test_get_source_distribution_orders_largest_first_with_percentages(session):
+    names = _add_sources_with_news_items(session, {"quiet": 1, "busy": 3})
+
+    result = NewsItem.get_source_distribution(total=NewsItem.get_count())
+
+    assert result == [
+        {"name": names["busy"], "count": 3, "percentage": 75.0},
+        {"name": names["quiet"], "count": 1, "percentage": 25.0},
+    ]
+
+
+def test_get_source_distribution_breaks_ties_alphabetically(session):
+    names = _add_sources_with_news_items(session, {"zeta": 2, "alpha": 2})
+
+    result = NewsItem.get_source_distribution(total=NewsItem.get_count())
+
+    assert [entry["name"] for entry in result] == [names["alpha"], names["zeta"]]
+
+
+def test_get_source_distribution_rounds_percentages_to_one_decimal(session):
+    _add_sources_with_news_items(session, {"first": 1, "second": 1, "third": 1})
+
+    result = NewsItem.get_source_distribution(total=NewsItem.get_count())
+
+    assert [entry["percentage"] for entry in result] == [33.3, 33.3, 33.3]
+
+
+def test_get_source_distribution_groups_sources_beyond_limit_into_other(session):
+    names = _add_sources_with_news_items(session, {"a": 4, "b": 3, "c": 2, "d": 1})
+
+    result = NewsItem.get_source_distribution(total=NewsItem.get_count(), limit=2)
+
+    assert result == [
+        {"name": names["a"], "count": 4, "percentage": 40.0},
+        {"name": names["b"], "count": 3, "percentage": 30.0},
+        {"name": "Other", "count": 3, "percentage": 30.0},
+    ]
+
+
+def test_get_source_distribution_has_no_other_entry_when_within_limit(session):
+    names = _add_sources_with_news_items(session, {"a": 2, "b": 1})
+
+    result = NewsItem.get_source_distribution(total=NewsItem.get_count(), limit=5)
+
+    assert [entry["name"] for entry in result] == [names["a"], names["b"]]
+
+
+def test_get_source_distribution_returns_empty_list_without_news_items(session):
+    assert NewsItem.get_source_distribution(total=0) == []
+
+
+def test_get_dashboard_data_includes_top_sources(session, monkeypatch):
+    top_sources = [{"name": "CERT", "count": 3, "percentage": 75.0}, {"name": "Blog", "count": 1, "percentage": 25.0}]
+    calls = []
+
+    def fake_distribution(cls, total, limit=5):
+        calls.append({"total": total, "limit": limit})
+        return top_sources
+
+    monkeypatch.setattr(NewsItem, "get_count", classmethod(lambda cls, *args, **kwargs: 4))
+    monkeypatch.setattr(NewsItem, "get_source_distribution", classmethod(fake_distribution))
+    monkeypatch.setattr(
+        dashboard_module.queue_manager,
+        "queue_manager",
+        SimpleNamespace(get_scheduled_job_count=lambda: 0),
+        raising=False,
+    )
+    monkeypatch.setattr("core.service.dashboard.get_health_response", lambda: ({"healthy": True}, 200))
+
+    dashboard = DashboardService.get_dashboard_data()["items"][0]
+
+    assert dashboard["top_sources"] == top_sources
+    assert calls == [{"total": dashboard["total_news_items"], "limit": 5}]

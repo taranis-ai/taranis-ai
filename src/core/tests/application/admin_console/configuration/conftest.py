@@ -273,7 +273,7 @@ def cleanup_publisher_preset(app):
             "name": "test_publisher_preset",
             "description": "Test ACL",
             "type": "ftp_publisher",
-            "parameters": {"FTP_URL": "ftp_url_entry"},
+            "parameters": {"FTP_URL": "ftp_url_entry", "NETWORK_TIMEOUT": 17},
         }
 
         yield publisher_presets

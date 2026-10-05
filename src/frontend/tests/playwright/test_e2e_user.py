@@ -129,6 +129,7 @@ class TestEndToEndUser(BaseE2ETest):
             page.get_by_role("checkbox", name="dashboard[show_charts]").uncheck()
             page.get_by_role("button", name="Update Dashboard Settings").click()
             expect(page.locator("#dashboard").get_by_text("Recently Active Tags")).not_to_be_visible()
+            expect(page.get_by_test_id("dashboard-top-sources")).to_have_count(0)
             expect(page.get_by_role("main")).to_be_visible()
             page.get_by_role("link", name="Edit Dashboard").click()
             expect(page.get_by_role("group", name="Recent activity window")).to_be_visible()
@@ -138,6 +139,25 @@ class TestEndToEndUser(BaseE2ETest):
             page.get_by_role("checkbox", name="dashboard[show_charts]").check()
             page.get_by_role("button", name="Update Dashboard Settings").click()
             expect(page.locator("#dashboard")).to_contain_text("Recently Active Tags")
+            expect(page.get_by_test_id("dashboard-top-sources")).to_be_visible()
+            original_viewport = page.viewport_size
+            try:
+                page.set_viewport_size({"width": 1440, "height": 900})
+                sources = page.get_by_test_id("dashboard-top-sources")
+                counts = assess.get_by_text(re.compile(r"There are \d+ news items"))
+                sources_box = sources.bounding_box()
+                counts_box = counts.bounding_box()
+                assert sources_box and counts_box
+                assert sources_box["x"] > counts_box["x"] + counts_box["width"]
+
+                page.set_viewport_size({"width": 600, "height": 900})
+                sources_box = sources.bounding_box()
+                counts_box = counts.bounding_box()
+                assert sources_box and counts_box
+                assert sources_box["y"] > counts_box["y"] + counts_box["height"]
+            finally:
+                if original_viewport:
+                    page.set_viewport_size(original_viewport)
             expect(page.locator("#dashboard")).to_contain_text("counts show total matching stories")
             expect(page.locator("#dashboard")).to_contain_text("Location")
 

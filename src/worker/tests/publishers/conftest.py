@@ -1,11 +1,25 @@
-from threading import Event, current_thread
+import socket
+from threading import Event, Thread, current_thread
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import mockssh
+import paramiko
 import pytest
 from mockssh.server import Handler
 
 from worker import publishers
+
+
+class StalledSFTPSubsystem(paramiko.SubsystemHandler):
+    def __init__(self, channel, name, server):
+        super().__init__(channel, name, server)
+        server.server.stalled_subsystems.append(self)
+
+    def start_subsystem(self, name, transport, channel):
+        # Accept the SFTP request, but never send the protocol version reply.
+        while channel.recv(1024):
+            pass
 
 
 class SFTPTestHandler(Handler):
@@ -13,6 +27,8 @@ class SFTPTestHandler(Handler):
         super().__init__(server, client_conn)
         self.finished = Event()
         server.handlers.append(self)
+        if server.stall_sftp:
+            self.transport.set_subsystem_handler("sftp", StalledSFTPSubsystem)
 
     def run(self):
         self.thread = current_thread()
@@ -106,9 +122,69 @@ class RecordingCoreApi:
         return bool(self.put_response)
 
 
+class RecordingJob:
+    def __init__(self, timeout=180):
+        self.id = "job-1"
+        self.timeout = timeout
+        self.meta = {"task": "publisher_task", "user_id": "user-1"}
+
+    def save_meta(self):
+        pass
+
+
+class RecordingSFTPChannel:
+    def settimeout(self, timeout):
+        pass
+
+    def invoke_subsystem(self, name):
+        pass
+
+
+class MismatchedSFTPClient:
+    def __init__(self):
+        self.channel = RecordingSFTPChannel()
+
+    def get_channel(self):
+        return self.channel
+
+    def putfo(self, data, path, confirm=True):
+        pass
+
+    def stat(self, path):
+        return SimpleNamespace(st_size=-1)
+
+    def close(self):
+        pass
+
+
+class MismatchedSSHClient:
+    def __init__(self):
+        self.sftp = MismatchedSFTPClient()
+
+    def set_missing_host_key_policy(self, policy):
+        pass
+
+    def connect(self, **kwargs):
+        pass
+
+    def get_transport(self):
+        return self
+
+    def open_session(self, timeout):
+        return self.sftp.channel
+
+    def close(self):
+        pass
+
+
 @pytest.fixture
 def email_publisher():
     return publishers.EMAILPublisher()
+
+
+@pytest.fixture
+def ftp_publisher():
+    return publishers.FTPPublisher()
 
 
 @pytest.fixture
@@ -188,6 +264,16 @@ def recording_core_api_factory():
 
 
 @pytest.fixture
+def recording_job_factory():
+    return RecordingJob
+
+
+@pytest.fixture
+def mismatched_ssh_client_factory():
+    return MismatchedSSHClient
+
+
+@pytest.fixture
 def smtp_mock():
     with patch("smtplib.SMTP", autospec=True) as mock:
         smtp_instance = mock.return_value
@@ -196,7 +282,7 @@ def smtp_mock():
 
 
 @pytest.fixture
-def sftp_mock(tmp_path, monkeypatch):
+def sftp_mock(tmp_path, monkeypatch, request):
     monkeypatch.chdir(tmp_path)
     users = {
         "user": {"type": "password", "password": "password"},
@@ -204,12 +290,18 @@ def sftp_mock(tmp_path, monkeypatch):
     server = mockssh.Server(users)  # type: ignore
     server.handler_cls = SFTPTestHandler
     server.handlers = []
+    server.stall_sftp = getattr(request, "param", None) == "stalled"
+    server.stalled_subsystems = []
     listener_thread = None
     listener_socket = None
     try:
         with server:
             listener_thread = server._thread
             listener_socket = server._socket
+            # Complete an SSH handshake before a fast validation failure can
+            # tear down the server while its listener thread is still starting.
+            with server.client("user"):
+                pass
             yield server
     finally:
         # mockssh skips close() when shutdown() fails on a listening socket (macOS).
@@ -223,3 +315,30 @@ def sftp_mock(tmp_path, monkeypatch):
             assert handler.finished.wait(timeout=5), "SFTP handler did not stop"
             handler.thread.join(timeout=5)
             assert not handler.thread.is_alive(), "SFTP handler thread did not stop"
+        for subsystem in server.stalled_subsystems:
+            subsystem.join(timeout=5)
+            assert not subsystem.is_alive(), "Stalled SFTP subsystem did not stop"
+
+
+@pytest.fixture
+def stalled_tcp_server():
+    release = Event()
+    listener = socket.socket()
+    listener.bind(("127.0.0.1", 0))
+    listener.listen()
+    host, port = listener.getsockname()
+
+    def accept_connection():
+        connection, _address = listener.accept()
+        with connection:
+            release.wait(timeout=5)
+
+    thread = Thread(target=accept_connection)
+    thread.start()
+    try:
+        yield host, port
+    finally:
+        release.set()
+        listener.close()
+        thread.join(timeout=5)
+        assert not thread.is_alive(), "Stalled TCP server did not stop"
