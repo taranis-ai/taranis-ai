@@ -88,7 +88,7 @@ Set `CHAT_ENABLED=true` on Core and frontend, then select a provider in **Admin 
 
 For custom or outer reverse proxies, allow at least 660 seconds between Chat response reads. Realtime updates use a separate connection and cannot keep the message POST alive.
 
-The provider receives analyst prompts, recent conversation context, and selected story summaries subject to the analyst's ACL/TLP access. Use appropriate transport security and provider retention controls. Conversations persist until their owner deletes them; disabling Chat preserves that history.
+The provider receives analyst prompts, recent conversation context, and selected story titles, dates, and summaries subject to the analyst's ACL/TLP access. Responses requests use `store: false`; Chat Completions omits `store`. Provider implementations and abuse-monitoring policies may apply their own retention. Select and contract with the provider accordingly, and configure transport security and provider-side retention controls before enabling Chat. Conversations persist until their owner deletes them; disabling Chat preserves that history.
 
 ## Validation
 
