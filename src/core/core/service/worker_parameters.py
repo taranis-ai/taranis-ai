@@ -11,6 +11,8 @@ from models.worker_parameters import (
     secret_parameter_names,
 )
 
+from core.config import Config
+
 
 def set_parameters(
     worker_type: str,
@@ -38,7 +40,7 @@ def set_parameters(
         else:
             candidate[name] = value
 
-    return normalize_parameter_values(worker_type, candidate, complete=complete)
+    return normalize_parameter_values(worker_type, candidate, complete=complete, context={"rq_job_timeout": Config.RQ_DEFAULT_JOB_TIMEOUT})
 
 
 def configured_parameters(worker_type: str, values: dict[str, Any] | None) -> dict[str, Any]:

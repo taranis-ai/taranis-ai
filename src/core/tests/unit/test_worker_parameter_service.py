@@ -1,7 +1,35 @@
 import pytest
 from pydantic import ValidationError
 
+from core.config import Config
 from core.service.worker_parameters import effective_parameters, set_parameters
+
+
+@pytest.mark.parametrize(
+    ("worker_type", "parameters"),
+    [
+        ("FTP_PUBLISHER", {"FTP_URL": "ftp://example.test/"}),
+        ("SFTP_PUBLISHER", {"SFTP_URL": "sftp://user@example.test/", "HOST_KEY": "ssh-ed25519 AAAA"}),
+        (
+            "EMAIL_PUBLISHER",
+            {"SMTP_SERVER_ADDRESS": "smtp.example.test", "EMAIL_SENDER": "sender@example.test", "EMAIL_RECIPIENT": "recipient@example.test"},
+        ),
+    ],
+)
+def test_publisher_timeout_limit_tracks_queue_configuration(monkeypatch, worker_type, parameters):
+    monkeypatch.setattr(Config, "RQ_DEFAULT_JOB_TIMEOUT", 180)
+    configured = set_parameters(worker_type, {}, parameters | {"NETWORK_TIMEOUT": 90}, patch=False)
+    assert configured["NETWORK_TIMEOUT"] == 90
+    with pytest.raises(ValidationError, match="Network timeout must not exceed 90 seconds"):
+        set_parameters(worker_type, {}, parameters | {"NETWORK_TIMEOUT": 91}, patch=False)
+
+    monkeypatch.setattr(Config, "RQ_DEFAULT_JOB_TIMEOUT", 400)
+    configured = set_parameters(worker_type, configured, {"NETWORK_TIMEOUT": 200}, patch=True)
+    assert configured["NETWORK_TIMEOUT"] == 200
+
+    monkeypatch.setattr(Config, "RQ_DEFAULT_JOB_TIMEOUT", 40)
+    with pytest.raises(ValidationError, match="Network timeout must not exceed 20 seconds"):
+        set_parameters(worker_type, {}, parameters, patch=False)
 
 
 def test_patch_merges_and_null_removes_optional_values():
