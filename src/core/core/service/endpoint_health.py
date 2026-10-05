@@ -3,7 +3,7 @@
 import hashlib
 import json
 from datetime import UTC, datetime
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 from uuid import uuid4
 
 from models.llm import LLM_BOT_FEATURES
@@ -15,6 +15,9 @@ from core.log import logger
 from core.managers import queue_manager
 from core.service.cache_invalidation import invalidate_frontend_cache_on_success
 
+
+if TYPE_CHECKING:
+    from core.model.bot import Bot
 
 RETRY_INTERVALS = [10, 30, 120, 300]
 MESSAGES = {
@@ -60,7 +63,7 @@ def get_status(kind: str, endpoint_id: str, config: dict) -> dict:
     return {"status": status, "message": MESSAGES[status], "checked_at": state.get("checked_at")}
 
 
-def bot_status(bot) -> dict | None:
+def bot_status(bot: "Bot") -> dict | None:
     from core.model.settings import Settings
 
     if not bot.enabled:
