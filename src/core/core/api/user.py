@@ -16,14 +16,16 @@ class UserInfo(MethodView):
 class UserProfile(MethodView):
     @jwt_required()
     def get(self):
-        return current_user.get_profile(), 200
+        return current_user.get_profile_dict(), 200
 
     @jwt_required()
     def put(self):
         if not (json_data := request.json):
             return {"error": "No input data provided"}, 400
         response, status = User.update_profile(current_user, json_data)
-        invalidate_frontend_cache_on_success(status, scopes=(SCOPE_TRENDING_CLUSTERS,), user_profiles=(current_user.username,))
+        invalidate_frontend_cache_on_success(
+            status, models=("dashboard",), scopes=(SCOPE_TRENDING_CLUSTERS,), user_profiles=(current_user.username,)
+        )
         return response, status
 
     @jwt_required()
@@ -31,7 +33,9 @@ class UserProfile(MethodView):
         if not (json_data := request.json):
             return {"error": "No input data provided"}, 400
         response, status = User.update_profile(current_user, json_data)
-        invalidate_frontend_cache_on_success(status, scopes=(SCOPE_TRENDING_CLUSTERS,), user_profiles=(current_user.username,))
+        invalidate_frontend_cache_on_success(
+            status, models=("dashboard",), scopes=(SCOPE_TRENDING_CLUSTERS,), user_profiles=(current_user.username,)
+        )
         return response, status
 
 

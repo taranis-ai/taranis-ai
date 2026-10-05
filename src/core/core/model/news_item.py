@@ -227,20 +227,23 @@ class NewsItem(BaseModel):
         )
 
     @classmethod
-    def get_source_distribution(cls, total: int, limit: int = 5) -> list[dict[str, Any]]:
+    def get_source_distribution(cls, total: int, user: User | None = None) -> list[dict[str, Any]]:
         """Return the top sources and an Other entry, with shares of all news items."""
         if total == 0:
             return []
 
         item_count = db.func.count(cls.id)
         source_name = db.func.coalesce(OSINTSource.name, "Unknown source")
+        limit = user.get_profile().dashboard.source_distribution_limit if user else 3
+        if limit == 0:
+            return []
         query = (
-            db.select(source_name, item_count)
+            select(source_name, item_count)
             .select_from(cls)
             .outerjoin(OSINTSource, cls.osint_source_id == OSINTSource.id)
             .group_by(source_name)
             .order_by(item_count.desc(), source_name)
-            .limit(limit)
+            .limit(min(limit, total))
         )
         counts = db.session.execute(query).all()
 
