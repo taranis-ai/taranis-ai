@@ -5,8 +5,10 @@ from typing import Any
 from urllib.parse import ParseResult, urlparse
 
 import paramiko
+from rq.timeouts import JobTimeoutException
 
 from worker.log import logger
+from worker.publishers.network import PublisherNetworkTimeout, effective_network_timeout, is_network_timeout
 
 from .base_publisher import BasePublisher
 
@@ -25,6 +27,7 @@ class SFTPPublisher(BasePublisher):
         parameters = self._extract_parameters(publisher)
         ftp_url = parameters.get("SFTP_URL")
         private_key = parameters.get("PRIVATE_KEY")
+        timeout = effective_network_timeout(parameters)
 
         self.set_file_name(product)
         server_config: ParseResult = urlparse(ftp_url)  # type: ignore
@@ -47,13 +50,14 @@ class SFTPPublisher(BasePublisher):
             private_key=private_key,
             host_key=parameters.get("HOST_KEY", ""),
             accept_any_host_key=parameters.get("ACCEPT_ANY_HOST_KEY", False) is True,
+            timeout=timeout,
         )
 
         return "SFTP Publisher Task Successful"
 
     def input_validation(self, server_config: ParseResult):
         if not server_config.username:
-            logger.error(f"{server_config.username=}")
+            logger.error("Username is required for SFTP")
             raise ValueError("Username is required for SFTP")
 
         if server_config.scheme != "sftp":
@@ -76,6 +80,7 @@ class SFTPPublisher(BasePublisher):
         private_key: paramiko.PKey | None = None,
         host_key: str = "",
         accept_any_host_key: bool = False,
+        timeout: float = 30,
     ):
         ssh_port = server_config.port or 22
         remote_path = server_config.path + self.file_name
@@ -83,8 +88,6 @@ class SFTPPublisher(BasePublisher):
         hostname = server_config.hostname
         if not hostname:
             raise ValueError("Hostname is required for SFTP")
-
-        logger.debug(f"Uploading to SFTP: {server_config.hostname}:{ssh_port} {remote_path}")
 
         self.ssh = paramiko.SSHClient()
         if accept_any_host_key:
@@ -96,13 +99,18 @@ class SFTPPublisher(BasePublisher):
             try:
                 key_type, key_data, *_ = host_key.split()
                 key = paramiko.PKey.from_type_string(key_type, b64decode(key_data, validate=True))
-            except Exception:
-                logger.exception("Invalid SFTP server host public key")
+            except JobTimeoutException:
+                raise
+            except Exception as exc:
+                logger.error(f"Invalid SFTP server host public key: exception_type={type(exc).__name__}")
                 raise ValueError("Invalid SFTP server host public key; use OpenSSH public key format") from None
             host = hostname if ssh_port == 22 else f"[{hostname}]:{ssh_port}"
             self.ssh.get_host_keys().add(host, key.get_name(), key)
             self.ssh.set_missing_host_key_policy(paramiko.RejectPolicy())
-        with self.ssh:
+        sftp = None
+        operation = "connect_and_authenticate"
+        try:
+            logger.info("SFTP publisher connecting and authenticating")
             self.ssh.connect(
                 hostname=hostname,
                 port=ssh_port,
@@ -111,6 +119,50 @@ class SFTPPublisher(BasePublisher):
                 pkey=private_key,
                 look_for_keys=False,
                 allow_agent=False,
+                timeout=timeout,
+                banner_timeout=timeout,
+                auth_timeout=timeout,
+                channel_timeout=timeout,
             )
-            with self.ssh.open_sftp() as sftp:
-                sftp.putfo(data_to_upload, remote_path)
+            operation = "open_channel"
+            logger.info("SFTP publisher opening channel")
+            transport = self.ssh.get_transport()
+            if transport is None:
+                raise paramiko.SSHException("SSH transport unavailable")
+            channel = transport.open_session(timeout=timeout)
+            channel.settimeout(timeout)
+            channel.invoke_subsystem("sftp")
+            sftp = paramiko.SFTPClient(channel)
+            expected_size = data_to_upload.getbuffer().nbytes
+            operation = "upload"
+            logger.info("SFTP publisher uploading")
+            sftp.putfo(data_to_upload, remote_path, confirm=False)
+            operation = "confirm"
+            logger.info("SFTP publisher confirming upload size")
+            actual_size = sftp.stat(remote_path).st_size
+            if actual_size != expected_size:
+                raise OSError("SFTP upload size confirmation failed")
+        except JobTimeoutException:
+            raise
+        except Exception as exc:
+            if is_network_timeout(exc):
+                raise PublisherNetworkTimeout(self.type, operation) from exc
+            logger.error(f"SFTP publisher failed: operation={operation} exception_type={type(exc).__name__}")
+            raise
+        finally:
+            try:
+                logger.info("SFTP publisher closing connection")
+                if sftp is not None:
+                    try:
+                        sftp.close()
+                    except JobTimeoutException:
+                        raise
+                    except Exception as exc:
+                        logger.warning(f"SFTP publisher channel close failed: exception_type={type(exc).__name__}")
+            finally:
+                try:
+                    self.ssh.close()
+                except JobTimeoutException:
+                    raise
+                except Exception as exc:
+                    logger.warning(f"SFTP publisher close failed: exception_type={type(exc).__name__}")

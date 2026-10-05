@@ -36,7 +36,7 @@ def test_timeout_exception_persists_synthetic_failure(monkeypatch):
     result = rq_failure_bridge.rq_failure_exception_handler(
         job,
         JobTimeoutException,
-        JobTimeoutException("too slow"),
+        JobTimeoutException("API_KEY=secret-host.example"),
         None,
     )
 
@@ -48,10 +48,10 @@ def test_timeout_exception_persists_synthetic_failure(monkeypatch):
     assert captured["kwargs"]["worker_type"] == "rss_collector"
     assert isinstance(captured["kwargs"]["result"], TaskResult)
     assert captured["kwargs"]["result"].model_dump(mode="json", exclude_none=False) == {
-        "message": "too slow",
+        "message": "Background job exceeded its execution timeout",
         "reason": "job_timeout",
         "retryable": True,
-        "data": {"exception_type": "JobTimeoutException", "message": "too slow"},
+        "data": {"exception_type": "JobTimeoutException"},
     }
 
 
@@ -74,13 +74,15 @@ def test_generic_exception_persists_synthetic_failure(monkeypatch):
     rq_failure_bridge.rq_failure_exception_handler(
         job,
         RuntimeError,
-        RuntimeError("boom"),
+        RuntimeError("API_KEY=secret-host.example"),
         None,
     )
 
     assert captured["args"] == ("job-1", "presenter_task", "FAILURE")
     assert captured["kwargs"]["result"].reason == "job_failed"
     assert captured["kwargs"]["result"].retryable is False
+    assert captured["kwargs"]["result"].message == "Background job failed"
+    assert "secret-host" not in str(captured["kwargs"]["result"].model_dump())
 
 
 def test_killed_work_horse_persists_synthetic_failure(monkeypatch):
@@ -104,7 +106,7 @@ def test_killed_work_horse_persists_synthetic_failure(monkeypatch):
     assert captured["args"] == ("job-1", "connector_task", "FAILURE")
     assert isinstance(captured["kwargs"]["result"], TaskResult)
     assert captured["kwargs"]["result"].model_dump(mode="json", exclude_none=False) == {
-        "message": "Work horse killed for job job-1",
+        "message": "Worker process ended before the job completed",
         "reason": "work_horse_killed",
         "retryable": True,
         "data": {"retpid": 111, "ret_val": 9},

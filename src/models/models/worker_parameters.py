@@ -356,10 +356,16 @@ class TaranisPublisherParameters(WorkerParameters):
 
 class FTPPublisherParameters(WorkerParameters):
     FTP_URL: str = Field(min_length=1, title="FTP URL", description="Destination FTP URL.")
+    NETWORK_TIMEOUT: int = Field(
+        30, gt=0, title="Network timeout", description="Network inactivity timeout in seconds, capped below the RQ job timeout."
+    )
 
 
 class SFTPPublisherParameters(WorkerParameters):
     SFTP_URL: str = Field(min_length=1, title="SFTP URL", description="Destination SFTP URL.")
+    NETWORK_TIMEOUT: int = Field(
+        30, gt=0, title="Network timeout", description="Network inactivity timeout in seconds, capped below the RQ job timeout."
+    )
     HOST_KEY: str = Field(
         "",
         max_length=16384,
@@ -397,6 +403,9 @@ class S3PublisherParameters(WorkerParameters):
 class EmailPublisherParameters(WorkerParameters):
     SMTP_SERVER_ADDRESS: str = Field(min_length=1, title="SMTP server address", description="SMTP server hostname or address.")
     SMTP_SERVER_PORT: int = Field(25, gt=0, le=65535, title="SMTP server port", description="SMTP server port.")
+    NETWORK_TIMEOUT: int = Field(
+        30, gt=0, title="Network timeout", description="Network inactivity timeout in seconds, capped below the RQ job timeout."
+    )
     SERVER_TLS: bool = Field(False, title="Server TLS", description="Use TLS for SMTP.")
     EMAIL_USERNAME: str = Field("", title="Email username", description="Optional SMTP username.")
     EMAIL_PASSWORD: SecretStr = Field(SecretStr(""), title="Email password", description="Optional SMTP password.")
