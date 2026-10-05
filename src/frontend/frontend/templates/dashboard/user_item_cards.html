@@ -1,5 +1,5 @@
 {% from 'dashboard/cards.html' import dashboard_card %}
-{% set show_top_sources = current_user.profile.dashboard.show_charts and data.top_sources %}
+{% set show_top_sources = current_user.profile.dashboard.show_charts and data.top_sources and data.top_sources|length > 0 %}
 
 {% set review_action | trim %}
   {% if can_start_analyst_review | default(false) %}

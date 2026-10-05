@@ -14,7 +14,7 @@ from core.service.story import StoryService
 class Dashboard(MethodView):
     @auth_required()
     def get(self):
-        return DashboardService.get_dashboard_data(), 200
+        return DashboardService.get_dashboard_data(current_user), 200
 
 
 class ClusterNames(MethodView):

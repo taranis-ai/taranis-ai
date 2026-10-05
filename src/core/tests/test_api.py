@@ -4,6 +4,7 @@ import uuid
 from copy import deepcopy
 
 import fakeredis
+import pytest
 from rq.job import Job
 
 
@@ -257,7 +258,7 @@ def test_user_profile(app, client, auth_header):
         assert response.json
         assert response.data
         assert response.status_code == 200
-        assert "assess_default_filters" not in response.json
+        assert response.json["assess_default_filters"] == {"read": "true"}
         assert response.json["assess_saved_filters"] == saved_filters
     finally:
         with app.app_context():
@@ -267,7 +268,9 @@ def test_user_profile(app, client, auth_header):
             db.session.commit()
 
 
-def test_user_profile_persists_pizzint_dashboard_setting(app, client, auth_header):
+@pytest.mark.parametrize("method", ["put", "post"])
+@pytest.mark.parametrize("limit, valid", [(2, True), (0, True), (2**63, True), (-1, False), ("invalid", False), (1.5, False)])
+def test_user_profile_persists_dashboard_settings(app, client, auth_header, method, limit, valid):
     from core.managers.db_manager import db
     from core.model.user import User
 
@@ -275,17 +278,33 @@ def test_user_profile_persists_pizzint_dashboard_setting(app, client, auth_heade
         user = User.find_by_name("admin")
         assert user is not None
         original_profile = deepcopy(user.profile)
-        dashboard = dict(user.get_profile()["dashboard"])
+        dashboard = dict(user.get_profile_dict()["dashboard"])
 
     try:
-        response = client.put(
-            "/api/users/profile",
-            headers=auth_header,
-            json={"dashboard": dashboard | {"show_pizzint": True}},
-        )
+        with app.app_context():
+            response = getattr(client, method)(
+                "/api/users/profile",
+                headers=auth_header,
+                json={"dashboard": dashboard | {"show_pizzint": True, "source_distribution_limit": limit}},
+            )
 
-        assert response.status_code == 200
-        assert response.get_json()["user_profile"]["dashboard"]["show_pizzint"] is True
+        assert response.status_code == (200 if valid else 400)
+        with app.app_context():
+            saved_profile = client.get("/api/users/profile", headers=auth_header).get_json()
+        if valid:
+            assert response.get_json()["user_profile"]["dashboard"]["show_pizzint"] is True
+            assert saved_profile["dashboard"]["source_distribution_limit"] == limit
+            with app.app_context():
+                dashboard_response = client.get("/api/dashboard", headers=auth_header)
+            assert dashboard_response.status_code == 200
+            sources = dashboard_response.get_json()["items"][0]["top_sources"]
+            if limit == 0:
+                assert sources == []
+            else:
+                assert len([source for source in sources if source["name"] != "Other"]) <= limit
+        else:
+            assert "dashboard.source_distribution_limit" in response.get_json()["error"]
+            assert saved_profile["dashboard"] == dashboard
     finally:
         with app.app_context():
             user = User.find_by_name("admin")
