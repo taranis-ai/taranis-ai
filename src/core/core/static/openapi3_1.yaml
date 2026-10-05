@@ -9047,7 +9047,7 @@ paths:
       - UserAuth: []
       tags:
       - config
-      description: Delete an endpoint after removing its default and feature assignments.
+      description: Delete an endpoint after removing its default, feature, and bot assignments.
       operationId: settings.delete_llm_endpoint.post
       responses:
         '200':
@@ -9067,7 +9067,7 @@ paths:
       required: true
       schema:
         type: string
-        enum: [llm, bot]
+        enum: [llm]
     - name: endpoint_id
       in: path
       required: true
@@ -9080,9 +9080,10 @@ paths:
       operationId: worker.endpoint_health_worker.get
       description: Returns current probe configuration with credentials, or skip for an obsolete check. Responses are not cacheable.
       parameters:
-      - name: generation
+      - name: check_id
         in: query
         required: true
+        description: Opaque identifier of the current endpoint check.
         schema:
           type: string
       responses:
@@ -9095,16 +9096,16 @@ paths:
       - APIKey: []
       tags: [bots]
       operationId: worker.endpoint_health_worker.post
-      description: Save a check result only if it still matches the current endpoint configuration and generation.
+      description: Save a result only if its check ID and configuration still match the current endpoint check.
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [generation, healthy]
+              required: [check_id, healthy]
               properties:
-                generation:
+                check_id:
                   type: string
                 healthy:
                   type: boolean
@@ -9124,7 +9125,8 @@ paths:
       description: >-
         Get settings including llm_endpoints (API keys omitted, api_key_configured
         indicates whether a key is stored). Assignments use llm_default_endpoint,
-        llm_chat_endpoint, llm_clustering_endpoint, and llm_summarization_endpoint.
+        llm_chat_endpoint, llm_clustering_endpoint, llm_summarization_endpoint,
+        llm_ner_endpoint, llm_sentiment_endpoint, and llm_classification_endpoint.
         Empty feature assignments inherit the default; an empty default leaves
         unassigned features unconfigured. Change assignments through settings
         PATCH and manage endpoint definitions through the llm-endpoints routes.

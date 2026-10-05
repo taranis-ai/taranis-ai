@@ -1,4 +1,4 @@
-"""Probe configured bot services through the existing worker queue."""
+"""Probe shared LLM endpoints through the existing worker queue."""
 
 import hashlib
 import json
@@ -87,20 +87,20 @@ def schedule_check(kind: str, endpoint_id: str) -> None:
         if config is None:
             qm.redis.delete(state_key(kind, endpoint_id))
             return
-        generation = uuid4().hex
-        state = {"generation": generation, "fingerprint": fingerprint(config), "status": "pending"}
+        check_id = uuid4().hex  # Reject results from checks superseded by a save or restart.
+        state = {"check_id": check_id, "fingerprint": fingerprint(config), "status": "pending"}
         qm.redis.set(state_key(kind, endpoint_id), json.dumps(state))
         job = qm.enqueue_task(
             "misc",
             "check_endpoint",
             kind,
             endpoint_id,
-            generation,
+            check_id,
             retry=Retry(max=len(RETRY_INTERVALS), interval=RETRY_INTERVALS),
             job_timeout=180,
         )
         if not job:
-            record_result(kind, endpoint_id, generation, False)
+            record_result(kind, endpoint_id, check_id, False)
     except RedisError:
         logger.exception("Failed to schedule endpoint check for %s %s", kind, endpoint_id)
 
@@ -112,19 +112,20 @@ def schedule_all() -> None:
         schedule_check("llm", endpoint_id)
 
 
-def record_result(kind: str, endpoint_id: str, generation: str, healthy: bool) -> bool:
+def record_result(kind: str, endpoint_id: str, check_id: str, healthy: bool) -> bool:
+    qm = getattr(queue_manager, "queue_manager", None)
+    if not Config.QUEUE_ENABLED or not qm or not qm.redis:
+        return False
     config = endpoint_config(kind, endpoint_id)
     if config is None:
         return False
     key = state_key(kind, endpoint_id)
-    connection = queue_manager.queue_manager.redis
-    if connection is None:
-        return False
+    connection = qm.redis
     try:
         with connection.pipeline() as pipe:
             pipe.watch(key)
             state = json.loads(pipe.get(key) or "{}")
-            if state.get("generation") != generation or state.get("fingerprint") != fingerprint(config):
+            if state.get("check_id") != check_id or state.get("fingerprint") != fingerprint(config):
                 return False
             state.update(status="up" if healthy else "down", checked_at=datetime.now(UTC).isoformat())
             pipe.multi()
@@ -137,11 +138,9 @@ def record_result(kind: str, endpoint_id: str, generation: str, healthy: bool) -
 
 
 def aggregate_status() -> Literal["up", "down", "n/a"]:
-    from core.model.bot import Bot
     from core.model.settings import Settings
 
     statuses = [get_status("llm", key, config) for key, config in Settings.get_settings()["llm_endpoints"].items()]
-    statuses.extend(status for bot in Bot.get_all_for_collector() if (status := bot_status(bot)))
     if any(item["status"] in {"down", "pending"} for item in statuses):
         return "down"
     return "up" if statuses else "n/a"

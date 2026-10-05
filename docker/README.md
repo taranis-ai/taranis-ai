@@ -40,19 +40,21 @@ For a directly launched core process, export the same JSON value as `PRE_SEED_SE
 
 Preseeding applies only when the persistent settings row does not exist. Restarts and upgrades preserve saved settings, including administrator edits; they do not merge newly supplied seed keys into an existing row. An empty object `{}` or an unset variable uses normal defaults. Use a JSON object, not the API's `{"settings": {...}}` wrapper. Invalid JSON and non-object values are rejected during configuration loading. Timezone, entry-limit, lookback, and onboarding values use the existing settings validators during initialization.
 
-Onboarding defaults to enabled. Set `PRE_SEED_SETTINGS='{"onboarding_enabled":false}'` to disable it during initialization; the value is copied to existing users. This replaces the removed `SKIP_INITIAL_USER_ONBOARDING` variable. After initialization, use Admin Settings to change values. Removing the variable does not undo persisted settings; no database migration is required.
+Onboarding defaults to enabled. Set `PRE_SEED_SETTINGS='{"onboarding_enabled":false}'` to disable it during initialization; the value is copied to existing users. After initialization, use Admin Settings to change values. Removing the variable does not undo persisted settings; no database migration is required.
 
 ### Bundled LLM inference
 
-Deployment Compose stacks ship `ghcr.io/taranis-ai/gemma4-e4b-gguf:cpu` as the private `llm-inference` service, replacing standalone summary/clustering and `llm-bot` containers. The baked model alias is `unsloth/gemma-4-E4B-it-GGUF`; the endpoint is `http://llm-inference:8000/v1` using Chat Completions. The published CPU tag supports linux/amd64 and linux/arm64; Compose selects the host architecture automatically. Allow several minutes for loading and sufficient RAM for the model and 8192-token context. Kubernetes reserves 6 GiB and allows 12 GiB; tune this after measuring your workload. No GPU or model download at startup is needed.
+Compose includes private inference at `http://llm-inference:8000/v1` using Chat Completions. The CPU image `ghcr.io/taranis-ai/gemma4-e4b-gguf:cpu` includes the model and supports amd64 and arm64. Allow several minutes for startup and enough RAM for the model and 8192-token context; Kubernetes requests 6 GiB and limits usage to 12 GiB.
 
-Core automatically ensures the `internal` endpoint at `http://llm-inference:8000/v1` exists on fresh databases and every restart. Set `LLM_INFERENCE_API_KEY` in the private deployment environment; Compose passes it to Core and to inference as `LLAMA_API_KEY`. Core refreshes the stored key on every startup, including key rotation or clearing. A saved endpoint with the same URL is reused, preserving its model/API/timeout values. Existing default and feature/bot selections remain authoritative; internal is selected only when the shared default is empty. This is separate from `PRE_SEED_SETTINGS`, which only applies to fresh databases. New internal endpoints leave the model blank so inference selects its default model. The service URL is fixed and automatic registration always runs. Change other providers in **Admin Settings > LLM Endpoints**. Set `LLM_INFERENCE_IMAGE` to override the published image; keep the endpoint model blank to use its default model.
+Core registers internal inference on every startup and selects it when no shared default is set. Existing endpoint settings and feature/bot selections are preserved. Set `LLM_INFERENCE_IMAGE` to use another image; leave the endpoint model blank to use that image's default model.
 
-NER, sentiment, and cybersecurity classification also call this shared endpoint directly from workers. Their standalone containers are removed from the bots, PPN, and Tor Compose variations. Configure feature assignments or per-bot selections in LLM Endpoints; old service URLs and keys are unused. Classification uses each bot’s `CLASSIFICATION_THRESHOLD`.
+Set `LLM_INFERENCE_API_KEY` in the private `.env`; Core and inference share it. Restart both after rotation. Blank disables authentication and clears the stored internal key.
 
-HTTP providers, including internal inference, remain supported. HTTP sends API keys and request content without encryption; private networking does not encrypt traffic. Automatic endpoint checks send credentials to every saved provider, including unassigned providers. Use HTTPS across untrusted networks and choose HTTP only when you accept this exposure on your deployment network.
+Configure providers in **Admin Settings > LLM Endpoints** for Chat, clustering, summarization/titles, NER, sentiment, and cybersecurity classification. Bot selection overrides its feature assignment, then the shared default. Workers must reach the selected providers.
 
-After updating, pull images, restart services, and remove obsolete bot containers:
+Endpoint checks contact every saved provider, including unassigned ones. HTTP sends credentials and request content without encryption; use HTTPS across untrusted networks. Keys are stored in the database, so protect access and backups.
+
+When updating, remove retired bot containers and verify a job for each configured LLM feature:
 
 ```bash
 docker compose pull
@@ -60,7 +62,7 @@ docker compose up -d --remove-orphans
 docker compose ps
 ```
 
-Verify inference health, Core readiness, worker health, the selected default in Admin Settings, and known NER, sentiment, classification, summary, and clustering jobs. Keep the previous images and configuration for rollback. Restore the old bot services and their endpoints if reverting; no database schema migration is needed.
+Keep a database backup and previous images/configuration for rollback. See [deployment upgrade notes](../deploy/README.md#shared-llm-endpoint-upgrade).
 
 ## Startup & Usage
 
@@ -126,7 +128,7 @@ Products published with a `TARANIS_PUBLISHER` preset are stored in the `core_dat
 
 ## Development
 
-See [dev Readme](/dev/README.md) for a quick way to get a development environment running.
+See the [development guide](../dev/README.md) for a quick way to get a development environment running.
 
 ## Release gate tests
 
@@ -214,12 +216,12 @@ docker build -t taranis-worker . -f ./docker/Containerfile.worker
 docker build -t taranis-frontend . -f ./docker/Containerfile.frontend
 ```
 
-There are several Dockerfiles and each of them builds a different component of the system. These Dockerfiles exist:
+Each component has a Containerfile:
 
-- [Dockerfile.worker](Dockerfile.worker)
-- [Dockerfile.core](Dockerfile.core)
-- [Dockerfile.ingress](Dockerfile.ingress)
-- [Dockerfile.frontend](Dockerfile.frontend)
+- [worker](Containerfile.worker)
+- [core](Containerfile.core)
+- [ingress](Containerfile.ingress)
+- [frontend](Containerfile.frontend)
 
 # Configuration
 
@@ -259,7 +261,7 @@ Taranis Python clients use redis-py's default RESP3 protocol with maintenance no
 | `TARANIS_CORE_SENTRY_DSN`     | Core Sentry DSN                            | `''`          |
 | `TARANIS_BASE_PATH`           | Path under which Taranis AI is reachable   | `/`           |
 | `GRANIAN_WORKERS_MAX_RSS`     | Per-worker Granian RSS recycle limit in MiB| `4096`        |
-| `CHAT_ENABLED`                | Enable the optional analyst Chat API; configure the provider in Admin Settings > Chat | `false` |
+| `CHAT_ENABLED`                | Enable the optional analyst Chat API; configure the provider in Admin Settings > LLM Endpoints | `false` |
 
 The supplied Centrifugo configuration enables presence only for `global:events`, which every authenticated browser already receives. Core uses the server API to provide the `ADMIN_OPERATIONS`-protected connected-client snapshot on the Admin Notifications page; browsers are not granted presence access, and organization/user channel presence remains disabled.
 

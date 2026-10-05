@@ -37,13 +37,18 @@ def test_endpoint_check_failure_and_recovery(requests_mock, kind, config, url, r
     )
     for _ in range(3):
         with pytest.raises(RuntimeError, match="^Endpoint check failed$"):
-            check_endpoint(kind, "test-id", "current-generation")
-        assert saved.last_request.json() == {"generation": "current-generation", "healthy": False}
-    check_endpoint(kind, "test-id", "current-generation")
+            check_endpoint(kind, "test-id", "current-check")
+        assert saved.last_request.json() == {"check_id": "current-check", "healthy": False}
+    requests_mock.get(route, json={"config": {}})
+    with pytest.raises(RuntimeError, match="^Endpoint check failed$"):
+        check_endpoint(kind, "test-id", "current-check")
+    assert saved.last_request.json() == {"check_id": "current-check", "healthy": False}
+    requests_mock.get(route, json={"config": config})
+    check_endpoint(kind, "test-id", "current-check")
     assert saved.last_request.json()["healthy"] is True
     if config.get("api_key"):
         assert upstream.last_request.headers["Authorization"] == "Bearer test-secret"
         assert upstream.last_request.json()["model"] == "test-model"
     requests_mock.get(route, json={"skip": True})
-    check_endpoint(kind, "test-id", "old-generation")
+    check_endpoint(kind, "test-id", "old-check")
     assert upstream.call_count == 4

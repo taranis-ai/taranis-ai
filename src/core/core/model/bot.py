@@ -446,9 +446,16 @@ class Bot(BaseModel):
 
     @classmethod
     def failure_condition(cls):
-        from core.service.endpoint_health import bot_status
+        from core.model.settings import Settings
+        from core.service.endpoint_health import get_status
 
-        failed_ids = [bot.id for bot in cls.get_all_for_collector() if (status := bot_status(bot)) and status["status"] == "down"]
+        settings = Settings.get_settings()
+        failed_endpoints = {
+            endpoint_id
+            for endpoint_id, config in settings["llm_endpoints"].items()
+            if get_status("llm", endpoint_id, config)["status"] == "down"
+        }
+        failed_ids = [bot.id for bot in cls.get_all_for_collector() if bot.get_llm_endpoint_id(settings) in failed_endpoints]
         return db.or_(cls._latest_task_status() == "FAILURE", cls.id.in_(failed_ids))
 
     @classmethod

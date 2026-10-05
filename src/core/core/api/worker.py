@@ -131,7 +131,7 @@ class EndpointHealth(MethodView):
 
         config = endpoint_config(kind, endpoint_id)
         state = read_state(kind, endpoint_id)
-        if not config or state.get("generation") != request.args.get("generation") or state.get("fingerprint") != fingerprint(config):
+        if not config or state.get("check_id") != request.args.get("check_id") or state.get("fingerprint") != fingerprint(config):
             response = jsonify({"skip": True})
         else:
             response = jsonify({"config": config})
@@ -143,9 +143,9 @@ class EndpointHealth(MethodView):
         from core.service.endpoint_health import record_result
 
         data = request.get_json(silent=True)
-        if not isinstance(data, dict) or not isinstance(data.get("generation"), str) or not isinstance(data.get("healthy"), bool):
+        if not isinstance(data, dict) or not isinstance(data.get("check_id"), str) or not isinstance(data.get("healthy"), bool):
             return {"error": "Invalid endpoint check result"}, 400
-        accepted = record_result(kind, endpoint_id, data["generation"], data["healthy"])
+        accepted = record_result(kind, endpoint_id, data["check_id"], data["healthy"])
         return {"accepted": accepted}, 200
 
 

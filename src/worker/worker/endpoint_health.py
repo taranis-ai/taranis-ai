@@ -10,17 +10,17 @@ from worker.telemetry import instrument_job
 
 @instrument_job
 @http_session_scope()
-def check_endpoint(kind: str, endpoint_id: str, generation: str):
+def check_endpoint(kind: str, endpoint_id: str, check_id: str):
     core = CoreApi()
     route = f"/worker/endpoint-health/{kind}/{endpoint_id}"
     try:
-        snapshot = core.api_get(route, {"generation": generation})
+        snapshot = core.api_get(route, {"check_id": check_id})
         if snapshot is None:
             raise RuntimeError("Could not load endpoint check configuration")
         if snapshot.get("skip"):
             return
         healthy = probe(kind, snapshot["config"])
-        if core.api_post(route, {"generation": generation, "healthy": healthy}) is None:
+        if core.api_post(route, {"check_id": check_id, "healthy": healthy}) is None:
             raise RuntimeError("Could not save endpoint check result")
     except RequestException:
         logger.exception("Endpoint check could not contact Core")
@@ -33,14 +33,14 @@ def probe(kind: str, config: dict) -> bool:
     text = "Reply with OK."
     if kind != "llm":
         return False
-    chat = config["api_format"] == "chat_completions"
-    url = f"{config['base_url']}/{'chat/completions' if chat else 'responses'}"
-    payload = {"messages": [{"role": "user", "content": text}]} if chat else {"input": text, "store": False}
-    if config.get("model"):
-        payload["model"] = config["model"]
-    api_key = config.get("api_key", "")
-    timeout = min(config["timeout"], 120)
     try:
+        chat = config["api_format"] == "chat_completions"
+        url = f"{config['base_url']}/{'chat/completions' if chat else 'responses'}"
+        payload = {"messages": [{"role": "user", "content": text}]} if chat else {"input": text, "store": False}
+        if config.get("model"):
+            payload["model"] = config["model"]
+        api_key = config.get("api_key", "")
+        timeout = min(config["timeout"], 120)
         response = http_request(
             "POST",
             url,
@@ -67,6 +67,6 @@ def probe(kind: str, config: dict) -> bool:
             )
             for item in result.get("output", [])
         )
-    except (RequestException, ValueError, TypeError):
+    except (RequestException, ValueError, TypeError, KeyError):
         logger.exception(f"Endpoint probe failed for {kind}")
         return False

@@ -318,8 +318,6 @@ The frontend is served by the [Flask & HTMX REST frontend](../src/frontend/READM
 
 ## Local LLM inference
 
-`dev/compose.yml` includes the published Gemma CPU inference image, bound only to `127.0.0.1:8000`. Core always registers `http://llm-inference:8000/v1`, leaving the model blank so inference selects its default. For host-based Core and workers, add `127.0.0.1 llm-inference` to your local hosts file and keep inference on port 8000. Existing shared defaults and feature assignments are preserved.
+`dev/compose.yml` runs CPU inference at `127.0.0.1:8000`. Add `127.0.0.1 llm-inference` to your hosts file so host-based Core and workers can reach the endpoint Core registers automatically. Allow several minutes for model loading and sufficient RAM; see [inference configuration](../docker/README.md#bundled-llm-inference).
 
-The published CPU image supports amd64 and arm64; Docker and Podman select the host architecture without emulation. Allow several minutes and sufficient RAM for model loading. Test-only E2E and TLS Compose files retain their controlled services and do not start a multi-gigabyte model. See [deployment inference configuration](../docker/README.md#bundled-llm-inference).
-
-Set `LLM_INFERENCE_API_KEY` in the private Core environment and the environment used to launch dev Compose to protect local inference. The same value reaches inference as `LLAMA_API_KEY`; Core refreshes its internal endpoint key on every startup. Core and workers running on the host require the local hosts entry above to reach the fixed inference service address.
+Set the same `LLM_INFERENCE_API_KEY` in Core's private environment and the environment used to launch Compose. Restart both after changing it. Configure providers and assignments in **Admin Settings > LLM Endpoints**.

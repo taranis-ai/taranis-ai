@@ -2,8 +2,7 @@
 
 Deployment options:
 
-- [`kubernetes/`](./kubernetes): raw Kubernetes core stack
-- [`kubernetes-optional-bots/`](./kubernetes-optional-bots): compatibility entry point for the base Kubernetes stack (inference is now included)
+- [`kubernetes/`](./kubernetes): application services and private LLM inference
 - [`helm/`](./helm): Helm chart
 - [`argocd/`](./argocd): ArgoCD example using the Helm chart
 
@@ -19,23 +18,21 @@ Always required:
 - When multiple deployments share a domain, set a unique `JWT_COOKIE_SUFFIX` such as `_q` for each deployment and keep it aligned between core and frontend. Helm exposes the same setting as `config.jwtCookieSuffix`.
 - The raw manifest keeps the public realtime endpoint at `/sse`; ingress rewrites it to Centrifugo's `/connection/uni_sse`.
 
-Bundled inference is included in both the raw Kubernetes base and Helm chart. Before updating, ensure an amd64 or arm64 node has capacity for the model (6 GiB memory requested, 12 GiB limit). The image is `ghcr.io/taranis-ai/gemma4-e4b-gguf:cpu`; it listens internally on port 8000, has a ten-minute startup probe, and does not expose an ingress. See [bundled inference](../docker/README.md#bundled-llm-inference) for model, settings, and resource details.
-
-Remove the old `llm-bot` Deployment and Service after applying the new raw manifests; `kubectl apply -k` does not remove obsolete resources. Compose uses `up -d --remove-orphans`; Helm removes workloads absent from the updated chart. NER, sentiment, and classification now call shared LLM endpoints directly through workers. Remove standalone NLP/sentiment/classifier resources from custom deployments after verifying their replacement tasks. Retain the previous images/configuration for rollback and restore the old bot service only if reverting.
-
 ## Shared LLM endpoint upgrade
 
-After pulling the updated images and restarting Core, frontend, and workers, open **Admin Settings > LLM Endpoints**. Verify the default and any feature overrides before running those bots. Startup always ensures internal inference exists, refreshes its API key from `LLM_INFERENCE_API_KEY`, and selects it only when the shared default is empty; existing defaults and Chat/feature assignments are preserved. Existing Chat settings become an endpoint assigned only to Chat; they do not automatically become the default. Workers now call the providers directly for NER, sentiment, cybersecurity classification, clustering, and summarization/title generation and must be able to reach them.
+Deploy matching Core, frontend, and worker images. Inference needs an amd64 or arm64 node with capacity for its 6 GiB memory request and 12 GiB limit; model loading can take several minutes. See [bundled inference](../docker/README.md#bundled-llm-inference).
 
-Worker `LLM_*`, `SUMMARY_API_ENDPOINT`, `TITLE_API_ENDPOINT`, and the bots' old endpoint/key parameters no longer configure these functions. Copy the intended provider values from private deployment configuration into the endpoint form. `NLP_API_ENDPOINT`, `SENTIMENT_ANALYSIS_API_ENDPOINT`, and `CYBERSEC_CLASSIFIER_API_ENDPOINT` are also unused. Existing service URLs and keys remain accepted for editing saved bots but do not select a provider. Review the NER, sentiment, and classification assignments before running them; background content is sent to the selected provider. API keys stay write-only in settings responses and remain stored in the database; protect database access and backups.
+Set `LLM_INFERENCE_API_KEY` in `taranis-secrets` (Helm: `secrets.llmInferenceApiKey`) before restarting Core and inference. Both use the same secret; blank disables authentication and clears the stored internal key on restart. Keep credentials out of ConfigMaps.
 
-Verify Core readiness, frontend access, worker health, and known NER, sentiment, classification, clustering, and summarization tasks after updating. No database schema migration is needed. Before upgrading, retain a database backup and previous deployment configuration. Rollback requires the previous component images and the old worker/service environment; restore the prior settings JSON from backup if rolling back Chat configuration. Do not restore the entire database over newer content merely to roll back settings.
+In **Admin Settings > LLM Endpoints**, verify the default, feature assignments, and bot selections before running jobs. Core registers internal inference on startup without replacing existing selections. Existing Chat configuration becomes a Chat-only endpoint. Workers must be able to reach the selected providers; background story content is sent there. Move custom provider configuration into these settings.
 
-Set `LLM_INFERENCE_API_KEY` in `taranis-secrets` (Helm: `secrets.llmInferenceApiKey`) before restarting Core and inference. Both containers receive the same secret; inference uses `LLAMA_API_KEY`. Blank disables inference authentication and clears the stored internal key on restart. Keep it private, and never put the key in a ConfigMap. Saved model settings and external default/feature/bot assignments are preserved; missing internal endpoints are recreated even with an external default. Startup removes obsolete bot service parameters, so retain the prior configuration/database snapshot for rollback.
+After applying the raw manifests, remove the retired bot Deployments and Services; `kubectl apply -k` does not prune them. Helm removes workloads no longer in the chart. Verify inference, Core, workers, and a representative job for each configured LLM feature.
+
+Keep a database backup and previous images/configuration for rollback: startup removes obsolete bot connection parameters. Restore previous services and settings if reverting, without overwriting newer content. No database schema migration is required.
 
 ## Initial settings
 
-Before the first startup, set `PRE_SEED_SETTINGS` in `kubernetes/00-config.yaml`, or the JSON string `config.preSeedSettings` in Helm values. Both default to `"{}"`. Core always registers internal inference at `http://llm-inference:8000/v1` on fresh databases and each restart, selecting it only if the shared default is empty. New internal endpoints leave the model blank to use the inference container’s default. Remove the obsolete `config.defaultLlmEndpoint` Helm value or endpoint environment override from custom deployment configuration. Keep endpoint credentials in Secrets rather than ConfigMaps. For example, Helm values can contain:
+Before the first startup, set `PRE_SEED_SETTINGS` in `kubernetes/00-config.yaml`, or `config.preSeedSettings` in Helm values. Both default to `"{}"`. For example:
 
 ```yaml
 config:
@@ -63,16 +60,9 @@ GitHub releases attach the same CycloneDX JSON files for direct download: `taran
 kubectl apply -k deploy/kubernetes
 ```
 
-```bash
-kubectl apply -k deploy/kubernetes-optional-bots
-```
-
-`kubernetes` includes application services and inference. `kubernetes-optional-bots` remains a compatible entry point to the same stack. Configure separately hosted NLP services explicitly.
-
 ## Helm
 
-Use [`helm/`](./helm) if you want value-driven rendering or upgrades. The chart keeps `global.imagePullPolicy: Always` and renders pod `restartPolicy: Always` explicitly for all Deployments.
-Helm deploys the private `llm-inference` workload. Override `images.llmInference`, `resources.llmInference`, and `replicas.llmInference` as needed. Clustering and summarization/title generation use the worker library with shared endpoint settings.
+Use [`helm/`](./helm) for value-driven upgrades. Configure inference with `images.llmInference`, `resources.llmInference`, and `replicas.llmInference`.
 
 ```bash
 helm template taranis deploy/helm
@@ -94,19 +84,11 @@ kubectl apply -f deploy/argocd/application.yaml
 
 ## Analyst Chat
 
-Chat calls inference directly and is independent of workers. Core calls the configured OpenAI-compatible provider directly using `{base_url}/responses` or `{base_url}/chat/completions`. Select the matching API format in **Admin Settings > LLM Endpoints** when configuring a Chat Completions provider; existing settings keep Responses. Core uses Redis only for a bounded lease per owned conversation or per user while creating a new conversation. If Redis is unavailable, new turns return 503 rather than risk out-of-order conversation history. Analysts need `ASSESS_ACCESS`; all generated Assess searches continue to enforce their source ACLs and TLP restrictions.
+Set `CHAT_ENABLED=true` on Core and frontend, then select a provider in **Admin Settings > LLM Endpoints**. The Chat section controls the story limit (default 5, range 1–20). Providers must support Responses or Chat Completions with function calling. Chat requires Redis and `ASSESS_ACCESS`; realtime progress is optional.
 
-Both API formats stream general answers directly. Story questions first call the search tool, then receive a plain-text answer with tools disabled. Providers that reject streaming before sending any content permit one retry without streaming. When realtime is enabled, Core publishes progress stage identifiers and cumulative answer snapshots to the authenticated user's existing Centrifugo channel; the frontend localizes the stages. These publications are best-effort and have no history; the final synchronous response and PostgreSQL conversation remain authoritative.
+For custom or outer reverse proxies, allow at least 660 seconds between Chat response reads. Realtime updates use a separate connection and cannot keep the message POST alive.
 
-Chat turns share a 540-second deadline across provider planning, retries, search, and answering, checked again before persistence. Provider reads retain the configured per-read timeout; the total deadline stops active response reads even when bytes keep arriving. The Redis lease lasts 570 seconds, reserving 30 seconds for transaction cleanup and release. The frontend HTTP timeout remains 600 seconds.
-
-The shipped ingress allows 660 seconds between upstream reads on `<base-path>chat/`. When updating a deployment with a custom or outer reverse proxy, set its Chat response timeout to at least 660 seconds too; realtime progress uses a separate connection and cannot keep the message POST alive.
-
-Enabling Chat creates `chat_conversation` and `chat_message` tables at core startup. Conversations and answers remain in Taranis until their owner deletes them. The provider receives the analyst's prompt, up to the latest 10 saved chat messages, the analyst-visible filter catalog, and, for search answers, up to the configured `chat_max_stories` bounded story summaries. Raw news-item content and provider credentials are not saved in chat metadata.
-
-This is a data-egress boundary: analyst prompts and selected story titles, dates, and summaries leave Taranis for the configured provider. For Responses, Core requests `store: false`; Chat Completions omits that parameter. Provider implementations and abuse-monitoring policies may apply their own retention. Select and contract with the provider accordingly, and configure transport security and provider-side retention controls before enabling the feature.
-
-Rollback is non-destructive. Set `CHAT_ENABLED=false` on core and frontend and restart the published application images; navigation disappears and core returns 503 for Chat calls, while the tables and conversation history remain untouched. Older images ignore the new tables.
+The provider receives analyst prompts, recent conversation context, and selected story summaries subject to the analyst's ACL/TLP access. Use appropriate transport security and provider retention controls. Conversations persist until their owner deletes them; disabling Chat preserves that history.
 
 ## Validation
 

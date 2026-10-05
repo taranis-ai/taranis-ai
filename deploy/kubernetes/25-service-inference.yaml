@@ -7,5 +7,5 @@ spec:
     app: llm-inference
   ports:
     - name: http
-      port: 5500
+      port: 8000
       targetPort: 8000

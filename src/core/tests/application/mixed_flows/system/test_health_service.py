@@ -52,12 +52,12 @@ def test_endpoint_health_lifecycle(client, auth_header, api_header, app, db_pers
             assert "private-health-key" not in str(job.args)
             route = f"/api/worker/endpoint-health/llm/{endpoint_id}"
             assert client.get(route).status_code == 401
-            snapshot = client.get(route, query_string={"generation": state["generation"]}, headers=api_header)
+            snapshot = client.get(route, query_string={"check_id": state["check_id"]}, headers=api_header)
             assert snapshot.headers["Cache-Control"] == "no-store"
             assert snapshot.json["config"]["api_key"] == endpoint["api_key"]
             assert client.get("/api/health").json["services"]["worker_endpoints"] == "down"
 
-            result = {"generation": state["generation"], "healthy": False}
+            result = {"check_id": state["check_id"], "healthy": False}
             assert client.post(route, json=result, headers=api_header).json == {"accepted": True}
             public = client.get("/api/settings/settings", headers=auth_header)
             assert "private-health-key" not in public.text
@@ -81,15 +81,15 @@ def test_endpoint_health_lifecycle(client, auth_header, api_header, app, db_pers
             assert client.get(f"/api/config/bots/{bot_id}", headers=auth_header).json["endpoint_health"]["status"] == "up"
             # Startup rechecks and edits each invalidate results from older check runs.
             app.extensions["rq"].post_init()
-            assert read_state("llm", endpoint_id)["generation"] != state["generation"]
+            assert read_state("llm", endpoint_id)["check_id"] != state["check_id"]
             assert client.post(route, json=result, headers=api_header).json == {"accepted": False}
-            assert client.get(route, query_string={"generation": state["generation"]}, headers=api_header).json == {"skip": True}
+            assert client.get(route, query_string={"check_id": state["check_id"]}, headers=api_header).json == {"skip": True}
             assert (
                 client.post(f"/api/settings/llm-endpoints/{endpoint_id}", json={"model": "new-model"}, headers=auth_header).status_code == 200
             )
             current = read_state("llm", endpoint_id)
             assert current["status"] == "pending"
-            assert client.post(route, json={"generation": current["generation"], "healthy": True}, headers=api_header).json["accepted"]
+            assert client.post(route, json={"check_id": current["check_id"], "healthy": True}, headers=api_header).json["accepted"]
 
             for bot_type in ("nlp_bot", "sentiment_analysis_bot", "cybersec_classifier_bot"):
                 response = client.post(
