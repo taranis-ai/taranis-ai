@@ -2,6 +2,7 @@ from flask import Flask, jsonify, request
 from flask.views import MethodView
 from flask_jwt_extended import current_user
 
+from core.api import asset_intelligence, asset_sbom
 from core.config import Config
 from core.managers.auth_manager import auth_required
 from core.managers.decorators import extract_args
@@ -108,6 +109,8 @@ class AssetVulnerability(MethodView):
 
 def initialize(app: Flask):
     base_route = f"{Config.APPLICATION_ROOT}api"
+    asset_sbom.initialize(app, base_route)
+    asset_intelligence.initialize(app, base_route)
     app.add_url_rule(f"{base_route}/assets", view_func=Assets.as_view("assets"))
     app.add_url_rule(f"{base_route}/assets/cti", view_func=AssetsCTI.as_view("assets_cti"))
     app.add_url_rule(f"{base_route}/assets/<string:asset_id>", view_func=Assets.as_view("asset"), methods=["GET", "PUT", "DELETE"])

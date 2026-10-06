@@ -3,6 +3,7 @@ from core.managers.db_manager import db
 from core.model.news_item import NewsItem
 from core.model.story import Story
 from core.model.user import User
+from core.service.asset_intelligence import match_news_items
 from core.service.misp_auto_update import refresh_misp_auto_update_jobs
 
 
@@ -23,6 +24,7 @@ class NewsItemService:
 
         if story := Story.get(news_item.story_id):
             story.record_revision(user, note="update_news_item")
+            match_news_items([news_item.id])
             db.session.commit()
             refresh_misp_auto_update_jobs([story.id])
             return {"message": "Successfully updated News Item", "story_id": story.id, "news_item_id": news_item.id}, 200

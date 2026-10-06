@@ -1,0 +1,70 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.7",
+  "version": 1,
+  "serialNumber": "urn:uuid:380c6211-8fc3-469d-8ce8-adc95ba74ec1",
+  "metadata": {
+    "component": {
+      "type": "file",
+      "name": "docker",
+      "bom-ref": "root"
+    },
+    "timestamp": "2026-09-16T06:15:18Z"
+  },
+  "components": [
+    {
+      "type": "library",
+      "name": "openssl",
+      "version": "3.0.2",
+      "bom-ref": "openssl-a",
+      "purl": "pkg:generic/openssl@3.0.2",
+      "cpe": "cpe:2.3:a:openssl:openssl:3.0.2:*:*:*:*:*:*:*",
+      "properties": [
+        {
+          "name": "syft:location:0:path",
+          "value": "usr/lib/libssl.so"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "openssl",
+      "version": "3.0.2",
+      "bom-ref": "openssl-b",
+      "purl": "pkg:generic/openssl@3.0.2",
+      "cpe": "cpe:2.3:a:openssl:openssl:3.0.2:*:*:*:*:*:*:*",
+      "properties": [
+        {
+          "name": "syft:location:0:path",
+          "value": "opt/app/libssl.so"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "openssl",
+      "version": "3.0.2",
+      "bom-ref": "ruby-openssl",
+      "purl": "pkg:gem/openssl@3.0.2",
+      "properties": [
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:ruby-lang:openssl:3.0.2:*:*:*:*:ruby:*:*"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "internal-module",
+      "version": "1.0",
+      "bom-ref": "internal",
+      "cpe": "not-a-cpe"
+    },
+    {
+      "type": "file",
+      "name": "usr/lib/libssl.so",
+      "bom-ref": "file-a",
+      "hashes": []
+    }
+  ]
+}

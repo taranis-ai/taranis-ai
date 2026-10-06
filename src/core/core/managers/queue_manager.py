@@ -72,6 +72,7 @@ queue_manager: "QueueManager"
 
 # Task name to full module path mapping
 TASK_MAP = {
+    "asset_match_task": "worker.misc.asset_matching.asset_match_task",
     "collector_task": "worker.collectors.collector_tasks.collector_task",
     "collector_preview": "worker.collectors.collector_tasks.collector_preview",
     "bot_task": "worker.bots.bot_tasks.bot_task",

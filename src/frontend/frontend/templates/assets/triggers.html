@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% block content %}
+  <div class="p-4 space-y-4">
+    <nav class="flex gap-4">
+      <a class="link" href="{{ url_for('assets.asset_sbom', asset_id=asset_id) }}">SBOM inventory</a>
+      {% if "ASSESS_ACCESS" in current_user.permissions %}<a class="link"
+   href="{{ url_for('assets.asset_intelligence', asset_id=asset_id) }}">Relevant intelligence</a>{% endif %}
+    </nav>
+    <h1 class="text-2xl font-bold">Component triggers{% if data %} · {{ data.asset_name }}{% endif %}</h1>
+    {% if error %}<div role="alert" class="alert alert-error">{{ error }}</div>{% endif %}
+    {% if data %}
+      <p>Review suggestions before enabling them. All suggestions start disabled, including supplier names and components without CPEs.</p>
+      <p>Phrases match whole words, ignoring case. Optional context requires at least one context phrase in the same article. Installed versions are shown for reference and need not appear in the article.</p>
+      <form method="get" class="flex flex-wrap gap-2 items-end">
+        {% if request.args.get("component_id") %}<input type="hidden" name="component_id" value="{{ request.args['component_id'] }}">{% endif %}
+        <label>
+          Phrase
+          <input name="search" class="input input-bordered" value="{{ request.args.get('search', '') }}">
+        </label>
+        <label>
+          Status
+          <select name="enabled" class="select select-bordered">
+            <option value="">All</option>
+            <option value="true" {% if request.args.get('enabled') == 'true' %}selected{% endif %}>Enabled</option>
+            <option value="false" {% if request.args.get('enabled') == 'false' %}selected{% endif %}>Disabled</option>
+          </select>
+        </label>
+        <button class="btn" type="submit">Filter triggers</button>
+        <a class="link" href="{{ url_for('assets.asset_triggers', asset_id=asset_id) }}">Clear filters</a>
+      </form>
+      {% set can_edit = 'ASSETS_CREATE' in current_user.permissions %}
+      {% if can_edit %}
+        <form method="post" id="trigger-selection" class="flex gap-2 items-center">
+          <input type="hidden" name="csrf_token" value="{{ request.cookies.get(config['JWT_ACCESS_CSRF_COOKIE_NAME'], '') }}">
+          <input type="hidden" name="action" value="selection">
+          <button class="btn btn-primary" name="enabled" value="true">Enable selected</button>
+          <button class="btn btn-outline" name="enabled" value="false">Disable selected</button>
+        </form>
+      {% endif %}
+      <div class="space-y-3">
+        {% for trigger in data['items'] %}
+          <section class="card bg-base-200 p-4 space-y-2" data-test-id="asset-trigger" data-trigger-id="{{ trigger.id }}">
+            <div class="flex gap-3 items-center">
+              {% if can_edit %}
+                <input type="checkbox"
+                       class="checkbox"
+                       name="trigger_ids"
+                       value="{{ trigger.id }}"
+                       form="trigger-selection"
+                       aria-label="Select {{ trigger.phrase }} for {{ trigger.component }}"
+                       {% if trigger.id in request.form.getlist('trigger_ids') %}checked{% endif %}>
+              {% endif %}
+              <h2 class="font-bold">{{ trigger.phrase }}</h2>
+              <span class="badge {{ 'badge-success' if trigger.enabled else 'badge-ghost' }}">{{ 'Enabled' if trigger.enabled else 'Disabled' }}</span>
+            </div>
+            <p>Component: {{ trigger.component }} {{ trigger.version }} · Sources: {{ trigger.sources | join(", ") }}{% if trigger.analyst_edited %} · Reviewed by analyst{% endif %}</p>
+            {% if trigger.purl %}<p class="text-xs break-all">{{ trigger.purl }}</p>{% endif %}
+            {% if not trigger.has_cpe %}<p class="text-warning">No valid CPE; review this component name carefully.</p>{% endif %}
+            {% if trigger.context %}<p>Requires any context: {{ trigger.context | join(", ") }}</p>{% endif %}
+            {% if can_edit %}
+              <details {% if error and request.form.get('trigger_id') == trigger.id %}open{% endif %}>
+                <summary class="cursor-pointer">Edit trigger</summary>
+                <form method="post" class="space-y-2 max-w-xl">
+                  <input type="hidden" name="csrf_token" value="{{ request.cookies.get(config['JWT_ACCESS_CSRF_COOKIE_NAME'], '') }}">
+                  <input type="hidden" name="action" value="edit">
+                  <input type="hidden" name="trigger_id" value="{{ trigger.id }}">
+                  {% set retry = error and request.form.get('trigger_id') == trigger.id %}
+                  <label class="block">
+                    Phrase
+                    <input name="phrase"
+                           required
+                           maxlength="200"
+                           class="input input-bordered w-full"
+                           value="{{ request.form.get('phrase') if retry else trigger.phrase }}">
+                  </label>
+                  <label class="block">
+                    Context phrases (one per line; any one may match)
+                    <textarea name="context"
+                              class="textarea textarea-bordered w-full">{{ request.form.get('context') if retry else trigger.context | join('\n') }}</textarea>
+                  </label>
+                  <label class="flex gap-2"><input type="checkbox"
+       name="enabled"
+       class="checkbox"
+       {% if (retry and request.form.get('enabled') == 'on') or (not retry and trigger.enabled) %}checked{% endif %}>Enabled</label>
+                  <button class="btn btn-primary" type="submit">Save trigger</button>
+                </form>
+              </details>
+              <details {% if error and request.form.get('component_id') == trigger.component_id %}open{% endif %}>
+                <summary class="cursor-pointer">Add alias for this component</summary>
+                <form method="post" class="space-y-2 max-w-xl">
+                  <input type="hidden" name="csrf_token" value="{{ request.cookies.get(config['JWT_ACCESS_CSRF_COOKIE_NAME'], '') }}">
+                  <input type="hidden" name="action" value="create">
+                  <input type="hidden" name="component_id" value="{{ trigger.component_id }}">
+                  {% set retry = error and request.form.get('component_id') == trigger.component_id %}
+                  <label class="block">
+                    Alias
+                    <input name="phrase"
+                           required
+                           maxlength="200"
+                           class="input input-bordered w-full"
+                           value="{{ request.form.get('phrase', '') if retry else '' }}">
+                  </label>
+                  <label class="block">
+                    Context phrases (one per line)
+                    <textarea name="context"
+                              class="textarea textarea-bordered w-full">{{ request.form.get('context', '') if retry else '' }}</textarea>
+                  </label>
+                  <label class="flex gap-2"><input type="checkbox"
+       name="enabled"
+       class="checkbox"
+       {% if retry and request.form.get('enabled') == 'on' %}checked{% endif %}>Enabled</label>
+                  <button class="btn" type="submit">Add trigger</button>
+                </form>
+              </details>
+            {% endif %}
+          </section>
+        {% else %}
+          <p>No triggers match these filters.</p>
+        {% endfor %}
+      </div>
+      <nav aria-label="Trigger pages" class="flex gap-4 items-center">
+        {% if data.page > 1 %}<a class="btn btn-sm"
+   href="{{ url_for('assets.asset_triggers', asset_id=asset_id, page=data.page - 1, search=request.args.get('search', ''), enabled=request.args.get('enabled', ''), component_id=request.args.get('component_id', '')) }}">Previous</a>{% endif %}
+        <span>{{ data.total }} triggers · Page {{ data.page }} of {{ data.pages }}</span>
+        {% if data.page < data.pages %}<a class="btn btn-sm"
+   href="{{ url_for('assets.asset_triggers', asset_id=asset_id, page=data.page + 1, search=request.args.get('search', ''), enabled=request.args.get('enabled', ''), component_id=request.args.get('component_id', '')) }}">Next</a>{% endif %}
+      </nav>
+      {% if can_edit %}
+        <form method="post">
+          <input type="hidden" name="csrf_token" value="{{ request.cookies.get(config['JWT_ACCESS_CSRF_COOKIE_NAME'], '') }}">
+          <button class="btn btn-outline" name="action" value="generate">Generate missing suggestions</button>
+          <p class="text-sm">Generate suggestions for this inventory while preserving existing edits and disabled triggers.</p>
+        </form>
+      {% endif %}
+    {% endif %}
+  </div>
+{% endblock content %}

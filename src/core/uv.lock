@@ -1,5 +1,5 @@
 version = 1
-revision = 5
+revision = 3
 requires-python = ">=3.14"
 required-markers = [
     "platform_machine == 'x86_64' and sys_platform == 'linux'",
@@ -274,6 +274,12 @@ sdist = { url = "https://files.pythonhosted.org/packages/d8/53/6f443c9a4a8358a93
 wheels = [
     { url = "https://files.pythonhosted.org/packages/d1/d6/3965ed04c63042e047cb6a3e6ed1a63a35087b6a609aa3a15ed8ac56c221/colorama-0.4.6-py2.py3-none-any.whl", hash = "sha256:4f1d9991f5acc0ca119f9d443620b77f9d6b33703e51011c16baf57afb285fc6", size = 25335, upload-time = "2022-10-25T02:36:20.889Z" },
 ]
+
+[[package]]
+name = "cpe"
+version = "1.3.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/a4/30/9b907ff7e4af8c64d5461ab7e7beeff5dc53893dd1c70347069915c82eb1/cpe-1.3.1.tar.gz", hash = "sha256:f30a97881b6eb74a6d630552aebce03df22cddb7a587d632a13b4e14b66b95b0", size = 942225, upload-time = "2024-10-02T07:59:39.221Z" }
 
 [[package]]
 name = "croniter"
@@ -1029,6 +1035,15 @@ wheels = [
 ]
 
 [[package]]
+name = "packageurl-python"
+version = "0.17.6"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/f5/d6/3b5a4e3cfaef7a53869a26ceb034d1ff5e5c27c814ce77260a96d50ab7bb/packageurl_python-0.17.6.tar.gz", hash = "sha256:1252ce3a102372ca6f86eb968e16f9014c4ba511c5c37d95a7f023e2ca6e5c25", size = 50618, upload-time = "2025-11-24T15:20:17.998Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/b1/2f/c7277b7615a93f51b5fbc1eacfc1b75e8103370e786fd8ce2abf6e5c04ab/packageurl_python-0.17.6-py3-none-any.whl", hash = "sha256:31a85c2717bc41dd818f3c62908685ff9eebcb68588213745b14a6ee9e7df7c9", size = 36776, upload-time = "2025-11-24T15:20:16.962Z" },
+]
+
+[[package]]
 name = "packaging"
 version = "26.3"
 source = { registry = "https://pypi.org/simple" }
@@ -1680,6 +1695,7 @@ source = { editable = "." }
 dependencies = [
     { name = "authlib" },
     { name = "click" },
+    { name = "cpe" },
     { name = "croniter" },
     { name = "flask" },
     { name = "flask-cors" },
@@ -1689,6 +1705,7 @@ dependencies = [
     { name = "granian" },
     { name = "opentelemetry-exporter-otlp-proto-http" },
     { name = "opentelemetry-instrumentation-flask" },
+    { name = "packageurl-python" },
     { name = "pillow" },
     { name = "psycopg" },
     { name = "pydantic-settings" },
@@ -1724,6 +1741,7 @@ requires-dist = [
     { name = "authlib" },
     { name = "build", marker = "extra == 'dev'" },
     { name = "click" },
+    { name = "cpe", specifier = ">=1.3.1" },
     { name = "croniter", specifier = ">=6.0.0" },
     { name = "fakeredis", marker = "extra == 'dev'" },
     { name = "flask" },
@@ -1734,6 +1752,7 @@ requires-dist = [
     { name = "granian" },
     { name = "opentelemetry-exporter-otlp-proto-http" },
     { name = "opentelemetry-instrumentation-flask" },
+    { name = "packageurl-python", specifier = ">=0.17.6" },
     { name = "pillow" },
     { name = "playwright", marker = "extra == 'dev'" },
     { name = "psycopg" },

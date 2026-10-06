@@ -1,0 +1,27 @@
+[
+  {
+    "title": "BuildKit security advisory (test fixture)",
+    "content": "This synthetic advisory describes a vulnerability in the container build engine. Review the upstream patch before rebuilding images. This is fictional test data, not a real finding.",
+    "link": "https://example.invalid/sbom/buildkit-advisory"
+  },
+  {
+    "title": "Container builder patch available (test fixture)",
+    "content": "BuildKit users should review this synthetic security update before their next deployment. The package name appears only in this article's body. This is fictional test data, not a real finding.",
+    "link": "https://example.invalid/sbom/container-patch"
+  },
+  {
+    "title": "BuildKitten security advisory (test fixture)",
+    "content": "A vulnerability in the unrelated BuildKitten application requires a patch. A partial product name must not match an installed component.",
+    "link": "https://example.invalid/sbom/product-name-boundary"
+  },
+  {
+    "title": "BuildKit community meetup (test fixture)",
+    "content": "The container tooling community announces its next developer meetup. This article has the product name but none of the required advisory context.",
+    "link": "https://example.invalid/sbom/missing-context"
+  },
+  {
+    "title": "curl security advisory (test fixture)",
+    "content": "A synthetic vulnerability in curl needs analyst review. The package is installed, but its suggestions remain disabled in this walkthrough.",
+    "link": "https://example.invalid/sbom/disabled-component"
+  }
+]

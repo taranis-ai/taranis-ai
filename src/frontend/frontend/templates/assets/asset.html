@@ -16,6 +16,9 @@
       <h2 class="card-title">{{ submit_text }}</h2>
       <div class="flex-1"></div>
       {% if asset.id and asset.id != '0' %}
+        <a class="btn btn-outline btn-sm" href="{{ url_for('assets.asset_sbom', asset_id=asset.id) }}">SBOM inventory</a>
+        <a class="btn btn-outline btn-sm" href="{{ url_for('assets.asset_triggers', asset_id=asset.id) }}">Component triggers</a>
+        {% if 'ASSESS_ACCESS' in current_user.permissions %}<a class="btn btn-outline btn-sm" href="{{ url_for('assets.asset_intelligence', asset_id=asset.id) }}">Relevant intelligence</a>{% endif %}
         <a class="btn btn-outline btn-sm gap-2"
            href="{{ url_for('assets.asset_cti', asset_id=asset.id) }}"
            data-testid="asset-cti-button">

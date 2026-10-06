@@ -8,6 +8,9 @@
   <div id="{{ table_container }}" class="table-container p-4" x-data="{ selectedItems: [] }">
     {% call table_decoration(name, model_name, table_container, routes=routes, new_item_target="#assets") %}
       <div class="grow-0">
+        {% if current_user and "ASSETS_CREATE" in current_user.permissions %}
+          <a class="btn btn-outline" href="{{ url_for('assets.sbom_upload') }}" data-test-id="import-sbom">Import SBOM</a>
+        {% endif %}
         <a class="btn btn-outline gap-2" href="{{ url_for('assets.assets_cti') }}" data-testid="assets-cti-button">
           {{ heroicon_mini("document-magnifying-glass", class="h-4 w-4") }}
           <span>CTI</span>

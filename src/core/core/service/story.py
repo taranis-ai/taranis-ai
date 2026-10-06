@@ -57,7 +57,13 @@ class StoryService:
         user: User | None = None,
         actor: str | None = None,
     ) -> tuple[dict, int]:
-        return cls._refresh_auto_update_jobs_on_success(Story.update(story_id, data, user=user, actor=actor), [story_id])
+        from core.service.asset_intelligence import match_story
+
+        result = Story.update(story_id, data, user=user, actor=actor)
+        if result[1] == 200:
+            match_story(story_id)
+            db.session.commit()
+        return cls._refresh_auto_update_jobs_on_success(result, [story_id])
 
     @classmethod
     def delete(cls, story_id: str, user: User) -> tuple[dict, int]:
@@ -113,15 +119,18 @@ class StoryService:
         stories: dict[str, dict] = {}
 
         for row in result:
-            if getattr(row, "news_item_id", None) is None:
+            values = row._mapping
+            if values.get("news_item_id") is None:
                 continue
-            story = stories.setdefault(row.id, {"id": row.id, "created": Story.serialize_datetime(row.created), "news_items": []})
+            story = stories.setdefault(
+                values["id"], {"id": values["id"], "created": Story.serialize_datetime(values["created"]), "news_items": []}
+            )
 
             story["news_items"].append(
                 {
-                    "id": row.news_item_id,
-                    "title": row.news_item_title,
-                    "content": row.news_item_content,
+                    "id": values["news_item_id"],
+                    "title": values["news_item_title"],
+                    "content": values["news_item_content"],
                 }
             )
 

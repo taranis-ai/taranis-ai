@@ -20,6 +20,7 @@ Task entry points and RQ failure hooks own their HTTP session scope, including r
 - Successful presenter results publish user-scoped `product.rendered` after commit; notification failure cannot change task success. See [Realtime Events](realtime-events.md).
 - MISP results reflect completed sync/proposal operations, not dispatch success. Entire failures use one connector failure path; curated reasons include `connector_not_found` and `connector_type_missing`.
 - Bot transport failures use retryable `bot_service_unavailable` so dependents do not run. Log the transport error server-side, retain the curated exception's originating traceback, and suppress the underlying HTTP exception chain from displayed failures.
+- [Asset intelligence scans](asset-sbom-import.md) use user-attributed `asset_match_task` jobs in `misc`. Core owns authorization, bounded batches and progress; the worker drives the batches and reports the final task result.
 
 ## History and UI
 

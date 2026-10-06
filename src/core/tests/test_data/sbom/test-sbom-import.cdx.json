@@ -1,0 +1,49 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.7",
+  "serialNumber": "urn:uuid:8bdd7d2c-2b31-4b27-b858-a502bca7b1cb",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2026-10-05T10:00:00Z",
+    "component": {"type": "file", "name": "showcase-host", "bom-ref": "root"}
+  },
+  "components": [
+    {
+      "type": "library",
+      "name": "github.com/moby/buildkit",
+      "version": "v0.32.0",
+      "bom-ref": "buildkit-dockerd",
+      "purl": "pkg:golang/github.com/moby/buildkit@v0.32.0",
+      "cpe": "cpe:2.3:a:moby:buildkit:v0.32.0:*:*:*:*:*:*:*",
+      "properties": [{"name": "syft:location:0:path", "value": "usr/bin/dockerd"}]
+    },
+    {
+      "type": "library",
+      "name": "github.com/moby/buildkit",
+      "version": "v0.32.0",
+      "bom-ref": "buildkit-buildx",
+      "purl": "pkg:golang/github.com/moby/buildkit@v0.32.0",
+      "cpe": "cpe:2.3:a:moby:buildkit:v0.32.0:*:*:*:*:*:*:*",
+      "properties": [{"name": "syft:location:0:path", "value": "usr/libexec/docker/cli-plugins/docker-buildx"}]
+    },
+    {
+      "type": "library",
+      "name": "github.com/moby/buildkit",
+      "version": "v0.32.1",
+      "bom-ref": "buildkit-compose",
+      "purl": "pkg:golang/github.com/moby/buildkit@v0.32.1",
+      "cpe": "cpe:2.3:a:moby:buildkit:v0.32.1:*:*:*:*:*:*:*",
+      "properties": [{"name": "syft:location:0:path", "value": "usr/libexec/docker/cli-plugins/docker-compose"}]
+    },
+    {
+      "type": "library",
+      "name": "curl",
+      "version": "8.5.0",
+      "bom-ref": "curl",
+      "purl": "pkg:generic/curl@8.5.0",
+      "cpe": "cpe:2.3:a:haxx:curl:8.5.0:*:*:*:*:*:*:*"
+    },
+    {"type": "library", "name": "internal-agent", "version": "1.0", "bom-ref": "internal-agent"},
+    {"type": "file", "name": "usr/bin/dockerd", "bom-ref": "dockerd-file"}
+  ]
+}

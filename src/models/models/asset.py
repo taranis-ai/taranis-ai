@@ -24,3 +24,12 @@ class Asset(TaranisBaseModel):
     asset_observables: list[AssetObservable] = Field(default_factory=list)
     vulnerabilities: list[str] = Field(default_factory=list)
     vulnerabilities_count: int | None = None
+
+
+class AssetGroup(TaranisBaseModel):
+    _core_endpoint = "/asset-groups"
+    _model_name = "asset_group"
+    _pretty_name = "Asset groups"
+
+    id: str
+    name: str

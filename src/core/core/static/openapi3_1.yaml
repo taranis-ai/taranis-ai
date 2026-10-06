@@ -6636,6 +6636,484 @@ paths:
           description: forbidden
         "404":
           $ref: "#/components/responses/404NotFound"
+  /assets/sbom-imports:
+    post:
+      security:
+      - UserAuth: []
+      tags:
+      - assets
+      operationId: sbom_upload.post
+      description: Upload CycloneDX JSON 1.5–1.7 (default maximum request 250 MiB). Requires
+        ASSETS_CREATE. Preview is private and expires after 24 hours.
+      responses:
+        '200':
+          description: Existing accessible import resumed
+          content:
+            application/json:
+              schema: &id001
+                $ref: '#/components/schemas/SbomInventory'
+        '201':
+          description: Preview created
+          content:
+            application/json:
+              schema: *id001
+        '400': &id002
+          description: Request rejected; JSON error contains a curated message.
+        '401': *id002
+        '403': *id002
+        '413': *id002
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+              - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+  /assets/sbom-imports/{import_id}:
+    get:
+      security:
+      - UserAuth: []
+      tags:
+      - assets
+      operationId: sbom_preview.get
+      description: Read an owned preview with current organization access. Requires
+        ASSETS_CREATE.
+      responses:
+        '200':
+          description: Preview inventory
+          content:
+            application/json:
+              schema: *id001
+        '401': *id002
+        '403': *id002
+        '404': *id002
+      parameters:
+      - name: import_id
+        in: path
+        required: true
+        schema:
+          type: string
+      - &id004
+        name: page
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+        description: Page of 50 grouped components.
+    post:
+      security:
+      - UserAuth: []
+      tags:
+      - assets
+      operationId: sbom_preview.post
+      description: Atomically create one asset from an owned preview. Requires ASSETS_CREATE
+        and access to the destination group. Repeated confirmation returns the same
+        asset.
+      responses:
+        '200':
+          description: Already confirmed
+          content:
+            application/json:
+              schema: &id003
+                type: object
+                required:
+                - id
+                - message
+                properties:
+                  id:
+                    type: string
+                  message:
+                    type: string
+        '201':
+          description: Asset created
+          content:
+            application/json:
+              schema: *id003
+        '400': *id002
+        '401': *id002
+        '403': *id002
+        '404': *id002
+      parameters:
+      - name: import_id
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SbomCreateAsset'
+  /assets/{asset_id}/sbom:
+    get:
+      security:
+      - UserAuth: []
+      tags:
+      - assets
+      operationId: asset_sbom.get
+      description: Read saved SBOM inventory. Requires ASSETS_ACCESS and current asset-group
+        access.
+      responses:
+        '200':
+          description: Saved inventory
+          content:
+            application/json:
+              schema: *id001
+        '401': *id002
+        '403': *id002
+        '404': *id002
+      parameters:
+      - name: asset_id
+        in: path
+        required: true
+        schema:
+          type: string
+      - *id004
+  /assets/{asset_id}/triggers:
+    get:
+      security:
+      - UserAuth: []
+      tags:
+      - assets
+      operationId: AssetTriggers.get
+      description: List component triggers, their provenance and review state. Requires
+        ASSETS_ACCESS and current asset-group access. Paginates 50 rules.
+      parameters:
+      - name: asset_id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: page
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+      - name: search
+        in: query
+        schema:
+          type: string
+      - name: component_id
+        in: query
+        schema:
+          type: string
+      - name: enabled
+        in: query
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Successful operation.
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Request rejected; JSON error contains a curated message.
+        '401':
+          description: Request rejected; JSON error contains a curated message.
+        '403':
+          description: Request rejected; JSON error contains a curated message.
+        '404':
+          description: Request rejected; JSON error contains a curated message.
+    post:
+      security:
+      - UserAuth: []
+      tags:
+      - assets
+      operationId: AssetTriggers.post
+      description: Add an analyst phrase to a component of this asset. Requires ASSETS_CREATE
+        and current asset-group access.
+      parameters:
+      - name: asset_id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '201':
+          description: Successful operation.
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Request rejected; JSON error contains a curated message.
+        '401':
+          description: Request rejected; JSON error contains a curated message.
+        '403':
+          description: Request rejected; JSON error contains a curated message.
+        '404':
+          description: Request rejected; JSON error contains a curated message.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TriggerCreate'
+  /assets/{asset_id}/triggers/{trigger_id}:
+    put:
+      security:
+      - UserAuth: []
+      tags:
+      - assets
+      operationId: AssetTriggerEdit.put
+      description: Replace phrase, optional context (any phrase in the same article)
+        and activation state. Removes existing evidence for this rule; scan history
+        to refresh. Requires ASSETS_CREATE.
+      parameters:
+      - name: asset_id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: trigger_id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Successful operation.
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Request rejected; JSON error contains a curated message.
+        '401':
+          description: Request rejected; JSON error contains a curated message.
+        '403':
+          description: Request rejected; JSON error contains a curated message.
+        '404':
+          description: Request rejected; JSON error contains a curated message.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TriggerInput'
+  /assets/{asset_id}/triggers/selection:
+    post:
+      security:
+      - UserAuth: []
+      tags:
+      - assets
+      operationId: AssetTriggerSelection.post
+      description: Enable or disable up to 100 selected rules belonging to this asset.
+        Disabling removes evidence. Requires ASSETS_CREATE.
+      parameters:
+      - name: asset_id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Successful operation.
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Request rejected; JSON error contains a curated message.
+        '401':
+          description: Request rejected; JSON error contains a curated message.
+        '403':
+          description: Request rejected; JSON error contains a curated message.
+        '404':
+          description: Request rejected; JSON error contains a curated message.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TriggerSelection'
+  /assets/{asset_id}/triggers/suggestions:
+    post:
+      security:
+      - UserAuth: []
+      tags:
+      - assets
+      operationId: AssetTriggerSuggestions.post
+      description: Generate missing disabled suggestions without overwriting analyst
+        decisions. Requires ASSETS_CREATE.
+      parameters:
+      - name: asset_id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Successful operation.
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Request rejected; JSON error contains a curated message.
+        '401':
+          description: Request rejected; JSON error contains a curated message.
+        '403':
+          description: Request rejected; JSON error contains a curated message.
+        '404':
+          description: Request rejected; JSON error contains a curated message.
+  /assets/{asset_id}/intelligence:
+    get:
+      security:
+      - UserAuth: []
+      tags:
+      - assets
+      operationId: AssetIntelligence.get
+      description: Return currently visible stories grouped with component, trigger,
+        article and literal evidence. Requires both ASSETS_ACCESS and ASSESS_ACCESS.
+        Rechecks asset-group, source ACL and story/article TLP access. Paginates 20
+        stories. Mentions do not establish vulnerability.
+      parameters:
+      - name: asset_id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: page
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+      responses:
+        '200':
+          description: Successful operation.
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Request rejected; JSON error contains a curated message.
+        '401':
+          description: Request rejected; JSON error contains a curated message.
+        '403':
+          description: Request rejected; JSON error contains a curated message.
+        '404':
+          description: Request rejected; JSON error contains a curated message.
+  /assets/{asset_id}/match-runs:
+    get:
+      security:
+      - UserAuth: []
+      tags:
+      - assets
+      operationId: AssetMatchRuns.get
+      description: Read the requesting user's latest scan status, accessible processed
+        article count, or null. Requires ASSETS_ACCESS and ASSESS_ACCESS.
+      parameters:
+      - name: asset_id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Successful operation.
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Request rejected; JSON error contains a curated message.
+        '401':
+          description: Request rejected; JSON error contains a curated message.
+        '403':
+          description: Request rejected; JSON error contains a curated message.
+        '404':
+          description: Request rejected; JSON error contains a curated message.
+    post:
+      security:
+      - UserAuth: []
+      tags:
+      - assets
+      operationId: AssetMatchRuns.post
+      description: Queue historical matching of articles collected in the last N days
+        (default 30; 0 is all history). Requires ASSETS_CREATE and ASSESS_ACCESS. Worker
+        batches recheck requesting user access.
+      parameters:
+      - name: asset_id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '202':
+          description: Successful operation.
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Request rejected; JSON error contains a curated message.
+        '401':
+          description: Request rejected; JSON error contains a curated message.
+        '403':
+          description: Request rejected; JSON error contains a curated message.
+        '404':
+          description: Request rejected; JSON error contains a curated message.
+        '503':
+          description: Request rejected; JSON error contains a curated message.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MatchRunInput'
+  /worker/asset-match-runs/{run_id}/batch:
+    post:
+      security:
+      - APIKey: []
+      tags:
+      - assets
+      operationId: asset_match_batch.post
+      description: Process up to 200 historical articles and persist the scan cursor
+        atomically. Requires worker API key. Terminal runs are idempotent; failed=true
+        records a curated failure.
+      parameters:
+      - name: run_id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Successful operation.
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Request rejected; JSON error contains a curated message.
+        '401':
+          description: Request rejected; JSON error contains a curated message.
+        '403':
+          description: Request rejected; JSON error contains a curated message.
+        '404':
+          description: Request rejected; JSON error contains a curated message.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                failed:
+                  type: boolean
+                  default: false
   /assets:
     get:
       security:
@@ -9697,6 +10175,280 @@ paths:
           $ref: '#/components/responses/404NotFound'
 components:
   schemas:
+    SbomComponent:
+      properties:
+        id:
+          default: ''
+          title: Id
+          type: string
+        name:
+          title: Name
+          type: string
+        version:
+          default: ''
+          title: Version
+          type: string
+        type:
+          title: Type
+          type: string
+        purl:
+          default: ''
+          title: Purl
+          type: string
+        suppliers:
+          items:
+            type: string
+          title: Suppliers
+          type: array
+        cpes:
+          items:
+            type: string
+          title: Cpes
+          type: array
+        invalid_cpes:
+          items:
+            type: string
+          title: Invalid Cpes
+          type: array
+        occurrences:
+          items:
+            $ref: '#/components/schemas/SbomOccurrence'
+          title: Occurrences
+          type: array
+        suggestions:
+          items:
+            $ref: '#/components/schemas/TriggerSuggestion'
+          title: Suggestions
+          type: array
+      required:
+      - name
+      - type
+      title: SbomComponent
+      type: object
+    SbomOccurrence:
+      properties:
+        reference:
+          title: Reference
+          type: string
+        locations:
+          items:
+            type: string
+          title: Locations
+          type: array
+      required:
+      - reference
+      title: SbomOccurrence
+      type: object
+    SbomSummary:
+      properties:
+        spec_version:
+          title: Spec Version
+          type: string
+        serial_number:
+          default: ''
+          title: Serial Number
+          type: string
+        document_version:
+          title: Document Version
+          type: integer
+        generated_at:
+          default: ''
+          title: Generated At
+          type: string
+        suggested_name:
+          default: ''
+          title: Suggested Name
+          type: string
+        software_records:
+          title: Software Records
+          type: integer
+        excluded_files:
+          title: Excluded Files
+          type: integer
+        component_count:
+          title: Component Count
+          type: integer
+        components_with_cpes:
+          title: Components With Cpes
+          type: integer
+        invalid_cpe_count:
+          title: Invalid Cpe Count
+          type: integer
+      required:
+      - spec_version
+      - document_version
+      - software_records
+      - excluded_files
+      - component_count
+      - components_with_cpes
+      - invalid_cpe_count
+      title: SbomSummary
+      type: object
+    TriggerSuggestion:
+      properties:
+        phrase:
+          maxLength: 200
+          minLength: 1
+          title: Phrase
+          type: string
+        context:
+          items:
+            type: string
+          maxItems: 10
+          title: Context
+          type: array
+        enabled:
+          default: false
+          title: Enabled
+          type: boolean
+        sources:
+          items:
+            type: string
+          title: Sources
+          type: array
+      required:
+      - phrase
+      - sources
+      title: TriggerSuggestion
+      type: object
+    SbomInventory:
+      properties:
+        id:
+          title: Id
+          type: string
+        asset_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+          title: Asset Id
+        filename:
+          title: Filename
+          type: string
+        sha256:
+          title: Sha256
+          type: string
+        imported_at:
+          title: Imported At
+          type: string
+        summary:
+          $ref: '#/components/schemas/SbomSummary'
+        components:
+          items:
+            $ref: '#/components/schemas/SbomComponent'
+          title: Components
+          type: array
+        page:
+          title: Page
+          type: integer
+        pages:
+          title: Pages
+          type: integer
+      required:
+      - id
+      - filename
+      - sha256
+      - imported_at
+      - summary
+      - components
+      - page
+      - pages
+      title: SbomInventory
+      type: object
+    SbomCreateAsset:
+      properties:
+        name:
+          maxLength: 255
+          minLength: 1
+          title: Name
+          type: string
+        asset_group_id:
+          minLength: 1
+          title: Asset Group Id
+          type: string
+        description:
+          default: ''
+          maxLength: 10000
+          title: Description
+          type: string
+      required:
+      - name
+      - asset_group_id
+      title: SbomCreateAsset
+      type: object
+    TriggerInput:
+      properties:
+        phrase:
+          maxLength: 200
+          minLength: 1
+          title: Phrase
+          type: string
+        context:
+          items:
+            type: string
+          maxItems: 10
+          title: Context
+          type: array
+        enabled:
+          default: false
+          title: Enabled
+          type: boolean
+      required:
+      - phrase
+      title: TriggerInput
+      type: object
+    TriggerCreate:
+      properties:
+        phrase:
+          maxLength: 200
+          minLength: 1
+          title: Phrase
+          type: string
+        context:
+          items:
+            type: string
+          maxItems: 10
+          title: Context
+          type: array
+        enabled:
+          default: false
+          title: Enabled
+          type: boolean
+        component_id:
+          title: Component Id
+          type: string
+      required:
+      - phrase
+      - component_id
+      title: TriggerCreate
+      type: object
+    TriggerSelection:
+      properties:
+        trigger_ids:
+          items:
+            type: string
+          maxItems: 100
+          minItems: 1
+          title: Trigger Ids
+          type: array
+        enabled:
+          title: Enabled
+          type: boolean
+      required:
+      - trigger_ids
+      - enabled
+      title: TriggerSelection
+      type: object
+    MatchRunInput:
+      properties:
+        days:
+          default: 30
+          maximum: 36500
+          minimum: 0
+          title: Days
+          type: integer
+      title: MatchRunInput
+      type: object
     chat_turn_request:
       type: object
       additionalProperties: false

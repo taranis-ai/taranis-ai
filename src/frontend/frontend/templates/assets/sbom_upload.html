@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block content %}
+  <div class="p-4 max-w-3xl mx-auto">
+    <a href="{{ url_for('assets.assets') }}" class="link">Assets</a>
+    <h1 class="text-2xl font-bold my-4">Import SBOM</h1>
+    {% if error %}<div role="alert" class="alert alert-error mb-4">{{ error }}</div>{% endif %}
+    {% if not read_only | default(false) %}
+      <p class="mb-4">Upload CycloneDX JSON 1.5, 1.6, or 1.7 containing at least one valid software CPE. Maximum request size: {{ config['MAX_CONTENT_LENGTH'] // (1024 * 1024) }} MiB, including the file and form data.</p>
+      <p class="mb-4">Create one asset for the scanned application or system. Software packages are grouped with their installation locations; individual files are excluded.</p>
+      <form method="post" action="{{ url_for('assets.sbom_upload') }}" enctype="multipart/form-data" class="space-y-4">
+        <input type="hidden" name="csrf_token" value="{{ request.cookies.get(config['JWT_ACCESS_CSRF_COOKIE_NAME'], '') }}">
+        <label class="block" for="sbom-file">CycloneDX file</label>
+        <input id="sbom-file"
+               name="file"
+               type="file"
+               accept=".json,application/json"
+               required
+               class="file-input file-input-bordered w-full"
+               data-test-id="sbom-file">
+        <button class="btn btn-primary" type="submit" data-test-id="sbom-preview">Preview SBOM</button>
+      </form>
+    {% endif %}
+  </div>
+{% endblock content %}

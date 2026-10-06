@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+{% block content %}
+  <div class="p-4 space-y-4" data-test-id="sbom-inventory">
+    <a href="{{ url_for('assets.assets') }}" class="link">Assets</a>
+    <h1 class="text-2xl font-bold">{{ 'Review SBOM import' if preview else 'SBOM inventory' }}</h1>
+    {% if error %}<div role="alert" class="alert alert-error">{{ error }}</div>{% endif %}
+    <p>{{ inventory.filename }} · CycloneDX {{ inventory.summary.spec_version }} · {{ inventory.imported_at }}</p>
+    <details>
+      <summary class="cursor-pointer">Import provenance</summary>
+      <dl class="break-all">
+        <dt>SHA-256</dt>
+        <dd>
+          {{ inventory.sha256 }}
+        </dd>
+        <dt>Document serial</dt>
+        <dd>
+          {{ inventory.summary.serial_number or 'Not supplied' }}
+        </dd>
+        <dt>Document version</dt>
+        <dd>
+          {{ inventory.summary.document_version }}
+        </dd>
+        <dt>Generated</dt>
+        <dd>
+          {{ inventory.summary.generated_at or 'Not supplied' }}
+        </dd>
+      </dl>
+    </details>
+    <p>
+      {{ inventory.summary.software_records }} software records grouped into {{ inventory.summary.component_count }} components.
+      {{ inventory.summary.excluded_files }} individual file records excluded.
+    </p>
+    <p>
+      {{ inventory.summary.components_with_cpes }} components have valid CPEs;
+      {{ inventory.summary.component_count - inventory.summary.components_with_cpes }} have none.
+      {{ inventory.summary.invalid_cpe_count }} invalid CPE values excluded.
+    </p>
+    <p>Components without valid CPEs remain in the inventory and receive name-based suggestions. All suggestions start disabled; review and enable them after creating the asset.</p>
+    <div class="overflow-x-auto">
+      <table class="table table-zebra">
+        <thead>
+          <tr>
+            <th>Component</th>
+            <th>Version</th>
+            <th>CPE coverage</th>
+            <th>Occurrences</th>
+            <th>{{ 'Suggested triggers (disabled)' if preview else 'Triggers' }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for component in inventory.components %}
+            <tr>
+              <td>
+                <strong>{{ component.name }}</strong>
+                <div>{{ component.type }}</div>
+                {% if component.purl %}<div class="text-xs break-all">{{ component.purl }}</div>{% endif %}
+                {% if component.suppliers %}<div>{{ component.suppliers | join(", ") }}</div>{% endif %}
+              </td>
+              <td>{{ component.version or 'Not supplied' }}</td>
+              <td>
+                {% if component.cpes %}
+                  <details>
+                    <summary>{{ component.cpes | length }} valid CPEs</summary>
+                    <ul>{% for cpe in component.cpes %}<li class="break-all">{{ cpe }}</li>{% endfor %}</ul>
+                  </details>
+          {% else %}<span class="badge badge-warning">No valid CPE</span>{% endif %}
+          {% if component.invalid_cpes %}
+            <details>
+              <summary class="text-warning">{{ component.invalid_cpes | length }} invalid CPEs</summary>
+              <ul>{% for cpe in component.invalid_cpes %}<li class="break-all">{{ cpe }}</li>{% endfor %}</ul>
+            </details>
+          {% endif %}
+            </td>
+            <td>
+              <details>
+                <summary>{{ component.occurrences | length }} occurrences</summary>
+                {% for occurrence in component.occurrences %}
+                  <div class="text-xs break-all my-2">
+                    {{ occurrence.reference }}
+                    <ul>{% for location in occurrence.locations %}<li>{{ location }}</li>{% endfor %}</ul>
+                  </div>
+                {% endfor %}
+              </details>
+            </td>
+            <td>
+              {% if preview %}
+                <ul>{% for suggestion in component.suggestions %}<li>{{ suggestion.phrase }} · {{ suggestion.sources | join(", ") }}{% if suggestion.context %} · context: {{ suggestion.context | join(", ") }}{% endif %}</li>{% endfor %}</ul>
+              {% else %}
+                <a class="link"
+                   href="{{ url_for('assets.asset_triggers', asset_id=inventory.asset_id, component_id=component.id) }}">Review triggers</a>
+              {% endif %}
+            </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <nav aria-label="Component pages" class="flex gap-4 items-center">
+      {% if inventory.page > 1 %}<a class="btn btn-sm"
+   href="{{ url_for('assets.sbom_preview', import_id=inventory.id, page=inventory.page - 1) if preview else url_for('assets.asset_sbom', asset_id=inventory.asset_id, page=inventory.page - 1) }}">Previous</a>{% endif %}
+      <span>Page {{ inventory.page }} of {{ inventory.pages }}</span>
+      {% if inventory.page < inventory.pages %}<a class="btn btn-sm"
+   href="{{ url_for('assets.sbom_preview', import_id=inventory.id, page=inventory.page + 1) if preview else url_for('assets.asset_sbom', asset_id=inventory.asset_id, page=inventory.page + 1) }}">Next</a>{% endif %}
+    </nav>
+    {% if preview %}
+      <form method="post"
+            action="{{ url_for('assets.sbom_preview', import_id=inventory.id, page=inventory.page) }}"
+            class="space-y-4 max-w-xl">
+        <input type="hidden" name="csrf_token" value="{{ request.cookies.get(config['JWT_ACCESS_CSRF_COOKIE_NAME'], '') }}">
+        <label class="block" for="asset-name">Asset name</label>
+        <input id="asset-name"
+               name="name"
+               value="{{ name }}"
+               maxlength="255"
+               required
+               class="input input-bordered w-full"
+               data-test-id="sbom-asset-name">
+        <p class="text-sm">Confirm the application or host name. The SBOM scan target may not be a hostname.</p>
+        <label class="block" for="asset-group">Destination group</label>
+        <select id="asset-group" name="asset_group_id" required class="select select-bordered w-full">
+          <option value="">Select a group</option>
+          {% for group in groups %}<option value="{{ group.id }}"
+        {% if group.id == group_id %}selected{% endif %}>{{ group.name }}</option>{% endfor %}
+        </select>
+        <label class="block" for="asset-description">Description</label>
+        <textarea id="asset-description"
+                  name="description"
+                  maxlength="10000"
+                  class="textarea textarea-bordered w-full">{{ description }}</textarea>
+        <p class="text-sm">Preview expires after 24 hours. Confirming creates one asset with the complete software inventory.</p>
+        <button class="btn btn-primary" type="submit" data-test-id="sbom-create">Create asset</button>
+      </form>
+    {% else %}
+      <a class="btn btn-outline" href="{{ url_for('assets.asset', asset_id=inventory.asset_id) }}">Asset details</a>
+      <a class="btn btn-primary" href="{{ url_for('assets.asset_triggers', asset_id=inventory.asset_id) }}">Component triggers</a>
+      {% if "ASSESS_ACCESS" in current_user.permissions %}<a class="btn btn-outline"
+   href="{{ url_for('assets.asset_intelligence', asset_id=inventory.asset_id) }}">Relevant intelligence</a>{% endif %}
+    {% endif %}
+  </div>
+{% endblock content %}
