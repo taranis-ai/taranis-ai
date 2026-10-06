@@ -1,7 +1,6 @@
 """Authoritative worker parameter contracts and boundary serialization."""
 
 import json
-import math
 from dataclasses import dataclass
 from typing import Annotated, Any, Literal
 from urllib.parse import urlparse
@@ -28,7 +27,7 @@ def _empty_to_none(value: Any) -> Any:
 
 def _validate_publisher_network_timeout(value: int, info: ValidationInfo) -> int:
     job_timeout = (info.context or {}).get("rq_job_timeout")
-    if isinstance(job_timeout, (int, float)) and math.isfinite(job_timeout) and job_timeout > 0:
+    if job_timeout is not None and job_timeout > 0:
         maximum = job_timeout / 2
         if value > maximum:
             raise ValueError(

@@ -7,7 +7,7 @@
   {% set full_width = field.type in ['textarea', 'word-list-table', 'cron_interval'] %}
   <div class="relative {% if full_width %}md:col-span-2{% elif field.type == 'switch' %}md:-mt-4{% endif %}"
        data-parameter="{{ field.name }}">
-    {% if field.description and field.name != "NETWORK_TIMEOUT" %}
+    {% if field.description %}
       <span class="tooltip tooltip-left absolute right-2 top-2 z-10"
             data-tip="{{ field.description }}"
             title="{{ field.description }}"
@@ -70,9 +70,6 @@
       {{ form_cron(label=field.label, name='parameters[' + field.name + ']', value=field_value, required=field_required, pattern=field.pattern) }}
     {% else %}
       {{ form_input(label=field.label, name='parameters[' + field.name + ']', value=field_value, type='text', required=field_required, pattern=field.pattern, preserve=preserve) }}
-    {% endif %}
-    {% if field.name == "NETWORK_TIMEOUT" and field.description %}
-      <p class="-mt-3 mb-5 text-sm text-base-content/70">{{ field.description }}</p>
     {% endif %}
   </div>
 {% endmacro %}
