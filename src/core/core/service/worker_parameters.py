@@ -11,6 +11,8 @@ from models.worker_parameters import (
     secret_parameter_names,
 )
 
+from core.config import Config
+
 
 def set_parameters(
     worker_type: str,
@@ -38,7 +40,9 @@ def set_parameters(
         else:
             candidate[name] = value
 
-    normalized = normalize_parameter_values(worker_type, candidate, complete=complete)
+    normalized = normalize_parameter_values(
+        worker_type, candidate, complete=complete, context={"rq_job_timeout": Config.RQ_DEFAULT_JOB_TIMEOUT}
+    )
     if endpoint_id := normalized.get("LLM_ENDPOINT"):
         from core.managers.db_manager import db
         from core.model.settings import Settings

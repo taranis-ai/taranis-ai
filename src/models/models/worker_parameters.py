@@ -6,12 +6,14 @@ from typing import Annotated, Any, Literal
 from urllib.parse import urlparse
 
 from pydantic import (
+    AfterValidator,
     BaseModel,
     BeforeValidator,
     ConfigDict,
     Field,
     SecretStr,
     TypeAdapter,
+    ValidationInfo,
     field_validator,
     model_validator,
 )
@@ -22,6 +24,18 @@ from models.types import WORKER_CATEGORY, WORKER_TYPES, TLPLevel
 
 def _empty_to_none(value: Any) -> Any:
     return None if value == "" else value
+
+
+def _validate_publisher_network_timeout(value: int, info: ValidationInfo) -> int:
+    job_timeout = (info.context or {}).get("rq_job_timeout")
+    if job_timeout is not None and job_timeout > 0:
+        maximum = job_timeout / 2
+        if value > maximum:
+            raise ValueError(
+                f"Network timeout must not exceed {maximum:g} seconds with the current RQ job timeout of {job_timeout:g} seconds. "
+                f"To use {value} seconds, set RQ_DEFAULT_JOB_TIMEOUT to at least {value * 2} seconds."
+            )
+    return value
 
 
 def _json_object(value: Any) -> Any:
@@ -39,6 +53,7 @@ def _string_list(value: Any) -> Any:
 
 
 InheritedTLP = Annotated[TLPLevel | None, BeforeValidator(_empty_to_none)]
+PublisherNetworkTimeoutSeconds = Annotated[int, AfterValidator(_validate_publisher_network_timeout)]
 OptionalPositiveInt = Annotated[Annotated[int, Field(gt=0)] | None, BeforeValidator(_empty_to_none)]
 JsonObject = Annotated[dict[str, Any], BeforeValidator(_json_object)]
 StringList = Annotated[list[str], BeforeValidator(_string_list)]
@@ -355,15 +370,23 @@ class TaranisPublisherParameters(WorkerParameters):
 
 class FTPPublisherParameters(WorkerParameters):
     FTP_URL: str = Field(min_length=1, title="FTP URL", description="Destination FTP URL.")
-    NETWORK_TIMEOUT: int = Field(
-        30, gt=0, title="Network timeout", description="Network inactivity timeout in seconds, capped below the RQ job timeout."
+    NETWORK_TIMEOUT: PublisherNetworkTimeoutSeconds = Field(
+        30,
+        gt=0,
+        validate_default=True,
+        title="Network timeout",
+        description="Network inactivity timeout in seconds. Defaults to 30 seconds.",
     )
 
 
 class SFTPPublisherParameters(WorkerParameters):
     SFTP_URL: str = Field(min_length=1, title="SFTP URL", description="Destination SFTP URL.")
-    NETWORK_TIMEOUT: int = Field(
-        30, gt=0, title="Network timeout", description="Network inactivity timeout in seconds, capped below the RQ job timeout."
+    NETWORK_TIMEOUT: PublisherNetworkTimeoutSeconds = Field(
+        30,
+        gt=0,
+        validate_default=True,
+        title="Network timeout",
+        description="Network inactivity timeout in seconds. Defaults to 30 seconds.",
     )
     HOST_KEY: str = Field(
         "",
@@ -402,8 +425,12 @@ class S3PublisherParameters(WorkerParameters):
 class EmailPublisherParameters(WorkerParameters):
     SMTP_SERVER_ADDRESS: str = Field(min_length=1, title="SMTP server address", description="SMTP server hostname or address.")
     SMTP_SERVER_PORT: int = Field(25, gt=0, le=65535, title="SMTP server port", description="SMTP server port.")
-    NETWORK_TIMEOUT: int = Field(
-        30, gt=0, title="Network timeout", description="Network inactivity timeout in seconds, capped below the RQ job timeout."
+    NETWORK_TIMEOUT: PublisherNetworkTimeoutSeconds = Field(
+        30,
+        gt=0,
+        validate_default=True,
+        title="Network timeout",
+        description="Network inactivity timeout in seconds. Defaults to 30 seconds.",
     )
     SERVER_TLS: bool = Field(False, title="Server TLS", description="Use TLS for SMTP.")
     EMAIL_USERNAME: str = Field("", title="Email username", description="Optional SMTP username.")
@@ -584,11 +611,12 @@ def normalize_parameter_values(
     values: dict[str, Any],
     *,
     complete: bool = True,
+    context: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Validate configured values and return submitted keys with native values."""
     model = get_worker_definition(worker_type).parameter_model
     if complete:
-        validated = model.model_validate(values)
+        validated = model.model_validate(values, context=context)
         native = validated.model_dump(mode="python")
         return {name: _plain_value(native[name]) for name in values if native[name] is not None}
 
@@ -597,7 +625,7 @@ def normalize_parameter_values(
     normalized: dict[str, Any] = {}
     for name, value in values.items():
         field = model.model_fields[name]
-        native = TypeAdapter(field.rebuild_annotation()).validate_python(value)
+        native = TypeAdapter(field.rebuild_annotation()).validate_python(value, context=context)
         if native is not None:
             normalized[name] = _plain_value(native)
     return normalized
