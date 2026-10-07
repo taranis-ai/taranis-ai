@@ -6974,10 +6974,12 @@ paths:
       tags:
       - assets
       operationId: AssetIntelligence.get
-      description: Return currently visible stories grouped with component, trigger,
-        article and literal evidence. Requires both ASSETS_ACCESS and ASSESS_ACCESS.
-        Rechecks asset-group, source ACL and story/article TLP access. Paginates 20
-        stories. Mentions do not establish vulnerability.
+      description: Return currently visible stories with each matching article once.
+        Articles summarize distinct software packages across installed versions and
+        share identical excerpts while retaining rule and component attribution.
+        Requires both ASSETS_ACCESS and ASSESS_ACCESS. Rechecks asset-group, source
+        ACL, story/article TLP and current matching rules before grouping or counting.
+        Paginates 20 complete stories. Mentions do not establish vulnerability.
       parameters:
       - name: asset_id
         in: path
@@ -6996,7 +6998,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
+                $ref: '#/components/schemas/AssetIntelligencePage'
         '400':
           description: Request rejected; JSON error contains a curated message.
         '401':
@@ -10175,6 +10177,125 @@ paths:
           $ref: '#/components/responses/404NotFound'
 components:
   schemas:
+    AssetIntelligencePage:
+      type: object
+      required: [asset_name, items, page, has_more]
+      properties:
+        asset_name:
+          type: string
+        page:
+          type: integer
+          minimum: 1
+        has_more:
+          type: boolean
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AssetIntelligenceStory'
+    AssetIntelligenceStory:
+      type: object
+      required: [id, title, software_count, articles]
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        software_count:
+          type: integer
+          description: Distinct package identities across the visible matching articles.
+        articles:
+          type: array
+          items:
+            $ref: '#/components/schemas/AssetIntelligenceArticle'
+    AssetIntelligenceArticle:
+      type: object
+      required: [id, title, software, evidence]
+      properties:
+        id:
+          type: string
+          description: News item ID; titles do not determine article identity.
+        title:
+          type: string
+        software:
+          type: array
+          items:
+            $ref: '#/components/schemas/AssetIntelligenceSoftware'
+        evidence:
+          type: array
+          description: Each exact field and excerpt pair appears once in this article.
+          items:
+            $ref: '#/components/schemas/AssetIntelligenceEvidence'
+    AssetIntelligenceSoftware:
+      type: object
+      required: [id, name, versions, components]
+      properties:
+        id:
+          type: string
+          description: Representative component ID, referenced by evidence in this response.
+        name:
+          type: string
+        versions:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+        components:
+          type: array
+          description: Matching installed components sharing the existing package identity.
+          items:
+            type: object
+            required: [id, name, version, purl]
+            properties:
+              id:
+                type: string
+              name:
+                type: string
+              version:
+                type: string
+              purl:
+                type: string
+    AssetIntelligenceEvidence:
+      type: object
+      required: [field, excerpt, matches]
+      properties:
+        field:
+          type: string
+          enum: [title, content]
+        excerpt:
+          type: string
+        matches:
+          type: array
+          items:
+            $ref: '#/components/schemas/AssetIntelligenceEvidenceMatch'
+    AssetIntelligenceEvidenceMatch:
+      type: object
+      required: [software_id, phrase, matched_text, context, triggers]
+      properties:
+        software_id:
+          type: string
+          description: References a software group in the same article.
+        phrase:
+          type: string
+        matched_text:
+          type: string
+        context:
+          type: array
+          description: Context phrases actually matched in this article.
+          items:
+            type: string
+        triggers:
+          type: array
+          description: Exact matching rules and installed components supporting this evidence.
+          items:
+            type: object
+            required: [id, component_id, version]
+            properties:
+              id:
+                type: string
+              component_id:
+                type: string
+              version:
+                type: string
     SbomComponent:
       properties:
         id:

@@ -8,6 +8,7 @@ from uuid import uuid4
 import pytest
 from base_e2e_test import BaseE2ETest
 from flask import url_for
+from htmx_helpers import with_htmx_wait
 from playwright.sync_api import Page, expect
 
 
@@ -92,10 +93,17 @@ class TestAssetSbomWorkflow(BaseE2ETest):
             advisory = matched_stories.filter(has=page.get_by_role("heading", name=sbom_news_items[0]["title"], exact=True))
             body_match = matched_stories.filter(has=page.get_by_role("heading", name=sbom_news_items[1]["title"], exact=True))
             for story in (advisory, body_match):
-                expect(story.locator('[data-test-id="asset-match-reason"]')).to_have_count(2)
-                for version in ("v0.32.0", "v0.32.1"):
-                    expect(story).to_contain_text(f"github.com/moby/buildkit {version}")
-                expect(story).to_contain_text(asset_name)
+                expect(story.locator('[data-test-id="asset-matched-article"]')).to_have_count(1)
+                expect(story.locator('[data-test-id="asset-matched-software"]')).to_have_text(
+                    "github.com/moby/buildkit · 2 installed versions"
+                )
+                expect(story.locator('[data-test-id="asset-story-summary"]')).to_have_text("1 matching article · 1 software package")
+                expect(story.locator("blockquote")).not_to_be_visible()
+                expect(story.get_by_role("link", name="Open article", exact=True)).to_have_count(1)
+                self.highlight_element(story.get_by_text("Why this matches", exact=True), scroll=True).click()
+                expect(story).to_contain_text("Installed versions: v0.32.0, v0.32.1")
+                expect(story.locator('[data-test-id="asset-match-evidence"]')).to_have_count(1)
+                expect(story.locator("blockquote")).to_be_visible()
             expect(advisory).to_contain_text("Matched “BuildKit” in article title")
             expect(body_match).to_contain_text("Matched “BuildKit” in article content")
             self.highlight_element(advisory.get_by_role("heading"), scroll=True)
@@ -103,7 +111,7 @@ class TestAssetSbomWorkflow(BaseE2ETest):
             if sbom_recording:
                 self.capture_screenshot(page, str(sbom_recording / "02-automatic-intelligence.png"))
 
-            article_link = advisory.locator('[data-test-id="asset-match-reason"]').first.get_by_role("link")
+            article_link = advisory.get_by_role("link", name="Open article", exact=True)
             article_anchor = article_link.get_attribute("href").split("#")[-1]
             self.highlight_element(article_link, scroll=True).click()
             article_card = page.locator(f"#{article_anchor}")
@@ -147,22 +155,46 @@ class TestAssetSbomWorkflow(BaseE2ETest):
             self.highlight_element(page.get_by_role("button", name="Scan existing articles")).click()
             expect(page.locator('[data-test-id="asset-scan-status"]')).to_contain_text("COMPLETED", timeout=45_000)
             expect(matched_stories).to_have_count(2)
-            expect(advisory.locator('[data-test-id="asset-match-reason"]')).to_have_count(2)
-            expect(body_match.locator('[data-test-id="asset-match-reason"]')).to_have_count(2)
+            for story in (advisory, body_match):
+                expect(story.locator('[data-test-id="asset-matched-article"]')).to_have_count(1)
+                expect(story.locator('[data-test-id="asset-match-evidence"]')).to_have_count(1)
             self.highlight_element(advisory.get_by_role("heading"), scroll=True)
             self.short_sleep(self.wait_duration * 2)
             if sbom_recording:
                 self.capture_screenshot(page, str(sbom_recording / "04-refined-intelligence.png"))
 
+            self.highlight_element(body_match.get_by_text("Why this matches", exact=True), scroll=True).click()
+            expect(body_match.locator("blockquote")).to_be_visible()
+
             # Collection updates replace evidence immediately, without another historical scan.
             corrected = sbom_news_items[0] | {"title": "Unrelated maintenance", "content": "Routine maintenance is complete."}
             core_request_client.post("/worker/news-items", json_data=[corrected], headers=api_header, authenticated=False)
-            page.get_by_role("link", name="Refresh results").click()
+            with_htmx_wait(page, lambda: page.get_by_role("link", name="Refresh results").click())
             expect(matched_stories).to_have_count(1)
             expect(advisory).to_have_count(0)
+            expect(body_match.locator("blockquote")).to_be_visible()
             core_request_client.post("/worker/news-items", json_data=[sbom_news_items[0]], headers=api_header, authenticated=False)
-            page.get_by_role("link", name="Refresh results").click()
+            with_htmx_wait(page, lambda: page.get_by_role("link", name="Refresh results").click())
             expect(matched_stories).to_have_count(2)
+            expect(body_match.locator("blockquote")).to_be_visible()
+
+            # Story grouping keeps both article links and counts the shared package once.
+            stories = core_request_client.json_request("GET", f"/assets/{asset_id}/intelligence")["items"]
+            core_request_client.post("/assess/stories/group", json_data=[story["id"] for story in stories])
+            with_htmx_wait(page, lambda: page.get_by_role("link", name="Refresh results").click())
+            expect(matched_stories).to_have_count(1)
+            expect(matched_stories.locator('[data-test-id="asset-matched-article"]')).to_have_count(2)
+            summary = matched_stories.locator('[data-test-id="asset-story-summary"]')
+            expect(summary).to_have_text("2 matching articles · 1 software package")
+            self.highlight_element(summary, scroll=True)
+            article_links = matched_stories.locator('[data-test-id="asset-supporting-article"]')
+            expect(article_links).to_have_text(
+                [
+                    article["title"]
+                    for article in sorted([article for story in stories for article in story["articles"]], key=lambda article: article["id"])
+                ]
+            )
+            assert len({link.get_attribute("href") for link in article_links.all()}) == 2
 
             self.highlight_element(page.get_by_role("link", name="Component triggers", exact=True), scroll=True).click()
             for row in rules.all():

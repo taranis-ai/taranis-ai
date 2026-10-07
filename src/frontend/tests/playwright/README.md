@@ -39,9 +39,12 @@ All flags:
 
 `test_e2e_asset_sbom.py` exercises the same workflow in CI and in a recorded demonstration:
 import a host SBOM, review grouped inventory and installation paths, and immediately see
-matching intelligence after the automatic historical scan. Follow supporting articles in Assess,
+matching intelligence after the automatic historical scan. Each article appears once with a
+compact software summary; expand **Why this matches** to see both installed versions and
+their shared evidence. Follow supporting articles in Assess,
 then optionally refine matching across both BuildKit versions with one rule. It also checks that collection updates refresh evidence and disabling
-triggers removes matches.
+triggers removes matches. Refreshing the results keeps open explanations expanded while
+replacing their content with current evidence.
 
 The walkthrough uses only repository fixtures in a fresh isolated Compose stack:
 

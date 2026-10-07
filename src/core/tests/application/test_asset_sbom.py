@@ -188,7 +188,11 @@ def test_component_trigger_review_collection_and_explainable_matches(client, aut
     original = build_news_item_payload(source.id, title="OpenSSL advisory", content="Python requests and OpenSSL are discussed.")
     assert client.post("/api/worker/news-items", headers=api_header, json=[original]).status_code == 200
     document = json.loads(FIXTURE.read_bytes())
-    document["components"].append({"name": "requests", "type": "library", "version": "2.32.0", "purl": "pkg:pypi/requests@2.32.0"})
+    document["components"].extend(
+        {"name": "requests", "type": "library", "version": version, "purl": f"pkg:pypi/requests@{version}"}
+        for version in ("2.32.0", "2.32.1")
+    )
+    document["components"].append(document["components"][0] | {"bom-ref": "vendor-openssl", "purl": "pkg:generic/vendor/openssl@3.0.2"})
     preview = upload(client, auth_header, document).json
     asset_id = client.post(
         f"/api/assets/sbom-imports/{preview['id']}",
@@ -201,7 +205,7 @@ def test_component_trigger_review_collection_and_explainable_matches(client, aut
     requests = next(t for t in triggers if t["phrase"] == "requests")
     assert requests["enabled"] and requests["context"] == ["Python"] and not requests["has_cpe"]
     openssl = [t for t in triggers if t["phrase"] == "openssl"]
-    assert len(openssl) == 2
+    assert len(openssl) == 3
     assert all(t["enabled"] for t in openssl)
     assert set(openssl[0]["sources"]) == {"sbom", "cpe"}
     assert client.get(base + "/intelligence", headers=auth_header).json["items"] == []
@@ -213,42 +217,109 @@ def test_component_trigger_review_collection_and_explainable_matches(client, aut
     assert client.post(batch_url, headers=api_header, json={}).json["status"] == "COMPLETED"
     assert client.post(batch_url, headers=api_header, json={}).json["status"] == "COMPLETED"
     matches = client.get(base + "/intelligence", headers=auth_header).json["items"]
-    assert len(matches) == 1 and len(matches[0]["reasons"]) == 3
-    assert {reason["news_item_id"] for reason in matches[0]["reasons"]} == {original["id"]}
-    reason = next(r for r in matches[0]["reasons"] if r["phrase"] == "requests")
-    assert reason["evidence"][0]["matched_text"] == "requests"
-    assert reason["evidence"][0]["context"] == ["Python"]
-    assert db.session.query(AssetArticleMatch).count() == 3
+    assert len(matches) == 1 and matches[0]["software_count"] == 4
+    assert len(matches[0]["articles"]) == 1
+    article = matches[0]["articles"][0]
+    assert article["id"] == original["id"]
+    assert len(article["software"]) == 4
+    assert {c["purl"] for p in article["software"] for c in p["components"] if p["name"] == "openssl"} == {
+        "pkg:generic/openssl@3.0.2",
+        "pkg:gem/openssl@3.0.2",
+        "pkg:generic/vendor/openssl@3.0.2",
+    }
+    package = next(p for p in article["software"] if p["name"] == "requests")
+    assert package["versions"] == ["2.32.0", "2.32.1"]
+    assert len(article["evidence"]) == 2
+    content = next(e for e in article["evidence"] if e["field"] == "content")
+    assert content["excerpt"] == original["content"]
+    assert len(content["matches"]) == 4
+    reason = next(r for r in content["matches"] if r["phrase"] == "requests")
+    assert reason["matched_text"] == "requests" and reason["context"] == ["Python"]
+    assert reason["software_id"] == package["id"]
+    assert {t["component_id"] for t in reason["triggers"]} == {c["id"] for c in package["components"]}
+    assert {t["version"] for t in reason["triggers"]} == {"2.32.0", "2.32.1"}
+    assert db.session.query(AssetArticleMatch).count() == 5
     assert not Asset.get(asset_id).vulnerabilities
 
     # Context must be in the same article, and substrings/HTML attributes are not evidence.
     unrelated = build_news_item_payload(source.id, title="Feature requests", content='<p>OpenSSLish requests</p><a title="Python">Plans</a>')
     assert client.post("/api/worker/news-items", headers=api_header, json=[unrelated]).status_code == 200
     assert len(client.get(base + "/intelligence", headers=auth_header).json["items"]) == 1
-    corrected = unrelated | {"title": "Python client", "content": "<p>REQUESTS uses TLS.</p>"}
+    corrected = unrelated | {"title": original["title"], "content": "<p>Python REQUESTS uses TLS.</p>"}
     assert client.post("/api/worker/news-items", headers=api_header, json=[corrected]).status_code == 200
     assert len(client.get(base + "/intelligence", headers=auth_header).json["items"]) == 2
     Story.group_stories([NewsItem.get(original["id"]).story_id, NewsItem.get(unrelated["id"]).story_id])
     grouped = client.get(base + "/intelligence", headers=auth_header).json["items"]
-    assert len(grouped) == 1 and len(grouped[0]["reasons"]) == 4
+    assert len(grouped) == 1 and grouped[0]["software_count"] == 4
+    assert {a["id"] for a in grouped[0]["articles"]} == {original["id"], unrelated["id"]}
+    assert [a["title"] for a in grouped[0]["articles"]] == [original["title"], original["title"]]
 
     custom = client.post(
         base + "/triggers",
         headers=auth_header,
         json={
             "component_id": requests["component_id"],
-            "phrase": "Python HTTP client",
+            "phrase": "Python requests",
+            "context": ["discussed"],
             "enabled": True,
         },
     )
     assert custom.status_code == 201 and custom.json["sources"] == ["analyst"]
+    rescan = client.post(base + "/match-runs", headers=auth_header, json={"days": 0}).json
+    assert client.post(f"/api/worker/asset-match-runs/{rescan['id']}/batch", headers=api_header, json={}).json["status"] == "COMPLETED"
+    grouped = client.get(base + "/intelligence", headers=auth_header).json["items"]
+    article = next(a for a in grouped[0]["articles"] if a["id"] == original["id"])
+    assert len(article["software"]) == 4 and len(article["evidence"]) == 2
+    content = next(e for e in article["evidence"] if e["field"] == "content")
+    assert {(r["phrase"], tuple(r["context"])) for r in content["matches"] if r["software_id"] == package["id"]} == {
+        ("requests", ("Python",)),
+        ("Python requests", ("discussed",)),
+    }
+    selected.append(custom.json["id"])
     edited = {"phrase": "SSL library", "context": ["OpenSSL"], "enabled": False}
     assert client.put(base + f"/triggers/{openssl[0]['id']}", headers=auth_header, json=edited).status_code == 200
+    remaining = client.get(base + "/intelligence", headers=auth_header).json["items"][0]
+    assert remaining["software_count"] == 3
+    for article in remaining["articles"]:
+        assert len(article["software"]) == 3
+        assert openssl[0]["component_id"] not in {c["id"] for p in article["software"] for c in p["components"]}
+        assert openssl[0]["id"] not in {t["id"] for e in article["evidence"] for r in e["matches"] for t in r["triggers"]}
     assert client.post(base + "/triggers/suggestions", headers=auth_header, json={}).json["added"] == 0
     saved = client.get(base + "/triggers", headers=auth_header).json["items"]
     assert next(t for t in saved if t["id"] == openssl[0]["id"])["phrase"] == "SSL library"
     assert client.post(base + "/triggers/selection", headers=auth_header, json={"trigger_ids": selected, "enabled": False}).status_code == 200
     assert client.get(base + "/intelligence", headers=auth_header).json["items"] == []
+
+
+def test_intelligence_paginates_complete_stories(client, auth_header, api_header, session):
+    preview = upload(client, auth_header).json
+    asset_id = client.post(
+        f"/api/assets/sbom-imports/{preview['id']}",
+        headers=auth_header,
+        json={"name": "Paged intelligence", "asset_group_id": AssetGroup.get_default_group().id},
+    ).json["id"]
+    source = create_osint_source(rank=0)
+    articles = [build_news_item_payload(source.id, title=f"OpenSSL notice {i}") for i in range(22)]
+    assert client.post("/api/worker/news-items", headers=api_header, json=articles).status_code == 200
+    Story.group_stories([NewsItem.get(article["id"]).story_id for article in articles[:2]])
+    expected_ids = sorted({NewsItem.get(article["id"]).story_id for article in articles}, reverse=True)
+
+    endpoint = f"/api/assets/{asset_id}/intelligence"
+    first = client.get(endpoint, headers=auth_header).json
+    second = client.get(endpoint + "?page=2", headers=auth_header).json
+    assert [story["id"] for story in first["items"]] == expected_ids[:20]
+    assert [story["id"] for story in second["items"]] == expected_ids[20:]
+    assert first["has_more"] and not second["has_more"]
+    stories = first["items"] + second["items"]
+    assert sum(len(story["articles"]) for story in stories) == 22
+    for story in stories:
+        assert story["software_count"] == 2
+        for article in story["articles"]:
+            assert len(article["software"]) == 2
+            assert len(article["evidence"]) == 1
+            assert len(article["evidence"][0]["matches"]) == 2
+    empty = client.get(endpoint + "?page=3", headers=auth_header).json
+    assert empty["items"] == [] and not empty["has_more"]
 
 
 def test_historical_matching_batches_and_current_visibility(client, auth_header, auth_header_user_permissions, api_header, session):
@@ -284,7 +355,8 @@ def test_historical_matching_batches_and_current_visibility(client, auth_header,
     final = client.post(batch_url, headers=api_header, json={}).json
     assert final["status"] == "COMPLETED" and final["processed"] == 201
     assert client.get(base + "/match-runs", headers=auth_header).json["run"]["id"] != scan.json["id"]
-    assert len(client.get(base + "/intelligence", headers=auth_header_user_permissions).json["items"][0]["reasons"]) == 201
+    visible_story = client.get(base + "/intelligence", headers=auth_header_user_permissions).json["items"][0]
+    assert len(visible_story["articles"]) == 201 and visible_story["software_count"] == 1
     acl.item_id = "unavailable"
     db.session.commit()
     assert client.get(base + "/intelligence", headers=auth_header_user_permissions).json["items"] == []
@@ -295,7 +367,9 @@ def test_historical_matching_batches_and_current_visibility(client, auth_header,
     story.upsert_attribute(NewsItemAttribute(key="TLP", value="clear"))
     story.news_items[0].upsert_attribute(NewsItemAttribute(key="TLP", value="red"))
     db.session.commit()
-    assert len(client.get(base + "/intelligence", headers=auth_header_user_permissions).json["items"][0]["reasons"]) == 200
+    visible_story = client.get(base + "/intelligence", headers=auth_header_user_permissions).json["items"][0]
+    assert len(visible_story["articles"]) == 200 and visible_story["software_count"] == 1
+    assert story.news_items[0].id not in {a["id"] for a in visible_story["articles"]}
     # A scan must recheck permissions when the worker runs, not only when it was queued.
     scan = client.post(base + "/match-runs", headers=auth_header_user_permissions, json={"days": 0})
     role.permissions = [p for p in role.permissions if p.code != "ASSESS_ACCESS"]

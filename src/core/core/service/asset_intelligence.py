@@ -248,6 +248,61 @@ def scan_batch(run: AssetMatchRun) -> None:
     run.status = "COMPLETED" if len(items) < ARTICLES_PER_BATCH else "RUNNING"
 
 
+def article_intelligence(matches: list[tuple[AssetArticleMatch, list[dict]]]) -> dict:
+    """Summarize packages and share excerpts without losing rule/component attribution."""
+    item = matches[0][0].news_item
+    software, excerpts = {}, {}
+    for match, evidence in matches:
+        trigger = match.trigger
+        component = trigger.component.inventory
+        identity = product_identity(component)
+        package = software.setdefault(identity, {"id": trigger.component_id, "name": component["name"], "components": {}})
+        package["components"][trigger.component_id] = {
+            "id": trigger.component_id,
+            "name": component["name"],
+            "version": component["version"],
+            "purl": component.get("purl", ""),
+        }
+        for reason in evidence:
+            excerpt = excerpts.setdefault(
+                (reason["field"], reason["excerpt"]), {"field": reason["field"], "excerpt": reason["excerpt"], "matches": {}}
+            )
+            explanation = excerpt["matches"].setdefault(
+                (identity, trigger.phrase, reason["matched_text"], tuple(reason["context"])),
+                {
+                    "software_id": package["id"],
+                    "phrase": trigger.phrase,
+                    "matched_text": reason["matched_text"],
+                    "context": reason["context"],
+                    "triggers": [],
+                },
+            )
+            explanation["triggers"].append({"id": trigger.id, "component_id": trigger.component_id, "version": component["version"]})
+
+    for package in software.values():
+        package["components"] = sorted(package["components"].values(), key=lambda component: (component["version"], component["id"]))
+        package["versions"] = sorted({component["version"] for component in package["components"]})
+    for excerpt in excerpts.values():
+        excerpt["matches"] = list(excerpt["matches"].values())
+    return {"id": item.id, "title": item.title, "software": list(software.values()), "evidence": list(excerpts.values())}
+
+
+def story_intelligence(matches: list[tuple[AssetArticleMatch, list[dict]]]) -> dict:
+    story = matches[0][0].news_item.story
+    assert story is not None
+    articles = {}
+    packages = set()
+    for match, evidence in matches:
+        articles.setdefault(match.news_item_id, []).append((match, evidence))
+        packages.add(product_identity(match.trigger.component.inventory))
+    return {
+        "id": story.id,
+        "title": story.title,
+        "software_count": len(packages),
+        "articles": [article_intelligence(article_matches) for article_matches in articles.values()],
+    }
+
+
 def relevant_stories(asset_id: str, user: User, page: int) -> dict:
     visible = Story.visible_query(user).with_only_columns(Story.id)
     query = (
@@ -273,23 +328,11 @@ def relevant_stories(asset_id: str, user: User, page: int) -> dict:
         fields = {field: article_text(getattr(item, field)) for field in ("title", "content")}
         if not (evidence := match_evidence(trigger, fields)):
             continue
-        story = stories.setdefault(item.story_id, {"id": item.story_id, "title": item.story.title, "reasons": []})
-        component = trigger.component.inventory
-        story["reasons"].append(
-            {
-                "trigger_id": trigger.id,
-                "phrase": trigger.phrase,
-                "component": component["name"],
-                "version": component["version"],
-                "news_item_id": item.id,
-                "article_title": item.title,
-                "evidence": evidence,
-            }
-        )
+        stories.setdefault(item.story_id, []).append((match, evidence))
         if len(stories) > page * STORIES_PER_PAGE:
             break
     return {
-        "items": list(stories.values())[(page - 1) * STORIES_PER_PAGE : page * STORIES_PER_PAGE],
+        "items": [story_intelligence(matches) for matches in list(stories.values())[(page - 1) * STORIES_PER_PAGE : page * STORIES_PER_PAGE]],
         "page": page,
         "has_more": len(stories) > page * STORIES_PER_PAGE,
     }

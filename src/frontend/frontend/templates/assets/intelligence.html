@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
-  <div class="p-4 space-y-4">
+  <div class="p-4 space-y-4" x-data="{ expandedArticles: {} }">
     <nav class="flex gap-4">
       <a class="link" href="{{ url_for('assets.asset', asset_id=asset_id) }}">Asset details</a>
       <a class="link" href="{{ url_for('assets.asset_sbom', asset_id=asset_id) }}">SBOM inventory</a>
@@ -32,23 +32,61 @@
                class="space-y-4">
         <div class="flex gap-4 items-center">
           {% if run %}<p role="status" data-test-id="asset-scan-status">Your latest scan: {{ run.status }} · {{ run.processed }} accessible articles checked{% if run.error %} · {{ run.error }}{% endif %}</p>{% endif %}
-          <a class="btn btn-outline" href="{{ url_for('assets.asset_intelligence', asset_id=asset_id) }}">Refresh results</a>
+          <a class="btn btn-outline"
+             href="{{ url_for('assets.asset_intelligence', asset_id=asset_id, page=data.page) }}"
+             hx-get="{{ url_for('assets.asset_intelligence', asset_id=asset_id, page=data.page) }}"
+             hx-select="#asset-intelligence-results"
+             hx-target="#asset-intelligence-results"
+             hx-swap="outerHTML">Refresh results</a>
         </div>
         {% for story in data['items'] %}
           <article class="card bg-base-200 p-4 space-y-3" data-test-id="asset-matched-story">
             <h2 class="text-xl font-bold"><a class="link" href="{{ url_for('assess.story', story_id=story.id) }}">{{ story.title }}</a></h2>
-            {% for reason in story.reasons %}
-              <div class="border-l-4 border-primary pl-3" data-test-id="asset-match-reason">
-                <p><strong>{{ reason.phrase }}</strong> → component {{ reason.component }} {{ reason.version }} → {{ data.asset_name }}</p>
-                <p>Supporting article: <a class="link"
-    href="{{ url_for('assess.story', story_id=story.id, _anchor='news-item-card-' ~ reason.news_item_id) }}">{{ reason.article_title }}</a></p>
-                {% for evidence in reason.evidence %}
-                  <p>Matched “{{ evidence.matched_text }}” in article {{ evidence.field }}{% if evidence.context %}; context: {{ evidence.context | join(", ") }}{% endif %}</p>
-                  <blockquote class="italic break-words">
-                    {{ evidence.excerpt }}
-                  </blockquote>
-                {% endfor %}
-              </div>
+            <p class="text-sm" data-test-id="asset-story-summary">{{ story.articles | length }} matching article{{ 's' if story.articles | length != 1 }} · {{ story.software_count }} software package{{ 's' if story.software_count != 1 }}</p>
+            {% for article in story.articles %}
+              <section class="border-l-4 border-primary pl-3 space-y-2" data-test-id="asset-matched-article">
+                <a class="link"
+                   data-test-id="asset-supporting-article"
+                   href="{{ url_for('assess.story', story_id=story.id, _anchor='news-item-card-' ~ article.id) }}">{{ 'Open article' if story.articles | length == 1 and article.title == story.title else article.title }}</a>
+                <ul aria-label="Matched software" class="flex flex-wrap gap-2">
+                  {% for software in article.software %}
+                    <li class="badge badge-outline h-auto" data-test-id="asset-matched-software">{{ software.name }} · {{ software.versions | length }} installed version{{ 's' if software.versions | length != 1 }}</li>
+                  {% endfor %}
+                </ul>
+                <details :open='expandedArticles[{{ article.id | tojson }}] || false'
+                         @toggle='if ($el.isConnected) expandedArticles[{{ article.id | tojson }}] = $el.open'>
+                  <summary class="cursor-pointer">Why this matches</summary>
+                  <div class="space-y-3 pt-2">
+                    <ul class="space-y-2">
+                      {% for software in article.software %}
+                        <li>
+                          <strong>{{ software.name }}</strong> · Installed versions: {{ software.versions | join(", ") }}
+                          <ul class="text-sm">
+                            {% for component in software.components %}
+                              <li>
+                                <a class="link"
+                                   href="{{ url_for('assets.asset_triggers', asset_id=asset_id, component_id=component.id) }}">Matching rules for {{ component.name }} {{ component.version }}</a>
+                                {% if component.purl %}<span class="break-all">({{ component.purl }})</span>{% endif %}
+                              </li>
+                            {% endfor %}
+                          </ul>
+                        </li>
+                      {% endfor %}
+                    </ul>
+                    {% for evidence in article.evidence %}
+                      <div data-test-id="asset-match-evidence">
+                        {% for match in evidence.matches %}
+                          {% set software = article.software | selectattr('id', 'equalto', match.software_id) | first %}
+                          <p>Matched “{{ match.matched_text }}” in article {{ evidence.field }} · Rule: {{ match.phrase }} · {{ software.name }} ({{ match.triggers | map(attribute='version') | unique(case_sensitive=true) | join(", ") }}){% if match.context %}; context: {{ match.context | join(", ") }}{% endif %}</p>
+                        {% endfor %}
+                        <blockquote class="italic break-words">
+                          {{ evidence.excerpt }}
+                        </blockquote>
+                      </div>
+                    {% endfor %}
+                  </div>
+                </details>
+              </section>
             {% endfor %}
           </article>
         {% else %}
