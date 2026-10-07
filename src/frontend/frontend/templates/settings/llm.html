@@ -41,12 +41,13 @@
           {% if endpoint.health %}<p class="text-sm mb-3">{{ endpoint.health.message }}</p>{% endif %}
           <form method="post" action="{{ endpoint_url }}" hx-post="{{ endpoint_url }}" data-test-id="llm-endpoint-form">
             <input type="hidden" name="csrf_token" value="{{ request.cookies.get(config['JWT_ACCESS_CSRF_COOKIE_NAME'], '') }}" />
-            {{ form_input('Name', 'name', endpoint.name | default(''), preserve=False, required=True, input_id='llm-' ~ endpoint_id ~ '-name') }}
-            {{ form_input('Provider base URL', 'base_url', endpoint.base_url | default(''), type='url', preserve=False, required=True, placeholder='https://provider.example/v1', input_id='llm-' ~ endpoint_id ~ '-base_url') }}
+            {{ form_input('Name', 'name', endpoint.name | default(''), preserve=False, floating=False, required=True, input_id='llm-' ~ endpoint_id ~ '-name') }}
+            {{ form_input('Provider base URL', 'base_url', endpoint.base_url | default(''), type='url', preserve=False, floating=False, required=True, placeholder='https://provider.example/v1', input_id='llm-' ~ endpoint_id ~ '-base_url') }}
             <p class="text-sm text-base-content/70 mb-4">Enter the base URL without /responses or /chat/completions.</p>
-            {{ form_input('Model', 'model', endpoint.model | default(''), preserve=False, required=False, placeholder='Provider default', input_id='llm-' ~ endpoint_id ~ '-model') }}
+            {{ form_input('Model', 'model', endpoint.model | default(''), preserve=False, floating=False, required=False, placeholder='Provider model ID', input_id='llm-' ~ endpoint_id ~ '-model') }}
+            <p class="text-sm text-base-content/70 mb-4">Use the provider's exact model ID. Leave blank only if the provider supplies a default model.</p>
             {{ form_select('API format', 'api_format', endpoint.api_format | default('responses'), options=[{'id': 'responses', 'name': 'Responses'}, {'id': 'chat_completions', 'name': 'Chat Completions'}], input_id='llm-' ~ endpoint_id ~ '-api_format') }}
-            {{ form_input('API key', 'api_key', '', type='password', required=False, preserve=False, placeholder='Leave blank to keep the saved key', input_id='llm-' ~ endpoint_id ~ '-api_key') }}
+            {{ form_input('API key', 'api_key', '', type='password', required=False, preserve=False, floating=False, placeholder='Leave blank to keep the saved key' if endpoint_id else 'Enter provider API key', input_id='llm-' ~ endpoint_id ~ '-api_key') }}
             <p class="text-sm text-base-content/70 mb-4">{{ 'An API key is saved.' if endpoint.api_key_configured else 'No API key saved. Optional for providers without authentication.' }}</p>
             {% if endpoint_id %}
               <label class="flex items-center gap-3 mb-4">
@@ -54,7 +55,7 @@
                 Remove saved API key
               </label>
             {% endif %}
-            {{ form_input('Timeout (seconds)', 'timeout', endpoint.timeout | default(120), type='number', preserve=False, min_value=1, input_id='llm-' ~ endpoint_id ~ '-timeout') }}
+            {{ form_input('Timeout (seconds)', 'timeout', endpoint.timeout | default(120), type='number', preserve=False, floating=False, min_value=1, input_id='llm-' ~ endpoint_id ~ '-timeout') }}
             <button class="btn btn-primary" type="submit">{{ 'Save Endpoint' if endpoint_id else 'Add Endpoint' }}</button>
           </form>
           {% if endpoint_id %}

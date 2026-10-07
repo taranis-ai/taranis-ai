@@ -10,7 +10,7 @@ Centrifugo/SSE, `/sse`, connect proxy, `REALTIME_ENABLED`, reconnects, broadcast
 - Public same-origin `${TARANIS_BASE_PATH}sse` proxies only to `/connection/uni_sse`, forwarding cookie/origin with buffering/cache disabled. Client transport stays deployment-internal; API/health/metrics use a separate internal port. Never proxy admin/debug/Swagger/WebSocket or management endpoints publicly.
 - Exact space-separated origin allowlists are enforced by Centrifugo before the core connect proxy. `POST ${TARANIS_BASE_PATH}api/realtime/connect` requires its dedicated secret plus a valid access cookie (type, expiry, revocation, current user) and returns global/organization/user channels. Authentication failure is terminal.
 - EventSource cannot add custom headers. Keep proxy authentication separate from browser CSRF and use distinct API, JWT, Centrifugo API, and proxy secrets. Never put credentials in SSE URLs.
-- Development-only exception: client/authenticated admin UI binds `0.0.0.0`, API/health stays loopback; proxy reaches host Core via `host.containers.internal`/`TARANIS_CORE_PORT`. Preserve `admin.external` behavior in `dev/compose.yml`.
+- Development-only exception: client/authenticated admin UI uses host port `8001` (leaving `8000` for inference) and binds `0.0.0.0`, API/health stays loopback; proxy reaches host Core via `host.containers.internal`/`TARANIS_CORE_PORT`. Preserve `admin.external` behavior in `dev/compose.yml`.
 
 ## Delivery and Recovery
 

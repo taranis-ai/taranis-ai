@@ -70,7 +70,7 @@ services:
       redis:
         condition: service_healthy
     ports:
-      - "0.0.0.0:${TARANIS_CENTRIFUGO_PORT:-8000}:8000"
+      - "0.0.0.0:${TARANIS_CENTRIFUGO_PORT:-8001}:8000"
       - "127.0.0.1:${TARANIS_CENTRIFUGO_API_PORT:-9000}:9000"
     environment:
       CENTRIFUGO_ADMIN_ENABLED: "true"

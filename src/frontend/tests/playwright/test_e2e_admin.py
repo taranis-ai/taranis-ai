@@ -1639,6 +1639,8 @@ class TestEndToEndAdmin(BaseE2ETest):
             if not new_endpoint.evaluate("element => element.open"):
                 new_endpoint.locator("summary").click()
             form = new_endpoint.locator("form")
+            expect(form.get_by_text("Model", exact=True)).to_be_visible()
+            expect(form.get_by_text("API key", exact=True)).to_be_visible()
             form.get_by_label("Name", exact=False).fill("E2E shared model")
             form.get_by_label("Provider base URL").fill("https://provider.example/v1/responses")
             form.get_by_label("API key", exact=False).fill("e2e-private-key")
