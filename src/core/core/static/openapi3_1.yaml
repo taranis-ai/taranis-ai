@@ -6644,7 +6644,7 @@ paths:
       - assets
       operationId: sbom_upload.post
       description: Upload CycloneDX JSON 1.5–1.7 (default maximum request 250 MiB). Requires
-        ASSETS_CREATE. Preview is private and expires after 24 hours.
+        ASSETS_CREATE. Preview is private and has no time limit. Specific product names are enabled for matching by default; broad vendor and supplier terms remain disabled.
       responses:
         '200':
           description: Existing accessible import resumed
@@ -6713,8 +6713,8 @@ paths:
       - assets
       operationId: sbom_preview.post
       description: Atomically create one asset from an owned preview. Requires ASSETS_CREATE
-        and access to the destination group. Repeated confirmation returns the same
-        asset.
+        and access to the destination group. Enables product-name matching and automatically queues a 30-day historical scan when the importer has ASSETS_ACCESS and ASSESS_ACCESS. Queue failure preserves the asset and records a failed run for retry. Repeated confirmation returns the same
+        asset without queuing another scan.
       responses:
         '200':
           description: Already confirmed
@@ -6783,8 +6783,8 @@ paths:
       tags:
       - assets
       operationId: AssetTriggers.get
-      description: List component triggers, their provenance and review state. Requires
-        ASSETS_ACCESS and current asset-group access. Paginates 50 rules.
+      description: List matching rules grouped across versions of the same package, with provenance and review state. Each item includes versions and component_ids. Requires
+        ASSETS_ACCESS and current asset-group access. Paginates 50 review groups.
       parameters:
       - name: asset_id
         in: path
@@ -6830,7 +6830,7 @@ paths:
       tags:
       - assets
       operationId: AssetTriggers.post
-      description: Add an analyst phrase to a component of this asset. Requires ASSETS_CREATE
+      description: Add an analyst phrase across all versions of a component package in this asset. Requires ASSETS_CREATE
         and current asset-group access.
       parameters:
       - name: asset_id
@@ -6867,7 +6867,7 @@ paths:
       - assets
       operationId: AssetTriggerEdit.put
       description: Replace phrase, optional context (any phrase in the same article)
-        and activation state. Removes existing evidence for this rule; scan history
+        and activation state across the displayed package-version group. Removes existing evidence for those rules; scan history
         to refresh. Requires ASSETS_CREATE.
       parameters:
       - name: asset_id
@@ -6944,7 +6944,7 @@ paths:
       tags:
       - assets
       operationId: AssetTriggerSuggestions.post
-      description: Generate missing disabled suggestions without overwriting analyst
+      description: Generate missing suggestions with product-name matching defaults without overwriting analyst
         decisions. Requires ASSETS_CREATE.
       parameters:
       - name: asset_id

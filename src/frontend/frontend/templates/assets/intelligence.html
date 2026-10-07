@@ -3,13 +3,14 @@
   <div class="p-4 space-y-4">
     <nav class="flex gap-4">
       <a class="link" href="{{ url_for('assets.asset', asset_id=asset_id) }}">Asset details</a>
+      <a class="link" href="{{ url_for('assets.asset_sbom', asset_id=asset_id) }}">SBOM inventory</a>
       <a class="link" href="{{ url_for('assets.asset_triggers', asset_id=asset_id) }}">Component triggers</a>
     </nav>
     <h1 class="text-2xl font-bold">Relevant intelligence{% if data %} · {{ data.asset_name }}{% endif %}</h1>
     <p>These mentions indicate potential relevance. They do not confirm a vulnerability or that the installed version is affected.</p>
     {% if error %}<div role="alert" class="alert alert-error">{{ error }}</div>{% endif %}
     {% if data %}
-      <p>Enabled triggers apply automatically to new and updated collected articles. After changing triggers, scan existing articles to refresh their matches.</p>
+      <p>Product-name matching starts automatically on import, with an initial scan of articles collected in the last 30 days. New and updated articles are matched as they arrive. Component triggers let you optionally refine the results; scan again after changing them.</p>
       {% if "ASSETS_CREATE" in current_user.permissions %}
         <form method="post" class="flex flex-wrap gap-2 items-end">
           <input type="hidden" name="csrf_token" value="{{ request.cookies.get(config['JWT_ACCESS_CSRF_COOKIE_NAME'], '') }}">
@@ -26,37 +27,45 @@
           <button class="btn btn-primary" type="submit">Scan existing articles</button>
         </form>
       {% endif %}
-      <div class="flex gap-4 items-center">
-        {% if run %}<p role="status" data-test-id="asset-scan-status">Your latest scan: {{ run.status }} · {{ run.processed }} accessible articles checked{% if run.error %} · {{ run.error }}{% endif %}</p>{% endif %}
-        <a class="btn btn-outline" href="{{ url_for('assets.asset_intelligence', asset_id=asset_id) }}">Refresh results</a>
-      </div>
-      {% for story in data['items'] %}
-        <article class="card bg-base-200 p-4 space-y-3" data-test-id="asset-matched-story">
-          <h2 class="text-xl font-bold"><a class="link" href="{{ url_for('assess.story', story_id=story.id) }}">{{ story.title }}</a></h2>
-          {% for reason in story.reasons %}
-            <div class="border-l-4 border-primary pl-3" data-test-id="asset-match-reason">
-              <p><strong>{{ reason.phrase }}</strong> → component {{ reason.component }} {{ reason.version }} → {{ data.asset_name }}</p>
-              <p>Supporting article: <a class="link"
+      <section id="asset-intelligence-results"
+               {% if run and run.status in ('QUEUED', 'RUNNING') %} hx-get="{{ url_for('assets.asset_intelligence', asset_id=asset_id, page=data.page) }}" hx-trigger="every 2s" hx-select="#asset-intelligence-results" hx-target="this" hx-swap="outerHTML" {% endif %}
+               class="space-y-4">
+        <div class="flex gap-4 items-center">
+          {% if run %}<p role="status" data-test-id="asset-scan-status">Your latest scan: {{ run.status }} · {{ run.processed }} accessible articles checked{% if run.error %} · {{ run.error }}{% endif %}</p>{% endif %}
+          <a class="btn btn-outline" href="{{ url_for('assets.asset_intelligence', asset_id=asset_id) }}">Refresh results</a>
+        </div>
+        {% for story in data['items'] %}
+          <article class="card bg-base-200 p-4 space-y-3" data-test-id="asset-matched-story">
+            <h2 class="text-xl font-bold"><a class="link" href="{{ url_for('assess.story', story_id=story.id) }}">{{ story.title }}</a></h2>
+            {% for reason in story.reasons %}
+              <div class="border-l-4 border-primary pl-3" data-test-id="asset-match-reason">
+                <p><strong>{{ reason.phrase }}</strong> → component {{ reason.component }} {{ reason.version }} → {{ data.asset_name }}</p>
+                <p>Supporting article: <a class="link"
     href="{{ url_for('assess.story', story_id=story.id, _anchor='news-item-card-' ~ reason.news_item_id) }}">{{ reason.article_title }}</a></p>
-              {% for evidence in reason.evidence %}
-                <p>Matched “{{ evidence.matched_text }}” in article {{ evidence.field }}{% if evidence.context %}; context: {{ evidence.context | join(", ") }}{% endif %}</p>
-                <blockquote class="italic break-words">
-                  {{ evidence.excerpt }}
-                </blockquote>
-              {% endfor %}
-            </div>
-          {% endfor %}
-        </article>
-      {% else %}
-        <p>No matching stories are currently visible. Review and enable component triggers, then scan existing articles.</p>
-      {% endfor %}
-      <nav aria-label="Intelligence pages" class="flex gap-4 items-center">
-        {% if data.page > 1 %}<a class="btn btn-sm"
+                {% for evidence in reason.evidence %}
+                  <p>Matched “{{ evidence.matched_text }}” in article {{ evidence.field }}{% if evidence.context %}; context: {{ evidence.context | join(", ") }}{% endif %}</p>
+                  <blockquote class="italic break-words">
+                    {{ evidence.excerpt }}
+                  </blockquote>
+                {% endfor %}
+              </div>
+            {% endfor %}
+          </article>
+        {% else %}
+          {% if run and run.status in ("QUEUED", "RUNNING") %}
+            <p>Matching your software against collected articles… Results will appear automatically.</p>
+          {% else %}
+            <p>No matching stories are currently visible. New articles will be matched automatically. You can adjust component triggers or scan a longer period.</p>
+          {% endif %}
+        {% endfor %}
+        <nav aria-label="Intelligence pages" class="flex gap-4 items-center">
+          {% if data.page > 1 %}<a class="btn btn-sm"
    href="{{ url_for('assets.asset_intelligence', asset_id=asset_id, page=data.page - 1) }}">Previous</a>{% endif %}
-        <span>Page {{ data.page }}</span>
-        {% if data.has_more %}<a class="btn btn-sm"
+          <span>Page {{ data.page }}</span>
+          {% if data.has_more %}<a class="btn btn-sm"
    href="{{ url_for('assets.asset_intelligence', asset_id=asset_id, page=data.page + 1) }}">Next</a>{% endif %}
-      </nav>
+        </nav>
+      </section>
     {% endif %}
   </div>
 {% endblock content %}

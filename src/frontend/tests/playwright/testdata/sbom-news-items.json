@@ -21,7 +21,7 @@
   },
   {
     "title": "curl security advisory (test fixture)",
-    "content": "A synthetic vulnerability in curl needs analyst review. The package is installed, but its suggestions remain disabled in this walkthrough.",
-    "link": "https://example.invalid/sbom/disabled-component"
+    "content": "A synthetic vulnerability in curl needs analyst review. The package is installed and matches automatically. An analyst can disable its rule later.",
+    "link": "https://example.invalid/sbom/curl-advisory"
   }
 ]

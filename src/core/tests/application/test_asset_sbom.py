@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 
+from core.managers import queue_manager
 from core.managers.db_manager import db
 from core.model.asset import Asset, AssetGroup
 from core.model.asset_intelligence import AssetArticleMatch, AssetMatchRun
@@ -74,6 +75,8 @@ def test_asset_import_preview_confirmation_and_inventory(client, auth_header, se
     assert repeated.status_code == 200
     assert repeated.json["id"] == asset_id
     assert db.session.query(Asset).count() == before + 1
+    runs = db.session.scalars(db.select(AssetMatchRun).filter_by(asset_id=asset_id)).all()
+    assert len(runs) == 1 and runs[0].days == 30
     asset = Asset.get(asset_id)
     assert asset.name == "Customer portal"
     assert len(asset.asset_cpes) == 2
@@ -82,13 +85,13 @@ def test_asset_import_preview_confirmation_and_inventory(client, auth_header, se
     assert inventory.json["sha256"] == preview["sha256"]
     assert inventory.json["components"] == preview["components"]
     suggestions = preview["components"][0]["suggestions"]
-    assert suggestions and all(not row["enabled"] for row in suggestions)
+    assert suggestions and any(row["enabled"] for row in suggestions)
     assert client.delete(f"/api/assets/{asset_id}", headers=auth_header).status_code == 200
     assert db.session.get(AssetSbomImport, preview["id"]) is None
     assert not db.session.scalar(db.select(AssetSbomComponent).filter_by(import_id=preview["id"]))
 
 
-def test_import_boundaries_expiry_and_pagination(client, auth_header, auth_header_user_permissions, session):
+def test_import_boundaries_persistent_preview_and_pagination(client, auth_header, auth_header_user_permissions, session):
     document = json.loads(FIXTURE.read_bytes())
     document["components"].extend({"name": f"component-{i}", "type": "library"} for i in range(55))
     response = upload(client, auth_header, document)
@@ -113,11 +116,17 @@ def test_import_boundaries_expiry_and_pagination(client, auth_header, auth_heade
     denied = client.post(endpoint, headers=auth_header, json={"name": "Denied", "asset_group_id": other_group.id})
     assert denied.status_code == 403
     record = db.session.get(AssetSbomImport, response.json["id"])
-    record.created -= timedelta(days=2)
+    record.created -= timedelta(days=60)
     db.session.commit()
-    assert client.get(endpoint, headers=auth_header).status_code == 404
-    assert client.post(endpoint, headers=auth_header, json={"name": "Expired", "asset_group_id": "default"}).status_code == 404
-    assert upload(client, auth_header, document).status_code == 201
+    assert upload(client, auth_header).status_code == 201
+    assert client.get(endpoint, headers=auth_header).status_code == 200
+    assert upload(client, auth_header, document).json["id"] == record.id
+    assert (
+        client.post(
+            endpoint, headers=auth_header, json={"name": "Saved preview", "asset_group_id": AssetGroup.get_default_group().id}
+        ).status_code
+        == 201
+    )
     assert client.get(endpoint, headers=auth_header_user_permissions).status_code == 403
     assert client.post(endpoint, headers=auth_header_user_permissions, json={}).status_code == 403
 
@@ -144,7 +153,40 @@ def test_asset_inventory_uses_current_organization_access(client, auth_header, s
     assert client.post(f"/api/assets/{created.json['id']}/triggers/suggestions", headers=auth_header).status_code == 404
 
 
+def test_import_retains_asset_when_initial_scan_cannot_be_queued(client, auth_header, session, monkeypatch):
+    preview = upload(client, auth_header).json
+    endpoint = f"/api/assets/sbom-imports/{preview['id']}"
+    with monkeypatch.context() as patch:
+        patch.setattr(queue_manager.queue_manager, "enqueue_task", lambda *args, **kwargs: False)
+        created = client.post(endpoint, headers=auth_header, json={"name": "Saved host", "asset_group_id": AssetGroup.get_default_group().id})
+    assert created.status_code == 201
+    base = f"/api/assets/{created.json['id']}"
+    assert client.get(base + "/sbom", headers=auth_header).status_code == 200
+    run = client.get(base + "/match-runs", headers=auth_header).json["run"]
+    assert run["status"] == "FAILED" and run["error"] == "Unable to queue the scan. Please try again."
+    retry = client.post(base + "/match-runs", headers=auth_header, json={"days": 30})
+    assert retry.status_code == 202 and retry.json["status"] == "QUEUED"
+
+
+def test_import_without_intelligence_access_does_not_start_scan(client, auth_header_user_permissions, session):
+    role = Role.filter_by_name("User")
+    role.permissions = Permission.get_bulk(["ASSETS_ACCESS", "ASSETS_CREATE"])
+    db.session.commit()
+    preview = upload(client, auth_header_user_permissions).json
+    created = client.post(
+        f"/api/assets/sbom-imports/{preview['id']}",
+        headers=auth_header_user_permissions,
+        json={"name": "Inventory only", "asset_group_id": AssetGroup.get_default_group().id},
+    )
+    assert created.status_code == 201
+    assert not db.session.scalar(db.select(AssetMatchRun).filter_by(asset_id=created.json["id"]))
+    assert client.get(f"/api/assets/{created.json['id']}/intelligence", headers=auth_header_user_permissions).status_code == 403
+
+
 def test_component_trigger_review_collection_and_explainable_matches(client, auth_header, api_header, session):
+    source = create_osint_source(rank=0)
+    original = build_news_item_payload(source.id, title="OpenSSL advisory", content="Python requests and OpenSSL are discussed.")
+    assert client.post("/api/worker/news-items", headers=api_header, json=[original]).status_code == 200
     document = json.loads(FIXTURE.read_bytes())
     document["components"].append({"name": "requests", "type": "library", "version": "2.32.0", "purl": "pkg:pypi/requests@2.32.0"})
     preview = upload(client, auth_header, document).json
@@ -155,23 +197,19 @@ def test_component_trigger_review_collection_and_explainable_matches(client, aut
     ).json["id"]
     base = f"/api/assets/{asset_id}"
     triggers = client.get(base + "/triggers", headers=auth_header).json["items"]
-    assert all(not trigger["enabled"] for trigger in triggers)
+    assert not next(t for t in triggers if t["phrase"] == "ruby-lang")["enabled"]
     requests = next(t for t in triggers if t["phrase"] == "requests")
-    assert requests["context"] == ["Python"] and not requests["has_cpe"]
+    assert requests["enabled"] and requests["context"] == ["Python"] and not requests["has_cpe"]
     openssl = [t for t in triggers if t["phrase"] == "openssl"]
     assert len(openssl) == 2
+    assert all(t["enabled"] for t in openssl)
     assert set(openssl[0]["sources"]) == {"sbom", "cpe"}
-    source = create_osint_source(rank=0)
-    original = build_news_item_payload(source.id, title="OpenSSL advisory", content="Python requests and OpenSSL are discussed.")
-    collected = client.post("/api/worker/news-items", headers=api_header, json=[original])
-    assert collected.status_code == 200
     assert client.get(base + "/intelligence", headers=auth_header).json["items"] == []
 
     selected = [requests["id"], *[t["id"] for t in openssl]]
-    assert client.post(base + "/triggers/selection", headers=auth_header, json={"trigger_ids": selected, "enabled": True}).status_code == 200
-    scan = client.post(base + "/match-runs", headers=auth_header, json={"days": 30})
-    assert scan.status_code == 202, scan.json
-    batch_url = f"/api/worker/asset-match-runs/{scan.json['id']}/batch"
+    scan = client.get(base + "/match-runs", headers=auth_header).json["run"]
+    assert scan["status"] == "QUEUED" and scan["days"] == 30
+    batch_url = f"/api/worker/asset-match-runs/{scan['id']}/batch"
     assert client.post(batch_url, headers=api_header, json={}).json["status"] == "COMPLETED"
     assert client.post(batch_url, headers=api_header, json={}).json["status"] == "COMPLETED"
     matches = client.get(base + "/intelligence", headers=auth_header).json["items"]
@@ -221,7 +259,14 @@ def test_historical_matching_batches_and_current_visibility(client, auth_header,
         json={"name": "Scoped intelligence", "asset_group_id": AssetGroup.get_default_group().id},
     ).json["id"]
     base = f"/api/assets/{asset_id}"
-    trigger = client.get(base + "/triggers?search=openssl", headers=auth_header).json["items"][0]
+    triggers = client.get(base + "/triggers?search=openssl", headers=auth_header).json["items"]
+    assert (
+        client.post(
+            base + "/triggers/selection", headers=auth_header, json={"trigger_ids": [t["id"] for t in triggers], "enabled": False}
+        ).status_code
+        == 200
+    )
+    trigger = triggers[0]
     assert (
         client.put(base + f"/triggers/{trigger['id']}", headers=auth_header, json={"phrase": "OpenSSL", "enabled": True}).status_code == 200
     )
@@ -238,7 +283,7 @@ def test_historical_matching_batches_and_current_visibility(client, auth_header,
     assert first["status"] == "RUNNING" and first["processed"] == 200
     final = client.post(batch_url, headers=api_header, json={}).json
     assert final["status"] == "COMPLETED" and final["processed"] == 201
-    assert client.get(base + "/match-runs", headers=auth_header).json["run"] is None
+    assert client.get(base + "/match-runs", headers=auth_header).json["run"]["id"] != scan.json["id"]
     assert len(client.get(base + "/intelligence", headers=auth_header_user_permissions).json["items"][0]["reasons"]) == 201
     acl.item_id = "unavailable"
     db.session.commit()

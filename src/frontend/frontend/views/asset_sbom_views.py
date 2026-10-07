@@ -1,6 +1,7 @@
 """Upload once, review a server-owned preview, then create an asset."""
 
 from flask import redirect, render_template, request, url_for
+from flask_jwt_extended import current_user
 from models.asset import AssetGroup
 from models.sbom import SbomInventory
 from requests import RequestException
@@ -53,6 +54,7 @@ def preview_sbom(import_id: str):
     api = CoreApi()
     error = None
     status = 200
+    destination = "assets.asset_intelligence" if "ASSESS_ACCESS" in current_user.permissions else "assets.asset_sbom"
     try:
         if request.method == "POST":
             response = api.api_post(
@@ -65,9 +67,9 @@ def preview_sbom(import_id: str):
             )
             payload = response.json()
             if response.ok:
-                return redirect(url_for("assets.asset_sbom", asset_id=payload["id"]), code=303)
+                return redirect(url_for(destination, asset_id=payload["id"]), code=303)
             error, status = payload.get("error", "Unable to create the asset."), response.status_code
-        # Previews must always reflect current ownership, expiry and confirmation state.
+        # Previews must always reflect current ownership and confirmation state.
         response = api.session.get(
             f"{api.api_url}/assets/sbom-imports/{import_id}",
             params={"page": request.args.get("page", 1)},
@@ -77,7 +79,7 @@ def preview_sbom(import_id: str):
         if not response.ok:
             return render_template("assets/sbom_upload.html", error=payload.get("error", "Preview unavailable.")), response.status_code
         if payload.get("asset_id"):
-            return redirect(url_for("assets.asset_sbom", asset_id=payload["asset_id"]), code=303)
+            return redirect(url_for(destination, asset_id=payload["asset_id"]), code=303)
         return _render_inventory(payload, preview=True, error=error, status=status)
     except RequestException, ValueError:
         logger.exception("SBOM preview failed")

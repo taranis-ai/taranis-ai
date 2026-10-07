@@ -7,8 +7,10 @@ from html.parser import HTMLParser
 
 from cpe.cpe2_3_fs import CPE2_3_FS
 from cpe.cpe2_3_uri import CPE2_3_URI
+from packageurl import PackageURL
 from sqlalchemy.orm import selectinload
 
+from core.managers import queue_manager
 from core.managers.db_manager import db
 from core.model.asset import Asset, AssetGroup
 from core.model.asset_intelligence import AssetArticleMatch, AssetMatchRun, AssetTrigger
@@ -20,6 +22,8 @@ from core.model.user import User
 
 ARTICLES_PER_BATCH = 200
 STORIES_PER_PAGE = 20
+# These package names also occur frequently as ordinary words or license labels.
+AMBIGUOUS_PRODUCT_NAMES = {"common", "core", "data", "file", "files", "main", "mit", "test", "tests", "unknown", "update"}
 
 
 class ArticleText(HTMLParser):
@@ -51,7 +55,7 @@ def article_text(value: str | None) -> str:
     return " ".join("".join(parser.parts).split())
 
 
-@lru_cache(maxsize=4096)
+@lru_cache(maxsize=32768)
 def phrase_pattern(phrase: str) -> re.Pattern:
     return re.compile(r"(?<!\w)" + r"\s+".join(re.escape(word) for word in phrase.split()) + r"(?!\w)", re.IGNORECASE)
 
@@ -59,21 +63,25 @@ def phrase_pattern(phrase: str) -> re.Pattern:
 def trigger_suggestions(inventory: dict) -> list[dict]:
     suggestions: dict[str, dict] = {}
 
-    def suggest(phrase, source):
+    def suggest(phrase, source, *, product=False):
         phrase = " ".join(phrase.split())[:200]
         if not phrase or phrase in ("*", "-"):
             return
         row = suggestions.setdefault(phrase.casefold(), {"phrase": phrase, "sources": [], "context": [], "enabled": False})
         if source not in row["sources"]:
             row["sources"].append(source)
+        if product and len(phrase) >= 3 and phrase.casefold() not in AMBIGUOUS_PRODUCT_NAMES and re.search(r"[^\W\d_]", phrase):
+            row["enabled"] = True
         if phrase.casefold() == "requests" and inventory.get("purl", "").startswith("pkg:pypi/"):
             row["context"] = ["Python"]
 
-    suggest(inventory["name"], "sbom")
+    suggest(inventory["name"], "sbom", product="/" not in inventory["name"] and "\\" not in inventory["name"])
+    if inventory.get("purl"):
+        suggest(PackageURL.from_string(inventory["purl"]).name, "sbom", product=True)
     for cpe in inventory["cpes"]:
         parsed = CPE2_3_FS(cpe) if cpe.startswith("cpe:2.3:") else CPE2_3_URI(cpe)
         for product in parsed.get_product():
-            suggest(re.sub(r"\\(.)", r"\1", product).replace("_", " "), "cpe")
+            suggest(re.sub(r"\\(.)", r"\1", product).replace("_", " "), "cpe", product=True)
         for vendor in parsed.get_vendor():
             suggest(re.sub(r"\\(.)", r"\1", vendor).replace("_", " "), "cpe")
     for supplier in inventory.get("suppliers", []):
@@ -94,6 +102,35 @@ def asset_triggers(asset_id: str):
     return db.select(AssetTrigger).join(AssetSbomComponent).join(AssetSbomImport).where(AssetSbomImport.asset_id == asset_id)
 
 
+def product_identity(inventory: dict) -> tuple:
+    """Share review across versions of a package without merging different ecosystems."""
+    if inventory.get("purl"):
+        package = PackageURL.from_string(inventory["purl"])
+        return inventory["type"], package.type, package.namespace, package.name
+    return inventory["type"], inventory["name"], tuple(inventory.get("suppliers", []))
+
+
+def trigger_group_key(trigger: AssetTrigger) -> tuple:
+    # Keep previously divergent analyst decisions visible as separate groups.
+    return (
+        product_identity(trigger.component.inventory),
+        trigger.suggestion,
+        trigger.phrase,
+        tuple(trigger.context),
+        trigger.enabled,
+    )
+
+
+def grouped_triggers(asset_id: str, *, lock=False) -> list[list[AssetTrigger]]:
+    groups: dict[tuple, list[AssetTrigger]] = {}
+    query = asset_triggers(asset_id).options(selectinload(AssetTrigger.component)).order_by(AssetTrigger.phrase, AssetTrigger.id)
+    if lock:
+        query = query.with_for_update(of=AssetTrigger)
+    for trigger in db.session.scalars(query):
+        groups.setdefault(trigger_group_key(trigger), []).append(trigger)
+    return list(groups.values())
+
+
 def generate_triggers(asset_id: str) -> int:
     # Serialize suggestion generation without rewriting an analyst's saved decisions.
     record = db.session.scalar(db.select(AssetSbomImport).where(AssetSbomImport.asset_id == asset_id).with_for_update())
@@ -106,9 +143,37 @@ def generate_triggers(asset_id: str) -> int:
             key = suggestion["phrase"].casefold()
             if (component.id, key) in known:
                 continue
-            db.session.add(AssetTrigger(component.id, suggestion["phrase"], suggestion["context"], suggestion["sources"], suggestion=key))
+            db.session.add(
+                AssetTrigger(
+                    component.id,
+                    suggestion["phrase"],
+                    suggestion["context"],
+                    suggestion["sources"],
+                    suggestion=key,
+                    enabled=suggestion["enabled"],
+                )
+            )
             added += 1
     return added
+
+
+def start_match_run(asset_id: str, user: User, days: int = 30) -> AssetMatchRun:
+    """Persist the run before enqueueing so a queue failure never loses an imported asset."""
+    run = AssetMatchRun(asset_id, user.id, days)
+    db.session.add(run)
+    db.session.commit()
+    manager = queue_manager.queue_manager
+    if manager.queue_action_error() or not manager.enqueue_task(
+        "misc",
+        "asset_match_task",
+        run.id,
+        job_id=run.id,
+        job_timeout=1800,
+        meta={"task": "asset_match_task", "user_id": user.id, "worker_id": asset_id, "worker_type": "asset_match_task"},
+    ):
+        run.status, run.error = "FAILED", "Unable to queue the scan. Please try again."
+        db.session.commit()
+    return run
 
 
 def match_evidence(trigger: AssetTrigger, fields: dict[str, str]) -> list[dict]:

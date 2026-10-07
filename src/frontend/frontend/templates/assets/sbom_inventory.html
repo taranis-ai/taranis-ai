@@ -35,7 +35,7 @@
       {{ inventory.summary.component_count - inventory.summary.components_with_cpes }} have none.
       {{ inventory.summary.invalid_cpe_count }} invalid CPE values excluded.
     </p>
-    <p>Components without valid CPEs remain in the inventory and receive name-based suggestions. All suggestions start disabled; review and enable them after creating the asset.</p>
+    <p>Product names match automatically, including components without CPEs. Broad vendor, supplier, and ambiguous terms stay disabled. You can adjust matching after import.</p>
     <div class="overflow-x-auto">
       <table class="table table-zebra">
         <thead>
@@ -44,7 +44,7 @@
             <th>Version</th>
             <th>CPE coverage</th>
             <th>Occurrences</th>
-            <th>{{ 'Suggested triggers (disabled)' if preview else 'Triggers' }}</th>
+            <th>{{ 'Matching terms' if preview else 'Triggers' }}</th>
           </tr>
         </thead>
         <tbody>
@@ -84,7 +84,7 @@
             </td>
             <td>
               {% if preview %}
-                <ul>{% for suggestion in component.suggestions %}<li>{{ suggestion.phrase }} · {{ suggestion.sources | join(", ") }}{% if suggestion.context %} · context: {{ suggestion.context | join(", ") }}{% endif %}</li>{% endfor %}</ul>
+                <ul>{% for suggestion in component.suggestions %}<li>{{ suggestion.phrase }} · {{ 'Enabled' if suggestion.enabled else 'Disabled' }} · {{ suggestion.sources | join(", ") }}{% if suggestion.context %} · context: {{ suggestion.context | join(", ") }}{% endif %}</li>{% endfor %}</ul>
               {% else %}
                 <a class="link"
                    href="{{ url_for('assets.asset_triggers', asset_id=inventory.asset_id, component_id=component.id) }}">Review triggers</a>
@@ -127,7 +127,7 @@
                   name="description"
                   maxlength="10000"
                   class="textarea textarea-bordered w-full">{{ description }}</textarea>
-        <p class="text-sm">Preview expires after 24 hours. Confirming creates one asset with the complete software inventory.</p>
+        <p class="text-sm">Create one asset with the complete software inventory and automatic product-name matching.{% if "ASSESS_ACCESS" in current_user.permissions %} An initial scan checks articles collected in the last 30 days.{% endif %}</p>
         <button class="btn btn-primary" type="submit" data-test-id="sbom-create">Create asset</button>
       </form>
     {% else %}

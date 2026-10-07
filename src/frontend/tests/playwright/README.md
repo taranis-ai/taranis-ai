@@ -38,9 +38,9 @@ All flags:
 ### Record the SBOM PoC walkthrough
 
 `test_e2e_asset_sbom.py` exercises the same workflow in CI and in a recorded demonstration:
-import a host SBOM, review grouped inventory and installation paths, enable contextual
-BuildKit triggers, scan historical articles through the real worker, and open supporting
-intelligence in Assess. It also checks that collection updates refresh evidence and disabling
+import a host SBOM, review grouped inventory and installation paths, and immediately see
+matching intelligence after the automatic historical scan. Follow supporting articles in Assess,
+then optionally refine matching across both BuildKit versions with one rule. It also checks that collection updates refresh evidence and disabling
 triggers removes matches.
 
 The walkthrough uses only repository fixtures in a fresh isolated Compose stack:
@@ -49,10 +49,11 @@ The walkthrough uses only repository fixtures in a fresh isolated Compose stack:
   retaining representative BuildKit versions and installation paths from the external host
   sample. Five software records group into four components; one individual file is excluded.
   It includes duplicate installations, two BuildKit versions, curl, and a component without CPEs.
-- `tests/playwright/testdata/sbom-news-items.json`: two synthetic matching articles (one
-  matching the title, one the body) and three negative examples (partial product name,
-  missing context, and disabled component rules). The test imports these through the worker
-  ingestion API before creating the asset, so the historical scan is necessary.
+- `tests/playwright/testdata/sbom-news-items.json`: two synthetic security articles (one
+  matching the title, one the body), an unrelated partial product name, a community article,
+  and a curl advisory. Four stories match immediately after import. Optional context and
+  activation changes narrow the results to the two security articles. The test ingests the
+  fixtures before creating the asset, so the automatic historical scan is necessary.
 
 From `src/frontend`, record with readable pauses and highlighted controls:
 

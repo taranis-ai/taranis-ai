@@ -2,7 +2,6 @@
 
 import json
 import re
-import time
 from pathlib import Path
 from uuid import uuid4
 
@@ -45,18 +44,6 @@ def sbom_recording(logged_in_page, request):
 @pytest.mark.e2e_full_stack
 @pytest.mark.usefixtures("e2e_ci")
 class TestAssetSbomWorkflow(BaseE2ETest):
-    def scan_existing_articles(self, page, core_request_client, asset_id):
-        self.highlight_element(page.get_by_role("button", name="Scan existing articles")).click()
-        deadline = time.monotonic() + 45
-        while time.monotonic() < deadline:
-            run = core_request_client.json_request("GET", f"/assets/{asset_id}/match-runs")["run"]
-            if run["status"] in ("COMPLETED", "FAILED"):
-                break
-            time.sleep(0.25)
-        assert run["status"] == "COMPLETED", run
-        self.highlight_element(page.get_by_role("link", name="Refresh results")).click()
-        expect(page.locator('[data-test-id="asset-scan-status"]')).to_contain_text("COMPLETED")
-
     def test_import_sbom_review_triggers_and_match_intelligence(
         self,
         logged_in_page: Page,
@@ -92,57 +79,29 @@ class TestAssetSbomWorkflow(BaseE2ETest):
         self.highlight_element(page.get_by_label("Asset name", exact=True), scroll=True).fill(asset_name)
         self.highlight_element(page.get_by_label("Destination group")).select_option(label="Default")
         self.highlight_element(page.get_by_role("button", name="Create asset")).click()
-        expect(page).to_have_url(re.compile(r"/assets/[^/]+/sbom$"))
-        expect(page.get_by_role("heading", name="SBOM inventory")).to_be_visible()
+        expect(page).to_have_url(re.compile(r"/assets/[^/]+/intelligence$"))
+        expect(page.get_by_role("heading", name=f"Relevant intelligence · {asset_name}")).to_be_visible()
         asset_id = page.url.split("/")[-2]
         try:
-            self.highlight_element(page.get_by_role("link", name="Asset details", exact=True), scroll=True).click()
-            expect(page.locator('input[name="name"]')).to_have_value(asset_name)
-            self.highlight_element(page.get_by_role("link", name="SBOM inventory", exact=True)).click()
-            self.highlight_element(page.get_by_role("link", name="Component triggers", exact=True), scroll=True).click()
-            self.highlight_element(page.get_by_role("textbox", name="Phrase", exact=True)).fill("buildkit")
-            self.highlight_element(page.get_by_role("button", name="Filter triggers")).click()
-            rules = page.locator('[data-test-id="asset-trigger"]').filter(has=page.get_by_role("heading", name="buildkit", exact=True))
-            expect(rules).to_have_count(2)
-            for row in rules.all():
-                expect(row.locator("span.badge")).to_have_text("Disabled")
-                self.highlight_element(row.get_by_role("checkbox", name=re.compile("Select buildkit")), scroll=True).check()
-            self.highlight_element(page.get_by_role("button", name="Enable selected", exact=True), scroll=True).click()
-            for row in rules.all():
-                expect(row.locator("span.badge")).to_have_text("Enabled")
-                self.highlight_element(row.get_by_text("Edit trigger", exact=True), scroll=True).click()
-                edit_form = row.locator('form:has(input[value="edit"])')
-                self.highlight_element(edit_form.get_by_label("Context phrases"), scroll=True).fill("vulnerability\nsecurity update")
-                self.highlight_element(edit_form.get_by_role("button", name="Save trigger"), scroll=True).click()
-                expect(row).to_contain_text("Requires any context: vulnerability, security update")
-            self.highlight_element(page.get_by_role("combobox", name="Status"), scroll=True).select_option(label="Enabled")
-            self.highlight_element(page.get_by_role("button", name="Filter triggers")).click()
-            expect(page.locator('[data-test-id="asset-trigger"]')).to_have_count(2)
-            self.short_sleep(self.wait_duration * 2)
-            if sbom_recording:
-                self.capture_screenshot(page, str(sbom_recording / "02-reviewed-triggers.png"))
-
-            self.highlight_element(page.get_by_role("link", name="Relevant intelligence", exact=True), scroll=True).click()
-            expect(page.locator('[data-test-id="asset-matched-story"]')).to_have_count(0)
-            self.scan_existing_articles(page, core_request_client, asset_id)
+            # Import alone queues the historical scan; the UI refreshes when it completes.
+            expect(page.locator('[data-test-id="asset-scan-status"]')).to_contain_text("COMPLETED", timeout=45_000)
             matched_stories = page.locator('[data-test-id="asset-matched-story"]')
-            expect(matched_stories).to_have_count(2)
-            # The exact result set excludes partial product names, missing context and disabled curl rules.
-            for article in sbom_news_items[:2]:
-                matched_story = matched_stories.filter(has=page.get_by_role("heading", name=article["title"], exact=True))
-                expect(matched_story).to_have_count(1)
-                expect(matched_story.locator('[data-test-id="asset-match-reason"]')).to_have_count(2)
-                for version in ("v0.32.0", "v0.32.1"):
-                    expect(matched_story).to_contain_text(f"github.com/moby/buildkit {version}")
-                expect(matched_story).to_contain_text(asset_name)
+            expect(matched_stories).to_have_count(4)
+            for article in (sbom_news_items[0], sbom_news_items[1], sbom_news_items[3], sbom_news_items[4]):
+                expect(matched_stories.filter(has=page.get_by_role("heading", name=article["title"], exact=True))).to_have_count(1)
             advisory = matched_stories.filter(has=page.get_by_role("heading", name=sbom_news_items[0]["title"], exact=True))
             body_match = matched_stories.filter(has=page.get_by_role("heading", name=sbom_news_items[1]["title"], exact=True))
+            for story in (advisory, body_match):
+                expect(story.locator('[data-test-id="asset-match-reason"]')).to_have_count(2)
+                for version in ("v0.32.0", "v0.32.1"):
+                    expect(story).to_contain_text(f"github.com/moby/buildkit {version}")
+                expect(story).to_contain_text(asset_name)
             expect(advisory).to_contain_text("Matched “BuildKit” in article title")
             expect(body_match).to_contain_text("Matched “BuildKit” in article content")
             self.highlight_element(advisory.get_by_role("heading"), scroll=True)
             self.short_sleep(self.wait_duration * 2)
             if sbom_recording:
-                self.capture_screenshot(page, str(sbom_recording / "03-matched-intelligence.png"))
+                self.capture_screenshot(page, str(sbom_recording / "02-automatic-intelligence.png"))
 
             article_link = advisory.locator('[data-test-id="asset-match-reason"]').first.get_by_role("link")
             article_anchor = article_link.get_attribute("href").split("#")[-1]
@@ -153,9 +112,47 @@ class TestAssetSbomWorkflow(BaseE2ETest):
             self.highlight_element(article_card, scroll=True)
             self.short_sleep(self.wait_duration * 2)
             if sbom_recording:
-                self.capture_screenshot(page, str(sbom_recording / "04-supporting-article.png"))
+                self.capture_screenshot(page, str(sbom_recording / "03-supporting-article.png"))
             page.go_back()
+            expect(matched_stories).to_have_count(4)
+
+            # Optional refinement applies one review decision to both installed versions.
+            self.highlight_element(page.get_by_role("link", name="Component triggers", exact=True), scroll=True).click()
+            vendor = page.locator('[data-test-id="asset-trigger"]').filter(has=page.get_by_role("heading", name="moby", exact=True))
+            expect(vendor.locator("span.badge")).to_have_text("Disabled")
+            selections = page.locator('input[name="trigger_ids"]')
+            assert selections.count() > 1
+            self.highlight_element(page.get_by_role("button", name="Select all on this page", exact=True)).click()
+            expect(page.locator('input[name="trigger_ids"]:checked')).to_have_count(selections.count())
+            self.highlight_element(page.get_by_role("button", name="Clear selection", exact=True)).click()
+            expect(page.locator('input[name="trigger_ids"]:checked')).to_have_count(0)
+            self.highlight_element(page.get_by_role("textbox", name="Phrase", exact=True)).fill("buildkit")
+            self.highlight_element(page.get_by_role("button", name="Filter triggers")).click()
+            rules = page.locator('[data-test-id="asset-trigger"]').filter(has=page.get_by_role("heading", name="buildkit", exact=True))
+            expect(rules).to_have_count(1)
+            expect(rules.locator("span.badge")).to_have_text("Enabled")
+            expect(rules).to_contain_text("Versions: v0.32.0, v0.32.1")
+            self.highlight_element(rules.get_by_text("Edit trigger", exact=True), scroll=True).click()
+            edit_form = rules.locator('form:has(input[value="edit"])')
+            self.highlight_element(edit_form.get_by_label("Context phrases"), scroll=True).fill("vulnerability\nsecurity update")
+            self.highlight_element(edit_form.get_by_role("button", name="Save trigger"), scroll=True).click()
+            expect(rules).to_contain_text("Requires any context: vulnerability, security update")
+            self.highlight_element(page.get_by_role("textbox", name="Phrase", exact=True), scroll=True).fill("curl")
+            self.highlight_element(page.get_by_role("button", name="Filter triggers")).click()
+            curl = page.locator('[data-test-id="asset-trigger"]').filter(has=page.get_by_role("heading", name="curl", exact=True))
+            self.highlight_element(page.get_by_role("button", name="Select all on this page", exact=True), scroll=True).click()
+            self.highlight_element(page.get_by_role("button", name="Disable selected", exact=True), scroll=True).click()
+            expect(curl.locator("span.badge")).to_have_text("Disabled")
+            self.highlight_element(page.get_by_role("link", name="Relevant intelligence", exact=True), scroll=True).click()
+            self.highlight_element(page.get_by_role("button", name="Scan existing articles")).click()
+            expect(page.locator('[data-test-id="asset-scan-status"]')).to_contain_text("COMPLETED", timeout=45_000)
             expect(matched_stories).to_have_count(2)
+            expect(advisory.locator('[data-test-id="asset-match-reason"]')).to_have_count(2)
+            expect(body_match.locator('[data-test-id="asset-match-reason"]')).to_have_count(2)
+            self.highlight_element(advisory.get_by_role("heading"), scroll=True)
+            self.short_sleep(self.wait_duration * 2)
+            if sbom_recording:
+                self.capture_screenshot(page, str(sbom_recording / "04-refined-intelligence.png"))
 
             # Collection updates replace evidence immediately, without another historical scan.
             corrected = sbom_news_items[0] | {"title": "Unrelated maintenance", "content": "Routine maintenance is complete."}

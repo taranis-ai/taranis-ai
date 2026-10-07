@@ -1,7 +1,6 @@
 """User-scoped SBOM previews and atomic asset creation."""
 
 import hashlib
-from datetime import timedelta
 from math import ceil
 
 from flask import request
@@ -15,12 +14,11 @@ from core.managers.auth_manager import auth_required
 from core.managers.db_manager import db
 from core.model.asset import Asset, AssetCpe, AssetGroup
 from core.model.asset_sbom import AssetSbomComponent, AssetSbomImport
-from core.service.asset_intelligence import generate_triggers, trigger_suggestions
+from core.service.asset_intelligence import generate_triggers, start_match_run, trigger_suggestions
 from core.service.cache_invalidation import invalidate_frontend_cache_on_success
 from core.service.sbom import SbomValidationError, parse_sbom
 
 
-PREVIEW_LIFETIME = timedelta(hours=24)
 PAGE_SIZE = 50
 
 
@@ -58,7 +56,7 @@ def get_owned_import(import_id: str, *, lock: bool = False) -> AssetSbomImport |
     if lock:
         query = query.with_for_update()
     record = db.session.scalar(query)
-    if not record or (not record.asset_id and record.created < record.utcnow() - PREVIEW_LIFETIME):
+    if not record:
         return None
     if record.asset_id and Asset.get_for_api(record.asset_id, current_user.organization)[1] != 200:
         return None
@@ -91,12 +89,6 @@ class SbomUpload(MethodView):
         )
         if previous and get_owned_import(previous.id):
             return inventory_response(previous), 200
-        db.session.execute(
-            db.delete(AssetSbomImport).where(
-                AssetSbomImport.asset_id.is_(None),
-                AssetSbomImport.created < AssetSbomImport.utcnow() - PREVIEW_LIFETIME,
-            )
-        )
         record = AssetSbomImport(
             filename=secure_filename(upload.filename or "sbom.json")[:255] or "sbom.json",
             sha256=digest,
@@ -114,13 +106,13 @@ class SbomPreview(MethodView):
     @auth_required("ASSETS_CREATE")
     def get(self, import_id: str):
         if not (record := get_owned_import(import_id)):
-            return {"error": "SBOM preview unavailable or expired. Upload the file again."}, 404
+            return {"error": "SBOM preview unavailable. Upload the file again."}, 404
         return inventory_response(record), 200
 
     @auth_required("ASSETS_CREATE")
     def post(self, import_id: str):
         if not (record := get_owned_import(import_id, lock=True)):
-            return {"error": "SBOM preview unavailable or expired. Upload the file again."}, 404
+            return {"error": "SBOM preview unavailable. Upload the file again."}, 404
         if record.asset_id:
             return {"id": record.asset_id, "message": "This SBOM has already been imported."}, 200
         try:
@@ -153,6 +145,8 @@ class SbomPreview(MethodView):
         asset.update_vulnerabilities()
         db.session.commit()
         invalidate_frontend_cache_on_success(201, models=("asset",))
+        if {"ASSETS_ACCESS", "ASSESS_ACCESS"}.issubset(current_user.get_permissions()):
+            start_match_run(asset.id, current_user)
         return {"id": asset.id, "message": "Asset created from SBOM."}, 201
 
 

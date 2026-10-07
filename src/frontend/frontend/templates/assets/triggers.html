@@ -9,7 +9,8 @@
     <h1 class="text-2xl font-bold">Component triggers{% if data %} · {{ data.asset_name }}{% endif %}</h1>
     {% if error %}<div role="alert" class="alert alert-error">{{ error }}</div>{% endif %}
     {% if data %}
-      <p>Review suggestions before enabling them. All suggestions start disabled, including supplier names and components without CPEs.</p>
+      <p>Product names are enabled automatically. Adjust these rules only when you need to refine the results. Broad vendor, supplier, and ambiguous terms stay disabled by default.</p>
+      <p>Each rule applies to the listed versions of the same package. Editing, enabling, or disabling it updates those versions together.</p>
       <p>Phrases match whole words, ignoring case. Optional context requires at least one context phrase in the same article. Installed versions are shown for reference and need not appear in the article.</p>
       <form method="get" class="flex flex-wrap gap-2 items-end">
         {% if request.args.get("component_id") %}<input type="hidden" name="component_id" value="{{ request.args['component_id'] }}">{% endif %}
@@ -30,9 +31,28 @@
       </form>
       {% set can_edit = 'ASSETS_CREATE' in current_user.permissions %}
       {% if can_edit %}
-        <form method="post" id="trigger-selection" class="flex gap-2 items-center">
+        <form method="post"
+              id="trigger-selection"
+              class="flex flex-wrap gap-2 items-center"
+              x-data='{
+                setPageSelection(checked) {
+                  Array.from(this.$root.elements)
+                    .filter(input => input.name === "trigger_ids")
+                    .forEach(input => input.checked = checked);
+                }
+              }'>
           <input type="hidden" name="csrf_token" value="{{ request.cookies.get(config['JWT_ACCESS_CSRF_COOKIE_NAME'], '') }}">
           <input type="hidden" name="action" value="selection">
+          <button type="button"
+                  class="btn btn-ghost"
+                  x-cloak
+                  @click="setPageSelection(true)"
+                  {% if not data['items'] %}disabled{% endif %}>Select all on this page</button>
+          <button type="button"
+                  class="btn btn-ghost"
+                  x-cloak
+                  @click="setPageSelection(false)"
+                  {% if not data['items'] %}disabled{% endif %}>Clear selection</button>
           <button class="btn btn-primary" name="enabled" value="true">Enable selected</button>
           <button class="btn btn-outline" name="enabled" value="false">Disable selected</button>
         </form>
@@ -53,7 +73,7 @@
               <h2 class="font-bold">{{ trigger.phrase }}</h2>
               <span class="badge {{ 'badge-success' if trigger.enabled else 'badge-ghost' }}">{{ 'Enabled' if trigger.enabled else 'Disabled' }}</span>
             </div>
-            <p>Component: {{ trigger.component }} {{ trigger.version }} · Sources: {{ trigger.sources | join(", ") }}{% if trigger.analyst_edited %} · Reviewed by analyst{% endif %}</p>
+            <p>Component: {{ trigger.component }} · Versions: {{ trigger.versions | join(", ") }} · Sources: {{ trigger.sources | join(", ") }}{% if trigger.analyst_edited %} · Reviewed by analyst{% endif %}</p>
             {% if trigger.purl %}<p class="text-xs break-all">{{ trigger.purl }}</p>{% endif %}
             {% if not trigger.has_cpe %}<p class="text-warning">No valid CPE; review this component name carefully.</p>{% endif %}
             {% if trigger.context %}<p>Requires any context: {{ trigger.context | join(", ") }}</p>{% endif %}
@@ -86,14 +106,14 @@
                 </form>
               </details>
               <details {% if error and request.form.get('component_id') == trigger.component_id %}open{% endif %}>
-                <summary class="cursor-pointer">Add alias for this component</summary>
+                <summary class="cursor-pointer">Add another product name</summary>
                 <form method="post" class="space-y-2 max-w-xl">
                   <input type="hidden" name="csrf_token" value="{{ request.cookies.get(config['JWT_ACCESS_CSRF_COOKIE_NAME'], '') }}">
                   <input type="hidden" name="action" value="create">
                   <input type="hidden" name="component_id" value="{{ trigger.component_id }}">
                   {% set retry = error and request.form.get('component_id') == trigger.component_id %}
                   <label class="block">
-                    Alias
+                    Product name
                     <input name="phrase"
                            required
                            maxlength="200"
@@ -109,7 +129,7 @@
        name="enabled"
        class="checkbox"
        {% if retry and request.form.get('enabled') == 'on' %}checked{% endif %}>Enabled</label>
-                  <button class="btn" type="submit">Add trigger</button>
+                  <button class="btn" type="submit">Add product name</button>
                 </form>
               </details>
             {% endif %}
@@ -129,7 +149,7 @@
         <form method="post">
           <input type="hidden" name="csrf_token" value="{{ request.cookies.get(config['JWT_ACCESS_CSRF_COOKIE_NAME'], '') }}">
           <button class="btn btn-outline" name="action" value="generate">Generate missing suggestions</button>
-          <p class="text-sm">Generate suggestions for this inventory while preserving existing edits and disabled triggers.</p>
+          <p class="text-sm">Import already creates these rules. Recheck the stored SBOM for missing suggestions while preserving your edits, context phrases, and disabled rules. This does not scan articles.</p>
         </form>
       {% endif %}
     {% endif %}
