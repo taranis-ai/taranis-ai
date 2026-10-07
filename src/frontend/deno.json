@@ -4,7 +4,7 @@
     "@tailwindcss/cli": "npm:@tailwindcss/cli@4.3.0",
     "alpinejs": "npm:alpinejs@^3.17.4",
     "choices.js": "npm:choices.js@^11.2.4",
-    "driver.js": "npm:driver.js@^1.8.0",
+    "driver.js": "npm:driver.js@^1.9.0",
     "daisyui": "npm:daisyui@^5.7.47",
     "fuse.js": "npm:fuse.js@^7.5.0",
     "highlight-search-term": "npm:highlight-search-term@^1.0.3",

@@ -92,7 +92,8 @@ Start support services via the dev compose file
 docker compose -f dev/compose.yml up -d
 ```
 
-This starts local Redis without authentication and a pinned Centrifugo instance. Its client and authenticated admin UI port is available at `http://localhost:8000` and binds to all host interfaces, while its API and health port `9000` remains loopback-only. The development admin password defaults to `admin`; override `CENTRIFUGO_ADMIN_PASSWORD` and `CENTRIFUGO_ADMIN_SECRET` as needed.
+This starts local Redis without authentication and a pinned Centrifugo instance. Its client and authenticated admin UI port is available at `http://localhost:8001` and binds to all host interfaces, while its API and health port `9000` remains loopback-only. The development admin password defaults to `admin`; override `CENTRIFUGO_ADMIN_PASSWORD` and `CENTRIFUGO_ADMIN_SECRET` as needed.
+Centrifugo uses host port `8001` to leave `8000` available for local LLM inference. If you override `TARANIS_CENTRIFUGO_PORT`, update the realtime upstream in your installed Nginx configuration too. Existing setups must recopy `dev/nginx.conf`, validate with `nginx -t`, and reload Nginx after updating the Compose service.
 Queue state is not persisted across local Redis restarts in this dev setup.
 Browsers connect through the local NGINX ingress at `http://local.taranis.ai/sse`.
 Centrifugo reaches Core through Podman's `host.containers.internal` address; set `TARANIS_CORE_PORT` when Core does not use port `5001`.
@@ -142,8 +143,8 @@ tmux new-window -t taranis:1 -n frontend -c src/frontend
 # Create the third tab and cd to src/worker
 tmux new-window -t taranis:2 -n worker -c src/worker
 
-# Create the fourth tab for cron scheduler
-tmux new-window -t taranis:3 -n cron -c src/worker
+# Optional: enable automatic collection and scheduled bots
+# tmux new-window -t taranis:3 -n cron -c src/worker
 
 # Create the fifth tab for rq-dashboard (optional, for monitoring)
 tmux new-window -t taranis:4 -n rq-dashboard -c src/worker
@@ -157,6 +158,20 @@ Or run `./dev/start_tmux.sh` for the core, Tailwind, frontend, and worker window
 ```bash
 WITH_CRON_RQ=1 ./dev/start_tmux.sh
 ```
+
+### Pausing collection during development
+
+The default `start_dev.sh` / `start_tmux.sh` workflow leaves automatic collection and scheduled bots off. Leave `WITH_CRON_RQ` unset and do not start `taranis-cron` manually. If cron is already running, stop that process (Ctrl-C in its terminal); restarting Core or the worker does not stop a separate cron process. This also pauses scheduled housekeeping.
+
+Workers remain available for manual collection, previews, endpoint checks, and other user-triggered jobs. Already queued jobs and delayed retries can still execute, including their post-collection bots. Core's legacy `DISABLE_SCHEDULER` setting does not control the separate cron process.
+
+To prevent this worker from executing collectors and bots altogether, set the following in `src/worker/.env` and restart the worker:
+
+```dotenv
+WORKER_TYPES=["Presenters","Publishers","Connectors","Misc"]
+```
+
+This also disables manual collection/previews and manual bot runs on that worker. Queued work remains pending, and other workers using the same Redis can still process it. Remove the override and restart the worker to restore all task types. Use `WITH_CRON_RQ=1` only when you want automatic scheduling as well.
 
 In Core Tab:
 

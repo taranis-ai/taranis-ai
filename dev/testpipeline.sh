@@ -40,19 +40,30 @@ sync_worker() {
   run_in_dir src/worker uv sync --frozen --all-extras
 }
 
+run_audit() {
+  component=$1
+  UV_FROZEN=false uv audit --preview-features audit-command --locked \
+    --python-version "$(<"${component}/.python-version")" \
+    --python-platform linux \
+    --directory "${component}"
+}
+
 run_models() {
   run_step "src/models"
+  run_audit "src/models"
   run_in_dir src/models uv run --frozen --no-sync ruff check
 }
 
 run_core() {
   run_step "src/core"
+  run_audit "src/core"
   run_in_dir src/core uv run --frozen --no-sync ruff check
   run_in_dir src/core uv run --frozen --no-sync pytest
 }
 
 run_frontend() {
   run_step "src/frontend"
+  run_audit "src/frontend"
   run_in_dir src/frontend uv run --frozen --no-sync ruff check
   run_in_dir src/frontend uv run --frozen --no-sync djlint --profile=jinja --check frontend/templates
   run_in_dir src/frontend uv run --frozen --no-sync pytest -p no:cacheprovider --ignore=tests/playwright
@@ -66,6 +77,7 @@ run_frontend_e2e() {
 
 run_worker() {
   run_step "src/worker"
+  run_audit "src/worker"
   run_in_dir src/worker uv run --frozen --no-sync ruff check
   run_in_dir src/worker uv run --frozen --no-sync pytest
 }
