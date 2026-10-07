@@ -1253,6 +1253,7 @@ class TestEndToEndAdmin(BaseE2ETest):
                 expect(bypass).not_to_be_checked()
                 page.get_by_role("button", name="Create Publisher Preset").click()
                 expect(page.get_by_text("Provide a server host public key", exact=False).first).to_be_visible()
+                dismiss_notifications(page)
                 optional = page.get_by_test_id("optional-worker-parameters")
                 if not optional.evaluate("el => el.open"):
                     optional.locator("summary").click()
@@ -1260,6 +1261,18 @@ class TestEndToEndAdmin(BaseE2ETest):
                     {"name": "server.pub", "mimeType": "text/plain", "buffer": host_key.encode()}
                 )
                 expect(host_key_input).to_have_value(host_key)
+            optional = page.get_by_test_id("optional-worker-parameters")
+            if not optional.evaluate("el => el.open"):
+                optional.locator("summary").click()
+            timeout_input = page.locator('input[name="parameters[NETWORK_TIMEOUT]"]')
+            timeout_input.fill("91")
+            page.get_by_role("button", name="Create Publisher Preset").click()
+            expect(page.locator("#notification-bar")).to_contain_text("Network timeout must not exceed 90 seconds")
+            dismiss_notifications(page)
+            optional = page.get_by_test_id("optional-worker-parameters")
+            if not optional.evaluate("el => el.open"):
+                optional.locator("summary").click()
+            timeout_input.fill("17")
             page.get_by_role("button", name="Create Publisher Preset").click()
             expect(page.get_by_role("link", name="publisher preset test", exact=True)).to_be_visible()
 
@@ -1271,8 +1284,9 @@ class TestEndToEndAdmin(BaseE2ETest):
             ftp_url_input.click()
             expect(ftp_url_input).to_have_attribute("required", "")
             ftp_url_input.fill("sftp://user@example.test/reports/" if publisher_type == "sftp" else "testurl.com")
+            page.get_by_test_id("optional-worker-parameters").locator("summary").click()
+            expect(page.locator('input[name="parameters[NETWORK_TIMEOUT]"]')).to_have_value("17")
             if publisher_type == "sftp":
-                page.get_by_test_id("optional-worker-parameters").locator("summary").click()
                 host_key_input = page.locator('textarea[name="parameters[HOST_KEY]"]')
                 expect(host_key_input).to_have_value(host_key)
                 host_key_input.fill("")
