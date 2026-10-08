@@ -970,6 +970,7 @@ class QueueManager:
             "bots",
             "bot_task",
             job_id=f"bot_{bot_id}",
+            job_timeout=bot.job_timeout,
             meta=self._build_task_meta(
                 f"bot_{bot_id}",
                 user_id=user_id,
@@ -1144,6 +1145,7 @@ class QueueManager:
                 "bots",
                 "bot_task",
                 job_id=self._build_unique_job_id("bot", f"{bot.id}_{job_suffix}"),
+                job_timeout=bot.job_timeout,
                 depends_on=parent_jobs or None,
                 meta=self._build_task_meta(
                     f"bot_{bot.id}",

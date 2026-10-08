@@ -11,6 +11,7 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Mapped
 from sqlalchemy.sql import Select
 
+from core.config import Config
 from core.log import logger
 from core.managers.db_manager import db
 from core.model.base_model import UUID_STR_LENGTH, BaseModel
@@ -483,6 +484,10 @@ class Bot(BaseModel):
     def get_schedule(self) -> str:
         return self.parameters.get("REFRESH_INTERVAL", "")
 
+    @property
+    def job_timeout(self) -> int:
+        return self.parameters.get("REQUESTS_TIMEOUT") or Config.RQ_DEFAULT_JOB_TIMEOUT
+
     def get_llm_endpoint_id(self, settings: dict) -> str | None:
         from models.llm import LLM_BOT_FEATURES
 
@@ -515,6 +520,7 @@ class Bot(BaseModel):
             func_path="bot_task",
             args=[self.id],
             queue_name="bots",
+            job_options={"job_timeout": self.job_timeout},
         )
 
     def schedule_bot(self):

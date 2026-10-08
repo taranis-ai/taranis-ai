@@ -287,7 +287,11 @@ class TaggingBotParameters(BotParameters):
 
 class SharedLLMBotParameters(BotParameters):
     LLM_ENDPOINT: str = Field("", title="LLM endpoint", description="Use a configured endpoint or inherit the shared assignment.")
-    REQUESTS_TIMEOUT: OptionalPositiveInt = Field(None, title="Requests timeout", description="Override the endpoint timeout in seconds.")
+    REQUESTS_TIMEOUT: OptionalPositiveInt = Field(
+        None,
+        title="Requests timeout",
+        description="Timeout in seconds for each LLM request and the entire bot job. Blank uses the endpoint request timeout and global job timeout.",
+    )
     # Accept stored service credentials without offering unused controls in the form.
     BOT_API_KEY: SkipJsonSchema[SecretStr] = SecretStr("")
 
