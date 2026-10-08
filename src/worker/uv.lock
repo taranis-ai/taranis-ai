@@ -1896,31 +1896,18 @@ wheels = [
 
 [[package]]
 name = "taranis-llm-bot"
-version = "0.0.0"
-source = { url = "https://github.com/taranis-ai/llm-bot/archive/887ee8cc4da909e1b694480137c2e5fdd65894f1.tar.gz" }
+version = "0.1.5"
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "langcodes", extra = ["data"] },
     { name = "niquests" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
 ]
-sdist = { hash = "sha256:78f3eb3f734bb673d5777726281cc723bc92e89820ad922e73d9709d62f1cd87" }
-
-[package.metadata]
-requires-dist = [
-    { name = "granian", marker = "extra == 'server'" },
-    { name = "langcodes", extras = ["data"], specifier = ">=3.5.1" },
-    { name = "niquests" },
-    { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=4.6.2" },
-    { name = "pydantic", specifier = ">=2.11.0" },
-    { name = "pydantic-settings" },
-    { name = "pytest", marker = "extra == 'dev'" },
-    { name = "pytest-asyncio", marker = "extra == 'dev'" },
-    { name = "python-dotenv", marker = "extra == 'dev'" },
-    { name = "quart", marker = "extra == 'server'", specifier = ">=0.20.0" },
-    { name = "ruff", marker = "extra == 'dev'" },
+sdist = { url = "https://files.pythonhosted.org/packages/ca/da/de5cf7542814527d38776a201096efd2e2446abf9ae8f48820adc2c5a83f/taranis_llm_bot-0.1.5.tar.gz", hash = "sha256:405e140237103ebb2f1502ec26f1c808674d3b6f0ca391210f4fee988970f77a", size = 125368, upload-time = "2026-10-08T23:12:06.357Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/5f/f2/1aa1f1239f0a9f297b98c08afb103a7b6cc774aac2722d51005c53e5378d/taranis_llm_bot-0.1.5-py3-none-any.whl", hash = "sha256:999488ba156f6cea906288c9d745ac721b4ed16bd9a6f1b543bea19d24f2d477", size = 66067, upload-time = "2026-10-08T23:12:05.148Z" },
 ]
-provides-extras = ["server", "dev"]
 
 [[package]]
 name = "taranis-models"
@@ -2040,7 +2027,7 @@ requires-dist = [
     { name = "ruff", marker = "extra == 'dev'" },
     { name = "setuptools", marker = "extra == 'dev'" },
     { name = "setuptools-scm", marker = "extra == 'dev'" },
-    { name = "taranis-llm-bot", url = "https://github.com/taranis-ai/llm-bot/archive/887ee8cc4da909e1b694480137c2e5fdd65894f1.tar.gz" },
+    { name = "taranis-llm-bot", specifier = "==0.1.5" },
     { name = "taranis-models", editable = "../models" },
     { name = "taxii2-client" },
     { name = "trafilatura" },

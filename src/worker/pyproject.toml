@@ -48,7 +48,7 @@ dependencies = [
     "pypandoc-binary",
     "niquests",
     "confluent-kafka",
-    "taranis-llm-bot",
+    "taranis-llm-bot==0.1.5",
 ]
 dynamic = ["version"]
 
@@ -154,7 +154,6 @@ required-environments = [
 
 [tool.uv.sources]
 taranis-models = { path = "../models", editable = true }
-taranis-llm-bot = { url = "https://github.com/taranis-ai/llm-bot/archive/887ee8cc4da909e1b694480137c2e5fdd65894f1.tar.gz" }
 
 [tool.pyrefly]
 infer-with-first-use = false
