@@ -6,7 +6,7 @@ from zoneinfo import ZoneInfo
 import pytest
 from base_e2e_test import BaseE2ETest
 from flask import url_for
-from htmx_helpers import with_htmx_wait
+from htmx_helpers import reset_htmx_state, with_htmx_wait
 from playwright.sync_api import Page, expect
 
 from tests.external_e2e import allow_requests_passthru
@@ -141,7 +141,7 @@ class TestEndToEndAdmin(BaseE2ETest):
         expect(page.locator(".driver-popover")).not_to_be_visible()
 
     @pytest.mark.e2e_full_stack
-    def test_admin_dashboard(self, logged_in_page: Page, forward_console_and_page_errors):
+    def test_admin_dashboard(self, logged_in_page: Page, forward_console_and_page_errors, core_request_client):
         page = logged_in_page
 
         page.goto(url_for("admin.dashboard", _external=True))
@@ -149,8 +149,11 @@ class TestEndToEndAdmin(BaseE2ETest):
 
         health_card = page.locator("div.bg-base-100.border").filter(has=page.get_by_text("System Health", exact=True)).first
         expect(health_card).to_be_visible()
-        expect(health_card.get_by_text("Healthy", exact=True)).to_be_visible()
-        for service, status in DASHBOARD_HEALTH_SERVICES.items():
+        allow_requests_passthru(core_request_client.base_url)
+        health = core_request_client.get("/health", raise_for_status=False).json()
+        expect(health_card.get_by_text("Healthy" if health["healthy"] else "Degraded", exact=True)).to_be_visible()
+        services = DASHBOARD_HEALTH_SERVICES | {"Worker endpoints": health["services"]["worker_endpoints"]}
+        for service, status in services.items():
             row = health_card.locator("div.flex.items-center.justify-between").filter(has_text=service).first
             expect(row).to_be_visible()
             expect(row).to_contain_text(status)
@@ -1644,8 +1647,93 @@ class TestEndToEndAdmin(BaseE2ETest):
                 settings_submit.click()
             assert response_info.value.ok, f"Expected 2xx status, but got {response_info.value.status}"
 
+        def check_llm_endpoints():
+            section = page.locator('[data-test-id="llm-settings"]')
+            new_endpoint = section.locator("details").filter(has=page.locator("summary", has_text="Add LLM Endpoint"))
+            if not new_endpoint.evaluate("element => element.open"):
+                new_endpoint.locator("summary").click()
+            form = new_endpoint.locator("form")
+            expect(form.get_by_text("Model", exact=True)).to_be_visible()
+            expect(form.get_by_text("API key", exact=True)).to_be_visible()
+            form.get_by_label("Name", exact=False).fill("E2E shared model")
+            form.get_by_label("Provider base URL").fill("https://provider.example/v1/responses")
+            form.get_by_label("API key", exact=False).fill("e2e-private-key")
+            with page.expect_response(
+                lambda response: response.request.method == "POST" and response.url.endswith("/llm-endpoints")
+            ) as invalid_response:
+                form.get_by_role("button", name="Add Endpoint", exact=True).click()
+            assert invalid_response.value.status == 400
+            expect(form.get_by_label("Name", exact=False)).to_have_value("E2E shared model")
+            expect(form.get_by_label("API key", exact=False)).to_have_value("")
+            reset_htmx_state(page)
+            form.get_by_label("Provider base URL").fill("https://provider.example/v1")
+            form.get_by_label("API key", exact=False).fill("e2e-private-key")
+            with_htmx_wait(page, lambda: form.get_by_role("button", name="Add Endpoint", exact=True).click())
+            endpoint = section.locator("details").filter(has=page.locator("summary", has_text="E2E shared model"))
+            expect(endpoint).to_have_count(1)
+            expect(endpoint.locator('[data-test-id="endpoint-health"]')).to_contain_text("Endpoint")
+            assignments = section.locator('[data-test-id="llm-assignments"]')
+            assignments.get_by_label("Default endpoint").select_option(label="E2E shared model")
+            with_htmx_wait(page, lambda: assignments.get_by_role("button", name="Save Assignments").click())
+            page.reload()
+            expect(assignments.get_by_label("Default endpoint").locator("option:checked")).to_have_text("E2E shared model")
+            endpoint.locator("summary").click()
+            expect(endpoint.locator('input[name="api_key"]')).to_have_value("")
+            expect(endpoint).to_contain_text("An API key is saved.")
+            with_htmx_wait(page, lambda: endpoint.get_by_role("button", name="Save Endpoint", exact=True).click())
+            endpoint.locator("summary").click()
+            expect(endpoint).to_contain_text("An API key is saved.")
+            with page.expect_response(
+                lambda response: response.request.method == "POST" and response.url.endswith("/delete")
+            ) as delete_response:
+                endpoint.get_by_role("button", name="Delete Endpoint").click()
+            assert delete_response.value.status == 409
+            expect(endpoint).to_have_count(1)
+            expect(page.locator("#notification-bar")).to_contain_text("Reassign this endpoint")
+            reset_htmx_state(page)
+            for bot_type in ("story_bot", "summary_bot", "nlp_bot", "sentiment_analysis_bot", "cybersec_classifier_bot"):
+                page.goto(url_for("admin.bots", _external=True))
+                page.get_by_test_id("new-bot-button").click()
+                selector = page.get_by_role("combobox", name="LLM endpoint", exact=True)
+                self.select_dynamic_type_and_wait(page, bot_type, selector)
+                expect(selector.locator("option:checked")).to_contain_text("E2E shared model")
+                expect(page.locator('input[name="parameters[BOT_API_KEY]"]')).to_have_count(0)
+                expect(
+                    page.locator(
+                        'input[name="parameters[BOT_ENDPOINT]"], input[name="parameters[SUMMARY_ENDPOINT]"], input[name="parameters[TITLE_ENDPOINT]"]'
+                    )
+                ).to_have_count(0)
+                selector.select_option(label="E2E shared model")
+                bot_name = f"E2E endpoint {bot_type}"
+                page.get_by_role("textbox", name="Name", exact=True).fill(bot_name)
+                page.get_by_role("textbox", name="Description", exact=True).fill("Endpoint selection test")
+                page.get_by_role("button", name="Create Bot", exact=True).click()
+                page.get_by_role("link", name=bot_name, exact=True).click()
+                expect(selector.locator("option:checked")).to_have_text("E2E shared model")
+                page.reload()
+                expect(selector.locator("option:checked")).to_have_text("E2E shared model")
+                page.get_by_role("link", name="Manage LLM endpoints").click()
+                expect(page).to_have_url(url_for("admin_settings.settings", _external=True) + "#llm-endpoints")
+                expect(section).to_be_visible()
+                page.goto(url_for("admin.bots", _external=True))
+                page.get_by_role("link", name=bot_name, exact=True).click()
+                selector.select_option("")
+                page.get_by_role("button", name="Update Bot", exact=True).click()
+                page.get_by_role("link", name=bot_name, exact=True).click()
+                expect(selector).to_have_value("")
+                page.goto(url_for("admin.bots", _external=True))
+                item_id = self.get_table_row_id_by_link_text(page, "bot-table", bot_name)
+                self.delete_table_row(page, f"action-delete-{item_id}")
+            page.goto(url_for("admin_settings.settings", _external=True))
+            assignments.get_by_label("Default endpoint").select_option("")
+            with_htmx_wait(page, lambda: assignments.get_by_role("button", name="Save Assignments").click())
+            endpoint.locator("summary").click()
+            with_htmx_wait(page, lambda: endpoint.get_by_role("button", name="Delete Endpoint").click())
+            expect(endpoint).to_have_count(0)
+
         go_to_admin_settings()
         check_default_values()
+        check_llm_endpoints()
         change_default_values()
         check_new_values()
         exported_stories_file = test_export_all_stories(pre_seed_stories)

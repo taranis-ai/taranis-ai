@@ -5,6 +5,7 @@ Functions for executing bots to process news items.
 
 from typing import Any
 
+from models.llm import LLM_BOT_FEATURES
 from models.worker_parameters import effective_parameter_values
 from rq import get_current_job
 
@@ -12,6 +13,7 @@ import worker.bots
 from worker.bot_api import BotServiceUnavailableError
 from worker.core_api import CoreApi, build_failure_task_result, build_success_task_result
 from worker.http_client import http_session_scope
+from worker.llm import LLMConfigurationError
 from worker.log import logger
 from worker.telemetry import instrument_job
 
@@ -69,7 +71,7 @@ def bot_task(bot_id: str, filter: dict | None = None, trigger_dependents: bool =
     except Exception as exc:
         not_found = isinstance(exc, ValueError) and exc.args == (f"Bot with id {bot_id} not found",)
         empty_result = isinstance(exc, RuntimeError) and exc.args == (f"Bot {bot_id} returned no result",)
-        if isinstance(exc, BotServiceUnavailableError):
+        if isinstance(exc, (BotServiceUnavailableError, LLMConfigurationError)):
             error_message = exc.public_message
             reason = exc.reason
             retryable = exc.retryable
@@ -98,8 +100,6 @@ def bot_task(bot_id: str, filter: dict | None = None, trigger_dependents: bool =
                 data={"bot_id": bot_id, "filter": filter, "trigger_dependents": trigger_dependents},
             ),
         )
-        if isinstance(exc, BotServiceUnavailableError):
-            raise
         raise
 
 
@@ -135,6 +135,9 @@ def _execute_by_config(bot_config: dict, filter: dict | None = None, bot_id: str
     if not bot:
         raise ValueError(f"Bot type '{bot_type}' not implemented")
     bot_params: dict[str, Any] = effective_parameter_values(bot_type, bot_config.get("parameters", {}))
+
+    if bot_type in LLM_BOT_FEATURES:
+        bot_params["llm_endpoint"] = bot_config.get("llm_endpoint")
 
     if filter:
         # Runtime filters are transient task data, not persisted parameters.

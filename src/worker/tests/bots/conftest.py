@@ -33,19 +33,6 @@ def tags_update_mock(requests_mock):
 
 
 @pytest.fixture
-def ner_bot_mock(requests_mock):
-    print(f"Mocking: {Config.NLP_API_ENDPOINT}/")
-    yield requests_mock.post(
-        f"{Config.NLP_API_ENDPOINT}/",
-        json=[
-            {"entity": "B-PER", "index": 3, "score": 0.9992660880088806, "word": "John"},
-            {"entity": "B-LOC", "index": 7, "score": 0.9996646642684937, "word": "Amsterdam"},
-            {"entity": "B-LOC", "index": 7, "score": 0.9996286630630492, "word": "Paris"},
-        ],
-    )
-
-
-@pytest.fixture
 def news_item_attribute_update_mock(requests_mock):
     def match_callback(request, context):
         news_item_id = request.url.split("/")[6]
@@ -61,12 +48,6 @@ def story_attribute_update_mock(requests_mock):
         return {"message": f"Successfully updated attributes oif news item with id: '{story_id}'"}
 
     yield requests_mock.patch(re.compile(rf"{Config.TARANIS_CORE_URL}/bots/story/.+/attributes"), json=match_callback)
-
-
-@pytest.fixture
-def cybersec_classifier_mock(requests_mock):
-    print(f"Mocking: {Config.CYBERSEC_CLASSIFIER_API_ENDPOINT}/")
-    yield requests_mock
 
 
 @pytest.fixture

@@ -201,12 +201,13 @@ def run_core_local(docker_services, e2e_stack: str):
 
     try:
         print("Starting Taranis Core Docker service for E2E tests (pytest-docker)")
+        print(f"Waiting for Taranis Core to be alive at: {core_url}/isalive")
+        wait_for_server_to_be_alive(f"{core_url}/isalive", taranis_core_start_timeout)
         if e2e_stack == "full":
-            print(f"Waiting for the full Taranis stack to be healthy at: {core_url}/health")
-            wait_for_server_to_be_healthy(core_url, taranis_core_start_timeout)
-        else:
-            print(f"Waiting for Taranis Core to be alive at: {core_url}/isalive")
-            wait_for_server_to_be_alive(f"{core_url}/isalive", taranis_core_start_timeout)
+            from tests.playwright.rq_e2e_fixtures import _wait_for_worker_registration
+
+            # Configured bot services may be down while Core and RQ are ready.
+            _wait_for_worker_registration(core_url, timeout_seconds=taranis_core_start_timeout)
         return core_url
     except Exception as e:
         pytest.fail(str(e))

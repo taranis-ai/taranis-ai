@@ -21,7 +21,7 @@ from core.service.chat import (
 
 
 def _availability_error() -> tuple[dict[str, str], int] | None:
-    if not Config.CHAT_ENABLED or not Settings.get_settings()["chat_llm_base_url"]:
+    if not Config.CHAT_ENABLED or not Settings.get_llm_endpoint("chat"):
         return {"error": "Chat is not configured"}, 503
     return None
 

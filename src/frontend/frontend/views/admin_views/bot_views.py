@@ -2,7 +2,8 @@ from typing import Any, ClassVar, Literal
 
 from flask import render_template, request, url_for
 from markupsafe import Markup, escape
-from models.admin import AdminMenuBadges, Bot, WordList
+from models.admin import AdminMenuBadges, Bot, Settings, WordList
+from models.llm import LLM_BOT_FEATURES
 from models.types import BOT_TYPES
 from werkzeug.exceptions import HTTPException
 
@@ -145,6 +146,7 @@ class BotView(AdminBaseView):
             "bot_types": cls.bot_types.values(),
             "parameter_values": parameter_values,
             "parameters": parameters,
+            "llm_endpoint_options": cls.get_llm_endpoint_options(bot_type_name),
             "worker_parameters_selected": bool(bot_type_name),
             "run_after_options": cls.get_run_after_options(bot.id if bot else ""),
             "selected_run_after": _split_run_after_bots(parameter_values.get("RUN_AFTER_BOTS", "")),
@@ -170,6 +172,7 @@ class BotView(AdminBaseView):
         return render_template(
             "bot/bot_config_fields.html",
             parameters=parameters,
+            llm_endpoint_options=cls.get_llm_endpoint_options(bot_type),
             parameter_values={},
             run_after_options=cls.get_run_after_options("" if bot_id == "0" else bot_id),
             selected_run_after=[],
@@ -233,7 +236,20 @@ class BotView(AdminBaseView):
 
     @classmethod
     def _filter_run_order_parameters(cls, parameters: list[Any]) -> list[Any]:
-        return [parameter for parameter in parameters if parameter["name"] not in RUN_ORDER_PARAMETERS]
+        return [parameter for parameter in parameters if parameter["name"] not in RUN_ORDER_PARAMETERS | {"LLM_ENDPOINT"}]
+
+    @classmethod
+    def get_llm_endpoint_options(cls, bot_type: str) -> list[dict[str, str]] | None:
+        if not (feature := LLM_BOT_FEATURES.get(bot_type.lower())):
+            return None
+        settings = DataPersistenceLayer().get_first(Settings)
+        values = settings.settings if settings else None
+        endpoints = values.llm_endpoints if values else {}
+        default_id = (getattr(values, f"llm_{feature}_endpoint") or values.llm_default_endpoint) if values else ""
+        default_name = endpoints.get(default_id, {}).get("name", "Not configured")
+        return [{"id": "", "name": f"Use shared assignment ({default_name})"}] + [
+            {"id": endpoint_id, "name": endpoint["name"]} for endpoint_id, endpoint in endpoints.items()
+        ]
 
     @classmethod
     def get_run_after_options(cls, current_bot_id: str = "") -> list[dict[str, str]]:

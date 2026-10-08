@@ -7,7 +7,6 @@ config:
   centrifugoApiUrl: http://centrifugo:9000
   centrifugoAllowedOrigins: https://CHANGE_ME_INGRESS_HOSTNAME
   authenticator: "database"
-  llmBaseUrl: CHANGE_ME_LLM_BASE_URL
 
 secrets:
   jwtSecretKey: CHANGE_ME_LONG_RANDOM_JWT_SECRET
@@ -15,7 +14,6 @@ secrets:
   centrifugoApiKey: CHANGE_ME_CENTRIFUGO_API_KEY
   centrifugoConnectProxySecret: CHANGE_ME_CENTRIFUGO_CONNECT_PROXY_SECRET
   botApiKey: CHANGE_ME_BOT_API_KEY
-  llmApiKey: ""
   preSeedPasswordAdmin: CHANGE_ME_ADMIN_PASSWORD
   preSeedPasswordUser: CHANGE_ME_DEFAULT_USER_PASSWORD
 
@@ -54,5 +52,5 @@ images:
     tag: latest
   worker:
     tag: latest
-  llmBot:
-    tag: latest
+  llmInference:
+    tag: cpu

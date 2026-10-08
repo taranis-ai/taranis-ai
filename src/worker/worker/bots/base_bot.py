@@ -1,4 +1,3 @@
-from typing import Any
 from urllib.parse import parse_qs
 
 from worker.core_api import CoreApi
@@ -13,7 +12,6 @@ class BaseBot:
         self.description = "Base abstract type for all bots"
         self.language: str | None = None
         self.model: str | None = None
-        self.bot_api: Any = None
 
     def execute(self, parameters: dict | None = None) -> dict[str, dict[str, str] | str]:
         if not parameters:

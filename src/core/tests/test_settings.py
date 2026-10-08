@@ -287,6 +287,8 @@ def test_pre_seed_settings_initialization(session, admin_user, monkeypatch):
         "collection_lookback_days": 45,
         "onboarding_enabled": False,
         "default_collector_proxy": "http://proxy:8080",
+        "chat_llm_base_url": "https://provider.example/v1",
+        "chat_llm_api_key": "legacy-test-key",
     }
     monkeypatch.setenv("PRE_SEED_SETTINGS", json.dumps(seed))
     config = Settings()
@@ -298,9 +300,15 @@ def test_pre_seed_settings_initialization(session, admin_user, monkeypatch):
     session.expire_all()
 
     expected = PersistentSettings.with_defaults({**seed, "default_timezone": "Europe/Vienna"})
+    initialized = PersistentSettings.get_settings()
+    expected["llm_endpoints"] = initialized["llm_endpoints"]
+    expected["llm_default_endpoint"] = initialized["llm_default_endpoint"]
     assert PersistentSettings.get_settings() == expected
     assert admin_user.profile["onboarding_enabled"] is False
     assert config.PRE_SEED_SETTINGS == seed
+    assert PersistentSettings.get_llm_endpoint("chat")["api_key"] == "legacy-test-key"
+    assert PersistentSettings.get_llm_endpoint("clustering")["base_url"] == "http://llm-inference:8000/v1"
+    assert "chat_llm_api_key" not in PersistentSettings.get_settings()
 
     _, status = PersistentSettings.update({"settings": {"rss_collector_max_entries": 25}})
     assert status == 200
@@ -351,3 +359,91 @@ def test_persistent_settings_cache(session):
         assert len(queries) == before + 1
     finally:
         event.remove(connection, "before_cursor_execute", record_settings_query)
+
+
+def test_deployment_llm_default_initialization(session, monkeypatch):
+    from core.model.settings import Config
+    from core.model.settings import Settings as PersistentSettings
+
+    monkeypatch.setenv("LLM_INFERENCE_API_KEY", "inference-test-key")
+    defaults = Settings()
+    monkeypatch.setattr(Config, "LLM_INFERENCE_API_KEY", defaults.LLM_INFERENCE_API_KEY)
+    monkeypatch.setattr(Config, "PRE_SEED_SETTINGS", {})
+    session.delete(PersistentSettings.get_settings_entry())
+    session.flush()
+    PersistentSettings.initialize()
+    saved = PersistentSettings.get_settings()
+    assert len(saved["llm_endpoints"]) == 1
+    endpoint = saved["llm_endpoints"][saved["llm_default_endpoint"]]
+    assert endpoint["base_url"] == "http://llm-inference:8000/v1"
+    assert endpoint["model"] == ""
+    assert PersistentSettings.get_llm_endpoint("clustering")["base_url"] == endpoint["base_url"]
+    assert PersistentSettings.get_llm_endpoint("summarization")["api_format"] == "chat_completions"
+
+    assert saved["llm_endpoints"][saved["llm_default_endpoint"]]["name"] == "internal"
+    assert PersistentSettings.get_llm_endpoint("ner")["api_key"] == "inference-test-key"
+    assert "inference-test-key" not in str(PersistentSettings.get_settings_entry().to_dict())
+
+    # Restarts preserve saved model/assignments and rotate the managed secret.
+    endpoint_id = saved["llm_default_endpoint"]
+    _, status = PersistentSettings.save_llm_endpoint({"model": "administrator-model", "api_key": "saved-key"}, endpoint_id)
+    assert status == 200
+    PersistentSettings.update({"settings": {"llm_chat_endpoint": endpoint_id}})
+    PersistentSettings.initialize()
+    assert PersistentSettings.get_llm_endpoint("chat")["model"] == "administrator-model"
+    assert PersistentSettings.get_llm_endpoint("chat")["api_key"] == "inference-test-key"
+
+    # An existing database with no default reuses the saved local endpoint.
+    PersistentSettings.update({"settings": {"llm_default_endpoint": ""}})
+    PersistentSettings.initialize()
+    assert PersistentSettings.get_settings()["llm_default_endpoint"] == endpoint_id
+    assert len(PersistentSettings.get_settings()["llm_endpoints"]) == 1
+    assert PersistentSettings.get_llm_endpoint("clustering")["model"] == "administrator-model"
+
+    # A configured external default is authoritative even on deployment updates.
+    result, status = PersistentSettings.save_llm_endpoint({"name": "External", "base_url": "https://provider.example/v1"})
+    assert status == 200
+    PersistentSettings.update({"settings": {"llm_default_endpoint": result["id"]}})
+    PersistentSettings.initialize()
+    assert PersistentSettings.get_llm_endpoint("clustering")["base_url"] == "https://provider.example/v1"
+    assert PersistentSettings.get_llm_endpoint("chat")["base_url"] == endpoint["base_url"]
+
+    # The internal endpoint is repaired even when an external default is selected.
+    from core.model.bot import Bot
+
+    internal_bot = next(bot for bot in session.query(Bot) if bot.type.value == "nlp_bot")
+    internal_bot.parameters = {**internal_bot.parameters, "BOT_ENDPOINT": "http://old-bot/ner", "BOT_API_KEY": "old-key"}
+    values = PersistentSettings.get_settings()
+    values["llm_chat_endpoint"] = ""
+    del values["llm_endpoints"][endpoint_id]
+    PersistentSettings.get_settings_entry().settings = values
+    session.commit()
+    monkeypatch.setattr(Config, "LLM_INFERENCE_API_KEY", SecretStr("rotated-test-key"))
+    PersistentSettings.initialize()
+    saved = PersistentSettings.get_settings()
+    assert saved["llm_default_endpoint"] == result["id"]
+    internal = next(item for item in saved["llm_endpoints"].values() if item["base_url"] == endpoint["base_url"])
+    assert internal["api_key"] == "rotated-test-key"
+    assert not {"BOT_ENDPOINT", "BOT_API_KEY"}.intersection(internal_bot.parameters)
+    PersistentSettings.initialize()
+    assert PersistentSettings.get_settings()["llm_endpoints"] == saved["llm_endpoints"]
+
+    monkeypatch.setattr(Config, "LLM_INFERENCE_API_KEY", SecretStr(""))
+    PersistentSettings.update({"settings": {"llm_default_endpoint": ""}})
+    PersistentSettings.initialize()
+    assert PersistentSettings.get_llm_endpoint("clustering")["api_key"] == ""
+
+    # A saved, unassigned provider may already use the bundled display name.
+    entry = PersistentSettings.get_settings_entry()
+    values = PersistentSettings.get_settings()
+    values["llm_endpoints"] = {"custom": {**endpoint, "base_url": "https://custom.example/v1"}}
+    values["llm_chat_endpoint"] = "custom"
+    values["llm_default_endpoint"] = ""
+    entry.settings = values
+    session.commit()
+    PersistentSettings.initialize()
+    values = PersistentSettings.get_settings()
+    assert len(values["llm_endpoints"]) == 2
+    assert values["llm_default_endpoint"] != "custom"
+    assert values["llm_endpoints"]["custom"]["name"] == "internal"
+    assert PersistentSettings.get_llm_endpoint("chat")["base_url"] == "https://custom.example/v1"

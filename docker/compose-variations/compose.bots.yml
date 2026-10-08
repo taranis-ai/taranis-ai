@@ -1,113 +1,16 @@
 services:
-  summary_bot:
-    deploy:
-      restart_policy:
-        condition: always
-    ports:
-      - "8001:8000"
-    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-summarize-bot:${TARANIS_BOT_TAG:-stable}"
-    healthcheck:
-      test: ["CMD-SHELL", "python -c \"import requests; requests.get('http://localhost:8000/health', timeout=5).raise_for_status()\""]
-      interval: 1m30s
-      timeout: 30s
-      retries: 5
-      start_period: 30s
+  llm-inference:
+    image: "${LLM_INFERENCE_IMAGE:-ghcr.io/taranis-ai/gemma4-e4b-gguf:cpu}"
+    restart: unless-stopped
+    shm_size: 4gb
     environment:
-      API_KEY: "${BOT_API_KEY}"
-      DEBUG: "${DEBUG:-False}"
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "200k"
-        max-file: "10"
-
-
-  nlp_bot:
-    deploy:
-      restart_policy:
-        condition: always
-    ports:
-      - "8002:8000"
-    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-natural-language-processing:${TARANIS_BOT_TAG:-stable}"
+      LLAMA_API_KEY: "${LLM_INFERENCE_API_KEY:-}"
+    command: ["--ctx-size", "8192", "--jinja"]
+    expose:
+      - "8000"
     healthcheck:
-      test: ["CMD-SHELL", "python -c \"import requests; requests.get('http://localhost:8000/health', timeout=5).raise_for_status()\""]
-      interval: 1m30s
-      timeout: 30s
+      test: ["CMD", "curl", "--fail", "--silent", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
       retries: 5
-      start_period: 30s
-    environment:
-      API_KEY: "${BOT_API_KEY}"
-      DEBUG: "${DEBUG:-False}"
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "200k"
-        max-file: "10"
-
-
-  story_bot:
-    deploy:
-      restart_policy:
-        condition: always
-    ports:
-      - "8003:8000"
-    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-story-clustering:${TARANIS_BOT_TAG:-stable}"
-    healthcheck:
-      test: ["CMD-SHELL", "python -c \"import requests; requests.get('http://localhost:8000/health', timeout=5).raise_for_status()\""]
-      interval: 1m30s
-      timeout: 30s
-      retries: 5
-      start_period: 30s
-    environment:
-      API_KEY: "${BOT_API_KEY}"
-      DEBUG: "${DEBUG:-False}"
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "200k"
-        max-file: "10"
-
-  sentiment_bot:
-    deploy:
-      restart_policy:
-        condition: always
-    ports:
-      - "8004:8000"
-    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-sentiment-analysis:${TARANIS_BOT_TAG:-stable}"
-    healthcheck:
-      test: ["CMD-SHELL", "python -c \"import requests; requests.get('http://localhost:8000/health', timeout=5).raise_for_status()\""]
-      interval: 1m30s
-      timeout: 30s
-      retries: 5
-      start_period: 30s
-    environment:
-      API_KEY: "${BOT_API_KEY}"
-      DEBUG: "${DEBUG:-False}"
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "200k"
-        max-file: "10"
-
-
-  cybersec_classifier_bot:
-    deploy:
-      restart_policy:
-        condition: always
-    ports:
-      - "8005:8000"
-    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-cybersec-classifier:${TARANIS_BOT_TAG:-stable}"
-    healthcheck:
-      test: ["CMD-SHELL", "python -c \"import requests; requests.get('http://localhost:8000/health', timeout=5).raise_for_status()\""]
-      interval: 1m30s
-      timeout: 30s
-      retries: 5
-      start_period: 30s
-    environment:
-      API_KEY: "${BOT_API_KEY}"
-      DEBUG: "${DEBUG:-False}"
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "200k"
-        max-file: "10"
+      start_period: 5m

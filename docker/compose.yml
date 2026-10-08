@@ -1,4 +1,20 @@
 services:
+  llm-inference:
+    image: "${LLM_INFERENCE_IMAGE:-ghcr.io/taranis-ai/gemma4-e4b-gguf:cpu}"
+    restart: unless-stopped
+    shm_size: 4gb
+    environment:
+      LLAMA_API_KEY: "${LLM_INFERENCE_API_KEY:-}"
+    command: ["--ctx-size", "8192", "--jinja"]
+    expose:
+      - "8000"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 5m
+
   ingress:
     # This is the entrypoint for all requests
     ports:
@@ -66,6 +82,7 @@ services:
 
       PRE_SEED_PASSWORD_ADMIN: "${PRE_SEED_PASSWORD_ADMIN:-admin}"
       PRE_SEED_PASSWORD_USER: "${PRE_SEED_PASSWORD_USER:-user}"
+      LLM_INFERENCE_API_KEY: "${LLM_INFERENCE_API_KEY:-}"
       PRE_SEED_SETTINGS: "${PRE_SEED_SETTINGS:-{}}"
       TASK_HISTORY_RETENTION_DAYS: "${TASK_HISTORY_RETENTION_DAYS:-30}"
       JWT_SECRET_KEY: "${JWT_SECRET_KEY}"
@@ -232,12 +249,6 @@ services:
       OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT:-}"
       OTEL_EXPORTER_OTLP_HEADERS: "${OTEL_EXPORTER_OTLP_HEADERS:-}"
       OTEL_METRIC_EXPORT_INTERVAL: "${OTEL_METRIC_EXPORT_INTERVAL:-60000}"
-      SUMMARY_API_ENDPOINT: "${SUMMARY_API_ENDPOINT:-http://llm-bot:${LLM_BOT_PORT:-8000}/summarize}"
-      TITLE_API_ENDPOINT: "${TITLE_API_ENDPOINT:-http://llm-bot:${LLM_BOT_PORT:-8000}/title}"
-      NLP_API_ENDPOINT: "${NLP_API_ENDPOINT:-http://llm-bot:${LLM_BOT_PORT:-8000}/ner}"
-      STORY_API_ENDPOINT: "${STORY_API_ENDPOINT:-http://llm-bot:${LLM_BOT_PORT:-8000}/cluster}"
-      SENTIMENT_ANALYSIS_API_ENDPOINT: "${SENTIMENT_ANALYSIS_API_ENDPOINT:-http://llm-bot:${LLM_BOT_PORT:-8000}/sentiment}"
-      CYBERSEC_CLASSIFIER_API_ENDPOINT: "${CYBERSEC_CLASSIFIER_API_ENDPOINT:-http://llm-bot:${LLM_BOT_PORT:-8000}/cybersec-classification}"
       WORKER_TYPES: '${WORKER_TYPES:-["Presenters", "Publishers", "Bots", "Connectors", "Misc"]}'
       DEBUG: "${DEBUG:-False}"
     healthcheck:
@@ -246,35 +257,6 @@ services:
       timeout: 10s
       retries: 3
       start_period: 20s
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "200k"
-        max-file: "10"
-
-
-  llm-bot:
-    depends_on:
-      workers:
-        condition: service_healthy
-    deploy:
-      restart_policy:
-        condition: always
-    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-llm-bot:${TARANIS_BOT_TAG:-stable}"
-    healthcheck:
-      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:${LLM_BOT_PORT:-8000}/health', timeout=5).read()\""]
-      interval: 1m30s
-      timeout: 30s
-      retries: 5
-      start_period: 30s
-    environment:
-      API_KEY: "${BOT_API_KEY}"
-      DEBUG: "${DEBUG:-False}"
-      GRANIAN_PORT: "${LLM_BOT_PORT:-8000}"
-      LLM_BASE_URL: "${LLM_BASE_URL:-}"
-      LLM_API_KEY: "${LLM_API_KEY:-}"
-      LLM_MODEL: "${LLM_MODEL:-}"
-      LLM_TIMEOUT: "${LLM_TIMEOUT:-120}"
     logging:
       driver: "json-file"
       options:

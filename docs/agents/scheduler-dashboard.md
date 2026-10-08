@@ -20,6 +20,8 @@
 - Scheduler query defaults, UTC normalization, and display serialization live in Pydantic models in `src/models/models/scheduler.py`. Queue failure responses use a static message, never RQ exception text.
 - Core owns `rq:cron:def`: startup treats current source/bot/housekeeping specs as an allowlist and removes other persisted definitions and artifacts.
 
+Bot failure filters and menu counts also include failed endpoint probes; execution history remains independent. See [LLM Endpoints](llm-endpoints.md#endpoint-checks).
+
 ## Entry Points and Coverage
 
 `src/frontend/frontend/views/admin_views/scheduler_views.py`, `src/frontend/frontend/templates/schedule/`, `src/core/core/managers/queue_manager.py`, `src/core/core/api/config.py`, `src/core/core/service/dashboard.py`, `src/core/core/service/task.py`; contracts in `src/models/models/admin.py` and `src/models/models/task.py`.

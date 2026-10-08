@@ -13,9 +13,7 @@ Timeout failures identify the stalled operation; RQ deadlines and killed workers
 ## Install
 
 ```bash
-uv venv
-source .venv/bin/activate
-uv pip install -Ue .[dev]
+uv sync --all-extras --dev
 ```
 
 ## Usage
@@ -24,12 +22,6 @@ Start the RQ worker:
 
 ```bash
 uv run --no-sync --frozen taranis-worker
-```
-
-Module execution remains supported for compatibility:
-
-```bash
-python -m worker
 ```
 
 Or use the development script with auto-reload:
@@ -52,6 +44,12 @@ Check or configure IntelOwl from a worker install/container:
 uv run --no-sync --frozen taranis-intelowl-setup --url http://127.0.0.1:18080
 ```
 
+## Shared LLM settings
+
+NER, sentiment, cybersecurity classification, clustering, and summarization/titles use the installed `taranis-llm-bot` library. Configure providers in **Admin Settings > LLM Endpoints**. Core includes the resolved provider in each job's bot configuration: bot selection, then feature assignment, then shared default. Changes apply on the next run; `REQUESTS_TIMEOUT` overrides the endpoint timeout.
+
+Workers must reach the selected providers. Missing configuration fails the job with a setup message. Clustering sends only story IDs, summaries, and tags; classification uses the bot's `CLASSIFICATION_THRESHOLD`.
+
 ## Architecture
 
-see [docs](https://github.com/taranis-ai/taranis-ai/tree/master/doc)
+See [Architecture and Boundaries](../../docs/agents/architecture-and-boundaries.md).
