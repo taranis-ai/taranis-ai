@@ -1,5 +1,6 @@
 from llm_bot.schemas import NerRequest
-from llm_bot.tasks.ner import extract_entities
+from llm_bot.tasks.ner import prepare_ner
+from rq import Retry
 
 from worker.llm import get_llm_client, run_llm_tasks
 
@@ -13,16 +14,16 @@ class NLPBot(BaseBot):
         self.type = "NLP_BOT"
         self.name = "NLP Bot"
 
-    def execute(self, parameters: dict | None = None) -> dict[str, dict[str, str] | str]:
+    def execute(self, parameters: dict | None = None) -> dict | Retry:
         if not parameters:
             parameters = {}
         if stories := self.get_stories(parameters):
             self.llm_client = get_llm_client(parameters)
 
-            return self._process_stories(stories)
+            return self._process_stories(stories, parameters)
         return {"message": "No new stories found"}
 
-    def _process_stories(self, stories: list) -> dict:
+    def _process_stories(self, stories: list, parameters: dict) -> dict | Retry:
         items = []
         tasks = []
 
@@ -34,6 +35,9 @@ class NLPBot(BaseBot):
             for news_item in story["news_items"]:
                 news_item_content = _news_item_content_for_tagging(news_item, separator="\n")
                 items.append(news_item["id"])
-                tasks.append(extract_entities(NerRequest(text=news_item_content, cybersecurity=is_cybersecurity), client=self.llm_client))
+                tasks.append(prepare_ner(NerRequest(text=news_item_content, cybersecurity=is_cybersecurity)))
 
-        return {item_id: result.root for item_id, result in zip(items, run_llm_tasks(tasks, self.llm_client), strict=True)}
+        results = run_llm_tasks(tasks, self.llm_client, parameters)
+        if isinstance(results, Retry):
+            return results
+        return {item_id: result.root for item_id, result in zip(items, results, strict=True)}

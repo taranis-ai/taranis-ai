@@ -1,18 +1,13 @@
 """Tests for bot task execution and result handling."""
 
-import json
-import re
 import traceback
 from unittest.mock import patch
 
 # pyright: reportMissingParameterType=false
 import pytest
-from fakeredis import FakeRedis
 from llm_bot.client import LLMClient, UpstreamLLMError
 from models.task import TaskResult
 from niquests.exceptions import RequestException
-from rq import Queue, SimpleWorker
-from rq.job import JobStatus
 
 import worker.bots
 from worker.bots.bot_tasks import bot_task
@@ -43,11 +38,6 @@ def current_job(monkeypatch, mock_job):
 @pytest.fixture
 def no_current_job(monkeypatch):
     monkeypatch.setattr("worker.bots.bot_tasks.get_current_job", lambda: None)
-
-
-@pytest.fixture
-def batch_queue():
-    return Queue("bots", connection=FakeRedis())
 
 
 @pytest.fixture

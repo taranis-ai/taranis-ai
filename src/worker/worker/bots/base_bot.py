@@ -1,5 +1,7 @@
 from urllib.parse import parse_qs
 
+from rq import Retry
+
 from worker.core_api import CoreApi
 from worker.log import logger
 
@@ -13,7 +15,7 @@ class BaseBot:
         self.language: str | None = None
         self.model: str | None = None
 
-    def execute(self, parameters: dict | None = None) -> dict[str, dict[str, str] | str]:
+    def execute(self, parameters: dict | None = None) -> dict | Retry:
         if not parameters:
             parameters = {}
         return {"message": "No action defined for this bot"}

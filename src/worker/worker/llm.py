@@ -1,13 +1,15 @@
 import asyncio
 from collections.abc import Coroutine
-from typing import Any, cast
+from typing import Any
 
 from llm_bot.client import LLMClient, UpstreamLLMError
+from llm_bot.tasks.llm_utils import LLMTask
 from models.llm import LLMEndpoint
 from niquests.exceptions import RequestException
+from rq import Retry
 
 from worker.bot_api import BotServiceUnavailableError
-from worker.llm_batch import BatchExecutionError, BatchLLMClient, BatchPending
+from worker.llm_batch import BatchProcessor
 from worker.log import logger
 
 
@@ -25,28 +27,21 @@ def get_llm_client(parameters: dict) -> LLMClient:
     if not endpoint:
         raise LLMConfigurationError
     config = LLMEndpoint.model_validate(endpoint)
-    client_type = BatchLLMClient if config.processing_mode == "openrouter_batch" else LLMClient
-    batch_options = {"state": parameters["_llm_batch_state"]} if config.processing_mode == "openrouter_batch" else {}
-    client = client_type(
+    client = LLMClient(
         base_url=config.base_url,
         api_key=config.api_key,
         model=config.model,
         api_mode=config.api_format,
         timeout=parameters.get("REQUESTS_TIMEOUT") or config.timeout,
-        **batch_options,
     )
     # The library treats an empty model as an environment fallback. Settings own it here.
     client.model = config.model
-    if isinstance(client, BatchLLMClient):
-        client.poll()
     return client
 
 
 def run_llm_task[T](task: Coroutine[Any, Any, T]) -> T:
     try:
         return asyncio.run(task)
-    except (BatchPending, BatchExecutionError):
-        raise
     except (RequestException, UpstreamLLMError):
         logger.exception("LLM provider request failed")
         raise BotServiceUnavailableError from None
@@ -55,21 +50,9 @@ def run_llm_task[T](task: Coroutine[Any, Any, T]) -> T:
         raise RuntimeError("LLM task failed") from None
 
 
-def run_llm_tasks[T](tasks: list[Coroutine[Any, Any, T]], client: LLMClient) -> list[T]:
-    async def run():
-        if isinstance(client, BatchLLMClient):
-            results = await asyncio.gather(*tasks, return_exceptions=True)
-            for result in results:
-                if isinstance(result, BaseException) and not isinstance(result, BatchPending):
-                    raise result
-            for result in results:
-                if isinstance(result, BatchPending):
-                    raise result
-            return cast(list[T], results)
-        try:
-            return [await task for task in tasks]
-        finally:
-            for task in tasks:
-                task.close()
-
-    return run_llm_task(run())
+def run_llm_tasks[T](tasks: list[LLMTask[T]], client: LLMClient, parameters: dict) -> list[T] | Retry:
+    if parameters["llm_endpoint"].get("processing_mode") == "openrouter_batch":
+        processor = BatchProcessor(client, parameters["_llm_batch_state"], parameters["_save_llm_batch_state"])
+        results = processor.process(tasks)
+        return Retry(max=600, interval=300) if results is None else results
+    return [run_llm_task(task.run(client)) for task in tasks]

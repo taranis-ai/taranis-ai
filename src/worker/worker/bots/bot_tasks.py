@@ -14,7 +14,7 @@ from worker.bot_api import BotServiceUnavailableError
 from worker.core_api import CoreApi, build_failure_task_result, build_success_task_result
 from worker.http_client import http_session_scope
 from worker.llm import LLMConfigurationError
-from worker.llm_batch import BatchExecutionError, BatchPending
+from worker.llm_batch import BatchExecutionError
 from worker.log import logger
 from worker.telemetry import instrument_job
 
@@ -56,13 +56,9 @@ def bot_task(bot_id: str, filter: dict | None = None, trigger_dependents: bool =
                 batch_state = {"config": bot_config}
                 job.meta["llm_batch"] = batch_state
                 job.save_meta()
-        try:
-            bot_result = _execute_by_config(bot_config, filter, bot_id, batch_state)
-        except BatchPending as pending:
-            assert job is not None
-            pending.client.submit(job.save_meta)
-            job.save_meta()
-            return Retry(max=600, interval=300)
+        bot_result = _execute_by_config(bot_config, filter, bot_id, batch_state, job.save_meta if job else None)
+        if isinstance(bot_result, Retry):
+            return bot_result
         if bot_result is None:
             raise RuntimeError(f"Bot {bot_id} returned no result")
         core_api.save_task_result(
@@ -122,7 +118,9 @@ def bot_task(bot_id: str, filter: dict | None = None, trigger_dependents: bool =
         raise
 
 
-def _execute_by_config(bot_config: dict, filter: dict | None = None, bot_id: str | None = None, batch_state: dict | None = None):
+def _execute_by_config(
+    bot_config: dict, filter: dict | None = None, bot_id: str | None = None, batch_state: dict | None = None, save_batch_state=None
+):
     """Execute a bot based on its configuration.
 
     Args:
@@ -167,5 +165,6 @@ def _execute_by_config(bot_config: dict, filter: dict | None = None, bot_id: str
             batch_state["stories"] = bot.get_stories(dict(bot_params))
         bot_params["_stories"] = batch_state["stories"]
         bot_params["_llm_batch_state"] = batch_state
+        bot_params["_save_llm_batch_state"] = save_batch_state
 
     return bot.execute(bot_params)

@@ -1,7 +1,8 @@
 from llm_bot.schemas import ClusterRequest
-from llm_bot.tasks.cluster import cluster_stories
+from llm_bot.tasks.cluster import prepare_cluster
+from rq import Retry
 
-from worker.llm import get_llm_client, run_llm_task
+from worker.llm import get_llm_client, run_llm_tasks
 from worker.log import logger
 
 from .base_bot import BaseBot
@@ -16,7 +17,7 @@ class StoryBot(BaseBot):
         self.description = "Bot for clustering NewsItems to stories via natural language processing"
         self.language = language
 
-    def execute(self, parameters: dict | None = None) -> dict[str, dict[str, str] | str]:
+    def execute(self, parameters: dict | None = None) -> dict | Retry:
         if not parameters:
             parameters = {}
         if not (data := self.get_stories(parameters)):
@@ -30,7 +31,10 @@ class StoryBot(BaseBot):
         except Exception:
             logger.exception("Invalid story clustering input")
             raise RuntimeError("Story clustering failed") from None
-        response = run_llm_task(cluster_stories(request, client=client))
+        results = run_llm_tasks([prepare_cluster(request)], client, parameters)
+        if isinstance(results, Retry):
+            return results
+        response = results[0]
 
         clusters = [cluster for cluster in response.cluster_ids.event_clusters if len(cluster) > 1]
         if not clusters:

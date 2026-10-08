@@ -1,12 +1,13 @@
 """Small synthetic requests exercise the same endpoints used by bot jobs."""
 
+from llm_bot.tasks.llm_utils import LLMTask
 from niquests.exceptions import RequestException
 from rq import Retry, get_current_job
 
 from worker.core_api import CoreApi
 from worker.http_client import http_request, http_session_scope
-from worker.llm import get_llm_client, run_llm_task
-from worker.llm_batch import BatchExecutionError, BatchPending
+from worker.llm import get_llm_client, run_llm_tasks
+from worker.llm_batch import BatchExecutionError
 from worker.log import logger
 from worker.telemetry import instrument_job
 
@@ -29,18 +30,9 @@ def check_endpoint(kind: str, endpoint_id: str, check_id: str):
             if not job:
                 raise RuntimeError("Batch endpoint checks require a queued job")
             state = job.meta.setdefault("llm_batch_probe", {})
-        try:
-            healthy = probe(kind, config, state)
-        except BatchPending as pending:
-            assert job is not None
-            try:
-                pending.client.submit(job.save_meta)
-            except BatchExecutionError:
-                logger.exception("Batch endpoint probe submission failed")
-                healthy = False
-            else:
-                job.save_meta()
-                return Retry(max=600, interval=300)
+        healthy = probe(kind, config, state, job.save_meta if job else None)
+        if isinstance(healthy, Retry):
+            return healthy
         if state is not None:
             assert job is not None
             job.meta.pop("llm_batch_probe", None)
@@ -54,18 +46,21 @@ def check_endpoint(kind: str, endpoint_id: str, check_id: str):
         raise RuntimeError("Endpoint check failed")
 
 
-def probe(kind: str, config: dict, batch_state: dict | None = None) -> bool:
+def probe(kind: str, config: dict, batch_state: dict | None = None, save_batch_state=None) -> bool | Retry:
     text = "Reply with OK."
     if kind != "llm":
         return False
     try:
         chat = config["api_format"] == "chat_completions"
         if config.get("processing_mode") == "openrouter_batch":
-            client = get_llm_client({"llm_endpoint": config, "_llm_batch_state": batch_state})
-            result = run_llm_task(client.create_response("Reply briefly.", text))
-            if chat:
-                return bool(result.get("output_text"))
-            return _valid_responses_result(result)
+            parameters = {"llm_endpoint": config, "_llm_batch_state": batch_state, "_save_llm_batch_state": save_batch_state}
+            client = get_llm_client(parameters)
+            task = LLMTask("probe", text, "Reply briefly.", None, lambda response: response)
+            results = run_llm_tasks([task], client, parameters)
+            if isinstance(results, Retry):
+                return results
+            result = results[0]
+            return bool(result.get("output_text")) if chat else _valid_responses_result(result)
         url = f"{config['base_url']}/{'chat/completions' if chat else 'responses'}"
         payload = {"messages": [{"role": "user", "content": text}]} if chat else {"input": text, "store": False}
         if config.get("model"):

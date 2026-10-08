@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = "==3.13.*"
 required-markers = [
     "platform_machine == 'x86_64' and sys_platform == 'linux'",
@@ -1896,17 +1896,13 @@ wheels = [
 
 [[package]]
 name = "taranis-llm-bot"
-version = "0.1.4"
-source = { registry = "https://pypi.org/simple" }
+version = "0.1.5.dev1"
+source = { git = "https://github.com/taranis-ai/llm-bot?rev=887ee8cc4da909e1b694480137c2e5fdd65894f1#887ee8cc4da909e1b694480137c2e5fdd65894f1" }
 dependencies = [
     { name = "langcodes", extra = ["data"] },
     { name = "niquests" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/36/83/ecf579637f8b1e26389e8f23afb921c6704ee23f86c9689986c1e0262207/taranis_llm_bot-0.1.4.tar.gz", hash = "sha256:095106505ba09fe0abcb4564c798a17da61300428319b14f4779822799450c1c", size = 125893, upload-time = "2026-10-08T07:57:54.891Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/94/17/092b817726cd9d5c9a4841673829a3328bdcbb448898b56d9441c49afb7a/taranis_llm_bot-0.1.4-py3-none-any.whl", hash = "sha256:c40177f5db2c1e8f11fdc446bd42a9a5833f83e58bd370489ff4813301230679", size = 69983, upload-time = "2026-10-08T07:57:53.866Z" },
 ]
 
 [[package]]
@@ -2027,7 +2023,7 @@ requires-dist = [
     { name = "ruff", marker = "extra == 'dev'" },
     { name = "setuptools", marker = "extra == 'dev'" },
     { name = "setuptools-scm", marker = "extra == 'dev'" },
-    { name = "taranis-llm-bot" },
+    { name = "taranis-llm-bot", git = "https://github.com/taranis-ai/llm-bot?rev=887ee8cc4da909e1b694480137c2e5fdd65894f1" },
     { name = "taranis-models", editable = "../models" },
     { name = "taxii2-client" },
     { name = "trafilatura" },
