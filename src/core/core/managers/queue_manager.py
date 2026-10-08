@@ -150,7 +150,10 @@ class QueueManager:
         self.update_empty_word_lists()
         from core.service.endpoint_health import schedule_all
 
-        schedule_all()
+        try:
+            schedule_all()
+        except Exception:
+            logger.exception("Failed to schedule LLM endpoint checks")
 
     def reschedule_all(self):
         """Reconcile Redis cron definitions with the currently enabled sources and bots."""
