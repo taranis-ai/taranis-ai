@@ -46,6 +46,8 @@ class BaseBot:
         return filter_dict
 
     def get_stories(self, parameters: dict) -> list:
+        if "_stories" in parameters:
+            return parameters["_stories"]
         filter_dict = self.get_filter_dict(parameters)
         data = self.core_api.get_stories(filter_dict)
         if not data:

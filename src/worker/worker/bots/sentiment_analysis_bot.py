@@ -1,7 +1,7 @@
 from llm_bot.schemas import SentimentRequest
 from llm_bot.tasks.sentiment import analyze_sentiment
 
-from worker.llm import get_llm_client, run_llm_task
+from worker.llm import get_llm_client, run_llm_tasks
 from worker.log import logger
 
 from .base_bot import BaseBot
@@ -34,17 +34,12 @@ class SentimentAnalysisBot(BaseBot):
         return {"message": "No sentiment analysis results"}
 
     def _analyze_news_items(self, stories: list) -> dict:
-        results = {}
-
-        for story in stories:
-            for news_item in story.get("news_items", []):
-                text_content = news_item.get("content", "")
-                if not text_content.strip():
-                    continue
-                sentiment = run_llm_task(analyze_sentiment(SentimentRequest(text=text_content), client=self.llm_client)).sentiment
-                results[news_item["id"]] = {"sentiment": sentiment.score, "category": sentiment.label.value}
-
-        return results
+        items = [item for story in stories for item in story.get("news_items", []) if item.get("content", "").strip()]
+        tasks = [analyze_sentiment(SentimentRequest(text=item["content"]), client=self.llm_client) for item in items]
+        return {
+            item["id"]: {"sentiment": result.sentiment.score, "category": result.sentiment.label.value}
+            for item, result in zip(items, run_llm_tasks(tasks, self.llm_client), strict=True)
+        }
 
     def update_news_items(self, sentiment_results: dict):
         for news_item_id, sentiment_data in sentiment_results.items():

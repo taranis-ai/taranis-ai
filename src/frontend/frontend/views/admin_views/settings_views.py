@@ -86,7 +86,11 @@ class SettingsView(AdminBaseView):
                 DataPersistenceLayer().invalidate_model_cache_locally(Settings)
             elif not action_url.endswith("/delete"):
                 g.llm_editing_endpoint = action_url.removeprefix("/settings/llm-endpoints").strip("/")
-                g.llm_form = {key: request.form[key] for key in ("name", "base_url", "model", "api_format", "timeout") if key in request.form}
+                g.llm_form = {
+                    key: request.form[key]
+                    for key in ("name", "base_url", "model", "api_format", "processing_mode", "timeout")
+                    if key in request.form
+                }
             view, _ = cls.static_view()
             return notification + view, response.status_code
 
