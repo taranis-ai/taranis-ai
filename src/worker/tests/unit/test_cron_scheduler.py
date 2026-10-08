@@ -1,5 +1,6 @@
 import json
 from typing import Any
+from unittest.mock import Mock
 
 import fakeredis
 import pytest
@@ -7,6 +8,7 @@ from models.task import CronTaskSpec
 from pydantic import ValidationError
 
 from worker import cron_scheduler
+from worker.config import Config
 from worker.cron_scheduler import DEFS_KEY, NEXT_KEY, _decode, _enqueue_due_job, _enqueue_key, _normalize_spec, _sync_next_index
 
 
@@ -60,6 +62,49 @@ def test_sync_next_index_adds_missing_and_removes_stale_ids():
     assert redis_conn.zscore(NEXT_KEY, "stale_job") is None
     assert redis_conn.zscore(NEXT_KEY, "job_interval_30") == 1030.0
     assert redis_conn.zscore(NEXT_KEY, "job_interval_45") == 1045.0
+
+
+@pytest.mark.parametrize("redis_available", [True, False])
+def test_scheduler_restores_empty_redis_and_retries_core_failure(requests_mock, monkeypatch, redis_available):
+    server = fakeredis.FakeServer()
+    server.connected = redis_available
+    redis_conn = fakeredis.FakeRedis(server=server, decode_responses=False)
+    monkeypatch.setattr(cron_scheduler, "get_redis_connection", lambda *_args: redis_conn)
+    monkeypatch.setattr(cron_scheduler.time, "time", lambda: 1000.0)
+    polls = iter(range(2 if redis_available else 3))
+
+    def sleep(_seconds):
+        if next(polls) == (1 if redis_available else 2):
+            raise RuntimeError("stop scheduler")
+        server.connected = True
+
+    monkeypatch.setattr(cron_scheduler.time, "sleep", sleep)
+    spec = {"queue_name": "misc", "func_path": "cleanup_token_blacklist", "interval": 30}
+
+    def restored_response(_request, _context):
+        redis_conn.hset(DEFS_KEY, "cleanup_token_blacklist", json.dumps(spec))
+        return {"message": "Queue runtime state restored"}
+
+    requests_mock.post(
+        f"{Config.TARANIS_CORE_URL}/worker/cron-jobs",
+        [
+            {"status_code": 503, "json": {"error": "Core unavailable"}},
+            {"json": restored_response},
+        ],
+    )
+    with pytest.raises(RuntimeError, match="stop scheduler"):
+        cron_scheduler.run_scheduler()
+
+    assert requests_mock.call_count == 2
+    assert redis_conn.zscore(NEXT_KEY, "cleanup_token_blacklist") == 1030.0
+
+    # Existing next-run timestamps must survive normal polling without another rebuild.
+    requests_mock.reset_mock()
+    monkeypatch.setattr(cron_scheduler.time, "sleep", Mock(side_effect=RuntimeError("stop scheduler")))
+    with pytest.raises(RuntimeError, match="stop scheduler"):
+        cron_scheduler.run_scheduler()
+    assert requests_mock.call_count == 0
+    assert redis_conn.zscore(NEXT_KEY, "cleanup_token_blacklist") == 1030.0
 
 
 def test_sync_next_index_skips_invalid_specs_without_crashing():

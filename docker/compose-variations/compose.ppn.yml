@@ -242,20 +242,20 @@ services:
         condition: always
     # ports:
     #  - "${TARANIS_REDIS_PORT:-6379}:6379"
-    volumes:
-      - redis_data:/data
+    tmpfs:
+      - /data
     environment:
       - "REDIS_PASSWORD=${REDIS_PASSWORD:-}"
     command: >
       sh -c '
       if [ -n "$$REDIS_PASSWORD" ]; then
-        redis-server --requirepass "$$REDIS_PASSWORD" --appendonly yes
+        exec redis-server --requirepass "$$REDIS_PASSWORD" --save "" --appendonly no
       else
-        redis-server --appendonly yes
+        exec redis-server --save "" --appendonly no
       fi
       '
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD-SHELL", "REDISCLI_AUTH=\"$$REDIS_PASSWORD\" redis-cli ping | grep -qx PONG"]
       interval: 10s
       start_period: 10s
       timeout: 3s
@@ -310,5 +310,4 @@ services:
 volumes:
   database_data:
   core_data:
-  redis_data:
   telemetry_data:

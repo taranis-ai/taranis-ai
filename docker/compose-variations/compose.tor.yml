@@ -221,19 +221,18 @@ services:
         condition: always
     command: |
       sh -c '
-        mkdir -p /data
         if [ -n "$$REDIS_PASSWORD" ]; then
-          redis-server --appendonly yes --requirepass "$$REDIS_PASSWORD"
+          exec redis-server --save "" --appendonly no --requirepass "$$REDIS_PASSWORD"
         else
-          redis-server --appendonly yes
+          exec redis-server --save "" --appendonly no
         fi
       '
-    volumes:
-      - redis_data:/data
+    tmpfs:
+      - /data
     environment:
       - "REDIS_PASSWORD=${REDIS_PASSWORD:-}"
     healthcheck:
-      test: ["CMD-SHELL", "redis-cli ping || exit 1"]
+      test: ["CMD-SHELL", "REDISCLI_AUTH=\"$$REDIS_PASSWORD\" redis-cli ping | grep -qx PONG"]
       interval: 10s
       start_period: 10s
       timeout: 3s
@@ -300,5 +299,4 @@ services:
 volumes:
   database_data:
   core_data:
-  redis_data:
   telemetry_data:

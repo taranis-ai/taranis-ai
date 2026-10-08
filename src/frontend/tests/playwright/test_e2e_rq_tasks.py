@@ -314,6 +314,15 @@ def test_rq_scheduled_collector_cron(
     source_id = rq_harness.create_osint_source(source_payload)
     cron_job_id = f"osint_source_{source_id}"
     rq_harness.assert_cron_registration(cron_job_id, expected_cron=cron_expression)
+
+    # Only the disposable E2E broker is flushed; Core stays running throughout recovery.
+    redis_conn = _redis_conn(rq_harness.redis_backend)
+    redis_conn.flushall()
+    deadline = time.monotonic() + CRON_JOB_TIMEOUT_SECONDS
+    while not redis_conn.hexists("rq:cron:def", cron_job_id) and time.monotonic() < deadline:
+        time.sleep(0.1)
+    rq_harness.assert_cron_registration(cron_job_id, expected_cron=cron_expression)
+    assert redis_conn.hexists("rq:cron:def", "cleanup_task_history")
     forced_due_timestamp = rq_harness.force_cron_job_due(cron_job_id)
 
     _, payload = rq_harness.wait_for_cron_task_result(cron_job_id)

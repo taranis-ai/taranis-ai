@@ -13,6 +13,7 @@ Read matching memories before planning or editing related features, routes, mode
 
 ## Feature Memories
 
+- [Redis Runtime State](redis-runtime-state.md): disposable Redis/RQ state, persistence settings, and restart recovery.
 - [Story Export](story-export.md): Settings and Assess downloads, metadata, import contracts, dates, and access checks.
 - [Telemetry](telemetry.md) - Sentry initialization, OTLP traces and metrics, RQ trace propagation, and the optional Grafana LGTM Compose profile.
 - [Analyst Chat](analyst-chat.md) - persistent chat workflow, Responses and Chat Completions integration, Assess search planning, privacy, ownership, and deployment configuration.

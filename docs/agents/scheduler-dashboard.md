@@ -19,6 +19,7 @@
 - Core queue/cache, frontend cache, and worker/cron Redis clients use redis-py's default RESP3 and pass `MaintNotificationsConfig(enabled=False)`. This prevents unsupported maintenance-notification probes on Redis Open Source and leaves managed Redis Smart Client Handoffs unused.
 - Scheduler query defaults, UTC normalization, and display serialization live in Pydantic models in `src/models/models/scheduler.py`. Queue failure responses use a static message, never RQ exception text.
 - Core owns `rq:cron:def`: startup treats current source/bot/housekeeping specs as an allowlist and removes other persisted definitions and artifacts.
+- Cron rebuilds empty Redis through authenticated Core recovery without clearing newly queued work; pending jobs are disposable. See [Redis Runtime State](redis-runtime-state.md).
 
 Bot failure filters and menu counts also include failed endpoint probes; execution history remains independent. See [LLM Endpoints](llm-endpoints.md#endpoint-checks).
 

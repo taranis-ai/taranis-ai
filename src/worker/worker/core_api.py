@@ -276,6 +276,13 @@ class CoreApi:
             logger.exception("Can't get cron job configurations")
             return None
 
+    def restore_queue_state(self) -> bool:
+        try:
+            return self.api_post("/worker/cron-jobs") is not None
+        except requests.exceptions.RequestException:
+            logger.exception("Can't restore queue runtime state")
+            return False
+
     def cleanup_task_history(self) -> dict | None:
         url = f"{self.api_url}/worker/tasks/history/cleanup"
         try:

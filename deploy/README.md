@@ -41,6 +41,43 @@ config:
 
 This initializes a fresh settings row only; restarts and upgrades preserve saved Admin Settings. Keep credentials out of these ConfigMaps and inject credential-bearing seeds into core through a Secret instead. See [settings preseeding](../docker/README.md#settings-preseeding).
 
+## Redis without persistence
+
+Kubernetes, Helm, and ArgoCD use an external Redis service. Their manifests cannot
+change that server's persistence settings. Configure the external service before
+upgrading, including any separate frontend cache instance:
+
+```conf
+save ""
+appendonly no
+```
+
+For a managed service, disable both snapshot and append-only persistence through
+its provider settings. For a Redis container, pass `--save "" --appendonly no`
+and mount a fresh RAM-backed `/data` (`emptyDir.medium: Memory` in Kubernetes);
+do not mount a Redis PVC. Disabling snapshot creation alone does not prevent Redis
+from loading an existing `dump.rdb` at startup. Keep the configuration in the
+service's deployment source; a live `CONFIG SET` alone will not survive recreation.
+
+Using an authenticated Redis administration connection, verify `CONFIG GET save
+appendonly` reports an empty `save` value and `appendonly` set to `no`. Keep the
+existing Redis credentials and private network access.
+
+Deploy matching published Core and worker images, then use the rollout checks
+below and verify the Scheduler shows the source, bot, and housekeeping schedules.
+Cron asks Core to rebuild them from PostgreSQL after an empty Redis restart and
+retries through Redis/Core outages. It resumes at the next scheduled run rather
+than replaying missed runs. Endpoint checks and empty word-list downloads refresh;
+frontend caches refill on demand. Application data, completed task results, and
+token revocations remain in PostgreSQL.
+
+Pending one-off jobs, delayed MISP pushes, retries, and unfinished bot chains are
+lost on Redis restart. Let important work finish before changing the external
+Redis deployment and rerun interrupted actions afterward. Keep the previous
+server configuration and application image tags for rollback; older images
+require a Core restart after Redis loses state. Avoid reattaching stale queue
+files that could replay old publishing jobs. No PostgreSQL migration is required.
+
 ## Images
 
 Core uses `ghcr.io/taranis-ai/taranis-core`, `taranis-frontend`, `taranis-ingress`, and `taranis-worker` (for `collector`, `worker`, and `cron`). Realtime uses the pinned `centrifugo/centrifugo:v6.9` image.

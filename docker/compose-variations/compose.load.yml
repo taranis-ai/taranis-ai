@@ -33,6 +33,8 @@ services:
   redis:
     image: "redis:8-alpine"
     command: ["redis-server", "--save", "", "--appendonly", "no"]
+    tmpfs:
+      - /data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s

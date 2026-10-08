@@ -9350,6 +9350,22 @@ paths:
         '404':
           $ref: '#/components/responses/404NotFound'
   /worker/cron-jobs:
+    post:
+      security:
+      - APIKey: []
+      description: rebuild queue runtime state from PostgreSQL after Redis loses its data without clearing queued work
+      operationId: worker.cron_jobs_worker.post
+      responses:
+        '200':
+          description: queue runtime state restored
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '503':
+          description: queues are disabled or runtime state could not be restored
     get:
       security:
       - APIKey: []

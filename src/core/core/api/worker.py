@@ -123,6 +123,12 @@ class CronJobs(MethodView):
     def get(self):
         return queue_manager.queue_manager.get_cron_job_configs()
 
+    @api_key_required
+    def post(self):
+        if queue_manager.queue_manager.restore_runtime_state():
+            return {"message": "Queue runtime state restored"}, 200
+        return {"error": "Could not restore queue runtime state"}, 503
+
 
 class EndpointHealth(MethodView):
     @api_key_required

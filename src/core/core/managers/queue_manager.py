@@ -146,19 +146,30 @@ class QueueManager:
         if self.error:
             return
         self.clear_queues()
-        self.reschedule_all()
-        self.update_empty_word_lists()
-        from core.service.endpoint_health import schedule_all
+        self.restore_runtime_state()
 
+    def restore_runtime_state(self) -> bool:
+        """Rebuild disposable Redis state from the database without clearing queued work."""
+        if not Config.QUEUE_ENABLED or self._redis is None:
+            return False
         try:
-            schedule_all()
-        except Exception:
-            logger.exception("Failed to schedule LLM endpoint checks")
+            self._redis.ping()
+            self.error = ""
+            if not self.reschedule_all():
+                return False
+            self.update_empty_word_lists()
+            from core.service.endpoint_health import schedule_all
 
-    def reschedule_all(self):
+            schedule_all()
+            return True
+        except Exception:
+            logger.exception("Failed to restore queue runtime state")
+            return False
+
+    def reschedule_all(self) -> bool:
         """Reconcile Redis cron definitions with the currently enabled sources and bots."""
         if self.error:
-            return
+            return False
         try:
             managed_specs = self._get_managed_cron_specs()
             desired_ids = set(managed_specs)
@@ -194,8 +205,10 @@ class QueueManager:
                 purged_tasks,
             )
             logger.debug("Registered %s managed cron definitions", registered)
-        except Exception as e:
-            logger.error(f"Failed to check sources and bots: {e}")
+            return registered == len(managed_specs)
+        except Exception:
+            logger.exception("Failed to check sources and bots")
+            return False
 
     def _get_managed_cron_specs(self) -> dict[str, CronSpec]:
         from core.model.bot import Bot
@@ -498,8 +511,7 @@ class QueueManager:
             ]
         except Exception as e:
             logger.error(f"Failed to ping workers: {e}")
-            self.error = "Could not reach Redis"
-            return {"error": self.error}, 503 if not Config.QUEUE_ENABLED else 500
+            return {"error": "Could not reach Redis"}, 503 if not Config.QUEUE_ENABLED else 500
 
     def enqueue_task(
         self,
@@ -1363,7 +1375,6 @@ class QueueManager:
                 return True
         except Exception as e:
             logger.error(f"Failed to register cron job {spec.job_id}: {e}")
-            self.error = "Could not reach Redis"
             return False
 
     def unregister_cron_job(self, job_id: str) -> bool:
@@ -1380,7 +1391,6 @@ class QueueManager:
                 return True
         except Exception as e:
             logger.error(f"Failed to unregister cron job {job_id}: {e}")
-            self.error = "Could not reach Redis"
             return False
 
     def get_cron_job_configs(self) -> tuple[dict[str, list[dict[str, Any]]] | dict[str, str], int]:
