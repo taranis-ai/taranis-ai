@@ -7,6 +7,8 @@ from core.managers.db_manager import db
 
 
 class FilterData:
+    LIST_LIMIT = 1000
+
     @classmethod
     def get_assess_filterlists(cls, user=None) -> dict[str, Any]:
         return {
@@ -23,7 +25,7 @@ class FilterData:
 
         query = db.select(NewsItem)
         if user:
-            query = query.where(NewsItem.story_id.in_(Story.visible_query(user).with_only_columns(Story.id)))
+            query = query.where(Story.visible_query(user).where(Story.id == NewsItem.story_id).exists())
         return query
 
     @classmethod
@@ -31,12 +33,16 @@ class FilterData:
         from core.model.news_item import NewsItem
         from core.model.news_item_tag import NewsItemTag
 
+        # OFFSET 0 keeps PostgreSQL from turning this lookup into a full tag-table join before LIMIT.
+        visible_item = cls.visible_news_items(user).where(NewsItem.id == NewsItemTag.news_item_id).offset(0).exists()
         rows = db.session.scalars(
             db.select(NewsItemTag.name)
-            .where(NewsItemTag.news_item_id.in_(cls.visible_news_items(user).with_only_columns(NewsItem.id)))
+            .where(visible_item)
+            .where(NewsItemTag.name.is_not(None), NewsItemTag.name != "")
             .where(or_(NewsItemTag.tag_type.is_(None), NewsItemTag.tag_type == "", NewsItemTag.tag_type.not_ilike("report_%")))
             .distinct()
             .order_by(NewsItemTag.name)
+            .limit(cls.LIST_LIMIT)
         ).all()
 
         return [name for name in rows if name]
@@ -48,8 +54,8 @@ class FilterData:
 
         query = OSINTSource.get_filter_query_with_acl({}, user) if user else OSINTSource.get_filter_query({})
         if user:
-            query = query.where(OSINTSource.id.in_(cls.visible_news_items(user).with_only_columns(NewsItem.osint_source_id)))
-        query = query.options(undefer(OSINTSource.icon))
+            query = query.where(cls.visible_news_items(user).where(NewsItem.osint_source_id == OSINTSource.id).exists())
+        query = query.order_by(OSINTSource.name).limit(cls.LIST_LIMIT).options(undefer(OSINTSource.icon))
         sources = OSINTSource.get_filtered(query) or []
         return [source.to_assess_dict() for source in sources if source]
 
@@ -60,14 +66,15 @@ class FilterData:
 
         query = OSINTSourceGroup.get_filter_query_with_acl({}, user) if user else OSINTSourceGroup.get_filter_query({})
         if user:
-            visible_sources = cls.visible_news_items(user).with_only_columns(NewsItem.osint_source_id)
             query = query.where(
-                OSINTSourceGroup.id.in_(
-                    db.select(OSINTSourceGroupOSINTSource.osint_source_group_id).where(
-                        OSINTSourceGroupOSINTSource.osint_source_id.in_(visible_sources)
-                    )
+                db.select(OSINTSourceGroupOSINTSource.osint_source_group_id)
+                .where(
+                    OSINTSourceGroupOSINTSource.osint_source_group_id == OSINTSourceGroup.id,
+                    cls.visible_news_items(user).where(NewsItem.osint_source_id == OSINTSourceGroupOSINTSource.osint_source_id).exists(),
                 )
+                .exists()
             )
+        query = query.limit(cls.LIST_LIMIT)
         groups = OSINTSourceGroup.get_filtered(query) or []
         return [group.to_assess_dict() for group in groups if getattr(group, "id", None)]
 
@@ -77,14 +84,15 @@ class FilterData:
 
         normalized_language = func.lower(func.trim(NewsItem.language)).label("language")
         query = (
-            db.select(normalized_language)
-            .where(NewsItem.id.in_(cls.visible_news_items(user).with_only_columns(NewsItem.id)))
+            cls.visible_news_items(user)
+            .with_only_columns(normalized_language)
             .where(
                 NewsItem.language.is_not(None),
                 func.trim(NewsItem.language) != "",
             )
             .distinct()
             .order_by(normalized_language)
+            .limit(cls.LIST_LIMIT)
         )
         languages = db.session.scalars(query).all()
 
