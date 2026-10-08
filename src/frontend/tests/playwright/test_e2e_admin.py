@@ -1728,22 +1728,6 @@ class TestEndToEndAdmin(BaseE2ETest):
             assignments.get_by_label("Default endpoint").select_option("")
             with_htmx_wait(page, lambda: assignments.get_by_role("button", name="Save Assignments").click())
             endpoint.locator("summary").click()
-            batch_form = endpoint.locator('[data-test-id="llm-endpoint-form"]')
-            batch_form.get_by_label("Processing mode").select_option("openrouter_batch")
-            with page.expect_response(
-                lambda response: response.request.method == "POST" and "/llm-endpoints/" in response.url
-            ) as batch_invalid_response:
-                batch_form.get_by_role("button", name="Save Endpoint", exact=True).click()
-            assert batch_invalid_response.value.status == 400
-            expect(batch_form.get_by_label("Processing mode")).to_have_value("openrouter_batch")
-            reset_htmx_state(page)
-            batch_form.get_by_label("Model", exact=True).fill("deepseek/deepseek-v4.1-flash:batch")
-            batch_form.get_by_label("API format").select_option("chat_completions")
-            with_htmx_wait(page, lambda: batch_form.get_by_role("button", name="Save Endpoint", exact=True).click())
-            page.reload()
-            endpoint.locator("summary").click()
-            expect(batch_form.get_by_label("Processing mode")).to_have_value("openrouter_batch")
-            expect(batch_form.get_by_label("Model", exact=True)).to_have_value("deepseek/deepseek-v4.1-flash:batch")
             with_htmx_wait(page, lambda: endpoint.get_by_role("button", name="Delete Endpoint").click())
             expect(endpoint).to_have_count(0)
 

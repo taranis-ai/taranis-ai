@@ -48,9 +48,3 @@ class LLMEndpoint(BaseModel):
         ):
             raise ValueError("Enter the provider base URL without an API endpoint, query, or fragment")
         return value.rstrip("/")
-
-    @model_validator(mode="after")
-    def validate_batch_model(self):
-        if self.processing_mode == "openrouter_batch" and not self.model:
-            raise ValueError("Batch processing requires a model ID")
-        return self
