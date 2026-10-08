@@ -263,7 +263,10 @@
             <form class="flex flex-col"
                   hx-post="{{ url_for('assess.story_trigger_bot', story_id=story.id) }}"
                   hx-target="#notification-bar"
-                  hx-swap="innerHTML">
+                  hx-status:400="target:#notification-bar"
+                  hx-status:4xx="target:#notification-bar"
+                  hx-status:5xx="target:#notification-bar"
+                  hx-swap="outerHTML">
               <input type="hidden" name="bot_id" value="summary_bot">
               <button type="submit"
                       class="btn btn-outline btn-accent"
@@ -273,7 +276,10 @@
             <form class="flex flex-col"
                   hx-post="{{ url_for('assess.story_trigger_bot', story_id=story.id) }}"
                   hx-target="#notification-bar"
-                  hx-swap="innerHTML">
+                  hx-status:400="target:#notification-bar"
+                  hx-status:4xx="target:#notification-bar"
+                  hx-status:5xx="target:#notification-bar"
+                  hx-swap="outerHTML">
               <input type="hidden" name="bot_id" value="sentiment_analysis_bot">
               <button type="submit"
                       class="btn btn-outline btn-accent"
@@ -283,7 +289,10 @@
             <form class="flex flex-col"
                   hx-post="{{ url_for('assess.story_trigger_bot', story_id=story.id) }}"
                   hx-target="#notification-bar"
-                  hx-swap="innerHTML">
+                  hx-status:400="target:#notification-bar"
+                  hx-status:4xx="target:#notification-bar"
+                  hx-status:5xx="target:#notification-bar"
+                  hx-swap="outerHTML">
               <input type="hidden" name="bot_id" value="cybersec_classifier_bot">
               <button type="submit"
                       class="btn btn-outline btn-accent"

@@ -25,7 +25,7 @@ from core.managers import queue_manager
 from core.managers.auth_manager import auth_required
 from core.managers.decorators import extract_args, validate_json
 from core.managers.realtime_publisher import realtime_publisher
-from core.model import connector, news_item, news_item_tag, osint_source, report_item, story
+from core.model import bot, connector, news_item, news_item_tag, osint_source, report_item, story
 from core.model.filter_data import FilterData
 from core.model.story_conflict import StoryConflict
 from core.service.analyst_review import AnalystReviewService
@@ -444,6 +444,8 @@ class BotActions(MethodView):
         if report_ids:
             filter_data["report_ids"] = report_ids
 
+        if selected_bot := bot.Bot.filter_by_type(bot_id):
+            bot_id = selected_bot.id
         response, code = queue_manager.queue_manager.execute_bot_task(bot_id=bot_id, filter=filter_data, user_id=current_user.id)
         if code == 200:
             realtime_publisher.assess_changed()
