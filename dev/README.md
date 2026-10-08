@@ -48,6 +48,13 @@ cp dev/env.dev src/worker/.env
 
 `dev/env.dev` keeps redis-py's default RESP3 protocol. Taranis disables Redis maintenance notifications in its Python clients, so local `REDIS_URL` values no longer need `?protocol=2`. Remove that query parameter from existing component `.env` files; `start_dev.sh` only copies missing `.env` files.
 
+Development Redis disables RDB snapshots and AOF logging and mounts `/data` as
+RAM-backed `tmpfs`. Recreate it with `docker compose -f dev/compose.yml up -d redis`
+to apply the configuration. Frontend caches refill on demand. With
+`WITH_CRON_RQ=1`, cron asks Core to restore recurring schedules after Redis loses
+state; with cron stopped, restart Core to rebuild them. Pending one-off jobs,
+retries, delayed MISP pushes, and unfinished bot chains are lost and must be rerun.
+
 ```bash
 ./dev/start_dev.sh
 ```

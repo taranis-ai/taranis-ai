@@ -38,12 +38,9 @@ services:
     image: "redis:8-alpine"
     ports:
       - "${TARANIS_REDIS_PORT:-6379}:6379"
-    command:
-      [
-        "redis-server",
-        "--appendonly", "yes",
-        "--dir", "/data"
-      ]
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    tmpfs:
+      - /data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s

@@ -66,6 +66,39 @@ Keep a database backup and previous images/configuration for rollback. See [depl
 
 ## Startup & Usage
 
+### Redis without persistence
+
+All bundled Redis services disable RDB snapshots (`save ""`) and the append-only
+log (`appendonly no`). `/data` uses a RAM-backed `tmpfs`, replacing the old
+`redis_data` volume and preventing old snapshots from being loaded. PostgreSQL
+and `core_data` remain persistent.
+
+Core rebuilds source, bot, and housekeeping schedules from PostgreSQL at startup.
+With matching Core and worker images, cron also requests a rebuild when Redis is
+empty, retries through Redis/Core outages, and resumes from the next scheduled
+run. Endpoint checks and empty word-list downloads are refreshed. Frontend caches
+refill on demand; completed task results and token revocations remain in PostgreSQL.
+
+Pending one-off jobs, delayed MISP pushes, retries, and unfinished bot chains are
+disposable and lost when Redis restarts. Let important work finish before an
+upgrade; rerun interrupted actions afterward. Missed cron runs are not replayed.
+
+Apply the updated Compose file and matching published Core/worker images:
+
+```bash
+docker compose pull
+docker compose up -d --wait
+docker compose ps
+docker compose exec -T redis sh -c 'REDISCLI_AUTH="$REDIS_PASSWORD" redis-cli --raw CONFIG GET save appendonly'
+```
+
+Verify an empty `save` value and `appendonly` set to `no`, then check the Scheduler
+for restored schedules and healthy workers. Existing `redis_data` volumes are
+left untouched and unused; do not run `docker compose down -v`, which would also
+delete PostgreSQL and application data. Keep the previous images and Compose file
+for rollback. Older Core/worker images require a Core restart after Redis loses
+state; avoid restoring stale queue files that could replay old publishing jobs.
+
 Start-up application
 
 For an existing PostgreSQL 14–17 installation, follow the [database upgrade procedure](#upgrade-the-bundled-postgresql-database-to-18) before starting the updated Compose stack; a normal startup would create an empty PostgreSQL 18 volume.

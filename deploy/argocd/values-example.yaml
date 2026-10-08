@@ -24,6 +24,7 @@ database:
   password: CHANGE_ME_DATABASE_PASSWORD
 
 redis:
+  # External Redis: disable RDB and AOF persistence; see deploy/README.md#redis-without-persistence.
   url: redis://CHANGE_ME_REDIS_HOSTNAME:6379/0
   realtimeUrl: redis://:CHANGE_ME_REDIS_PASSWORD@CHANGE_ME_REDIS_HOSTNAME:6379/0
   password: CHANGE_ME_REDIS_PASSWORD
