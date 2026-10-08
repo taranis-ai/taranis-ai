@@ -45,7 +45,9 @@ from models.scheduler import JobFilter, ScheduledJob, StoredTaskResult
 from opentelemetry.propagate import inject
 from pydantic import TypeAdapter
 from redis import Redis
-from redis.exceptions import RedisError
+from redis.exceptions import AuthenticationError, AuthorizationError, RedisError
+from redis.exceptions import ConnectionError as RedisConnectionError
+from redis.exceptions import TimeoutError as RedisTimeoutError
 from redis.maint_notifications import MaintNotificationsConfig
 from rq import Queue
 from rq.exceptions import NoSuchJobError
@@ -114,8 +116,20 @@ class QueueManager:
             maint_notifications_config=MaintNotificationsConfig(enabled=False),
         )
 
-        # Test connection
-        self._redis.ping()
+        max_attempts = 5
+        for attempt in range(1, max_attempts + 1):
+            try:
+                self._redis.ping()
+                break
+            except (AuthenticationError, AuthorizationError):
+                # These inherit ConnectionError but cannot recover through retries.
+                raise
+            except (RedisConnectionError, RedisTimeoutError) as exc:
+                if attempt == max_attempts:
+                    raise RuntimeError(f"Could not connect to Redis after {max_attempts} attempts.") from exc
+                wait_seconds = attempt
+                logger.warning("Redis connection attempt %s/%s failed; retrying in %s seconds.", attempt, max_attempts, wait_seconds)
+                time.sleep(wait_seconds)
 
         # Create queue instances
         for queue_name in self.queue_names:
