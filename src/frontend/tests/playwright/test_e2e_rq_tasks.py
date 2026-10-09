@@ -455,7 +455,7 @@ def test_endpoint_check_marks_bot_and_health(worker_process: None, rq_harness: R
         assert bot_id in {item["id"] for item in failed["items"]}
         rq_harness.core_client.post(f"/settings/llm-endpoints/{endpoint_id}", json_data={"enabled": False})
         assert rq_harness.core_client.json_request("GET", route)["endpoint_health"]["status"] == "disabled"
-        assert rq_harness.core_client.get("/health").json()["services"]["worker_endpoints"] == "n/a"
+        assert rq_harness.core_client.get("/health", raise_for_status=False).json()["services"]["worker_endpoints"] == "n/a"
         failed = rq_harness.core_client.json_request("GET", "/config/bots?state=failure")
         assert bot_id not in {item["id"] for item in failed["items"]}
         rq_harness.core_client.patch(route, json_data={"enabled": False})
