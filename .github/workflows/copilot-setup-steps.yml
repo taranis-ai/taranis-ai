@@ -1,8 +1,18 @@
 name: Copilot Setup Steps
 
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
 on:
   workflow_dispatch:
   push:
+    branches:
+      - master
     paths:
       - .github/copilot-instructions.md
       - .github/workflows/copilot-setup-steps.yml
@@ -16,15 +26,15 @@ permissions:
 
 jobs:
   copilot-setup-steps:
+    timeout-minutes: 10
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        shell: bash
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v8.2.0
+        uses: astral-sh/setup-uv@v10.3.0
         with:
           enable-cache: true
 

@@ -2,11 +2,11 @@
   "version": "5",
   "specifiers": {
     "npm:@codemirror/commands@^6.11.1": "6.11.1",
-    "npm:@codemirror/language@^6.12.4": "6.12.4",
-    "npm:@codemirror/legacy-modes@^6.5.4": "6.5.4",
+    "npm:@codemirror/language@^6.13.1": "6.13.1",
+    "npm:@codemirror/legacy-modes@^6.5.5": "6.5.5",
     "npm:@codemirror/merge@^6.12.2": "6.12.2",
     "npm:@codemirror/state@^6.7.6": "6.7.6",
-    "npm:@codemirror/view@^6.43.13": "6.43.13",
+    "npm:@codemirror/view@^6.43.14": "6.43.14",
     "npm:@tailwindcss/cli@4.3.0": "4.3.0",
     "npm:alpinejs@*": "3.17.4",
     "npm:alpinejs@^3.17.4": "3.17.4",
@@ -47,10 +47,11 @@
         "@lezer/common"
       ]
     },
-    "@codemirror/language@6.12.4": {
-      "integrity": "sha512-1q4PaT+o6PbgpkJt4Q8Fv5XJxTy4FUZ4MWETtyiDw3J0Pyr9E2vqcKL+k9wcvjNTIsauxvE7OfmWj3FRPHQ76A==",
+    "@codemirror/language@6.13.1": {
+      "integrity": "sha512-zfvU2r3TyylQLMj/te+5CnQ0rSqZi8B1oTCBbQkagcLW4Xc6imab6qN+pEJhsuNOLaJqiRyBXp9UhWA1DhVvDw==",
       "dependencies": [
         "@codemirror/state",
+        "@codemirror/streamparser",
         "@codemirror/view",
         "@lezer/common",
         "@lezer/highlight",
@@ -58,10 +59,10 @@
         "style-mod"
       ]
     },
-    "@codemirror/legacy-modes@6.5.4": {
-      "integrity": "sha512-/cZr6qZyl08iYNLGsJ862CXXNI51LryRFRE40ejgoIjXZz0C1rGkD3/Ek5jM/8w1ceRjqtt4qx/KLMh4zBTgew==",
+    "@codemirror/legacy-modes@6.5.5": {
+      "integrity": "sha512-9ltT214oMb3Y1w5eAZMSigzrjzZnMI2Wa3Feq73rU/i4C56MkwrpfswfQYOr28C5pXr6dWwspNTMyeHXlzWMxg==",
       "dependencies": [
-        "@codemirror/language"
+        "@codemirror/streamparser"
       ]
     },
     "@codemirror/lint@6.9.7": {
@@ -96,8 +97,11 @@
         "@marijn/find-cluster-break"
       ]
     },
-    "@codemirror/view@6.43.13": {
-      "integrity": "sha512-sihaFrUzAsYBQsL9J2t69y8nfMQGwcYmggAZsk+kjPbjYZMyuf2hU8tUNTZ+P+isb6XRr8JE22TZlJxBoVdH1A==",
+    "@codemirror/streamparser@6.0.0": {
+      "integrity": "sha512-JTFPF6xrfjt0mnfGPgzcLiMwYmvIyNaoizp8BYzv8FE8KrT6GBGDZ190rtt+O7Wke3gG/MFHyiY9YGNeimof4w=="
+    },
+    "@codemirror/view@6.43.14": {
+      "integrity": "sha512-hC45YnmJNR1rz42OF57BLoQNFMV12/13drnvibDsR2quNDmldcb4WvYVV81hFQg56i9lcqQMEDqilhX2QDcGQQ==",
       "dependencies": [
         "@codemirror/state",
         "crelt",
@@ -530,11 +534,11 @@
   "workspace": {
     "dependencies": [
       "npm:@codemirror/commands@^6.11.1",
-      "npm:@codemirror/language@^6.12.4",
-      "npm:@codemirror/legacy-modes@^6.5.4",
+      "npm:@codemirror/language@^6.13.1",
+      "npm:@codemirror/legacy-modes@^6.5.5",
       "npm:@codemirror/merge@^6.12.2",
       "npm:@codemirror/state@^6.7.6",
-      "npm:@codemirror/view@^6.43.13",
+      "npm:@codemirror/view@^6.43.14",
       "npm:@tailwindcss/cli@4.3.0",
       "npm:alpinejs@^3.17.4",
       "npm:choices.js@^11.2.4",
