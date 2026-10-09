@@ -3,10 +3,13 @@ from collections.abc import Coroutine
 from typing import Any
 
 from llm_bot.client import LLMClient, UpstreamLLMError
+from llm_bot.tasks.llm_utils import LLMTask
 from models.llm import LLMEndpoint
 from niquests.exceptions import RequestException
+from rq import Retry
 
 from worker.bot_api import BotServiceUnavailableError
+from worker.llm_batch import BatchProcessor
 from worker.log import logger
 
 
@@ -45,3 +48,11 @@ def run_llm_task[T](task: Coroutine[Any, Any, T]) -> T:
     except Exception:
         logger.exception("LLM task failed")
         raise RuntimeError("LLM task failed") from None
+
+
+def run_llm_tasks[T](tasks: list[LLMTask[T]], client: LLMClient, parameters: dict) -> list[T] | Retry:
+    if parameters["llm_endpoint"].get("processing_mode") == "openrouter_batch":
+        processor = BatchProcessor(client, parameters["_llm_batch_state"], parameters["_save_llm_batch_state"])
+        results = processor.process(tasks)
+        return Retry(max=600, interval=300) if results is None else results
+    return [run_llm_task(task.run(client)) for task in tasks]

@@ -7,13 +7,14 @@ from typing import Any
 
 from models.llm import LLM_BOT_FEATURES
 from models.worker_parameters import effective_parameter_values
-from rq import get_current_job
+from rq import Retry, get_current_job
 
 import worker.bots
 from worker.bot_api import BotServiceUnavailableError
 from worker.core_api import CoreApi, build_failure_task_result, build_success_task_result
 from worker.http_client import http_session_scope
 from worker.llm import LLMConfigurationError
+from worker.llm_batch import BatchExecutionError
 from worker.log import logger
 from worker.telemetry import instrument_job
 
@@ -42,12 +43,22 @@ def bot_task(bot_id: str, filter: dict | None = None, trigger_dependents: bool =
     logger.info(f"Starting bot task with job id {job.id if job else 'manual'}")
 
     try:
-        bot_config = core_api.get_bot_config(bot_id)
+        batch_state = job.meta.get("llm_batch") if job and isinstance(job.meta, dict) else None
+        bot_config = batch_state["config"] if batch_state else core_api.get_bot_config(bot_id)
         if not bot_config:
             raise ValueError(f"Bot with id {bot_id} not found")
 
         worker_type = bot_config.get("type", worker_type).upper()
-        bot_result = _execute_by_config(bot_config, filter, bot_id)
+        if (bot_config.get("llm_endpoint") or {}).get("processing_mode") == "openrouter_batch":
+            if not job:
+                raise RuntimeError("Batch processing requires a queued job")
+            if batch_state is None:
+                batch_state = {"config": bot_config}
+                job.meta["llm_batch"] = batch_state
+                job.save_meta()
+        bot_result = _execute_by_config(bot_config, filter, bot_id, batch_state, job.save_meta if job else None)
+        if isinstance(bot_result, Retry):
+            return bot_result
         if bot_result is None:
             raise RuntimeError(f"Bot {bot_id} returned no result")
         core_api.save_task_result(
@@ -63,6 +74,10 @@ def bot_task(bot_id: str, filter: dict | None = None, trigger_dependents: bool =
                 merge_dict_data=False,
             ),
         )
+        if batch_state is not None:
+            assert job is not None
+            job.meta.pop("llm_batch", None)
+            job.save_meta()
         return (
             {"worker_id": bot_id, "worker_type": worker_type, **bot_result}
             if isinstance(bot_result, dict)
@@ -71,7 +86,7 @@ def bot_task(bot_id: str, filter: dict | None = None, trigger_dependents: bool =
     except Exception as exc:
         not_found = isinstance(exc, ValueError) and exc.args == (f"Bot with id {bot_id} not found",)
         empty_result = isinstance(exc, RuntimeError) and exc.args == (f"Bot {bot_id} returned no result",)
-        if isinstance(exc, (BotServiceUnavailableError, LLMConfigurationError)):
+        if isinstance(exc, (BotServiceUnavailableError, LLMConfigurationError, BatchExecutionError)):
             error_message = exc.public_message
             reason = exc.reason
             retryable = exc.retryable
@@ -103,7 +118,9 @@ def bot_task(bot_id: str, filter: dict | None = None, trigger_dependents: bool =
         raise
 
 
-def _execute_by_config(bot_config: dict, filter: dict | None = None, bot_id: str | None = None):
+def _execute_by_config(
+    bot_config: dict, filter: dict | None = None, bot_id: str | None = None, batch_state: dict | None = None, save_batch_state=None
+):
     """Execute a bot based on its configuration.
 
     Args:
@@ -142,5 +159,12 @@ def _execute_by_config(bot_config: dict, filter: dict | None = None, bot_id: str
     if filter:
         # Runtime filters are transient task data, not persisted parameters.
         bot_params["filter"] = filter
+
+    if batch_state is not None:
+        if "stories" not in batch_state:
+            batch_state["stories"] = bot.get_stories(dict(bot_params))
+        bot_params["_stories"] = batch_state["stories"]
+        bot_params["_llm_batch_state"] = batch_state
+        bot_params["_save_llm_batch_state"] = save_batch_state
 
     return bot.execute(bot_params)

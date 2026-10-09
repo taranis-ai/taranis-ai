@@ -135,6 +135,8 @@ class Settings(BaseModel):
                 not isinstance(update_data[key], str) or (update_data[key] and update_data[key] not in current_settings["llm_endpoints"])
             ):
                 return {"error": "Select an existing LLM endpoint"}, 400
+        if cls._chat_uses_batch({**current_settings, **update_data}):
+            return {"error": "Chat requires a realtime LLM endpoint. Assign Chat explicitly before using a batch default."}, 400
         if "chat_max_stories" in update_data:
             try:
                 value = cls._validate_non_negative_int(update_data["chat_max_stories"])
@@ -167,9 +169,16 @@ class Settings(BaseModel):
             if values[key] and values[key] not in endpoints:
                 raise ValueError("Unknown LLM endpoint assignment")
         values["llm_endpoints"] = endpoints
+        if cls._chat_uses_batch(values):
+            raise ValueError("Chat requires a realtime LLM endpoint")
         values["chat_max_stories"] = cls._validate_non_negative_int(values["chat_max_stories"])
         if not 1 <= values["chat_max_stories"] <= 20:
             raise ValueError("Maximum stories must be between 1 and 20")
+
+    @classmethod
+    def _chat_uses_batch(cls, values: dict) -> bool:
+        endpoint = cls.get_llm_endpoint("chat", values)
+        return bool(endpoint and endpoint.get("processing_mode") == "openrouter_batch")
 
     @classmethod
     def get_llm_endpoint(cls, feature: str, settings: dict | None = None) -> dict | None:
@@ -213,12 +222,16 @@ class Settings(BaseModel):
                     submitted["api_key"] = existing.get("api_key", "")
                 endpoint = LLMEndpoint.model_validate({**existing, **submitted}).model_dump()
             except (TypeError, ValueError):
-                return {"error": "Invalid LLM endpoint. Check the name, base URL, API format, and positive timeout."}, 400
+                return {
+                    "error": "Invalid LLM endpoint. Check the name, base URL, model, API format, processing mode, and positive timeout."
+                }, 400
             if any(item["name"].casefold() == endpoint["name"].casefold() for key, item in endpoints.items() if key != endpoint_id):
                 return {"error": "An LLM endpoint with this name already exists"}, 400
             endpoint_id = endpoint_id or cls.uuid7_str()
             endpoints[endpoint_id] = endpoint
         values["llm_endpoints"] = endpoints
+        if cls._chat_uses_batch(values):
+            return {"error": "Chat requires a realtime LLM endpoint. Reassign Chat before changing this endpoint to batch."}, 400
         entry.settings = values
         db.session.commit()
         from core.service.endpoint_health import schedule_check

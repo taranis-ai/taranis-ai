@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = "==3.13.*"
 required-markers = [
     "platform_machine == 'x86_64' and sys_platform == 'linux'",
@@ -1896,7 +1896,7 @@ wheels = [
 
 [[package]]
 name = "taranis-llm-bot"
-version = "0.1.4"
+version = "0.1.5"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "langcodes", extra = ["data"] },
@@ -1904,9 +1904,9 @@ dependencies = [
     { name = "pydantic" },
     { name = "pydantic-settings" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/36/83/ecf579637f8b1e26389e8f23afb921c6704ee23f86c9689986c1e0262207/taranis_llm_bot-0.1.4.tar.gz", hash = "sha256:095106505ba09fe0abcb4564c798a17da61300428319b14f4779822799450c1c", size = 125893, upload-time = "2026-10-08T07:57:54.891Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ca/da/de5cf7542814527d38776a201096efd2e2446abf9ae8f48820adc2c5a83f/taranis_llm_bot-0.1.5.tar.gz", hash = "sha256:405e140237103ebb2f1502ec26f1c808674d3b6f0ca391210f4fee988970f77a", size = 125368, upload-time = "2026-10-08T23:12:06.357Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/94/17/092b817726cd9d5c9a4841673829a3328bdcbb448898b56d9441c49afb7a/taranis_llm_bot-0.1.4-py3-none-any.whl", hash = "sha256:c40177f5db2c1e8f11fdc446bd42a9a5833f83e58bd370489ff4813301230679", size = 69983, upload-time = "2026-10-08T07:57:53.866Z" },
+    { url = "https://files.pythonhosted.org/packages/5f/f2/1aa1f1239f0a9f297b98c08afb103a7b6cc774aac2722d51005c53e5378d/taranis_llm_bot-0.1.5-py3-none-any.whl", hash = "sha256:999488ba156f6cea906288c9d745ac721b4ed16bd9a6f1b543bea19d24f2d477", size = 66067, upload-time = "2026-10-08T23:12:05.148Z" },
 ]
 
 [[package]]
@@ -2027,7 +2027,7 @@ requires-dist = [
     { name = "ruff", marker = "extra == 'dev'" },
     { name = "setuptools", marker = "extra == 'dev'" },
     { name = "setuptools-scm", marker = "extra == 'dev'" },
-    { name = "taranis-llm-bot" },
+    { name = "taranis-llm-bot", specifier = "==0.1.5" },
     { name = "taranis-models", editable = "../models" },
     { name = "taxii2-client" },
     { name = "trafilatura" },

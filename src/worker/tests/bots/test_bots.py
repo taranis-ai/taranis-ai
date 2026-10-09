@@ -4,6 +4,7 @@ from unittest.mock import patch
 import pytest
 from llm_bot.client import LLMClient
 from llm_bot.config import Config as LLMConfig
+from rq import Retry
 
 from worker.bots.base_bot import BaseBot
 from worker.bots.tagging_content import _news_item_content_for_tagging
@@ -218,15 +219,48 @@ def test_cybersec_class_bot(stories, story_get_mock, news_item_attribute_update_
     )
 
 
-def test_sentiment_analysis_bot(story_get_mock, news_item_attribute_update_mock):
+@pytest.mark.parametrize("batch", [False, True])
+def test_sentiment_analysis_bot(stories, story_get_mock, news_item_attribute_update_mock, requests_mock, batch):
     from worker import bots
 
-    endpoint = {"name": "Sentiment", "base_url": "https://llm.test/v1"}
-    with patch.object(LLMClient, "create_response", autospec=True) as provider:
-        provider.return_value = {"output_text": '{"sentiment": {"label": "neutral", "score": 0.49}}'}
-        assert bots.SentimentAnalysisBot().execute({"llm_endpoint": endpoint}) == {"message": "Sentiment analysis complete"}
-    assert story_get_mock.call_count == 1
-    assert news_item_attribute_update_mock.call_count > 0
+    endpoint = {"name": "Sentiment", "base_url": "https://llm.test/v1", "model": "test-model"}
+    parameters = {"llm_endpoint": endpoint}
+    items = [item for story in stories for item in story["news_items"] if item["content"].strip()]
+    outputs = [{"output_text": json.dumps({"sentiment": {"label": "neutral", "score": index / 100}})} for index in range(len(items))]
+    expected_scores = {item["id"]: str(index / 100) for index, item in enumerate(items)}
+    bot = bots.SentimentAnalysisBot()
+    if batch:
+        endpoint["processing_mode"] = "openrouter_batch"
+        parameters.update({"_stories": stories, "_llm_batch_state": {}, "_save_llm_batch_state": lambda: None})
+        submitted = requests_mock.post(f"{endpoint['base_url']}/batches", json={"id": "batch_items"}, status_code=202)
+        assert isinstance(bot.execute(parameters), Retry)
+        assert news_item_attribute_update_mock.call_count == 0
+        requests = submitted.last_request.json()["requests"]
+        assert len(requests) == len(items)
+        assert len({request["custom_id"] for request in requests}) == len(items)
+        assert [request["body"]["input"][1]["content"] for request in requests] == [item["content"] for item in items]
+        requests_mock.get(
+            f"{endpoint['base_url']}/batches/batch_items",
+            json={
+                "status": "completed",
+                "results": [
+                    {"custom_id": request["custom_id"], "response": {"status_code": 200, "body": outputs[int(request["custom_id"])]}}
+                    for request in reversed(requests)
+                ],
+            },
+        )
+        result = bot.execute(parameters)
+        assert submitted.call_count == 1
+    else:
+        with patch.object(LLMClient, "create_response", autospec=True) as provider:
+            provider.side_effect = outputs
+            result = bot.execute(parameters)
+            assert provider.await_count == len(items)
+            assert [call.args[2] for call in provider.call_args_list] == [item["content"] for item in items]
+        assert story_get_mock.call_count == 1
+    assert result == {"message": "Sentiment analysis complete"}
+    assert news_item_attribute_update_mock.call_count == len(expected_scores)
     for req in news_item_attribute_update_mock.request_history:
         attributes = {attr["key"]: attr["value"] for attr in req.json()["attributes"]}
-        assert attributes == {"sentiment_category": "neutral", "sentiment_score": "0.49"}
+        item_id = req.path.split("/")[-2]
+        assert attributes == {"sentiment_category": "neutral", "sentiment_score": expected_scores[item_id]}

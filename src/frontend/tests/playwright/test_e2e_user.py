@@ -437,6 +437,13 @@ class TestEndToEndUser(BaseE2ETest):
             expect(page.get_by_role("complementary")).to_contain_text("Generate summary & title")
             expect(page.get_by_role("complementary")).to_contain_text("Run sentiment analysis")
             expect(page.get_by_role("complementary")).to_contain_text("Cybersecurity classification")
+            page.get_by_role("textbox", name="Analyst comments").fill("Unsaved analyst comment")
+            for action in ("Generate summary & title", "Run sentiment analysis", "Cybersecurity classification"):
+                with_htmx_wait(page, page.get_by_role("button", name=action, exact=True).click)
+                expect(page.locator("#notification-bar")).to_have_count(1)
+                expect(page.locator("#notification-message")).to_contain_text("Executing Bot scheduled")
+                expect(page.get_by_role("textbox", name="Title", exact=True)).to_have_value(edited_title)
+                expect(page.get_by_role("textbox", name="Analyst comments")).to_have_value("Unsaved analyst comment")
             page.get_by_role("link", name="Return to story").click()
             expect(page.get_by_test_id("story-title")).to_contain_text(edited_title)
 

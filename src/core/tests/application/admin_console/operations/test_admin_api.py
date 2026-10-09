@@ -138,8 +138,29 @@ class TestAdminApi(BaseTest):
         assert response.headers["Cache-Control"] == "no-store"
         assert response.get_json()["llm_endpoint"]["api_key"] == values["api_key"]
         override_id = self.assert_post_ok(
-            client, "llm-endpoints", {"name": "Clustering", "base_url": "http://local-model/v1"}, auth_header
+            client,
+            "llm-endpoints",
+            {
+                "name": "Clustering",
+                "base_url": "http://local-model/v1",
+                "model": "deepseek/deepseek-v4.1-flash:batch",
+                "processing_mode": "openrouter_batch",
+            },
+            auth_header,
         ).get_json()["id"]
+        for assignments in ({"llm_chat_endpoint": override_id}, {"llm_default_endpoint": override_id}):
+            response = client.patch(self.concat_url("settings"), json={"settings": assignments}, headers=auth_header)
+            assert response.status_code == 400
+            assert "Chat requires a realtime" in response.json["error"]
+        response = client.post(
+            self.concat_url(f"llm-endpoints/{endpoint_id}"), json={"processing_mode": "openrouter_batch"}, headers=auth_header
+        )
+        assert response.status_code == 400
+        self.assert_patch_ok(
+            client, "settings", {"settings": {"llm_chat_endpoint": endpoint_id, "llm_default_endpoint": override_id}}, auth_header
+        )
+        assert client.get(worker_url, headers=worker_headers).json["llm_endpoint"]["processing_mode"] == "openrouter_batch"
+        self.assert_patch_ok(client, "settings", {"settings": {"llm_default_endpoint": endpoint_id, "llm_chat_endpoint": ""}}, auth_header)
         self.assert_patch_ok(client, "settings", {"settings": {f"llm_{feature}_endpoint": override_id}}, auth_header)
         assert client.get(worker_url, headers=worker_headers).get_json()["llm_endpoint"]["base_url"] == "http://local-model/v1"
         response = client.post(self.concat_url(f"llm-endpoints/{override_id}/delete"), headers=auth_header)

@@ -48,7 +48,7 @@ dependencies = [
     "pypandoc-binary",
     "niquests",
     "confluent-kafka",
-    "taranis-llm-bot",
+    "taranis-llm-bot==0.1.5",
 ]
 dynamic = ["version"]
 

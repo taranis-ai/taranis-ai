@@ -84,7 +84,7 @@ class TestBotTask:
         )
         requests_mock.get(
             f"{Config.TARANIS_CORE_URL}/worker/stories",
-            json=[{"id": "story-1", "tags": {}, "news_items": [{"title": "Story", "content": "Content"}]}],
+            json=[{"id": "story-1", "tags": {}, "news_items": [{"id": "item-1", "title": "Story", "content": "Content"}]}],
         )
         saved = requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
         with patch.object(LLMClient, "create_response", autospec=True, side_effect=failure) as provider:

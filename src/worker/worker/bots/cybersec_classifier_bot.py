@@ -1,8 +1,9 @@
 from llm_bot.schemas import CybersecClassificationRequest
-from llm_bot.tasks.cybersec_classification import classify_cybersecurity_text
+from llm_bot.tasks.cybersec_classification import prepare_cybersec_classification
+from rq import Retry
 
 from worker.config import Config
-from worker.llm import get_llm_client, run_llm_task
+from worker.llm import get_llm_client, run_llm_tasks
 from worker.log import logger
 
 from .base_bot import BaseBot
@@ -14,7 +15,7 @@ class CyberSecClassifierBot(BaseBot):
         self.type = "CYBERSEC_CLASSIFIER_BOT"
         self.name = "Cybersecurity classification bot"
 
-    def execute(self, parameters: dict | None = None) -> dict[str, dict[str, str] | str]:
+    def execute(self, parameters: dict | None = None) -> dict | Retry:
         if not parameters:
             parameters = {}
 
@@ -23,13 +24,19 @@ class CyberSecClassifierBot(BaseBot):
 
         self.llm_client = get_llm_client(parameters)
         self.classification_threshold = parameters.get("CLASSIFICATION_THRESHOLD", Config.CYBERSEC_CLASSIFIER_THRESHOLD)
+        items = [item for story in data for item in story.get("news_items", []) if item.get("content", "").strip()]
+        tasks = [prepare_cybersec_classification(CybersecClassificationRequest(text=item["content"])) for item in items]
+        results = run_llm_tasks(tasks, self.llm_client, parameters)
+        if isinstance(results, Retry):
+            return results
+        results = {item["id"]: result.model_dump() for item, result in zip(items, results, strict=True)}
 
         num_news_items = 0
         for story in data:
             story_class_list = []
             story_cybersecurity_status = "incomplete"
             for news_item in story.get("news_items", []):
-                result = self._process_news_item(news_item)
+                result = self._process_news_item(news_item, results.get(news_item["id"]))
                 story_class_list.append(result)
                 if result != "none":
                     num_news_items += 1
@@ -52,18 +59,10 @@ class CyberSecClassifierBot(BaseBot):
 
         return {"message": f"Classified {num_news_items} news items"}
 
-    def _classify_news_item(self, content: str) -> dict | None:
-        if not content.strip():
-            return None
-        request = CybersecClassificationRequest(text=content)
-        return run_llm_task(classify_cybersecurity_text(request, client=self.llm_client)).model_dump()
-
-    def _process_news_item(self, news_item: dict) -> str:
-        news_item_content = news_item.get("content", "")
+    def _process_news_item(self, news_item: dict, class_result: dict | None) -> str:
         news_item_id = news_item.get("id", "")
 
         logger.debug(f"Classifying news item with id: {news_item_id}.")
-        class_result = self._classify_news_item(news_item_content)
         if not class_result:
             return "none"
 

@@ -43,10 +43,14 @@
             <input type="hidden" name="csrf_token" value="{{ request.cookies.get(config['JWT_ACCESS_CSRF_COOKIE_NAME'], '') }}" />
             {{ form_input('Name', 'name', endpoint.name | default(''), preserve=False, floating=False, required=True, input_id='llm-' ~ endpoint_id ~ '-name') }}
             {{ form_input('Provider base URL', 'base_url', endpoint.base_url | default(''), type='url', preserve=False, floating=False, required=True, placeholder='https://provider.example/v1', input_id='llm-' ~ endpoint_id ~ '-base_url') }}
-            <p class="text-sm text-base-content/70 mb-4">Enter the base URL without /responses or /chat/completions.</p>
+            <p class="text-sm text-base-content/70 mb-4">Enter the base URL without /responses, /chat/completions, or /batches.</p>
             {{ form_input('Model', 'model', endpoint.model | default(''), preserve=False, floating=False, required=False, placeholder='Provider model ID', input_id='llm-' ~ endpoint_id ~ '-model') }}
             <p class="text-sm text-base-content/70 mb-4">Use the provider's exact model ID. Leave blank only if the provider supplies a default model.</p>
             {{ form_select('API format', 'api_format', endpoint.api_format | default('responses'), options=[{'id': 'responses', 'name': 'Responses'}, {'id': 'chat_completions', 'name': 'Chat Completions'}], input_id='llm-' ~ endpoint_id ~ '-api_format') }}
+            {{ form_select('Processing mode', 'processing_mode', endpoint.processing_mode | default('realtime'), options=[{'id': 'realtime', 'name': 'Realtime'}, {'id': 'openrouter_batch', 'name': 'OpenRouter batch'}], input_id='llm-' ~ endpoint_id ~ '-processing_mode') }}
+            <p class="text-sm text-base-content/70 mb-4">
+              OpenRouter batch uses /batches for background bots and can take up to 24 hours. Use https://openrouter.ai/api/v1 and a model that supports batch processing. Chat requires a realtime endpoint.
+            </p>
             {{ form_input('API key', 'api_key', '', type='password', required=False, preserve=False, floating=False, placeholder='Leave blank to keep the saved key' if endpoint_id else 'Enter provider API key', input_id='llm-' ~ endpoint_id ~ '-api_key') }}
             <p class="text-sm text-base-content/70 mb-4">{{ 'An API key is saved.' if endpoint.api_key_configured else 'No API key saved. Optional for providers without authentication.' }}</p>
             {% if endpoint_id %}
