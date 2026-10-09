@@ -1,12 +1,15 @@
 import json
 from typing import Any
+from unittest.mock import Mock
 
 import fakeredis
 import pytest
 from models.task import CronTaskSpec
 from pydantic import ValidationError
+from rq import Queue
 
 from worker import cron_scheduler
+from worker.config import Config
 from worker.cron_scheduler import DEFS_KEY, NEXT_KEY, _decode, _enqueue_due_job, _enqueue_key, _normalize_spec, _sync_next_index
 
 
@@ -62,6 +65,49 @@ def test_sync_next_index_adds_missing_and_removes_stale_ids():
     assert redis_conn.zscore(NEXT_KEY, "job_interval_45") == 1045.0
 
 
+@pytest.mark.parametrize("redis_available", [True, False])
+def test_scheduler_restores_empty_redis_and_retries_core_failure(requests_mock, monkeypatch, redis_available):
+    server = fakeredis.FakeServer()
+    server.connected = redis_available
+    redis_conn = fakeredis.FakeRedis(server=server, decode_responses=False)
+    monkeypatch.setattr(cron_scheduler, "get_redis_connection", lambda *_args: redis_conn)
+    monkeypatch.setattr(cron_scheduler.time, "time", lambda: 1000.0)
+    polls = iter(range(2 if redis_available else 3))
+
+    def sleep(_seconds):
+        if next(polls) == (1 if redis_available else 2):
+            raise RuntimeError("stop scheduler")
+        server.connected = True
+
+    monkeypatch.setattr(cron_scheduler.time, "sleep", sleep)
+    spec = {"queue_name": "misc", "func_path": "cleanup_token_blacklist", "interval": 30}
+
+    def restored_response(_request, _context):
+        redis_conn.hset(DEFS_KEY, "cleanup_token_blacklist", json.dumps(spec))
+        return {"message": "Queue runtime state restored"}
+
+    requests_mock.post(
+        f"{Config.TARANIS_CORE_URL}/worker/cron-jobs",
+        [
+            {"status_code": 503, "json": {"error": "Core unavailable"}},
+            {"json": restored_response},
+        ],
+    )
+    with pytest.raises(RuntimeError, match="stop scheduler"):
+        cron_scheduler.run_scheduler()
+
+    assert requests_mock.call_count == 2
+    assert redis_conn.zscore(NEXT_KEY, "cleanup_token_blacklist") == 1030.0
+
+    # Existing next-run timestamps must survive normal polling without another rebuild.
+    requests_mock.reset_mock()
+    monkeypatch.setattr(cron_scheduler.time, "sleep", Mock(side_effect=RuntimeError("stop scheduler")))
+    with pytest.raises(RuntimeError, match="stop scheduler"):
+        cron_scheduler.run_scheduler()
+    assert requests_mock.call_count == 0
+    assert redis_conn.zscore(NEXT_KEY, "cleanup_token_blacklist") == 1030.0
+
+
 def test_sync_next_index_skips_invalid_specs_without_crashing():
     redis_conn = fakeredis.FakeRedis(decode_responses=False)
     base_ts = 1000.0
@@ -107,9 +153,8 @@ def test_decode_rejects_awaitable_values():
         coroutine.close()
 
 
-def test_enqueue_due_job_updates_next_run_and_notifies_wait_key(monkeypatch: pytest.MonkeyPatch, fake_queue: Any):
+def test_enqueue_due_job_updates_next_run_and_notifies_wait_key():
     redis_conn = fakeredis.FakeRedis(decode_responses=False)
-    monkeypatch.setattr(cron_scheduler, "Queue", fake_queue)
 
     rq_job_id = _enqueue_due_job(
         redis_conn,
@@ -121,19 +166,18 @@ def test_enqueue_due_job_updates_next_run_and_notifies_wait_key(monkeypatch: pyt
             "cron": "*/5 * * * *",
             "args": ["source-1", False],
             "meta": {"name": "Collector: Source 1"},
+            "job_options": {"job_timeout": 300},
         },
         due_ts=1000.0,
     )
 
     assert rq_job_id == "cron_osint_source_source-1_1000"
-    assert fake_queue.enqueued_calls == [
-        {
-            "task": "worker.collectors.collector_tasks.collector_task",
-            "args": ("source-1", False),
-            "job_id": "cron_osint_source_source-1_1000",
-            "kwargs": {"meta": {"name": "Collector: Source 1"}},
-        }
-    ]
+    job = Queue("collectors", connection=redis_conn).fetch_job(rq_job_id)
+    assert job.func_name == "worker.collectors.collector_tasks.collector_task"
+    assert job.args == ("source-1", False)
+    assert job.kwargs == {}
+    assert job.meta == {"name": "Collector: Source 1"}
+    assert job.timeout == 300
     assert redis_conn.zscore(NEXT_KEY, "osint_source_source-1") is not None
 
     wait_key_result = redis_conn.blpop(_enqueue_key("osint_source_source-1"), timeout=1)

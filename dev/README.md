@@ -20,6 +20,14 @@ Workflow:
 3. If validation fails, fix and commit the problem, then run `./dev/test_push_signoff.sh` again. Every E2E run uses a fresh isolated Compose stack.
 4. If you do not use local signoff, the normal `test and lint` GitHub Actions workflow remains the fallback path.
 
+On macOS, the pipeline and worker startup script add Homebrew's library directory to `DYLD_FALLBACK_LIBRARY_PATH` so WeasyPrint can load GLib and Pango. For manual worker commands or `uv run pytest`, set it in the same terminal first:
+
+```bash
+export DYLD_FALLBACK_LIBRARY_PATH="$(brew --prefix)/lib${DYLD_FALLBACK_LIBRARY_PATH:+:$DYLD_FALLBACK_LIBRARY_PATH}"
+```
+
+If Pango is not installed, run `brew install pango` first (the automated setup installs it).
+
 ## Easy Mode
 
 The automated setup supports macOS, Ubuntu, and Debian 13. macOS requires Homebrew; the setup uses Podman for containers. The bootstrap downloads pinned uv and Ruff installers and verifies their SHA-256 checksums before execution.
@@ -37,6 +45,15 @@ Copy env.dev to worker and core
 cp dev/env.dev src/core/.env
 cp dev/env.dev src/worker/.env
 ```
+
+`dev/env.dev` keeps redis-py's default RESP3 protocol. Taranis disables Redis maintenance notifications in its Python clients, so local `REDIS_URL` values no longer need `?protocol=2`. Remove that query parameter from existing component `.env` files; `start_dev.sh` only copies missing `.env` files.
+
+Development Redis disables RDB snapshots and AOF logging and mounts `/data` as
+RAM-backed `tmpfs`. Recreate it with `docker compose -f dev/compose.yml up -d redis`
+to apply the configuration. Frontend caches refill on demand. With
+`WITH_CRON_RQ=1`, cron asks Core to restore recurring schedules after Redis loses
+state; with cron stopped, restart Core to rebuild them. Pending one-off jobs,
+retries, delayed MISP pushes, and unfinished bot chains are lost and must be rerun.
 
 ```bash
 ./dev/start_dev.sh
@@ -82,7 +99,8 @@ Start support services via the dev compose file
 docker compose -f dev/compose.yml up -d
 ```
 
-This starts local Redis without authentication and a pinned Centrifugo instance. Its client and authenticated admin UI port is available at `http://localhost:8000` and binds to all host interfaces, while its API and health port `9000` remains loopback-only. The development admin password defaults to `admin`; override `CENTRIFUGO_ADMIN_PASSWORD` and `CENTRIFUGO_ADMIN_SECRET` as needed.
+This starts local Redis without authentication and a pinned Centrifugo instance. Its client and authenticated admin UI port is available at `http://localhost:8001` and binds to all host interfaces, while its API and health port `9000` remains loopback-only. The development admin password defaults to `admin`; override `CENTRIFUGO_ADMIN_PASSWORD` and `CENTRIFUGO_ADMIN_SECRET` as needed.
+Centrifugo uses host port `8001` to leave `8000` available for local LLM inference. If you override `TARANIS_CENTRIFUGO_PORT`, update the realtime upstream in your installed Nginx configuration too. Existing setups must recopy `dev/nginx.conf`, validate with `nginx -t`, and reload Nginx after updating the Compose service.
 Queue state is not persisted across local Redis restarts in this dev setup.
 Browsers connect through the local NGINX ingress at `http://local.taranis.ai/sse`.
 Centrifugo reaches Core through Podman's `host.containers.internal` address; set `TARANIS_CORE_PORT` when Core does not use port `5001`.
@@ -132,8 +150,8 @@ tmux new-window -t taranis:1 -n frontend -c src/frontend
 # Create the third tab and cd to src/worker
 tmux new-window -t taranis:2 -n worker -c src/worker
 
-# Create the fourth tab for cron scheduler
-tmux new-window -t taranis:3 -n cron -c src/worker
+# Optional: enable automatic collection and scheduled bots
+# tmux new-window -t taranis:3 -n cron -c src/worker
 
 # Create the fifth tab for rq-dashboard (optional, for monitoring)
 tmux new-window -t taranis:4 -n rq-dashboard -c src/worker
@@ -147,6 +165,20 @@ Or run `./dev/start_tmux.sh` for the core, Tailwind, frontend, and worker window
 ```bash
 WITH_CRON_RQ=1 ./dev/start_tmux.sh
 ```
+
+### Pausing collection during development
+
+The default `start_dev.sh` / `start_tmux.sh` workflow leaves automatic collection and scheduled bots off. Leave `WITH_CRON_RQ` unset and do not start `taranis-cron` manually. If cron is already running, stop that process (Ctrl-C in its terminal); restarting Core or the worker does not stop a separate cron process. This also pauses scheduled housekeeping.
+
+Workers remain available for manual collection, previews, endpoint checks, and other user-triggered jobs. Already queued jobs and delayed retries can still execute, including their post-collection bots. Core's legacy `DISABLE_SCHEDULER` setting does not control the separate cron process.
+
+To prevent this worker from executing collectors and bots altogether, set the following in `src/worker/.env` and restart the worker:
+
+```dotenv
+WORKER_TYPES=["Presenters","Publishers","Connectors","Misc"]
+```
+
+This also disables manual collection/previews and manual bot runs on that worker. Queued work remains pending, and other workers using the same Redis can still process it. Remove the override and restart the worker to restore all task types. Use `WITH_CRON_RQ=1` only when you want automatic scheduling as well.
 
 In Core Tab:
 
@@ -225,12 +257,13 @@ This harness requires Podman, or Docker with `CONTAINER_CLI=docker`.
 
 The script creates a temporary git worktree from `origin/master`, or from the release ref passed as its first argument, starts a disposable PostgreSQL container, initializes and seeds a fresh base database, and copies it. It renames the copy's `public` schema to a unique test schema and sets the database's `search_path` before starting the current branch so pending yoyo migrations are applied. Hard-coded application schema references therefore fail during the upgrade. It finally runs a configurable pytest target against the migrated database, defaulting to `tests/unit`.
 
+The development Compose database and this migration harness default to PostgreSQL 18.
+
 Useful options:
 
 ```bash
 BASE_REF=master ./dev/test_master_to_branch_migration.sh
 KEEP_MIGRATION_TEST_DB=1 ./dev/test_master_to_branch_migration.sh
-PG_IMAGE=docker.io/library/postgres:16-alpine ./dev/test_master_to_branch_migration.sh
 PYTEST_TARGET=tests ./dev/test_master_to_branch_migration.sh
 CONTAINER_CLI=docker BASE_REF=1.4.1 ./dev/test_master_to_branch_migration.sh
 ```
@@ -304,3 +337,9 @@ The frontend is served by the [Flask & HTMX REST frontend](../src/frontend/READM
 * OpenTelemetry and Grafana LGTM: For request, RQ job, and metric observability.
 * Sentry: For error monitoring.
 * CI/CD: GitHub Actions
+
+## Local LLM inference
+
+`dev/compose.yml` runs CPU inference at `127.0.0.1:8000`. Add `127.0.0.1 llm-inference` to your hosts file so host-based Core and workers can reach the endpoint Core registers automatically. Allow several minutes for model loading and sufficient RAM; see [inference configuration](../docker/README.md#bundled-llm-inference).
+
+Set the same `LLM_INFERENCE_API_KEY` in Core's private environment and the environment used to launch Compose. Restart both after changing it. Configure providers and assignments in **Admin Settings > LLM Endpoints**.

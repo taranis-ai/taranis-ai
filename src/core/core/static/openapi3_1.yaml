@@ -186,6 +186,9 @@ paths:
                         - up
                         - down
                         - n/a
+                      worker_endpoints:
+                        type: string
+                        enum: [up, down, n/a]
                       workers:
                         type: string
                         enum:
@@ -218,6 +221,9 @@ paths:
                         - up
                         - down
                         - n/a
+                      worker_endpoints:
+                        type: string
+                        enum: [up, down, n/a]
                       workers:
                         type: string
                         enum:
@@ -2359,7 +2365,10 @@ paths:
     get:
       security:
       - APIKey: []
-      description: Get all bots
+      description: >-
+        Get all bots with effective parameters. LLM bots include llm_endpoint
+        with the selected provider, or feature/default fallback, including its
+        raw api_key. Responses have Cache-Control no-store.
       operationId: worker.bots_worker.get
       responses:
         '200':
@@ -6223,6 +6232,7 @@ paths:
               properties:
                 bot_id:
                   type: string
+                  description: Configured bot UUID or bot type; a type selects the first configured bot by index.
                 story_id:
                   type: string
                 story_ids:
@@ -8991,13 +9001,163 @@ paths:
           $ref: '#/components/responses/401Unauthorized'
         '403':
           description: forbidden
+  /settings/llm-endpoints:
+    post:
+      security:
+      - UserAuth: []
+      tags:
+      - config
+      description: >-
+        Create an LLM endpoint (ADMIN_OPERATIONS required). Fields are name,
+        base_url, model, api_format (responses or chat_completions), api_key,
+        and timeout (positive seconds, default 120). Name and base_url are required.
+        API keys are never included in the response or human settings reads.
+      operationId: settings.llm_endpoints.post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, base_url]
+      responses:
+        '200':
+          description: Endpoint saved; returns its id and a message
+        '400':
+          description: Invalid endpoint or duplicate name
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: ADMIN_OPERATIONS required
+  /settings/llm-endpoints/{endpoint_id}:
+    parameters:
+    - name: endpoint_id
+      in: path
+      required: true
+      schema:
+        type: string
+    post:
+      security:
+      - UserAuth: []
+      tags:
+      - config
+      description: >-
+        Update submitted endpoint fields. Omitted fields are preserved.
+        An omitted or blank api_key preserves the stored key; api_key_clear=true
+        removes it. Settings changes take effect on the next chat turn or bot run.
+      operationId: settings.llm_endpoint.post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Endpoint saved; returns its id and a message
+        '400':
+          description: Invalid endpoint or duplicate name
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: ADMIN_OPERATIONS required
+        '404':
+          $ref: '#/components/responses/404NotFound'
+  /settings/llm-endpoints/{endpoint_id}/delete:
+    parameters:
+    - name: endpoint_id
+      in: path
+      required: true
+      schema:
+        type: string
+    post:
+      security:
+      - UserAuth: []
+      tags:
+      - config
+      description: Delete an endpoint after removing its default, feature, and bot assignments.
+      operationId: settings.delete_llm_endpoint.post
+      responses:
+        '200':
+          description: Endpoint deleted
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: ADMIN_OPERATIONS required
+        '404':
+          $ref: '#/components/responses/404NotFound'
+        '409':
+          description: Endpoint is still assigned; reassign it before deleting
+  /worker/endpoint-health/{kind}/{endpoint_id}:
+    parameters:
+    - name: kind
+      in: path
+      required: true
+      schema:
+        type: string
+        enum: [llm]
+    - name: endpoint_id
+      in: path
+      required: true
+      schema:
+        type: string
+    get:
+      security:
+      - APIKey: []
+      tags: [bots]
+      operationId: worker.endpoint_health_worker.get
+      description: Returns current probe configuration with credentials, or skip for an obsolete check. Responses are not cacheable.
+      parameters:
+      - name: check_id
+        in: query
+        required: true
+        description: Opaque identifier of the current endpoint check.
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Current configuration or skip
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+    post:
+      security:
+      - APIKey: []
+      tags: [bots]
+      operationId: worker.endpoint_health_worker.post
+      description: Save a result only if its check ID and configuration still match the current endpoint check.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [check_id, healthy]
+              properties:
+                check_id:
+                  type: string
+                healthy:
+                  type: boolean
+      responses:
+        '200':
+          description: Result accepted or ignored as obsolete
+        '400':
+          description: Invalid result payload
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
   /settings/settings:
     get:
       security:
       - UserAuth: []
       tags:
       - config
-      description: get settings
+      description: >-
+        Get settings including llm_endpoints (API keys omitted, api_key_configured
+        indicates whether a key is stored). Assignments use llm_default_endpoint,
+        llm_chat_endpoint, llm_clustering_endpoint, llm_summarization_endpoint,
+        llm_ner_endpoint, llm_sentiment_endpoint, and llm_classification_endpoint.
+        Empty feature assignments inherit the default; an empty default leaves
+        unassigned features unconfigured. Change assignments through settings
+        PATCH and manage endpoint definitions through the llm-endpoints routes.
       operationId: settings.settings.get
       responses:
         '200':
@@ -9147,7 +9307,11 @@ paths:
     get:
       security:
       - APIKey: []
-      description: get bots
+      description: >-
+        Get bot configuration with effective parameters. For LLM bots,
+        llm_endpoint contains the selected provider or feature/default fallback,
+        including its raw api_key, or null when unconfigured. Responses have
+        Cache-Control no-store. Provider credentials must not be logged.
       operationId: worker.bot_info_worker.get
       responses:
         '200':
@@ -9214,6 +9378,22 @@ paths:
         '404':
           $ref: '#/components/responses/404NotFound'
   /worker/cron-jobs:
+    post:
+      security:
+      - APIKey: []
+      description: rebuild queue runtime state from PostgreSQL after Redis loses its data without clearing queued work
+      operationId: worker.cron_jobs_worker.post
+      responses:
+        '200':
+          description: queue runtime state restored
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '503':
+          description: queues are disabled or runtime state could not be restored
     get:
       security:
       - APIKey: []
@@ -9458,7 +9638,7 @@ paths:
     put:
       security:
       - APIKey: []
-      description: update post collection bots
+      description: Run post-collection bots only for the supplied new or changed stories. An empty list schedules no work.
       operationId: worker.post_collection_bots_worker.put
       requestBody:
         required: true
@@ -9466,6 +9646,19 @@ paths:
           application/json:
             schema:
               type: object
+              required:
+              - source_id
+              - story_ids
+              properties:
+                source_id:
+                  type: string
+                story_ids:
+                  type: array
+                  items:
+                    type: string
+                    minLength: 1
+                user_id:
+                  type: string
       responses:
         '200':
           description: success

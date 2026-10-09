@@ -46,12 +46,15 @@
     <div class="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4" id="chat-messages" aria-live="polite">
       {% if conversation %}
         {% for message in message_views %}
-          <div class="chat {% if message.role == 'user' %}chat-end{% else %}chat-start{% endif %}" data-testid="chat-message-{{ message.role }}">
+          <div class="chat {% if message.role == 'user' %}chat-end{% else %}chat-start{% endif %}"
+               data-testid="chat-message-{{ message.role }}">
             <div class="chat-header mb-1">{% if message.role == "user" %}{{ _("You") }}{% else %}{{ _("Taranis Chat") }}{% endif %}</div>
             <div class="chat-bubble whitespace-pre-wrap break-words {% if message.role == 'user' %}chat-bubble-primary{% endif %}">{{ message.content }}</div>
             {% if message.search_result %}
               <div class="chat-footer mt-2">
-                <a class="link link-primary text-sm" href="{{ message.assess_url }}" data-testid="chat-assess-link">{{ _("View %(count)s matching stories in Assess", count=message.search_result.total_count) }}</a>
+                <a class="link link-primary text-sm"
+                   href="{{ message.assess_url }}"
+                   data-testid="chat-assess-link">{{ _("View %(count)s matching stories in Assess", count=message.search_result.total_count) }}</a>
               </div>
             {% endif %}
           </div>

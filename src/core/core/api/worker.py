@@ -124,6 +124,37 @@ class CronJobs(MethodView):
     def get(self):
         return queue_manager.queue_manager.get_cron_job_configs()
 
+    @api_key_required
+    def post(self):
+        if queue_manager.queue_manager.restore_runtime_state():
+            return {"message": "Queue runtime state restored"}, 200
+        return {"error": "Could not restore queue runtime state"}, 503
+
+
+class EndpointHealth(MethodView):
+    @api_key_required
+    def get(self, kind: str, endpoint_id: str):
+        from core.service.endpoint_health import endpoint_config, fingerprint, read_state
+
+        config = endpoint_config(kind, endpoint_id)
+        state = read_state(kind, endpoint_id)
+        if not config or state.get("check_id") != request.args.get("check_id") or state.get("fingerprint") != fingerprint(config):
+            response = jsonify({"skip": True})
+        else:
+            response = jsonify({"config": config})
+        response.headers["Cache-Control"] = "no-store"
+        return response
+
+    @api_key_required
+    def post(self, kind: str, endpoint_id: str):
+        from core.service.endpoint_health import record_result
+
+        data = request.get_json(silent=True)
+        if not isinstance(data, dict) or not isinstance(data.get("check_id"), str) or not isinstance(data.get("healthy"), bool):
+            return {"error": "Invalid endpoint check result"}, 400
+        accepted = record_result(kind, endpoint_id, data["check_id"], data["healthy"])
+        return {"accepted": accepted}, 200
+
 
 class TaskHistoryCleanup(MethodView):
     @api_key_required
@@ -341,6 +372,11 @@ class IOCs(MethodView):
 
 
 class BotInfo(MethodView):
+    def dispatch_request(self, *args, **kwargs):
+        response = make_response(super().dispatch_request(*args, **kwargs))
+        response.headers["Cache-Control"] = "no-store"
+        return response
+
     @api_key_required
     @extract_args("search", "fetch_all")
     def get(self, bot_id=None, filter_args=None):
@@ -379,9 +415,7 @@ class PostCollectionBots(MethodView):
             return {"error": "No data provided"}, 400
         if source_id := data.get("source_id", None):
             story_ids = data.get("story_ids")
-            if story_ids is not None and (
-                not isinstance(story_ids, list) or not story_ids or any(not isinstance(item, str) for item in story_ids)
-            ):
+            if not isinstance(story_ids, list) or any(not isinstance(item, str) or not item for item in story_ids):
                 return {"error": "Invalid story IDs"}, 400
             return queue_manager.queue_manager.post_collection_bots(source_id=source_id, user_id=data.get("user_id"), story_ids=story_ids)
         return {"error": "No source_id provided"}, 400
@@ -441,6 +475,7 @@ def initialize(app: Flask):
     worker_bp.add_url_rule("/publishers/<string:publisher>", view_func=Publishers.as_view("publishers_worker"))
     worker_bp.add_url_rule("/connectors/<string:connector_id>", view_func=Connectors.as_view("connectors_worker"))
     worker_bp.add_url_rule("/news-items", view_func=AddNewsItems.as_view("news_items_worker"))
+    worker_bp.add_url_rule("/endpoint-health/<string:kind>/<string:endpoint_id>", view_func=EndpointHealth.as_view("endpoint_health_worker"))
     worker_bp.add_url_rule("/bots", view_func=BotInfo.as_view("bots_worker"))
     worker_bp.add_url_rule("/tags", view_func=Tags.as_view("tags_worker"))
     worker_bp.add_url_rule("/iocs", view_func=IOCs.as_view("iocs_worker"))

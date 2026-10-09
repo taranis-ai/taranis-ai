@@ -6,21 +6,36 @@ from typing import Annotated, Any, Literal
 from urllib.parse import urlparse
 
 from pydantic import (
+    AfterValidator,
     BaseModel,
     BeforeValidator,
     ConfigDict,
     Field,
     SecretStr,
     TypeAdapter,
+    ValidationInfo,
     field_validator,
     model_validator,
 )
+from pydantic.json_schema import SkipJsonSchema
 
 from models.types import WORKER_CATEGORY, WORKER_TYPES, TLPLevel
 
 
 def _empty_to_none(value: Any) -> Any:
     return None if value == "" else value
+
+
+def _validate_publisher_network_timeout(value: int, info: ValidationInfo) -> int:
+    job_timeout = (info.context or {}).get("rq_job_timeout")
+    if job_timeout is not None and job_timeout > 0:
+        maximum = job_timeout / 2
+        if value > maximum:
+            raise ValueError(
+                f"Network timeout must not exceed {maximum:g} seconds with the current RQ job timeout of {job_timeout:g} seconds. "
+                f"To use {value} seconds, set RQ_DEFAULT_JOB_TIMEOUT to at least {value * 2} seconds."
+            )
+    return value
 
 
 def _json_object(value: Any) -> Any:
@@ -38,6 +53,7 @@ def _string_list(value: Any) -> Any:
 
 
 InheritedTLP = Annotated[TLPLevel | None, BeforeValidator(_empty_to_none)]
+PublisherNetworkTimeoutSeconds = Annotated[int, AfterValidator(_validate_publisher_network_timeout)]
 OptionalPositiveInt = Annotated[Annotated[int, Field(gt=0)] | None, BeforeValidator(_empty_to_none)]
 JsonObject = Annotated[dict[str, Any], BeforeValidator(_json_object)]
 StringList = Annotated[list[str], BeforeValidator(_string_list)]
@@ -234,7 +250,9 @@ class MISPConnectorParameters(MISPBaseParameters):
 class BotParameters(WorkerParameters):
     ITEM_FILTER: str = Field("", title="Item filter", description="Filter selecting items processed by the bot.")
     EXECUTION_TIMEOUT: OptionalPositiveInt = Field(
-        None, title="Execution timeout", description="Maximum whole-bot execution time in seconds."
+        None,
+        title="Execution timeout",
+        description="Execution budget in seconds. Blank uses the global job timeout. Pipelines combine their bots' budgets with 20% headroom.",
     )
     RUN_AFTER_COLLECTOR: bool = Field(False, title="Run after collector", description="Run automatically after collection.")
     RUN_AFTER_BOTS: StringList = Field(default_factory=list, title="Run after bots", description="Bot identifiers that must finish first.")
@@ -248,15 +266,6 @@ class AnalystBotParameters(BotParameters):
 
 class GroupingBotParameters(BotParameters):
     REGULAR_EXPRESSION: str = Field("", title="Regular expression", description="Regular expression used to group related items.")
-
-
-class LLMParameters(BotParameters):
-    REQUESTS_TIMEOUT: OptionalPositiveInt = Field(None, title="Requests timeout", description="LLM request timeout in seconds.")
-    BOT_API_KEY: SecretStr = Field(SecretStr(""), title="Bot API key", description="Optional API key for the bot service.")
-
-
-class NLPBotParameters(LLMParameters):
-    BOT_ENDPOINT: str = Field("http://llm-bot:8000/ner", title="Bot endpoint", description="Named-entity recognition service endpoint.")
 
 
 class IOCBotParameters(BotParameters):
@@ -281,16 +290,29 @@ class TaggingBotParameters(BotParameters):
     )
 
 
-class StoryBotParameters(LLMParameters):
-    ITEM_FILTER: str = Field("range=week", title="Item filter", description="Filter selecting items processed by the bot.")
-    BOT_ENDPOINT: str = Field("http://llm-bot:8000/cluster", title="Bot endpoint", description="Story clustering service endpoint.")
-
-
-class SummaryBotParameters(LLMParameters):
-    SUMMARY_ENDPOINT: str = Field(
-        "http://llm-bot:8000/summarize", title="Summary endpoint", description="Summary generation service endpoint."
+class SharedLLMBotParameters(BotParameters):
+    LLM_ENDPOINT: str = Field("", title="LLM endpoint", description="Use a configured endpoint or inherit the shared assignment.")
+    REQUESTS_TIMEOUT: OptionalPositiveInt = Field(
+        None,
+        title="Requests timeout",
+        description="Network timeout in seconds for each LLM request. Blank uses the endpoint timeout. Execution timeout controls the job budget separately.",
     )
-    TITLE_ENDPOINT: str = Field("http://llm-bot:8000/title", title="Title endpoint", description="Title generation service endpoint.")
+    # Accept stored service credentials without offering unused controls in the form.
+    BOT_API_KEY: SkipJsonSchema[SecretStr] = SecretStr("")
+
+
+class NLPBotParameters(SharedLLMBotParameters):
+    BOT_ENDPOINT: SkipJsonSchema[str] = "http://llm-bot:8000/ner"
+
+
+class StoryBotParameters(SharedLLMBotParameters):
+    ITEM_FILTER: str = Field("range=week", title="Item filter", description="Filter selecting items processed by the bot.")
+    BOT_ENDPOINT: SkipJsonSchema[str] = "http://llm-bot:8000/cluster"
+
+
+class SummaryBotParameters(SharedLLMBotParameters):
+    SUMMARY_ENDPOINT: SkipJsonSchema[str] = "http://llm-bot:8000/summarize"
+    TITLE_ENDPOINT: SkipJsonSchema[str] = "http://llm-bot:8000/title"
 
 
 class WordlistBotParameters(BotParameters):
@@ -308,15 +330,13 @@ class WordlistBotParameters(BotParameters):
     )
 
 
-class SentimentAnalysisBotParameters(LLMParameters):
-    BOT_ENDPOINT: str = Field("http://llm-bot:8000/sentiment", title="Bot endpoint", description="Sentiment analysis service endpoint.")
+class SentimentAnalysisBotParameters(SharedLLMBotParameters):
+    BOT_ENDPOINT: SkipJsonSchema[str] = "http://llm-bot:8000/sentiment"
     RUN_AFTER_COLLECTOR: bool = Field(True, title="Run after collector", description="Run automatically after collection.")
 
 
-class CybersecClassifierBotParameters(LLMParameters):
-    BOT_ENDPOINT: str = Field(
-        "http://llm-bot:8000/cybersec-classification", title="Bot endpoint", description="Cybersecurity classifier service endpoint."
-    )
+class CybersecClassifierBotParameters(SharedLLMBotParameters):
+    BOT_ENDPOINT: SkipJsonSchema[str] = "http://llm-bot:8000/cybersec-classification"
     CLASSIFICATION_THRESHOLD: float = Field(
         0.65, ge=0, le=1, title="Classification threshold", description="Minimum score classified as cybersecurity-related."
     )
@@ -359,10 +379,24 @@ class TaranisPublisherParameters(WorkerParameters):
 
 class FTPPublisherParameters(WorkerParameters):
     FTP_URL: str = Field(min_length=1, title="FTP URL", description="Destination FTP URL.")
+    NETWORK_TIMEOUT: PublisherNetworkTimeoutSeconds = Field(
+        30,
+        gt=0,
+        validate_default=True,
+        title="Network timeout",
+        description="Network inactivity timeout in seconds. Defaults to 30 seconds.",
+    )
 
 
 class SFTPPublisherParameters(WorkerParameters):
     SFTP_URL: str = Field(min_length=1, title="SFTP URL", description="Destination SFTP URL.")
+    NETWORK_TIMEOUT: PublisherNetworkTimeoutSeconds = Field(
+        30,
+        gt=0,
+        validate_default=True,
+        title="Network timeout",
+        description="Network inactivity timeout in seconds. Defaults to 30 seconds.",
+    )
     HOST_KEY: str = Field(
         "",
         max_length=16384,
@@ -400,6 +434,13 @@ class S3PublisherParameters(WorkerParameters):
 class EmailPublisherParameters(WorkerParameters):
     SMTP_SERVER_ADDRESS: str = Field(min_length=1, title="SMTP server address", description="SMTP server hostname or address.")
     SMTP_SERVER_PORT: int = Field(25, gt=0, le=65535, title="SMTP server port", description="SMTP server port.")
+    NETWORK_TIMEOUT: PublisherNetworkTimeoutSeconds = Field(
+        30,
+        gt=0,
+        validate_default=True,
+        title="Network timeout",
+        description="Network inactivity timeout in seconds. Defaults to 30 seconds.",
+    )
     SERVER_TLS: bool = Field(False, title="Server TLS", description="Use TLS for SMTP.")
     EMAIL_USERNAME: str = Field("", title="Email username", description="Optional SMTP username.")
     EMAIL_PASSWORD: SecretStr = Field(SecretStr(""), title="Email password", description="Optional SMTP password.")
@@ -579,11 +620,12 @@ def normalize_parameter_values(
     values: dict[str, Any],
     *,
     complete: bool = True,
+    context: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Validate configured values and return submitted keys with native values."""
     model = get_worker_definition(worker_type).parameter_model
     if complete:
-        validated = model.model_validate(values)
+        validated = model.model_validate(values, context=context)
         native = validated.model_dump(mode="python")
         return {name: _plain_value(native[name]) for name in values if native[name] is not None}
 
@@ -592,7 +634,7 @@ def normalize_parameter_values(
     normalized: dict[str, Any] = {}
     for name, value in values.items():
         field = model.model_fields[name]
-        native = TypeAdapter(field.rebuild_annotation()).validate_python(value)
+        native = TypeAdapter(field.rebuild_annotation()).validate_python(value, context=context)
         if native is not None:
             normalized[name] = _plain_value(native)
     return normalized

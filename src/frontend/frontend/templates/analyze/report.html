@@ -25,14 +25,18 @@
       <div class="flex-1"></div>
       {% if is_edit %}
         {% if report.revision_count and report.revision_count > 0 %}
-          <a class="btn btn-outline btn-sm" href="{{ url_for('analyze.report_versions', report_id=report.id) }}" data-testid="report-versions">
+          <a class="btn btn-outline btn-sm"
+             href="{{ url_for('analyze.report_versions', report_id=report.id) }}"
+             data-testid="report-versions">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
             </svg>
             Version History ({{ report.revision_count }})
           </a>
         {% endif %}
-        <a class="btn btn-outline btn-sm" href="{{ url_for('analyze.report_cti', report_id=report.id) }}" data-testid="report-cti-button">CTI information</a>
+        <a class="btn btn-outline btn-sm"
+           href="{{ url_for('analyze.report_cti', report_id=report.id) }}"
+           data-testid="report-cti-button">CTI information</a>
         {% if not analyst_review_run %}
           <div data-testid="report-new-product" class="inline-flex">
             <button type="button"
@@ -103,7 +107,8 @@
                         {% if is_edit %}disabled{% endif %}>
                   {% if not report.report_item_type_id %}<option value="" disabled selected>Select a report type</option>{% endif %}
                   {% for report_type in report_types %}
-                    <option value="{{ report_type.id }}" {% if report_type.id | string == report.report_item_type_id | string %}selected{% endif %}>
+                    <option value="{{ report_type.id }}"
+                            {% if report_type.id | string == report.report_item_type_id | string %}selected{% endif %}>
                       {{ report_type.title }}
                     </option>
                   {% endfor %}
@@ -138,9 +143,12 @@
             <header class="flex items-center justify-between">
               <h3 class="text-lg font-semibold">Stories</h3>
               <div>
-                <button type="submit" class="btn btn-sm btn-outline" data-testid="remove-all-stories" name="remove_all_stories" value="1" formnovalidate>
-                  Remove all
-                </button>
+                <button type="submit"
+                        class="btn btn-sm btn-outline"
+                        data-testid="remove-all-stories"
+                        name="remove_all_stories"
+                        value="1"
+                        formnovalidate>Remove all</button>
               </div>
             </header>
 
@@ -160,7 +168,11 @@
 
       <div class="mt-8">
         {% if analyst_review_run %}
-          <button type="submit" name="continue_to_publish" value="true" class="btn btn-primary w-full" data-testid="save-report">Save and continue to Publish</button>
+          <button type="submit"
+                  name="continue_to_publish"
+                  value="true"
+                  class="btn btn-primary w-full"
+                  data-testid="save-report">Save and continue to Publish</button>
         {% else %}
           <input type="submit" class="btn btn-primary w-full" value="{{ submit_text }}" data-testid="save-report">
         {% endif %}

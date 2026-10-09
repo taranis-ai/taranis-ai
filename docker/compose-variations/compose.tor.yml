@@ -1,4 +1,20 @@
 services:
+  llm-inference:
+    image: "${LLM_INFERENCE_IMAGE:-ghcr.io/taranis-ai/gemma4-e4b-gguf:cpu}"
+    restart: unless-stopped
+    shm_size: 4gb
+    environment:
+      LLAMA_API_KEY: "${LLM_INFERENCE_API_KEY:-}"
+    command: ["--ctx-size", "8192", "--jinja"]
+    expose:
+      - "8000"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 5m
+
   ingress:
     ports:
     - "${TARANIS_PORT:-8080}:80"
@@ -52,6 +68,7 @@ services:
 
       PRE_SEED_PASSWORD_ADMIN: "${PRE_SEED_PASSWORD_ADMIN:-admin}"
       PRE_SEED_PASSWORD_USER: "${PRE_SEED_PASSWORD_USER:-user}"
+      LLM_INFERENCE_API_KEY: "${LLM_INFERENCE_API_KEY:-}"
       PRE_SEED_SETTINGS: "${PRE_SEED_SETTINGS:-{}}"
       JWT_SECRET_KEY: "${JWT_SECRET_KEY}"
       JWT_COOKIE_SUFFIX: "${JWT_COOKIE_SUFFIX:-}"
@@ -78,7 +95,7 @@ services:
         max-file: "10"
 
   database:
-    image: "docker.io/library/postgres:${POSTGRES_TAG:-17-alpine}"
+    image: "docker.io/library/postgres:${POSTGRES_TAG:-18-alpine}"
     # ports:
     # - 6543:5432
     deploy:
@@ -96,7 +113,7 @@ services:
       timeout: 3s
       retries: 3
     volumes:
-      - "database_data:/var/lib/postgresql/data"
+      - "database_data:/var/lib/postgresql"
     logging:
       driver: "json-file"
       options:
@@ -181,57 +198,6 @@ services:
         max-size: "200k"
         max-file: "10"
 
-  summary_bot:
-    depends_on:
-      workers:
-        condition: service_healthy
-    deploy:
-      restart_policy:
-        condition: always
-    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-summarize-bot:${TARANIS_BOT_TAG:-stable}"
-    environment:
-      API_KEY: "${API_KEY}"
-      DEBUG: "${DEBUG:-False}"
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "200k"
-        max-file: "10"
-
-  nlp_bot:
-    depends_on:
-      workers:
-        condition: service_healthy
-    deploy:
-      restart_policy:
-        condition: always
-    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-natural-language-processing:${TARANIS_BOT_TAG:-stable}"
-    environment:
-      API_KEY: "${API_KEY}"
-      DEBUG: "${DEBUG:-False}"
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "200k"
-        max-file: "10"
-
-  clustering_bot:
-    depends_on:
-      workers:
-        condition: service_healthy
-    deploy:
-      restart_policy:
-        condition: always
-    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-story-clustering:${TARANIS_BOT_TAG:-stable}"
-    environment:
-      API_KEY: "${API_KEY}"
-      DEBUG: "${DEBUG:-False}"
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "200k"
-        max-file: "10"
-
   telemetry:
     profiles: ["telemetry"]
     image: "docker.io/grafana/otel-lgtm:${GRAFANA_OTEL_LGTM_TAG:-0.30.2}"
@@ -255,19 +221,18 @@ services:
         condition: always
     command: |
       sh -c '
-        mkdir -p /data
         if [ -n "$$REDIS_PASSWORD" ]; then
-          redis-server --appendonly yes --requirepass "$$REDIS_PASSWORD"
+          exec redis-server --save "" --appendonly no --requirepass "$$REDIS_PASSWORD"
         else
-          redis-server --appendonly yes
+          exec redis-server --save "" --appendonly no
         fi
       '
-    volumes:
-      - redis_data:/data
+    tmpfs:
+      - /data
     environment:
       - "REDIS_PASSWORD=${REDIS_PASSWORD:-}"
     healthcheck:
-      test: ["CMD-SHELL", "redis-cli ping || exit 1"]
+      test: ["CMD-SHELL", "REDISCLI_AUTH=\"$$REDIS_PASSWORD\" redis-cli ping | grep -qx PONG"]
       interval: 10s
       start_period: 10s
       timeout: 3s
@@ -334,5 +299,4 @@ services:
 volumes:
   database_data:
   core_data:
-  redis_data:
   telemetry_data:

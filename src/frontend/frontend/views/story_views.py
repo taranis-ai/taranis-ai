@@ -1020,26 +1020,20 @@ class StoryView(BaseView):
         bot_id = request.form.get("bot_id")
         if not bot_id:
             notification = {"message": "Bot identifier is required.", "error": True}
-            return render_template("notification/index.html", notification=notification), 400
+            return render_template("notification/index.html", notification=notification, oob=False), 400
 
         api = CoreApi()
         try:
             response = api.api_post("/assess/stories/botactions", json_data={"story_id": story_id, "bot_id": bot_id})
-            payload = response.json()
         except HTTPException:
             raise
         except Exception:
-            logger.exception("Failed to decode bot action response.")
-            notification = {"message": "Failed to decode bot action response", "error": True}
-            notification_html = render_template("notification/index.html", notification=notification)
+            logger.exception("Failed to schedule bot action.")
+            notification = {"message": "Failed to schedule bot action", "error": True}
+            notification_html = render_template("notification/index.html", notification=notification, oob=False)
             return make_response(notification_html, 400)
 
-        notification_html = render_template(
-            "notification/index.html",
-            notification=cls.get_notification_from_dict(payload),
-        )
-        content = StoryView._get_action_response_content(story_id)
-        return make_response(notification_html + content, 200)
+        return make_response(cls.render_worker_task_notification(response, oob=False), response.status_code)
 
     @classmethod
     @auth_required()

@@ -21,6 +21,8 @@ Frontend Flask spans inject W3C trace context into requests to core. Core reques
 OTLP/HTTP uses the configured base URL plus the standard `/v1/traces` and `/v1/metrics` signal paths. `OTEL_EXPORTER_OTLP_HEADERS` and `OTEL_METRIC_EXPORT_INTERVAL` are read by the OpenTelemetry exporters.
 
 ## Testing
+The local test pipeline clears `OTEL_EXPORTER_OTLP_ENDPOINT`. Worker pytest setup also clears it before loading worker configuration, overriding inherited settings and the local `.env`. Core and frontend use their test `.env` files with an empty endpoint. Telemetry-specific tests enable instrumentation explicitly with in-memory exporters; ordinary tests must not contact a telemetry collector.
+
 Run the focused telemetry and settings tests in core, frontend, and worker, then each component's full pytest and Ruff checks. Render every changed Compose file with `docker compose config`. For an integration smoke test, start the `telemetry` profile, exercise a frontend request and an RQ job, then verify the `taranis-frontend`, `taranis-core`, and `taranis-worker` resources in Grafana.
 
 ## Pitfalls

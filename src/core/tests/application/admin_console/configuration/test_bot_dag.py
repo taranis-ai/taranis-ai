@@ -1,3 +1,5 @@
+import json
+import math
 from uuid import uuid7
 
 import pytest
@@ -29,6 +31,64 @@ def test_collector_run_graph_uses_dependency_order(app, session):
         assert dependencies_by_id[_bot("ioc_bot").id] == [_bot("wordlist_bot").id]
         assert dependencies_by_id[_bot("nlp_bot").id] == [_bot("ioc_bot").id]
         assert dependencies_by_id[_bot("summary_bot").id] == [_bot("nlp_bot").id]
+
+
+@pytest.mark.parametrize(
+    "bot_type, timeout, execution_timeout",
+    [
+        ("nlp_bot", 300, None),
+        ("nlp_bot", 60, None),
+        ("nlp_bot", None, None),
+        ("nlp_bot", 60, 400),
+        ("wordlist_bot", None, None),
+        ("wordlist_bot", None, 400),
+    ],
+)
+def test_bot_timeouts_apply_to_manual_chained_and_cron_jobs(app, session, redis_client, monkeypatch, bot_type, timeout, execution_timeout):
+    from core.config import Config
+    from core.managers.queue_manager import CRON_DEFS_KEY
+    from core.model.bot import Bot
+
+    monkeypatch.setattr(Config, "RQ_DEFAULT_JOB_TIMEOUT", 900)
+    with app.app_context():
+        parameters = {"REFRESH_INTERVAL": "*/5 * * * *", "RUN_AFTER_COLLECTOR": True}
+        if timeout is not None:
+            parameters["REQUESTS_TIMEOUT"] = timeout
+        if execution_timeout is not None:
+            parameters["EXECUTION_TIMEOUT"] = execution_timeout
+        parent = Bot.add({"name": "Timeout parent", "type": bot_type, "parameters": parameters})
+        child = Bot.add(
+            {
+                "name": "Timeout child",
+                "type": "summary_bot",
+                "parameters": {"RUN_AFTER_BOTS": parent.id, "REQUESTS_TIMEOUT": 75, "REFRESH_INTERVAL": "*/5 * * * *"},
+            }
+        )
+        manager = app.extensions["rq"]
+        queue = manager.get_queue("bots")
+        expected_timeout = execution_timeout or 900
+
+        assert manager.execute_bot_task(parent.id)[1] == 200
+        assert queue.fetch_job(f"bot_{parent.id}").timeout == expected_timeout
+        assert manager.schedule_bot_dependents(parent.id)[1] == 200
+        assert {job.timeout for job in queue.get_jobs() if job.args == ([child.id],)} == {1080}
+        assert manager.post_collection_bots("timeout-source", story_ids=["changed-story"])[1] == 200
+        collector_bots, _ = Bot.get_collector_run_graph()
+        collector_ids = [bot.id for bot in collector_bots]
+        assert parent.id in collector_ids and child.id in collector_ids
+        assert {job.timeout for job in queue.get_jobs() if job.args == (collector_ids,)} == {
+            math.ceil(1.2 * sum(bot.job_timeout for bot in collector_bots))
+        }
+
+        for bot, deadline in [(parent, expected_timeout), (child, 900)]:
+            spec = json.loads(redis_client.hget(CRON_DEFS_KEY, bot.cron_job_id))
+            assert spec["job_options"]["job_timeout"] == deadline
+
+        if bot_type == "nlp_bot":
+            Bot.update(parent.id, {"parameters": {"REQUESTS_TIMEOUT": 240}}, patch=True)
+            spec = json.loads(redis_client.hget(CRON_DEFS_KEY, parent.cron_job_id))
+            assert spec["job_options"]["job_timeout"] == expected_timeout
+            assert queue.fetch_job(f"bot_{parent.id}").timeout == expected_timeout
 
 
 @pytest.mark.parametrize(

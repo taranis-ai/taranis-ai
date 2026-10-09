@@ -9,9 +9,12 @@ from croniter import croniter
 from models.task import CronTaskSpec
 from pydantic import ValidationError
 from redis import Redis
+from redis.exceptions import RedisError
 from rq import Queue
 
+from worker import get_redis_connection
 from worker.config import Config
+from worker.core_api import CoreApi
 from worker.log import logger
 
 
@@ -165,37 +168,47 @@ def run_scheduler(
     poll_interval_seconds: float = 15.0,
     redis_password: str | None = None,
 ) -> None:
-    redis = Redis.from_url(redis_url, password=redis_password or None, decode_responses=False)
+    redis = get_redis_connection(redis_url, redis_password)
     queues: dict[str, Queue] = {}
     ttl_seconds = int(max(2 * poll_interval_seconds, 30, Config.CRON_POLL_INTERVAL_SECONDS))
+    restore_pending = False
 
     while True:
         # Keep a single active cron scheduler even if multiple cron instances overlap.
-
-        if not acquire_leader(redis, node_id, ttl_seconds=ttl_seconds) and not renew_leader(redis, node_id, ttl_seconds=ttl_seconds):
-            time.sleep(poll_interval_seconds)
-            continue
-
-        now_ts = time.time()
-        specs = _sync_next_index(redis, now_ts)
-        due_ids = _sync_response(redis.zrangebyscore(NEXT_KEY, min=0, max=now_ts, start=0, num=100), "redis.zrangebyscore")
-
-        for raw_job_id in due_ids:
-            job_id = _decode(raw_job_id, "redis.zrangebyscore item")
-
-            spec = specs.get(job_id) or _load_spec(redis, job_id)
-            if not spec:
-                # Spec was removed; drop stale timing entry.
-                redis.zrem(NEXT_KEY, job_id)
+        try:
+            if not acquire_leader(redis, node_id, ttl_seconds=ttl_seconds) and not renew_leader(redis, node_id, ttl_seconds=ttl_seconds):
+                time.sleep(poll_interval_seconds)
                 continue
 
-            try:
-                due_ts = float(redis.zscore(NEXT_KEY, job_id) or now_ts)
-                _enqueue_due_job(redis, queues, job_id, spec, due_ts)
-            except Exception:
-                # Keep the job alive and retry on next poll cycle.
-                redis.zadd(NEXT_KEY, {job_id: now_ts + poll_interval_seconds})
-                logger.exception(f"Failed processing scheduled job {job_id}")
+            restore_pending = restore_pending or not redis.exists(DEFS_KEY)
+            if restore_pending:
+                if not CoreApi().restore_queue_state():
+                    time.sleep(poll_interval_seconds)
+                    continue
+                restore_pending = False
+
+            now_ts = time.time()
+            specs = _sync_next_index(redis, now_ts)
+            due_ids = _sync_response(redis.zrangebyscore(NEXT_KEY, min=0, max=now_ts, start=0, num=100), "redis.zrangebyscore")
+
+            for raw_job_id in due_ids:
+                job_id = _decode(raw_job_id, "redis.zrangebyscore item")
+
+                spec = specs.get(job_id) or _load_spec(redis, job_id)
+                if not spec:
+                    # Spec was removed; drop stale timing entry.
+                    redis.zrem(NEXT_KEY, job_id)
+                    continue
+
+                try:
+                    due_ts = float(redis.zscore(NEXT_KEY, job_id) or now_ts)
+                    _enqueue_due_job(redis, queues, job_id, spec, due_ts)
+                except Exception:
+                    # Keep the job alive and retry on next poll cycle.
+                    redis.zadd(NEXT_KEY, {job_id: now_ts + poll_interval_seconds})
+                    logger.exception(f"Failed processing scheduled job {job_id}")
+        except RedisError:
+            logger.exception("Cron scheduler could not reach Redis; retrying")
 
         time.sleep(poll_interval_seconds)
 

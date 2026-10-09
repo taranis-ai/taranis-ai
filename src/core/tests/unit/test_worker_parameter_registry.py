@@ -44,13 +44,25 @@ def test_boundary_adapter_preserves_native_values():
     }
 
 
-def test_effective_values_expand_defaults_and_unknown_fields_are_rejected():
-    effective = effective_parameter_values("RSS_COLLECTOR", {"FEED_URL": "https://example.test/feed"})
-    assert effective["USE_GLOBAL_PROXY"] is False
-    assert effective["REFRESH_INTERVAL"] == ""
+@pytest.mark.parametrize(
+    ("worker_type", "parameters", "defaults"),
+    [
+        ("RSS_COLLECTOR", {"FEED_URL": "https://example.test/feed"}, {"USE_GLOBAL_PROXY": False, "REFRESH_INTERVAL": ""}),
+        ("FTP_PUBLISHER", {"FTP_URL": "ftp://example.test/"}, {"NETWORK_TIMEOUT": 30}),
+        ("SFTP_PUBLISHER", {"SFTP_URL": "sftp://user@example.test/", "HOST_KEY": "ssh-ed25519 AAAA"}, {"NETWORK_TIMEOUT": 30}),
+        (
+            "EMAIL_PUBLISHER",
+            {"SMTP_SERVER_ADDRESS": "smtp.example.test", "EMAIL_SENDER": "sender@example.test", "EMAIL_RECIPIENT": "recipient@example.test"},
+            {"NETWORK_TIMEOUT": 30},
+        ),
+    ],
+)
+def test_effective_values_expand_defaults_and_unknown_fields_are_rejected(worker_type, parameters, defaults):
+    effective = effective_parameter_values(worker_type, parameters)
+    assert {key: effective[key] for key in defaults} == defaults
 
     with pytest.raises(ValidationError):
-        effective_parameter_values("RSS_COLLECTOR", {"FEED_URL": "x", "UNKNOWN": "value"})
+        effective_parameter_values(worker_type, parameters | {"UNKNOWN": "value"})
 
 
 def test_secret_schema_uses_standard_password_fields():
@@ -153,6 +165,17 @@ def test_every_schema_uses_uppercase_names_and_documents_each_field():
         ("RSS_COLLECTOR", {"FEED_URL": "feed", "TLP_LEVEL": "blue"}),
         ("RSS_COLLECTOR", {"FEED_URL": "feed", "ADDITIONAL_HEADERS": "[]"}),
         ("NLP_BOT", {"REQUESTS_TIMEOUT": "0"}),
+        ("FTP_PUBLISHER", {"FTP_URL": "ftp://example.test/", "NETWORK_TIMEOUT": 0}),
+        ("SFTP_PUBLISHER", {"SFTP_URL": "sftp://user@example.test/", "HOST_KEY": "ssh-ed25519 AAAA", "NETWORK_TIMEOUT": -1}),
+        (
+            "EMAIL_PUBLISHER",
+            {
+                "SMTP_SERVER_ADDRESS": "smtp.example.test",
+                "EMAIL_SENDER": "sender@example.test",
+                "EMAIL_RECIPIENT": "recipient@example.test",
+                "NETWORK_TIMEOUT": "invalid",
+            },
+        ),
         (
             "TAXII_PUBLISHER",
             {"TAXII_COLLECTION_ID": "collection", "AUTH_TYPE": "bearer", "API_TOKEN": ""},

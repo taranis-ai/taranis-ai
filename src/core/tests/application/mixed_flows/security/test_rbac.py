@@ -16,6 +16,33 @@ from tests.application.support.rbac import (
 
 
 class TestRBAC:
+    def test_tag_filter_candidates_require_visible_non_report_tags_before_limit(
+        self, client, session, auth_header_user_permissions, monkeypatch
+    ):
+        from core.model.filter_data import FilterData
+        from core.model.news_item_attribute import NewsItemAttribute
+        from core.model.role import Role
+        from core.model.role_based_access import ItemType
+
+        visible_source, _, visible_item = create_rbac_source_story("filter-visible")
+        _, _, acl_hidden_item = create_rbac_source_story("filter-acl-hidden")
+        tlp_source, tlp_story, tlp_hidden_item = create_rbac_source_story("filter-tlp-hidden")
+        role = Role.filter_by_name("User")
+        role.tlp_level = TLPLevel.CLEAR
+        grant_acl(role, ItemType.OSINT_SOURCE, visible_source.id)
+        grant_acl(role, ItemType.OSINT_SOURCE, tlp_source.id)
+        tlp_story.upsert_attribute(NewsItemAttribute("tlp_override", "red"))
+        tlp_story.refresh_tlp()
+        visible_item.set_tags([{"name": "10-public"}, {"name": "11-shared"}, {"name": "02-report-collision", "tag_type": "report_auto"}])
+        acl_hidden_item.set_tags([{"name": "00-acl-hidden"}, {"name": "02-report-collision"}, {"name": "11-shared"}])
+        tlp_hidden_item.set_tags([{"name": "01-tlp-hidden"}, {"name": "11-shared", "tag_type": "actor"}])
+        db.session.commit()
+        monkeypatch.setattr(FilterData, "LIST_LIMIT", 2)
+
+        response = client.get("/api/assess/filter-lists", headers=auth_header_user_permissions)
+        assert response.status_code == 200
+        assert response.json["tags"] == ["10-public", "11-shared"]
+
     def test_selected_export_requires_read_access_to_every_item(self, client, session, auth_header_user_permissions):
         from core.model.news_item_attribute import NewsItemAttribute
         from core.model.role import Role

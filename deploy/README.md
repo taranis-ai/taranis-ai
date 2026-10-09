@@ -2,8 +2,7 @@
 
 Deployment options:
 
-- [`kubernetes/`](./kubernetes): raw Kubernetes core stack
-- [`kubernetes-optional-bots/`](./kubernetes-optional-bots): raw Kubernetes overlay that adds `llm-bot`
+- [`kubernetes/`](./kubernetes): application services and private LLM inference
 - [`helm/`](./helm): Helm chart
 - [`argocd/`](./argocd): ArgoCD example using the Helm chart
 
@@ -19,22 +18,23 @@ Always required:
 - When multiple deployments share a domain, set a unique `JWT_COOKIE_SUFFIX` such as `_q` for each deployment and keep it aligned between core and frontend. Helm exposes the same setting as `config.jwtCookieSuffix`.
 - The raw manifest keeps the public realtime endpoint at `/sse`; ingress rewrites it to Centrifugo's `/connection/uni_sse`.
 
-Optional `llm-bot` overlay:
+## Shared LLM endpoint upgrade
 
-- In `kubernetes/00-config.yaml`, set `LLM_BASE_URL`; optionally set `LLM_TIMEOUT` and `LLM_MODEL`.
-- In `kubernetes/01-secrets.yaml`, set `BOT_API_KEY`; optionally set `LLM_API_KEY` for providers that require one.
-- For Helm, set `config.llmBaseUrl`; optionally set `config.llmTimeout`, `config.llmModel`, and `secrets.llmApiKey`.
-- Set ingress hostname in `kubernetes/40-ingress.yaml` (or Helm values).
+Deploy matching Core, frontend, and worker images. Inference needs an amd64 or arm64 node with capacity for its 6 GiB memory request and 12 GiB limit; model loading can take several minutes. See [bundled inference](../docker/README.md#bundled-llm-inference).
 
-Optional analyst Chat:
-- Set `CHAT_ENABLED=true` in configuration for both core and frontend.
-- Open **Admin Settings > Chat** to select the provider API format (`chat_llm_api_format`: `responses` by default, or `chat_completions`) and configure the base URL, model, API key, provider timeout (default 120 seconds), and maximum stories (default 5, allowed 1-20). This collapsible section appears only when Chat is enabled. Values are persisted in Settings; changes apply to the next message without restarting. Only `CHAT_ENABLED` is configured through deployment environment variables.
-- API keys are write-only in the admin form: leave blank to keep the saved key, or select **Remove saved API key** to clear it. Keys are stored in the application database; protect database access and backups. Settings API responses and logs omit the key.
-- Realtime Chat progress uses the existing Centrifugo connection when `REALTIME_ENABLED=true`; Chat still completes through its normal HTTP response when realtime is disabled or unavailable.
+Set `LLM_INFERENCE_API_KEY` in `taranis-secrets` (Helm: `secrets.llmInferenceApiKey`) before restarting Core and inference. Both use the same secret; blank disables authentication and clears the stored internal key on restart. Keep credentials out of ConfigMaps.
+
+In **Admin Settings > LLM Endpoints**, verify the default, feature assignments, and bot selections before running jobs. Core registers internal inference on startup without replacing existing selections. Existing Chat configuration becomes a Chat-only endpoint. Workers must be able to reach the selected providers; background story content is sent there. Move custom provider configuration into these settings.
+
+For bots that used `REQUESTS_TIMEOUT` to extend the RQ job deadline, configure `EXECUTION_TIMEOUT` with the required job budget before running them. `REQUESTS_TIMEOUT` now controls only network requests; blank execution timeout uses `RQ_DEFAULT_JOB_TIMEOUT`. Pipelines combine the bot budgets with 20% headroom. Let existing runs finish before upgrading Core and workers together: collection dispatch and staged results now require explicit processed story IDs. Rerun interrupted jobs after the upgrade, and keep the previous parameter values for rollback.
+
+After applying the raw manifests, remove the retired bot Deployments and Services; `kubectl apply -k` does not prune them. Helm removes workloads no longer in the chart. Verify inference, Core, workers, and a representative job for each configured LLM feature.
+
+Keep a database backup and previous images/configuration for rollback: startup removes obsolete bot connection parameters. Restore previous services and settings if reverting, without overwriting newer content. No database schema migration is required.
 
 ## Initial settings
 
-Before the first startup, set `PRE_SEED_SETTINGS` in `kubernetes/00-config.yaml`, or the JSON string `config.preSeedSettings` in Helm values. Both default to `"{}"`. For example, Helm values can contain:
+Before the first startup, set `PRE_SEED_SETTINGS` in `kubernetes/00-config.yaml`, or `config.preSeedSettings` in Helm values. Both default to `"{}"`. For example:
 
 ```yaml
 config:
@@ -43,10 +43,47 @@ config:
 
 This initializes a fresh settings row only; restarts and upgrades preserve saved Admin Settings. Keep credentials out of these ConfigMaps and inject credential-bearing seeds into core through a Secret instead. See [settings preseeding](../docker/README.md#settings-preseeding).
 
+## Redis without persistence
+
+Kubernetes, Helm, and ArgoCD use an external Redis service. Their manifests cannot
+change that server's persistence settings. Configure the external service before
+upgrading, including any separate frontend cache instance:
+
+```conf
+save ""
+appendonly no
+```
+
+For a managed service, disable both snapshot and append-only persistence through
+its provider settings. For a Redis container, pass `--save "" --appendonly no`
+and mount a fresh RAM-backed `/data` (`emptyDir.medium: Memory` in Kubernetes);
+do not mount a Redis PVC. Disabling snapshot creation alone does not prevent Redis
+from loading an existing `dump.rdb` at startup. Keep the configuration in the
+service's deployment source; a live `CONFIG SET` alone will not survive recreation.
+
+Using an authenticated Redis administration connection, verify `CONFIG GET save
+appendonly` reports an empty `save` value and `appendonly` set to `no`. Keep the
+existing Redis credentials and private network access.
+
+Deploy matching published Core and worker images, then use the rollout checks
+below and verify the Scheduler shows the source, bot, and housekeeping schedules.
+Cron asks Core to rebuild them from PostgreSQL after an empty Redis restart and
+retries through Redis/Core outages. It resumes at the next scheduled run rather
+than replaying missed runs. Endpoint checks and empty word-list downloads refresh;
+frontend caches refill on demand. Application data, completed task results, and
+token revocations remain in PostgreSQL.
+
+Pending one-off jobs, delayed MISP pushes, retries, and unfinished bot chains are
+lost on Redis restart. Let important work finish before changing the external
+Redis deployment and rerun interrupted actions afterward. Keep the previous
+server configuration and application image tags for rollback; older images
+require a Core restart after Redis loses state. Avoid reattaching stale queue
+files that could replay old publishing jobs. No PostgreSQL migration is required.
+
 ## Images
 
 Core uses `ghcr.io/taranis-ai/taranis-core`, `taranis-frontend`, `taranis-ingress`, and `taranis-worker` (for `collector`, `worker`, and `cron`). Realtime uses the pinned `centrifugo/centrifugo:v6.9` image.
-Optional overlay uses `ghcr.io/taranis-ai/taranis-llm-bot:latest`.
+Inference uses `ghcr.io/taranis-ai/gemma4-e4b-gguf:cpu`.
 Pin explicit tags for production.
 
 Before upgrading, ensure browser access uses HTTPS and the ingress redirects HTTP to HTTPS. With `DEBUG=false` on core and frontend, JWT/CSRF and session cookies are now Secure and HSTS is enabled for one year on the serving hostname. `JWT_COOKIE_SECURE=false` no longer opts out. Keep DEBUG aligned across both services and reserve `DEBUG=true` for isolated development. HSTS omits includeSubDomains/preload, but still affects every application on the same hostname. Rollback to older images does not clear a browser's stored HSTS policy; keep HTTPS available.
@@ -62,17 +99,9 @@ GitHub releases attach the same CycloneDX JSON files for direct download: `taran
 kubectl apply -k deploy/kubernetes
 ```
 
-```bash
-kubectl apply -k deploy/kubernetes-optional-bots
-```
-
-`kubernetes` is core-only. `kubernetes-optional-bots` includes core plus `llm-bot`.
-Default bot endpoints target `llm-bot` routes: `/summarize`, `/title`, `/ner`, `/cluster`, `/sentiment`, and `/cybersec-classification`.
-
 ## Helm
 
-Use [`helm/`](./helm) if you want value-driven rendering or upgrades. The chart keeps `global.imagePullPolicy: Always` and renders pod `restartPolicy: Always` explicitly for all Deployments.
-Helm deploys one `llm-bot` workload for summarization, title generation, NER, story clustering, sentiment analysis, and cybersecurity classification.
+Use [`helm/`](./helm) for value-driven upgrades. Configure inference with `images.llmInference`, `resources.llmInference`, and `replicas.llmInference`.
 
 ```bash
 helm template taranis deploy/helm
@@ -94,19 +123,11 @@ kubectl apply -f deploy/argocd/application.yaml
 
 ## Analyst Chat
 
-Chat is independent of `llm-bot` and workers. Core calls the configured OpenAI-compatible provider directly using `{base_url}/responses` or `{base_url}/chat/completions`. Select the matching API format in **Admin Settings > Chat** when configuring a Chat Completions provider; existing settings keep Responses. Core uses Redis only for a bounded lease per owned conversation or per user while creating a new conversation. If Redis is unavailable, new turns return 503 rather than risk out-of-order conversation history. Analysts need `ASSESS_ACCESS`; all generated Assess searches continue to enforce their source ACLs and TLP restrictions.
+Set `CHAT_ENABLED=true` on Core and frontend, then select a provider in **Admin Settings > LLM Endpoints**. The Chat section controls the story limit (default 5, range 1–20). Providers must support Responses or Chat Completions with function calling. Chat requires Redis and `ASSESS_ACCESS`; realtime progress is optional.
 
-Both API formats stream general answers directly. Story questions first call the search tool, then receive a plain-text answer with tools disabled. Providers that reject streaming before sending any content permit one retry without streaming. When realtime is enabled, Core publishes progress stage identifiers and cumulative answer snapshots to the authenticated user's existing Centrifugo channel; the frontend localizes the stages. These publications are best-effort and have no history; the final synchronous response and PostgreSQL conversation remain authoritative.
+For custom or outer reverse proxies, allow at least 660 seconds between Chat response reads. Realtime updates use a separate connection and cannot keep the message POST alive.
 
-Chat turns share a 540-second deadline across provider planning, retries, search, and answering, checked again before persistence. Provider reads retain the configured per-read timeout; the total deadline stops active response reads even when bytes keep arriving. The Redis lease lasts 570 seconds, reserving 30 seconds for transaction cleanup and release. The frontend HTTP timeout remains 600 seconds.
-
-The shipped ingress allows 660 seconds between upstream reads on `<base-path>chat/`. When updating a deployment with a custom or outer reverse proxy, set its Chat response timeout to at least 660 seconds too; realtime progress uses a separate connection and cannot keep the message POST alive.
-
-Enabling Chat creates `chat_conversation` and `chat_message` tables at core startup. Conversations and answers remain in Taranis until their owner deletes them. The provider receives the analyst's prompt, up to the latest 10 saved chat messages, the analyst-visible filter catalog, and, for search answers, up to the configured `chat_max_stories` bounded story summaries. Raw news-item content and provider credentials are not saved in chat metadata.
-
-This is a data-egress boundary: analyst prompts and selected story titles, dates, and summaries leave Taranis for the configured provider. For Responses, Core requests `store: false`; Chat Completions omits that parameter. Provider implementations and abuse-monitoring policies may apply their own retention. Select and contract with the provider accordingly, and configure transport security and provider-side retention controls before enabling the feature.
-
-Rollback is non-destructive. Set `CHAT_ENABLED=false` on core and frontend and restart the published application images; navigation disappears and core returns 503 for Chat calls, while the tables and conversation history remain untouched. Older images ignore the new tables.
+The provider receives analyst prompts, recent conversation context, and selected story titles, dates, and summaries subject to the analyst's ACL/TLP access. Responses requests use `store: false`; Chat Completions omits `store`. Provider implementations and abuse-monitoring policies may apply their own retention. Select and contract with the provider accordingly, and configure transport security and provider-side retention controls before enabling Chat. Conversations persist until their owner deletes them; disabling Chat preserves that history.
 
 ## Validation
 
@@ -123,11 +144,11 @@ kubectl rollout status deploy/collector
 kubectl rollout status deploy/cron
 ```
 
-If optional overlay is enabled:
+Verify inference:
 
 ```bash
-kubectl rollout status deploy/llm-bot
-kubectl get endpoints llm-bot
+kubectl rollout status deploy/llm-inference
+kubectl get endpoints llm-inference
 ```
 
 Useful logs:
@@ -164,7 +185,7 @@ docker exec -it core taranis-cli set-roles user Admin
 ## Notes
 
 - These manifests expect a reachable PostgreSQL service and a reachable Redis service, but they do not create those workloads.
-- `STORY_API_ENDPOINT` now defaults to `http://llm-bot:8000/cluster`; ensure your `llm-bot` image exposes that route if you enable story clustering.
+- If moving an externally managed PostgreSQL service to version 18, stop Taranis writers, back up the database, follow its provider's major-version upgrade procedure, and verify the service before restarting Taranis. The Compose upgrade script applies only to the bundled Compose database.
 - The `core` PVC is included because the application writes persistent data under `/app/data`.
 - The `core` readiness and liveness probes run every 5 minutes after a 15-second startup delay because the core healthcheck performs non-trivial service checks.
 - The default `core` and `frontend` images recycle Granian workers above 4096 MiB and 1024 MiB RSS respectively.

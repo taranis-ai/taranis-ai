@@ -119,6 +119,7 @@ class AdminBaseView(BaseView):
                     "pattern": prop.get("pattern", ""),
                     "minimum": minimum,
                     "maximum": maximum,
+                    "step": "any" if prop.get("type") == "number" else None,
                     "options": ([{"id": "", "name": "Inherit"}] if nullable and prop.get("enum") else [])
                     + [{"id": option, "name": option} for option in prop.get("enum", [])],
                     "widget": widget,

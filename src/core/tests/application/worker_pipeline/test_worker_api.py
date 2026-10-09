@@ -7,6 +7,7 @@ from pathlib import Path
 from unittest.mock import Mock
 
 import pytest
+from sqlalchemy import select
 
 
 def _tag_names(tags: list[dict] | dict[str, dict]) -> set[str]:
@@ -22,9 +23,50 @@ def _expected_story_tag_names(story: dict) -> set[str]:
 class TestWorkerApi:
     base_uri = "/api/worker"
 
+    def test_restore_queue_state_after_redis_loss(self, client, api_header, session, redis_client, monkeypatch):
+        from core.config import Config
+        from core.managers.queue_manager import CRON_DEFS_KEY, CRON_NEXT_KEY
+        from tests.application.support.builders import create_osint_source
+
+        source = create_osint_source(rank=0, name="Redis recovery source")
+        source_id = source.id
+        spec = source.get_cron_spec()
+        session.commit()
+        manager = client.application.extensions["rq"]
+        server = redis_client.connection_pool.connection_kwargs["server"]
+        monkeypatch.setattr(server, "connected", False)
+        assert not manager.register_cron_job(spec)
+        assert not manager.unregister_cron_job(f"osint_source_{source_id}")
+        assert manager.ping_workers()[1] == 500
+        assert manager.error == ""
+        monkeypatch.setattr(server, "connected", True)
+        redis_client.flushall()
+        manager.error = "Could not reach Redis"
+        assert client.post(f"{self.base_uri}/cron-jobs").status_code == 401
+        assert not redis_client.exists(CRON_DEFS_KEY)
+
+        # Recovery must preserve work accepted after Redis became available again.
+        manager.error = ""
+        job = manager.enqueue_task("misc", "gather_word_list", "queued-before-recovery")
+        manager.error = "Could not reach Redis"
+        response = client.post(f"{self.base_uri}/cron-jobs", headers=api_header)
+
+        assert response.status_code == 200
+        assert manager.error == ""
+        assert job.id in manager.get_queue("misc").job_ids
+        restored_ids = {job_id.decode() for job_id in redis_client.hkeys(CRON_DEFS_KEY)}
+        assert {f"osint_source_{source_id}", "cleanup_token_blacklist", "cleanup_task_history"} <= restored_ids
+        assert redis_client.zscore(CRON_NEXT_KEY, f"osint_source_{source_id}") is not None
+
+        monkeypatch.setattr(Config, "QUEUE_ENABLED", False)
+        response = client.post(f"{self.base_uri}/cron-jobs", headers=api_header)
+        assert response.status_code == 503
+        assert response.get_json() == {"error": "Could not restore queue runtime state"}
+
     @pytest.mark.parametrize("preceding_candidates", [0, 501])
     def test_fuzzy_collection_groups_distinct_urls(self, client, api_header, session, preceding_candidates):
         from core.model.news_item import NewsItem
+        from core.model.news_item_attribute import NewsItemAttribute
         from tests.application.support.builders import build_news_item_payload, create_osint_source, create_story
 
         source = create_osint_source(rank=0)
@@ -38,10 +80,18 @@ class TestWorkerApi:
         body = (Path(__file__).parents[2] / "test_data" / "fuzzy_article.txt").read_text()
         original = build_news_item_payload(source.id, content=body)
         duplicate = build_news_item_payload(source.id, content=body.replace("on Tuesday", "on Wednesday"))
-        response = client.post(f"{self.base_uri}/news-items", json=[original, duplicate], headers=api_header)
+        response = client.post(f"{self.base_uri}/news-items", json=[original], headers=api_header)
         assert response.status_code == 200
-        assert response.json["news_item_ids"] == [original["id"], duplicate["id"]]
+        story = NewsItem.get(original["id"]).story
+        story.upsert_attribute(NewsItemAttribute("SUMMARY_BOT", "completed"))
+        session.commit()
+
+        response = client.post(f"{self.base_uri}/news-items", json=[duplicate], headers=api_header)
+        assert response.status_code == 200
+        assert response.json["news_item_ids"] == [duplicate["id"]]
+        assert response.json["story_ids"] == [story.id]
         assert response.json["counts"]["grouped"] == 1
+        assert story.find_attribute_by_key("SUMMARY_BOT") is None
         assert NewsItem.get(original["id"]).story_id == NewsItem.get(duplicate["id"]).story_id
         assert NewsItem.get(original["id"]).fuzzy_hash
 
@@ -55,6 +105,7 @@ class TestWorkerApi:
         from models.revision_diff import build_story_revision_diff_payload
 
         from core.model.news_item import NewsItem
+        from core.model.news_item_attribute import NewsItemAttribute
         from core.model.revision import StoryRevision
         from core.model.story import Story
         from tests.application.support.builders import build_news_item_payload, create_osint_source
@@ -70,6 +121,7 @@ class TestWorkerApi:
         story.read = True
         story.title = "Analyst headline"
         story.summary = "Analyst summary"
+        story.upsert_attribute(NewsItemAttribute("SUMMARY_BOT", "completed"))
         item.review = "Analyst review"
         session.commit()
         published, collected = item.published, item.collected
@@ -84,6 +136,8 @@ class TestWorkerApi:
         assert response.status_code == 200
         assert response.json["counts"]["updated"] == 1
         assert response.json["news_item_ids"] == [item.id]
+        assert response.json["story_ids"] == [story.id]
+        assert story.find_attribute_by_key("SUMMARY_BOT") is None
         assert len(story.news_items) == 1
         assert item.content == corrected["content"]
         assert item.title == corrected["title"]
@@ -93,14 +147,14 @@ class TestWorkerApi:
         assert (story.title, story.summary, story.read) == ("Analyst headline", "Analyst summary", False)
         assert story.id not in session.execute(Story.get_filter_query({"range": "shift"}).with_only_columns(Story.id)).scalars()
 
-        revisions = (
-            session.execute(session.query(StoryRevision).filter_by(story_id=story.id).order_by(StoryRevision.revision)).scalars().all()
-        )
+        revisions = session.scalars(select(StoryRevision).where(StoryRevision.story_id == story.id).order_by(StoryRevision.revision)).all()
         assert revisions[-2].data["news_items"][0]["content"] == body
         assert revisions[-1].data["news_items"][0]["content"] == corrected["content"]
         diff = build_story_revision_diff_payload(story.id, story.title, revisions[-2].to_dict(), revisions[-1].to_dict())
         assert any(change.field.endswith(": Content") for change in diff.changes)
         revision_count = story.revision
+        story.upsert_attribute(NewsItemAttribute("SUMMARY_BOT", "completed-again"))
+        session.commit()
         older = original | {"published": (item.published - timedelta(seconds=1)).isoformat()}
         for retry, expected_action in (
             (corrected, "unchanged"),
@@ -113,6 +167,7 @@ class TestWorkerApi:
             assert response.json["counts"][expected_action] == 1
             assert item.content == corrected["content"]
             assert story.revision == revision_count
+            assert story.find_attribute_by_key("SUMMARY_BOT").value == "completed-again"
 
         # A newer date alone advances the comparison date without creating a content revision.
         newer_published = item.published + timedelta(days=1)
@@ -368,18 +423,24 @@ class TestWorkerApi:
         def fake_post_collection_bots(source_id, user_id=None, story_ids=None):
             captured["source_id"] = source_id
             captured["user_id"] = user_id
+            captured["story_ids"] = story_ids
             return {"message": "scheduled"}, 200
 
         monkeypatch.setattr("core.api.worker.queue_manager.queue_manager.post_collection_bots", fake_post_collection_bots)
 
         response = client.put(
             f"{self.base_uri}/post-collection-bots",
-            json={"source_id": "source-1", "user_id": "user-1"},
+            json={"source_id": "source-1", "user_id": "user-1", "story_ids": ["changed-story"]},
             headers=api_header,
         )
 
         assert response.status_code == 200
-        assert captured == {"source_id": "source-1", "user_id": "user-1"}
+        assert captured == {"source_id": "source-1", "user_id": "user-1", "story_ids": ["changed-story"]}
+        for invalid in (None, "changed-story", [1], [""]):
+            response = client.put(
+                f"{self.base_uri}/post-collection-bots", json={"source_id": "source-1", "story_ids": invalid}, headers=api_header
+            )
+            assert response.status_code == 400
 
     @pytest.mark.parametrize(
         "result_payload",

@@ -18,6 +18,7 @@ from models.user import UserProfile
 from pydantic import ValidationError
 from redis import Redis
 from redis.exceptions import RedisError
+from redis.maint_notifications import MaintNotificationsConfig
 
 from frontend.log import logger
 
@@ -52,7 +53,12 @@ class FrontendCache:
             return
 
         try:
-            self.client = Redis.from_url(redis_url, password=redis_password, decode_responses=True)
+            self.client = Redis.from_url(
+                redis_url,
+                password=redis_password,
+                decode_responses=True,
+                maint_notifications_config=MaintNotificationsConfig(enabled=False),
+            )
             self.client.ping()
             logger.info("Frontend cache initialized with Redis backend")
         except RedisError, ValueError:

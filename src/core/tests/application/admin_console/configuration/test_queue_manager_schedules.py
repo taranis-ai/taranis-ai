@@ -1,12 +1,12 @@
 import logging
 from datetime import UTC, datetime, timedelta, timezone
 from typing import cast
-from unittest.mock import Mock
+from unittest.mock import DEFAULT, Mock, call
 
 import pytest
 from models.scheduler import ScheduledJob
 from redis import Redis
-from redis.exceptions import ConnectionError
+from redis.exceptions import AuthenticationError, AuthorizationError, BusyLoadingError, ConnectionError, TimeoutError
 from rq import Queue
 
 from core.managers.queue_manager import QueueManager
@@ -160,8 +160,60 @@ def test_annotate_jobs_normalizes_aware_timestamps_to_utc():
     assert annotated_job["next_run_relative"] == "in 5m"
 
 
+@pytest.mark.parametrize("startup_errors", [[], [ConnectionError, TimeoutError, BusyLoadingError, ConnectionError]])
+def test_core_startup_waits_for_redis_readiness(redis_client, monkeypatch, caplog, startup_errors):
+    from core import create_app
+    from core.config import Config
+    from core.managers import queue_manager
+
+    monkeypatch.setattr(Config, "QUEUE_ENABLED", True)
+    monkeypatch.setattr(queue_manager, "queue_manager", queue_manager.queue_manager)
+    connect = Mock(return_value=redis_client)
+    monkeypatch.setattr("redis.Redis.from_url", connect)
+    ping = Mock(wraps=redis_client.ping, side_effect=[error("Redis not ready") for error in startup_errors] + [DEFAULT])
+    monkeypatch.setattr(redis_client, "ping", ping)
+    sleep = Mock()
+    monkeypatch.setattr(queue_manager.time, "sleep", sleep)
+
+    with caplog.at_level(logging.WARNING):
+        ready_app = create_app(initial_setup=False)
+
+    manager = ready_app.extensions["rq"]
+    connect.assert_called_once()
+    assert ping.call_count == len(startup_errors) + 1
+    assert sleep.call_args_list == [call(delay) for delay in range(1, len(startup_errors) + 1)]
+    for attempt in range(1, len(startup_errors) + 1):
+        assert f"Redis connection attempt {attempt}/5 failed; retrying in {attempt} seconds." in caplog.text
+    for queue_name in manager.queue_names:
+        job = manager.enqueue_task(queue_name, "gather_word_list", "test")
+        assert job
+        assert job.id in manager.get_queue(queue_name).job_ids
+
+
+@pytest.mark.parametrize("error_type", [AuthenticationError, AuthorizationError])
+def test_core_startup_rejects_permanent_redis_errors(redis_client, monkeypatch, error_type):
+    from core import create_app
+    from core.config import Config
+    from core.managers import queue_manager
+
+    monkeypatch.setattr(Config, "QUEUE_ENABLED", True)
+    monkeypatch.setattr("redis.Redis.from_url", Mock(return_value=redis_client))
+    ping = Mock(side_effect=error_type("Invalid Redis configuration"))
+    monkeypatch.setattr(redis_client, "ping", ping)
+    sleep = Mock()
+    monkeypatch.setattr(queue_manager.time, "sleep", sleep)
+
+    with pytest.raises(error_type):
+        create_app(initial_setup=False)
+
+    ping.assert_called_once()
+    sleep.assert_not_called()
+
+
 @pytest.mark.parametrize("queue_enabled", [False, True])
-def test_core_startup_without_redis_requires_explicit_queue_disable(app, auth_header, monkeypatch, queue_enabled, cleanup_connector):
+def test_core_startup_without_redis_requires_explicit_queue_disable(
+    app, auth_header, redis_client, monkeypatch, queue_enabled, cleanup_connector
+):
     from core import create_app
     from core.config import Config
     from core.managers import queue_manager
@@ -171,13 +223,21 @@ def test_core_startup_without_redis_requires_explicit_queue_disable(app, auth_he
     monkeypatch.setattr(Config, "CACHE_ENABLED", True)
     monkeypatch.setattr(Config, "CACHE_REDIS_URL", None)
     monkeypatch.setattr(queue_manager, "queue_manager", queue_manager.queue_manager)
-    connect = Mock(side_effect=ConnectionError("Redis unavailable"))
+    connect = Mock(return_value=redis_client)
     monkeypatch.setattr("redis.Redis.from_url", connect)
+    connection_error = ConnectionError("Redis unavailable")
+    ping = Mock(side_effect=connection_error)
+    monkeypatch.setattr(redis_client, "ping", ping)
+    sleep = Mock()
+    monkeypatch.setattr(queue_manager.time, "sleep", sleep)
 
     if queue_enabled:
-        with pytest.raises(ConnectionError):
+        with pytest.raises(RuntimeError, match="Could not connect to Redis after 5 attempts.") as exc_info:
             create_app(initial_setup=False)
+        assert exc_info.value.__cause__ is connection_error
         connect.assert_called_once()
+        assert ping.call_count == 5
+        assert sleep.call_args_list == [call(1), call(2), call(3), call(4)]
         return
 
     disabled_app = create_app(initial_setup=False)
@@ -215,7 +275,7 @@ def test_core_startup_without_redis_requires_explicit_queue_disable(app, auth_he
     assert manager.get_task("missing") == ({"error": "Queue is disabled"}, 503)
     assert manager.execute_bot_task("invalid.id") == ({"error": "Queue is disabled"}, 503)
     assert manager.collect_osint_source("missing", "missing") == ({"error": "Queue is disabled"}, 503)
-    assert manager.post_collection_bots("missing") == ({"error": "Queue is disabled"}, 503)
+    assert manager.post_collection_bots("missing", story_ids=[]) == ({"error": "Queue is disabled"}, 503)
     assert manager.schedule_bot_dependents("missing") == ({"error": "Queue is disabled"}, 503)
 
     with disabled_app.app_context():
@@ -241,3 +301,5 @@ def test_core_startup_without_redis_requires_explicit_queue_disable(app, auth_he
                 db.session.delete(group)
             db.session.commit()
     connect.assert_not_called()
+    ping.assert_not_called()
+    sleep.assert_not_called()

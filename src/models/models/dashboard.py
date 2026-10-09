@@ -15,6 +15,7 @@ class DashboardHealthServices(BaseModel):
     seed_data: DashboardHealthState
     broker: DashboardHealthState
     workers: DashboardHealthState
+    worker_endpoints: DashboardHealthState = "n/a"
 
 
 class DashboardHealth(BaseModel):
@@ -40,6 +41,12 @@ class TaskStatusTotals(BaseModel):
     success_pct: int = 0
 
 
+class SourceShare(BaseModel):
+    name: str
+    count: int = 0
+    percentage: float = 0.0
+
+
 class Dashboard(TaranisBaseModel):
     _core_endpoint = "/dashboard"
     _model_name = "dashboard"
@@ -61,6 +68,7 @@ class Dashboard(TaranisBaseModel):
     conflict_count: int | None = None
     health_status: DashboardHealth | None = None
     task_status_totals: TaskStatusTotals | None = None
+    top_sources: list[SourceShare] = Field(default_factory=list)
 
 
 class PizzintStatus(TaranisBaseModel):

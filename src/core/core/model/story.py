@@ -6,6 +6,7 @@ from typing import Any
 
 from models.assess import NewsItem as AssessNewsItem
 from models.assess import Story as StoryPayload
+from models.types import BOT_TYPES
 from pydantic import ValidationError
 from sqlalchemy import func, inspect, or_
 from sqlalchemy.dialects.postgresql import TSVECTOR
@@ -353,7 +354,10 @@ class Story(BaseModel):
             return query.filter(cls.id == item_id)
 
         if item_ids := filter_args.get("story_ids"):
-            return query.filter(cls.id.in_(item_ids))
+            query = query.filter(cls.id.in_(item_ids))
+            if exclude_attr := filter_args.get("exclude_attr"):
+                query = cls._add_attribute_filter_to_query(query, exclude_attr, exclude=True)
+            return query
 
         source_group_filters = []
 
@@ -623,13 +627,13 @@ class Story(BaseModel):
             biggest_story = max(biggest_story, len(story_data["news_items"]))
             stories.append(story_data)
 
-        additional_counts = cls.get_additional_counts(base_query)
+        additional_counts = cls.get_additional_counts(base_query)._mapping
 
         count_dict = {
-            "total_count": additional_counts.total_count,
-            "read_count": additional_counts.read_count,
-            "important_count": additional_counts.important_count,
-            "in_reports_count": additional_counts.in_reports_count,
+            "total_count": additional_counts["total_count"],
+            "read_count": additional_counts["read_count"],
+            "important_count": additional_counts["important_count"],
+            "in_reports_count": additional_counts["in_reports_count"],
             "biggest_story": biggest_story,
         }
 
@@ -796,7 +800,7 @@ class Story(BaseModel):
         StoryConflict.enforce_quota()
         NewsItemConflict.enforce_quota()
         if results:
-            return {"error": "Some stories could not be added", "details": {"errors": results}}, status
+            return {"error": "Some stories could not be added", "details": {"errors": results, "story_ids": story_ids}}, status
         return {"message": "Stories added or updated successfully", "details": {"story_ids": story_ids}}, 200
 
     @classmethod
@@ -1055,6 +1059,9 @@ class Story(BaseModel):
                 self.attributes.remove(attr)
                 db.session.delete(attr)
         self.refresh_tlp()
+
+    def clear_bot_execution_attributes(self) -> None:
+        self.remove_attributes([bot_type.name for bot_type in BOT_TYPES])
 
     def upsert_attribute(self, attribute: NewsItemAttribute) -> None:
         if existing_attribute := self.find_attribute_by_key(attribute.key):

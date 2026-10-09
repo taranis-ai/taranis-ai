@@ -74,6 +74,7 @@ install_macos() {
         ca-certificates \
         gcc \
         libpq \
+        pango \
         llvm \
         nginx \
         podman \
@@ -120,13 +121,13 @@ main() {
         }
     fi
 
-    [[ -f ./dev/.installed ]] && exit 0
-
     if [ "$host_os" = "Darwin" ]; then
         install_macos
         touch ./dev/.installed
         exit 0
     fi
+
+    [[ -f ./dev/.installed ]] && exit 0
 
     check_sudo_access
     update_packages

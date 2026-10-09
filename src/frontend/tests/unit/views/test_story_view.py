@@ -49,6 +49,35 @@ def mock_story_for_edit(responses_mock, story_payload: dict):
     )
 
 
+@pytest.mark.parametrize(
+    "status, payload, message",
+    [
+        (200, {"message": "Executing Bot scheduled"}, "Executing Bot scheduled"),
+        (404, {"error": "Bot not found"}, "Bot not found"),
+        (503, {"error": "Queue is disabled"}, "Queue is disabled"),
+    ],
+)
+def test_story_bot_action_returns_only_notification(authenticated_client, responses_mock, htmx_header, status, payload, message):
+    responses_mock.post(f"{Config.TARANIS_CORE_URL}/assess/stories/botactions", json=payload, status=status)
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/health",
+        json={"healthy": True, "services": {"database": "up", "seed_data": "up", "broker": "up", "workers": "up"}},
+    )
+
+    response = authenticated_client.post(
+        url_for("assess.story_trigger_bot", story_id="story-1"),
+        headers=htmx_header,
+        data={"bot_id": "summary_bot"},
+    )
+    assert response.status_code == status
+    assert message in response.text
+    tree = html.fromstring(response.text)
+    assert tree.tag == "section"
+    assert tree.get("id") == "notification-bar"
+    assert tree.get("hx-swap-oob") is None
+    assert b"story-edit-form" not in response.data
+
+
 def story_with_news_item_tags() -> dict:
     return {
         "id": "story-1",

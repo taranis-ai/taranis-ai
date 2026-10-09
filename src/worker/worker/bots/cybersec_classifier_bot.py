@@ -1,7 +1,9 @@
-from typing import Any
+from llm_bot.schemas import CybersecClassificationRequest
+from llm_bot.tasks.cybersec_classification import prepare_cybersec_classification
+from rq import Retry
 
-from worker.bot_api import BotApi
 from worker.config import Config
+from worker.llm import get_llm_client, run_llm_tasks
 from worker.log import logger
 
 from .base_bot import BaseBot
@@ -13,18 +15,21 @@ class CyberSecClassifierBot(BaseBot):
         self.type = "CYBERSEC_CLASSIFIER_BOT"
         self.name = "Cybersecurity classification bot"
 
-    def execute(self, parameters: dict | None = None) -> dict[str, Any]:
+    def execute(self, parameters: dict | None = None) -> dict | Retry:
         if not parameters:
             parameters = {}
 
         if not (data := self.get_stories(parameters)):
             return {"message": "No new stories found"}
 
-        self.bot_api = BotApi(
-            bot_endpoint=parameters.get("BOT_ENDPOINT", Config.CYBERSEC_CLASSIFIER_API_ENDPOINT),
-            bot_api_key=parameters.get("BOT_API_KEY", Config.BOT_API_KEY),
-            requests_timeout=parameters.get("REQUESTS_TIMEOUT"),
-        )
+        self.llm_client = get_llm_client(parameters)
+        self.classification_threshold = parameters.get("CLASSIFICATION_THRESHOLD", Config.CYBERSEC_CLASSIFIER_THRESHOLD)
+        items = [item for story in data for item in story.get("news_items", []) if item.get("content", "").strip()]
+        tasks = [prepare_cybersec_classification(CybersecClassificationRequest(text=item["content"])) for item in items]
+        results = run_llm_tasks(tasks, self.llm_client, parameters)
+        if isinstance(results, Retry):
+            return results
+        results = {item["id"]: result.model_dump() for item, result in zip(items, results, strict=True)}
 
         num_news_items = 0
         item_attributes = {}
@@ -33,7 +38,7 @@ class CyberSecClassifierBot(BaseBot):
             story_class_list = []
             story_cybersecurity_status = "incomplete"
             for news_item in story.get("news_items", []):
-                result = self._process_news_item(news_item, item_attributes)
+                result = self._process_news_item(news_item, results.get(news_item["id"]), item_attributes)
                 story_class_list.append(result)
                 if result != "none":
                     num_news_items += 1
@@ -51,7 +56,7 @@ class CyberSecClassifierBot(BaseBot):
                     }
                     story_cybersecurity_status = status_map.get(status_set, "none")
 
-            attributes = [{"key": "cybersecurity", "value": story_cybersecurity_status}, {"key": self.type, "value": 1}]
+            attributes = [{"key": "cybersecurity", "value": story_cybersecurity_status}]
             story_attributes[story["id"]] = attributes
 
         return {
@@ -59,28 +64,14 @@ class CyberSecClassifierBot(BaseBot):
             "changes": {"item_attributes": item_attributes, "story_attributes": story_attributes},
         }
 
-    def _classify_news_item(self, content: str) -> dict | None:
-        class_result = self.bot_api.api_post("/", {"text": content})
-
-        if not class_result:
-            return None
-        if "error" in class_result:
-            logger.error(class_result["error"])
-            return None
-
-        logger.debug(f"Predicted class: {max(class_result, key=class_result.get)}")
-        return class_result
-
-    def _process_news_item(self, news_item: dict, item_attributes: dict) -> str:
-        news_item_content = news_item.get("content", "")
+    def _process_news_item(self, news_item: dict, class_result: dict | None, item_attributes: dict) -> str:
         news_item_id = news_item.get("id", "")
 
         logger.debug(f"Classifying news item with id: {news_item_id}.")
-        class_result = self._classify_news_item(news_item_content)
         if not class_result:
             return "none"
 
-        status = "yes" if class_result.get("cybersecurity", 0.0) > Config.CYBERSEC_CLASSIFIER_THRESHOLD else "no"
+        status = "yes" if class_result.get("cybersecurity", 0.0) > self.classification_threshold else "no"
 
         item_attributes[news_item_id] = [
             {"key": "cybersecurity_bot", "value": status},

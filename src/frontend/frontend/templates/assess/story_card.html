@@ -130,7 +130,8 @@
         <!-- main content column -->
         <section class="space-y-3 lg:flex-1 min-w-0">
           <div class="flex flex-col gap-2 min-w-0">
-            <h2 class="text-lg font-semibold leading-tight text-base-content highlight truncate" data-testid="story-title">{{ story.title }}</h2>
+            <h2 class="text-lg font-semibold leading-tight text-base-content highlight truncate"
+                data-testid="story-title">{{ story.title }}</h2>
             {% if story.links %}
               <a href="{{ story.links[0] }}"
                  target="_blank"
@@ -143,7 +144,9 @@
             {% endif %}
           </div>
 
-          <div class="text-sm text-base-content/80 prose highlight break-words" :class="{ '{{ line_clamp }}': !isOpen }" data-testid="story-summary">
+          <div class="text-sm text-base-content/80 prose highlight break-words"
+               :class="{ '{{ line_clamp }}': !isOpen }"
+               data-testid="story-summary">
             {% if summary_content %}
               {{ summary_content }}
             {% else %}

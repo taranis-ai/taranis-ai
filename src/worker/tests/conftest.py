@@ -13,6 +13,9 @@ import requests_mock.response as requests_mock_response
 from niquests.packages import urllib3
 
 
+# Override both inherited telemetry settings and the worker's local .env.
+os.environ["OTEL_EXPORTER_OTLP_ENDPOINT"] = ""
+
 sys.modules["requests"] = niquests
 sys.modules["requests.adapters"] = niquests.adapters
 sys.modules["requests.exceptions"] = niquests.exceptions

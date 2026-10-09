@@ -276,6 +276,13 @@ class CoreApi:
             logger.exception("Can't get cron job configurations")
             return None
 
+    def restore_queue_state(self) -> bool:
+        try:
+            return self.api_post("/worker/cron-jobs") is not None
+        except requests.exceptions.RequestException:
+            logger.exception("Can't restore queue runtime state")
+            return False
+
     def cleanup_task_history(self) -> dict | None:
         url = f"{self.api_url}/worker/tasks/history/cleanup"
         try:
@@ -433,14 +440,14 @@ class CoreApi:
         except requests.exceptions.RequestException:
             return None
 
-    def run_post_collection_bots(self, source_id, story_ids: list[str] | None = None) -> dict | None:
+    def run_post_collection_bots(self, source_id, story_ids: list[str]) -> dict | None:
         try:
             return self.api_put(
                 "/worker/post-collection-bots",
                 json_data={
                     "source_id": source_id,
                     "user_id": self._get_current_job_user_id(),
-                    **({"story_ids": story_ids} if story_ids else {}),
+                    "story_ids": story_ids,
                 },
             )
         except requests.exceptions.RequestException:

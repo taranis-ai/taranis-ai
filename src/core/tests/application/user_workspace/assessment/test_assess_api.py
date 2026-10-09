@@ -1,11 +1,35 @@
 import uuid
 from unittest.mock import Mock
 
+import pytest
+
 from tests.application.support.api_test_base import BaseTest
 
 
 class TestAssessApi(BaseTest):
     base_uri = "/api/assess"
+
+    @pytest.mark.parametrize("bot_type", ["summary_bot", "sentiment_analysis_bot", "cybersec_classifier_bot"])
+    @pytest.mark.parametrize("use_type", [True, False])
+    def test_story_bot_actions_queue_configured_bot(self, app, client, auth_header, session, redis_client, bot_type, use_type):
+        from core.model.bot import Bot
+        from core.model.user import User
+        from tests.application.support.builders import build_news_item_payload, create_story
+
+        story = create_story(news_items=[build_news_item_payload()])
+        bot = Bot.filter_by_type(bot_type)
+        assert bot is not None
+        response = client.post(
+            "/api/assess/stories/botactions",
+            headers=auth_header,
+            json={"story_id": story.id, "bot_id": bot_type if use_type else bot.id},
+        )
+        assert response.status_code == 200, response.json
+        job = app.extensions["rq"].get_queue("bots").fetch_job(f"bot_{bot.id}")
+        assert job is not None
+        assert job.kwargs["bot_id"] == bot.id
+        assert job.kwargs["filter"] == {"story_id": story.id}
+        assert job.meta["user_id"] == User.find_by_name("admin").id
 
     def test_order_saves_without_changing_content_and_rejects_stale_or_invalid_requests(self, client, auth_header, session):
         from core.managers.db_manager import db

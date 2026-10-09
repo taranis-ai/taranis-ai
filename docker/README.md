@@ -40,11 +40,68 @@ For a directly launched core process, export the same JSON value as `PRE_SEED_SE
 
 Preseeding applies only when the persistent settings row does not exist. Restarts and upgrades preserve saved settings, including administrator edits; they do not merge newly supplied seed keys into an existing row. An empty object `{}` or an unset variable uses normal defaults. Use a JSON object, not the API's `{"settings": {...}}` wrapper. Invalid JSON and non-object values are rejected during configuration loading. Timezone, entry-limit, lookback, and onboarding values use the existing settings validators during initialization.
 
-Onboarding defaults to enabled. Set `PRE_SEED_SETTINGS='{"onboarding_enabled":false}'` to disable it during initialization; the value is copied to existing users. This replaces the removed `SKIP_INITIAL_USER_ONBOARDING` variable. After initialization, use Admin Settings to change values. Removing the variable does not undo persisted settings; no database migration is required.
+Onboarding defaults to enabled. Set `PRE_SEED_SETTINGS='{"onboarding_enabled":false}'` to disable it during initialization; the value is copied to existing users. After initialization, use Admin Settings to change values. Removing the variable does not undo persisted settings; no database migration is required.
+
+### Bundled LLM inference
+
+Compose includes private inference at `http://llm-inference:8000/v1` using Chat Completions. The CPU image `ghcr.io/taranis-ai/gemma4-e4b-gguf:cpu` includes the model and supports amd64 and arm64. Allow several minutes for startup and enough RAM for the model and 8192-token context; Kubernetes requests 6 GiB and limits usage to 12 GiB.
+
+Core registers internal inference on every startup and selects it when no shared default is set. Existing endpoint settings and feature/bot selections are preserved. Set `LLM_INFERENCE_IMAGE` to use another image; leave the endpoint model blank to use that image's default model.
+
+Set `LLM_INFERENCE_API_KEY` in the private `.env`; Core and inference share it. Restart both after rotation. Blank disables authentication and clears the stored internal key.
+
+Configure providers in **Admin Settings > LLM Endpoints** for Chat, clustering, summarization/titles, NER, sentiment, and cybersecurity classification. Bot selection overrides its feature assignment, then the shared default. Workers must reach the selected providers.
+
+Endpoint checks contact every saved provider, including unassigned ones. HTTP sends credentials and request content without encryption; use HTTPS across untrusted networks. Keys are stored in the database, so protect access and backups.
+
+When updating, remove retired bot containers and verify a job for each configured LLM feature:
+
+```bash
+docker compose pull
+docker compose up -d --remove-orphans
+docker compose ps
+```
+
+Keep a database backup and previous images/configuration for rollback. See [deployment upgrade notes](../deploy/README.md#shared-llm-endpoint-upgrade).
 
 ## Startup & Usage
 
+### Redis without persistence
+
+All bundled Redis services disable RDB snapshots (`save ""`) and the append-only
+log (`appendonly no`). `/data` uses a RAM-backed `tmpfs`, replacing the old
+`redis_data` volume and preventing old snapshots from being loaded. PostgreSQL
+and `core_data` remain persistent.
+
+Core rebuilds source, bot, and housekeeping schedules from PostgreSQL at startup.
+With matching Core and worker images, cron also requests a rebuild when Redis is
+empty, retries through Redis/Core outages, and resumes from the next scheduled
+run. Endpoint checks and empty word-list downloads are refreshed. Frontend caches
+refill on demand; completed task results and token revocations remain in PostgreSQL.
+
+Pending one-off jobs, delayed MISP pushes, retries, and unfinished bot chains are
+disposable and lost when Redis restarts. Let important work finish before an
+upgrade; rerun interrupted actions afterward. Missed cron runs are not replayed.
+
+Apply the updated Compose file and matching published Core/worker images:
+
+```bash
+docker compose pull
+docker compose up -d --wait
+docker compose ps
+docker compose exec -T redis sh -c 'REDISCLI_AUTH="$REDIS_PASSWORD" redis-cli --raw CONFIG GET save appendonly'
+```
+
+Verify an empty `save` value and `appendonly` set to `no`, then check the Scheduler
+for restored schedules and healthy workers. Existing `redis_data` volumes are
+left untouched and unused; do not run `docker compose down -v`, which would also
+delete PostgreSQL and application data. Keep the previous images and Compose file
+for rollback. Older Core/worker images require a Core restart after Redis loses
+state; avoid restoring stale queue files that could replay old publishing jobs.
+
 Start-up application
+
+For an existing PostgreSQL 14–17 installation, follow the [database upgrade procedure](#upgrade-the-bundled-postgresql-database-to-18) before starting the updated Compose stack; a normal startup would create an empty PostgreSQL 18 volume.
 
 ```bash
 docker compose up -d
@@ -64,13 +121,47 @@ Use the application
 http://<url>:<TARANIS_PORT>/login
 ```
 
+### Upgrade the bundled PostgreSQL database to 18
+
+The Compose database defaults to PostgreSQL 18. Its data lives in `database_data`, mounted at `/var/lib/postgresql`; the [official 18 image](https://hub.docker.com/_/postgres) stores the cluster below `/var/lib/postgresql/18/docker`. An existing PostgreSQL 14–17 `database_data` volume cannot be started with the 18 image.
+
+Run [upgrade-database.sh](database/upgrade-database.sh) from the deployment directory where `docker compose` works. It uses the published [pgautoupgrade image](https://github.com/pgautoupgrade/docker-pgautoupgrade) in one-shot mode; no other scripts or running old server are required. It also works after `docker compose down` or when PostgreSQL 18 is restarting against an old cluster.
+
+Configure Compose to use `postgres:18-alpine` and mount `database_data` at `/var/lib/postgresql`. Stop database clients outside Compose, then run:
+
+```bash
+./database/upgrade-database.sh
+```
+
+The script reads the resolved `database_data` volume name from Compose, including custom and external names. Automatic detection requires `jq`. You can pass an explicit volume name as an optional argument. If you downloaded the script directly into your deployment directory, use `./upgrade-database.sh` instead.
+
+After confirmation, the script pulls the required database images, stops Compose without deleting volumes, writes and checks a private physical backup under `backups/postgres-before-18.*/database.tar.gz`, upgrades the volume, restarts Compose with readiness checks, and verifies PostgreSQL 18. It prints the backup path. The upgrade runs without network access or a Docker socket mount, and preserves existing database roles and passwords. The `core_data` volume is unchanged. Keep the backup: upgrading modifies the database volume in place and removes the old cluster. Never use `docker compose down -v` here.
+
+The script defaults to database user/name `taranis`. For customized deployments, pass the existing `DB_USER` and `DB_DATABASE` values explicitly. Use `UPGRADE_IMAGE=pgautoupgrade/pgautoupgrade:18-trixie` for a Debian-based source cluster; the bundled deployment uses Alpine. For example:
+
+```bash
+DB_USER=analyst DB_DATABASE=intelligence ./database/upgrade-database.sh
+```
+
+If upgrading fails, retain the printed backup and leave Compose stopped. For rollback, set `UPGRADE_BACKUP` to that archive and extract it into a **fresh** named volume:
+
+```bash
+UPGRADE_BACKUP=/path/to/backups/postgres-before-18.XXXXXX/database.tar.gz
+docker volume create taranis_database_recovery
+docker run --rm -i --network none \
+  --mount type=volume,src=taranis_database_recovery,dst=/data \
+  busybox tar -xzf - -C /data . < "$UPGRADE_BACKUP"
+```
+
+Set the Compose `database_data` volume's `name` to `taranis_database_recovery`, revert the database image to its original PostgreSQL major and distribution, and restore the old mount at `/var/lib/postgresql/data`. Start Compose with `docker compose up -d --wait` and verify the original server version and application data. Keep the failed upgrade volume until recovery is verified. This archive is a physical backup; `database/restore.sh` accepts logical dumps and cannot restore it.
+
 ## Public reports
 
 Products published with a `TARANIS_PUBLISHER` preset are stored in the `core_data` volume under `/app/data/published-reports`. Their stable URL is `http://<url>:<TARANIS_PORT>/reports/<product-id>` and intentionally requires no authentication. Republishing a product replaces the file at the same URL.
 
 ## Development
 
-See [dev Readme](/dev/README.md) for a quick way to get a development environment running.
+See the [development guide](../dev/README.md) for a quick way to get a development environment running.
 
 ## Release gate tests
 
@@ -158,12 +249,12 @@ docker build -t taranis-worker . -f ./docker/Containerfile.worker
 docker build -t taranis-frontend . -f ./docker/Containerfile.frontend
 ```
 
-There are several Dockerfiles and each of them builds a different component of the system. These Dockerfiles exist:
+Each component has a Containerfile:
 
-- [Dockerfile.worker](Dockerfile.worker)
-- [Dockerfile.core](Dockerfile.core)
-- [Dockerfile.ingress](Dockerfile.ingress)
-- [Dockerfile.frontend](Dockerfile.frontend)
+- [worker](Containerfile.worker)
+- [core](Containerfile.core)
+- [ingress](Containerfile.ingress)
+- [frontend](Containerfile.frontend)
 
 # Configuration
 
@@ -174,6 +265,8 @@ There are several Dockerfiles and each of them builds a different component of t
 Any configuration options are available at [https://hub.docker.com/\_/postgres](https://hub.docker.com/_/postgres).
 
 ### `core`
+
+Taranis Python clients use redis-py's default RESP3 protocol with maintenance notifications disabled. Redis Cloud and Redis Software Smart Client Handoffs are therefore not used; clients rely on their normal reconnect behavior during server maintenance.
 
 | Environment variable          | Description                                | Default       |
 | ----------------------------- | ------------------------------------------ | ------------- |
@@ -201,7 +294,7 @@ Any configuration options are available at [https://hub.docker.com/\_/postgres](
 | `TARANIS_CORE_SENTRY_DSN`     | Core Sentry DSN                            | `''`          |
 | `TARANIS_BASE_PATH`           | Path under which Taranis AI is reachable   | `/`           |
 | `GRANIAN_WORKERS_MAX_RSS`     | Per-worker Granian RSS recycle limit in MiB| `4096`        |
-| `CHAT_ENABLED`                | Enable the optional analyst Chat API; configure the provider in Admin Settings > Chat | `false` |
+| `CHAT_ENABLED`                | Enable the optional analyst Chat API; configure the provider in Admin Settings > LLM Endpoints | `false` |
 
 The supplied Centrifugo configuration enables presence only for `global:events`, which every authenticated browser already receives. Core uses the server API to provide the `ADMIN_OPERATIONS`-protected connected-client snapshot on the Admin Notifications page; browsers are not granted presence access, and organization/user channel presence remains disabled.
 

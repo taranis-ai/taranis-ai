@@ -1,7 +1,10 @@
-from typing import Any
+from llm_bot.schemas import SummarizeRequest, TitleRequest
+from llm_bot.tasks.summarize import prepare_summary
+from llm_bot.tasks.title import prepare_title
+from rq import Retry
 
-from worker.bot_api import BotApi, BotServiceUnavailableError
-from worker.config import Config
+from worker.bot_api import BotServiceUnavailableError
+from worker.llm import get_llm_client, run_llm_tasks
 from worker.log import logger
 
 from .base_bot import BaseBot
@@ -13,26 +16,33 @@ class SummaryBot(BaseBot):
         self.type = "SUMMARY_BOT"
         self.name = "Summary generation Bot"
 
-    def execute(self, parameters: dict | None = None) -> dict[str, Any]:
+    def execute(self, parameters: dict | None = None) -> dict | Retry:
         if not parameters:
             parameters = {}
 
         if not (data := self.get_stories(parameters)):
             return {"message": "No new stories found"}
 
-        summary_api = self._build_bot_api(parameters, "SUMMARY_ENDPOINT", Config.SUMMARY_API_ENDPOINT)
-        title_api = self._build_bot_api(parameters, "TITLE_ENDPOINT", Config.TITLE_API_ENDPOINT)
-
-        story_updates = {}
-        story_attributes = {}
+        client = get_llm_client(parameters)
+        tasks = []
         for story in data:
             news_items = story.get("news_items", [])
-            story_payload = self._build_story_payload(news_items)
+            story_payload = {"news_items": [{"title": item.get("title", ""), "content": item.get("content", "")} for item in news_items]}
+            tasks.append(prepare_summary(SummarizeRequest.model_validate(story_payload)))
+            if len(news_items) > 1:
+                tasks.append(prepare_title(TitleRequest.model_validate(story_payload)))
+        results = run_llm_tasks(tasks, client, parameters)
+        if isinstance(results, Retry):
+            return results
+        results = iter(results)
 
+        story_updates = {}
+        for story in data:
+            news_items = story.get("news_items", [])
             logger.debug(f"Summarizing {story['id']} with {len(news_items)} news items")
             try:
-                summary = self.predict_summary(summary_api, story_payload)
-                title = self.predict_title(title_api, story_payload) if len(news_items) > 1 else ""
+                summary = next(results).summary
+                title = next(results).title if len(news_items) > 1 else ""
 
                 story_update_data = {}
                 if summary:
@@ -42,55 +52,14 @@ class SummaryBot(BaseBot):
 
                 if story_update_data:
                     story_updates[story["id"]] = story_update_data
-                    story_attributes[story["id"]] = [{"key": self.type, "value": 1}]
             except BotServiceUnavailableError:
                 raise
             except Exception:
                 logger.exception(f"Could not generate summary for {story['id']}")
-                raise
+                raise RuntimeError("Story summarization failed") from None
 
             logger.debug(f"Created summary for : {story['id']}")
         return {
             "message": f"Summarized {len(data)} stories",
-            "changes": {"story_updates": story_updates, "story_attributes": story_attributes},
+            "changes": {"story_updates": story_updates},
         }
-
-    @staticmethod
-    def _build_story_payload(news_items: list[dict]) -> dict[str, list[dict[str, str]]]:
-        return {
-            "news_items": [
-                {
-                    "title": news_item.get("title", ""),
-                    "content": news_item.get("content", ""),
-                }
-                for news_item in news_items
-            ]
-        }
-
-    @staticmethod
-    def _build_bot_api(parameters: dict, endpoint_parameter: str, default_endpoint: str | None) -> BotApi | None:
-        endpoint = parameters.get(endpoint_parameter) or default_endpoint
-        if not endpoint:
-            return None
-
-        return BotApi(
-            bot_endpoint=endpoint,
-            bot_api_key=parameters.get("BOT_API_KEY", Config.BOT_API_KEY),
-            requests_timeout=parameters.get("REQUESTS_TIMEOUT"),
-        )
-
-    def predict_summary(self, bot_api: BotApi | None, story_payload: dict[str, list[dict[str, str]]]) -> str:
-        if not bot_api:
-            return ""
-
-        if response := bot_api.api_post("", story_payload):
-            return response.get("summary", "")
-        return ""
-
-    def predict_title(self, bot_api: BotApi | None, story_payload: dict[str, list[dict[str, str]]]) -> str:
-        if not bot_api:
-            return ""
-
-        if response := bot_api.api_post("", story_payload):
-            return response.get("title", "")
-        return ""

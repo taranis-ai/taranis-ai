@@ -73,12 +73,14 @@ def test_post_collection_dag_uses_one_job_with_sum_of_execution_timeouts(app, se
         assert len(calls) == 1
         args, options = calls[0]
         assert args == ("bots", "bot_pipeline_task", [bot.id for bot in bots])
-        assert options["filter"] == {"SOURCE": "source-1", "STORY_IDS": ["story-1"]}
+        assert options["filter"] == {"SOURCE": "source-1", "STORY_IDS": ["story-1"], "skip_processed": True}
         assert options["meta"]["user_id"] == "user-1"
         assert options["job_timeout"] == ceil(1.2 * (25 + (len(bots) - 1) * Config.RQ_DEFAULT_JOB_TIMEOUT))
         assert first.get_cron_spec().job_options["job_timeout"] == 25
 
         calls.clear()
+        assert manager.post_collection_bots("source-1", story_ids=[])[1] == 200
+        assert calls == []
         assert manager.schedule_bot_dependents(first.id, {"STORY_IDS": ["story-1"]}, user_id="user-1")[1] == 200
         assert len(calls) == 1
         assert calls[0][1]["filter"] == {"STORY_IDS": ["story-1"]}

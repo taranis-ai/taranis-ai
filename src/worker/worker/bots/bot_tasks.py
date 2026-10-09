@@ -5,13 +5,16 @@ Functions for executing bots to process news items.
 
 from typing import Any
 
+from models.llm import LLM_BOT_FEATURES
 from models.worker_parameters import effective_parameter_values
-from rq import get_current_job
+from rq import Retry, get_current_job
 
 import worker.bots
 from worker.bot_api import BotServiceUnavailableError
 from worker.core_api import CoreApi, build_failure_task_result, build_success_task_result
 from worker.http_client import http_session_scope
+from worker.llm import LLMConfigurationError
+from worker.llm_batch import BatchExecutionError
 from worker.log import logger
 from worker.telemetry import instrument_job
 
@@ -43,13 +46,23 @@ def bot_task(bot_id: str, filter: dict | None = None, trigger_dependents: bool =
     logger.info(f"Starting bot task with job id {job.id if job else 'manual'}")
 
     try:
-        bot_config = core_api.get_bot_config(bot_id)
+        batch_state = job.meta.get("llm_batch") if job and isinstance(job.meta, dict) else None
+        bot_config = batch_state["config"] if batch_state else core_api.get_bot_config(bot_id)
         if not bot_config:
             raise ValueError(f"Bot with id {bot_id} not found")
 
         worker_type = bot_config.get("type", worker_type).upper()
+        if (bot_config.get("llm_endpoint") or {}).get("processing_mode") == "openrouter_batch":
+            if not job:
+                raise RuntimeError("Batch processing requires a queued job")
+            if batch_state is None:
+                batch_state = {"config": bot_config}
+                job.meta["llm_batch"] = batch_state
+                job.save_meta()
         bot = _bot_for_config(bot_config)
-        bot_result = _execute_by_config(bot_config, filter, bot=bot)
+        bot_result = _execute_by_config(bot_config, filter, bot=bot, batch_state=batch_state, save_batch_state=job.save_meta if job else None)
+        if isinstance(bot_result, Retry):
+            return bot_result
         if bot_result is None:
             raise RuntimeError(f"Bot {bot_id} returned no result")
         saved = core_api.save_task_result(
@@ -65,7 +78,7 @@ def bot_task(bot_id: str, filter: dict | None = None, trigger_dependents: bool =
                     "bot_id": bot_id,
                     "filter": filter,
                     "trigger_dependents": trigger_dependents,
-                    "bot_stages": [_stage(bot_id, worker_type, bot_result)],
+                    "bot_stages": [_stage(bot_id, worker_type, bot_result, list(getattr(bot, "story_revisions", {})))],
                     "story_revisions": getattr(bot, "story_revisions", {}),
                 },
                 merge_dict_data=False,
@@ -73,6 +86,10 @@ def bot_task(bot_id: str, filter: dict | None = None, trigger_dependents: bool =
         )
         if not saved:
             raise RuntimeError("Bot result could not be submitted")
+        if batch_state is not None:
+            assert job is not None
+            job.meta.pop("llm_batch", None)
+            job.save_meta()
         return (
             {"worker_id": bot_id, "worker_type": worker_type, **bot_result}
             if isinstance(bot_result, dict)
@@ -81,7 +98,7 @@ def bot_task(bot_id: str, filter: dict | None = None, trigger_dependents: bool =
     except Exception as exc:
         not_found = isinstance(exc, ValueError) and exc.args == (f"Bot with id {bot_id} not found",)
         empty_result = isinstance(exc, RuntimeError) and exc.args == (f"Bot {bot_id} returned no result",)
-        if isinstance(exc, BotServiceUnavailableError):
+        if isinstance(exc, (BotServiceUnavailableError, LLMConfigurationError, BatchExecutionError)):
             error_message = exc.public_message
             reason = exc.reason
             retryable = exc.retryable
@@ -110,8 +127,6 @@ def bot_task(bot_id: str, filter: dict | None = None, trigger_dependents: bool =
                 data={"bot_id": bot_id, "filter": filter, "trigger_dependents": trigger_dependents},
             ),
         )
-        if isinstance(exc, BotServiceUnavailableError):
-            raise
         raise
 
 
@@ -140,20 +155,30 @@ def _bot_for_config(bot_config: dict):
     return bot_class()
 
 
-def _execute_by_config(bot_config: dict, filter: dict | None = None, *, bot=None):
+def _execute_by_config(bot_config: dict, filter: dict | None = None, *, bot=None, batch_state: dict | None = None, save_batch_state=None):
     bot = bot or _bot_for_config(bot_config)
     bot_type = bot_config["type"]
     bot_params: dict[str, Any] = effective_parameter_values(bot_type, bot_config.get("parameters", {}))
+
+    if bot_type in LLM_BOT_FEATURES:
+        bot_params["llm_endpoint"] = bot_config.get("llm_endpoint")
 
     if filter:
         # Runtime filters are transient task data, not persisted parameters.
         bot_params["filter"] = filter
 
+    if batch_state is not None:
+        if "stories" not in batch_state:
+            batch_state["stories"] = bot.get_stories(dict(bot_params))
+        bot_params["_stories"] = batch_state["stories"]
+        bot_params["_llm_batch_state"] = batch_state
+        bot_params["_save_llm_batch_state"] = save_batch_state
+
     return bot.execute(bot_params)
 
 
-def _stage(bot_id: str, bot_type: str, result: dict) -> dict:
-    return {"bot_id": bot_id, "bot_type": bot_type, "result": result}
+def _stage(bot_id: str, bot_type: str, result: dict, story_ids: list[str]) -> dict:
+    return {"bot_id": bot_id, "bot_type": bot_type, "story_ids": story_ids, "result": result}
 
 
 def _apply_context(stories: dict[str, dict], aliases: dict[str, str], bot_type: str, result: dict) -> None:
@@ -221,38 +246,62 @@ def bot_pipeline_task(bot_ids: list[str], filter: dict | None = None):
     run_id = job.id if job else "bot_pipeline"
     core_api = CoreApi()
     try:
-        configs = []
-        bots = []
-        filters = {}
-        for bot_id in bot_ids:
-            config = core_api.get_bot_config(bot_id)
-            if not config:
-                raise ValueError("Bot configuration is unavailable")
-            bot = _bot_for_config(config)
-            params = effective_parameter_values(config["type"], config.get("parameters", {}))
-            if filter:
-                params["filter"] = filter
-            filters[bot_id] = bot.get_filter_dict(dict(params))
-            configs.append(config)
-            bots.append(bot)
+        state: dict[str, Any] | None = job.meta.get("bot_pipeline") if job and isinstance(job.meta, dict) else None
+        if state is None:
+            configs = []
+            filters = {}
+            for bot_id in bot_ids:
+                config = core_api.get_bot_config(bot_id)
+                if not config:
+                    raise ValueError("Bot configuration is unavailable")
+                bot = _bot_for_config(config)
+                params = effective_parameter_values(config["type"], config.get("parameters", {}))
+                if filter:
+                    params["filter"] = filter
+                filters[bot_id] = bot.get_filter_dict(dict(params))
+                configs.append(config)
 
-        snapshot = core_api.get_pipeline_stories(filters)
-        if snapshot is None:
-            raise RuntimeError("Bot stories could not be loaded")
-        stories = {story["id"]: story for story in snapshot["stories"]}
-        aliases: dict[str, str] = {}
-        stages = []
-        for config, bot in zip(configs, bots, strict=True):
+            uses_batch = any((config.get("llm_endpoint") or {}).get("processing_mode") == "openrouter_batch" for config in configs)
+            if uses_batch and not job:
+                raise RuntimeError("Batch processing requires a queued job")
+            snapshot = core_api.get_pipeline_stories(filters)
+            if snapshot is None:
+                raise RuntimeError("Bot stories could not be loaded")
+            state = {
+                "configs": configs,
+                "snapshot": snapshot,
+                "stories": {story["id"]: story for story in snapshot["stories"]},
+                "aliases": {},
+                "stages": [],
+                "llm_batch": {},
+            }
+            if uses_batch:
+                assert job is not None
+                job.meta["bot_pipeline"] = state
+                job.save_meta()
+
+        snapshot = state["snapshot"]
+        stories = state["stories"]
+        aliases = state["aliases"]
+        stages = state["stages"]
+        for config in state["configs"][len(stages) :]:
+            bot = _bot_for_config(config)
             bot_id = config["id"]
             selected = snapshot["selected"][bot_id]
             selected_ids = list(dict.fromkeys(aliases.get(story_id, story_id) for story_id in selected))
             bot.pipeline_stories = [stories[story_id] for story_id in selected_ids if story_id in stories]
-            result = _execute_by_config(config, filter, bot=bot)
+            batch_state = state["llm_batch"] if (config.get("llm_endpoint") or {}).get("processing_mode") == "openrouter_batch" else None
+            result = _execute_by_config(config, filter, bot=bot, batch_state=batch_state, save_batch_state=job.save_meta if job else None)
+            if isinstance(result, Retry):
+                return result
             if result is None:
                 raise RuntimeError("Bot returned no result")
             bot_type = config["type"].upper()
-            stages.append(_stage(bot_id, bot_type, result))
+            stages.append(_stage(bot_id, bot_type, result, [story["id"] for story in bot.pipeline_stories]))
             _apply_context(stories, aliases, bot_type, result)
+            state["llm_batch"] = {}
+            if job and "bot_pipeline" in job.meta:
+                job.save_meta()
 
         saved = core_api.save_task_result(
             run_id,
@@ -271,18 +320,22 @@ def bot_pipeline_task(bot_ids: list[str], filter: dict | None = None):
         )
         if not saved:
             raise RuntimeError("Bot pipeline result could not be submitted")
+        if job and "bot_pipeline" in job.meta:
+            job.meta.pop("bot_pipeline")
+            job.save_meta()
         return {"worker_type": "BOT_PIPELINE", "bots": bot_ids, "stories": len(snapshot["stories"])}
     except Exception as exc:
-        is_unavailable = isinstance(exc, BotServiceUnavailableError)
+        logger.exception("Bot pipeline failed")
+        is_public = isinstance(exc, (BotServiceUnavailableError, LLMConfigurationError, BatchExecutionError))
         core_api.save_task_result(
             run_id,
             "bot_pipeline",
             "FAILURE",
             worker_type="BOT_PIPELINE",
             result=build_failure_task_result(
-                exc.public_message if is_unavailable else "Bot pipeline failed",
-                reason=exc.reason if is_unavailable else "bot_pipeline_failed",
-                retryable=exc.retryable if is_unavailable else False,
+                exc.public_message if is_public else "Bot pipeline failed",
+                reason=exc.reason if is_public else "bot_pipeline_failed",
+                retryable=exc.retryable if is_public else False,
                 data={"bot_ids": bot_ids, "filter": filter},
             ),
         )

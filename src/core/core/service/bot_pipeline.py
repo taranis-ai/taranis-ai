@@ -112,12 +112,15 @@ class BotPipelineService:
         bot = Bot.get(bot_id) if isinstance(bot_id, str) else None
         if not bot or bot.type.name != bot_type or not isinstance(result, dict):
             raise InvalidBotRun
+        story_ids = stage.get("story_ids")
+        if not isinstance(story_ids, list) or any(not isinstance(story_id, str) or story_id not in allowed_stories for story_id in story_ids):
+            raise InvalidBotRun
         changes = result.get("changes") or {}
         if not isinstance(changes, dict) or set(changes) - CHANGE_KEYS:
             raise InvalidBotRun
 
+        tag_counts: dict[str, int] = {}
         if bot_type in TAGGING_BOTS:
-            tag_counts: dict[str, int] = {}
             for item_id, tags in result.items():
                 if item_id in {"message", "changes"}:
                     continue
@@ -134,12 +137,6 @@ class BotPipelineService:
                 if item.story_id:
                     tag_counts[item.story_id] = tag_counts.get(item.story_id, 0) + len(tags)
                     affected_story_ids.add(item.story_id)
-            now = datetime.now(UTC).isoformat()
-            for story_id, count in tag_counts.items():
-                story = Story.get(story_id)
-                if story:
-                    story.upsert_attribute(NewsItemAttribute(bot_type, f"worker_id={bot_id}|count={count}|{now}"))
-                    story.record_revision(note="set_worker_execution_attribute")
 
         item_attributes = changes.get("item_attributes", {})
         if not isinstance(item_attributes, dict):
@@ -202,3 +199,13 @@ class BotPipelineService:
             if not isinstance(enrichments, list) or any(not isinstance(item, dict) for item in enrichments):
                 raise InvalidBotRun
             IOC.upsert_many(enrichments, commit=False)
+
+        # Empty findings still complete a run; partial enrichment errors remain eligible for retry.
+        if not result.get("errors"):
+            now = datetime.now(UTC).isoformat()
+            for story_id in dict.fromkeys(story_ids):
+                if story := Story.get(story_id):
+                    count = f"|count={tag_counts.get(story_id, 0)}" if bot_type in TAGGING_BOTS else ""
+                    story.upsert_attribute(NewsItemAttribute(bot_type, f"worker_id={bot_id}{count}|{now}"))
+                    story.record_revision(note="set_worker_execution_attribute")
+                    affected_story_ids.add(story_id)

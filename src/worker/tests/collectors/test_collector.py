@@ -399,6 +399,7 @@ def test_rt_collector_collect(rt_mock, rt_collector, requests_mock):
     }
     result = rt_collector.collect(source)
     assert result is None
+    assert rt_collector.affected_story_ids == {"rt-story-1"}
     published = requests_mock.request_history[-1].json()
     assert published["attributes"] == [
         {"key": "Status", "value": "new"},
@@ -452,6 +453,7 @@ def test_misp_collector_collect(misp_collector_mock, misp_collector):
     result = misp_collector.collect(source)
 
     assert result is None
+    assert misp_collector.affected_story_ids == {"misp-story-1"}
 
 
 @pytest.mark.parametrize("input_news_items", [news_items, news_items[2:], news_items[:: len(news_items) - 1], [news_items[-1]]])

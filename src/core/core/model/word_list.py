@@ -39,7 +39,8 @@ class WordListEntry(BaseModel):
 
     @classmethod
     def identical(cls, value, word_list_id):
-        return db.session.execute(db.exists().where(WordListEntry.value == value).where(WordListEntry.word_list_id == word_list_id)).scalar()
+        query = db.select(db.exists().where(cls.value == value).where(cls.word_list_id == word_list_id))
+        return db.session.execute(query).scalar()
 
     @classmethod
     def delete_entries(cls, word_list_id, value):

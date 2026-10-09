@@ -125,19 +125,54 @@ class TestEndToEndUser(BaseE2ETest):
 
             page.get_by_role("link", name="Edit Dashboard").click()
             expect(page.get_by_role("group", name="Recent activity window")).to_be_visible()
+            source_limit = page.get_by_role("spinbutton", name="Top Sources Limit")
+            expect(source_limit).to_have_value("3")
+            source_limit.fill("-1")
+            page.get_by_role("button", name="Update Dashboard Settings").click()
+            expect(page.locator("#edit_dashboard")).to_be_visible()
+            source_limit.fill("0")
+            expect(page.get_by_role("checkbox", name="dashboard[show_charts]")).to_be_checked()
+            page.get_by_role("button", name="Update Dashboard Settings").click()
+            expect(page.locator("#dashboard")).to_be_visible()
+            expect(page.get_by_test_id("dashboard-top-sources")).to_have_count(0)
+            page.get_by_role("link", name="Edit Dashboard").click()
+            expect(source_limit).to_have_value("0")
+            source_limit.fill("1")
             page.get_by_role("checkbox", name="dashboard[show_trending_clusters]").uncheck()
             page.get_by_role("checkbox", name="dashboard[show_charts]").uncheck()
             page.get_by_role("button", name="Update Dashboard Settings").click()
             expect(page.locator("#dashboard").get_by_text("Recently Active Tags")).not_to_be_visible()
+            expect(page.get_by_test_id("dashboard-top-sources")).to_have_count(0)
             expect(page.get_by_role("main")).to_be_visible()
             page.get_by_role("link", name="Edit Dashboard").click()
             expect(page.get_by_role("group", name="Recent activity window")).to_be_visible()
 
+            expect(source_limit).to_have_value("1")
+            source_limit.fill("5")
             page.get_by_role("checkbox", name="dashboard[show_trending_clusters]").check()
             expect(page.get_by_role("checkbox", name="dashboard[show_trending_clusters]")).to_be_visible()
             page.get_by_role("checkbox", name="dashboard[show_charts]").check()
             page.get_by_role("button", name="Update Dashboard Settings").click()
             expect(page.locator("#dashboard")).to_contain_text("Recently Active Tags")
+            expect(page.get_by_test_id("dashboard-top-sources")).to_be_visible()
+            original_viewport = page.viewport_size
+            try:
+                page.set_viewport_size({"width": 1440, "height": 900})
+                sources = page.get_by_test_id("dashboard-top-sources")
+                counts = assess.get_by_text(re.compile(r"There are \d+ news items"))
+                sources_box = sources.bounding_box()
+                counts_box = counts.bounding_box()
+                assert sources_box and counts_box
+                assert sources_box["x"] > counts_box["x"] + counts_box["width"]
+
+                page.set_viewport_size({"width": 600, "height": 900})
+                sources_box = sources.bounding_box()
+                counts_box = counts.bounding_box()
+                assert sources_box and counts_box
+                assert sources_box["y"] > counts_box["y"] + counts_box["height"]
+            finally:
+                if original_viewport:
+                    page.set_viewport_size(original_viewport)
             expect(page.locator("#dashboard")).to_contain_text("counts show total matching stories")
             expect(page.locator("#dashboard")).to_contain_text("Location")
 
@@ -402,6 +437,13 @@ class TestEndToEndUser(BaseE2ETest):
             expect(page.get_by_role("complementary")).to_contain_text("Generate summary & title")
             expect(page.get_by_role("complementary")).to_contain_text("Run sentiment analysis")
             expect(page.get_by_role("complementary")).to_contain_text("Cybersecurity classification")
+            page.get_by_role("textbox", name="Analyst comments").fill("Unsaved analyst comment")
+            for action in ("Generate summary & title", "Run sentiment analysis", "Cybersecurity classification"):
+                with_htmx_wait(page, page.get_by_role("button", name=action, exact=True).click)
+                expect(page.locator("#notification-bar")).to_have_count(1)
+                expect(page.locator("#notification-message")).to_contain_text("Executing Bot scheduled")
+                expect(page.get_by_role("textbox", name="Title", exact=True)).to_have_value(edited_title)
+                expect(page.get_by_role("textbox", name="Analyst comments")).to_have_value("Unsaved analyst comment")
             page.get_by_role("link", name="Return to story").click()
             expect(page.get_by_test_id("story-title")).to_contain_text(edited_title)
 

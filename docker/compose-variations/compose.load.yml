@@ -1,6 +1,22 @@
 services:
+  llm-inference:
+    image: "${LLM_INFERENCE_IMAGE:-ghcr.io/taranis-ai/gemma4-e4b-gguf:cpu}"
+    restart: unless-stopped
+    shm_size: 4gb
+    environment:
+      LLAMA_API_KEY: "${LLM_INFERENCE_API_KEY:-}"
+    command: ["--ctx-size", "8192", "--jinja"]
+    expose:
+      - "8000"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 5m
+
   database:
-    image: "docker.io/library/postgres:17-alpine"
+    image: "docker.io/library/postgres:18-alpine"
     shm_size: 512mb
     environment:
       POSTGRES_DB: taranis
@@ -17,6 +33,8 @@ services:
   redis:
     image: "redis:8-alpine"
     command: ["redis-server", "--save", "", "--appendonly", "no"]
+    tmpfs:
+      - /data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -38,6 +56,7 @@ services:
       REDIS_PASSWORD: ""
       PRE_SEED_PASSWORD_ADMIN: admin
       PRE_SEED_PASSWORD_USER: test
+      LLM_INFERENCE_API_KEY: "${LLM_INFERENCE_API_KEY:-}"
       PRE_SEED_SETTINGS: "${PRE_SEED_SETTINGS:-{}}"
       JWT_SECRET_KEY: load_testing_secret_key
       JWT_COOKIE_SUFFIX: ""

@@ -1,4 +1,20 @@
 services:
+  llm-inference:
+    image: "${LLM_INFERENCE_IMAGE:-ghcr.io/taranis-ai/gemma4-e4b-gguf:cpu}"
+    restart: unless-stopped
+    shm_size: 4gb
+    environment:
+      LLAMA_API_KEY: "${LLM_INFERENCE_API_KEY:-}"
+    command: ["--ctx-size", "8192", "--jinja"]
+    expose:
+      - "8000"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 5m
+
   ingress:
     # This is the entrypoint for all requests
     ports:
@@ -60,6 +76,7 @@ services:
 
       PRE_SEED_PASSWORD_ADMIN: "${PRE_SEED_PASSWORD_ADMIN:-admin}"
       PRE_SEED_PASSWORD_USER: "${PRE_SEED_PASSWORD_USER:-user}"
+      LLM_INFERENCE_API_KEY: "${LLM_INFERENCE_API_KEY:-}"
       PRE_SEED_SETTINGS: "${PRE_SEED_SETTINGS:-{}}"
       JWT_SECRET_KEY: "${JWT_SECRET_KEY}"
       JWT_COOKIE_SUFFIX: "${JWT_COOKIE_SUFFIX:-}"
@@ -86,7 +103,7 @@ services:
         max-file: "10"
 
   database:
-    image: "docker.io/library/postgres:${POSTGRES_TAG:-17-alpine}"
+    image: "docker.io/library/postgres:${POSTGRES_TAG:-18-alpine}"
     shm_size: 256mb
     # ports:
     # - 6543:5432
@@ -105,7 +122,7 @@ services:
       timeout: 3s
       retries: 3
     volumes:
-      - "database_data:/var/lib/postgresql/data"
+      - "database_data:/var/lib/postgresql"
     logging:
       driver: "json-file"
       options:
@@ -199,19 +216,18 @@ services:
         condition: always
     command: |
       sh -c '
-        mkdir -p /data
         if [ -n "$$REDIS_PASSWORD" ]; then
-          redis-server --appendonly yes --requirepass "$$REDIS_PASSWORD"
+          exec redis-server --save "" --appendonly no --requirepass "$$REDIS_PASSWORD"
         else
-          redis-server --appendonly yes
+          exec redis-server --save "" --appendonly no
         fi
       '
-    volumes:
-      - redis_data:/data
+    tmpfs:
+      - /data
     environment:
       - "REDIS_PASSWORD=${REDIS_PASSWORD:-}"
     healthcheck:
-      test: ["CMD-SHELL", "redis-cli ping || exit 1"]
+      test: ["CMD-SHELL", "REDISCLI_AUTH=\"$$REDIS_PASSWORD\" redis-cli ping | grep -qx PONG"]
       interval: 10s
       start_period: 10s
       timeout: 3s
@@ -266,5 +282,4 @@ services:
 volumes:
   database_data:
   core_data:
-  redis_data:
   telemetry_data:
