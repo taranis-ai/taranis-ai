@@ -343,3 +343,5 @@ The frontend is served by the [Flask & HTMX REST frontend](../src/frontend/READM
 `dev/compose.yml` runs CPU inference at `127.0.0.1:8000`. Add `127.0.0.1 llm-inference` to your hosts file so host-based Core and workers can reach the endpoint Core registers automatically. Allow several minutes for model loading and sufficient RAM; see [inference configuration](../docker/README.md#bundled-llm-inference).
 
 Set the same `LLM_INFERENCE_API_KEY` in Core's private environment and the environment used to launch Compose. Restart both after changing it. Configure providers and assignments in **Admin Settings > LLM Endpoints**.
+
+With `DEBUG=true`, newly created endpoints and saved endpoints without an explicit state default to **Disabled**, including the bundled internal endpoint. Enable an endpoint using **Endpoint state** when you want inference. Disabled endpoints skip health checks and pause Chat and bot scheduling (cron, collector chains, dependent pipelines, and manual runs). Saved states survive restarts. Production defaults to enabled. Jobs already running keep their starting configuration.

@@ -138,7 +138,12 @@ class EndpointHealth(MethodView):
 
         config = endpoint_config(kind, endpoint_id)
         state = read_state(kind, endpoint_id)
-        if not config or state.get("check_id") != request.args.get("check_id") or state.get("fingerprint") != fingerprint(config):
+        if (
+            not config
+            or not config.get("enabled", True)
+            or state.get("check_id") != request.args.get("check_id")
+            or state.get("fingerprint") != fingerprint(config)
+        ):
             response = jsonify({"skip": True})
         else:
             response = jsonify({"config": config})

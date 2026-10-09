@@ -36,6 +36,11 @@ def app():
 
     with patch("redis.Redis.from_url", side_effect=isolated_redis_from_url):
         app = create_app()
+        # Scheduling workflows opt in explicitly; development seeds stay disabled.
+        with app.app_context():
+            from core.model.settings import Settings
+
+            Settings.save_llm_endpoint({"enabled": True}, Settings.get_settings()["llm_default_endpoint"])
         app.config.update(
             {
                 "TESTING": True,

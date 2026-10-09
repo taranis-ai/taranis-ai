@@ -28,6 +28,7 @@ class LLMEndpoint(BaseModel):
 
     name: str = Field(min_length=1, max_length=100)
     base_url: str = Field(min_length=1)
+    enabled: bool = True
     model: str = ""
     api_format: Literal["responses", "chat_completions"] = "responses"
     processing_mode: Literal["realtime", "openrouter_batch"] = "realtime"

@@ -25,9 +25,10 @@ def test_endpoint_health_lifecycle(client, auth_header, api_header, app, db_pers
     from rq import Worker
     from rq.job import Job
 
+    from core.managers.queue_manager import CRON_DEFS_KEY
     from core.model.bot import Bot
     from core.model.settings import Settings
-    from core.service.endpoint_health import read_state
+    from core.service.endpoint_health import read_state, schedule_all
 
     session = db_persistent_session
     with app.app_context():
@@ -45,6 +46,14 @@ def test_endpoint_health_lifecycle(client, auth_header, api_header, app, db_pers
             response = client.post("/api/settings/llm-endpoints", json=endpoint, headers=auth_header)
             assert response.status_code == 200
             endpoint_id = response.json["id"]
+            endpoint_url = f"/api/settings/llm-endpoints/{endpoint_id}"
+            misc_queue = app.extensions["rq"].get_queue("misc")
+            assert read_state("llm", endpoint_id) == {}
+            count = misc_queue.count
+            schedule_all()
+            assert misc_queue.count == count
+            assert client.get("/api/health").json["services"]["worker_endpoints"] == "n/a"
+            assert client.post(endpoint_url, json={"enabled": "true"}, headers=auth_header).status_code == 200
             state = read_state("llm", endpoint_id)
             jobs = [Job.fetch(job_id, connection=redis_client) for job_id in app.extensions["rq"].get_queue("misc").job_ids]
             job = next(job for job in jobs if job.func_name == "worker.endpoint_health.check_endpoint" and job.args[1] == endpoint_id)
@@ -66,11 +75,24 @@ def test_endpoint_health_lifecycle(client, auth_header, api_header, app, db_pers
 
             response = client.post(
                 "/api/config/bots",
-                json={"name": "Summary health", "type": "summary_bot", "parameters": {"LLM_ENDPOINT": endpoint_id}},
+                json={
+                    "name": "Summary health",
+                    "type": "summary_bot",
+                    "parameters": {
+                        "LLM_ENDPOINT": endpoint_id,
+                        "REFRESH_INTERVAL": "*/5 * * * *",
+                        "RUN_AFTER_COLLECTOR": True,
+                        "RUN_AFTER_BOTS": next(item.id for item in session.query(Bot) if item.type.value == "wordlist_bot"),
+                    },
+                },
                 headers=auth_header,
             )
             assert response.status_code == 201
             bot_id = response.json["id"]
+            bot = Bot.get(bot_id)
+            parent_id = bot.run_after_bot_ids[0]
+            assert redis_client.hexists(CRON_DEFS_KEY, bot.cron_job_id)
+            assert bot_id in {item.id for item in Bot.get_dependent_run_graph(parent_id)[0]}
             assert client.get(f"/api/config/bots/{bot_id}", headers=auth_header).json["endpoint_health"]["status"] == "down"
             failures = client.get("/api/config/bots?state=failure", headers=auth_header).json["items"]
             assert bot_id in {bot["id"] for bot in failures}
@@ -104,6 +126,54 @@ def test_endpoint_health_lifecycle(client, auth_header, api_header, app, db_pers
                 assert read_state("bot", shared_bot_id) == {}
                 client.patch(shared_route, json={"enabled": False}, headers=auth_header)
                 assert client.get(shared_route, headers=auth_header).json["endpoint_health"] is None
+
+            # Pause existing cron, collector/dependent pipelines, and manual dispatch.
+            count = misc_queue.count
+            assert client.post(endpoint_url, json={"enabled": False}, headers=auth_header).status_code == 200
+            assert misc_queue.count == count
+            assert read_state("llm", endpoint_id) == {}
+            schedule_all()
+            assert misc_queue.count == count
+            assert client.get(route, query_string={"check_id": current["check_id"]}, headers=api_header).json == {"skip": True}
+            assert not client.post(route, json={"check_id": current["check_id"], "healthy": True}, headers=api_header).json["accepted"]
+            assert client.get("/api/health").json["services"]["worker_endpoints"] == "n/a"
+            assert client.get(f"/api/config/bots/{bot_id}", headers=auth_header).json["endpoint_health"]["status"] == "disabled"
+            assert not redis_client.hexists(CRON_DEFS_KEY, bot.cron_job_id)
+            assert not bot.schedule_bot()
+            assert bot_id not in {item.id for item in Bot.get_all_for_collector()}
+            assert bot_id not in {item.id for item in Bot.get_collector_run_graph()[0]}
+            assert bot_id not in {item.id for item in Bot.get_dependent_run_graph(parent_id)[0]}
+            assert bot_id not in {item["bot_id"] for item in Bot.get_enabled_schedule_entries()}
+            assert app.extensions["rq"].execute_bot_task(bot_id) == ({"error": "LLM endpoint is disabled"}, 400)
+
+            # Inherited assignments also pause, and edits refresh their registrations.
+            assert (
+                client.patch(
+                    "/api/settings/settings", json={"settings": {"llm_default_endpoint": endpoint_id}}, headers=auth_header
+                ).status_code
+                == 200
+            )
+            assert (
+                client.patch(f"/api/config/bots/{bot_id}", json={"parameters": {"LLM_ENDPOINT": ""}}, headers=auth_header).status_code == 200
+            )
+            assert not redis_client.hexists(CRON_DEFS_KEY, bot.cron_job_id)
+            assert client.post(endpoint_url, json={"enabled": True}, headers=auth_header).status_code == 200
+            assert redis_client.hexists(CRON_DEFS_KEY, bot.cron_job_id)
+            assert bot_id in {item.id for item in Bot.get_collector_run_graph()[0]}
+            assert read_state("llm", endpoint_id)["check_id"] != current["check_id"]
+            assert (
+                client.patch("/api/settings/settings", json={"settings": {"llm_default_endpoint": ""}}, headers=auth_header).status_code
+                == 200
+            )
+            assert (
+                client.patch(
+                    "/api/settings/settings", json={"settings": {"llm_summarization_endpoint": endpoint_id}}, headers=auth_header
+                ).status_code
+                == 200
+            )
+            assert client.post(endpoint_url, json={"enabled": False}, headers=auth_header).status_code == 200
+            assert not redis_client.hexists(CRON_DEFS_KEY, bot.cron_job_id)
+            assert bot_id not in {item.id for item in Bot.get_collector_run_graph()[0]}
         finally:
             for bot in session.query(Bot).all():
                 if bot.id not in original_bots:

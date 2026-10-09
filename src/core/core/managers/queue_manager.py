@@ -958,6 +958,8 @@ class QueueManager:
             return {"error": "Invalid bot_id"}, 400
         if not (bot := Bot.get(bot_id)):
             return {"error": "Bot not found"}, 404
+        if not bot.is_llm_endpoint_enabled():
+            return {"error": "LLM endpoint is disabled"}, 400
         try:
             effective_parameters(bot.type, bot.parameters)
         except ValueError:

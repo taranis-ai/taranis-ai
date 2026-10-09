@@ -1,6 +1,6 @@
 {% from "macros/worker.html" import worker_badge %}
 {% set status = status | default({"status": "Unknown", "result": {"message": "", "reason": none, "retryable": false, "data": none}}, true) %}
-{% if endpoint_health and enabled and endpoint_health.status in ["down", "pending"] %}
+{% if endpoint_health and enabled and endpoint_health.status in ["down", "pending", "disabled"] %}
   {% from "macros/worker.html" import endpoint_health_badge %}
   {{ endpoint_health_badge(endpoint_health) }}
 {% else %}

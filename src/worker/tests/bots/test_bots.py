@@ -45,7 +45,8 @@ def test_ioc_bot(story_get_mock):
     assert story_get_mock.call_count == 1
 
 
-def test_story_bot_clusters_via_library(stories, requests_mock, monkeypatch):
+@pytest.mark.parametrize("enabled", [True, False])
+def test_story_bot_clusters_via_library(stories, requests_mock, monkeypatch, enabled):
     from worker import bots
 
     requests_mock.real_http = False
@@ -56,6 +57,7 @@ def test_story_bot_clusters_via_library(stories, requests_mock, monkeypatch):
         "model": "cluster-model",
         "api_format": "chat_completions",
         "timeout": 120,
+        "enabled": enabled,
     }
     input_stories = [
         {**stories[0], "summary": "Short summary", "tags": {"security": {"name": "security", "tag_type": "misc"}}},
@@ -66,6 +68,14 @@ def test_story_bot_clusters_via_library(stories, requests_mock, monkeypatch):
     parameters = {"llm_endpoint": endpoint, "REQUESTS_TIMEOUT": 17}
 
     with patch.object(LLMClient, "create_response", autospec=True) as provider:
+        if not enabled:
+            from worker.llm import LLMConfigurationError
+
+            with pytest.raises(LLMConfigurationError):
+                bots.StoryBot().execute(parameters)
+            provider.assert_not_called()
+            assert not grouping.called
+            return
         provider.return_value = {
             "output_text": json.dumps(
                 {
