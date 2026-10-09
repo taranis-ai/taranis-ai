@@ -31,19 +31,24 @@ class FilterData:
     @classmethod
     def _build_tags(cls, user=None) -> list[str]:
         from core.model.news_item import NewsItem
-        from core.model.news_item_tag import NewsItemTag
+        from core.model.news_item_tag import NewsItemTag, NewsItemTagCluster
 
-        # OFFSET 0 keeps PostgreSQL from turning this lookup into a full tag-table join before LIMIT.
-        visible_item = cls.visible_news_items(user).where(NewsItem.id == NewsItemTag.news_item_id).offset(0).exists()
-        rows = db.session.scalars(
-            db.select(NewsItemTag.name)
-            .where(visible_item)
-            .where(NewsItemTag.name.is_not(None), NewsItemTag.name != "")
-            .where(or_(NewsItemTag.tag_type.is_(None), NewsItemTag.tag_type == "", NewsItemTag.tag_type.not_ilike("report_%")))
+        names = (
+            db.select(NewsItemTagCluster.name)
+            .where(or_(NewsItemTagCluster.tag_type_key == "", NewsItemTagCluster.tag_type_key.not_ilike("report_%")))
             .distinct()
-            .order_by(NewsItemTag.name)
-            .limit(cls.LIST_LIMIT)
-        ).all()
+            .subquery()
+        )
+        visible_item = cls.visible_news_items(user).where(NewsItem.id == NewsItemTag.news_item_id).offset(0).exists()
+        # OFFSET 0 keeps PostgreSQL from joining all tag occurrences instead of probing each candidate name.
+        visible_tag = (
+            db.select(NewsItemTag.news_item_id)
+            .where(NewsItemTag.name == names.c.name, visible_item)
+            .where(or_(NewsItemTag.tag_type.is_(None), NewsItemTag.tag_type == "", NewsItemTag.tag_type.not_ilike("report_%")))
+            .offset(0)
+            .exists()
+        )
+        rows = db.session.scalars(db.select(names.c.name).where(visible_tag).order_by(names.c.name).limit(cls.LIST_LIMIT)).all()
 
         return [name for name in rows if name]
 
