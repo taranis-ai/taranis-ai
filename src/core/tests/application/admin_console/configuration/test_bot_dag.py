@@ -70,15 +70,28 @@ def test_bot_timeouts_apply_to_manual_chained_and_cron_jobs(app, session, redis_
 
         assert manager.execute_bot_task(parent.id)[1] == 200
         assert queue.fetch_job(f"bot_{parent.id}").timeout == expected_timeout
-        assert manager.schedule_bot_dependents(parent.id)[1] == 200
-        assert {job.timeout for job in queue.get_jobs() if job.args == ([child.id],)} == {1080}
-        assert manager.post_collection_bots("timeout-source", story_ids=["changed-story"])[1] == 200
+        assert manager.schedule_bot_dependents(parent.id, {"STORY_IDS": ["changed-story"]}, user_id="user-1")[1] == 200
+        chained_jobs = [job for job in queue.get_jobs() if job.args == ([child.id],)]
+        assert len(chained_jobs) == 1
+        assert chained_jobs[0].timeout == 1080
+        assert chained_jobs[0].kwargs["filter"] == {"STORY_IDS": ["changed-story"]}
+        assert chained_jobs[0].meta["user_id"] == "user-1"
+        queued_ids = set(queue.job_ids)
+        assert manager.post_collection_bots("timeout-source", story_ids=["changed-story"], user_id="user-1")[1] == 200
         collector_bots, _ = Bot.get_collector_run_graph()
         collector_ids = [bot.id for bot in collector_bots]
         assert parent.id in collector_ids and child.id in collector_ids
-        assert {job.timeout for job in queue.get_jobs() if job.args == (collector_ids,)} == {
-            math.ceil(1.2 * sum(bot.job_timeout for bot in collector_bots))
-        }
+        collector_job_ids = set(queue.job_ids) - queued_ids
+        assert len(collector_job_ids) == 1
+        collector_job = queue.fetch_job(collector_job_ids.pop())
+        assert collector_job.func_name == "worker.bots.bot_tasks.bot_pipeline_task"
+        assert collector_job.args == (collector_ids,)
+        assert collector_job.timeout == math.ceil(1.2 * sum(bot.job_timeout for bot in collector_bots))
+        assert collector_job.kwargs["filter"] == {"SOURCE": "timeout-source", "STORY_IDS": ["changed-story"], "skip_processed": True}
+        assert collector_job.meta["user_id"] == "user-1"
+        queued_ids = queue.job_ids
+        assert manager.post_collection_bots("timeout-source", story_ids=[])[1] == 200
+        assert queue.job_ids == queued_ids
 
         for bot, deadline in [(parent, expected_timeout), (child, 900)]:
             spec = json.loads(redis_client.hget(CRON_DEFS_KEY, bot.cron_job_id))

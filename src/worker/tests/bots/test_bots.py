@@ -12,9 +12,6 @@ from worker.bots.tagging_content import _news_item_content_for_tagging
 from worker.config import Config
 
 
-pytestmark = pytest.mark.usefixtures("set_transformers_offline")
-
-
 @pytest.mark.parametrize(
     "parameters, expected",
     [
@@ -36,20 +33,20 @@ def test_bot_story_filters_preserve_scope(parameters, expected):
     assert filter_dict == expected
 
 
-def test_ioc_bot(story_get_mock):
+def test_ioc_bot(stories, story_get_mock):
     from worker import bots
 
     ioc_bot = bots.IOCBot()
-    ioc_bot.execute()
+    result = ioc_bot.execute()
 
-    assert story_get_mock.call_count == 1
+    item = next(item for story in stories for item in story["news_items"] if "CVE-2023-5678" in item["content"])
+    assert result[item["id"]] == {"CVE-2023-5678": "cves"}
 
 
 @pytest.mark.parametrize("enabled", [True, False])
 def test_story_bot_clusters_via_library(stories, requests_mock, monkeypatch, enabled):
     from worker import bots
 
-    requests_mock.real_http = False
     endpoint = {
         "name": "Clustering",
         "base_url": "https://llm.test/v1",
@@ -64,7 +61,6 @@ def test_story_bot_clusters_via_library(stories, requests_mock, monkeypatch, ena
         {**stories[1], "summary": None, "tags": {}},
     ]
     requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/stories", json=input_stories)
-    grouping = requests_mock.put(f"{Config.TARANIS_CORE_URL}/bots/stories/group-multiple", json={"message": "success"})
     parameters = {"llm_endpoint": endpoint, "REQUESTS_TIMEOUT": 17}
 
     with patch.object(LLMClient, "create_response", autospec=True) as provider:
@@ -74,7 +70,6 @@ def test_story_bot_clusters_via_library(stories, requests_mock, monkeypatch, ena
             with pytest.raises(LLMConfigurationError):
                 bots.StoryBot().execute(parameters)
             provider.assert_not_called()
-            assert not grouping.called
             return
         provider.return_value = {
             "output_text": json.dumps(
@@ -103,14 +98,12 @@ def test_story_bot_clusters_via_library(stories, requests_mock, monkeypatch, ena
                 {"id": 2, "tags": {}, "summary": None},
             ]
         }
-        assert grouping.call_count == 0
 
         provider.return_value = {
             "output_text": json.dumps({"cluster_ids": {"event_clusters": [[1], [2]]}, "cluster_reasons": [], "message": "Processed"})
         }
         assert bots.StoryBot().execute({"llm_endpoint": endpoint}) == {"message": "Processed. No clusters found."}
         assert provider.call_args.args[0].timeout == 120
-        assert grouping.call_count == 0
 
         endpoint["model"] = ""
         endpoint["api_key"] = ""
@@ -182,7 +175,7 @@ def test_nlp_bot(stories, story_get_mock):
 
 
 @pytest.mark.parametrize("multiple_items", [True, False])
-def test_summary_bot_uses_library(stories, story_update_mock, story_attribute_update_mock, requests_mock, multiple_items):
+def test_summary_bot_uses_library(stories, requests_mock, multiple_items):
     from worker import bots
 
     story = {**stories[0], "news_items": [stories[0]["news_items"][0]]}
@@ -214,11 +207,10 @@ def test_summary_bot_uses_library(stories, story_update_mock, story_attribute_up
         assert result["changes"] == {
             "story_updates": {story["id"]: expected},
         }
-        assert story_update_mock.call_count == story_attribute_update_mock.call_count == 0
 
 
 @pytest.mark.parametrize("threshold, expected", [(0.65, "no"), (0.5, "yes")])
-def test_cybersec_class_bot(stories, story_get_mock, news_item_attribute_update_mock, story_attribute_update_mock, threshold, expected):
+def test_cybersec_class_bot(stories, story_get_mock, threshold, expected):
     from worker import bots
 
     endpoint = {"name": "Classification", "base_url": "https://llm.test/v1"}
@@ -228,7 +220,6 @@ def test_cybersec_class_bot(stories, story_get_mock, news_item_attribute_update_
     count = sum(len(story["news_items"]) for story in stories)
     assert result["message"] == f"Classified {count} news items"
     assert provider.await_count == count
-    assert news_item_attribute_update_mock.call_count == story_attribute_update_mock.call_count == 0
     assert len(result["changes"]["story_attributes"]) == len(stories)
     assert len(result["changes"]["item_attributes"]) == len({item["id"] for story in stories for item in story["news_items"]})
     assert all(
@@ -242,7 +233,7 @@ def test_cybersec_class_bot(stories, story_get_mock, news_item_attribute_update_
 
 
 @pytest.mark.parametrize("batch", [False, True])
-def test_sentiment_analysis_bot(stories, news_item_attribute_update_mock, requests_mock, mock_job, monkeypatch, batch):
+def test_sentiment_analysis_bot(stories, requests_mock, mock_job, monkeypatch, batch):
     endpoint = {"name": "Sentiment", "base_url": "https://llm.test/v1", "model": "test-model"}
     mock_job.meta = {}
     monkeypatch.setattr("worker.bots.bot_tasks.get_current_job", lambda: mock_job)
@@ -262,7 +253,6 @@ def test_sentiment_analysis_bot(stories, news_item_attribute_update_mock, reques
         submitted = requests_mock.post(f"{endpoint['base_url']}/batches", json={"id": "batch_items"}, status_code=202)
         assert isinstance(bot_task("sentiment"), Retry)
         assert submission.call_count == 0
-        assert news_item_attribute_update_mock.call_count == 0
         requests = submitted.last_request.json()["requests"]
         assert len(requests) == len(items)
         assert len({request["custom_id"] for request in requests}) == len(items)
@@ -293,7 +283,6 @@ def test_sentiment_analysis_bot(stories, news_item_attribute_update_mock, reques
     assert data["bot_stages"] == [
         {"bot_id": "sentiment", "bot_type": "SENTIMENT_ANALYSIS_BOT", "story_ids": list(data["story_revisions"]), "result": data["result"]}
     ]
-    assert news_item_attribute_update_mock.call_count == 0
     assert "llm_batch" not in mock_job.meta
     assert len(result["changes"]["item_attributes"]) == len(expected_scores)
     for item_id, changes in result["changes"]["item_attributes"].items():

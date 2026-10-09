@@ -1,5 +1,6 @@
 from unittest.mock import Mock, patch
 
+import pytest
 from flask import Response, url_for
 from requests import RequestException
 
@@ -67,66 +68,29 @@ def test_login_flow_handles_non_json_error_response(app):
     assert "Login failed" in response.get_data(as_text=True)
 
 
-def test_login_flow_rejects_external_next_redirect(app):
+@pytest.mark.parametrize(
+    "next_target, expected_endpoint",
+    [
+        ("admin.dashboard", "admin.dashboard"),
+        ("base.login", "base.dashboard"),
+        ("base.login/", "base.dashboard"),
+        ("/does-not-exist", "base.dashboard"),
+        ("https://evil.example/path", "base.dashboard"),
+        ("//evil.example/path", "base.dashboard"),
+        ("/\\evil.example/path", "base.dashboard"),
+        ("/%2F%2Fevil.example/path", "base.dashboard"),
+    ],
+)
+def test_login_flow_redirects_only_to_known_internal_routes(app, next_target, expected_endpoint):
     core_response = Mock()
     core_response.ok = True
     core_response.raw.headers.getlist.return_value = []
 
     view = AuthView()
-    with app.test_request_context("/login?next=https://evil.example/path"):
+    if next_target in {"admin.dashboard", "base.login", "base.login/"}:
+        next_target = url_for(next_target.rstrip("/")) + ("/" if next_target.endswith("/") else "")
+    with app.test_request_context("/login", query_string={"next": next_target}):
         response = view.login_flow(core_response)
 
     assert response.status_code == 302
-    assert response.headers["Location"] == url_for("base.dashboard")
-
-
-def test_login_flow_rejects_unknown_internal_next_redirect(app):
-    core_response = Mock()
-    core_response.ok = True
-    core_response.raw.headers.getlist.return_value = []
-
-    view = AuthView()
-    with app.test_request_context("/login", query_string={"next": "/does-not-exist"}):
-        response = view.login_flow(core_response)
-
-    assert response.status_code == 302
-    assert response.headers["Location"] == url_for("base.dashboard")
-
-
-def test_login_flow_rejects_login_next_redirect(app):
-    core_response = Mock()
-    core_response.ok = True
-    core_response.raw.headers.getlist.return_value = []
-
-    view = AuthView()
-    with app.test_request_context("/login", query_string={"next": url_for("base.login")}):
-        response = view.login_flow(core_response)
-
-    assert response.status_code == 302
-    assert response.headers["Location"] == url_for("base.dashboard")
-
-
-def test_login_flow_rejects_network_path_variants(app):
-    core_response = Mock()
-    core_response.ok = True
-    core_response.raw.headers.getlist.return_value = []
-
-    view = AuthView()
-    with app.test_request_context("/login", query_string={"next": "/\\evil.example/path"}):
-        response = view.login_flow(core_response)
-
-    assert response.status_code == 302
-    assert response.headers["Location"] == url_for("base.dashboard")
-
-
-def test_login_flow_allows_relative_next_redirect(app):
-    core_response = Mock()
-    core_response.ok = True
-    core_response.raw.headers.getlist.return_value = []
-
-    view = AuthView()
-    with app.test_request_context("/login", query_string={"next": url_for("admin.dashboard")}):
-        response = view.login_flow(core_response)
-
-    assert response.status_code == 302
-    assert response.headers["Location"] == url_for("admin.dashboard")
+    assert response.headers["Location"] == url_for(expected_endpoint)

@@ -1,11 +1,6 @@
 from typing import Any
 
-import pytest
-
 from worker import bots
-
-
-pytestmark = pytest.mark.usefixtures("set_transformers_offline")
 
 
 class FakeIntelOwlClient:

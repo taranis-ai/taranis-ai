@@ -19,7 +19,8 @@ def test_bot_pipeline_uses_one_snapshot_and_commits_only_complete_runs(app, clie
         first_payload = build_news_item_payload(source.id, title="First story")
         first = create_story(news_items=[first_payload])
         second = create_story(news_items=[build_news_item_payload(source.id, title="Second story")])
-        unrelated = create_story(news_items=[build_news_item_payload(source.id, title="Unrelated source story")])
+        other_source = create_osint_source(rank=1)
+        unrelated = create_story(news_items=[build_news_item_payload(other_source.id, title="Unrelated source story")])
         first_item_id = first.news_items[0].id
         second_item_id = second.news_items[0].id
         bot_ids = {bot_type: Bot.filter_by_type(bot_type.lower()).id for bot_type in ("NLP_BOT", "STORY_BOT", "SUMMARY_BOT", "IOC_BOT")}
@@ -34,11 +35,19 @@ def test_bot_pipeline_uses_one_snapshot_and_commits_only_complete_runs(app, clie
         assert all(set(ids) == {first.id, second.id} for ids in snapshot["selected"].values())
         limited = client.post(
             "/api/worker/bot-pipeline/stories",
-            json={"filters": {bot_ids["STORY_BOT"]: {"source": source.id, "limit": "5", "worker": True}}},
+            json={
+                "filters": {
+                    bot_ids["STORY_BOT"]: {"source": source.id, "sort": "id_asc", "limit": "1", "worker": True},
+                    bot_ids["SUMMARY_BOT"]: {"story_ids": [unrelated.id]},
+                }
+            },
             headers=api_header,
         )
         assert limited.status_code == 200
-        assert len(limited.json["stories"]) == 3
+        limited_story_id = min(first.id, second.id)
+        assert limited.json["selected"] == {bot_ids["STORY_BOT"]: [limited_story_id], bot_ids["SUMMARY_BOT"]: [unrelated.id]}
+        assert {story["id"] for story in limited.json["stories"]} == {limited_story_id, unrelated.id}
+        assert set(limited.json["revisions"]) == {limited_story_id, unrelated.id}
 
         stages = [
             {

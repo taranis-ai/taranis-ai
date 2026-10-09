@@ -451,8 +451,7 @@ class TestSaveTaskResult:
         """Test that save_task_result handles API call failures without raising."""
         requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", exc=RequestException("API connection failed"))
 
-        # Should not raise, just log
-        CoreApi().save_task_result("job-789", "bot_error", "SUCCESS", message="data")
+        assert CoreApi().save_task_result("job-789", "bot_error", "SUCCESS", message="data") is False
 
         # Verify error was logged
         assert any("Failed to save task result" in record.message for record in caplog.records)
@@ -461,12 +460,7 @@ class TestSaveTaskResult:
         """Test that save_task_result handles False response from API."""
         requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", status_code=500, json={"error": "nope"})
 
-        # Should not raise, API returned False meaning failure
-        CoreApi().save_task_result("job-999", "bot_fail", "SUCCESS", message="data")
-
-        # Verify API was called
-        put_calls = [req for req in requests_mock.request_history if req.method == "POST" and req.url.endswith("/tasks")]
-        assert len(put_calls) == 1
+        assert CoreApi().save_task_result("job-999", "bot_fail", "SUCCESS", message="data") is False
 
     def test_build_success_task_result_merges_dict_output(self):
         task_result = build_success_task_result(
