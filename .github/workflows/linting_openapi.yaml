@@ -1,5 +1,13 @@
 name: lint openapi
 
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
 on:
   workflow_dispatch:
   pull_request:
@@ -16,13 +24,16 @@ env:
 
 jobs:
   open_api_lint:
+    timeout-minutes: 10
     name: Lint OpenAPI spec
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v8.2.0
+        uses: astral-sh/setup-uv@v10.3.0
         with:
           enable-cache: true
 

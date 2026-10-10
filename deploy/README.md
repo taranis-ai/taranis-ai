@@ -26,6 +26,8 @@ Set `LLM_INFERENCE_API_KEY` in `taranis-secrets` (Helm: `secrets.llmInferenceApi
 
 In **Admin Settings > LLM Endpoints**, verify the default, feature assignments, and bot selections before running jobs. Core registers internal inference on startup without replacing existing selections. Existing Chat configuration becomes a Chat-only endpoint. Workers must be able to reach the selected providers; background story content is sent there. Move custom provider configuration into these settings.
 
+For bots that used `REQUESTS_TIMEOUT` to extend the RQ job deadline, configure `EXECUTION_TIMEOUT` with the required job budget before running them. `REQUESTS_TIMEOUT` now controls only network requests; blank execution timeout uses `RQ_DEFAULT_JOB_TIMEOUT`. Pipelines combine the bot budgets with 20% headroom. Let existing runs finish before upgrading Core and workers together: collection dispatch and staged results now require explicit processed story IDs. Rerun interrupted jobs after the upgrade, and keep the previous parameter values for rollback.
+
 After applying the raw manifests, remove the retired bot Deployments and Services; `kubectl apply -k` does not prune them. Helm removes workloads no longer in the chart. Verify inference, Core, workers, and a representative job for each configured LLM feature.
 
 Keep a database backup and previous images/configuration for rollback: startup removes obsolete bot connection parameters. Restore previous services and settings if reverting, without overwriting newer content. No database schema migration is required.

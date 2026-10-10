@@ -161,6 +161,7 @@ class CollectionService:
         actor = Story.last_change_for_source(item.osint_source)
         item.last_change = actor or "external"
         story.read = False
+        story.clear_bot_execution_attributes()
         db.session.flush()
         Story.refresh_tag_summaries_for_news_items([item])
         story.update_status(change=actor)

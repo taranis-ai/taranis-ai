@@ -28,10 +28,14 @@ class BaseBot:
         if param_filter := parameters.get("filter"):
             filter_dict |= {k.lower(): v for k, v in param_filter.items()}
 
+        skip_processed = filter_dict.pop("skip_processed", False)
         if "story_id" in filter_dict or "story_ids" in filter_dict:
-            return filter_dict
+            if not skip_processed:
+                return filter_dict
+            # Collection IDs define the scope even when updated articles have old publication dates.
+            filter_dict = {k: v for k, v in filter_dict.items() if k in {"story_id", "story_ids", "source"}}
 
-        if timefrom := parameters.get("timefrom"):
+        if not skip_processed and (timefrom := parameters.get("timefrom")):
             filter_dict["timefrom"] = timefrom
 
         filter_dict["worker"] = True
@@ -48,13 +52,17 @@ class BaseBot:
         return filter_dict
 
     def get_stories(self, parameters: dict) -> list:
-        if "_stories" in parameters:
-            return parameters["_stories"]
-        filter_dict = self.get_filter_dict(parameters)
-        data = self.core_api.get_stories(filter_dict)
+        if hasattr(self, "pipeline_stories"):
+            data = self.pipeline_stories
+        elif "_stories" in parameters:
+            data = parameters["_stories"]
+        else:
+            filter_dict = self.get_filter_dict(parameters)
+            data = self.core_api.get_stories(filter_dict)
         if not data:
-            logger.debug(f"No Stories for filter: {filter_dict}")
+            logger.debug("No stories found")
             return []
+        self.story_revisions = {story["id"]: story["revision"] for story in data if "revision" in story}
         return data
 
     def refresh(self):

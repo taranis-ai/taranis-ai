@@ -249,6 +249,11 @@ class MISPConnectorParameters(MISPBaseParameters):
 
 class BotParameters(WorkerParameters):
     ITEM_FILTER: str = Field("", title="Item filter", description="Filter selecting items processed by the bot.")
+    EXECUTION_TIMEOUT: OptionalPositiveInt = Field(
+        None,
+        title="Execution timeout",
+        description="Execution budget in seconds. Blank uses the global job timeout. Pipelines combine their bots' budgets with 20% headroom.",
+    )
     RUN_AFTER_COLLECTOR: bool = Field(False, title="Run after collector", description="Run automatically after collection.")
     RUN_AFTER_BOTS: StringList = Field(default_factory=list, title="Run after bots", description="Bot identifiers that must finish first.")
     REFRESH_INTERVAL: Cron = Field("", title="Refresh interval", description="Five-field cron schedule for periodic execution.")
@@ -290,7 +295,7 @@ class SharedLLMBotParameters(BotParameters):
     REQUESTS_TIMEOUT: OptionalPositiveInt = Field(
         None,
         title="Requests timeout",
-        description="Timeout in seconds for each LLM request and the entire bot job. Blank uses the endpoint request timeout and global job timeout.",
+        description="Network timeout in seconds for each LLM request. Blank uses the endpoint timeout. Execution timeout controls the job budget separately.",
     )
     # Accept stored service credentials without offering unused controls in the form.
     BOT_API_KEY: SkipJsonSchema[SecretStr] = SecretStr("")

@@ -275,7 +275,7 @@ def test_core_startup_without_redis_requires_explicit_queue_disable(
     assert manager.get_task("missing") == ({"error": "Queue is disabled"}, 503)
     assert manager.execute_bot_task("invalid.id") == ({"error": "Queue is disabled"}, 503)
     assert manager.collect_osint_source("missing", "missing") == ({"error": "Queue is disabled"}, 503)
-    assert manager.post_collection_bots("missing") == ({"error": "Queue is disabled"}, 503)
+    assert manager.post_collection_bots("missing", story_ids=[]) == ({"error": "Queue is disabled"}, 503)
     assert manager.schedule_bot_dependents("missing") == ({"error": "Queue is disabled"}, 503)
 
     with disabled_app.app_context():

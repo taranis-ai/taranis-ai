@@ -36,6 +36,7 @@ class SummaryBot(BaseBot):
             return results
         results = iter(results)
 
+        story_updates = {}
         for story in data:
             news_items = story.get("news_items", [])
             logger.debug(f"Summarizing {story['id']} with {len(news_items)} news items")
@@ -50,13 +51,7 @@ class SummaryBot(BaseBot):
                     story_update_data["title"] = title
 
                 if story_update_data:
-                    if self.core_api.update_story(story["id"], story_update_data):
-                        self.core_api.update_story_attributes(
-                            story["id"],
-                            [{"key": self.type, "value": 1}],
-                        )
-                    else:
-                        logger.warning(f"Failed to update story {story['id']}, skipping attribute update")
+                    story_updates[story["id"]] = story_update_data
             except BotServiceUnavailableError:
                 raise
             except Exception:
@@ -64,4 +59,7 @@ class SummaryBot(BaseBot):
                 raise RuntimeError("Story summarization failed") from None
 
             logger.debug(f"Created summary for : {story['id']}")
-        return {"message": f"Summarized {len(data)} stories"}
+        return {
+            "message": f"Summarized {len(data)} stories",
+            "changes": {"story_updates": story_updates},
+        }

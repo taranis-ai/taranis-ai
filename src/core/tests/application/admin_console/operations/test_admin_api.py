@@ -94,6 +94,7 @@ class TestAdminApi(BaseTest):
 
         values = {
             "name": "Shared model",
+            "enabled": True,
             "base_url": "https://provider.example/v1",
             "api_key": "private-test-key",
             "model": "analyst-model",
@@ -142,6 +143,7 @@ class TestAdminApi(BaseTest):
             "llm-endpoints",
             {
                 "name": "Clustering",
+                "enabled": True,
                 "base_url": "http://local-model/v1",
                 "model": "deepseek/deepseek-v4.1-flash:batch",
                 "processing_mode": "openrouter_batch",
@@ -163,6 +165,11 @@ class TestAdminApi(BaseTest):
         self.assert_patch_ok(client, "settings", {"settings": {"llm_default_endpoint": endpoint_id, "llm_chat_endpoint": ""}}, auth_header)
         self.assert_patch_ok(client, "settings", {"settings": {f"llm_{feature}_endpoint": override_id}}, auth_header)
         assert client.get(worker_url, headers=worker_headers).get_json()["llm_endpoint"]["base_url"] == "http://local-model/v1"
+        self.assert_post_ok(client, f"llm-endpoints/{override_id}", {"enabled": False}, auth_header)
+        assert client.get(worker_url, headers=worker_headers).json["llm_endpoint"]["enabled"] is False
+        with app.app_context():
+            assert Settings.get_llm_endpoint(feature) is None
+        self.assert_post_ok(client, f"llm-endpoints/{override_id}", {"enabled": True}, auth_header)
         response = client.post(self.concat_url(f"llm-endpoints/{override_id}/delete"), headers=auth_header)
         assert response.status_code == 409
         self.assert_post_ok(client, f"llm-endpoints/{endpoint_id}", {"api_key_clear": "true"}, auth_header)

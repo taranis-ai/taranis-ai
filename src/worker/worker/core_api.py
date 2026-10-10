@@ -389,6 +389,9 @@ class CoreApi:
     def get_stories(self, filter_dict: dict) -> list | None:
         return self.api_get("/worker/stories", params=filter_dict) or []
 
+    def get_pipeline_stories(self, filters: dict[str, dict]) -> dict | None:
+        return self.api_post("/worker/bot-pipeline/stories", {"filters": filters})
+
     def get_tags(self) -> dict | None:
         return self.api_get("/worker/tags")
 
@@ -437,14 +440,14 @@ class CoreApi:
         except requests.exceptions.RequestException:
             return None
 
-    def run_post_collection_bots(self, source_id, story_ids: list[str] | None = None) -> dict | None:
+    def run_post_collection_bots(self, source_id, story_ids: list[str]) -> dict | None:
         try:
             return self.api_put(
                 "/worker/post-collection-bots",
                 json_data={
                     "source_id": source_id,
                     "user_id": self._get_current_job_user_id(),
-                    **({"story_ids": story_ids} if story_ids else {}),
+                    "story_ids": story_ids,
                 },
             )
         except requests.exceptions.RequestException:

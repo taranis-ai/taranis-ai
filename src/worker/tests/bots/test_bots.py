@@ -7,39 +7,46 @@ from llm_bot.config import Config as LLMConfig
 from rq import Retry
 
 from worker.bots.base_bot import BaseBot
+from worker.bots.bot_tasks import bot_task
 from worker.bots.tagging_content import _news_item_content_for_tagging
 from worker.config import Config
 
 
-pytestmark = pytest.mark.usefixtures("set_transformers_offline")
-
-
 @pytest.mark.parametrize(
-    "parameters",
+    "parameters, expected",
     [
-        {"ITEM_FILTER": "timefrom=2026-07-01T00%3A00%3A00"},
-        {"filter": {"timefrom": "2026-07-01T00:00:00"}},
+        (
+            {"ITEM_FILTER": "timefrom=2026-07-01T00%3A00%3A00"},
+            {"timefrom": "2026-07-01T00:00:00", "worker": True, "exclude_attr": "BASE_BOT"},
+        ),
+        ({"filter": {"timefrom": "2026-07-01T00:00:00"}}, {"timefrom": "2026-07-01T00:00:00", "worker": True, "exclude_attr": "BASE_BOT"}),
+        ({"filter": {"STORY_IDS": ["selected-story"]}}, {"story_ids": ["selected-story"]}),
+        (
+            {"ITEM_FILTER": "range=week&limit=2", "filter": {"SOURCE": "source", "STORY_IDS": ["changed-story"], "skip_processed": True}},
+            {"source": "source", "story_ids": ["changed-story"], "worker": True, "exclude_attr": "BASE_BOT"},
+        ),
     ],
 )
-def test_filter_timefrom_is_forwarded_to_story_query(parameters):
+def test_bot_story_filters_preserve_scope(parameters, expected):
     filter_dict = BaseBot().get_filter_dict(parameters)
 
-    assert filter_dict["timefrom"] == "2026-07-01T00:00:00"
+    assert filter_dict == expected
 
 
-def test_ioc_bot(story_get_mock):
+def test_ioc_bot(stories, story_get_mock):
     from worker import bots
 
     ioc_bot = bots.IOCBot()
-    ioc_bot.execute()
+    result = ioc_bot.execute()
 
-    assert story_get_mock.call_count == 1
+    item = next(item for story in stories for item in story["news_items"] if "CVE-2023-5678" in item["content"])
+    assert result[item["id"]] == {"CVE-2023-5678": "cves"}
 
 
-def test_story_bot_clusters_via_library(stories, requests_mock, monkeypatch):
+@pytest.mark.parametrize("enabled", [True, False])
+def test_story_bot_clusters_via_library(stories, requests_mock, monkeypatch, enabled):
     from worker import bots
 
-    requests_mock.real_http = False
     endpoint = {
         "name": "Clustering",
         "base_url": "https://llm.test/v1",
@@ -47,16 +54,23 @@ def test_story_bot_clusters_via_library(stories, requests_mock, monkeypatch):
         "model": "cluster-model",
         "api_format": "chat_completions",
         "timeout": 120,
+        "enabled": enabled,
     }
     input_stories = [
         {**stories[0], "summary": "Short summary", "tags": {"security": {"name": "security", "tag_type": "misc"}}},
         {**stories[1], "summary": None, "tags": {}},
     ]
     requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/stories", json=input_stories)
-    grouping = requests_mock.put(f"{Config.TARANIS_CORE_URL}/bots/stories/group-multiple", json={"message": "success"})
     parameters = {"llm_endpoint": endpoint, "REQUESTS_TIMEOUT": 17}
 
     with patch.object(LLMClient, "create_response", autospec=True) as provider:
+        if not enabled:
+            from worker.llm import LLMConfigurationError
+
+            with pytest.raises(LLMConfigurationError):
+                bots.StoryBot().execute(parameters)
+            provider.assert_not_called()
+            return
         provider.return_value = {
             "output_text": json.dumps(
                 {
@@ -68,7 +82,7 @@ def test_story_bot_clusters_via_library(stories, requests_mock, monkeypatch):
         }
         result = bots.StoryBot().execute(parameters)
 
-        assert result == {"message": "Processed"}
+        assert result == {"message": "Processed", "changes": {"groups": [[story["id"] for story in input_stories]]}}
         provider.assert_awaited_once()
         client = provider.call_args.args[0]
         assert (client.base_url, client.api_key, client.model, client.api_mode, client.timeout) == (
@@ -84,15 +98,12 @@ def test_story_bot_clusters_via_library(stories, requests_mock, monkeypatch):
                 {"id": 2, "tags": {}, "summary": None},
             ]
         }
-        assert grouping.call_count == 1
-        assert grouping.last_request.json() == [[story["id"] for story in input_stories]]
 
         provider.return_value = {
             "output_text": json.dumps({"cluster_ids": {"event_clusters": [[1], [2]]}, "cluster_reasons": [], "message": "Processed"})
         }
         assert bots.StoryBot().execute({"llm_endpoint": endpoint}) == {"message": "Processed. No clusters found."}
         assert provider.call_args.args[0].timeout == 120
-        assert grouping.call_count == 1
 
         endpoint["model"] = ""
         endpoint["api_key"] = ""
@@ -164,7 +175,7 @@ def test_nlp_bot(stories, story_get_mock):
 
 
 @pytest.mark.parametrize("multiple_items", [True, False])
-def test_summary_bot_uses_library(stories, story_update_mock, story_attribute_update_mock, requests_mock, multiple_items):
+def test_summary_bot_uses_library(stories, requests_mock, multiple_items):
     from worker import bots
 
     story = {**stories[0], "news_items": [stories[0]["news_items"][0]]}
@@ -180,7 +191,8 @@ def test_summary_bot_uses_library(stories, story_update_mock, story_attribute_up
     }
     with patch.object(LLMClient, "create_response", autospec=True) as provider:
         provider.side_effect = [{"output_text": '{"summary": "Concise summary"}'}, {"output_text": '{"title": "Generated title"}'}]
-        assert bots.SummaryBot().execute({"llm_endpoint": endpoint}) == {"message": "Summarized 1 stories"}
+        result = bots.SummaryBot().execute({"llm_endpoint": endpoint})
+        assert result["message"] == "Summarized 1 stories"
         assert provider.await_count == (2 if multiple_items else 1)
         client = provider.call_args.args[0]
         assert (client.base_url, client.model, client.api_key, client.timeout) == (
@@ -192,12 +204,13 @@ def test_summary_bot_uses_library(stories, story_update_mock, story_attribute_up
         expected = {"summary": "Concise summary"}
         if multiple_items:
             expected["title"] = "Generated title"
-        assert story_update_mock.last_request.json() == expected
-        assert story_attribute_update_mock.call_count == 1
+        assert result["changes"] == {
+            "story_updates": {story["id"]: expected},
+        }
 
 
 @pytest.mark.parametrize("threshold, expected", [(0.65, "no"), (0.5, "yes")])
-def test_cybersec_class_bot(stories, story_get_mock, news_item_attribute_update_mock, story_attribute_update_mock, threshold, expected):
+def test_cybersec_class_bot(stories, story_get_mock, threshold, expected):
     from worker import bots
 
     endpoint = {"name": "Classification", "base_url": "https://llm.test/v1"}
@@ -205,36 +218,41 @@ def test_cybersec_class_bot(stories, story_get_mock, news_item_attribute_update_
         provider.return_value = {"output_text": '{"cybersecurity": 0.6, "non-cybersecurity": 0.4}'}
         result = bots.CyberSecClassifierBot().execute({"llm_endpoint": endpoint, "CLASSIFICATION_THRESHOLD": threshold})
     count = sum(len(story["news_items"]) for story in stories)
-    assert result == {"message": f"Classified {count} news items"}
+    assert result["message"] == f"Classified {count} news items"
     assert provider.await_count == count
-    assert news_item_attribute_update_mock.call_count == count
-    assert story_attribute_update_mock.call_count == len(stories)
+    assert len(result["changes"]["story_attributes"]) == len(stories)
+    assert len(result["changes"]["item_attributes"]) == len({item["id"] for story in stories for item in story["news_items"]})
     assert all(
-        {attr["key"]: attr["value"] for attr in req.json()["attributes"]}["cybersecurity"] == expected
-        for req in story_attribute_update_mock.request_history
+        {attr["key"]: attr["value"] for attr in attributes}["cybersecurity"] == expected
+        for attributes in result["changes"]["story_attributes"].values()
     )
     assert all(
-        {attr["key"]: attr["value"] for attr in req.json()["attributes"]}["cybersecurity_bot_score"] == "0.6"
-        for req in news_item_attribute_update_mock.request_history
+        {attr["key"]: attr["value"] for attr in attributes}["cybersecurity_bot_score"] == "0.6"
+        for attributes in result["changes"]["item_attributes"].values()
     )
 
 
 @pytest.mark.parametrize("batch", [False, True])
-def test_sentiment_analysis_bot(stories, story_get_mock, news_item_attribute_update_mock, requests_mock, batch):
-    from worker import bots
-
+def test_sentiment_analysis_bot(stories, requests_mock, mock_job, monkeypatch, batch):
     endpoint = {"name": "Sentiment", "base_url": "https://llm.test/v1", "model": "test-model"}
-    parameters = {"llm_endpoint": endpoint}
+    mock_job.meta = {}
+    monkeypatch.setattr("worker.bots.bot_tasks.get_current_job", lambda: mock_job)
+    stories = [{**story, "revision": index} for index, story in enumerate(stories)]
+    story_get_mock = requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/stories", json=stories)
+    if batch:
+        endpoint["processing_mode"] = "openrouter_batch"
+    config = requests_mock.get(
+        f"{Config.TARANIS_CORE_URL}/worker/bots/sentiment",
+        json={"id": "sentiment", "type": "sentiment_analysis_bot", "parameters": {}, "llm_endpoint": endpoint},
+    )
+    submission = requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"status": "SUCCESS"})
     items = [item for story in stories for item in story["news_items"] if item["content"].strip()]
     outputs = [{"output_text": json.dumps({"sentiment": {"label": "neutral", "score": index / 100}})} for index in range(len(items))]
     expected_scores = {item["id"]: str(index / 100) for index, item in enumerate(items)}
-    bot = bots.SentimentAnalysisBot()
     if batch:
-        endpoint["processing_mode"] = "openrouter_batch"
-        parameters.update({"_stories": stories, "_llm_batch_state": {}, "_save_llm_batch_state": lambda: None})
         submitted = requests_mock.post(f"{endpoint['base_url']}/batches", json={"id": "batch_items"}, status_code=202)
-        assert isinstance(bot.execute(parameters), Retry)
-        assert news_item_attribute_update_mock.call_count == 0
+        assert isinstance(bot_task("sentiment"), Retry)
+        assert submission.call_count == 0
         requests = submitted.last_request.json()["requests"]
         assert len(requests) == len(items)
         assert len({request["custom_id"] for request in requests}) == len(items)
@@ -249,18 +267,24 @@ def test_sentiment_analysis_bot(stories, story_get_mock, news_item_attribute_upd
                 ],
             },
         )
-        result = bot.execute(parameters)
+        mock_job.meta = json.loads(json.dumps(mock_job.meta))
+        result = bot_task("sentiment")
         assert submitted.call_count == 1
     else:
         with patch.object(LLMClient, "create_response", autospec=True) as provider:
             provider.side_effect = outputs
-            result = bot.execute(parameters)
+            result = bot_task("sentiment")
             assert provider.await_count == len(items)
             assert [call.args[2] for call in provider.call_args_list] == [item["content"] for item in items]
-        assert story_get_mock.call_count == 1
-    assert result == {"message": "Sentiment analysis complete"}
-    assert news_item_attribute_update_mock.call_count == len(expected_scores)
-    for req in news_item_attribute_update_mock.request_history:
-        attributes = {attr["key"]: attr["value"] for attr in req.json()["attributes"]}
-        item_id = req.path.split("/")[-2]
+    assert story_get_mock.call_count == config.call_count == submission.call_count == 1
+    assert result["message"] == "Sentiment analysis complete"
+    data = submission.last_request.json()["result"]["data"]
+    assert data["story_revisions"] == {story["id"]: story["revision"] for story in stories}
+    assert data["bot_stages"] == [
+        {"bot_id": "sentiment", "bot_type": "SENTIMENT_ANALYSIS_BOT", "story_ids": list(data["story_revisions"]), "result": data["result"]}
+    ]
+    assert "llm_batch" not in mock_job.meta
+    assert len(result["changes"]["item_attributes"]) == len(expected_scores)
+    for item_id, changes in result["changes"]["item_attributes"].items():
+        attributes = {attr["key"]: attr["value"] for attr in changes}
         assert attributes == {"sentiment_category": "neutral", "sentiment_score": expected_scores[item_id]}

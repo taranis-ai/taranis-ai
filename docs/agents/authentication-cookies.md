@@ -20,3 +20,5 @@ Login/logout, JWT/CSRF cookies, implicit renewal, `JWT_COOKIE_SUFFIX`, `APPLICAT
 Settings: `src/core/core/config.py`, `src/frontend/frontend/config.py`. Issuance/validation: `src/core/core/auth/base_authenticator.py`, `src/core/core/api/auth.py`, `src/core/core/managers/auth_manager.py`. Frontend forwarding/clearing: `src/frontend/frontend/auth.py`; cookie consumers include `core_api.py`, `data_persistence.py`, templates, and `static/js/main.js` under `src/frontend/frontend/`.
 
 Settings/auth coverage must retain empty/suffixed names, invalid suffixes, deployment paths, expiry-window renewal, bearer-only refresh, revocation, and absence of login side effects on renewal.
+
+Redirect safety is covered through the parameterized `AuthView.login_flow` test in `src/frontend/tests/unit/views/test_auth_views.py`: known internal routes succeed; external, unknown, login-loop, and network-path variants fall back to the dashboard. Keep these boundary cases together instead of duplicating helper tests.

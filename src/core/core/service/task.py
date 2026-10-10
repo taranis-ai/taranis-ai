@@ -76,6 +76,26 @@ class TaskService:
     @classmethod
     def save_task_result(cls, submission: TaskSubmission) -> tuple[dict[str, Any], int]:
         task_kind = cls._resolve_task_kind(submission.id, submission.task)
+        result_data = cls._get_result_dict_data(submission.result)
+        if submission.status == "SUCCESS" and result_data and "bot_stages" in result_data:
+            from core.service.bot_pipeline import BotPipelineService
+
+            result, status, applied = BotPipelineService.submit(submission)
+            if applied:
+                try:
+                    cls._handle_success_result(submission)
+                    realtime_publisher.assess_changed()
+                except Exception:
+                    logger.exception("Bot run committed but post-commit notification failed")
+            return result, status
+
+        if (
+            task_kind in {"bot_task", "bot_pipeline"}
+            and (existing := TaskModel.get_by_job_id(submission.id))
+            and existing.status == "SUCCESS"
+        ):
+            validated = TaskResponseModel.model_validate(existing.to_dict())
+            return validated.model_dump(mode="json", exclude_none=False), 200
         result_payload = submission.result.model_dump(mode="json", exclude_none=False)
         payload: dict[str, Any] = {
             "id": submission.id,
@@ -130,6 +150,8 @@ class TaskService:
             return "presenter_task"
         if task_name == "collector_task" or task_name.startswith("collect_") or task_id.startswith("collect_"):
             return "collector_task"
+        if task_name == "bot_pipeline":
+            return "bot_pipeline"
         if task_name == "bot_task" or task_name.startswith("bot_") or task_id.startswith("bot"):
             return "bot_task"
         return "connector_task" if task_name == "connector_task" else None
@@ -208,6 +230,18 @@ class TaskService:
         worker_id = submission.worker_id or "UNKNOWN_ID"
         if result_data is None:
             logger.error("Invalid bot task result payload")
+            return
+
+        if "bot_stages" in result_data:
+            if result_data.get("trigger_dependents", True):
+                from core.managers import queue_manager
+
+                filter_data = result_data.get("filter")
+                queue_manager.queue_manager.schedule_bot_dependents(
+                    worker_id,
+                    filter_data if isinstance(filter_data, dict) else None,
+                    user_id=submission.user_id,
+                )
             return
 
         bot_result = result_data.get("result")

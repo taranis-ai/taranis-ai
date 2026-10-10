@@ -195,6 +195,7 @@ def test_empty_rss_feed_result_is_preserved_after_not_modified_response(current_
         ("News items added", "'Source 1': News items added", "SUCCESS", 1),
         ("0 created, 2 updated", "'Source 1': 0 created, 2 updated", "SUCCESS", 1),
         ("All news items were skipped", "No changes: All news items were skipped", "NOT_MODIFIED", 0),
+        (None, "'Source 1': Collection completed", "SUCCESS", 0),
     ],
 )
 @pytest.mark.parametrize("skipped_entries", [1, 2])
@@ -209,6 +210,8 @@ def test_rss_entry_limit_warning_and_recovery(
         "rss_collector_max_entries": 2,
         "parameters": {"FEED_URL": feed_url, "USE_FEED_CONTENT": True},
     }
+    if publish_message is None:
+        source["word_lists"] = [{"usage": ["COLLECTOR_INCLUDELIST"], "entries": [{"value": "absent", "category": "misc"}]}]
     entries = "".join(f"<item><title>Item {i}</title><description>Content {i}</description></item>" for i in range(2 + skipped_entries))
     feed = f"<rss version='2.0'><channel><title>Feed</title>{entries}</channel></rss>"
     requests_mock.get(
@@ -235,8 +238,11 @@ def test_rss_entry_limit_warning_and_recovery(
     assert payload["status"] == current_job.meta["status"] == "WARNING"
     assert payload["result"]["reason"] == "rss_entry_limit"
     assert payload["result"]["retryable"] is False
-    published = next(request.json() for request in requests_mock.request_history if request.url.endswith("/worker/news-items"))
-    assert [item["title"] for item in published] == ["Item 0", "Item 1"]
+    published = [request.json() for request in requests_mock.request_history if request.url.endswith("/worker/news-items")]
+    if publish_message is None:
+        assert published == []
+    else:
+        assert [item["title"] for item in published[0]] == ["Item 0", "Item 1"]
     assert bots.call_count == expected_bot_runs
     if expected_bot_runs:
         assert bots.last_request.json()["story_ids"] == ["story-1"]

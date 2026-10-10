@@ -191,8 +191,11 @@ class Bot(BaseModel):
 
     @classmethod
     def _get_run_graph(cls, after_bot_id: str | None = None) -> tuple[list["Bot"], dict[str, list[str]]]:
+        from core.model.settings import Settings
+
+        settings = Settings.get_settings()
         bots_by_id = {bot.id: bot for bot in cls._get_all_ordered()}
-        enabled_bots_by_id = {bot_id: bot for bot_id, bot in bots_by_id.items() if bot.enabled}
+        enabled_bots_by_id = {bot_id: bot for bot_id, bot in bots_by_id.items() if bot.enabled and bot.is_llm_endpoint_enabled(settings)}
         dependencies = cls._dependency_map(bots_by_id)
         order, scheduled_dependencies = cls._build_run_graph(
             enabled_bots_by_id,
@@ -311,6 +314,9 @@ class Bot(BaseModel):
 
     @classmethod
     def get_dag_preview(cls, candidate: dict[str, Any]) -> dict[str, Any]:
+        from core.model.settings import Settings
+
+        settings = Settings.get_settings()
         bots = cls._get_all_ordered()
         allowed_fields = {"id", "type", "index", "enabled", "parameters"}
         if unexpected_fields := set(candidate) - allowed_fields:
@@ -362,7 +368,7 @@ class Bot(BaseModel):
                 if not parent_bot:
                     warnings_by_id.append((bot_id, f"{bot.name} waits for missing bot {parent_id}"))
                     continue
-                if not parent_bot.enabled:
+                if not parent_bot.enabled or not parent_bot.is_llm_endpoint_enabled(settings):
                     warnings_by_id.append((bot_id, f"{bot.name} waits for disabled bot {parent_bot.name}"))
                 edges.append(
                     {
@@ -372,7 +378,12 @@ class Bot(BaseModel):
                         "to_id": bot_id,
                         "to_type": bot.type.name,
                         "to_name": bot.name,
-                        "disabled": not parent_bot.enabled or not bot.enabled,
+                        "disabled": not (
+                            parent_bot.enabled
+                            and parent_bot.is_llm_endpoint_enabled(settings)
+                            and bot.enabled
+                            and bot.is_llm_endpoint_enabled(settings)
+                        ),
                     }
                 )
 
@@ -388,7 +399,7 @@ class Bot(BaseModel):
 
         edges = [edge for edge in edges if edge["from_id"] in related_ids and edge["to_id"] in related_ids]
         warnings = [warning for bot_id, warning in warnings_by_id if bot_id in related_ids]
-        enabled_by_id = {bot_id: bot for bot_id, bot in bots_by_id.items() if bot.enabled}
+        enabled_by_id = {bot_id: bot for bot_id, bot in bots_by_id.items() if bot.enabled and bot.is_llm_endpoint_enabled(settings)}
         try:
             cls._topological_order(
                 {bot_id: tuple(parent_ids & related_ids) for bot_id, parent_ids in dependencies.items() if bot_id in related_ids}
@@ -486,7 +497,7 @@ class Bot(BaseModel):
 
     @property
     def job_timeout(self) -> int:
-        return self.parameters.get("REQUESTS_TIMEOUT") or Config.RQ_DEFAULT_JOB_TIMEOUT
+        return self.parameters.get("EXECUTION_TIMEOUT") or Config.RQ_DEFAULT_JOB_TIMEOUT
 
     def get_llm_endpoint_id(self, settings: dict) -> str | None:
         from models.llm import LLM_BOT_FEATURES
@@ -506,6 +517,17 @@ class Bot(BaseModel):
             settings = Settings.get_settings()
             data["llm_endpoint"] = settings["llm_endpoints"].get(self.get_llm_endpoint_id(settings))
         return data
+
+    def is_llm_endpoint_enabled(self, settings: dict | None = None) -> bool:
+        from models.llm import LLM_BOT_FEATURES
+
+        from core.model.settings import Settings
+
+        if self.type.value not in LLM_BOT_FEATURES:
+            return True
+        settings = settings if settings is not None else Settings.get_settings()
+        endpoint = settings.get("llm_endpoints", {}).get(self.get_llm_endpoint_id(settings))
+        return endpoint is None or endpoint.get("enabled", True)
 
     def get_cron_spec(self) -> CronSpec:
         return CronSpec(
@@ -527,7 +549,7 @@ class Bot(BaseModel):
         from core.managers import queue_manager
 
         cron_schedule = self.get_schedule()
-        if not self.enabled or not cron_schedule:
+        if not self.enabled or not cron_schedule or not self.is_llm_endpoint_enabled():
             return False
 
         return queue_manager.queue_manager.register_cron_job(self.get_cron_spec())
@@ -595,20 +617,20 @@ class Bot(BaseModel):
 
     @classmethod
     def get_all_for_collector(cls) -> Sequence["Bot"]:
+        from core.model.settings import Settings
+
+        settings = Settings.get_settings()
         query = db.select(cls).where(cls.enabled.is_(True)).order_by(cls.index)
-        return db.session.execute(query).scalars().all()
+        return [bot for bot in db.session.execute(query).scalars() if bot.is_llm_endpoint_enabled(settings)]
 
     @classmethod
     def schedule_all_bots(cls):
-        """Schedule all enabled bots with cron definitions."""
-        bots = cls.get_all_for_collector()
-        enabled_with_schedule = [bot for bot in bots if bot.get_schedule()]
-        for bot in enabled_with_schedule:
-            bot.schedule_bot()
-        logger.info(f"Scheduling for {len(enabled_with_schedule)} bots completed")
+        """Refresh cron registrations, including bots paused by their endpoint."""
+        for bot in cls._get_all_ordered():
+            bot._refresh_schedule_registration()
 
     def _refresh_schedule_registration(self) -> None:
-        if self.enabled and self.get_schedule():
+        if self.enabled and self.get_schedule() and self.is_llm_endpoint_enabled():
             self.schedule_bot()
         else:
             self.unschedule_bot()

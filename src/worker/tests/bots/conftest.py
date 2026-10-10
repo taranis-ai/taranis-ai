@@ -1,6 +1,5 @@
 import json
 import os
-import re
 
 import pytest
 
@@ -16,44 +15,5 @@ def stories():
 
 
 @pytest.fixture
-def set_transformers_offline(requests_mock):
-    os.environ["TRANSFORMERS_OFFLINE"] = "1"
-    os.environ["HF_DATASETS_OFFLINE"] = "1"
-    requests_mock.real_http = True
-
-
-@pytest.fixture
 def story_get_mock(requests_mock, stories):
     yield requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/stories", json=stories)
-
-
-@pytest.fixture
-def tags_update_mock(requests_mock):
-    yield requests_mock.put(f"{Config.TARANIS_CORE_URL}/worker/tags", json={"message": "Successfully updated news item tags"})
-
-
-@pytest.fixture
-def news_item_attribute_update_mock(requests_mock):
-    def match_callback(request, context):
-        news_item_id = request.url.split("/")[6]
-        return {"message": f"Successfully updated attributes oif news item with id: '{news_item_id}'"}
-
-    yield requests_mock.put(re.compile(rf"{Config.TARANIS_CORE_URL}/bots/news-item/.+/attributes"), json=match_callback)
-
-
-@pytest.fixture
-def story_attribute_update_mock(requests_mock):
-    def match_callback(request, context):
-        story_id = request.url.split("/")[6]
-        return {"message": f"Successfully updated attributes oif news item with id: '{story_id}'"}
-
-    yield requests_mock.patch(re.compile(rf"{Config.TARANIS_CORE_URL}/bots/story/.+/attributes"), json=match_callback)
-
-
-@pytest.fixture
-def story_update_mock(requests_mock):
-    def match_callback(request, context):
-        story_id = request.url.rsplit("/", 1)[-1]
-        return {"message": f"Successfully updated story with id: '{story_id}'"}
-
-    yield requests_mock.put(re.compile(rf"{Config.TARANIS_CORE_URL}/bots/story/.+"), json=match_callback)

@@ -1,5 +1,9 @@
 name: codeql
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 on:
   push:
     branches:
@@ -11,6 +15,7 @@ permissions:
 
 jobs:
   analyze:
+    timeout-minutes: 10
     name: analyze (${{ matrix.language }})
     runs-on: ubuntu-latest
     permissions:
@@ -27,6 +32,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v7
         with:
+          persist-credentials: false
           fetch-depth: 0
 
       - name: Initialize CodeQL

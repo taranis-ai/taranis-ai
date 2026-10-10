@@ -64,11 +64,13 @@ class Settings(BaseModel):
                     model=merged.get("chat_llm_model", ""),
                     api_format=merged.get("chat_llm_api_format", "responses"),
                     timeout=merged.get("chat_llm_timeout", 120),
+                    enabled=not Config.DEBUG,
                 ).model_dump()
                 merged["llm_chat_endpoint"] = "existing-chat"
         for key in list(merged):
             if key.startswith("chat_llm_"):
                 merged.pop(key)
+        merged["llm_endpoints"] = {key: {"enabled": not Config.DEBUG, **endpoint} for key, endpoint in merged["llm_endpoints"].items()}
         merged.setdefault("llm_default_endpoint", "")
         for feature in LLM_FEATURES:
             merged.setdefault(f"llm_{feature}_endpoint", "")
@@ -157,6 +159,10 @@ class Settings(BaseModel):
 
                 User.set_onboarding_enabled_for_all(current_settings["onboarding_enabled"])
         db.session.commit()
+        if any(key == "llm_default_endpoint" or key.startswith("llm_") and key.endswith("_endpoint") for key in update_data):
+            from core.model.bot import Bot
+
+            Bot.schedule_all_bots()
         return {"message": "Successfully updated settings", "settings": settings.to_dict()["settings"]}, 200
 
     @classmethod
@@ -177,7 +183,8 @@ class Settings(BaseModel):
 
     @classmethod
     def _chat_uses_batch(cls, values: dict) -> bool:
-        endpoint = cls.get_llm_endpoint("chat", values)
+        endpoint_id = values.get("llm_chat_endpoint") or values.get("llm_default_endpoint")
+        endpoint = values.get("llm_endpoints", {}).get(endpoint_id)
         return bool(endpoint and endpoint.get("processing_mode") == "openrouter_batch")
 
     @classmethod
@@ -186,7 +193,8 @@ class Settings(BaseModel):
             return None
         values = settings if settings is not None else cls.get_settings()
         endpoint_id = values.get(f"llm_{feature}_endpoint") or values.get("llm_default_endpoint")
-        return deepcopy(values.get("llm_endpoints", {}).get(endpoint_id))
+        endpoint = values.get("llm_endpoints", {}).get(endpoint_id)
+        return deepcopy(endpoint) if endpoint and endpoint.get("enabled", True) else None
 
     @classmethod
     def save_llm_endpoint(cls, data: dict | None, endpoint_id: str | None = None, *, delete: bool = False) -> tuple[dict, int]:
@@ -216,6 +224,10 @@ class Settings(BaseModel):
             try:
                 clear_key = cls._validate_bool(submitted.pop("api_key_clear", False))
                 existing = endpoints.get(endpoint_id, {})
+                if "enabled" in submitted:
+                    submitted["enabled"] = cls._validate_bool(submitted["enabled"])
+                elif endpoint_id is None:
+                    submitted["enabled"] = not Config.DEBUG
                 if clear_key:
                     submitted["api_key"] = ""
                 elif "api_key" not in submitted or (isinstance(submitted["api_key"], str) and not submitted["api_key"].strip()):
@@ -234,8 +246,10 @@ class Settings(BaseModel):
             return {"error": "Chat requires a realtime LLM endpoint. Reassign Chat before changing this endpoint to batch."}, 400
         entry.settings = values
         db.session.commit()
+        from core.model.bot import Bot
         from core.service.endpoint_health import schedule_check
 
+        Bot.schedule_all_bots()
         schedule_check("llm", endpoint_id)
         return {"message": "LLM endpoint deleted" if delete else "LLM endpoint saved", "id": endpoint_id}, 200
 
@@ -258,10 +272,6 @@ class Settings(BaseModel):
             settings = cls(seed)
             onboarding_missing = True
             db.session.add(settings)
-
-        from core.managers.db_seed_manager import migrate_bot_endpoint_parameters
-
-        migrate_bot_endpoint_parameters(settings)
 
         if onboarding_missing:
             from core.model.user import User

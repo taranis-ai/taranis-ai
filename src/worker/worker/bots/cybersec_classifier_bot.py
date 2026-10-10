@@ -32,11 +32,13 @@ class CyberSecClassifierBot(BaseBot):
         results = {item["id"]: result.model_dump() for item, result in zip(items, results, strict=True)}
 
         num_news_items = 0
+        item_attributes = {}
+        story_attributes = {}
         for story in data:
             story_class_list = []
             story_cybersecurity_status = "incomplete"
             for news_item in story.get("news_items", []):
-                result = self._process_news_item(news_item, results.get(news_item["id"]))
+                result = self._process_news_item(news_item, results.get(news_item["id"]), item_attributes)
                 story_class_list.append(result)
                 if result != "none":
                     num_news_items += 1
@@ -54,12 +56,15 @@ class CyberSecClassifierBot(BaseBot):
                     }
                     story_cybersecurity_status = status_map.get(status_set, "none")
 
-            attributes = [{"key": "cybersecurity", "value": story_cybersecurity_status}, {"key": self.type, "value": 1}]
-            self.core_api.update_story_attributes(story.get("id", ""), attributes)
+            attributes = [{"key": "cybersecurity", "value": story_cybersecurity_status}]
+            story_attributes[story["id"]] = attributes
 
-        return {"message": f"Classified {num_news_items} news items"}
+        return {
+            "message": f"Classified {num_news_items} news items",
+            "changes": {"item_attributes": item_attributes, "story_attributes": story_attributes},
+        }
 
-    def _process_news_item(self, news_item: dict, class_result: dict | None) -> str:
+    def _process_news_item(self, news_item: dict, class_result: dict | None, item_attributes: dict) -> str:
         news_item_id = news_item.get("id", "")
 
         logger.debug(f"Classifying news item with id: {news_item_id}.")
@@ -68,15 +73,9 @@ class CyberSecClassifierBot(BaseBot):
 
         status = "yes" if class_result.get("cybersecurity", 0.0) > self.classification_threshold else "no"
 
-        if self.core_api.update_news_item_attributes(
-            news_item_id,
-            [
-                {"key": "cybersecurity_bot", "value": status},
-                {"key": "cybersecurity_bot_score", "value": str(class_result.get("cybersecurity", "N/A"))},
-            ],
-        ):
-            logger.debug(f"Successfully updated news item {news_item_id} with cybersecurity attributes.")
-        else:
-            logger.error(f"Failed to update news item {news_item_id} with cybersecurity attributes.")
+        item_attributes[news_item_id] = [
+            {"key": "cybersecurity_bot", "value": status},
+            {"key": "cybersecurity_bot_score", "value": str(class_result.get("cybersecurity", "N/A"))},
+        ]
 
         return status

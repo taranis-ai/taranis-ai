@@ -266,8 +266,6 @@ def collector_task(osint_source_id: str, manual: bool = False):
     # Run post-collection bots
     if collector_impl.affected_story_ids:
         core_api.run_post_collection_bots(osint_source_id, story_ids=sorted(collector_impl.affected_story_ids))
-    else:
-        core_api.run_post_collection_bots(osint_source_id)
 
     reason = None
     if isinstance(collector_impl, RSSCollector) and (warning := collector_impl.entry_limit_warning):

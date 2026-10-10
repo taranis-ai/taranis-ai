@@ -50,6 +50,10 @@ NER, sentiment, cybersecurity classification, clustering, and summarization/titl
 
 Workers must reach the selected providers. Missing configuration fails the job with a setup message. Clustering sends only story IDs, summaries, and tags; classification uses the bot's `CLASSIFICATION_THRESHOLD`.
 
+Bot results are staged and submitted to Core with their original story revisions. DAG pipelines share one story snapshot and commit all stages together. Post-collection runs select only new or changed story IDs; empty collections enqueue no bots. Within that scope, each bot type skips stories carrying its completion attribute. Core records completion only when results commit, including successful runs with no findings; collection changes clear these attributes. Explicit manual selections can force reruns.
+
+OpenRouter batch stages pause the RQ job and checkpoint its configuration, story context, and completed stages in Redis; retries resume the pending stage. Redis restart loses pending runs. `REQUESTS_TIMEOUT` controls only network requests. `EXECUTION_TIMEOUT` supplies the bot's job budget, falling back to the global RQ timeout. Pipeline deadlines combine those budgets with 20% headroom and share them across stages; batch provider wait is separate. See [LLM Endpoints](../../docs/agents/llm-endpoints.md) for provider and batch limitations.
+
 ## Architecture
 
 See [Architecture and Boundaries](../../docs/agents/architecture-and-boundaries.md).

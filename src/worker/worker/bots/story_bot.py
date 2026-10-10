@@ -40,5 +40,4 @@ class StoryBot(BaseBot):
         if not clusters:
             return {"message": f"{response.message}. No clusters found."}
 
-        self.core_api.news_items_grouping_multiple(clusters)
-        return {"message": response.message}
+        return {"message": response.message, "changes": {"groups": clusters}}

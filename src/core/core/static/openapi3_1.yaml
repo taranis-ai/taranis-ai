@@ -2454,6 +2454,31 @@ paths:
           description: forbidden
         '404':
           $ref: '#/components/responses/404NotFound'
+  /worker/bot-pipeline/stories:
+    post:
+      security:
+      - APIKey: []
+      description: Select the union of stories for a bot pipeline in one worker response
+      operationId: worker.bot_pipeline_stories_worker.post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [filters]
+              properties:
+                filters:
+                  type: object
+                  additionalProperties:
+                    type: object
+      responses:
+        '200':
+          description: Selected stories, per-bot story IDs, and story revisions
+        '400':
+          description: Invalid filters
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
   /worker/tags:
     get:
       security:
@@ -2548,6 +2573,8 @@ paths:
                 $ref: '#/components/schemas/task'
         '400':
           description: invalid payload
+        '409':
+          description: Story revisions changed before a bot run could commit
         '401':
           $ref: '#/components/responses/401Unauthorized'
     get:
@@ -8982,8 +9009,10 @@ paths:
       - config
       description: >-
         Create an LLM endpoint (ADMIN_OPERATIONS required). Fields are name,
-        base_url, model, api_format (responses or chat_completions), api_key,
+        base_url, enabled, model, api_format (responses or chat_completions), api_key,
         and timeout (positive seconds, default 120). Name and base_url are required.
+        Enabled defaults to false in development (DEBUG=true), true otherwise.
+        Disabled endpoints skip probes, Chat, and bot scheduling.
         API keys are never included in the response or human settings reads.
       operationId: settings.llm_endpoints.post
       requestBody:
@@ -9018,6 +9047,8 @@ paths:
         Update submitted endpoint fields. Omitted fields are preserved.
         An omitted or blank api_key preserves the stored key; api_key_clear=true
         removes it. Settings changes take effect on the next chat turn or bot run.
+        enabled=false removes associated bot cron registrations and blocks new bot
+        dispatch; enabling restores eligible registrations and schedules a probe.
       operationId: settings.llm_endpoint.post
       requestBody:
         required: true
@@ -9079,7 +9110,7 @@ paths:
       - APIKey: []
       tags: [bots]
       operationId: worker.endpoint_health_worker.get
-      description: Returns current probe configuration with credentials, or skip for an obsolete check. Responses are not cacheable.
+      description: Returns current probe configuration with credentials, or skip for a disabled endpoint or obsolete check. Responses are not cacheable.
       parameters:
       - name: check_id
         in: query
@@ -9611,7 +9642,7 @@ paths:
     put:
       security:
       - APIKey: []
-      description: update post collection bots
+      description: Run post-collection bots only for the supplied new or changed stories. An empty list schedules no work.
       operationId: worker.post_collection_bots_worker.put
       requestBody:
         required: true
@@ -9619,6 +9650,19 @@ paths:
           application/json:
             schema:
               type: object
+              required:
+              - source_id
+              - story_ids
+              properties:
+                source_id:
+                  type: string
+                story_ids:
+                  type: array
+                  items:
+                    type: string
+                    minLength: 1
+                user_id:
+                  type: string
       responses:
         '200':
           description: success

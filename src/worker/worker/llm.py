@@ -14,7 +14,7 @@ from worker.log import logger
 
 
 class LLMConfigurationError(RuntimeError):
-    public_message = "Configure an LLM endpoint in Admin Settings > LLM Endpoints."
+    public_message = "Configure and enable an LLM endpoint in Admin Settings > LLM Endpoints."
     reason = "llm_not_configured"
     retryable = False
 
@@ -27,6 +27,8 @@ def get_llm_client(parameters: dict) -> LLMClient:
     if not endpoint:
         raise LLMConfigurationError
     config = LLMEndpoint.model_validate(endpoint)
+    if not config.enabled:
+        raise LLMConfigurationError
     client = LLMClient(
         base_url=config.base_url,
         api_key=config.api_key,
