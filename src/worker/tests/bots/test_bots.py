@@ -153,23 +153,26 @@ def test_wordlist_bot_respects_false_override(monkeypatch):
     assert result == {"item-1": {}}
 
 
-def test_nlp_bot(stories, story_get_mock):
+def test_nlp_bot(stories, story_get_mock, requests_mock):
     from worker import bots
 
     endpoint = {"name": "NER", "base_url": "https://llm.test/v1", "timeout": 42}
+    uploads = requests_mock.put(f"{Config.TARANIS_CORE_URL}/worker/tags?replace=false", json={"message": "Tags updated"})
     with patch.object(LLMClient, "create_response", autospec=True) as provider:
         provider.return_value = {"output_text": '{"Microsoft": "ORG"}'}
         result = bots.NLPBot().execute({"llm_endpoint": endpoint, "REQUESTS_TIMEOUT": 17})
         assert result == {item["id"]: {"Microsoft": "ORG"} for story in stories for item in story["news_items"]}
         assert story_get_mock.call_count == 1
         assert provider.await_count == sum(len(story["news_items"]) for story in stories)
+        assert uploads.call_count == provider.await_count
+        assert uploads.last_request.json() == {stories[-1]["news_items"][-1]["id"]: {"Microsoft": "ORG"}}
         assert provider.call_args.args[0].timeout == 17
         assert provider.call_args.args[2] == _news_item_content_for_tagging(stories[-1]["news_items"][-1], separator="\n")
         assert "Cybersecurity mode is disabled" in provider.call_args.args[1]
 
         cyber_story = {**stories[-1], "attributes": {"cybersecurity": {"value": "yes"}}}
-        with patch.object(bots.NLPBot, "get_stories", return_value=[cyber_story]):
-            bots.NLPBot().execute({"llm_endpoint": endpoint})
+        requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/stories", json=[cyber_story])
+        bots.NLPBot().execute({"llm_endpoint": endpoint})
         assert "Cybersecurity mode is enabled" in provider.call_args.args[1]
         assert provider.call_args.args[0].timeout == 42
 

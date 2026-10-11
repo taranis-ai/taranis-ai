@@ -62,7 +62,8 @@ class BaseBot:
         if not data:
             logger.debug("No stories found")
             return []
-        self.story_revisions = {story["id"]: story["revision"] for story in data if "revision" in story}
+        if not hasattr(self, "pipeline_stories"):
+            self.story_revisions = {story["id"]: story["revision"] for story in data if "revision" in story}
         return data
 
     def refresh(self):

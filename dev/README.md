@@ -340,7 +340,7 @@ The frontend is served by the [Flask & HTMX REST frontend](../src/frontend/READM
 
 ## Local LLM inference
 
-LLM Tagging (NER) saves each completed news item's tags immediately, including in bot pipelines. A later timeout or bot failure retains those tags and leaves unfinished stories eligible for another run. Task errors distinguish the job execution deadline (`EXECUTION_TIMEOUT`) from provider request timeouts (`REQUESTS_TIMEOUT`), invalid model output, and failed tag saves. Worker logs include the current item and progress. Core rejects saves against changed story revisions; rerun with a fresh snapshot. OpenRouter batch results must finish validation before their tags are saved. Core and worker must both run the branch version for the NER checkpoint API.
+NER uploads each completed item's tags through the existing worker tag update API, preserving existing tags and earlier results if a later item fails. Task errors distinguish execution deadlines (`EXECUTION_TIMEOUT`), provider request timeouts (`REQUESTS_TIMEOUT`), invalid output, and failed uploads.
 
 `dev/compose.yml` runs CPU inference at `127.0.0.1:8000`. Add `127.0.0.1 llm-inference` to your hosts file so host-based Core and workers can reach the endpoint Core registers automatically. Allow several minutes for model loading and sufficient RAM; see [inference configuration](../docker/README.md#bundled-llm-inference).
 

@@ -292,21 +292,6 @@ class BotPipelineStories(MethodView):
         }, 200
 
 
-class NERTags(MethodView):
-    @api_key_required
-    def post(self):
-        from core.service.bot_pipeline import BotPipelineService
-
-        result, status = BotPipelineService.save_ner_tags(request.get_json(silent=True))
-        if status == 200:
-            try:
-                realtime_publisher.assess_changed()
-                invalidate_frontend_cache_on_success(status, scopes=(SCOPE_ASSESS_VIEWS, SCOPE_STORY_REPORT_VIEWS))
-            except Exception:
-                logger.exception("NER tags committed but post-commit notification failed")
-        return result, status
-
-
 class MISPStories(MethodView):
     @api_key_required
     def post(self):
@@ -349,6 +334,10 @@ class Tags(MethodView):
             return {"error": "No data provided"}, 400
 
         errors = {}
+        updated = False
+        replace = request.args.get("replace", "true").lower()
+        if replace not in {"true", "false"}:
+            return {"error": "Invalid replace parameter"}, 400
         if not isinstance(data, dict):
             return {"error": "Expected a dict for tags"}, 400
         for news_item_id, tags in data.items():
@@ -361,9 +350,14 @@ class Tags(MethodView):
                 errors[news_item_id] = "News item not found"
                 continue
             actor = Story.resolve_actor(actor=news_item.story.last_change) if news_item.story else None
-            result, status = NewsItemService.update_tags(news_item, tags, actor=actor)
+            result, status = NewsItemService.update_tags(news_item, tags, actor=actor, replace=replace == "true")
             if status != 200:
                 errors[news_item_id] = result.get("error", status)
+            else:
+                updated = True
+        if updated:
+            realtime_publisher.assess_changed()
+            invalidate_frontend_cache_on_success(200, scopes=(SCOPE_ASSESS_VIEWS, SCOPE_STORY_REPORT_VIEWS))
         if errors:
             return {"message": "Some tags failed to update", "errors": errors}, 207
         return {"message": "Tags updated"}, 200
@@ -503,7 +497,6 @@ def initialize(app: Flask):
     worker_bp.add_url_rule("/post-collection-bots", view_func=PostCollectionBots.as_view("post_collection_bots_worker"))
     worker_bp.add_url_rule("/stories", view_func=Stories.as_view("stories_worker"))
     worker_bp.add_url_rule("/bot-pipeline/stories", view_func=BotPipelineStories.as_view("bot_pipeline_stories_worker"))
-    worker_bp.add_url_rule("/bot-pipeline/ner-tags", view_func=NERTags.as_view("ner_tags_worker"))
     worker_bp.add_url_rule("/misp/stories", view_func=MISPStories.as_view("misp_stories_worker"))
     worker_bp.add_url_rule("/misp/last-change", view_func=MISPStories.as_view("last_change"))
     worker_bp.add_url_rule("/word-lists", view_func=WordLists.as_view("word_lists_worker"))

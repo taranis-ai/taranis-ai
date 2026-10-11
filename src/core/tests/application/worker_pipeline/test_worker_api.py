@@ -766,6 +766,14 @@ class TestWorkerApi:
         assert all(tag.get("tag_type") == "misc" for tag in updated_tags)
         assert refreshed == [[story_1_id]]
 
+        revision = updated_story["revision"]
+        response = client.put(f"{self.base_uri}/tags?replace=false", json={news_item_id: {"Microsoft": "ORG"}}, headers=api_header)
+        assert response.status_code == 200
+        appended = client.get(f"{self.base_uri}/stories", headers=api_header, query_string={"story_id": story_1_id}).json[0]
+        item = next(item for item in appended["news_items"] if item["id"] == news_item_id)
+        assert {tag["name"]: tag["tag_type"] for tag in item["tags"]} == {"tag3": "misc", "tag4": "misc", "Microsoft": "ORG"}
+        assert appended["revision"] == revision + 1
+
     def test_worker_put_tags_invalid_cases(self, client, stories, api_header):
         story_1_id = stories[0]
         story_response = client.get(f"{self.base_uri}/stories", headers=api_header, query_string={"story_id": story_1_id})
@@ -805,6 +813,9 @@ class TestWorkerApi:
         response = client.put(f"{self.base_uri}/tags", json={}, headers=api_header)
         assert response.status_code == 400
         assert "error" in response.get_json()
+
+        response = client.put(f"{self.base_uri}/tags?replace=invalid", json={news_item_id: ["tag1"]}, headers=api_header)
+        assert response.status_code == 400
 
     def test_worker_story_roundtrip_preserves_news_item_tag_distribution(self, client, full_story_with_multiple_items_id, api_header):
         story_id, _ = full_story_with_multiple_items_id

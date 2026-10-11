@@ -7,7 +7,6 @@ from typing import Any
 
 from models.llm import LLM_BOT_FEATURES
 from models.worker_parameters import effective_parameter_values
-from niquests.exceptions import RequestException
 from rq import Retry, get_current_job
 from rq.timeouts import JobTimeoutException
 
@@ -165,9 +164,7 @@ def _bot_for_config(bot_config: dict):
     return bot_class()
 
 
-def _execute_by_config(
-    bot_config: dict, filter: dict | None = None, *, bot=None, batch_state: dict | None = None, save_batch_state=None, story_revisions=None
-):
+def _execute_by_config(bot_config: dict, filter: dict | None = None, *, bot=None, batch_state: dict | None = None, save_batch_state=None):
     bot = bot or _bot_for_config(bot_config)
     bot_type = bot_config["type"]
     bot_params: dict[str, Any] = effective_parameter_values(bot_type, bot_config.get("parameters", {}))
@@ -185,28 +182,6 @@ def _execute_by_config(
         bot_params["_stories"] = batch_state["stories"]
         bot_params["_llm_batch_state"] = batch_state
         bot_params["_save_llm_batch_state"] = save_batch_state
-
-    if bot_type == "nlp_bot":
-
-        def save_ner_result(tags: dict) -> None:
-            revisions = story_revisions if story_revisions is not None else bot.story_revisions
-            try:
-                response = bot.core_api.save_ner_tags(bot_config["id"], tags, revisions)
-            except RequestException:
-                logger.exception("Failed to upload extracted NER tags")
-                response = None
-            if not response:
-                raise LLMTaskError(
-                    "Extracted NER tags could not be saved. Check Core connectivity and whether stories changed. Previously saved tags are retained.",
-                    "ner_save_failed",
-                )
-            revisions.update(response["story_revisions"])
-            bot.story_revisions.update(response["story_revisions"])
-            logger.info(f"Saved NER results for {len(tags)} news items")
-            if save_batch_state:
-                save_batch_state()
-
-        bot_params["_save_ner_result"] = save_ner_result
 
     return bot.execute(bot_params)
 
@@ -324,15 +299,9 @@ def bot_pipeline_task(bot_ids: list[str], filter: dict | None = None):
             selected = snapshot["selected"][bot_id]
             selected_ids = list(dict.fromkeys(aliases.get(story_id, story_id) for story_id in selected))
             bot.pipeline_stories = [stories[story_id] for story_id in selected_ids if story_id in stories]
+            bot.story_revisions = snapshot["revisions"]
             batch_state = state["llm_batch"] if (config.get("llm_endpoint") or {}).get("processing_mode") == "openrouter_batch" else None
-            result = _execute_by_config(
-                config,
-                filter,
-                bot=bot,
-                batch_state=batch_state,
-                save_batch_state=job.save_meta if job else None,
-                story_revisions=snapshot["revisions"],
-            )
+            result = _execute_by_config(config, filter, bot=bot, batch_state=batch_state, save_batch_state=job.save_meta if job else None)
             if isinstance(result, Retry):
                 return result
             if result is None:

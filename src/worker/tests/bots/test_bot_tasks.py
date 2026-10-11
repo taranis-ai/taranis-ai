@@ -307,16 +307,7 @@ def test_pipeline_downloads_union_once_and_summary_sees_merged_items(current_job
     )
     submission = requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"status": "SUCCESS"})
 
-    def save_tags(request, context):
-        revisions = request.json()["story_revisions"]
-        item_ids = request.json()["tags"]
-        return {
-            "story_revisions": {
-                story_id: revision + int(story_id.replace("story-", "item-") in item_ids) for story_id, revision in revisions.items()
-            }
-        }
-
-    checkpoints = requests_mock.post(f"{Config.TARANIS_CORE_URL}/worker/bot-pipeline/ner-tags", json=save_tags)
+    uploads = requests_mock.put(f"{Config.TARANIS_CORE_URL}/worker/tags?replace=false", json={"message": "Tags updated"})
     outputs = [
         {"output_text": '{"Microsoft": "ORG"}'},
         {"output_text": '{"Microsoft": "ORG"}'},
@@ -367,7 +358,11 @@ def test_pipeline_downloads_union_once_and_summary_sees_merged_items(current_job
 
     assert result["stories"] == 2
     assert download.call_count == 1
-    assert checkpoints.call_count == 2
+    assert uploads.call_count == 2
+    assert [request.json() for request in uploads.request_history] == [
+        {"item-1": {"Microsoft": "ORG"}},
+        {"item-2": {"Microsoft": "ORG"}},
+    ]
     assert all(config.call_count == 1 for config in configurations)
     assert json.loads(cluster_input)["stories"][0]["tags"] == {"Microsoft": "ORG"}
     assert "Item 1" in summary_input and "Item 2" in summary_input
@@ -424,12 +419,11 @@ def test_ner_saves_completed_items_before_failure(current_job, requests_mock, pi
         )
     else:
         requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/stories", json=[story])
-    checkpoints = requests_mock.post(
-        f"{Config.TARANIS_CORE_URL}/worker/bot-pipeline/ner-tags",
+    uploads = requests_mock.put(
+        f"{Config.TARANIS_CORE_URL}/worker/tags?replace=false",
         [
-            {"json": {"story_revisions": {story["id"]: 1}}},
-            {"json": {"story_revisions": {story["id"]: 1}}},
-            {"json": {"error": "private Core details"}, "status_code": 409},
+            {"json": {"message": "Tags updated"}},
+            {"json": {"errors": {"item-3": "private Core details"}}, "status_code": 207},
         ],
     )
     submission = requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"status": "FAILURE"})
@@ -437,12 +431,12 @@ def test_ner_saves_completed_items_before_failure(current_job, requests_mock, pi
     def response(*args, **kwargs):
         # The next inference must never start before the previous result has reached Core.
         if provider.await_count == 1:
-            assert checkpoints.call_count == 0
+            assert uploads.call_count == 0
             return {"output_text": '{"Microsoft": "ORG"}'}
         if provider.await_count == 2:
-            assert checkpoints.call_count == 1
+            assert uploads.call_count == 1
             return {"output_text": "{}"}
-        assert checkpoints.call_count == 2
+        assert uploads.call_count == 1
         if isinstance(failure, Exception):
             raise failure
         return {"output_text": '{"Apple": "ORG"}' if failure == "save" else "private invalid output"}
@@ -452,17 +446,8 @@ def test_ner_saves_completed_items_before_failure(current_job, requests_mock, pi
         pytest.raises(JobTimeoutException if isinstance(failure, JobTimeoutException) else RuntimeError),
     ):
         bot_pipeline_task(["ner"]) if pipeline else bot_task("ner")
-    assert checkpoints.request_history[0].json() == {
-        "bot_id": "ner",
-        "tags": {"item-1": {"Microsoft": "ORG"}},
-        "story_revisions": {story["id"]: 0},
-    }
-    assert checkpoints.request_history[1].json() == {
-        "bot_id": "ner",
-        "tags": {"item-2": {}},
-        "story_revisions": {story["id"]: 1},
-    }
-    assert checkpoints.call_count == (3 if failure == "save" else 2)
+    assert uploads.request_history[0].json() == {"item-1": {"Microsoft": "ORG"}}
+    assert uploads.call_count == (2 if failure == "save" else 1)
     assert submission.call_count == 1
     result = submission.last_request.json()
     assert result["status"] == "FAILURE"
@@ -470,7 +455,6 @@ def test_ner_saves_completed_items_before_failure(current_job, requests_mock, pi
     assert result["result"]["retryable"] is (reason in {"job_timeout", "llm_request_timeout", "bot_service_unavailable"})
     assert "private" not in str(result)
     if reason == "job_timeout":
-        assert result["result"]["retryable"] is True
         assert "EXECUTION_TIMEOUT" in result["result"]["message"]
 
 
