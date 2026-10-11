@@ -25,11 +25,10 @@ class LLMConfigurationError(RuntimeError):
 
 
 class LLMTaskError(RuntimeError):
-    retryable = False
-
-    def __init__(self, public_message: str, reason: str):
+    def __init__(self, public_message: str, reason: str, *, retryable: bool = False):
         self.public_message = public_message
         self.reason = reason
+        self.retryable = retryable
         super().__init__(public_message)
 
 
@@ -60,7 +59,9 @@ def run_llm_task[T](task: Coroutine[Any, Any, T]) -> T:
         raise
     except Timeout:
         logger.exception("LLM provider request timed out")
-        raise LLMTaskError("LLM provider request timed out. Check the endpoint and REQUESTS_TIMEOUT.", "llm_request_timeout") from None
+        raise LLMTaskError(
+            "LLM provider request timed out. Check the endpoint and REQUESTS_TIMEOUT.", "llm_request_timeout", retryable=True
+        ) from None
     except (RequestException, UpstreamLLMError):
         logger.exception("LLM provider request failed")
         raise BotServiceUnavailableError from None

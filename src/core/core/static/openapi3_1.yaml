@@ -2479,6 +2479,59 @@ paths:
           description: Invalid filters
         '401':
           $ref: '#/components/responses/401Unauthorized'
+  /worker/bot-pipeline/ner-tags:
+    post:
+      security:
+      - APIKey: []
+      description: Commit extracted NER tags without marking stories or the pipeline complete
+      operationId: worker.ner_tags_worker.post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [bot_id, tags, story_revisions]
+              properties:
+                bot_id:
+                  type: string
+                  description: Configured NLP bot ID
+                tags:
+                  type: object
+                  minProperties: 1
+                  description: Validated entities keyed by news item ID; empty findings are accepted
+                  additionalProperties:
+                    type: object
+                    additionalProperties:
+                      type: string
+                story_revisions:
+                  type: object
+                  additionalProperties:
+                    type: integer
+                    minimum: 0
+      responses:
+        '200':
+          description: Tags committed; use the returned revisions for further checkpoints and final submission
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [story_revisions]
+                properties:
+                  story_revisions:
+                    type: object
+                    additionalProperties:
+                      type: integer
+                      minimum: 0
+        '400':
+          description: Invalid NER checkpoint, bot type, or item outside the supplied stories
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '409':
+          description: Stories changed during extraction; retry with a fresh snapshot
+        '500':
+          description: NER tags could not be saved
   /worker/tags:
     get:
       security:

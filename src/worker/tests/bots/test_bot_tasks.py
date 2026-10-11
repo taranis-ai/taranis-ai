@@ -467,6 +467,7 @@ def test_ner_saves_completed_items_before_failure(current_job, requests_mock, pi
     result = submission.last_request.json()
     assert result["status"] == "FAILURE"
     assert result["result"]["reason"] == reason
+    assert result["result"]["retryable"] is (reason in {"job_timeout", "llm_request_timeout", "bot_service_unavailable"})
     assert "private" not in str(result)
     if reason == "job_timeout":
         assert result["result"]["retryable"] is True
