@@ -3,10 +3,12 @@ from collections.abc import Coroutine
 from typing import Any
 
 from llm_bot.client import LLMClient, UpstreamLLMError
-from llm_bot.tasks.llm_utils import LLMTask
+from llm_bot.tasks.llm_utils import InvalidLLMOutputError, LLMTask, MissingOutputTextError
 from models.llm import LLMEndpoint
-from niquests.exceptions import RequestException
+from niquests.exceptions import RequestException, Timeout
+from pydantic import ValidationError
 from rq import Retry
+from rq.timeouts import JobTimeoutException
 
 from worker.bot_api import BotServiceUnavailableError
 from worker.llm_batch import BatchProcessor
@@ -20,6 +22,15 @@ class LLMConfigurationError(RuntimeError):
 
     def __init__(self):
         super().__init__(self.public_message)
+
+
+class LLMTaskError(RuntimeError):
+    retryable = False
+
+    def __init__(self, public_message: str, reason: str):
+        self.public_message = public_message
+        self.reason = reason
+        super().__init__(public_message)
 
 
 def get_llm_client(parameters: dict) -> LLMClient:
@@ -44,12 +55,21 @@ def get_llm_client(parameters: dict) -> LLMClient:
 def run_llm_task[T](task: Coroutine[Any, Any, T]) -> T:
     try:
         return asyncio.run(task)
+    except JobTimeoutException:
+        logger.exception("LLM execution exceeded the RQ job deadline")
+        raise
+    except Timeout:
+        logger.exception("LLM provider request timed out")
+        raise LLMTaskError("LLM provider request timed out. Check the endpoint and REQUESTS_TIMEOUT.", "llm_request_timeout") from None
     except (RequestException, UpstreamLLMError):
         logger.exception("LLM provider request failed")
         raise BotServiceUnavailableError from None
+    except (ValidationError, InvalidLLMOutputError, MissingOutputTextError, ValueError):
+        logger.exception("LLM provider returned invalid output")
+        raise LLMTaskError("LLM provider returned invalid output. Check the model and worker logs.", "llm_invalid_output") from None
     except Exception:
         logger.exception("LLM task failed")
-        raise RuntimeError("LLM task failed") from None
+        raise LLMTaskError("LLM processing failed. Check the worker logs for details.", "llm_processing_failed") from None
 
 
 def run_llm_tasks[T](tasks: list[LLMTask[T]], client: LLMClient, parameters: dict) -> list[T] | Retry:

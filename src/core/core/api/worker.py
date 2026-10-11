@@ -292,6 +292,21 @@ class BotPipelineStories(MethodView):
         }, 200
 
 
+class NERTags(MethodView):
+    @api_key_required
+    def post(self):
+        from core.service.bot_pipeline import BotPipelineService
+
+        result, status = BotPipelineService.save_ner_tags(request.get_json(silent=True))
+        if status == 200:
+            try:
+                realtime_publisher.assess_changed()
+                invalidate_frontend_cache_on_success(status, scopes=(SCOPE_ASSESS_VIEWS, SCOPE_STORY_REPORT_VIEWS))
+            except Exception:
+                logger.exception("NER tags committed but post-commit notification failed")
+        return result, status
+
+
 class MISPStories(MethodView):
     @api_key_required
     def post(self):
@@ -488,6 +503,7 @@ def initialize(app: Flask):
     worker_bp.add_url_rule("/post-collection-bots", view_func=PostCollectionBots.as_view("post_collection_bots_worker"))
     worker_bp.add_url_rule("/stories", view_func=Stories.as_view("stories_worker"))
     worker_bp.add_url_rule("/bot-pipeline/stories", view_func=BotPipelineStories.as_view("bot_pipeline_stories_worker"))
+    worker_bp.add_url_rule("/bot-pipeline/ner-tags", view_func=NERTags.as_view("ner_tags_worker"))
     worker_bp.add_url_rule("/misp/stories", view_func=MISPStories.as_view("misp_stories_worker"))
     worker_bp.add_url_rule("/misp/last-change", view_func=MISPStories.as_view("last_change"))
     worker_bp.add_url_rule("/word-lists", view_func=WordLists.as_view("word_lists_worker"))

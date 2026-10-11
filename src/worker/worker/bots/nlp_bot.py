@@ -2,7 +2,8 @@ from llm_bot.schemas import NerRequest
 from llm_bot.tasks.ner import prepare_ner
 from rq import Retry
 
-from worker.llm import get_llm_client, run_llm_tasks
+from worker.llm import get_llm_client, run_llm_task, run_llm_tasks
+from worker.log import logger
 
 from .base_bot import BaseBot
 from .tagging_content import _news_item_content_for_tagging
@@ -37,7 +38,17 @@ class NLPBot(BaseBot):
                 items.append(news_item["id"])
                 tasks.append(prepare_ner(NerRequest(text=news_item_content, cybersecurity=is_cybersecurity)))
 
-        results = run_llm_tasks(tasks, self.llm_client, parameters)
-        if isinstance(results, Retry):
-            return results
-        return {item_id: result.root for item_id, result in zip(items, results, strict=True)}
+        save_result = parameters.get("_save_ner_result")
+        tags = {}
+        results = None
+        if parameters["llm_endpoint"].get("processing_mode") == "openrouter_batch":
+            results = run_llm_tasks(tasks, self.llm_client, parameters)
+            if isinstance(results, Retry):
+                return results
+        for index, (item_id, task) in enumerate(zip(items, tasks, strict=True)):
+            logger.info(f"Processing NER for news item {item_id} ({index + 1}/{len(items)})")
+            result = results[index] if results is not None else run_llm_task(task.run(self.llm_client))
+            tags[item_id] = result.root
+            if save_result:
+                save_result({item_id: result.root})
+        return tags

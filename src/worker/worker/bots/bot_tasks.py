@@ -7,19 +7,24 @@ from typing import Any
 
 from models.llm import LLM_BOT_FEATURES
 from models.worker_parameters import effective_parameter_values
+from niquests.exceptions import RequestException
 from rq import Retry, get_current_job
+from rq.timeouts import JobTimeoutException
 
 import worker.bots
 from worker.bot_api import BotServiceUnavailableError
 from worker.core_api import CoreApi, build_failure_task_result, build_success_task_result
 from worker.http_client import http_session_scope
-from worker.llm import LLMConfigurationError
+from worker.llm import LLMConfigurationError, LLMTaskError
 from worker.llm_batch import BatchExecutionError
 from worker.log import logger
 from worker.telemetry import instrument_job
 
 
 TAGGING_BOTS = {"WORDLIST_BOT", "IOC_BOT", "NLP_BOT", "TAGGING_BOT"}
+JOB_TIMEOUT_MESSAGE = (
+    "Bot exceeded its execution timeout. Reduce the selected stories or increase EXECUTION_TIMEOUT. Saved NER tags are retained."
+)
 
 
 @instrument_job
@@ -98,7 +103,12 @@ def bot_task(bot_id: str, filter: dict | None = None, trigger_dependents: bool =
     except Exception as exc:
         not_found = isinstance(exc, ValueError) and exc.args == (f"Bot with id {bot_id} not found",)
         empty_result = isinstance(exc, RuntimeError) and exc.args == (f"Bot {bot_id} returned no result",)
-        if isinstance(exc, (BotServiceUnavailableError, LLMConfigurationError, BatchExecutionError)):
+        logger.exception("Bot execution failed")
+        if isinstance(exc, JobTimeoutException):
+            error_message = JOB_TIMEOUT_MESSAGE
+            reason = "job_timeout"
+            retryable = True
+        elif isinstance(exc, (BotServiceUnavailableError, LLMConfigurationError, LLMTaskError, BatchExecutionError)):
             error_message = exc.public_message
             reason = exc.reason
             retryable = exc.retryable
@@ -155,7 +165,9 @@ def _bot_for_config(bot_config: dict):
     return bot_class()
 
 
-def _execute_by_config(bot_config: dict, filter: dict | None = None, *, bot=None, batch_state: dict | None = None, save_batch_state=None):
+def _execute_by_config(
+    bot_config: dict, filter: dict | None = None, *, bot=None, batch_state: dict | None = None, save_batch_state=None, story_revisions=None
+):
     bot = bot or _bot_for_config(bot_config)
     bot_type = bot_config["type"]
     bot_params: dict[str, Any] = effective_parameter_values(bot_type, bot_config.get("parameters", {}))
@@ -173,6 +185,28 @@ def _execute_by_config(bot_config: dict, filter: dict | None = None, *, bot=None
         bot_params["_stories"] = batch_state["stories"]
         bot_params["_llm_batch_state"] = batch_state
         bot_params["_save_llm_batch_state"] = save_batch_state
+
+    if bot_type == "nlp_bot":
+
+        def save_ner_result(tags: dict) -> None:
+            revisions = story_revisions if story_revisions is not None else bot.story_revisions
+            try:
+                response = bot.core_api.save_ner_tags(bot_config["id"], tags, revisions)
+            except RequestException:
+                logger.exception("Failed to upload extracted NER tags")
+                response = None
+            if not response:
+                raise LLMTaskError(
+                    "Extracted NER tags could not be saved. Check Core connectivity and whether stories changed. Previously saved tags are retained.",
+                    "ner_save_failed",
+                )
+            revisions.update(response["story_revisions"])
+            bot.story_revisions.update(response["story_revisions"])
+            logger.info(f"Saved NER results for {len(tags)} news items")
+            if save_batch_state:
+                save_batch_state()
+
+        bot_params["_save_ner_result"] = save_ner_result
 
     return bot.execute(bot_params)
 
@@ -291,7 +325,14 @@ def bot_pipeline_task(bot_ids: list[str], filter: dict | None = None):
             selected_ids = list(dict.fromkeys(aliases.get(story_id, story_id) for story_id in selected))
             bot.pipeline_stories = [stories[story_id] for story_id in selected_ids if story_id in stories]
             batch_state = state["llm_batch"] if (config.get("llm_endpoint") or {}).get("processing_mode") == "openrouter_batch" else None
-            result = _execute_by_config(config, filter, bot=bot, batch_state=batch_state, save_batch_state=job.save_meta if job else None)
+            result = _execute_by_config(
+                config,
+                filter,
+                bot=bot,
+                batch_state=batch_state,
+                save_batch_state=job.save_meta if job else None,
+                story_revisions=snapshot["revisions"],
+            )
             if isinstance(result, Retry):
                 return result
             if result is None:
@@ -326,16 +367,17 @@ def bot_pipeline_task(bot_ids: list[str], filter: dict | None = None):
         return {"worker_type": "BOT_PIPELINE", "bots": bot_ids, "stories": len(snapshot["stories"])}
     except Exception as exc:
         logger.exception("Bot pipeline failed")
-        is_public = isinstance(exc, (BotServiceUnavailableError, LLMConfigurationError, BatchExecutionError))
+        is_public = isinstance(exc, (BotServiceUnavailableError, LLMConfigurationError, LLMTaskError, BatchExecutionError))
+        timed_out = isinstance(exc, JobTimeoutException)
         core_api.save_task_result(
             run_id,
             "bot_pipeline",
             "FAILURE",
             worker_type="BOT_PIPELINE",
             result=build_failure_task_result(
-                exc.public_message if is_public else "Bot pipeline failed",
-                reason=exc.reason if is_public else "bot_pipeline_failed",
-                retryable=exc.retryable if is_public else False,
+                JOB_TIMEOUT_MESSAGE if timed_out else exc.public_message if is_public else "Bot pipeline failed",
+                reason="job_timeout" if timed_out else exc.reason if is_public else "bot_pipeline_failed",
+                retryable=timed_out or (exc.retryable if is_public else False),
                 data={"bot_ids": bot_ids, "filter": filter},
             ),
         )

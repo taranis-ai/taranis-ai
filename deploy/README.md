@@ -28,6 +28,8 @@ In **Admin Settings > LLM Endpoints**, verify the default, feature assignments, 
 
 For bots that used `REQUESTS_TIMEOUT` to extend the RQ job deadline, configure `EXECUTION_TIMEOUT` with the required job budget before running them. `REQUESTS_TIMEOUT` now controls only network requests; blank execution timeout uses `RQ_DEFAULT_JOB_TIMEOUT`. Pipelines combine the bot budgets with 20% headroom. Let existing runs finish before upgrading Core and workers together: collection dispatch and staged results now require explicit processed story IDs. Rerun interrupted jobs after the upgrade, and keep the previous parameter values for rollback.
 
+NER tagging also requires matching Core and worker versions for `/worker/bot-pipeline/ner-tags`. Upgrade them together after existing runs finish. Each completed item's tags are committed immediately and survive later failures; unfinished stories remain eligible for another run. When rolling back, let jobs finish or rerun interrupted jobs with a fresh snapshot. Previously saved tags remain in the database; no schema migration is needed for NER checkpoints.
+
 After applying the raw manifests, remove the retired bot Deployments and Services; `kubectl apply -k` does not prune them. Helm removes workloads no longer in the chart. Verify inference, Core, workers, and a representative job for each configured LLM feature.
 
 Keep a database backup and previous images/configuration for rollback: startup removes obsolete bot connection parameters. Restore previous services and settings if reverting, without overwriting newer content. No database schema migration is required.

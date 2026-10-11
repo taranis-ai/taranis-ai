@@ -108,6 +108,52 @@ def test_bot_pipeline_uses_one_snapshot_and_commits_only_complete_runs(app, clie
             assert Story.get(first.id).revision == snapshot["revisions"][first.id]
             assert Task.get_by_job_id(invalid_payload["id"]) is None
 
+        # NER checkpoints survive a failed run without completing any stage.
+        checkpoint = {
+            "bot_id": bot_ids["NLP_BOT"],
+            "tags": {first_item_id: {"Microsoft": "ORG"}, second_item_id: {}},
+            "story_revisions": snapshot["revisions"],
+        }
+        checkpoint_uri = "/api/worker/bot-pipeline/ner-tags"
+        assert client.post(checkpoint_uri, json=checkpoint).status_code == 401
+        saved = client.post(checkpoint_uri, json=checkpoint, headers=api_header)
+        assert saved.status_code == 200
+        saved_revisions = saved.json["story_revisions"]
+        assert saved_revisions[first.id] > snapshot["revisions"][first.id]
+        assert saved_revisions[second.id] == snapshot["revisions"][second.id]
+        assert all(Story.get(story_id).find_attribute_by_key("NLP_BOT") is None for story_id in (first.id, second.id))
+        assert client.post(checkpoint_uri, json=checkpoint, headers=api_header).status_code == 409
+
+        checkpoint["story_revisions"] = saved_revisions
+        for invalid_checkpoint in (
+            {**checkpoint, "bot_id": bot_ids["SUMMARY_BOT"]},
+            {**checkpoint, "tags": {first_item_id: {"Apple": "ORG"}, unrelated.news_items[0].id: {"Apple": "ORG"}}},
+            {**checkpoint, "tags": {first_item_id: {"Microsoft": {"tag_type": "ORG"}}}},
+            {**checkpoint, "tags": {"changes": {}}},
+            {**checkpoint, "story_revisions": {first.id: True}},
+            {**checkpoint, "changes": {"story_updates": {first.id: {"title": "Unallowed change"}}}},
+        ):
+            rejected = client.post(checkpoint_uri, json=invalid_checkpoint, headers=api_header)
+            assert rejected.status_code == 400
+            assert Story.get(first.id).revision == saved_revisions[first.id]
+            assert {tag.name for tag in NewsItem.get(first_item_id).tags} == {"Microsoft"}
+
+        failed = client.post(
+            "/api/tasks",
+            json={
+                **payload,
+                "status": "FAILURE",
+                "result": {"message": "Bot exceeded its execution timeout", "reason": "job_timeout", "retryable": True},
+            },
+            headers=api_header,
+        )
+        assert failed.status_code == 200
+        assert Task.get_by_job_id(payload["id"]).status == "FAILURE"
+        assert {tag.name for tag in NewsItem.get(first_item_id).tags} == {"Microsoft"}
+        retry_snapshot = client.post("/api/worker/bot-pipeline/stories", json={"filters": filters}, headers=api_header)
+        assert all(set(ids) == {first.id, second.id} for ids in retry_snapshot.json["selected"].values())
+
+        payload["result"]["data"]["story_revisions"] = saved_revisions
         committed = client.post("/api/tasks", json=payload, headers=api_header)
         assert committed.status_code == 200
         assert Story.get(second.id) is None
@@ -118,7 +164,7 @@ def test_bot_pipeline_uses_one_snapshot_and_commits_only_complete_runs(app, clie
         assert all(merged.find_attribute_by_key(bot_type) for bot_type in bot_ids)
         assert "|count=0|" in merged.find_attribute_by_key("IOC_BOT").value
         assert all(Story.get(unrelated.id).find_attribute_by_key(bot_type) is None for bot_type in bot_ids)
-        assert {tag.name for tag in NewsItem.get(first_item_id).tags} == {"CVE-2026-1234"}
+        assert {tag.name for tag in NewsItem.get(first_item_id).tags} == {"Microsoft", "CVE-2026-1234"}
         assert {tag.name for tag in NewsItem.get(second_item_id).tags} == {"CVE-2026-5678"}
         revision = merged.revision
         assert client.post("/api/tasks", json=payload, headers=api_header).status_code == 200

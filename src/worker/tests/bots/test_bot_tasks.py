@@ -8,8 +8,9 @@ from unittest.mock import patch
 import pytest
 from llm_bot.client import LLMClient, UpstreamLLMError
 from models.task import TaskResult
-from niquests.exceptions import RequestException
+from niquests.exceptions import RequestException, Timeout
 from rq import Retry
+from rq.timeouts import JobTimeoutException
 
 import worker.bots
 from worker.bots.bot_tasks import bot_pipeline_task, bot_task
@@ -102,7 +103,7 @@ class TestBotTask:
             assert task_data["result"]["retryable"] is False
             assert "Admin Settings > LLM Endpoints" in task_data["result"]["message"]
         else:
-            assert task_data["result"]["reason"] == ("bot_service_unavailable" if failure else "bot_execution_failed")
+            assert task_data["result"]["reason"] == ("bot_service_unavailable" if failure else "llm_invalid_output")
             assert task_data["result"]["retryable"] is bool(failure)
             if failure:
                 assert task_data["result"]["message"] == (
@@ -305,6 +306,17 @@ def test_pipeline_downloads_union_once_and_summary_sees_merged_items(current_job
         },
     )
     submission = requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"status": "SUCCESS"})
+
+    def save_tags(request, context):
+        revisions = request.json()["story_revisions"]
+        item_ids = request.json()["tags"]
+        return {
+            "story_revisions": {
+                story_id: revision + int(story_id.replace("story-", "item-") in item_ids) for story_id, revision in revisions.items()
+            }
+        }
+
+    checkpoints = requests_mock.post(f"{Config.TARANIS_CORE_URL}/worker/bot-pipeline/ner-tags", json=save_tags)
     outputs = [
         {"output_text": '{"Microsoft": "ORG"}'},
         {"output_text": '{"Microsoft": "ORG"}'},
@@ -355,6 +367,7 @@ def test_pipeline_downloads_union_once_and_summary_sees_merged_items(current_job
 
     assert result["stories"] == 2
     assert download.call_count == 1
+    assert checkpoints.call_count == 2
     assert all(config.call_count == 1 for config in configurations)
     assert json.loads(cluster_input)["stories"][0]["tags"] == {"Microsoft": "ORG"}
     assert "Item 1" in summary_input and "Item 2" in summary_input
@@ -368,7 +381,7 @@ def test_pipeline_downloads_union_once_and_summary_sees_merged_items(current_job
         "STORY_BOT",
         "SUMMARY_BOT",
     ]
-    assert payload["result"]["data"]["story_revisions"] == {"story-1": 0, "story-2": 0}
+    assert payload["result"]["data"]["story_revisions"] == {"story-1": 1, "story-2": 1}
     assert [stage["story_ids"] for stage in payload["result"]["data"]["bot_stages"]] == [
         ["story-1", "story-2"],
         ["story-1", "story-2"],
@@ -380,6 +393,84 @@ def test_pipeline_downloads_union_once_and_summary_sees_merged_items(current_job
     }
     assert current_job.meta == {"user_id": "user-1"}
     assert all("/worker/stories" not in request.url and "/bots/story/" not in request.url for request in requests_mock.request_history)
+
+
+@pytest.mark.parametrize("pipeline", [False, True])
+@pytest.mark.parametrize(
+    "failure, reason",
+    [
+        (JobTimeoutException("private timeout details"), "job_timeout"),
+        (Timeout("private provider details"), "llm_request_timeout"),
+        (RequestException("private provider details"), "bot_service_unavailable"),
+        (None, "llm_invalid_output"),
+        ("save", "ner_save_failed"),
+    ],
+)
+def test_ner_saves_completed_items_before_failure(current_job, requests_mock, pipeline, failure, reason):
+    endpoint = {"name": "NER", "base_url": "https://llm.test/v1"}
+    story = {
+        "id": "story-1",
+        "revision": 0,
+        "news_items": [{"id": f"item-{number}", "title": "Story", "content": "Content"} for number in (1, 2, 3)],
+    }
+    requests_mock.get(
+        f"{Config.TARANIS_CORE_URL}/worker/bots/ner",
+        json={"id": "ner", "type": "nlp_bot", "parameters": {}, "llm_endpoint": endpoint},
+    )
+    if pipeline:
+        requests_mock.post(
+            f"{Config.TARANIS_CORE_URL}/worker/bot-pipeline/stories",
+            json={"stories": [story], "selected": {"ner": [story["id"]]}, "revisions": {story["id"]: 0}},
+        )
+    else:
+        requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/stories", json=[story])
+    checkpoints = requests_mock.post(
+        f"{Config.TARANIS_CORE_URL}/worker/bot-pipeline/ner-tags",
+        [
+            {"json": {"story_revisions": {story["id"]: 1}}},
+            {"json": {"story_revisions": {story["id"]: 1}}},
+            {"json": {"error": "private Core details"}, "status_code": 409},
+        ],
+    )
+    submission = requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"status": "FAILURE"})
+
+    def response(*args, **kwargs):
+        # The next inference must never start before the previous result has reached Core.
+        if provider.await_count == 1:
+            assert checkpoints.call_count == 0
+            return {"output_text": '{"Microsoft": "ORG"}'}
+        if provider.await_count == 2:
+            assert checkpoints.call_count == 1
+            return {"output_text": "{}"}
+        assert checkpoints.call_count == 2
+        if isinstance(failure, Exception):
+            raise failure
+        return {"output_text": '{"Apple": "ORG"}' if failure == "save" else "private invalid output"}
+
+    with (
+        patch.object(LLMClient, "create_response", autospec=True, side_effect=response) as provider,
+        pytest.raises(JobTimeoutException if isinstance(failure, JobTimeoutException) else RuntimeError),
+    ):
+        bot_pipeline_task(["ner"]) if pipeline else bot_task("ner")
+    assert checkpoints.request_history[0].json() == {
+        "bot_id": "ner",
+        "tags": {"item-1": {"Microsoft": "ORG"}},
+        "story_revisions": {story["id"]: 0},
+    }
+    assert checkpoints.request_history[1].json() == {
+        "bot_id": "ner",
+        "tags": {"item-2": {}},
+        "story_revisions": {story["id"]: 1},
+    }
+    assert checkpoints.call_count == (3 if failure == "save" else 2)
+    assert submission.call_count == 1
+    result = submission.last_request.json()
+    assert result["status"] == "FAILURE"
+    assert result["result"]["reason"] == reason
+    assert "private" not in str(result)
+    if reason == "job_timeout":
+        assert result["result"]["retryable"] is True
+        assert "EXECUTION_TIMEOUT" in result["result"]["message"]
 
 
 class TestSaveTaskResult:

@@ -392,6 +392,9 @@ class CoreApi:
     def get_pipeline_stories(self, filters: dict[str, dict]) -> dict | None:
         return self.api_post("/worker/bot-pipeline/stories", {"filters": filters})
 
+    def save_ner_tags(self, bot_id: str, tags: dict, revisions: dict[str, int]) -> dict | None:
+        return self.api_post("/worker/bot-pipeline/ner-tags", {"bot_id": bot_id, "tags": tags, "story_revisions": revisions})
+
     def get_tags(self) -> dict | None:
         return self.api_get("/worker/tags")
 

@@ -32,6 +32,65 @@ class StaleBotRun(ValueError):
 
 class BotPipelineService:
     @staticmethod
+    def _lock_stories(revisions: Any) -> dict[str, Story]:
+        if not isinstance(revisions, dict) or any(
+            not isinstance(story_id, str) or type(revision) is not int or revision < 0 for story_id, revision in revisions.items()
+        ):
+            raise InvalidBotRun
+        stories = {
+            story.id: story for story in db.session.execute(db.select(Story).where(Story.id.in_(revisions)).with_for_update()).scalars()
+        }
+        if len(stories) != len(revisions) or any(stories[story_id].revision != revision for story_id, revision in revisions.items()):
+            raise StaleBotRun
+        return stories
+
+    @classmethod
+    def save_ner_tags(cls, payload: Any) -> tuple[dict, int]:
+        """Commit extracted tags without marking a story or its pipeline complete."""
+        if (
+            not isinstance(payload, dict)
+            or set(payload) != {"bot_id", "tags", "story_revisions"}
+            or not isinstance(payload["tags"], dict)
+            or not payload["tags"]
+            or any(
+                not isinstance(item_id, str)
+                or item_id in {"message", "changes"}
+                or not isinstance(tags, dict)
+                or any(not isinstance(name, str) or not isinstance(label, str) for name, label in tags.items())
+                for item_id, tags in payload["tags"].items()
+            )
+        ):
+            return {"error": "Invalid NER checkpoint"}, 400
+        affected: set[str] = set()
+        try:
+            stories = cls._lock_stories(payload["story_revisions"])
+            cls._apply_stage(
+                {"bot_id": payload["bot_id"], "bot_type": "NLP_BOT", "story_ids": [], "result": payload["tags"]},
+                set(stories),
+                {item.id for story in stories.values() for item in story.news_items},
+                affected,
+            )
+            db.session.flush()
+            revisions = {story_id: story.revision for story_id, story in stories.items()}
+            db.session.commit()
+        except StaleBotRun:
+            db.session.rollback()
+            return {"error": "Stories changed during NER extraction. Retry the run."}, 409
+        except InvalidBotRun:
+            db.session.rollback()
+            return {"error": "Invalid NER checkpoint"}, 400
+        except Exception:
+            db.session.rollback()
+            logger.exception("Failed to save NER checkpoint")
+            return {"error": "NER tags could not be saved"}, 500
+        if affected:
+            try:
+                refresh_misp_auto_update_jobs(affected)
+            except Exception:
+                logger.exception("NER tags committed but MISP refresh failed")
+        return {"story_revisions": revisions}, 200
+
+    @staticmethod
     def _attributes(value: list) -> list[NewsItemAttribute]:
         try:
             return NewsItemAttribute.load_multiple(value)
@@ -58,11 +117,7 @@ class BotPipelineService:
             if existing and existing.status == "SUCCESS":
                 return TaskResponseModel.model_validate(existing.to_dict()).model_dump(mode="json", exclude_none=False), 200, False
 
-            stories = {
-                story.id: story for story in db.session.execute(db.select(Story).where(Story.id.in_(revisions)).with_for_update()).scalars()
-            }
-            if len(stories) != len(revisions) or any(stories[story_id].revision != revision for story_id, revision in revisions.items()):
-                raise StaleBotRun
+            stories = cls._lock_stories(revisions)
             allowed_items = {item.id for story in stories.values() for item in story.news_items}
             affected_story_ids: set[str] = set()
             for stage in stages:
