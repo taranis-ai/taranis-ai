@@ -1,0 +1,14 @@
+<section class="border-l-4 border-primary pl-3 space-y-2" data-test-id="asset-matched-host">
+  <div class="flex flex-wrap gap-2 items-center">
+    {% if not asset_id %}
+      <a class="link font-bold"
+         href="{{ url_for('assets.asset_intelligence', **dict(query, asset_id=host.asset_id)) }}">{{ host.asset_name }}</a>
+      <span class="text-sm">{{ host.group_name }}</span>
+    {% endif %}
+    {% if host.package_match %}<span class="badge badge-outline">Software phrase match</span>{% endif %}
+    {% if host.max_cvss is not none %}<span class="badge badge-outline" data-test-id="asset-highest-cvss">Highest reported CVSS {{ host.max_cvss }}</span>{% else %}<span class="text-sm">No matching CVE score</span>{% endif %}
+  </div>
+  {% with asset_id=host.asset_id, article=host %}
+    {% include "assets/article_matches.html" %}
+  {% endwith %}
+</section>

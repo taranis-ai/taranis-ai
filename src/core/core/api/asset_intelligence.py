@@ -18,7 +18,6 @@ from core.service.asset_intelligence import (
     generate_triggers,
     grouped_triggers,
     product_identity,
-    relevant_stories,
     scan_batch,
     start_match_run,
 )
@@ -26,6 +25,10 @@ from core.service.asset_intelligence_overview import intelligence_overview
 
 
 TRIGGERS_PER_PAGE = 50
+INTELLIGENCE_FILTER_ERROR = (
+    "Choose Any, Yes or No for match filters, a positive page, 1–100 stories per page, a complete CVE ID, "
+    "CVSS scores from 0 to 10 with minimum ≤ maximum, and collection dates with start ≤ end."
+)
 
 
 def trigger_response(trigger: AssetTrigger, group: list[AssetTrigger] | None = None) -> dict:
@@ -166,9 +169,15 @@ class AssetIntelligence(MethodView):
             return {"error": "Intelligence access is required."}, 403
         if not (asset := accessible_asset(asset_id, current_user)):
             return {"error": "Asset not found."}, 404
-        page = max(1, request.args.get("page", 1, type=int))
-        cve_only = request.args.get("cve_only", "false").lower() == "true"
-        return {"asset_name": asset.name, **relevant_stories(asset_id, current_user, page, cve_only=cve_only)}, 200
+        try:
+            filters = IntelligenceFilters.model_validate({**request.args.to_dict(), "asset_id": asset_id})
+        except ValidationError:
+            return {"error": INTELLIGENCE_FILTER_ERROR}, 400
+        data = intelligence_overview(current_user, filters)
+        # The individual-asset API exposes each article's evidence directly.
+        for story in data["items"]:
+            story["articles"] = [article["hosts"][0] for article in story["articles"]]
+        return {"asset_name": asset.name, **data}, 200
 
 
 class AssetsIntelligence(MethodView):
@@ -179,9 +188,7 @@ class AssetsIntelligence(MethodView):
         try:
             filters = IntelligenceFilters.model_validate(request.args.to_dict())
         except ValidationError:
-            return {
-                "error": "Choose Any, Yes or No for match filters, a positive page, and CVSS scores from 0 to 10 with minimum ≤ maximum."
-            }, 400
+            return {"error": INTELLIGENCE_FILTER_ERROR}, 400
         return intelligence_overview(current_user, filters), 200
 
 

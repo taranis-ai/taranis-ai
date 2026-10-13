@@ -1,0 +1,95 @@
+<form id="intelligence-filters" method="get" class="space-y-3">
+  <div class="flex flex-wrap gap-3 items-end">
+    {% if not asset_id %}
+      <div>
+        <label for="overview-host">Host</label>
+        <select id="overview-host" class="select select-bordered block" name="asset_id">
+          <option value="">All hosts</option>
+          {% if filters.asset_id and (not data or filters.asset_id not in data.assets | map(attribute="id")) %}
+            <option value="{{ filters.asset_id }}" selected>Selected host (unavailable)</option>
+          {% endif %}
+          {% for asset in data.assets if data %}<option value="{{ asset.id }}"
+        {% if filters.asset_id == asset.id %}selected{% endif %}>{{ asset.name }}</option>{% endfor %}
+        </select>
+      </div>
+    {% endif %}
+    <div>
+      <label for="overview-group">Asset group</label>
+      <select id="overview-group" class="select select-bordered block" name="group_id">
+        <option value="">All groups</option>
+        {% if filters.group_id and (not data or filters.group_id not in data.groups | map(attribute="id")) %}
+          <option value="{{ filters.group_id }}" selected>Selected group (unavailable)</option>
+        {% endif %}
+        {% for group in data.groups if data %}<option value="{{ group.id }}"
+        {% if filters.group_id == group.id %}selected{% endif %}>{{ group.name }}</option>{% endfor %}
+      </select>
+    </div>
+    <div>
+      <label for="overview-tag">Asset tag</label>
+      <select id="overview-tag" name="tag" class="select select-bordered block" data-test-id="overview-tag-filter">
+        <option value="">All tags</option>
+        {% for tag in data.tags if data %}<option value="{{ tag }}"
+        {% if filters.tag == tag %}selected{% endif %}>{{ tag }}</option>{% endfor %}
+      </select>
+    </div>
+    <label>
+      Package name or PURL
+      <input class="input input-bordered block" type="search" name="package" maxlength="200" value="{{ filters.package }}">
+    </label>
+  </div>
+  <div class="flex flex-wrap gap-3 items-end">
+    <label>
+      CVE ID
+      <input class="input input-bordered block"
+             type="search"
+             name="cve_id"
+             maxlength="64"
+             placeholder="CVE-2026-12345"
+             value="{{ filters.cve_id }}">
+    </label>
+    <label>
+      Collected from
+      <input class="input input-bordered block" type="date" name="collected_from" value="{{ filters.collected_from or '' }}">
+    </label>
+    <label>
+      Collected through
+      <input class="input input-bordered block" type="date" name="collected_to" value="{{ filters.collected_to or '' }}">
+    </label>
+  </div>
+  <p class="text-sm">Collection dates include the whole day in your display timezone ({{ get_timezone() }}). They filter results independently of the scan lookback.</p>
+  <div class="flex flex-wrap gap-3 items-end">
+    {% for key, label in [('cve_match', 'CVE match'), ('cvss_available', 'CVSS score available'), ('package_match', 'Software phrase match')] %}
+      <div>
+        <label for="overview-{{ key }}">{{ label }}</label>
+        <select id="overview-{{ key }}" name="{{ key }}" class="select select-bordered block">
+          {% for value, text in [('any', 'Any'), ('yes', 'Yes'), ('no', 'No')] %}<option value="{{ value }}"
+        {% if filters[key] == value %}selected{% endif %}>{{ text }}</option>{% endfor %}
+        </select>
+      </div>
+    {% endfor %}
+    <label>
+      Minimum CVSS
+      <input class="input input-bordered block w-32"
+             name="cvss_min"
+             type="number"
+             min="0"
+             max="10"
+             step="0.1"
+             value="{{ filters.cvss_min if filters.cvss_min is not none else '' }}">
+    </label>
+    <label>
+      Maximum CVSS
+      <input class="input input-bordered block w-32"
+             name="cvss_max"
+             type="number"
+             min="0"
+             max="10"
+             step="0.1"
+             value="{{ filters.cvss_max if filters.cvss_max is not none else '' }}">
+    </label>
+    <button class="btn btn-primary" type="submit">Filter matches</button>
+    <a class="link"
+       href="{{ url_for('assets.asset_intelligence', asset_id=asset_id) if asset_id else url_for('assets.assets_intelligence') }}">Clear filters</a>
+  </div>
+  <p class="text-sm">Filters combine for the same article and host, within the selected packages. Requiring both match types can match different components on that host. The score range applies to their highest reported CVSS score. Missing scores are unknown, not zero.</p>
+</form>

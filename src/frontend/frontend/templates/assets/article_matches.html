@@ -1,12 +1,13 @@
-
+{% macro match_reason(item) -%}
+  {{ 'Software phrase + CVE' if item.software_match and item.cve_match else 'Software phrase' if item.software_match else 'CVE' }}
+{%- endmacro %}
 {% if article.cve_matches %}
   <span class="badge badge-primary"
         data-test-id="asset-cve-match-count">{{ article.cve_matches | length }} CVE match{{ 'es' if article.cve_matches | length != 1 }}</span>
 {% endif %}
-<ul aria-label="Matched software" class="flex flex-wrap gap-2">
+<ul aria-label="Related software" class="flex flex-wrap gap-2">
   {% for software in article.software %}
-    <li class="badge badge-outline h-auto"
-        data-test-id="asset-matched-software">{{ software.name }} · {{ software.versions | length }} installed version{{ 's' if software.versions | length != 1 }}</li>
+    <li class="badge badge-outline h-auto" data-test-id="asset-matched-software">{{ software.name }} · {{ software.versions | length }} installed version{{ 's' if software.versions | length != 1 }} · {{ match_reason(software) }}</li>
   {% endfor %}
 </ul>
 <details :open='expandedArticles[{{ (asset_id ~ ':' ~ article.id) | tojson }}] || false'
@@ -20,8 +21,9 @@
           <ul class="text-sm">
             {% for component in software.components %}
               <li>
+                <span class="badge badge-outline" data-test-id="component-match-reason">{{ match_reason(component) }}</span>
                 <a class="link"
-                   href="{{ url_for('assets.asset_triggers', asset_id=asset_id, component_id=component.id) }}">Matching rules for {{ component.name }} {{ component.version }}</a>
+                   href="{{ url_for('assets.asset_triggers', asset_id=asset_id, component_id=component.id) }}">Software phrase rules for {{ component.name }} {{ component.version }}</a>
                 {% if component.purl %}<span class="break-all">({{ component.purl }})</span>{% endif %}
               </li>
             {% endfor %}

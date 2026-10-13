@@ -11,7 +11,7 @@ from core.model.asset_sbom import AssetSbomFinding, AssetSbomImport
 from core.model.news_item import NewsItem
 from core.model.user import User
 from core.service.asset_findings import finding_cvss_ratings
-from core.service.asset_intelligence import STORIES_PER_PAGE, article_intelligence, matching_stories
+from core.service.asset_intelligence import article_intelligence, matching_stories, product_identity
 
 
 def matches_choice(choice: str, present: bool) -> bool:
@@ -26,7 +26,13 @@ def host_intelligence(
     search = filters.package.casefold()
     selected = {c.id for c in components.values() if any(search in c.inventory.get(field, "").casefold() for field in ("name", "purl"))}
     matches = [(m, evidence) for m, evidence in matches if m.trigger.component_id in selected]
-    findings = [finding for finding in findings if any(c.id in selected for c in finding.components)]
+    findings = [
+        finding
+        for finding in findings
+        if (not filters.cve_id or finding.cve_id == filters.cve_id) and any(c.id in selected for c in finding.components)
+    ]
+    if filters.cve_id and not findings:
+        return None
     if not matches and not findings:
         return None
     if not matches_choice(filters.cve_match, bool(findings)) or not matches_choice(filters.package_match, bool(matches)):
@@ -67,10 +73,15 @@ def overview_story(matches, tagged, imports: dict[str, Asset], filters: Intellig
         pair["findings"].append(finding)
 
     articles = {}
+    packages = set()
     for pair in pairs.values():
         if (host := host_intelligence(pair["matches"], pair["findings"], pair["item"], filters)) is None:
             continue
         asset = pair["asset"]
+        component_ids = {c["id"] for software in host["software"] for c in software["components"]}
+        components = [match.trigger.component for match, _ in pair["matches"]]
+        components.extend(c for finding in pair["findings"] for c in finding.components)
+        packages.update((asset.id, product_identity(c.inventory)) for c in components if c.id in component_ids)
         host.update(asset_id=asset.id, asset_name=asset.name, group_id=asset.asset_group_id, group_name=asset.asset_group.name)
         article = articles.setdefault(host["id"], {"id": host["id"], "title": host["title"], "hosts": []})
         article["hosts"].append(host)
@@ -80,7 +91,7 @@ def overview_story(matches, tagged, imports: dict[str, Asset], filters: Intellig
         article["hosts"].sort(key=lambda host: (host["asset_name"].casefold(), host["asset_id"]))
         article["cve_count"] = len({cve["cve_id"] for host in article["hosts"] for cve in host["cve_matches"]})
     story = matches[0][0].news_item.story if matches else tagged[0][0].story
-    return {"id": story.id, "title": story.title, "articles": [articles[key] for key in sorted(articles)]}
+    return {"id": story.id, "title": story.title, "software_count": len(packages), "articles": [articles[key] for key in sorted(articles)]}
 
 
 def intelligence_overview(user: User, filters: IntelligenceFilters) -> dict:
@@ -114,19 +125,25 @@ def intelligence_overview(user: User, filters: IntelligenceFilters) -> dict:
         if asset_id is not None
     }
     results = []
-    needs_cve = filters.cve_match == "yes" or filters.cvss_available == "yes" or filters.cvss_min is not None or filters.cvss_max is not None
+    total_stories, total_articles = 0, 0
+    start = (filters.page - 1) * filters.limit
     if assets:
-        for matches, tagged in matching_stories(list(assets), user, cve_only=needs_cve):
-            if story := overview_story(matches, tagged, imports, filters):
+        for matches, tagged in matching_stories(list(assets), user, filters):
+            if not (story := overview_story(matches, tagged, imports, filters)):
+                continue
+            if start <= total_stories < start + filters.limit:
                 results.append(story)
-            if len(results) > filters.page * STORIES_PER_PAGE:
-                break
+            total_stories += 1
+            total_articles += len(story["articles"])
     groups = {a.asset_group_id: {"id": a.asset_group_id, "name": a.asset_group.name} for a in catalog}
     return {
-        "items": results[(filters.page - 1) * STORIES_PER_PAGE : filters.page * STORIES_PER_PAGE],
+        "items": results,
         "page": filters.page,
-        "has_more": len(results) > filters.page * STORIES_PER_PAGE,
-        "filters": filters.model_dump(exclude={"page"}),
+        "has_more": total_stories > filters.page * filters.limit,
+        "total_stories": total_stories,
+        "total_articles": total_articles,
+        "page_size": filters.limit,
+        "filters": filters.model_dump(mode="json", exclude={"page"}),
         "assets": [{"id": a.id, "name": a.name, "group_id": a.asset_group_id} for a in catalog],
         "tags": sorted({tag.name for asset in catalog for tag in asset.asset_tags}),
         "groups": sorted(groups.values(), key=lambda group: (group["name"].casefold(), group["id"])),

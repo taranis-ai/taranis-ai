@@ -1,7 +1,7 @@
 import io
 import json
 import os
-from datetime import timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -368,12 +368,14 @@ def test_intelligence_paginates_complete_stories(client, auth_header, api_header
     if cve_only:
         untagged = [build_news_item_payload(source.id, title=f"OpenSSL product announcement {i}") for i in range(22)]
         assert client.post("/api/worker/news-items", headers=api_header, json=untagged).status_code == 200
-    endpoint = f"/api/assets/{asset_id}/intelligence?cve_only={'true' if cve_only else 'false'}"
+    endpoint = f"/api/assets/{asset_id}/intelligence?cve_match={'yes' if cve_only else 'any'}"
     first = client.get(endpoint, headers=auth_header).json
     second = client.get(endpoint + "&page=2", headers=auth_header).json
     assert [story["id"] for story in first["items"]] == expected_ids[:20]
     assert [story["id"] for story in second["items"]] == expected_ids[20:]
     assert first["has_more"] and not second["has_more"]
+    assert first["total_stories"] == second["total_stories"] == 21
+    assert first["total_articles"] == second["total_articles"] == 22
     stories = first["items"] + second["items"]
     assert sum(len(story["articles"]) for story in stories) == 22
     for story in stories:
@@ -382,6 +384,9 @@ def test_intelligence_paginates_complete_stories(client, auth_header, api_header
             assert len(article["software"]) == 2
             assert len(article["evidence"]) == 1
             assert len(article["evidence"][0]["matches"]) == 2
+    small_page = client.get(endpoint + "&limit=5&page=2", headers=auth_header).json
+    assert [story["id"] for story in small_page["items"]] == expected_ids[5:10]
+    assert small_page["total_stories"] == 21 and small_page["total_articles"] == 22
     empty = client.get(endpoint + "&page=3", headers=auth_header).json
     assert empty["items"] == [] and not empty["has_more"]
     assert client.put(f"/api/assets/{asset_id}", headers=auth_header, json={"tags": ["paged"]}).status_code == 201
@@ -391,6 +396,8 @@ def test_intelligence_paginates_complete_stories(client, auth_header, api_header
     assert [story["id"] for story in first["items"]] == expected_ids[:20]
     assert [story["id"] for story in second["items"]] == expected_ids[20:]
     assert first["has_more"] and not second["has_more"]
+    assert first["total_stories"] == second["total_stories"] == 21
+    assert first["total_articles"] == second["total_articles"] == 22
 
 
 def test_historical_matching_batches_and_current_visibility(client, auth_header, auth_header_user_permissions, api_header, session):
@@ -507,7 +514,7 @@ def test_imported_findings_cti_and_live_tag_associations(
     article = next(a for a in results[0]["articles"] if a["title"] == "BuildKit security bulletin")
     assert article["evidence"] and len(article["software"]) == 2 and len(article["cve_matches"]) == 1
     assert len(results[0]["articles"]) == 3 and results[0]["software_count"] == 3
-    filtered = base + "/intelligence?cve_only=true"
+    filtered = base + "/intelligence?cve_match=yes"
     results = client.get(filtered, headers=auth_header).json["items"]
     assert len(results[0]["articles"]) == 2 and results[0]["software_count"] == 2
     assert article in results[0]["articles"]
@@ -787,6 +794,59 @@ def test_intelligence_overview_filters_each_host_and_preserves_score_provenance(
     ):
         assert client.get(endpoint, headers=auth_header, query_string=invalid).status_code == 400
 
+    # The individual host and overview use the same filtering, scores and evidence.
+    for selection in (
+        {"package_match": "yes", "cve_match": "no"},
+        {"package_match": "no", "cve_match": "yes"},
+        {"package_match": "yes", "cve_match": "yes"},
+        {"package": "buildkit", "cvss_min": 7, "cvss_max": 8.5},
+        {"cve_id": " cve-2026-12345 "},
+        {"cve_id": "CVE-2026-12346", "package": "buildkit"},
+    ):
+        overview = client.get(endpoint, headers=auth_header, query_string={**selection, "asset_id": first.id}).json
+        individual = client.get(first_base + "/intelligence", headers=auth_header, query_string=selection).json
+        assert individual["total_stories"] == overview["total_stories"]
+        assert individual["total_articles"] == overview["total_articles"]
+        assert [a for s in individual["items"] for a in s["articles"]] == [a["hosts"][0] for s in overview["items"] for a in s["articles"]]
+    assert data["total_stories"] == 1 and data["total_articles"] == 3
+    component_reasons = {c["name"]: (c["software_match"], c["cve_match"]) for p in hosts[0]["software"] for c in p["components"]}
+    assert component_reasons == {"github.com/moby/buildkit": (True, True), "curl": (False, True)}
+
+    additional_cve = NewsItemTag("CVE-2026-12346", "CVE")
+    both.tags.append(additional_cve)
+    db.session.commit()
+    selected_cve = client.get(first_base + "/intelligence", headers=auth_header, query_string={"cve_id": " cve-2026-12346 "}).json
+    assert selected_cve["filters"]["cve_id"] == "CVE-2026-12346"
+    for article in selected_cve["items"][0]["articles"]:
+        assert [cve["cve_id"] for cve in article["cve_matches"]] == ["CVE-2026-12346"]
+        assert article["max_cvss"] is None
+    db.session.delete(additional_cve)
+    db.session.commit()
+
+    # Inclusive UTC instants correspond to a whole local day across a DST transition.
+    both.collected = datetime(2026, 3, 28, 23)
+    product.collected = datetime(2026, 3, 29, 21, 59, 59, 999999)
+    tagged.collected = datetime(2026, 3, 29, 22)
+    db.session.commit()
+    dates = {"collected_from": "2026-03-29T00:00:00+01:00", "collected_to": "2026-03-29T23:59:59.999999+02:00"}
+    for route in (endpoint, first_base + "/intelligence"):
+        dated = client.get(route, headers=auth_header, query_string=dates).json
+        assert {a["id"] for s in dated["items"] for a in s["articles"]} == {both.id, product.id}
+        assert dated["total_stories"] == 1 and dated["total_articles"] == 2
+        tagged_day = client.get(route, headers=auth_header, query_string={**dates, "cve_id": "CVE-2026-12346"}).json
+        assert tagged_day["items"] == [] and tagged_day["total_articles"] == 0
+        for invalid in (
+            {"cve_id": "12345"},
+            {"collected_from": "not-a-date"},
+            {"collected_from": "2026-04-01", "collected_to": "2026-03-01"},
+            {"limit": 0},
+            {"limit": 101},
+        ):
+            assert client.get(route, headers=auth_header, query_string=invalid).status_code == 400
+    # A route's host cannot be changed using query parameters.
+    pinned = client.get(first_base + "/intelligence", headers=auth_header, query_string={"asset_id": second.id}).json
+    assert pinned["filters"]["asset_id"] == first.id
+
     # Live changes affect both filters and summary counts without rescanning.
     client.put(first_base + "/sbom/cves/CVE-2026-12345", headers=auth_header, json={"enabled": False})
     assert client.get(endpoint, headers=auth_header, query_string={"cvss_min": 7}).json["items"] == []
@@ -815,7 +875,9 @@ def test_intelligence_overview_filters_each_host_and_preserves_score_provenance(
     assert client.get(endpoint, headers=auth_header_user_permissions, query_string={"cve_match": "yes"}).json["items"] == []
     acl.item_id = "unavailable"
     db.session.commit()
-    assert client.get(endpoint, headers=auth_header_user_permissions).json["items"] == []
+    inaccessible = client.get(endpoint, headers=auth_header_user_permissions).json
+    assert inaccessible["items"] == []
+    assert inaccessible["total_stories"] == inaccessible["total_articles"] == 0
 
 
 def test_asset_tag_updates_filters_and_access(client, auth_header, session):

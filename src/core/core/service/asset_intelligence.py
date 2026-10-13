@@ -7,6 +7,7 @@ from html.parser import HTMLParser
 
 from cpe.cpe2_3_fs import CPE2_3_FS
 from cpe.cpe2_3_uri import CPE2_3_URI
+from models.asset_intelligence import IntelligenceFilters
 from packageurl import PackageURL
 from sqlalchemy.orm import selectinload
 
@@ -22,7 +23,7 @@ from core.service.asset_findings import cve_tag_query
 
 
 ARTICLES_PER_BATCH = 200
-STORIES_PER_PAGE = 20
+STORY_BATCH_SIZE = 20
 # These package names also occur frequently as ordinary words or license labels.
 AMBIGUOUS_PRODUCT_NAMES = {"common", "core", "data", "file", "files", "main", "mit", "test", "tests", "unknown", "update"}
 
@@ -303,7 +304,14 @@ def article_intelligence(
             component_ids.append(installed.id)
         cve_matches.append({"cve_id": finding.cve_id, "finding_id": finding.id, "component_ids": sorted(component_ids)})
 
+    phrase_component_ids = {match.trigger.component_id for match, _ in matches}
+    cve_component_ids = {component_id for cve in cve_matches for component_id in cve["component_ids"]}
     for package in software.values():
+        for component in package["components"].values():
+            component["software_match"] = component["id"] in phrase_component_ids
+            component["cve_match"] = component["id"] in cve_component_ids
+        package["software_match"] = any(c["software_match"] for c in package["components"].values())
+        package["cve_match"] = any(c["cve_match"] for c in package["components"].values())
         package["components"] = sorted(package["components"].values(), key=lambda component: (component["version"], component["id"]))
         package["versions"] = sorted({component["version"] for component in package["components"]})
     for excerpt in excerpts.values():
@@ -317,31 +325,7 @@ def article_intelligence(
     }
 
 
-def story_intelligence(
-    matches: list[tuple[AssetArticleMatch, list[dict]]],
-    cve_matches: list[tuple[NewsItem, AssetSbomFinding]],
-) -> dict:
-    story = matches[0][0].news_item.story if matches else cve_matches[0][0].story
-    assert story is not None
-    articles = {}
-    packages = set()
-    for match, evidence in matches:
-        article = articles.setdefault(match.news_item_id, {"item": match.news_item, "matches": [], "findings": []})
-        article["matches"].append((match, evidence))
-        packages.add(product_identity(match.trigger.component.inventory))
-    for item, finding in cve_matches:
-        article = articles.setdefault(item.id, {"item": item, "matches": [], "findings": []})
-        article["findings"].append(finding)
-        packages.update(product_identity(c.inventory) for c in finding.components)
-    return {
-        "id": story.id,
-        "title": story.title,
-        "software_count": len(packages),
-        "articles": [article_intelligence(**articles[key]) for key in sorted(articles)],
-    }
-
-
-def matching_stories(asset_ids: list[str], user: User, cve_only: bool = False):
+def matching_stories(asset_ids: list[str], user: User, filters: IntelligenceFilters):
     """Read bounded story batches and yield only current, accessible evidence."""
     visible = Story.visible_query(user).with_only_columns(Story.id)
     query = (
@@ -358,8 +342,20 @@ def matching_stories(asset_ids: list[str], user: User, cve_only: bool = False):
         .order_by(NewsItem.story_id.desc(), NewsItem.id, AssetArticleMatch.trigger_id)
     )
     associations = cve_tag_query(asset_ids).where(NewsItem.story_id.in_(visible))
+    if filters.cve_id:
+        associations = associations.where(AssetSbomFinding.cve_id == filters.cve_id)
+    # Both evidence paths use the same UTC collection window, independent of scan lookback.
+    date_conditions = []
+    if filters.collected_from:
+        date_conditions.append(NewsItem.collected >= filters.collected_from.replace(tzinfo=None))
+    if filters.collected_to:
+        date_conditions.append(NewsItem.collected <= filters.collected_to.replace(tzinfo=None))
+    query = query.where(*date_conditions)
+    associations = associations.where(*date_conditions)
     candidate_ids = associations.with_only_columns(NewsItem.story_id).distinct()
-    if cve_only:
+    requires_cve = bool(filters.cve_id) or filters.cve_match == "yes" or filters.cvss_available == "yes"
+    requires_cve = requires_cve or filters.cvss_min is not None or filters.cvss_max is not None
+    if requires_cve:
         # Retain product evidence only for articles with a current CVE association.
         query = query.where(NewsItem.id.in_(associations.with_only_columns(NewsItem.id)))
     else:
@@ -368,7 +364,7 @@ def matching_stories(asset_ids: list[str], user: User, cve_only: bool = False):
     cursor = None
     # Page only after permission and current-evidence checks, reading bounded candidate batches.
     while True:
-        batch_query = db.select(candidates.c.story_id).order_by(candidates.c.story_id.desc()).limit(STORIES_PER_PAGE)
+        batch_query = db.select(candidates.c.story_id).order_by(candidates.c.story_id.desc()).limit(STORY_BATCH_SIZE)
         if cursor:
             batch_query = batch_query.where(candidates.c.story_id < cursor)
         ids = list(db.session.scalars(batch_query))
@@ -395,16 +391,3 @@ def matching_stories(asset_ids: list[str], user: User, cve_only: bool = False):
             if story_id in stories or story_id in tagged_stories:
                 yield stories.get(story_id, []), tagged_stories.get(story_id, [])
         cursor = ids[-1]
-
-
-def relevant_stories(asset_id: str, user: User, page: int, cve_only: bool = False) -> dict:
-    results = []
-    for matches, tagged in matching_stories([asset_id], user, cve_only):
-        results.append(story_intelligence(matches, tagged))
-        if len(results) > page * STORIES_PER_PAGE:
-            break
-    return {
-        "items": results[(page - 1) * STORIES_PER_PAGE : page * STORIES_PER_PAGE],
-        "page": page,
-        "has_more": len(results) > page * STORIES_PER_PAGE,
-    }
