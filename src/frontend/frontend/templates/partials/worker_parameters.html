@@ -48,7 +48,7 @@
     {% elif field.type == "select" %}
       {{ form_select(label=field.label, name='parameters[' + field.name + ']', value=field_value, options=field.options, required=field_required) }}
     {% elif field.type == "number" %}
-      {{ form_input(label=field.label, name='parameters[' + field.name + ']', value=field_value, type='number', required=field_required, min_value=field.minimum, max_value=field.maximum, preserve=preserve) }}
+      {{ form_input(label=field.label, name='parameters[' + field.name + ']', value=field_value, type='number', required=field_required, min_value=field.minimum, max_value=field.maximum, step=field.step, preserve=preserve) }}
     {% elif field.widget == "public-key" %}
       <div x-data="{ uploadError: '' }">
         {{ form_textarea(label=field.label, name='parameters[' + field.name + ']', value=field_value, required=field_required, preserve=preserve) }}

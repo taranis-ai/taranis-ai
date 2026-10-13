@@ -6,5 +6,7 @@ resources:
   - 05-network-policies.yaml
   - 10-storage.yaml
   - 20-services-core.yaml
+  - 25-service-inference.yaml
   - 30-deployments-core.yaml
+  - 35-deployment-inference.yaml
   - 40-ingress.yaml

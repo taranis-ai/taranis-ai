@@ -53,6 +53,7 @@ def test_bot_run_order_labels(parameters, expected):
     ],
 )
 def test_bot_parameters_include_optional_positive_integer_requests_timeout(authenticated_client, htmx_header, bot_type):
+    responses.add(responses.GET, f"{Config.TARANIS_CORE_URL}/settings/settings", json={"items": [{"settings": {}}]})
     response = authenticated_client.get(
         url_for("admin.bot_parameters", bot_id="0", type=bot_type),
         headers=htmx_header,
@@ -69,8 +70,16 @@ def test_bot_parameters_include_optional_positive_integer_requests_timeout(authe
     assert requests_timeout_fields[0].get("type") == "number"
     assert requests_timeout_fields[0].get("min") == "1"
     assert requests_timeout_fields[0].get("required") is None
+    assert requests_timeout_fields[0].get("step") is None
+    if bot_type == "cybersec_classifier_bot":
+        threshold = tree.xpath('//input[@name="parameters[CLASSIFICATION_THRESHOLD]"]')[0]
+        assert (threshold.get("step"), threshold.get("min"), threshold.get("max")) == ("any", "0", "1")
     assert refresh_interval_fields[0].get("required") is None
-    assert tree.xpath('//*[@title="LLM request timeout in seconds."]')
+    assert tree.xpath('//select[@name="parameters[LLM_ENDPOINT]"]')
+    assert not tree.xpath(
+        '//input[@name="parameters[BOT_API_KEY]" or @name="parameters[BOT_ENDPOINT]" or @name="parameters[SUMMARY_ENDPOINT]" or @name="parameters[TITLE_ENDPOINT]"]'
+    )
+    assert tree.xpath('//a[contains(@href, "#llm-endpoints")]')
     assert response.text.index('name="parameters[ITEM_FILTER]"') < response.text.index('name="parameters[REQUESTS_TIMEOUT]"')
 
 
@@ -112,33 +121,6 @@ def test_worker_parameter_form_renders_native_boolean_and_object_values(app):
     tlp = tree.xpath('//select[@name="parameters[TLP_LEVEL]"]')[0]
     assert tlp.xpath('./option[@value=""]')[0].text == "Inherit"
     assert tlp.xpath('./option[@value="clear"]')
-
-
-def test_summary_bot_parameters_include_split_summary_and_title_endpoints(authenticated_client, htmx_header):
-    response = authenticated_client.get(
-        url_for("admin.bot_parameters", bot_id="0", type="summary_bot"),
-        headers=htmx_header,
-    )
-    assert response.status_code == 200
-
-    tree = html.fromstring(response.text)
-    summary_endpoint_fields = tree.xpath('//input[@name="parameters[SUMMARY_ENDPOINT]"]')
-    title_endpoint_fields = tree.xpath('//input[@name="parameters[TITLE_ENDPOINT]"]')
-
-    assert len(summary_endpoint_fields) == 1
-    assert len(title_endpoint_fields) == 1
-    assert summary_endpoint_fields[0].get("required") is None
-    assert title_endpoint_fields[0].get("required") is None
-
-    # Field order comes directly from the shared Pydantic parameter model.
-    bot_api_key_index = response.text.index('name="parameters[BOT_API_KEY]"')
-    summary_endpoint_index = response.text.index('name="parameters[SUMMARY_ENDPOINT]"')
-    title_endpoint_index = response.text.index('name="parameters[TITLE_ENDPOINT]"')
-    run_after_collector_index = response.text.index('name="parameters[RUN_AFTER_COLLECTOR]"')
-
-    assert bot_api_key_index < summary_endpoint_index
-    assert summary_endpoint_index < title_endpoint_index
-    assert title_endpoint_index < run_after_collector_index
 
 
 def test_bot_menu_badge_uses_task_failure_count(monkeypatch):
@@ -292,3 +274,24 @@ def test_bot_run_order_controls_render_selected_dependencies(app):
     assert "Wordlist Bot" in rendered
     assert "IOC Bot" in rendered
     assert "DOMContentLoaded" in rendered
+
+
+@pytest.mark.parametrize(
+    "health, enabled, label",
+    [("down", True, "Endpoint error"), ("pending", True, "Endpoint pending"), ("up", True, "SUCCESS"), ("down", False, "Disabled")],
+)
+def test_bot_overview_has_one_status(app, health, enabled, label):
+    from frontend.filters import render_worker_status
+
+    bot = Bot(
+        name="Bot",
+        type=BOT_TYPES.STORY_BOT,
+        enabled=enabled,
+        status={"id": "test-task", "status": "SUCCESS", "result": {"message": "Done"}},
+        endpoint_health={"status": health, "message": "Endpoint check"},
+    )
+    with app.test_request_context():
+        tree = html.fromstring(render_worker_status(bot))
+    badges = tree.xpath('//*[contains(concat(" ", normalize-space(@class), " "), " badge ")]')
+    assert len(badges) == 1
+    assert badges[0].text_content().strip() == label

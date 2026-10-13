@@ -9,6 +9,7 @@ Before application edits, validation, development setup changes, or local startu
 - Use `uv`, not `pip`. In each `src` component, install with `uv sync --all-extras --dev` and run commands with `uv run` (or activate `.venv`). Dependency versions live in `pyproject.toml`; regenerate lockfiles with their tools rather than manually merging them.
 - Before suggesting startup, ask which workflow the developer wants: `./dev/start_dev.sh` (default if no preference), manual non-tmux startup, or the tmux workflow in `dev/README.md`. Do not assume tmux.
 - Manual non-tmux startup: `docker compose -f dev/compose.yml up -d`, then run `./install_and_run_dev.sh` separately in `src/core`, `src/frontend`, and `src/worker`.
+- Automatic collection/scheduled bots require the opt-in cron process (`WITH_CRON_RQ=1`); the default launcher runs workers only. Manual jobs and queued retries still run. To exclude collectors/bots entirely, use the worker `WORKER_TYPES` override documented in `dev/README.md`. Core's legacy `DISABLE_SCHEDULER` setting does not stop standalone cron.
 - `start_dev.sh` supports macOS with Homebrew/Podman, Ubuntu, and Debian 13.
 - On macOS, worker startup and `dev/testpipeline.sh` prepend Homebrew's library directory to `DYLD_FALLBACK_LIBRARY_PATH` for WeasyPrint's GLib/Pango dependencies. Manual worker/test commands need the same export; see `dev/README.md`.
 

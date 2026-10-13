@@ -1,5 +1,6 @@
-from typing import Any
 from urllib.parse import parse_qs
+
+from rq import Retry
 
 from worker.core_api import CoreApi
 from worker.log import logger
@@ -13,9 +14,8 @@ class BaseBot:
         self.description = "Base abstract type for all bots"
         self.language: str | None = None
         self.model: str | None = None
-        self.bot_api: Any = None
 
-    def execute(self, parameters: dict | None = None) -> dict[str, dict[str, str] | str]:
+    def execute(self, parameters: dict | None = None) -> dict | Retry:
         if not parameters:
             parameters = {}
         return {"message": "No action defined for this bot"}
@@ -48,6 +48,8 @@ class BaseBot:
         return filter_dict
 
     def get_stories(self, parameters: dict) -> list:
+        if "_stories" in parameters:
+            return parameters["_stories"]
         filter_dict = self.get_filter_dict(parameters)
         data = self.core_api.get_stories(filter_dict)
         if not data:

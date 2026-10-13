@@ -12,10 +12,13 @@
     <div class="flex flex-col gap-2 text-sm">
       {% for service, status in dashboard_health.services.items() %}
         <div class="flex items-center justify-between gap-4">
-          <span class="capitalize">{{ service }}</span>
+          <span class="capitalize">{{ service | replace('_', ' ') }}</span>
           <span class="badge {{ health_badge_classes.get(status, 'badge-neutral') }}">{{ status }}</span>
         </div>
       {% endfor %}
+      {% if dashboard_health.services.get("Worker endpoints") == "down" %}
+        <p class="text-error">A bot or LLM endpoint is failing or awaiting its check. Review Bots and Settings → LLM Endpoints.</p>
+      {% endif %}
     </div>
   </div>
 {% endif %}

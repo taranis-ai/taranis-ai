@@ -108,6 +108,8 @@ services:
   redis:
     image: redis:8-alpine
     command: ["redis-server", "--save", "", "--appendonly", "no"]
+    tmpfs:
+      - /data
     ports:
       - "6379"
     healthcheck:

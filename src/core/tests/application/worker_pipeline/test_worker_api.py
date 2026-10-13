@@ -23,6 +23,46 @@ def _expected_story_tag_names(story: dict) -> set[str]:
 class TestWorkerApi:
     base_uri = "/api/worker"
 
+    def test_restore_queue_state_after_redis_loss(self, client, api_header, session, redis_client, monkeypatch):
+        from core.config import Config
+        from core.managers.queue_manager import CRON_DEFS_KEY, CRON_NEXT_KEY
+        from tests.application.support.builders import create_osint_source
+
+        source = create_osint_source(rank=0, name="Redis recovery source")
+        source_id = source.id
+        spec = source.get_cron_spec()
+        session.commit()
+        manager = client.application.extensions["rq"]
+        server = redis_client.connection_pool.connection_kwargs["server"]
+        monkeypatch.setattr(server, "connected", False)
+        assert not manager.register_cron_job(spec)
+        assert not manager.unregister_cron_job(f"osint_source_{source_id}")
+        assert manager.ping_workers()[1] == 500
+        assert manager.error == ""
+        monkeypatch.setattr(server, "connected", True)
+        redis_client.flushall()
+        manager.error = "Could not reach Redis"
+        assert client.post(f"{self.base_uri}/cron-jobs").status_code == 401
+        assert not redis_client.exists(CRON_DEFS_KEY)
+
+        # Recovery must preserve work accepted after Redis became available again.
+        manager.error = ""
+        job = manager.enqueue_task("misc", "gather_word_list", "queued-before-recovery")
+        manager.error = "Could not reach Redis"
+        response = client.post(f"{self.base_uri}/cron-jobs", headers=api_header)
+
+        assert response.status_code == 200
+        assert manager.error == ""
+        assert job.id in manager.get_queue("misc").job_ids
+        restored_ids = {job_id.decode() for job_id in redis_client.hkeys(CRON_DEFS_KEY)}
+        assert {f"osint_source_{source_id}", "cleanup_token_blacklist", "cleanup_task_history"} <= restored_ids
+        assert redis_client.zscore(CRON_NEXT_KEY, f"osint_source_{source_id}") is not None
+
+        monkeypatch.setattr(Config, "QUEUE_ENABLED", False)
+        response = client.post(f"{self.base_uri}/cron-jobs", headers=api_header)
+        assert response.status_code == 503
+        assert response.get_json() == {"error": "Could not restore queue runtime state"}
+
     @pytest.mark.parametrize("preceding_candidates", [0, 501])
     def test_fuzzy_collection_groups_distinct_urls(self, client, api_header, session, preceding_candidates):
         from core.model.news_item import NewsItem

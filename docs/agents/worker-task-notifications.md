@@ -10,6 +10,7 @@ Task entry points and RQ failure hooks own their HTTP session scope, including r
 
 - With `QUEUE_ENABLED=false`, core skips queue connections and scheduling; broker/worker health is `n/a` and queue actions are unavailable (503). Source collection/preview and bot execution/chains reject disabled queues before source/bot validation or graph construction. Enabled queues require Redis at startup.
 - Accepted jobs report queue success. Only cached core health `services.workers == "down"` changes this to a queued-but-no-worker warning; failed/missing health checks retain the original notice. Do not change queue endpoint status codes or poll for final failures through this notification.
+- Story editor AI actions submit bot types to Assess; Core resolves a type to the first configured bot by index before queueing its UUID. Explicit UUIDs still select that bot. Story write checks precede resolution. The editor returns only a task notification, preserves the Core status, and targets notifications on HTMX errors without replacing the editor.
 - Connector pulls return the queue manager's response and HTTP status directly: success means scheduled, and disabled queues return 503. News-item URL fetches preserve queue error tuples through `StoryService` and the Assess endpoint. These API contracts are covered in the core configuration workflow and disabled-queue startup tests.
 - Authenticated runs, including auto-render after product edits, carry `user_id`; scheduler runs do not. Propagate attribution through dependencies and post-collection bots.
 - User jobs enqueue at the front of their functional queue (LIFO); background jobs remain FIFO. Workers check presenters, publishers, connectors, misc, bots, then collectors. Priority does not preempt running jobs or affect workers subscribed to other queues.
@@ -23,6 +24,8 @@ Task entry points and RQ failure hooks own their HTTP session scope, including r
 - SBOM preparation uses user-attributed `sbom_import_task` jobs in `misc`. Parsing runs in the worker; Core stages private uploads and accepts bounded normalized batches. Failures and killed-worker hooks mark the preparation failed and release source bytes; daily task-history cleanup expires abandoned preparations. See [Asset SBOM Import](asset-sbom-import.md).
 - [Asset intelligence scans](asset-sbom-import.md) use user-attributed `asset_match_task` jobs in `misc`. Core owns authorization, bounded batches and progress; the worker drives the batches and reports the final task result.
 
+Endpoint probe health is stored separately from execution history; see [LLM Endpoints](llm-endpoints.md#endpoint-checks).
+
 ## History and UI
 
 My Tasks lists only completed persisted results owned by the authenticated user, including successful `PREVIEW` results. It never queries Redis for queued/running jobs. Omit task `result.data`; search only visible relational fields, never serialized results. This differs from [Notification Center](notification-center.md) history.
@@ -35,4 +38,4 @@ Source-detail Collect/Bot Run return notifications; Collect All/Update Wordlists
 
 `BaseView.render_worker_task_notification` in `src/frontend/frontend/views/base_view.py`; `DataPersistenceLayer.get_core_health` in `src/frontend/frontend/data_persistence.py`; `UserTaskView` in `src/frontend/frontend/views/user_views.py`; user endpoint `GET /tasks/user`.
 
-Tests: `src/frontend/tests/unit/views/test_worker_task_notifications.py`, `src/frontend/tests/unit/views/test_user_task_view.py`, `src/worker/tests/connectors/test_misp_connector.py`, `src/worker/tests/bots/test_bot_api.py`, `src/worker/tests/bots/test_bot_tasks.py`.
+Tests: `src/frontend/tests/unit/views/test_worker_task_notifications.py`, `src/frontend/tests/unit/views/test_user_task_view.py`, `src/worker/tests/connectors/test_misp_connector.py`, `src/worker/tests/bots/test_bot_tasks.py`.

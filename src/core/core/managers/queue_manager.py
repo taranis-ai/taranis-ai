@@ -45,7 +45,9 @@ from models.scheduler import JobFilter, ScheduledJob, StoredTaskResult
 from opentelemetry.propagate import inject
 from pydantic import TypeAdapter
 from redis import Redis
-from redis.exceptions import RedisError
+from redis.exceptions import AuthenticationError, AuthorizationError, RedisError
+from redis.exceptions import ConnectionError as RedisConnectionError
+from redis.exceptions import TimeoutError as RedisTimeoutError
 from redis.maint_notifications import MaintNotificationsConfig
 from rq import Queue
 from rq.exceptions import NoSuchJobError
@@ -74,6 +76,7 @@ queue_manager: "QueueManager"
 TASK_MAP = {
     "sbom_import_task": "worker.misc.sbom_import.sbom_import_task",
     "asset_match_task": "worker.misc.asset_matching.asset_match_task",
+    "check_endpoint": "worker.endpoint_health.check_endpoint",
     "collector_task": "worker.collectors.collector_tasks.collector_task",
     "collector_preview": "worker.collectors.collector_tasks.collector_preview",
     "bot_task": "worker.bots.bot_tasks.bot_task",
@@ -115,8 +118,20 @@ class QueueManager:
             maint_notifications_config=MaintNotificationsConfig(enabled=False),
         )
 
-        # Test connection
-        self._redis.ping()
+        max_attempts = 5
+        for attempt in range(1, max_attempts + 1):
+            try:
+                self._redis.ping()
+                break
+            except (AuthenticationError, AuthorizationError):
+                # These inherit ConnectionError but cannot recover through retries.
+                raise
+            except (RedisConnectionError, RedisTimeoutError) as exc:
+                if attempt == max_attempts:
+                    raise RuntimeError(f"Could not connect to Redis after {max_attempts} attempts.") from exc
+                wait_seconds = attempt
+                logger.warning("Redis connection attempt %s/%s failed; retrying in %s seconds.", attempt, max_attempts, wait_seconds)
+                time.sleep(wait_seconds)
 
         # Create queue instances
         for queue_name in self.queue_names:
@@ -133,13 +148,30 @@ class QueueManager:
         if self.error:
             return
         self.clear_queues()
-        self.reschedule_all()
-        self.update_empty_word_lists()
+        self.restore_runtime_state()
 
-    def reschedule_all(self):
+    def restore_runtime_state(self) -> bool:
+        """Rebuild disposable Redis state from the database without clearing queued work."""
+        if not Config.QUEUE_ENABLED or self._redis is None:
+            return False
+        try:
+            self._redis.ping()
+            self.error = ""
+            if not self.reschedule_all():
+                return False
+            self.update_empty_word_lists()
+            from core.service.endpoint_health import schedule_all
+
+            schedule_all()
+            return True
+        except Exception:
+            logger.exception("Failed to restore queue runtime state")
+            return False
+
+    def reschedule_all(self) -> bool:
         """Reconcile Redis cron definitions with the currently enabled sources and bots."""
         if self.error:
-            return
+            return False
         try:
             managed_specs = self._get_managed_cron_specs()
             desired_ids = set(managed_specs)
@@ -175,8 +207,10 @@ class QueueManager:
                 purged_tasks,
             )
             logger.debug("Registered %s managed cron definitions", registered)
-        except Exception as e:
-            logger.error(f"Failed to check sources and bots: {e}")
+            return registered == len(managed_specs)
+        except Exception:
+            logger.exception("Failed to check sources and bots")
+            return False
 
     def _get_managed_cron_specs(self) -> dict[str, CronSpec]:
         from core.model.bot import Bot
@@ -479,8 +513,7 @@ class QueueManager:
             ]
         except Exception as e:
             logger.error(f"Failed to ping workers: {e}")
-            self.error = "Could not reach Redis"
-            return {"error": self.error}, 503 if not Config.QUEUE_ENABLED else 500
+            return {"error": "Could not reach Redis"}, 503 if not Config.QUEUE_ENABLED else 500
 
     def enqueue_task(
         self,
@@ -939,6 +972,7 @@ class QueueManager:
             "bots",
             "bot_task",
             job_id=f"bot_{bot_id}",
+            job_timeout=bot.job_timeout,
             meta=self._build_task_meta(
                 f"bot_{bot_id}",
                 user_id=user_id,
@@ -1113,6 +1147,7 @@ class QueueManager:
                 "bots",
                 "bot_task",
                 job_id=self._build_unique_job_id("bot", f"{bot.id}_{job_suffix}"),
+                job_timeout=bot.job_timeout,
                 depends_on=parent_jobs or None,
                 meta=self._build_task_meta(
                     f"bot_{bot.id}",
@@ -1344,7 +1379,6 @@ class QueueManager:
                 return True
         except Exception as e:
             logger.error(f"Failed to register cron job {spec.job_id}: {e}")
-            self.error = "Could not reach Redis"
             return False
 
     def unregister_cron_job(self, job_id: str) -> bool:
@@ -1361,7 +1395,6 @@ class QueueManager:
                 return True
         except Exception as e:
             logger.error(f"Failed to unregister cron job {job_id}: {e}")
-            self.error = "Could not reach Redis"
             return False
 
     def get_cron_job_configs(self) -> tuple[dict[str, list[dict[str, Any]]] | dict[str, str], int]:

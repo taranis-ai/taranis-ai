@@ -60,12 +60,12 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: llm-bot
+  name: llm-inference
   labels:
     {{- include "taranis.labels" . | nindent 4 }}
 spec:
   selector:
-    app: llm-bot
+    app: llm-inference
   ports:
     - name: http
       port: 8000

@@ -1008,6 +1008,8 @@ class PublisherPresets(MethodView):
             pub_result = publisher_preset.PublisherPreset.add(request.json)
             _invalidate_admin_cache(200)
             return jsonify({"id": pub_result.id, "message": "Publisher preset created successfully"}), 200
+        except (IntegrityError, ValidationError):
+            raise
         except ValueError as exc:
             db.session.rollback()
             logger.warning("Invalid publisher preset create payload: %s", exc)
@@ -1021,6 +1023,8 @@ class PublisherPresets(MethodView):
             response, status = publisher_preset.PublisherPreset.update(preset_id, request.json)
             _invalidate_admin_cache(status)
             return response, status
+        except (IntegrityError, ValidationError):
+            raise
         except ValueError as exc:
             db.session.rollback()
             logger.warning("Invalid publisher preset update payload: %s", exc)
@@ -1034,6 +1038,8 @@ class PublisherPresets(MethodView):
             response, status = publisher_preset.PublisherPreset.update(preset_id, request.json or {}, patch=True)
             _invalidate_admin_cache(status)
             return response, status
+        except (IntegrityError, ValidationError):
+            raise
         except ValueError as exc:
             db.session.rollback()
             logger.warning("Invalid publisher preset patch payload: %s", exc)

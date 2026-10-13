@@ -866,6 +866,8 @@ def test_asset_tag_updates_filters_and_access(client, auth_header, session):
 def test_sbom_preparation_is_private_and_requires_complete_worker_batches(
     client, auth_header, auth_header_user_permissions, api_header, session
 ):
+    # Materialize SQLite's outer transaction before savepoints, so commits remain isolated.
+    session.connection().exec_driver_sql("BEGIN")
     session().join_transaction_mode = "create_savepoint"
     response = client.post(
         "/api/assets/sbom-imports",
@@ -904,6 +906,8 @@ def test_sbom_preparation_is_private_and_requires_complete_worker_batches(
 
 
 def test_sbom_preparation_failure_discards_partial_preview_and_allows_retry(client, auth_header, api_header, session, monkeypatch):
+    # Materialize SQLite's outer transaction before savepoints, so commits remain isolated.
+    session.connection().exec_driver_sql("BEGIN")
     session().join_transaction_mode = "create_savepoint"
 
     def stage():
@@ -951,6 +955,8 @@ def test_sbom_preparation_failure_discards_partial_preview_and_allows_retry(clie
 
 
 def test_sbom_worker_rechecks_importer_permission(client, auth_header, api_header, session):
+    # Materialize SQLite's outer transaction before savepoints, so commits remain isolated.
+    session.connection().exec_driver_sql("BEGIN")
     session().join_transaction_mode = "create_savepoint"
     response = client.post(
         "/api/assets/sbom-imports",

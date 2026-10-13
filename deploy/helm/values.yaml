@@ -17,15 +17,6 @@ config:
   sqlalchemyPoolRecycle: "3600"
   authenticator: database
   preSeedSettings: "{}"
-  summaryApiEndpoint: http://llm-bot:8000/summarize
-  titleApiEndpoint: http://llm-bot:8000/title
-  nlpApiEndpoint: http://llm-bot:8000/ner
-  storyApiEndpoint: http://llm-bot:8000/cluster
-  sentimentAnalysisApiEndpoint: http://llm-bot:8000/sentiment
-  cybersecClassifierApiEndpoint: http://llm-bot:8000/cybersec-classification
-  llmBaseUrl: CHANGE_ME_LLM_BASE_URL
-  llmModel: ""
-  llmTimeout: "120"
   cacheDefaultTimeout: "1"
   chatEnabled: "false"
 
@@ -34,8 +25,8 @@ secrets:
   apiKey: CHANGE_ME_CORE_API_KEY
   centrifugoApiKey: CHANGE_ME_CENTRIFUGO_API_KEY
   centrifugoConnectProxySecret: CHANGE_ME_CENTRIFUGO_CONNECT_PROXY_SECRET
+  llmInferenceApiKey: ""
   botApiKey: CHANGE_ME_BOT_API_KEY
-  llmApiKey: ""
   preSeedPasswordAdmin: CHANGE_ME_ADMIN_PASSWORD
   preSeedPasswordUser: CHANGE_ME_DEFAULT_USER_PASSWORD
 
@@ -46,6 +37,7 @@ database:
   password: CHANGE_ME_DATABASE_PASSWORD
 
 redis:
+  # External Redis: disable RDB and AOF persistence; see deploy/README.md#redis-without-persistence.
   url: redis://CHANGE_ME_REDIS_HOSTNAME:6379/0
   realtimeUrl: redis://:CHANGE_ME_REDIS_PASSWORD@CHANGE_ME_REDIS_HOSTNAME:6379/0
   password: CHANGE_ME_REDIS_PASSWORD
@@ -92,9 +84,9 @@ images:
   worker:
     repository: ghcr.io/taranis-ai/taranis-worker
     tag: latest
-  llmBot:
-    repository: ghcr.io/taranis-ai/taranis-llm-bot
-    tag: latest
+  llmInference:
+    repository: ghcr.io/taranis-ai/gemma4-e4b-gguf
+    tag: cpu
 
 replicas:
   core: 1
@@ -104,7 +96,7 @@ replicas:
   collector: 1
   worker: 1
   cron: 1
-  llmBot: 1
+  llmInference: 1
 
 resources:
   core:
@@ -156,10 +148,10 @@ resources:
     requests:
       cpu: 100m
       memory: 128Mi
-  llmBot:
+  llmInference:
     limits:
-      cpu: "2"
-      memory: 4Gi
+      cpu: "4"
+      memory: 12Gi
     requests:
       cpu: 500m
-      memory: 1Gi
+      memory: 6Gi

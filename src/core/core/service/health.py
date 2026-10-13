@@ -7,6 +7,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from core.config import Config
 from core.managers import queue_manager
 from core.managers.db_manager import db
+from core.service.endpoint_health import aggregate_status
 
 
 HealthStatus = Literal["up", "down", "n/a"]
@@ -25,6 +26,8 @@ def get_health_response() -> tuple[dict[str, bool | dict[str, HealthStatus]], in
     else:
         services["broker"] = "n/a"
         services["workers"] = "n/a"
+
+    services["worker_endpoints"] = check_endpoints() if database_status == "up" and Config.QUEUE_ENABLED else "n/a"
 
     healthy = all(status != "down" for status in services.values())
     return {"healthy": healthy, "services": services}, 200 if healthy else 503
@@ -78,4 +81,11 @@ def check_workers() -> HealthStatus:
         workers = Worker.all(connection=qm._redis)
         return "up" if workers else "down"
     except (RedisError, ValueError):
+        return "down"
+
+
+def check_endpoints() -> HealthStatus:
+    try:
+        return aggregate_status()
+    except (RedisError, SQLAlchemyError):
         return "down"

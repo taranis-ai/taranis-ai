@@ -1575,14 +1575,28 @@ class TestAcls(BaseTest):
 class TestPublisherPreset(BaseTest):
     base_uri = "/api/config"
 
-    def test_create_publisher_preset(self, client, auth_header, cleanup_publisher_preset):
+    def test_create_publisher_preset(self, client, auth_header, cleanup_publisher_preset, monkeypatch):
+        monkeypatch.setattr(Config, "RQ_DEFAULT_JOB_TIMEOUT", 180)
+        invalid = cleanup_publisher_preset | {"parameters": cleanup_publisher_preset["parameters"] | {"NETWORK_TIMEOUT": 91}}
+        response = client.post(self.concat_url("publishers-presets"), json=invalid, headers=auth_header)
+        assert response.status_code == 400
+        assert "Network timeout must not exceed 90 seconds" in response.json["error"]
+
         response = self.assert_post_ok(client, uri="publishers-presets", json_data=cleanup_publisher_preset, auth_header=auth_header)
         assert response.json["message"] == "Publisher preset created successfully"
         assert response.json["id"] == cleanup_publisher_preset["id"]
 
-    def test_modify_publisher_preset(self, client, auth_header, cleanup_publisher_preset):
+    def test_modify_publisher_preset(self, client, auth_header, cleanup_publisher_preset, monkeypatch):
+        monkeypatch.setattr(Config, "RQ_DEFAULT_JOB_TIMEOUT", 180)
         publisher_data = {"description": "new description"}
         publisher_preset_id = cleanup_publisher_preset["id"]
+        response = client.patch(
+            self.concat_url(f"publishers-presets/{publisher_preset_id}"),
+            json={"parameters": {"NETWORK_TIMEOUT": 91}},
+            headers=auth_header,
+        )
+        assert response.status_code == 400
+        assert "Network timeout must not exceed 90 seconds" in response.json["error"]
         response = self.assert_put_ok(
             client, uri=f"publishers-presets/{publisher_preset_id}", json_data=publisher_data, auth_header=auth_header
         )

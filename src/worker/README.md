@@ -6,14 +6,14 @@ RSS sources expose collection health through their persisted task status. Respon
 
 Collectors using the shared HTTP request helper (including RSS, Simple Web, and RT) report guidance for connection failures and timeouts to check worker-container DNS, network access, and `PROXY_SERVER`. Read timeouts can occur after a connection succeeds. Technical exception details stay in worker logs at ERROR level, with tracebacks available at DEBUG level. Connection and timeout diagnostics remain HTTP request exceptions, preserving RT’s existing per-item error handling. This does not add automatic retries; see [deployment troubleshooting](../../deploy/README.md#collector-network-errors).
 
-Email, FTP, and SFTP publisher presets use `NETWORK_TIMEOUT` (30 seconds by default) for network inactivity. A running RQ job caps the effective value at half a finite positive job timeout. Publishers log network operations and raise curated timeout failures identifying the operation that stalled. No publisher phase state is saved in Redis; RQ deadlines and killed workers produce generic safe failures. This setting is not a total publishing deadline: DNS resolution, cumulative delays, library waits outside socket timeouts, and transfers that continue making progress may still reach the RQ timeout. No automatic retries are added.
+Email, FTP, and SFTP publishers use `NETWORK_TIMEOUT` (default: 30 seconds) for network inactivity. Saving a preset rejects explicit or default values above half a positive core `RQ_DEFAULT_JOB_TIMEOUT` (90 seconds with the default 180-second job timeout); errors show the maximum and required job timeout. Execution also caps the effective value at half the actual job timeout, including existing presets.
+
+Timeout failures identify the stalled operation; RQ deadlines and killed workers produce generic safe failures. This is not a total publishing deadline: DNS resolution, cumulative delays, waits outside socket timeouts, and transfers that keep making progress can still reach the RQ timeout. Publishers do not retry automatically.
 
 ## Install
 
 ```bash
-uv venv
-source .venv/bin/activate
-uv pip install -Ue .[dev]
+uv sync --all-extras --dev
 ```
 
 ## Usage
@@ -22,12 +22,6 @@ Start the RQ worker:
 
 ```bash
 uv run --no-sync --frozen taranis-worker
-```
-
-Module execution remains supported for compatibility:
-
-```bash
-python -m worker
 ```
 
 Or use the development script with auto-reload:
@@ -50,6 +44,12 @@ Check or configure IntelOwl from a worker install/container:
 uv run --no-sync --frozen taranis-intelowl-setup --url http://127.0.0.1:18080
 ```
 
+## Shared LLM settings
+
+NER, sentiment, cybersecurity classification, clustering, and summarization/titles use the installed `taranis-llm-bot` library. Configure providers in **Admin Settings > LLM Endpoints**. Core includes the resolved provider in each job's bot configuration: bot selection, then feature assignment, then shared default. Changes apply on the next run; `REQUESTS_TIMEOUT` overrides the endpoint timeout.
+
+Workers must reach the selected providers. Missing configuration fails the job with a setup message. Clustering sends only story IDs, summaries, and tags; classification uses the bot's `CLASSIFICATION_THRESHOLD`.
+
 ## Architecture
 
-see [docs](https://github.com/taranis-ai/taranis-ai/tree/master/doc)
+See [Architecture and Boundaries](../../docs/agents/architecture-and-boundaries.md).

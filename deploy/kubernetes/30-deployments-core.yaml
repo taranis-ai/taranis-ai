@@ -54,6 +54,12 @@ spec:
                 secretKeyRef:
                   name: centrifugo-secrets
                   key: CENTRIFUGO_CONNECT_PROXY_SECRET
+            - name: LLM_INFERENCE_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: taranis-secrets
+                  key: LLM_INFERENCE_API_KEY
+                  optional: true
             - name: BOT_API_KEY
               valueFrom:
                 secretKeyRef:

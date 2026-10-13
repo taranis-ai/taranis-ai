@@ -129,14 +129,15 @@ class ChatClient:
     def __init__(self, settings: dict[str, Any] | None = None, deadline: float | None = None):
         self.deadline = deadline if deadline is not None else time.monotonic() + CHAT_TURN_TIMEOUT_SECONDS
         settings = settings if settings is not None else Settings.get_settings()
-        self.base_url = settings["chat_llm_base_url"].rstrip("/")
-        if not self.base_url:
+        endpoint = Settings.get_llm_endpoint("chat", settings)
+        if not endpoint:
             raise ChatUnavailableError("Chat provider is not configured")
-        self.api_format = settings.get("chat_llm_api_format", "responses")
+        self.base_url = endpoint["base_url"].rstrip("/")
+        self.api_format = endpoint["api_format"]
         self.endpoint = "chat/completions" if self.api_format == "chat_completions" else "responses"
-        self.api_key = settings["chat_llm_api_key"]
-        self.model = settings["chat_llm_model"]
-        self.timeout = settings["chat_llm_timeout"]
+        self.api_key = endpoint["api_key"]
+        self.model = endpoint["model"]
+        self.timeout = endpoint["timeout"]
         self.request_timeout = (5.0, self.timeout)
 
     def create_response(

@@ -40,9 +40,64 @@ For a directly launched core process, export the same JSON value as `PRE_SEED_SE
 
 Preseeding applies only when the persistent settings row does not exist. Restarts and upgrades preserve saved settings, including administrator edits; they do not merge newly supplied seed keys into an existing row. An empty object `{}` or an unset variable uses normal defaults. Use a JSON object, not the API's `{"settings": {...}}` wrapper. Invalid JSON and non-object values are rejected during configuration loading. Timezone, entry-limit, lookback, and onboarding values use the existing settings validators during initialization.
 
-Onboarding defaults to enabled. Set `PRE_SEED_SETTINGS='{"onboarding_enabled":false}'` to disable it during initialization; the value is copied to existing users. This replaces the removed `SKIP_INITIAL_USER_ONBOARDING` variable. After initialization, use Admin Settings to change values. Removing the variable does not undo persisted settings; no database migration is required.
+Onboarding defaults to enabled. Set `PRE_SEED_SETTINGS='{"onboarding_enabled":false}'` to disable it during initialization; the value is copied to existing users. After initialization, use Admin Settings to change values. Removing the variable does not undo persisted settings; no database migration is required.
+
+### Bundled LLM inference
+
+Compose includes private inference at `http://llm-inference:8000/v1` using Chat Completions. The CPU image `ghcr.io/taranis-ai/gemma4-e4b-gguf:cpu` includes the model and supports amd64 and arm64. Allow several minutes for startup and enough RAM for the model and 8192-token context; Kubernetes requests 6 GiB and limits usage to 12 GiB.
+
+Core registers internal inference on every startup and selects it when no shared default is set. Existing endpoint settings and feature/bot selections are preserved. Set `LLM_INFERENCE_IMAGE` to use another image; leave the endpoint model blank to use that image's default model.
+
+Set `LLM_INFERENCE_API_KEY` in the private `.env`; Core and inference share it. Restart both after rotation. Blank disables authentication and clears the stored internal key.
+
+Configure providers in **Admin Settings > LLM Endpoints** for Chat, clustering, summarization/titles, NER, sentiment, and cybersecurity classification. Bot selection overrides its feature assignment, then the shared default. Workers must reach the selected providers.
+
+Endpoint checks contact every saved provider, including unassigned ones. HTTP sends credentials and request content without encryption; use HTTPS across untrusted networks. Keys are stored in the database, so protect access and backups.
+
+When updating, remove retired bot containers and verify a job for each configured LLM feature:
+
+```bash
+docker compose pull
+docker compose up -d --remove-orphans
+docker compose ps
+```
+
+Keep a database backup and previous images/configuration for rollback. See [deployment upgrade notes](../deploy/README.md#shared-llm-endpoint-upgrade).
 
 ## Startup & Usage
+
+### Redis without persistence
+
+All bundled Redis services disable RDB snapshots (`save ""`) and the append-only
+log (`appendonly no`). `/data` uses a RAM-backed `tmpfs`, replacing the old
+`redis_data` volume and preventing old snapshots from being loaded. PostgreSQL
+and `core_data` remain persistent.
+
+Core rebuilds source, bot, and housekeeping schedules from PostgreSQL at startup.
+With matching Core and worker images, cron also requests a rebuild when Redis is
+empty, retries through Redis/Core outages, and resumes from the next scheduled
+run. Endpoint checks and empty word-list downloads are refreshed. Frontend caches
+refill on demand; completed task results and token revocations remain in PostgreSQL.
+
+Pending one-off jobs, delayed MISP pushes, retries, and unfinished bot chains are
+disposable and lost when Redis restarts. Let important work finish before an
+upgrade; rerun interrupted actions afterward. Missed cron runs are not replayed.
+
+Apply the updated Compose file and matching published Core/worker images:
+
+```bash
+docker compose pull
+docker compose up -d --wait
+docker compose ps
+docker compose exec -T redis sh -c 'REDISCLI_AUTH="$REDIS_PASSWORD" redis-cli --raw CONFIG GET save appendonly'
+```
+
+Verify an empty `save` value and `appendonly` set to `no`, then check the Scheduler
+for restored schedules and healthy workers. Existing `redis_data` volumes are
+left untouched and unused; do not run `docker compose down -v`, which would also
+delete PostgreSQL and application data. Keep the previous images and Compose file
+for rollback. Older Core/worker images require a Core restart after Redis loses
+state; avoid restoring stale queue files that could replay old publishing jobs.
 
 Start-up application
 
@@ -106,7 +161,7 @@ Products published with a `TARANIS_PUBLISHER` preset are stored in the `core_dat
 
 ## Development
 
-See [dev Readme](/dev/README.md) for a quick way to get a development environment running.
+See the [development guide](../dev/README.md) for a quick way to get a development environment running.
 
 ## Release gate tests
 
@@ -194,12 +249,12 @@ docker build -t taranis-worker . -f ./docker/Containerfile.worker
 docker build -t taranis-frontend . -f ./docker/Containerfile.frontend
 ```
 
-There are several Dockerfiles and each of them builds a different component of the system. These Dockerfiles exist:
+Each component has a Containerfile:
 
-- [Dockerfile.worker](Dockerfile.worker)
-- [Dockerfile.core](Dockerfile.core)
-- [Dockerfile.ingress](Dockerfile.ingress)
-- [Dockerfile.frontend](Dockerfile.frontend)
+- [worker](Containerfile.worker)
+- [core](Containerfile.core)
+- [ingress](Containerfile.ingress)
+- [frontend](Containerfile.frontend)
 
 # Configuration
 
@@ -239,7 +294,7 @@ Taranis Python clients use redis-py's default RESP3 protocol with maintenance no
 | `TARANIS_CORE_SENTRY_DSN`     | Core Sentry DSN                            | `''`          |
 | `TARANIS_BASE_PATH`           | Path under which Taranis AI is reachable   | `/`           |
 | `GRANIAN_WORKERS_MAX_RSS`     | Per-worker Granian RSS recycle limit in MiB| `4096`        |
-| `CHAT_ENABLED`                | Enable the optional analyst Chat API; configure the provider in Admin Settings > Chat | `false` |
+| `CHAT_ENABLED`                | Enable the optional analyst Chat API; configure the provider in Admin Settings > LLM Endpoints | `false` |
 
 The supplied Centrifugo configuration enables presence only for `global:events`, which every authenticated browser already receives. Core uses the server API to provide the `ADMIN_OPERATIONS`-protected connected-client snapshot on the Admin Notifications page; browsers are not granted presence access, and organization/user channel presence remains disabled.
 

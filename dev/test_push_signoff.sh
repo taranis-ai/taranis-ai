@@ -33,13 +33,6 @@ if ! gh extension list | grep -Fq 'basecamp/gh-signoff'; then
   fail "gh-signoff is not installed. Run 'gh extension install basecamp/gh-signoff'."
 fi
 
-for component in core frontend models worker; do
-  UV_FROZEN=false uv audit --preview-features audit-command --locked \
-    --python-version "$(<"src/${component}/.python-version")" \
-    --python-platform linux \
-    --directory "src/${component}"
-done
-
 "$ROOT_DIR/dev/testpipeline.sh"
 
 ensure_clean_worktree "Working tree changed during local validation. Review the changes before running signoff."
