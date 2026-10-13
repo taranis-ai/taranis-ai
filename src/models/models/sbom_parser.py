@@ -7,10 +7,11 @@ from typing import Any, Literal
 
 from cpe.cpe2_3_fs import CPE2_3_FS
 from cpe.cpe2_3_uri import CPE2_3_URI
-from models.cti import normalize_ioc_value
-from models.sbom import ParsedSbom, SbomComponent, SbomFinding, SbomOccurrence, SbomSummary
 from packageurl import PackageURL
 from pydantic import BaseModel, Field, ValidationError
+
+from models.cti import normalize_ioc_value
+from models.sbom import ParsedSbom, SbomComponent, SbomFinding, SbomOccurrence, SbomSummary, component_identity
 
 
 MAX_COMPONENTS = 100_000
@@ -135,21 +136,6 @@ def _component_inventory(component: CycloneDxComponent, reference: str) -> tuple
         occurrences=[SbomOccurrence(reference=reference, locations=locations)],
     )
     return component_identity(item.model_dump()), item
-
-
-def component_identity(inventory: dict) -> tuple:
-    """Identify an installed version consistently during parsing and replacement."""
-    if inventory.get("purl"):
-        return inventory["type"], inventory["purl"], inventory["version"]
-    return (
-        inventory["type"],
-        inventory.get("group", ""),
-        inventory["name"],
-        inventory["version"],
-        tuple(inventory.get("suppliers", [])),
-        tuple(inventory["cpes"]),
-        tuple(inventory.get("invalid_cpes", [])),
-    )
 
 
 def parse_findings(records: list[dict], components: list[SbomComponent], declared_references: set[str]) -> list[SbomFinding]:

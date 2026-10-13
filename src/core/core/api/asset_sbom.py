@@ -2,22 +2,31 @@
 
 from math import ceil
 
-from flask import request
+from flask import Response, request
 from flask.views import MethodView
 from flask_jwt_extended import current_user
 from models.cti import normalize_ioc_value
-from models.sbom import SbomCreateAsset, SbomCveMatching, SbomInventory, SbomReplaceAsset
+from models.sbom import SbomComponentBatch, SbomCreateAsset, SbomCveMatching, SbomFindingBatch, SbomInventory, SbomReplaceAsset, SbomSummary
 from pydantic import ValidationError
 from werkzeug.utils import secure_filename
 
-from core.managers.auth_manager import auth_required
+from core.managers.auth_manager import api_key_required, auth_required
 from core.managers.db_manager import db
 from core.model.asset import Asset
 from core.model.asset_sbom import AssetSbomComponent, AssetSbomFinding, AssetSbomImport
 from core.service.asset_intelligence import start_match_run, trigger_suggestions
-from core.service.asset_sbom import SbomImportError, apply_import, compare_import, create_preview, current_import, owned_import
+from core.service.asset_sbom import SbomImportError, apply_import, compare_import, current_import, owned_import
 from core.service.cache_invalidation import invalidate_frontend_cache_on_success
-from core.service.sbom import SbomValidationError
+from core.service.sbom_upload import (
+    accessible_upload,
+    begin_preview,
+    fail_upload,
+    finish_preview,
+    persist_batch,
+    refresh_upload,
+    stage_upload,
+    upload_status,
+)
 
 
 PAGE_SIZE = 50
@@ -69,16 +78,72 @@ class SbomUpload(MethodView):
         if not upload:
             return {"error": "Select a CycloneDX JSON file."}, 400
         try:
-            record, created = create_preview(
+            upload_job = stage_upload(
                 upload.read(),
                 secure_filename(upload.filename or "sbom.json")[:255] or "sbom.json",
                 current_user,
-                asset_id=request.args.get("asset_id") or None,
+                target_asset_id=request.args.get("asset_id") or None,
             )
-            return inventory_response(record), 201 if created else 200
-        except SbomValidationError as exc:
-            return {"error": exc.public_message}, 400
+            return upload_status(upload_job), 200 if upload_job.status == "READY" else 202
         except SbomImportError as exc:
+            return {"error": exc.public_message}, exc.status
+
+
+class SbomUploadProgress(MethodView):
+    @auth_required("ASSETS_CREATE")
+    def get(self, upload_id: str):
+        try:
+            upload = accessible_upload(upload_id, current_user)
+            refresh_upload(upload)
+            return upload_status(upload), 200
+        except SbomImportError as exc:
+            return {"error": exc.public_message}, exc.status
+
+
+class WorkerSbomUpload(MethodView):
+    @api_key_required
+    def get(self, upload_id: str):
+        try:
+            upload = accessible_upload(upload_id)
+            if upload.status not in ("QUEUED", "PROCESSING") or upload.source is None:
+                return {"error": "SBOM source is no longer available."}, 409
+            upload.status, upload.updated = "PROCESSING", upload.utcnow()
+            raw = upload.source
+            db.session.commit()
+            return Response(raw, mimetype="application/octet-stream", headers={"Cache-Control": "no-store"})
+        except SbomImportError as exc:
+            return {"error": exc.public_message}, exc.status
+
+    @api_key_required
+    def post(self, upload_id: str, action: str):
+        try:
+            upload = accessible_upload(upload_id)
+            data = request.get_json(silent=True)
+            if action == "begin":
+                begin_preview(upload, SbomSummary.model_validate(data))
+            elif action == "components":
+                persist_batch(upload, SbomComponentBatch.model_validate(data))
+            elif action == "findings":
+                persist_batch(upload, SbomFindingBatch.model_validate(data))
+            elif action == "complete":
+                finish_preview(upload)
+            elif action == "failure":
+                # Only a worker's explicitly curated validation message is displayable.
+                message = data.get("public_message") if isinstance(data, dict) else None
+                if isinstance(message, str) and len(message) <= 500:
+                    fail_upload(upload, message)
+                else:
+                    fail_upload(upload)
+            else:
+                return {"error": "Unknown SBOM preparation action."}, 404
+            upload.updated = upload.utcnow()
+            db.session.commit()
+            return upload_status(upload), 200
+        except ValidationError:
+            db.session.rollback()
+            return {"error": "Invalid prepared SBOM data."}, 400
+        except SbomImportError as exc:
+            db.session.rollback()
             return {"error": exc.public_message}, exc.status
 
 
@@ -153,6 +218,10 @@ class AssetSbomCveMatching(MethodView):
 
 
 def initialize(app, base_route: str):
+    app.add_url_rule(f"{base_route}/assets/sbom-uploads/<string:upload_id>", view_func=SbomUploadProgress.as_view("sbom_upload_progress"))
+    worker_view = WorkerSbomUpload.as_view("worker_sbom_upload")
+    app.add_url_rule(f"{base_route}/worker/sbom-uploads/<string:upload_id>", view_func=worker_view, methods=["GET"])
+    app.add_url_rule(f"{base_route}/worker/sbom-uploads/<string:upload_id>/<string:action>", view_func=worker_view, methods=["POST"])
     app.add_url_rule(f"{base_route}/assets/sbom-imports", view_func=SbomUpload.as_view("sbom_upload"))
     app.add_url_rule(f"{base_route}/assets/sbom-imports/<string:import_id>", view_func=SbomPreview.as_view("sbom_preview"))
     app.add_url_rule(f"{base_route}/assets/<string:asset_id>/sbom", view_func=AssetSbomInventory.as_view("asset_sbom"))

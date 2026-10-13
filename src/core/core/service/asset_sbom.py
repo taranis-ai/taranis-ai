@@ -1,17 +1,15 @@
-"""Parse, compare, and apply inventory snapshots independently of the upload UI."""
+"""Compare and apply prepared inventory snapshots independently of the upload UI."""
 
-import hashlib
 from collections import defaultdict
 
-from models.sbom import SbomComparison, SbomCreateAsset
+from models.sbom import SbomComparison, SbomCreateAsset, component_identity
 
 from core.managers.db_manager import db
 from core.model.asset import Asset, AssetCpe, AssetGroup
 from core.model.asset_intelligence import AssetMatchRun, AssetTrigger
-from core.model.asset_sbom import AssetSbomComponent, AssetSbomFinding, AssetSbomImport
+from core.model.asset_sbom import AssetSbomComponent, AssetSbomImport, AssetSbomUpload
 from core.model.user import User
 from core.service.asset_intelligence import generate_triggers, product_identity
-from core.service.sbom import component_identity, parse_sbom
 
 
 class SbomImportError(ValueError):
@@ -28,44 +26,15 @@ def owned_import(import_id: str, user: User, *, lock=False) -> AssetSbomImport:
     record = db.session.scalar(query)
     if not record or (record.asset_id and Asset.get_for_api(record.asset_id, user.organization)[1] != 200):
         raise SbomImportError("SBOM preview unavailable. Upload the file again.", 404)
+    if db.session.scalar(
+        db.select(AssetSbomUpload.id).where(AssetSbomUpload.import_id == record.id, AssetSbomUpload.status != "READY").limit(1)
+    ):
+        raise SbomImportError("The SBOM preview is still being prepared.", 409)
     return record
 
 
 def current_import(asset_id: str) -> AssetSbomImport | None:
     return db.session.scalar(db.select(AssetSbomImport).filter_by(asset_id=asset_id))
-
-
-def create_preview(raw: bytes, filename: str, user: User, *, asset_id: str | None = None) -> tuple[AssetSbomImport, bool]:
-    if asset_id and Asset.get_for_api(asset_id, user.organization)[1] != 200:
-        raise SbomImportError("Asset not found.", 404)
-    parsed = parse_sbom(raw)
-    digest = hashlib.sha256(raw).hexdigest()
-    previous = db.session.scalars(
-        db.select(AssetSbomImport)
-        .filter_by(sha256=digest, user_id=user.id, organization_id=user.organization.id)
-        .order_by(AssetSbomImport.created.desc())
-    )
-    for record in previous:
-        if asset_id and record.asset_id not in (None, asset_id):
-            continue
-        # Older imports discarded findings. Their identical source file must be reparsed.
-        if record.summary.get("parser_version") == parsed.summary.parser_version and (
-            not record.asset_id or Asset.get_for_api(record.asset_id, user.organization)[1] == 200
-        ):
-            return record, False
-    record = AssetSbomImport(filename, digest, user.id, user.organization.id, parsed.summary.model_dump())
-    record.components = [AssetSbomComponent(position=i, inventory=c.model_dump()) for i, c in enumerate(parsed.components)]
-    by_reference = {o["reference"]: c for c in record.components for o in c.inventory["occurrences"]}
-    for finding in parsed.findings:
-        row = AssetSbomFinding()
-        row.identifier, row.cve_id = finding.identifier, finding.cve_id
-        row.matching_enabled = bool(finding.cve_id)
-        row.details = finding.model_dump(exclude={"identifier", "cve_id", "component_references"})
-        row.components = list(dict.fromkeys(by_reference[ref] for ref in finding.component_references))
-        record.findings.append(row)
-    db.session.add(record)
-    db.session.commit()
-    return record, True
 
 
 def compare_import(record: AssetSbomImport, asset: Asset) -> SbomComparison:

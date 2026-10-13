@@ -1,15 +1,17 @@
 import io
 import json
+import os
 from datetime import timedelta
 from pathlib import Path
 
 import pytest
+from models.sbom_parser import SbomValidationError, parse_sbom
 
 from core.managers import queue_manager
 from core.managers.db_manager import db
 from core.model.asset import Asset, AssetCpe, AssetGroup, AssetObservable, AssetTag
 from core.model.asset_intelligence import AssetArticleMatch, AssetMatchRun, AssetTrigger
-from core.model.asset_sbom import AssetSbomComponent, AssetSbomFindingComponent, AssetSbomImport
+from core.model.asset_sbom import AssetSbomComponent, AssetSbomFindingComponent, AssetSbomImport, AssetSbomUpload, AssetSbomUploadReference
 from core.model.news_item import NewsItem
 from core.model.news_item_attribute import NewsItemAttribute
 from core.model.news_item_tag import NewsItemTag
@@ -19,7 +21,6 @@ from core.model.role import Role, TLPLevel
 from core.model.role_based_access import ItemType
 from core.model.story import Story
 from core.model.user import User
-from core.service.sbom import SbomValidationError, parse_sbom
 from tests.application.support.builders import build_news_item_payload, create_osint_source, create_story
 from tests.application.support.rbac import grant_acl
 
@@ -28,11 +29,38 @@ FIXTURE = Path(__file__).resolve().parents[1] / "test_data/sbom/software.cdx.jso
 
 
 def upload(client, headers, document=None):
-    return client.post(
+    response = client.post(
         "/api/assets/sbom-imports",
         headers={"Authorization": headers["Authorization"]},
         data={"file": (io.BytesIO(json.dumps(document).encode() if document is not None else FIXTURE.read_bytes()), "host.cdx.json")},
     )
+    assert response.status_code in (200, 202), response.json
+    if response.json["status"] != "READY":
+        prepare_upload(client, response.json["id"])
+    progress = client.get(f"/api/assets/sbom-uploads/{response.json['id']}", headers=headers)
+    return client.get(f"/api/assets/sbom-imports/{progress.json['import_id']}", headers=headers)
+
+
+def prepare_upload(client, upload_id):
+    from models.sbom import SBOM_BATCH_SIZE
+
+    worker_headers = {"Authorization": f"Bearer {os.getenv('API_KEY')}"}
+    endpoint = f"/api/worker/sbom-uploads/{upload_id}"
+    source = client.get(endpoint, headers=worker_headers)
+    assert source.status_code == 200
+    parsed = parse_sbom(source.data)
+    response = client.post(endpoint + "/begin", headers=worker_headers, json=parsed.summary.model_dump())
+    assert response.status_code == 200, response.json
+    for kind, items in (("components", parsed.components), ("findings", parsed.findings)):
+        for offset in range(0, len(items), SBOM_BATCH_SIZE):
+            response = client.post(
+                endpoint + "/" + kind,
+                headers=worker_headers,
+                json={"offset": offset, "items": [item.model_dump() for item in items[offset : offset + SBOM_BATCH_SIZE]]},
+            )
+            assert response.status_code == 200, response.json
+    response = client.post(endpoint + "/complete", headers=worker_headers, json={})
+    assert response.status_code == 200, response.json
 
 
 @pytest.mark.parametrize("version", ["1.5", "1.6", "1.7"])
@@ -81,7 +109,7 @@ def test_import_suggests_shorter_name_and_preserves_source(source_name, suggeste
 def test_asset_import_preview_confirmation_and_inventory(client, auth_header, session):
     before = db.session.query(Asset).count()
     response = upload(client, auth_header)
-    assert response.status_code == 201, response.json
+    assert response.status_code == 200, response.json
     preview = response.json
     assert db.session.query(Asset).count() == before
     endpoint = f"/api/assets/sbom-imports/{preview['id']}"
@@ -123,7 +151,7 @@ def test_import_boundaries_persistent_preview_and_pagination(client, auth_header
     document = json.loads(FIXTURE.read_bytes())
     document["components"].extend({"name": f"component-{i}", "type": "library"} for i in range(55))
     response = upload(client, auth_header, document)
-    assert response.status_code == 201
+    assert response.status_code == 200
     endpoint = f"/api/assets/sbom-imports/{response.json['id']}"
     assert len(response.json["components"]) == 50
     assert len(client.get(endpoint + "?page=2", headers=auth_header).json["components"]) == 8
@@ -146,7 +174,7 @@ def test_import_boundaries_persistent_preview_and_pagination(client, auth_header
     record = db.session.get(AssetSbomImport, response.json["id"])
     record.created -= timedelta(days=60)
     db.session.commit()
-    assert upload(client, auth_header).status_code == 201
+    assert upload(client, auth_header).status_code == 200
     assert client.get(endpoint, headers=auth_header).status_code == 200
     assert upload(client, auth_header, document).json["id"] == record.id
     assert (
@@ -833,3 +861,107 @@ def test_asset_tag_updates_filters_and_access(client, auth_header, session):
     assert client.get(first, headers=auth_header).json["tags"] == []
     assert client.delete(first, headers=auth_header).status_code == 200
     assert not db.session.scalar(db.select(AssetTag).filter_by(asset_id=ids[0]))
+
+
+def test_sbom_preparation_is_private_and_requires_complete_worker_batches(
+    client, auth_header, auth_header_user_permissions, api_header, session
+):
+    session().join_transaction_mode = "create_savepoint"
+    response = client.post(
+        "/api/assets/sbom-imports",
+        headers={"Authorization": auth_header["Authorization"]},
+        data={"file": (io.BytesIO(FIXTURE.read_bytes()), "async.cdx.json")},
+    )
+    assert response.status_code == 202
+    upload_id = response.json["id"]
+    progress_url = f"/api/assets/sbom-uploads/{upload_id}"
+    worker_url = f"/api/worker/sbom-uploads/{upload_id}"
+    assert response.json["status"] == "QUEUED" and response.json["import_id"] is None
+    other_user = User.find_by_name("user")
+    other_user.roles = list(User.find_by_name("admin").roles)
+    db.session.commit()
+    assert client.get(progress_url, headers=auth_header_user_permissions).status_code == 404
+    assert client.get(worker_url, headers=auth_header).status_code == 401
+    source = client.get(worker_url, headers=api_header)
+    assert source.status_code == 200, source.json
+    assert source.data == FIXTURE.read_bytes()
+    parsed = parse_sbom(source.data)
+    begin = client.post(worker_url + "/begin", headers=api_header, json=parsed.summary.model_dump())
+    preview_url = f"/api/assets/sbom-imports/{begin.json['import_id']}"
+    assert client.get(preview_url, headers=auth_header).status_code == 409
+    assert client.post(preview_url, headers=auth_header, json={"name": "Partial", "asset_group_id": "default"}).status_code == 409
+    assert client.post(worker_url + "/complete", headers=api_header, json={}).status_code == 409
+    batch = {"offset": 0, "items": [c.model_dump() for c in parsed.components]}
+    assert client.post(worker_url + "/components", headers=api_header, json=batch).status_code == 200
+    assert client.post(worker_url + "/components", headers=api_header, json=batch).status_code == 200
+    ready = client.post(worker_url + "/complete", headers=api_header, json={})
+    assert ready.json["status"] == "READY"
+    assert client.get(progress_url, headers=auth_header).json["status"] == "READY"
+    assert client.get(preview_url, headers=auth_header).json["summary"]["component_count"] == 3
+    assert db.session.get(AssetSbomUpload, upload_id).source is None
+    assert not db.session.scalar(db.select(AssetSbomUploadReference).filter_by(upload_id=upload_id))
+    assert client.get(worker_url, headers=api_header).status_code == 409
+
+
+def test_sbom_preparation_failure_discards_partial_preview_and_allows_retry(client, auth_header, api_header, session, monkeypatch):
+    session().join_transaction_mode = "create_savepoint"
+
+    def stage():
+        return client.post(
+            "/api/assets/sbom-imports",
+            headers={"Authorization": auth_header["Authorization"]},
+            data={"file": (io.BytesIO(FIXTURE.read_bytes()), "retry.cdx.json")},
+        )
+
+    queued = stage()
+    assert queued.status_code == 202
+    upload_id = queued.json["id"]
+    assert stage().json["id"] == upload_id
+    endpoint = f"/api/worker/sbom-uploads/{upload_id}"
+    parsed = parse_sbom(FIXTURE.read_bytes())
+    started = client.post(endpoint + "/begin", headers=api_header, json=parsed.summary.model_dump())
+    import_id = started.json["import_id"]
+    assert (
+        client.post(
+            endpoint + "/components", headers=api_header, json={"offset": 0, "items": [parsed.components[0].model_dump()]}
+        ).status_code
+        == 200
+    )
+    failed = client.post(endpoint + "/failure", headers=api_header, json={})
+    assert failed.json["status"] == "FAILED"
+    assert db.session.get(AssetSbomUpload, upload_id).source is None
+    assert db.session.get(AssetSbomImport, import_id) is None
+    assert not db.session.scalar(db.select(AssetSbomUploadReference).filter_by(upload_id=upload_id))
+    assert client.post(endpoint + "/complete", headers=api_header, json={}).status_code == 409
+    retry_id = stage().json["id"]
+    assert retry_id != upload_id
+    retry = db.session.get(AssetSbomUpload, retry_id)
+    retry.updated -= timedelta(days=2)
+    db.session.commit()
+    from core.service.task import TaskService
+
+    TaskService.cleanup_history()
+    assert db.session.get(AssetSbomUpload, retry_id).status == "FAILED"
+    assert db.session.get(AssetSbomUpload, retry_id).source is None
+
+    with monkeypatch.context() as patch:
+        patch.setattr(queue_manager.queue_manager, "enqueue_task", lambda *args, **kwargs: False)
+        assert stage().status_code == 503
+    assert not db.session.scalar(db.select(AssetSbomUpload.id).where(AssetSbomUpload.source.is_not(None)))
+
+
+def test_sbom_worker_rechecks_importer_permission(client, auth_header, api_header, session):
+    session().join_transaction_mode = "create_savepoint"
+    response = client.post(
+        "/api/assets/sbom-imports",
+        headers={"Authorization": auth_header["Authorization"]},
+        data={"file": (io.BytesIO(FIXTURE.read_bytes()), "revoked.cdx.json")},
+    )
+    assert response.status_code == 202
+    upload_id = response.json["id"]
+    owner = User.find_by_name("admin")
+    owner.roles = []
+    db.session.commit()
+    assert client.get(f"/api/worker/sbom-uploads/{upload_id}", headers=api_header).status_code == 404
+    upload = db.session.get(AssetSbomUpload, upload_id)
+    assert upload.status == "FAILED" and upload.source is None and upload.import_id is None

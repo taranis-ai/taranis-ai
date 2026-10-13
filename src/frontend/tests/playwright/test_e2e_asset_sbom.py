@@ -96,7 +96,7 @@ class TestAssetSbomWorkflow(BaseE2ETest):
         )
         self.short_sleep(self.wait_duration)
         self.highlight_element(page.get_by_role("button", name="Preview SBOM")).click()
-        expect(page.get_by_role("heading", name="Review SBOM import")).to_be_visible()
+        expect(page.get_by_role("heading", name="Review SBOM import")).to_be_visible(timeout=60000)
         inventory = page.locator('[data-test-id="sbom-inventory"]')
         expect(inventory).to_contain_text("5 software records grouped into 4 components")
         expect(inventory).to_contain_text("1 individual file records excluded")
@@ -284,7 +284,7 @@ class TestAssetSbomWorkflow(BaseE2ETest):
             }
         )
         self.highlight_element(page.get_by_role("button", name="Preview SBOM")).click()
-        expect(page.locator('[data-test-id="sbom-findings-summary"]')).to_contain_text("53 distinct CVEs")
+        expect(page.locator('[data-test-id="sbom-findings-summary"]')).to_contain_text("53 distinct CVEs", timeout=60000)
         self.highlight_element(page.locator('[data-test-id="sbom-findings-summary"]'))
         self.highlight_element(page.get_by_label("Asset name", exact=True), scroll=True).fill("SBOM Findings Showcase")
         self.highlight_element(page.get_by_label("Destination group")).select_option(label="Default")
@@ -357,6 +357,7 @@ class TestAssetSbomWorkflow(BaseE2ETest):
             )
             self.highlight_element(page.get_by_role("button", name="Preview SBOM")).click()
             comparison = page.locator('[data-test-id="sbom-comparison"]')
+            expect(comparison).to_be_visible(timeout=60000)
             expect(comparison).to_contain_text("52 removed")
             self.highlight_element(comparison)
             self.short_sleep(self.wait_duration * 2)
@@ -386,6 +387,7 @@ class TestAssetSbomWorkflow(BaseE2ETest):
                 }
             )
             self.highlight_element(page.get_by_role("button", name="Preview SBOM")).click()
+            expect(page.get_by_label("Asset name", exact=True)).to_be_visible(timeout=60000)
             self.highlight_element(page.get_by_label("Asset name", exact=True), scroll=True).fill("SBOM Secondary Host")
             self.highlight_element(page.get_by_label("Destination group")).select_option(label="Default")
             self.highlight_element(page.get_by_role("button", name="Create asset")).click()

@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block content %}
+  <section id="sbom-progress"
+           class="p-4 max-w-3xl mx-auto space-y-4"
+           data-test-id="sbom-progress"
+           {% if progress.status in ('QUEUED', 'PROCESSING') %} hx-get="{{ url_for('assets.sbom_progress', upload_id=progress.id) }}" hx-trigger="every 2s" hx-target="this" hx-select="#sbom-progress" hx-swap="outerHTML" {% endif %}>
+    <a href="{{ url_for('assets.assets') }}" class="link">Assets</a>
+    <h1 class="text-2xl font-bold">Preparing SBOM preview</h1>
+    <p>{{ progress.filename }}</p>
+    {% if progress.status == "FAILED" %}
+      <p role="alert" class="alert alert-error">{{ progress.error }}</p>
+      <a class="btn btn-primary" href="{{ url_for('assets.sbom_upload', asset_id=progress.target_asset_id) }}">Upload again</a>
+    {% elif progress.status == "QUEUED" %}
+      <p role="status">Queued for processing. The preview will open when it is ready.</p>
+    {% else %}
+      <p role="status">Processing inventory and findings. The preview will open when it is ready.</p>
+      {% if progress.components_received or progress.findings_received %}
+        <p>{{ progress.components_received }} components and {{ progress.findings_received }} findings prepared.</p>
+      {% endif %}
+    {% endif %}
+    {% if progress.status in ("QUEUED", "PROCESSING") %}
+      <p>You can leave this page and return to it later. Your asset has not been changed.</p>
+      <a class="btn btn-outline" href="{{ url_for('assets.sbom_progress', upload_id=progress.id) }}">Refresh status</a>
+    {% endif %}
+  </section>
+{% endblock content %}

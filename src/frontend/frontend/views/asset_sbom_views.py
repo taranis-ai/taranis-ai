@@ -1,9 +1,9 @@
-"""Upload once, review a server-owned preview, then create an asset."""
+"""Queue preparation, review the private preview, then create or update an asset."""
 
 from flask import redirect, render_template, request, url_for
 from flask_jwt_extended import current_user
 from models.asset import AssetGroup
-from models.sbom import SbomInventory
+from models.sbom import SbomInventory, SbomUploadStatus
 from requests import RequestException
 
 from frontend.auth import auth_required
@@ -43,12 +43,31 @@ def upload_sbom():
                 response = CoreApi().upload_sbom(upload, asset_id=target_id or None)
                 payload = response.json()
                 if response.ok:
-                    return redirect(url_for("assets.sbom_preview", import_id=payload["id"], asset_id=target_id or None), code=303)
+                    return redirect(url_for("assets.sbom_progress", upload_id=payload["id"]), code=303)
                 error, status = payload.get("error", "Unable to preview this SBOM."), response.status_code
             except RequestException, ValueError:
                 logger.exception("SBOM upload failed")
                 error, status = "Unable to upload the SBOM. Please try again.", 502
     return render_template("assets/sbom_upload.html", error=error, target_asset_id=target_id), status
+
+
+@auth_required("ASSETS_CREATE")
+def sbom_progress(upload_id: str):
+    api = CoreApi()
+    try:
+        response = api.session.get(f"{api.api_url}/assets/sbom-uploads/{upload_id}", timeout=api.timeout)
+        if not response.ok:
+            return render_template("assets/sbom_upload.html", error="SBOM processing status unavailable."), response.status_code
+        progress = SbomUploadStatus.model_validate(response.json())
+        if progress.status == "READY" and progress.import_id:
+            target = url_for("assets.sbom_preview", import_id=progress.import_id, asset_id=progress.target_asset_id)
+            if request.headers.get("HX-Request"):
+                return "", 200, {"HX-Redirect": target}
+            return redirect(target, code=303)
+        return render_template("assets/sbom_progress.html", progress=progress)
+    except RequestException, ValueError:
+        logger.exception("SBOM processing status unavailable")
+        return render_template("assets/sbom_upload.html", error="Unable to load SBOM processing status. Please reload this page."), 502
 
 
 @auth_required("ASSETS_CREATE")

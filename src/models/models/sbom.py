@@ -1,10 +1,14 @@
 """Asset SBOM preview and inventory contracts shared by Core and the frontend."""
 
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
 from models.asset_intelligence import TriggerInput
+
+
+SBOM_PARSER_VERSION = 3
+SBOM_BATCH_SIZE = 100
 
 
 class TriggerSuggestion(TriggerInput):
@@ -51,7 +55,7 @@ class SbomSummary(BaseModel):
     component_count: int
     components_with_cpes: int
     invalid_cpe_count: int
-    parser_version: int = 3
+    parser_version: int = SBOM_PARSER_VERSION
     description: str = ""
     tools: dict | list = Field(default_factory=dict)
     external_references: list[dict[str, Any]] = Field(default_factory=list)
@@ -66,6 +70,27 @@ class ParsedSbom(BaseModel):
     summary: SbomSummary
     components: list[SbomComponent]
     findings: list[SbomFinding]
+
+
+class SbomComponentBatch(BaseModel):
+    offset: int = Field(ge=0)
+    items: list[SbomComponent] = Field(min_length=1, max_length=SBOM_BATCH_SIZE)
+
+
+class SbomFindingBatch(BaseModel):
+    offset: int = Field(ge=0)
+    items: list[SbomFinding] = Field(min_length=1, max_length=SBOM_BATCH_SIZE)
+
+
+class SbomUploadStatus(BaseModel):
+    id: str
+    filename: str
+    status: Literal["QUEUED", "PROCESSING", "READY", "FAILED"]
+    error: str = ""
+    import_id: str | None = None
+    target_asset_id: str | None = None
+    components_received: int = 0
+    findings_received: int = 0
 
 
 class SbomComparison(BaseModel):
@@ -108,3 +133,18 @@ class SbomReplaceAsset(BaseModel):
 
 class SbomCveMatching(BaseModel):
     enabled: bool
+
+
+def component_identity(inventory: dict) -> tuple:
+    """Identify an installed version consistently during parsing and replacement."""
+    if inventory.get("purl"):
+        return inventory["type"], inventory["purl"], inventory["version"]
+    return (
+        inventory["type"],
+        inventory.get("group", ""),
+        inventory["name"],
+        inventory["version"],
+        tuple(inventory.get("suppliers", [])),
+        tuple(inventory["cpes"]),
+        tuple(inventory.get("invalid_cpes", [])),
+    )

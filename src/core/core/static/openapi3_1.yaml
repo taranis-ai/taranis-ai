@@ -6636,6 +6636,98 @@ paths:
           description: forbidden
         "404":
           $ref: "#/components/responses/404NotFound"
+  /assets/sbom-uploads/{upload_id}:
+    get:
+      security:
+      - UserAuth: []
+      tags: [assets]
+      operationId: sbom_upload_progress.get
+      description: Private processing status for the importing user and organization. Requires ASSETS_CREATE and current target access.
+      parameters:
+      - name: upload_id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Queued, processing, ready or failed preparation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SbomUploadStatus'
+        '403':
+          description: Forbidden
+        '404':
+          description: Upload unavailable
+  /worker/sbom-uploads/{upload_id}:
+    get:
+      security:
+      - APIKey: []
+      tags: [worker]
+      operationId: worker_sbom_upload.get
+      description: Download staged source bytes and start processing after rechecking the importing user's access. Source is removed on completion or failure.
+      parameters:
+      - name: upload_id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Staged CycloneDX source
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: Upload unavailable
+        '409':
+          description: Source no longer available
+  /worker/sbom-uploads/{upload_id}/{action}:
+    post:
+      security:
+      - APIKey: []
+      tags: [worker]
+      operationId: worker_sbom_upload.post
+      description: Prepare a private preview with a summary, ordered batches of at most 100 components or findings, then complete. Rechecks owner access on each request. Repeated accepted batches are idempotent. Failure discards partial inventory. No asset is changed.
+      parameters:
+      - name: upload_id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: action
+        in: path
+        required: true
+        schema:
+          type: string
+          enum: [begin, components, findings, complete, failure]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+            examples:
+              components:
+                value: {offset: 0, items: [{name: openssl, type: library, version: '3.0'}]}
+              failure:
+                value: {}
+      responses:
+        '200':
+          description: Current preparation status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SbomUploadStatus'
+        '400':
+          description: Invalid prepared data
+        '404':
+          description: Upload unavailable
+        '409':
+          description: Incomplete or out-of-order preparation
   /assets/sbom-imports:
     post:
       security:
@@ -6644,7 +6736,9 @@ paths:
       - assets
       operationId: sbom_upload.post
       description: Upload CycloneDX JSON 1.5–1.7 (default maximum request 250 MiB). Requires
-        ASSETS_CREATE. Preview is private and has no time limit. Specific product names are enabled for matching by default; broad vendor and supplier terms remain disabled.
+        ASSETS_CREATE. Queues worker preparation and returns private upload status.
+        Poll /assets/sbom-uploads/{id} until READY, then read /assets/sbom-imports/{import_id}.
+        Completed previews have no time limit; invalid documents fail asynchronously.
       parameters:
       - name: asset_id
         in: query
@@ -6653,21 +6747,24 @@ paths:
           type: string
       responses:
         '200':
-          description: Existing accessible import resumed
+          description: Existing accessible preview is ready
           content:
             application/json:
-              schema: &id001
-                $ref: '#/components/schemas/SbomInventory'
-        '201':
-          description: Preview created
+              schema:
+                $ref: '#/components/schemas/SbomUploadStatus'
+        '202':
+          description: Worker preparation queued or in progress
           content:
             application/json:
-              schema: *id001
+              schema:
+                $ref: '#/components/schemas/SbomUploadStatus'
         '400': &id002
           description: Request rejected; JSON error contains a curated message.
         '401': *id002
         '403': *id002
         '413': *id002
+        '503':
+          description: SBOM processing could not be queued
       requestBody:
         required: true
         content:
@@ -6694,7 +6791,8 @@ paths:
           description: Preview inventory
           content:
             application/json:
-              schema: *id001
+              schema: &id001
+                $ref: '#/components/schemas/SbomInventory'
         '401': *id002
         '403': *id002
         '404': *id002
@@ -10634,6 +10732,27 @@ components:
                 type: string
               version:
                 type: string
+    SbomUploadStatus:
+      type: object
+      required: [id, filename, status]
+      properties:
+        id:
+          type: string
+        filename:
+          type: string
+        status:
+          type: string
+          enum: [QUEUED, PROCESSING, READY, FAILED]
+        error:
+          type: string
+        import_id:
+          type: [string, 'null']
+        target_asset_id:
+          type: [string, 'null']
+        components_received:
+          type: integer
+        findings_received:
+          type: integer
     SbomComparison:
       properties:
         asset_id:

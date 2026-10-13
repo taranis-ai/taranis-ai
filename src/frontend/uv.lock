@@ -173,6 +173,12 @@ wheels = [
 ]
 
 [[package]]
+name = "cpe"
+version = "1.3.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/a4/30/9b907ff7e4af8c64d5461ab7e7beeff5dc53893dd1c70347069915c82eb1/cpe-1.3.1.tar.gz", hash = "sha256:f30a97881b6eb74a6d630552aebce03df22cddb7a587d632a13b4e14b66b95b0", size = 942225, upload-time = "2024-10-02T07:59:39.221Z" }
+
+[[package]]
 name = "croniter"
 version = "6.2.4"
 source = { registry = "https://pypi.org/simple" }
@@ -800,6 +806,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/22/83/daa57fec7c503b22007eb34becb8435b3bd3a784f1fb2f4b7e94b71cc8c1/opentelemetry_util_http-0.66b0.tar.gz", hash = "sha256:a2d53859630abe8e5abcc4f867c5a809bb95873033573b1a67f6ef43b57a8627", size = 11586, upload-time = "2026-09-25T12:36:23.636Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/01/48/d982ebfca471152ec6d454853290d4352392bdcb1593142ec1e1b8cf0b28/opentelemetry_util_http-0.66b0-py3-none-any.whl", hash = "sha256:7f5e581e94f023b30995f700e41ce319cec82bd542ff1c1c7c9b56d6b10bb687", size = 8385, upload-time = "2026-09-25T12:35:42.28Z" },
+]
+
+[[package]]
+name = "packageurl-python"
+version = "0.17.6"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/f5/d6/3b5a4e3cfaef7a53869a26ceb034d1ff5e5c27c814ce77260a96d50ab7bb/packageurl_python-0.17.6.tar.gz", hash = "sha256:1252ce3a102372ca6f86eb968e16f9014c4ba511c5c37d95a7f023e2ca6e5c25", size = 50618, upload-time = "2025-11-24T15:20:17.998Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/b1/2f/c7277b7615a93f51b5fbc1eacfc1b75e8103370e786fd8ce2abf6e5c04ab/packageurl_python-0.17.6-py3-none-any.whl", hash = "sha256:31a85c2717bc41dd818f3c62908685ff9eebcb68588213745b14a6ee9e7df7c9", size = 36776, upload-time = "2025-11-24T15:20:16.962Z" },
 ]
 
 [[package]]
@@ -1505,8 +1520,10 @@ name = "taranis-models"
 source = { editable = "../models" }
 dependencies = [
     { name = "beautifulsoup4" },
+    { name = "cpe" },
     { name = "language-tags" },
     { name = "lxml" },
+    { name = "packageurl-python" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "python-dotenv" },
@@ -1515,8 +1532,10 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "beautifulsoup4" },
+    { name = "cpe", specifier = ">=1.3.1" },
     { name = "language-tags" },
     { name = "lxml" },
+    { name = "packageurl-python", specifier = ">=0.17.6" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "pyrefly", marker = "extra == 'dev'", specifier = ">=1.1.1" },
