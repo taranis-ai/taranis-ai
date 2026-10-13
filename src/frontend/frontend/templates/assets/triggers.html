@@ -87,7 +87,7 @@
                   <input type="hidden" name="trigger_id" value="{{ trigger.id }}">
                   {% set retry = error and request.form.get('trigger_id') == trigger.id %}
                   <label class="block">
-                    Phrase
+                    Matching phrase
                     <input name="phrase"
                            required
                            maxlength="200"
@@ -95,10 +95,15 @@
                            value="{{ request.form.get('phrase') if retry else trigger.phrase }}">
                   </label>
                   <label class="block">
-                    Context phrases (one per line; any one may match)
+                    Context phrases (one per line)
                     <textarea name="context"
+                              aria-describedby="context-help-{{ trigger.id }}"
                               class="textarea textarea-bordered w-full">{{ request.form.get('context') if retry else trigger.context | join('\n') }}</textarea>
                   </label>
+                  <p id="context-help-{{ trigger.id }}" class="text-sm text-base-content/70">
+                    An article must contain the matching phrase <strong>AND at least one context phrase</strong> in its title or content.
+                    Multiple context phrases are alternatives (<strong>OR</strong>). Leave this empty to require only the matching phrase.
+                  </p>
                   <label class="flex gap-2"><input type="checkbox"
        name="enabled"
        class="checkbox"
@@ -107,14 +112,14 @@
                 </form>
               </details>
               <details {% if error and request.form.get('component_id') == trigger.component_id %}open{% endif %}>
-                <summary class="cursor-pointer">Add another product name</summary>
+                <summary class="cursor-pointer">Add alternative matching phrase</summary>
                 <form method="post" class="space-y-2 max-w-xl">
                   <input type="hidden" name="csrf_token" value="{{ request.cookies.get(config['JWT_ACCESS_CSRF_COOKIE_NAME'], '') }}">
                   <input type="hidden" name="action" value="create">
                   <input type="hidden" name="component_id" value="{{ trigger.component_id }}">
                   {% set retry = error and request.form.get('component_id') == trigger.component_id %}
                   <label class="block">
-                    Product name
+                    Matching phrase
                     <input name="phrase"
                            required
                            maxlength="200"
@@ -124,13 +129,18 @@
                   <label class="block">
                     Context phrases (one per line)
                     <textarea name="context"
+                              aria-describedby="alternative-context-help-{{ trigger.id }}"
                               class="textarea textarea-bordered w-full">{{ request.form.get('context', '') if retry else '' }}</textarea>
                   </label>
+                  <p id="alternative-context-help-{{ trigger.id }}" class="text-sm text-base-content/70">
+                    An article must contain the matching phrase <strong>AND at least one context phrase</strong> in its title or content.
+                    Multiple context phrases are alternatives (<strong>OR</strong>). Leave this empty to require only the matching phrase.
+                  </p>
                   <label class="flex gap-2"><input type="checkbox"
        name="enabled"
        class="checkbox"
        {% if retry and request.form.get('enabled') == 'on' %}checked{% endif %}>Enabled</label>
-                  <button class="btn" type="submit">Add product name</button>
+                  <button class="btn" type="submit">Add alternative matching phrase</button>
                 </form>
               </details>
             {% endif %}
