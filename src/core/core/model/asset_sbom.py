@@ -24,6 +24,7 @@ class AssetSbomImport(BaseModel):
     confirmed: Mapped[datetime | None] = db.Column(db.DateTime)
     summary: Mapped[dict[str, Any]] = db.Column(db.JSON, nullable=False)
     components: Mapped[list["AssetSbomComponent"]] = relationship(cascade="all, delete-orphan", passive_deletes=True)
+    findings: Mapped[list["AssetSbomFinding"]] = relationship(cascade="all, delete-orphan", passive_deletes=True)
 
     def __init__(self, filename: str, sha256: str, user_id: str, organization_id: str, summary: dict[str, Any]):
         self.filename = filename
@@ -47,3 +48,30 @@ class AssetSbomComponent(BaseModel):
     def __init__(self, position: int, inventory: dict[str, Any]):
         self.position = position
         self.inventory = inventory
+
+
+class AssetSbomFindingComponent(BaseModel):
+    """An exported finding can reference several installed package versions."""
+
+    __tablename__ = "asset_sbom_finding_component"
+    finding_id: Mapped[str] = db.Column(
+        db.String(UUID_STR_LENGTH), db.ForeignKey("asset_sbom_finding.id", ondelete="CASCADE"), primary_key=True
+    )
+    component_id: Mapped[str] = db.Column(
+        db.String(UUID_STR_LENGTH), db.ForeignKey("asset_sbom_component.id", ondelete="CASCADE"), primary_key=True, index=True
+    )
+
+
+class AssetSbomFinding(BaseModel):
+    """Source-reported findings, independent of report associations and IOC enrichment."""
+
+    __tablename__ = "asset_sbom_finding"
+    id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), primary_key=True, default=BaseModel.uuid7_str)
+    import_id: Mapped[str] = db.Column(
+        db.String(UUID_STR_LENGTH), db.ForeignKey("asset_sbom_import.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    identifier: Mapped[str] = db.Column(db.String(255), nullable=False)
+    cve_id: Mapped[str] = db.Column(db.String(255), nullable=False, default="", index=True)
+    matching_enabled: Mapped[bool] = db.Column(db.Boolean, nullable=False, default=True)
+    details: Mapped[dict[str, Any]] = db.Column(db.JSON, nullable=False)
+    components: Mapped[list[AssetSbomComponent]] = relationship(secondary="asset_sbom_finding_component", passive_deletes=True)

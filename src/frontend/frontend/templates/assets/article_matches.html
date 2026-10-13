@@ -1,0 +1,58 @@
+
+{% if article.cve_matches %}
+  <span class="badge badge-primary"
+        data-test-id="asset-cve-match-count">{{ article.cve_matches | length }} CVE match{{ 'es' if article.cve_matches | length != 1 }}</span>
+{% endif %}
+<ul aria-label="Matched software" class="flex flex-wrap gap-2">
+  {% for software in article.software %}
+    <li class="badge badge-outline h-auto"
+        data-test-id="asset-matched-software">{{ software.name }} · {{ software.versions | length }} installed version{{ 's' if software.versions | length != 1 }}</li>
+  {% endfor %}
+</ul>
+<details :open='expandedArticles[{{ (asset_id ~ ':' ~ article.id) | tojson }}] || false'
+         @toggle='if ($el.isConnected) expandedArticles[{{ (asset_id ~ ':' ~ article.id) | tojson }}] = $el.open'>
+  <summary class="cursor-pointer">Why this matches</summary>
+  <div class="space-y-3 pt-2">
+    <ul class="space-y-2">
+      {% for software in article.software %}
+        <li>
+          <strong>{{ software.name }}</strong> · Installed versions: {{ software.versions | join(", ") }}
+          <ul class="text-sm">
+            {% for component in software.components %}
+              <li>
+                <a class="link"
+                   href="{{ url_for('assets.asset_triggers', asset_id=asset_id, component_id=component.id) }}">Matching rules for {{ component.name }} {{ component.version }}</a>
+                {% if component.purl %}<span class="break-all">({{ component.purl }})</span>{% endif %}
+              </li>
+            {% endfor %}
+          </ul>
+        </li>
+      {% endfor %}
+    </ul>
+    {% for match in article.cve_matches %}
+      <p data-test-id="asset-cve-match">
+        CVE tag: <a class="link"
+    href="{{ url_for('assets.asset_cti', asset_id=asset_id, search=match.cve_id) }}">{{ match.cve_id }}</a> · reported for
+        {% for software in article.software %}{% for component in software.components if component.id in match.component_ids %}<span>{{ component.name }} {{ component.version }}</span>{% if not loop.last %}, {% endif %}{% endfor %}{% endfor %}.
+      </p>
+      {% for rating in match.ratings | default([]) %}
+        <p class="text-sm" data-test-id="asset-cvss-rating">
+          {{ rating.method }} {{ rating.score }} · {{ rating.source.get("name") or 'Source not supplied' }} ·
+          {% for software in article.software %}{% for component in software.components if component.id in rating.component_ids %}{{ component.name }} {{ component.version }}; {% endfor %}{% endfor %}
+          {% if rating.vector %}<code class="break-all">{{ rating.vector }}</code>{% endif %}
+        </p>
+      {% endfor %}
+    {% endfor %}
+    {% for evidence in article.evidence %}
+      <div data-test-id="asset-match-evidence">
+        {% for match in evidence.matches %}
+          {% set software = article.software | selectattr('id', 'equalto', match.software_id) | first %}
+          <p>Matched “{{ match.matched_text }}” in article {{ evidence.field }} · Rule: {{ match.phrase }} · {{ software.name }} ({{ match.triggers | map(attribute='version') | unique(case_sensitive=true) | join(", ") }}){% if match.context %}; context: {{ match.context | join(", ") }}{% endif %}</p>
+        {% endfor %}
+        <blockquote class="italic break-words">
+          {{ evidence.excerpt }}
+        </blockquote>
+      </div>
+    {% endfor %}
+  </div>
+</details>

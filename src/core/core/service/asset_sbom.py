@@ -1,0 +1,218 @@
+"""Parse, compare, and apply inventory snapshots independently of the upload UI."""
+
+import hashlib
+from collections import defaultdict
+
+from models.sbom import SbomComparison, SbomCreateAsset
+
+from core.managers.db_manager import db
+from core.model.asset import Asset, AssetCpe, AssetGroup
+from core.model.asset_intelligence import AssetMatchRun, AssetTrigger
+from core.model.asset_sbom import AssetSbomComponent, AssetSbomFinding, AssetSbomImport
+from core.model.user import User
+from core.service.asset_intelligence import generate_triggers, product_identity
+from core.service.sbom import component_identity, parse_sbom
+
+
+class SbomImportError(ValueError):
+    def __init__(self, public_message: str, status: int):
+        super().__init__(public_message)
+        self.public_message = public_message
+        self.status = status
+
+
+def owned_import(import_id: str, user: User, *, lock=False) -> AssetSbomImport:
+    query = db.select(AssetSbomImport).filter_by(id=import_id, user_id=user.id, organization_id=user.organization.id)
+    if lock:
+        query = query.with_for_update().execution_options(populate_existing=True)
+    record = db.session.scalar(query)
+    if not record or (record.asset_id and Asset.get_for_api(record.asset_id, user.organization)[1] != 200):
+        raise SbomImportError("SBOM preview unavailable. Upload the file again.", 404)
+    return record
+
+
+def current_import(asset_id: str) -> AssetSbomImport | None:
+    return db.session.scalar(db.select(AssetSbomImport).filter_by(asset_id=asset_id))
+
+
+def create_preview(raw: bytes, filename: str, user: User, *, asset_id: str | None = None) -> tuple[AssetSbomImport, bool]:
+    if asset_id and Asset.get_for_api(asset_id, user.organization)[1] != 200:
+        raise SbomImportError("Asset not found.", 404)
+    parsed = parse_sbom(raw)
+    digest = hashlib.sha256(raw).hexdigest()
+    previous = db.session.scalars(
+        db.select(AssetSbomImport)
+        .filter_by(sha256=digest, user_id=user.id, organization_id=user.organization.id)
+        .order_by(AssetSbomImport.created.desc())
+    )
+    for record in previous:
+        if asset_id and record.asset_id not in (None, asset_id):
+            continue
+        # Older imports discarded findings. Their identical source file must be reparsed.
+        if record.summary.get("parser_version") == parsed.summary.parser_version and (
+            not record.asset_id or Asset.get_for_api(record.asset_id, user.organization)[1] == 200
+        ):
+            return record, False
+    record = AssetSbomImport(filename, digest, user.id, user.organization.id, parsed.summary.model_dump())
+    record.components = [AssetSbomComponent(position=i, inventory=c.model_dump()) for i, c in enumerate(parsed.components)]
+    by_reference = {o["reference"]: c for c in record.components for o in c.inventory["occurrences"]}
+    for finding in parsed.findings:
+        row = AssetSbomFinding()
+        row.identifier, row.cve_id = finding.identifier, finding.cve_id
+        row.matching_enabled = bool(finding.cve_id)
+        row.details = finding.model_dump(exclude={"identifier", "cve_id", "component_references"})
+        row.components = list(dict.fromkeys(by_reference[ref] for ref in finding.component_references))
+        record.findings.append(row)
+    db.session.add(record)
+    db.session.commit()
+    return record, True
+
+
+def compare_import(record: AssetSbomImport, asset: Asset) -> SbomComparison:
+    previous = current_import(asset.id)
+    before = {component_identity(c.inventory) for c in previous.components} if previous else set()
+    after = {component_identity(c.inventory) for c in record.components}
+    old_cves = {f.cve_id for f in previous.findings if f.cve_id} if previous else set()
+    new_cves = {f.cve_id for f in record.findings if f.cve_id}
+    old_findings = {(f.cve_id or f.identifier) for f in previous.findings} if previous else set()
+    new_findings = {(f.cve_id or f.identifier) for f in record.findings}
+    return SbomComparison(
+        asset_id=asset.id,
+        asset_name=asset.name,
+        expected_sha256=previous.sha256 if previous else None,
+        components_added=len(after - before),
+        components_removed=len(before - after),
+        findings_added=len(new_findings - old_findings),
+        findings_removed=len(old_findings - new_findings),
+        cves_added=len(new_cves - old_cves),
+        cves_removed=len(old_cves - new_cves),
+        clears_findings=bool(previous and previous.findings and not record.summary.get("vulnerabilities_supplied")),
+    )
+
+
+def _rule_key(trigger: AssetTrigger) -> str:
+    return trigger.suggestion or f"analyst:{trigger.phrase.casefold()}"
+
+
+def _rule_decision(trigger: AssetTrigger) -> tuple:
+    return trigger.phrase, tuple(trigger.context), trigger.enabled, tuple(trigger.sources), trigger.analyst_edited
+
+
+def preserve_rules(previous: AssetSbomImport, incoming: AssetSbomImport) -> None:
+    """Move exact-version rules; inherit unanimous package decisions for new versions."""
+    old_components = {component_identity(c.inventory): c for c in previous.components}
+    by_package: dict[tuple, list[AssetSbomComponent]] = defaultdict(list)
+    for component in previous.components:
+        by_package[product_identity(component.inventory)].append(component)
+    rules: dict[str, list[AssetTrigger]] = defaultdict(list)
+    for trigger in db.session.scalars(db.select(AssetTrigger).join(AssetSbomComponent).where(AssetSbomComponent.import_id == previous.id)):
+        rules[trigger.component_id].append(trigger)
+    for component in incoming.components:
+        if old := old_components.get(component_identity(component.inventory)):
+            for trigger in rules[old.id]:
+                trigger.component = component
+            component.inventory = {**component.inventory, "review_conflicts": old.inventory.get("review_conflicts", [])}
+            continue
+        siblings = by_package.get(product_identity(component.inventory), [])
+        decisions: dict[str, list[AssetTrigger]] = defaultdict(list)
+        for sibling in siblings:
+            for trigger in rules[sibling.id]:
+                decisions[_rule_key(trigger)].append(trigger)
+        conflicts = []
+        for key, candidates in decisions.items():
+            original = candidates[0]
+            unanimous = len(candidates) == len(siblings) and len({_rule_decision(t) for t in candidates}) == 1
+            inherited = AssetTrigger(
+                component.id,
+                original.phrase,
+                list(original.context),
+                list(original.sources),
+                suggestion=original.suggestion,
+                enabled=original.enabled if unanimous else False,
+            )
+            inherited.analyst_edited = original.analyst_edited or not unanimous
+            db.session.add(inherited)
+            if not unanimous:
+                conflicts.append(key)
+        component.inventory = {**component.inventory, "review_conflicts": conflicts}
+    old_decisions = {finding.cve_id: finding.matching_enabled for finding in previous.findings if finding.cve_id}
+    for finding in incoming.findings:
+        if finding.cve_id in old_decisions:
+            finding.matching_enabled = old_decisions[finding.cve_id]
+    db.session.flush()
+
+
+def apply_import(
+    import_id: str,
+    user: User,
+    *,
+    create: SbomCreateAsset | None = None,
+    asset_id: str | None = None,
+    expected_sha256: str | None = None,
+) -> tuple[Asset, bool]:
+    """Apply one snapshot atomically; callers schedule matching only after this commits."""
+    with db.session.begin_nested():
+        asset, changed = _apply_import(import_id, user, create=create, asset_id=asset_id, expected_sha256=expected_sha256)
+    db.session.commit()
+    return asset, changed
+
+
+def _apply_import(
+    import_id: str, user: User, *, create: SbomCreateAsset | None, asset_id: str | None, expected_sha256: str | None
+) -> tuple[Asset, bool]:
+    asset = None
+    if asset_id:
+        if Asset.get_for_api(asset_id, user.organization)[1] != 200:
+            raise SbomImportError("Asset not found.", 404)
+        # A write also serializes replacement on SQLite, where FOR UPDATE is ignored.
+        db.session.execute(db.update(Asset).where(Asset.id == asset_id).values(name=Asset.name))
+        asset = db.session.get(Asset, asset_id)
+    record = owned_import(import_id, user, lock=True)
+    if record.asset_id:
+        if asset_id and record.asset_id != asset_id:
+            raise SbomImportError("This import belongs to another asset. Upload a new export.", 409)
+        existing = db.session.get(Asset, record.asset_id)
+        assert existing is not None
+        return existing, False
+    previous = current_import(asset_id) if asset_id else None
+    if asset_id and (previous.sha256 if previous else None) != expected_sha256:
+        raise SbomImportError("The asset inventory changed. Review the update again before applying it.", 409)
+    if asset is None:
+        if not create or not create.name.strip():
+            raise SbomImportError("Provide an asset name.", 400)
+        group = AssetGroup.get(create.asset_group_id)
+        if not group or not AssetGroup.access_allowed(user.organization, group.id):
+            raise SbomImportError("Asset group unavailable.", 403)
+        asset = Asset(name=create.name.strip(), serial="", description=create.description, group=group, tags=create.tags)
+        db.session.add(asset)
+        db.session.flush()
+    claimed = db.session.scalar(
+        db.update(AssetSbomImport)
+        .where(AssetSbomImport.id == record.id, AssetSbomImport.confirmed.is_(None))
+        .values(confirmed=record.utcnow())
+        .returning(AssetSbomImport.id)
+    )
+    if not claimed:
+        raise SbomImportError("This import has already been applied. Reload the asset.", 409)
+    old_projection = {cpe for c in previous.components for cpe in c.inventory["cpes"]} if previous else set()
+    new_projection = {cpe for c in record.components for cpe in c.inventory["cpes"]}
+    manual_cpes = {c.value for c in asset.asset_cpes} - old_projection
+    desired_cpes = manual_cpes | new_projection
+    asset.asset_cpes = [c for c in asset.asset_cpes if c.value in desired_cpes]
+    retained_cpes = {c.value for c in asset.asset_cpes}
+    asset.asset_cpes.extend(AssetCpe(cpe) for cpe in sorted(desired_cpes - retained_cpes))
+    if previous:
+        preserve_rules(previous, record)
+        previous.asset_id = None
+        db.session.flush()
+        db.session.delete(previous)
+    record.asset_id = asset.id
+    db.session.flush()
+    generate_triggers(asset.id)
+    db.session.execute(
+        db.update(AssetMatchRun)
+        .where(AssetMatchRun.asset_id == asset.id, AssetMatchRun.status.in_(("QUEUED", "RUNNING")))
+        .values(status="SUPERSEDED")
+    )
+    asset.update_vulnerabilities()
+    return asset, True

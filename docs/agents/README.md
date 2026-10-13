@@ -13,7 +13,7 @@ Read matching memories before planning or editing related features, routes, mode
 
 ## Feature Memories
 
-- [Asset SBOM Import](asset-sbom-import.md): CycloneDX inventory, private previews, CPE coverage, component triggers, and explainable asset intelligence.
+- [Asset SBOM Import](asset-sbom-import.md): CycloneDX inventory and findings, private previews, asset replacement, CVE-tag matching, the cross-host intelligence overview and CVSS filters, component triggers, asset CTI, and the future Dependency-Track contract.
 
 - [Story Export](story-export.md): Settings and Assess downloads, metadata, import contracts, dates, and access checks.
 - [Telemetry](telemetry.md) - Sentry initialization, OTLP traces and metrics, RQ trace propagation, and the optional Grafana LGTM Compose profile.

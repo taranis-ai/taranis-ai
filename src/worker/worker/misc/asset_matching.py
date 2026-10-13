@@ -17,9 +17,9 @@ def asset_match_task(run_id: str):
     try:
         while True:
             result = api.api_post(endpoint, {})
-            if not result or result.get("status") not in ("RUNNING", "COMPLETED"):
+            if not result or result.get("status") not in ("RUNNING", "COMPLETED", "SUPERSEDED"):
                 raise RuntimeError("Asset intelligence scan failed")
-            if result["status"] == "COMPLETED":
+            if result["status"] in ("COMPLETED", "SUPERSEDED"):
                 if job:
                     api.save_task_result(
                         job.id,
@@ -27,7 +27,7 @@ def asset_match_task(run_id: str):
                         "SUCCESS",
                         worker_id=job.meta.get("worker_id"),
                         worker_type="asset_match_task",
-                        result=build_success_task_result(default_message="Asset intelligence scan completed", data=result),
+                        result=build_success_task_result(default_message="Asset intelligence scan finished", data=result),
                     )
                 return result
     except Exception:

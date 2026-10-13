@@ -1,4 +1,4 @@
-"""Explainable product mentions; these matches never create vulnerability findings."""
+"""Current software mentions and CVE associations with collected intelligence."""
 
 import re
 from datetime import timedelta
@@ -14,10 +14,11 @@ from core.managers import queue_manager
 from core.managers.db_manager import db
 from core.model.asset import Asset, AssetGroup
 from core.model.asset_intelligence import AssetArticleMatch, AssetMatchRun, AssetTrigger
-from core.model.asset_sbom import AssetSbomComponent, AssetSbomImport
+from core.model.asset_sbom import AssetSbomComponent, AssetSbomFinding, AssetSbomImport
 from core.model.news_item import NewsItem
 from core.model.story import Story
 from core.model.user import User
+from core.service.asset_findings import cve_tag_query
 
 
 ARTICLES_PER_BATCH = 200
@@ -107,7 +108,7 @@ def product_identity(inventory: dict) -> tuple:
     if inventory.get("purl"):
         package = PackageURL.from_string(inventory["purl"])
         return inventory["type"], package.type, package.namespace, package.name
-    return inventory["type"], inventory["name"], tuple(inventory.get("suppliers", []))
+    return inventory["type"], inventory.get("group", ""), inventory["name"], tuple(inventory.get("suppliers", []))
 
 
 def trigger_group_key(trigger: AssetTrigger) -> tuple:
@@ -248,9 +249,14 @@ def scan_batch(run: AssetMatchRun) -> None:
     run.status = "COMPLETED" if len(items) < ARTICLES_PER_BATCH else "RUNNING"
 
 
-def article_intelligence(matches: list[tuple[AssetArticleMatch, list[dict]]]) -> dict:
+def article_intelligence(
+    matches: list[tuple[AssetArticleMatch, list[dict]]],
+    findings: list[AssetSbomFinding] | None = None,
+    item: NewsItem | None = None,
+    allowed_component_ids: set[str] | None = None,
+) -> dict:
     """Summarize packages and share excerpts without losing rule/component attribution."""
-    item = matches[0][0].news_item
+    item = item or matches[0][0].news_item
     software, excerpts = {}, {}
     for match, evidence in matches:
         trigger = match.trigger
@@ -279,31 +285,64 @@ def article_intelligence(matches: list[tuple[AssetArticleMatch, list[dict]]]) ->
             )
             explanation["triggers"].append({"id": trigger.id, "component_id": trigger.component_id, "version": component["version"]})
 
+    cve_matches = []
+    for finding in findings or []:
+        component_ids = []
+        for installed in finding.components:
+            if allowed_component_ids is not None and installed.id not in allowed_component_ids:
+                continue
+            component = installed.inventory
+            identity = product_identity(component)
+            package = software.setdefault(identity, {"id": installed.id, "name": component["name"], "components": {}})
+            package["components"][installed.id] = {
+                "id": installed.id,
+                "name": component["name"],
+                "version": component["version"],
+                "purl": component.get("purl", ""),
+            }
+            component_ids.append(installed.id)
+        cve_matches.append({"cve_id": finding.cve_id, "finding_id": finding.id, "component_ids": sorted(component_ids)})
+
     for package in software.values():
         package["components"] = sorted(package["components"].values(), key=lambda component: (component["version"], component["id"]))
         package["versions"] = sorted({component["version"] for component in package["components"]})
     for excerpt in excerpts.values():
         excerpt["matches"] = list(excerpt["matches"].values())
-    return {"id": item.id, "title": item.title, "software": list(software.values()), "evidence": list(excerpts.values())}
+    return {
+        "id": item.id,
+        "title": item.title,
+        "software": list(software.values()),
+        "evidence": list(excerpts.values()),
+        "cve_matches": cve_matches,
+    }
 
 
-def story_intelligence(matches: list[tuple[AssetArticleMatch, list[dict]]]) -> dict:
-    story = matches[0][0].news_item.story
+def story_intelligence(
+    matches: list[tuple[AssetArticleMatch, list[dict]]],
+    cve_matches: list[tuple[NewsItem, AssetSbomFinding]],
+) -> dict:
+    story = matches[0][0].news_item.story if matches else cve_matches[0][0].story
     assert story is not None
     articles = {}
     packages = set()
     for match, evidence in matches:
-        articles.setdefault(match.news_item_id, []).append((match, evidence))
+        article = articles.setdefault(match.news_item_id, {"item": match.news_item, "matches": [], "findings": []})
+        article["matches"].append((match, evidence))
         packages.add(product_identity(match.trigger.component.inventory))
+    for item, finding in cve_matches:
+        article = articles.setdefault(item.id, {"item": item, "matches": [], "findings": []})
+        article["findings"].append(finding)
+        packages.update(product_identity(c.inventory) for c in finding.components)
     return {
         "id": story.id,
         "title": story.title,
         "software_count": len(packages),
-        "articles": [article_intelligence(article_matches) for article_matches in articles.values()],
+        "articles": [article_intelligence(**articles[key]) for key in sorted(articles)],
     }
 
 
-def relevant_stories(asset_id: str, user: User, page: int) -> dict:
+def matching_stories(asset_ids: list[str], user: User, cve_only: bool = False):
+    """Read bounded story batches and yield only current, accessible evidence."""
     visible = Story.visible_query(user).with_only_columns(Story.id)
     query = (
         db.select(AssetArticleMatch)
@@ -311,28 +350,61 @@ def relevant_stories(asset_id: str, user: User, page: int) -> dict:
         .join(AssetSbomComponent)
         .join(AssetSbomImport)
         .join(NewsItem, AssetArticleMatch.news_item_id == NewsItem.id)
-        .where(AssetSbomImport.asset_id == asset_id, AssetTrigger.enabled.is_(True), NewsItem.story_id.in_(visible))
+        .where(AssetSbomImport.asset_id.in_(asset_ids), AssetTrigger.enabled.is_(True), NewsItem.story_id.in_(visible))
         .options(
             selectinload(AssetArticleMatch.trigger).selectinload(AssetTrigger.component),
             selectinload(AssetArticleMatch.news_item).selectinload(NewsItem.story),
         )
         .order_by(NewsItem.story_id.desc(), NewsItem.id, AssetArticleMatch.trigger_id)
     )
-    stories = {}
-    # Re-evaluate candidates against current article text before exposing stored evidence.
-    # This also suppresses stale matches from edits outside collection until the next scan.
-    for match in db.session.scalars(query).yield_per(200):
-        item, trigger = match.news_item, match.trigger
-        if not article_visible(item, user):
-            continue
-        fields = {field: article_text(getattr(item, field)) for field in ("title", "content")}
-        if not (evidence := match_evidence(trigger, fields)):
-            continue
-        stories.setdefault(item.story_id, []).append((match, evidence))
-        if len(stories) > page * STORIES_PER_PAGE:
+    associations = cve_tag_query(asset_ids).where(NewsItem.story_id.in_(visible))
+    candidate_ids = associations.with_only_columns(NewsItem.story_id).distinct()
+    if cve_only:
+        # Retain product evidence only for articles with a current CVE association.
+        query = query.where(NewsItem.id.in_(associations.with_only_columns(NewsItem.id)))
+    else:
+        candidate_ids = candidate_ids.union(query.with_only_columns(NewsItem.story_id).order_by(None))
+    candidates = candidate_ids.subquery()
+    cursor = None
+    # Page only after permission and current-evidence checks, reading bounded candidate batches.
+    while True:
+        batch_query = db.select(candidates.c.story_id).order_by(candidates.c.story_id.desc()).limit(STORIES_PER_PAGE)
+        if cursor:
+            batch_query = batch_query.where(candidates.c.story_id < cursor)
+        ids = list(db.session.scalars(batch_query))
+        if not ids:
+            break
+        stories = {}
+        article_fields = {}
+        for match in db.session.scalars(query.where(NewsItem.story_id.in_(ids))):
+            item, trigger = match.news_item, match.trigger
+            if not article_visible(item, user):
+                continue
+            if item.id not in article_fields:
+                article_fields[item.id] = {field: article_text(getattr(item, field)) for field in ("title", "content")}
+            fields = article_fields[item.id]
+            if evidence := match_evidence(trigger, fields):
+                stories.setdefault(item.story_id, []).append((match, evidence))
+        tagged_stories = {}
+        for item, finding in db.session.execute(
+            associations.where(NewsItem.story_id.in_(ids)).order_by(NewsItem.id, AssetSbomFinding.cve_id)
+        ):
+            if article_visible(item, user):
+                tagged_stories.setdefault(item.story_id, []).append((item, finding))
+        for story_id in ids:
+            if story_id in stories or story_id in tagged_stories:
+                yield stories.get(story_id, []), tagged_stories.get(story_id, [])
+        cursor = ids[-1]
+
+
+def relevant_stories(asset_id: str, user: User, page: int, cve_only: bool = False) -> dict:
+    results = []
+    for matches, tagged in matching_stories([asset_id], user, cve_only):
+        results.append(story_intelligence(matches, tagged))
+        if len(results) > page * STORIES_PER_PAGE:
             break
     return {
-        "items": [story_intelligence(matches) for matches in list(stories.values())[(page - 1) * STORIES_PER_PAGE : page * STORIES_PER_PAGE]],
+        "items": results[(page - 1) * STORIES_PER_PAGE : page * STORIES_PER_PAGE],
         "page": page,
-        "has_more": len(stories) > page * STORIES_PER_PAGE,
+        "has_more": len(results) > page * STORIES_PER_PAGE,
     }

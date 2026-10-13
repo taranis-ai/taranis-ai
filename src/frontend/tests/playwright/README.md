@@ -58,6 +58,13 @@ The walkthrough uses only repository fixtures in a fresh isolated Compose stack:
   activation changes narrow the results to the two security articles. The test ingests the
   fixtures before creating the asset, so the automatic historical scan is necessary.
 
+The second workflow demonstrates imported findings, SBOM replacement and the cross-host intelligence overview. It imports a second host without scores, then filters by CVE and package-name matching, score availability, CVSS range, host and package. It verifies that each article appears once, source-specific package scores stay associated, and expanded details survive refresh. It uses
+`test-sbom-findings.cdx.json` with illustrative CVEs, multiple sources and ratings,
+exact component references and a supplied analysis. It adds small generated findings to
+exercise the 50-ID CTI pages, searches for BuildKit, expands source details, disables CVE
+matching independently, and updates the asset while preserving that decision. Its article
+fixture supplies the existing CVE tag; IOC extraction remains the responsibility of IOC Bot.
+
 From `src/frontend`, record with readable pauses and highlighted controls:
 
 ```bash
@@ -70,9 +77,9 @@ This opens Chromium. On Linux without a display, prefix `uv run` with
 so the harness uses its isolated services. No local database, external SBOM, or collected
 advisory is needed. The test removes its asset and articles, and the harness removes the stack.
 
-The 1920×1080 recording and four screenshots are saved under
+Each workflow saves its 1920×1080 recording and screenshots under
 `tests/playwright/videos/sbom-showcase-<suffix>/`, with the video named `sbom-showcase.webm`.
-The test prints the recording path. Artifacts stay ignored by Git.
+The tests print their separate recording paths. To record only findings and replacement, add `-k findings_cti`. Artifacts stay ignored by Git.
 
 To make an MP4 for manual sharing, run this inside the printed recording directory
 (requires FFmpeg):

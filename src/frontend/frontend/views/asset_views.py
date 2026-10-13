@@ -1,11 +1,14 @@
 from typing import Any
+from urllib.parse import urlencode
 
-from flask import render_template
+from flask import redirect, render_template, request, url_for
 from models.asset import Asset
 from models.cti import CTIResponse
+from requests import RequestException
 
 from frontend.auth import auth_required
 from frontend.core_api import CoreApi
+from frontend.log import logger
 from frontend.views.base_view import BaseView
 
 
@@ -25,6 +28,8 @@ class AssetView(BaseView):
 
     @classmethod
     def _normalize_form_data(cls, form_data: dict[str, Any]) -> dict[str, Any]:
+        if "tags_text" in form_data:
+            form_data["tags"] = str(form_data.pop("tags_text")).splitlines()
         observables = form_data.get("asset_observables", [])
         if isinstance(observables, dict):
             observables = list(observables.values())
@@ -45,23 +50,65 @@ class AssetView(BaseView):
             observable.model_dump(mode="json") if hasattr(observable, "model_dump") else observable for observable in observables
         ]
         base_context["asset_observable_types"] = cls.observable_types
+        if "asset" not in base_context:
+            base_context["asset_tags"] = []
+            try:
+                api = CoreApi()
+                response = api.session.get(f"{api.api_url}/assets/tags", timeout=api.timeout)
+                if response.ok:
+                    base_context["asset_tags"] = response.json()["tags"]
+            except RequestException, ValueError:
+                logger.exception("Asset tag choices unavailable")
         return base_context
 
     @classmethod
     def get_columns(cls) -> list[dict[str, Any]]:
         return [
             {"title": "Name", "field": "name", "sortable": True, "renderer": None},
+            {"title": "Tags", "field": "tags", "sortable": False, "renderer": lambda asset: ", ".join(asset.tags)},
             {"title": "Description", "field": "description", "sortable": True, "renderer": None},
         ]
 
     @staticmethod
-    @auth_required()
+    @auth_required("ASSETS_ACCESS")
     def cti_dialog(asset_id: str) -> tuple[str, int]:
-        payload = CoreApi().api_get(f"/assets/{asset_id}/cti") or {"item_type": "asset", "item_id": asset_id, "iocs": []}
-        return render_template("shared/cti_dialog.html", cti=CTIResponse.model_validate(payload)), 200
+        return _render_asset_cti(asset_id)
 
     @staticmethod
-    @auth_required()
+    @auth_required("ASSETS_ACCESS")
     def all_cti_dialog() -> tuple[str, int]:
-        payload = CoreApi().api_get("/assets/cti") or {"item_type": "asset", "item_id": "all", "iocs": []}
-        return render_template("shared/cti_dialog.html", cti=CTIResponse.model_validate(payload)), 200
+        return _render_asset_cti(None)
+
+    @staticmethod
+    @auth_required("ASSETS_CREATE")
+    def cve_matching(asset_id: str, cve_id: str):
+        overview = request.form.get("overview") == "true"
+        try:
+            response = CoreApi().api_put(f"/assets/{asset_id}/sbom/cves/{cve_id}", {"enabled": request.form.get("enabled") == "true"})
+        except RequestException:
+            logger.exception("CVE matching update failed")
+            return _render_asset_cti(None if overview else asset_id, error="Unable to update CVE matching.", status=502)
+        if not response.ok:
+            return _render_asset_cti(None if overview else asset_id, error="Unable to update CVE matching.", status=response.status_code)
+        target = url_for("assets.assets_cti") if overview else url_for("assets.asset_cti", asset_id=asset_id)
+        query = urlencode({"page": request.form.get("page", "1"), "search": request.form.get("search", "")})
+        return redirect(f"{target}?{query}", code=303)
+
+
+def _render_asset_cti(asset_id: str | None, *, error=None, status=200) -> tuple[str, int]:
+    filters = request.form if request.method == "POST" else request.args
+    query = {"page": filters.get("page", "1"), "search": filters.get("search", "")}
+    endpoint = f"/assets/{asset_id}/cti" if asset_id else "/assets/cti"
+    api = CoreApi()
+    cti = CTIResponse(item_type="asset", item_id=asset_id or "all")
+    try:
+        response = api.session.get(f"{api.api_url}{endpoint}", params=query, timeout=api.timeout)
+        if response.ok:
+            cti = CTIResponse.model_validate(response.json())
+        else:
+            error, status = "Unable to load asset CTI information.", response.status_code
+    except RequestException, ValueError:
+        logger.exception("Asset CTI read failed")
+        error, status = "Unable to load asset CTI information.", 502
+    cti_url = url_for("assets.asset_cti", asset_id=asset_id) if asset_id else url_for("assets.assets_cti")
+    return render_template("shared/cti_dialog.html", cti=cti, cti_url=cti_url, error=error), status

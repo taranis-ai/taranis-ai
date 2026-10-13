@@ -1,13 +1,14 @@
-"""Asset-scoped trigger review and explainable intelligence matching."""
+"""Asset trigger review and explainable intelligence for one or all accessible hosts."""
 
 from flask import request
 from flask.views import MethodView
 from flask_jwt_extended import current_user
-from models.asset_intelligence import MatchRunInput, TriggerCreate, TriggerInput, TriggerSelection
+from models.asset_intelligence import IntelligenceFilters, MatchRunInput, TriggerCreate, TriggerInput, TriggerSelection
 from pydantic import ValidationError
 
 from core.managers.auth_manager import api_key_required, auth_required
 from core.managers.db_manager import db
+from core.model.asset import Asset
 from core.model.asset_intelligence import AssetArticleMatch, AssetMatchRun, AssetTrigger
 from core.model.asset_sbom import AssetSbomComponent
 from core.service.asset_intelligence import (
@@ -21,6 +22,7 @@ from core.service.asset_intelligence import (
     scan_batch,
     start_match_run,
 )
+from core.service.asset_intelligence_overview import intelligence_overview
 
 
 TRIGGERS_PER_PAGE = 50
@@ -43,7 +45,18 @@ def trigger_response(trigger: AssetTrigger, group: list[AssetTrigger] | None = N
         "enabled": trigger.enabled,
         "sources": trigger.sources,
         "analyst_edited": trigger.analyst_edited,
+        "review_required": any(
+            (t.suggestion or f"analyst:{t.phrase.casefold()}") in t.component.inventory.get("review_conflicts", []) for t in group
+        ),
     }
+
+
+def resolve_inheritance_review(trigger: AssetTrigger) -> None:
+    component = trigger.component
+    key = trigger.suggestion or f"analyst:{trigger.phrase.casefold()}"
+    conflicts = component.inventory.get("review_conflicts", [])
+    if key in conflicts:
+        component.inventory = {**component.inventory, "review_conflicts": [value for value in conflicts if value != key]}
 
 
 def run_response(run: AssetMatchRun) -> dict:
@@ -104,6 +117,7 @@ class AssetTriggerEdit(MethodView):
         except ValidationError:
             return {"error": "Provide a phrase up to 200 characters and at most 10 context phrases."}, 400
         for trigger in group:
+            resolve_inheritance_review(trigger)
             trigger.phrase, trigger.context, trigger.enabled = data.phrase, data.context, data.enabled
             trigger.analyst_edited = True
         db.session.execute(db.delete(AssetArticleMatch).where(AssetArticleMatch.trigger_id.in_([t.id for t in group])))
@@ -126,6 +140,7 @@ class AssetTriggerSelection(MethodView):
             return {"error": "A selected trigger does not belong to this asset."}, 404
         triggers = [trigger for group in groups if any(t.id in selected for t in group) for trigger in group]
         for trigger in triggers:
+            resolve_inheritance_review(trigger)
             trigger.enabled = data.enabled
             trigger.analyst_edited = True
         if not data.enabled:
@@ -152,7 +167,22 @@ class AssetIntelligence(MethodView):
         if not (asset := accessible_asset(asset_id, current_user)):
             return {"error": "Asset not found."}, 404
         page = max(1, request.args.get("page", 1, type=int))
-        return {"asset_name": asset.name, **relevant_stories(asset_id, current_user, page)}, 200
+        cve_only = request.args.get("cve_only", "false").lower() == "true"
+        return {"asset_name": asset.name, **relevant_stories(asset_id, current_user, page, cve_only=cve_only)}, 200
+
+
+class AssetsIntelligence(MethodView):
+    @auth_required("ASSETS_ACCESS")
+    def get(self):
+        if "ASSESS_ACCESS" not in current_user.get_permissions():
+            return {"error": "Intelligence access is required."}, 403
+        try:
+            filters = IntelligenceFilters.model_validate(request.args.to_dict())
+        except ValidationError:
+            return {
+                "error": "Choose Any, Yes or No for match filters, a positive page, and CVSS scores from 0 to 10 with minimum ≤ maximum."
+            }, 400
+        return intelligence_overview(current_user, filters), 200
 
 
 class AssetMatchRuns(MethodView):
@@ -194,10 +224,13 @@ class AssetMatchBatch(MethodView):
         data = request.get_json(silent=True)
         if not isinstance(data, dict):
             return {"error": "Provide a JSON object."}, 400
-        run = db.session.scalar(db.select(AssetMatchRun).filter_by(id=run_id).with_for_update())
+        pending = db.session.get(AssetMatchRun, run_id)
+        if pending:
+            db.session.execute(db.update(Asset).where(Asset.id == pending.asset_id).values(name=Asset.name))
+        run = db.session.scalar(db.select(AssetMatchRun).filter_by(id=run_id).with_for_update().execution_options(populate_existing=True))
         if not run:
             return {"error": "Matching run not found."}, 404
-        if run.status not in ("COMPLETED", "FAILED"):
+        if run.status not in ("COMPLETED", "FAILED", "SUPERSEDED"):
             if data.get("failed") is True:
                 run.status, run.error = "FAILED", "The scan could not finish. Please start another scan."
             else:
@@ -207,6 +240,7 @@ class AssetMatchBatch(MethodView):
 
 
 def initialize(app, base_route: str):
+    app.add_url_rule(f"{base_route}/assets/intelligence", view_func=AssetsIntelligence.as_view("assets_intelligence"))
     routes = {
         "triggers": AssetTriggers,
         "triggers/<string:trigger_id>": AssetTriggerEdit,

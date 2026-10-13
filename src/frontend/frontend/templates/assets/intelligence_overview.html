@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% block content %}
+  <div class="p-4 space-y-4" x-data="{ expandedArticles: {} }">
+    <nav class="flex gap-4">
+      <a class="link" href="{{ url_for('assets.assets') }}">Assets</a>
+      <a class="link" href="{{ url_for('assets.assets_cti') }}">CTI information</a>
+    </nav>
+    <h1 class="text-2xl font-bold">Asset intelligence overview</h1>
+    <p>Collected articles matched to your accessible hosts and software. CVE tags and package-name mentions indicate relevance; imported findings do not confirm exposure.</p>
+    <form method="get" class="space-y-3">
+      <div class="flex flex-wrap gap-3 items-end">
+        <div>
+          <label for="overview-host">Host</label>
+          <select id="overview-host" class="select select-bordered block" name="asset_id">
+            <option value="">All hosts</option>
+            {% if filters.asset_id and (not data or filters.asset_id not in data.assets | map(attribute="id")) %}
+              <option value="{{ filters.asset_id }}" selected>Selected host (unavailable)</option>
+            {% endif %}
+            {% for asset in data.assets if data %}<option value="{{ asset.id }}"
+        {% if filters.asset_id == asset.id %}selected{% endif %}>{{ asset.name }}</option>{% endfor %}
+          </select>
+        </div>
+        <div>
+          <label for="overview-group">Asset group</label>
+          <select id="overview-group" class="select select-bordered block" name="group_id">
+            <option value="">All groups</option>
+            {% if filters.group_id and (not data or filters.group_id not in data.groups | map(attribute="id")) %}
+              <option value="{{ filters.group_id }}" selected>Selected group (unavailable)</option>
+            {% endif %}
+            {% for group in data.groups if data %}<option value="{{ group.id }}"
+        {% if filters.group_id == group.id %}selected{% endif %}>{{ group.name }}</option>{% endfor %}
+          </select>
+        </div>
+        <div>
+          <label for="overview-tag">Asset tag</label>
+          <select id="overview-tag" name="tag" class="select select-bordered block" data-test-id="overview-tag-filter">
+            <option value="">All tags</option>
+            {% for tag in data.tags if data %}<option value="{{ tag }}"
+        {% if filters.tag == tag %}selected{% endif %}>{{ tag }}</option>{% endfor %}
+          </select>
+        </div>
+        <label>
+          Package name or PURL
+          <input class="input input-bordered block" type="search" name="package" maxlength="200" value="{{ filters.package }}">
+        </label>
+      </div>
+      <div class="flex flex-wrap gap-3 items-end">
+        {% for key, label in [('cve_match', 'CVE match'), ('cvss_available', 'CVSS score available'), ('package_match', 'Package-name match')] %}
+          <div>
+            <label for="overview-{{ key }}">{{ label }}</label>
+            <select id="overview-{{ key }}" name="{{ key }}" class="select select-bordered block">
+              {% for value, text in [('any', 'Any'), ('yes', 'Yes'), ('no', 'No')] %}<option value="{{ value }}"
+        {% if filters[key] == value %}selected{% endif %}>{{ text }}</option>{% endfor %}
+            </select>
+          </div>
+        {% endfor %}
+        <label>
+          Minimum CVSS
+          <input class="input input-bordered block w-32"
+                 name="cvss_min"
+                 type="number"
+                 min="0"
+                 max="10"
+                 step="0.1"
+                 value="{{ filters.cvss_min if filters.cvss_min is not none else '' }}">
+        </label>
+        <label>
+          Maximum CVSS
+          <input class="input input-bordered block w-32"
+                 name="cvss_max"
+                 type="number"
+                 min="0"
+                 max="10"
+                 step="0.1"
+                 value="{{ filters.cvss_max if filters.cvss_max is not none else '' }}">
+        </label>
+        <button class="btn btn-primary" type="submit">Filter matches</button>
+        <a class="link" href="{{ url_for('assets.assets_intelligence') }}">Clear filters</a>
+      </div>
+      <p class="text-sm">Filters combine for the same article and host, within the selected packages. The score range applies to their highest reported CVSS score. Missing scores are unknown, not zero.</p>
+    </form>
+    <section id="asset-overview-results" class="space-y-4">
+      {% if error %}<div role="alert" class="alert alert-error">{{ error }}</div>{% endif %}
+      {% if data %}
+        <a class="btn btn-outline"
+           href="{{ url_for('assets.assets_intelligence', page=data.page, **query) }}"
+           hx-get="{{ url_for('assets.assets_intelligence', page=data.page, **query) }}"
+           hx-select="#asset-overview-results"
+           hx-target="#asset-overview-results"
+           hx-swap="outerHTML">Refresh results</a>
+        {% for story in data['items'] %}
+          <article class="card bg-base-200 p-4 space-y-3" data-test-id="asset-matched-story">
+            <h2 class="text-xl font-bold"><a class="link" href="{{ url_for('assess.story', story_id=story.id) }}">{{ story.title }}</a></h2>
+            {% for article in story.articles %}
+              <section class="space-y-3" data-test-id="asset-matched-article">
+                <div class="flex flex-wrap gap-2 items-center">
+                  <a class="link"
+                     data-test-id="asset-supporting-article"
+                     href="{{ url_for('assess.story', story_id=story.id, _anchor='news-item-card-' ~ article.id) }}">{{ 'Open article' if story.articles | length == 1 and article.title == story.title else article.title }}</a>
+                  <span class="badge badge-outline"
+                        data-test-id="asset-host-count">{{ article.hosts | length }} host{{ 's' if article.hosts | length != 1 }}</span>
+                  {% if article.cve_count %}<span class="badge badge-primary"
+      data-test-id="overview-cve-count">{{ article.cve_count }} CVE match{{ 'es' if article.cve_count != 1 }}</span>{% endif %}
+                </div>
+                {% for host in article.hosts %}
+                  <section class="border-l-4 border-primary pl-3 space-y-2" data-test-id="asset-matched-host">
+                    <div class="flex flex-wrap gap-2 items-center">
+                      <a class="link font-bold"
+                         href="{{ url_for('assets.asset_intelligence', asset_id=host.asset_id) }}">{{ host.asset_name }}</a>
+                      <span class="text-sm">{{ host.group_name }}</span>
+                      {% if host.package_match %}<span class="badge badge-outline">Package-name match</span>{% endif %}
+                      {% if host.max_cvss is not none %}<span class="badge badge-outline" data-test-id="asset-highest-cvss">Highest reported CVSS {{ host.max_cvss }}</span>{% else %}<span class="text-sm">No matching CVE score</span>{% endif %}
+                    </div>
+                    {% with asset_id=host.asset_id, article=host %}
+                      {% include "assets/article_matches.html" %}
+                    {% endwith %}
+                  </section>
+                {% endfor %}
+              </section>
+            {% endfor %}
+          </article>
+        {% else %}
+          <p>No matches for these filters. Try another host, package or score range, or clear the filters.</p>
+        {% endfor %}
+        <nav aria-label="Intelligence pages" class="flex gap-4 items-center">
+          {% if data.page > 1 %}<a class="btn btn-sm"
+   href="{{ url_for('assets.assets_intelligence', page=data.page - 1, **query) }}">Previous</a>{% endif %}
+          <span>Page {{ data.page }}</span>
+          {% if data.has_more %}<a class="btn btn-sm"
+   href="{{ url_for('assets.assets_intelligence', page=data.page + 1, **query) }}">Next</a>{% endif %}
+        </nav>
+      {% endif %}
+    </section>
+  </div>
+{% endblock content %}

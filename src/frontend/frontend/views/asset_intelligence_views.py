@@ -1,6 +1,7 @@
 """Live trigger review and intelligence evidence; permissions are rechecked by Core."""
 
 from flask import redirect, render_template, request, url_for
+from models.asset_intelligence import IntelligenceFilters
 from requests import RequestException
 
 from frontend.auth import auth_required
@@ -74,11 +75,12 @@ def asset_intelligence(asset_id: str):
     api = CoreApi()
     error, status = None, 200
     data, run = None, None
+    cve_only = request.args.get("cve_only", "false").lower() == "true"
     try:
         if request.method == "POST":
             response = api.api_post(f"/assets/{asset_id}/match-runs", {"days": request.form.get("days", "30")})
             if response.ok:
-                return redirect(url_for("assets.asset_intelligence", asset_id=asset_id), code=303)
+                return redirect(url_for("assets.asset_intelligence", asset_id=asset_id, cve_only="true" if cve_only else None), code=303)
             error, status = response.json().get("error", "Unable to start the scan."), response.status_code
         response = api.session.get(f"{api.api_url}/assets/{asset_id}/intelligence", params=request.args, timeout=api.timeout)
         if response.ok:
@@ -93,4 +95,24 @@ def asset_intelligence(asset_id: str):
     except RequestException, ValueError:
         logger.exception("Asset intelligence failed")
         error, status = "Unable to load intelligence. Please try again.", 502
-    return render_template("assets/intelligence.html", asset_id=asset_id, data=data, run=run, error=error), status
+    return render_template("assets/intelligence.html", asset_id=asset_id, data=data, run=run, error=error, cve_only=cve_only), status
+
+
+@auth_required("ASSETS_ACCESS")
+def assets_intelligence():
+    api = CoreApi()
+    data, error, status = None, None, 200
+    filters = IntelligenceFilters().model_dump(exclude={"page"})
+    filters.update({key: request.args[key] for key in filters if key in request.args})
+    try:
+        response = api.session.get(f"{api.api_url}/assets/intelligence", params=request.args, timeout=api.timeout)
+        if response.ok:
+            data = response.json()
+            filters = data["filters"]
+        else:
+            error, status = response.json().get("error", "Intelligence unavailable."), response.status_code
+    except RequestException, ValueError:
+        logger.exception("Asset intelligence overview failed")
+        error, status = "Unable to load intelligence. Please try again.", 502
+    query = {key: value for key, value in filters.items() if value is not None and value not in ("", "any")}
+    return render_template("assets/intelligence_overview.html", data=data, filters=filters, query=query, error=error), status

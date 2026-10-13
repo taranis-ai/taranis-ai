@@ -75,6 +75,7 @@
             </div>
             <p>Component: {{ trigger.component }} · Versions: {{ trigger.versions | join(", ") }} · Sources: {{ trigger.sources | join(", ") }}{% if trigger.analyst_edited %} · Reviewed by analyst{% endif %}</p>
             {% if trigger.purl %}<p class="text-xs break-all">{{ trigger.purl }}</p>{% endif %}
+            {% if trigger.review_required %}<p class="text-warning">Previous versions have conflicting decisions. Review this inherited rule before enabling it.</p>{% endif %}
             {% if not trigger.has_cpe %}<p class="text-warning">No valid CPE; review this component name carefully.</p>{% endif %}
             {% if trigger.context %}<p>Requires any context: {{ trigger.context | join(", ") }}</p>{% endif %}
             {% if can_edit %}

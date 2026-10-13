@@ -264,9 +264,24 @@
           <span class="font-mono break-all">{{ cti.item_id }}</span>
         </p>
       </div>
+      {% if cti.item_type == "asset" and cti.item_id != "all" %}
+        <a class="btn btn-outline btn-sm" href="{{ url_for('assets.asset_sbom', asset_id=cti.item_id) }}">SBOM inventory</a>
+        {% if "ASSESS_ACCESS" in current_user.permissions %}<a class="btn btn-outline btn-sm"
+   href="{{ url_for('assets.asset_intelligence', asset_id=cti.item_id) }}">Relevant intelligence</a>{% endif %}
+      {% endif %}
       <button type="button" onclick="window.history.back()" class="btn btn-outline btn-sm" data-testid="cti-back-link">Back</button>
     </div>
 
+    {% if error %}<p role="alert" class="alert alert-error">{{ error }}</p>{% endif %}
+    {% if cti.pagination %}
+      <form method="get" action="{{ cti_url }}" class="flex gap-2 items-end">
+        <label>
+          CVE or component<input class="input input-bordered" name="search" value="{{ cti.pagination.search }}">
+        </label>
+        <button class="btn btn-primary" type="submit">Search CTI</button>
+      </form>
+      <p>{{ cti.pagination.total }} distinct indicators or finding IDs</p>
+    {% endif %}
     {% if cti.iocs %}
       <div class="space-y-4">
         {% for ioc in cti.iocs %}
@@ -284,9 +299,12 @@
             </header>
 
             <div class="mt-4 space-y-3">
+              {% for finding in ioc.findings %}
+                {% include "assets/cti_finding.html" %}
+              {% endfor %}
               {% if enrichment and enrichment.analyzers %}
                 {% for analyzer in enrichment.analyzers %}{{ render_analyzer(analyzer) }}{% endfor %}
-              {% else %}
+              {% elif not ioc.findings %}
                 <div class="alert">No analyzer results available for this IOC.</div>
               {% endif %}
             </div>
@@ -295,6 +313,15 @@
       </div>
     {% else %}
       <div class="alert">No CTI information available.</div>
+    {% endif %}
+    {% if cti.pagination %}
+      <nav aria-label="CTI pages" class="flex gap-4 items-center">
+        {% if cti.pagination.page > 1 %}<a class="btn btn-sm"
+   href="{{ cti_url }}?{{ {'page': cti.pagination.page - 1, 'search': cti.pagination.search} | urlencode }}">Previous</a>{% endif %}
+        <span>Page {{ cti.pagination.page }} of {{ cti.pagination.pages }}</span>
+        {% if cti.pagination.page < cti.pagination.pages %}<a class="btn btn-sm"
+   href="{{ cti_url }}?{{ {'page': cti.pagination.page + 1, 'search': cti.pagination.search} | urlencode }}">Next</a>{% endif %}
+      </nav>
     {% endif %}
   </section>
 {% endblock content %}

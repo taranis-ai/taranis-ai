@@ -1,6 +1,8 @@
-"""Analyst input for component-specific OSINT relevance rules."""
+"""Analyst input for OSINT relevance rules and intelligence filters."""
 
-from pydantic import BaseModel, Field, field_validator
+from typing import Literal, Self
+
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class TriggerInput(BaseModel):
@@ -36,3 +38,39 @@ class TriggerSelection(BaseModel):
 
 class MatchRunInput(BaseModel):
     days: int = Field(default=30, ge=0, le=36500)
+
+
+class IntelligenceFilters(BaseModel):
+    """Filters apply together to one article's associations with one host."""
+
+    page: int = Field(default=1, ge=1)
+    asset_id: str = Field(default="", max_length=64)
+    group_id: str = Field(default="", max_length=64)
+    tag: str = ""
+    package: str = Field(default="", max_length=200)
+    cve_match: Literal["any", "yes", "no"] = "any"
+    package_match: Literal["any", "yes", "no"] = "any"
+    cvss_available: Literal["any", "yes", "no"] = "any"
+    cvss_min: float | None = Field(default=None, ge=0, le=10, allow_inf_nan=False)
+    cvss_max: float | None = Field(default=None, ge=0, le=10, allow_inf_nan=False)
+
+    @field_validator("cvss_min", "cvss_max", mode="before")
+    @classmethod
+    def empty_score(cls, value):
+        return None if value == "" else value
+
+    @field_validator("tag")
+    @classmethod
+    def normalize_tag(cls, value: str) -> str:
+        return value.strip().lower()
+
+    @field_validator("package")
+    @classmethod
+    def trim_package(cls, value: str) -> str:
+        return value.strip()
+
+    @model_validator(mode="after")
+    def ordered_scores(self) -> Self:
+        if self.cvss_min is not None and self.cvss_max is not None and self.cvss_min > self.cvss_max:
+            raise ValueError("The minimum CVSS score must not exceed the maximum")
+        return self

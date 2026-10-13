@@ -1,22 +1,23 @@
-"""User-scoped SBOM previews and atomic asset creation."""
+"""User-scoped SBOM previews, replacement, and imported CVE matching decisions."""
 
-import hashlib
 from math import ceil
 
 from flask import request
 from flask.views import MethodView
 from flask_jwt_extended import current_user
-from models.sbom import SbomCreateAsset, SbomInventory
+from models.cti import normalize_ioc_value
+from models.sbom import SbomCreateAsset, SbomCveMatching, SbomInventory, SbomReplaceAsset
 from pydantic import ValidationError
 from werkzeug.utils import secure_filename
 
 from core.managers.auth_manager import auth_required
 from core.managers.db_manager import db
-from core.model.asset import Asset, AssetCpe, AssetGroup
-from core.model.asset_sbom import AssetSbomComponent, AssetSbomImport
-from core.service.asset_intelligence import generate_triggers, start_match_run, trigger_suggestions
+from core.model.asset import Asset
+from core.model.asset_sbom import AssetSbomComponent, AssetSbomFinding, AssetSbomImport
+from core.service.asset_intelligence import start_match_run, trigger_suggestions
+from core.service.asset_sbom import SbomImportError, apply_import, compare_import, create_preview, current_import, owned_import
 from core.service.cache_invalidation import invalidate_frontend_cache_on_success
-from core.service.sbom import SbomValidationError, parse_sbom
+from core.service.sbom import SbomValidationError
 
 
 PAGE_SIZE = 50
@@ -32,6 +33,13 @@ def inventory_response(record: AssetSbomImport) -> dict:
         .offset((page - 1) * PAGE_SIZE)
         .limit(PAGE_SIZE)
     ).all()
+    comparison = None
+    if target_id := request.args.get("asset_id"):
+        if Asset.get_for_api(target_id, current_user.organization)[1] != 200:
+            raise SbomImportError("Asset not found.", 404)
+        target = Asset.get(target_id)
+        assert target is not None
+        comparison = compare_import(record, target)
     return SbomInventory(
         id=record.id,
         asset_id=record.asset_id,
@@ -39,28 +47,19 @@ def inventory_response(record: AssetSbomImport) -> dict:
         sha256=record.sha256,
         imported_at=record.serialize_datetime(record.confirmed or record.created),
         summary=record.summary,
-        components=[
-            {**component.inventory, "id": component.id, "suggestions": trigger_suggestions(component.inventory)} for component in components
-        ],
+        components=[{**c.inventory, "id": c.id, "suggestions": trigger_suggestions(c.inventory)} for c in components],
         page=page,
         pages=pages,
+        comparison=comparison,
     ).model_dump(mode="json")
 
 
-def get_owned_import(import_id: str, *, lock: bool = False) -> AssetSbomImport | None:
-    query = db.select(AssetSbomImport).filter_by(
-        id=import_id,
-        user_id=current_user.id,
-        organization_id=current_user.organization.id,
-    )
-    if lock:
-        query = query.with_for_update()
-    record = db.session.scalar(query)
-    if not record:
-        return None
-    if record.asset_id and Asset.get_for_api(record.asset_id, current_user.organization)[1] != 200:
-        return None
-    return record
+def applied_response(asset: Asset, changed: bool, status: int):
+    if changed:
+        invalidate_frontend_cache_on_success(status, models=("asset",), object_ids={"asset": asset.id})
+        if {"ASSETS_ACCESS", "ASSESS_ACCESS"}.issubset(current_user.get_permissions()):
+            start_match_run(asset.id, current_user)
+    return {"id": asset.id, "message": "SBOM applied." if changed else "This SBOM has already been applied."}, status if changed else 200
 
 
 class SbomUpload(MethodView):
@@ -69,85 +68,43 @@ class SbomUpload(MethodView):
         upload = request.files.get("file")
         if not upload:
             return {"error": "Select a CycloneDX JSON file."}, 400
-        raw = upload.read()
         try:
-            summary, components = parse_sbom(raw)
-        except SbomValidationError as exc:
-            # Only this domain exception contains deliberately curated public text.
-            return {"error": exc.public_message}, 400
-        digest = hashlib.sha256(raw).hexdigest()
-        # Resume this user's existing preview instead of storing another copy on retry.
-        previous = db.session.scalar(
-            db.select(AssetSbomImport)
-            .filter_by(
-                sha256=digest,
-                user_id=current_user.id,
-                organization_id=current_user.organization.id,
+            record, created = create_preview(
+                upload.read(),
+                secure_filename(upload.filename or "sbom.json")[:255] or "sbom.json",
+                current_user,
+                asset_id=request.args.get("asset_id") or None,
             )
-            .order_by(AssetSbomImport.created.desc())
-            .limit(1)
-        )
-        if previous and get_owned_import(previous.id):
-            return inventory_response(previous), 200
-        record = AssetSbomImport(
-            filename=secure_filename(upload.filename or "sbom.json")[:255] or "sbom.json",
-            sha256=digest,
-            user_id=current_user.id,
-            organization_id=current_user.organization.id,
-            summary=summary.model_dump(),
-        )
-        record.components = [AssetSbomComponent(position=i, inventory=c.model_dump()) for i, c in enumerate(components)]
-        db.session.add(record)
-        db.session.commit()
-        return inventory_response(record), 201
+            return inventory_response(record), 201 if created else 200
+        except SbomValidationError as exc:
+            return {"error": exc.public_message}, 400
+        except SbomImportError as exc:
+            return {"error": exc.public_message}, exc.status
 
 
 class SbomPreview(MethodView):
     @auth_required("ASSETS_CREATE")
     def get(self, import_id: str):
-        if not (record := get_owned_import(import_id)):
-            return {"error": "SBOM preview unavailable. Upload the file again."}, 404
-        return inventory_response(record), 200
+        try:
+            return inventory_response(owned_import(import_id, current_user)), 200
+        except SbomImportError as exc:
+            return {"error": exc.public_message}, exc.status
 
     @auth_required("ASSETS_CREATE")
     def post(self, import_id: str):
-        if not (record := get_owned_import(import_id, lock=True)):
-            return {"error": "SBOM preview unavailable. Upload the file again."}, 404
-        if record.asset_id:
-            return {"id": record.asset_id, "message": "This SBOM has already been imported."}, 200
         try:
+            record = owned_import(import_id, current_user)
+            if record.asset_id:
+                asset = Asset.get(record.asset_id)
+                assert asset is not None
+                return applied_response(asset, False, 200)
             data = SbomCreateAsset.model_validate(request.get_json(silent=True))
+            asset, changed = apply_import(import_id, current_user, create=data)
+            return applied_response(asset, changed, 201)
         except ValidationError:
             return {"error": "Provide an asset name (up to 255 characters) and a destination group."}, 400
-        if not data.name.strip():
-            return {"error": "Provide an asset name."}, 400
-        group = AssetGroup.get(data.asset_group_id)
-        if not group or not AssetGroup.access_allowed(current_user.organization, group.id):
-            return {"error": "Asset group unavailable."}, 403
-        # A conditional write also serializes double submissions on SQLite, which ignores FOR UPDATE.
-        claimed = db.session.scalar(
-            db.update(AssetSbomImport)
-            .where(AssetSbomImport.id == record.id, AssetSbomImport.confirmed.is_(None))
-            .values(confirmed=record.utcnow())
-            .returning(AssetSbomImport.id)
-        )
-        if not claimed:
-            db.session.refresh(record)
-            return {"id": record.asset_id, "message": "This SBOM has already been imported."}, 200
-        asset = Asset(name=data.name.strip(), serial="", description=data.description, group=group)
-        cpes = {cpe for component in record.components for cpe in component.inventory["cpes"]}
-        asset.asset_cpes = [AssetCpe(cpe) for cpe in sorted(cpes)]
-        db.session.add(asset)
-        db.session.flush()
-        record.asset_id = asset.id
-        db.session.flush()
-        generate_triggers(asset.id)
-        asset.update_vulnerabilities()
-        db.session.commit()
-        invalidate_frontend_cache_on_success(201, models=("asset",))
-        if {"ASSETS_ACCESS", "ASSESS_ACCESS"}.issubset(current_user.get_permissions()):
-            start_match_run(asset.id, current_user)
-        return {"id": asset.id, "message": "Asset created from SBOM."}, 201
+        except SbomImportError as exc:
+            return {"error": exc.public_message}, exc.status
 
 
 class AssetSbomInventory(MethodView):
@@ -155,13 +112,50 @@ class AssetSbomInventory(MethodView):
     def get(self, asset_id: str):
         if Asset.get_for_api(asset_id, current_user.organization)[1] != 200:
             return {"error": "Asset not found."}, 404
-        record = db.session.scalar(db.select(AssetSbomImport).filter_by(asset_id=asset_id))
-        if not record:
+        if not (record := current_import(asset_id)):
             return {"error": "This asset has no SBOM inventory."}, 404
-        return inventory_response(record), 200
+        try:
+            return inventory_response(record), 200
+        except SbomImportError as exc:
+            return {"error": exc.public_message}, exc.status
+
+    @auth_required("ASSETS_CREATE")
+    def put(self, asset_id: str):
+        try:
+            data = SbomReplaceAsset.model_validate(request.get_json(silent=True))
+            asset, changed = apply_import(data.import_id, current_user, asset_id=asset_id, expected_sha256=data.expected_sha256)
+            return applied_response(asset, changed, 200)
+        except ValidationError:
+            return {"error": "Provide a preview import ID and the expected current SBOM hash."}, 400
+        except SbomImportError as exc:
+            return {"error": exc.public_message}, exc.status
+
+
+class AssetSbomCveMatching(MethodView):
+    @auth_required("ASSETS_CREATE")
+    def put(self, asset_id: str, cve_id: str):
+        if Asset.get_for_api(asset_id, current_user.organization)[1] != 200:
+            return {"error": "Asset not found."}, 404
+        try:
+            data = SbomCveMatching.model_validate(request.get_json(silent=True))
+        except ValidationError:
+            return {"error": "Provide whether CVE matching is enabled."}, 400
+        finding = db.session.scalar(
+            db.select(AssetSbomFinding)
+            .join(AssetSbomImport)
+            .where(AssetSbomImport.asset_id == asset_id, AssetSbomFinding.cve_id == normalize_ioc_value(cve_id, "cve"))
+        )
+        if not finding or not finding.cve_id:
+            return {"error": "Imported CVE not found."}, 404
+        finding.matching_enabled = data.enabled
+        db.session.commit()
+        return {"message": "CVE matching updated.", "enabled": data.enabled}, 200
 
 
 def initialize(app, base_route: str):
     app.add_url_rule(f"{base_route}/assets/sbom-imports", view_func=SbomUpload.as_view("sbom_upload"))
     app.add_url_rule(f"{base_route}/assets/sbom-imports/<string:import_id>", view_func=SbomPreview.as_view("sbom_preview"))
     app.add_url_rule(f"{base_route}/assets/<string:asset_id>/sbom", view_func=AssetSbomInventory.as_view("asset_sbom"))
+    app.add_url_rule(
+        f"{base_route}/assets/<string:asset_id>/sbom/cves/<string:cve_id>", view_func=AssetSbomCveMatching.as_view("asset_sbom_cve")
+    )

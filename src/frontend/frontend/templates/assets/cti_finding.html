@@ -1,0 +1,45 @@
+<section class="border border-base-300 rounded p-3 space-y-2" data-test-id="cti-imported-finding">
+  <p>Imported finding · <a class="link" href="{{ url_for('assets.asset_sbom', asset_id=finding.asset_id) }}">{{ finding.asset_name }}</a> · {{ finding.components | length }} installed component{{ 's' if finding.components | length != 1 }}</p>
+  <p class="text-sm">Source-reported assessment from {{ finding.imported_at }}; this does not confirm exposure.</p>
+  {% if ioc.ioc_type == "cve" %}
+    <p>CVE matching: <span class="badge {{ 'badge-success' if finding.matching_enabled else 'badge-outline' }}">{{ 'Enabled' if finding.matching_enabled else 'Disabled' }}</span></p>
+    {% if "ASSETS_CREATE" in current_user.permissions %}
+      <form method="post" action="{{ url_for('assets.asset_cve_matching', asset_id=finding.asset_id, cve_id=ioc.value) }}">
+        <input type="hidden" name="csrf_token" value="{{ request.cookies.get(config['JWT_ACCESS_CSRF_COOKIE_NAME'], '') }}">
+        <input type="hidden" name="enabled" value="{{ 'false' if finding.matching_enabled else 'true' }}">
+        <input type="hidden" name="overview" value="{{ 'true' if cti.item_id == 'all' else 'false' }}">
+        <input type="hidden" name="page" value="{{ cti.pagination.page if cti.pagination else 1 }}">
+        <input type="hidden" name="search" value="{{ cti.pagination.search if cti.pagination else '' }}">
+        <button class="btn btn-sm btn-outline" type="submit">{{ 'Disable' if finding.matching_enabled else 'Enable' }} CVE matching</button>
+      </form>
+    {% endif %}
+  {% endif %}
+  <details data-test-id="cti-finding-details">
+    <summary class="cursor-pointer">Finding details and installed components</summary>
+    <ul class="my-2">
+      {% for component in finding.components %}<li><a class="link" href="{{ url_for('assets.asset_triggers', asset_id=finding.asset_id, component_id=component.id) }}">{{ component.name }} {{ component.version }}</a><span class="text-xs break-all"> {{ component.purl }}</span></li>{% endfor %}
+    </ul>
+    {% if finding.unresolved_references %}<p class="text-warning">{{ finding.unresolved_references | length }} references could not be linked to imported software.</p>{% endif %}
+    {% for record in finding.records %}
+      <div class="space-y-2 border-t border-base-300 py-2">
+        <p>Source: {{ (record.get("source") or {}).get('name', 'Not supplied') }} {{ external_link((record.get('source') or {}).get('url', ''), 'Source website') }}</p>
+        <p class="whitespace-pre-line">{{ record.get('description', '') }}</p>
+        <ul>
+          {% for affected in record.get('affects', []) %}
+            {% set component_id = finding.component_references.get(affected.ref) %}
+            <li>
+              {% for component in finding.components if component.id == component_id %}{{ component.name }} {{ component.version }}{% endfor %}
+              {% if not component_id %}Unresolved component reference{% endif %}: <code>{{ affected.ref }}</code>
+              {% if affected.get("versions") %}<pre class="text-xs whitespace-pre-wrap">{{ affected.versions | tojson(indent=2) }}</pre>{% endif %}
+            </li>
+          {% endfor %}
+        </ul>
+        {% for rating in record.get('ratings', []) %}<p>{{ status_badge(rating.get('severity')) }} {{ rating.get('method', '') }} {{ rating.get('score', '') }} <span class="font-mono text-xs">{{ rating.get('vector', '') }}</span>{% if rating.get("source") %} · {{ rating.source.get('name', '') }} {{ external_link(rating.source.get('url', ''), 'Rating source') }}{% endif %}</p>{% endfor %}
+        {% if record.get("cwes") %}<p>CWEs: {{ record.cwes | join(", ") }}</p>{% endif %}
+        <p>Created: {{ record.get('created', 'Not supplied') }} · Published: {{ record.get('published', 'Not supplied') }} · Updated: {{ record.get('updated', 'Not supplied') }}</p>
+        {% if record.get("recommendation") %}<p>Source recommendation: {{ record.recommendation }}</p>{% endif %}
+        {% if record.get("analysis") %}<pre class="text-xs whitespace-pre-wrap">{{ record.analysis | tojson(indent=2) }}</pre>{% endif %}
+      </div>
+    {% endfor %}
+  </details>
+</section>

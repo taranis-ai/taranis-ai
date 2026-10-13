@@ -1,10 +1,12 @@
 from flask import Flask, jsonify, request
 from flask.views import MethodView
 from flask_jwt_extended import current_user
+from sqlalchemy import or_
 
 from core.api import asset_intelligence, asset_sbom
 from core.config import Config
 from core.managers.auth_manager import auth_required
+from core.managers.db_manager import db
 from core.managers.decorators import extract_args
 from core.model import asset
 from core.service.cache_invalidation import invalidate_frontend_cache_on_success
@@ -51,7 +53,7 @@ class AssetGroups(MethodView):
 
 class Assets(MethodView):
     @auth_required("ASSETS_ACCESS")
-    @extract_args("search", "vulnerable", "group", "page", "limit", "order", "fetch_all")
+    @extract_args("search", "vulnerable", "group", "tag", "page", "limit", "order", "fetch_all")
     def get(self, asset_id=None, filter_args=None):
         if asset_id:
             return asset.Asset.get_for_api(asset_id, current_user.organization)
@@ -84,16 +86,35 @@ class Assets(MethodView):
         return response, status
 
 
+class AssetTags(MethodView):
+    @auth_required("ASSETS_ACCESS")
+    def get(self):
+        names = db.session.scalars(
+            db.select(asset.AssetTag.name)
+            .join(asset.Asset)
+            .join(asset.AssetGroup)
+            .where(
+                or_(
+                    asset.AssetGroup.organization_id == current_user.organization.id,
+                    asset.AssetGroup.id == asset.AssetGroup.get_default_group().id,
+                )
+            )
+            .distinct()
+            .order_by(asset.AssetTag.name)
+        )
+        return {"tags": list(names)}, 200
+
+
 class AssetCTI(MethodView):
     @auth_required("ASSETS_ACCESS")
     def get(self, asset_id: str):
-        return CTIService.get_asset_cti(asset_id, current_user)
+        return CTIService.get_asset_cti(asset_id, current_user, request.args.get("page", 1, type=int), request.args.get("search", "").strip())
 
 
 class AssetsCTI(MethodView):
     @auth_required("ASSETS_ACCESS")
     def get(self):
-        return CTIService.get_assets_cti(current_user)
+        return CTIService.get_assets_cti(current_user, request.args.get("page", 1, type=int), request.args.get("search", "").strip())
 
 
 class AssetVulnerability(MethodView):
@@ -109,6 +130,7 @@ class AssetVulnerability(MethodView):
 
 def initialize(app: Flask):
     base_route = f"{Config.APPLICATION_ROOT}api"
+    app.add_url_rule(f"{base_route}/assets/tags", view_func=AssetTags.as_view("asset_tags"))
     asset_sbom.initialize(app, base_route)
     asset_intelligence.initialize(app, base_route)
     app.add_url_rule(f"{base_route}/assets", view_func=Assets.as_view("assets"))
