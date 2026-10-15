@@ -23,18 +23,11 @@
   }
 ] %}
 {% set filters %}
-  <form method="get"
-        action="{{ base_url }}"
-        class="flex flex-wrap items-center gap-2 mb-4"
-        hx-get="{{ base_url }}"
-        hx-push-url="true"
-        hx-target="#completed-runs-table"
-        hx-select="#completed-runs-table"
-        hx-swap="outerHTML">
-    <input type="hidden" name="tab" value="completed">
-    {% for key in ['search', 'limit', 'order'] %}
-      {% if request.args.get(key) %}<input type="hidden" name="{{ key }}" value="{{ request.args.get(key) }}">{% endif %}
-    {% endfor %}
+  <input type="hidden" name="tab" value="completed">
+  {% for key in ['limit', 'order'] %}
+    {% if request.args.get(key) %}<input type="hidden" name="{{ key }}" value="{{ request.args.get(key) }}">{% endif %}
+  {% endfor %}
+  <div class="flex flex-wrap items-center gap-2 mb-4">
     <label for="completed-run-status" class="font-medium">Outcome</label>
     <select id="completed-run-status" name="status" class="select select-sm select-bordered" data-testid="completed-run-status">
       {% for value, label in [('', 'All outcomes'), ('SUCCESS', 'Success'), ('FAILURE', 'Failed'), ('WARNING', 'Warning'), ('NOT_MODIFIED', 'Not modified'), ('PREVIEW', 'Preview')] %}
@@ -42,9 +35,9 @@
       {% endfor %}
     </select>
     <button type="submit" class="btn btn-sm">Apply</button>
-  </form>
+  </div>
 {% endset %}
-{% call(task) refreshable_table('completed-runs-table', 'completed-runs', completed_runs, columns, base_url, 'No completed runs found.', filters, ['status', 'tab']) %}
+{% call(task) refreshable_table('completed-runs-table', 'completed-runs', completed_runs, columns, base_url, 'No completed runs found.', filters) %}
   <tr data-testid="completed-run-row">
     <td>
       <div class="font-medium">{{ (task.worker_type or task.task or "Task") | replace('_', ' ') | title }}</div>

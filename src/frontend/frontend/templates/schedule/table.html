@@ -1,4 +1,4 @@
-{% macro refreshable_table(container_id, table_id, data, columns, base_url, empty_message, filters="", preserve_params=[]) %}
+{% macro refreshable_table(container_id, table_id, data, columns, base_url, empty_message, filters="") %}
   {% from "macros/table.html" import table_controls, table_header, table_search_bar %}
   <div id="{{ container_id }}"
        class="table-container"
@@ -7,8 +7,7 @@
        hx-trigger="scheduler:refresh"
        hx-select="#{{ container_id }}"
        hx-swap="outerHTML">
-    {{ filters }}
-    <div class="mb-4">{{ table_search_bar(container_id, base_url, preserve_params=preserve_params) }}</div>
+    <div class="mb-4">{{ table_search_bar(container_id, base_url, filters=filters) }}</div>
     <div class="overflow-x-auto">
       <table class="table shadow table-zebra table-sm" id="{{ table_id }}" data-testid="{{ table_id }}">
         <thead>

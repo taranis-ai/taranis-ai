@@ -202,7 +202,8 @@ class TestEndToEndAdmin(BaseE2ETest):
         with_htmx_wait(page, lambda: page.locator('.tab[data-tab="completed"]').click())
         expect(page.get_by_test_id("completed-runs")).to_be_visible()
         search = page.locator("#completed-runs-table-search")
-        with_htmx_wait(page, lambda: search.fill(run_prefix))
+        with page.expect_response(lambda response: "/scheduler/completed?" in response.url and f"search={run_prefix}" in response.url):
+            search.fill(run_prefix)
         expect(page.get_by_test_id("completed-run-row")).to_have_count(2)
         page.get_by_test_id("completed-run-status").select_option("SUCCESS")
         with_htmx_wait(page, lambda: page.locator("#completed-runs-table").get_by_role("button", name="Apply", exact=True).first.click())

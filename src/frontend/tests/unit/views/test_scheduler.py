@@ -520,4 +520,4 @@ def test_completed_run_filters_preserve_search_and_reset_page(authenticated_clie
     assert form.xpath('.//input[@name="search"][@value="pipeline"]')
     assert not form.xpath('.//input[@name="page"]')
     search_form = tree.xpath('//*[@id="completed-runs-table-search"]/ancestor::form')[0]
-    assert search_form.xpath('.//input[@name="status"][@value="SUCCESS"]')
+    assert search_form.xpath('.//select[@name="status"]/option[@value="SUCCESS"][@selected]')
