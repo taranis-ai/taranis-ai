@@ -1268,9 +1268,9 @@ class TestEndToEndAdmin(BaseE2ETest):
             if not optional.evaluate("el => el.open"):
                 optional.locator("summary").click()
             timeout_input = page.locator('input[name="parameters[NETWORK_TIMEOUT]"]')
-            timeout_input.fill("91")
+            timeout_input.fill("901")
             page.get_by_role("button", name="Create Publisher Preset").click()
-            expect(page.locator("#notification-bar")).to_contain_text("Network timeout must not exceed 90 seconds")
+            expect(page.locator("#notification-bar")).to_contain_text("Network timeout must not exceed 900 seconds")
             dismiss_notifications(page)
             optional = page.get_by_test_id("optional-worker-parameters")
             if not optional.evaluate("el => el.open"):
