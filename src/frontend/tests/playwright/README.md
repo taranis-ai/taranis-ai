@@ -68,6 +68,7 @@ uv run pytest tests/playwright/test_e2e_workflow.py::TestUserWorkflow::test_chat
 ```
 
 Direct pytest recording saves a WebM per browser page under `tests/playwright/videos/`. The script above joins clips automatically.
+The Assess segment keeps triage brief: review two stories, mark them read, then flag those same stories as important. Detailed filtering, bulk actions, clustering, and editing remain covered by the regular user E2E workflows.
 The Chat segment shows a ransomware search, an unread follow-up, reopening saved history, clicking the matching-stories link, and opening a source story in Assess to inspect the evidence.
 It uses the real frontend, Core search, and conversation persistence with three disposable demo stories.
 Only the provider is scripted (`fixtures/chat_provider.py`, the internal `demo-llm` Compose service): no credentials or real LLM calls are needed.

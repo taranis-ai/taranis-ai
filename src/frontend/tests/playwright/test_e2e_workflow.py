@@ -347,159 +347,39 @@ class TestUserWorkflow(BaseE2ETest):
         self,
         non_admin_logged_in_page: Page,
         forward_console_and_page_errors_non_admin: None,
-        stories_date_descending_not_important: list[str],
-        stories_date_descending_important: list[str],
+        stories_session_wrapper,
     ):
-        def mark_story_as_read(story_id: str):
-            story_card = page.get_by_test_id(f"story-card-{story_id}")
-            self.highlight_element(story_card.get_by_test_id("story-summary"))
-            expect(story_card.get_by_test_id("story-summary")).to_be_visible()
-            self.highlight_element(story_card.get_by_test_id("story-actions-menu")).click()
-            self.highlight_element(story_card.get_by_test_id("toggle-read")).click()
-            expect(story_card).to_have_attribute("data-story-read", "true")
-
-        def toggle_story_summary(story_id: str):
-            story_card = page.get_by_test_id(f"story-card-{story_id}")
-            self.highlight_element(story_card.get_by_test_id("toggle-summary")).click()
-
-        def open_story_detail(story_id: str):
-            story_card = page.get_by_test_id(f"story-card-{story_id}")
-            self.highlight_element(story_card.get_by_test_id("toggle-summary")).click()
-            self.highlight_element(story_card.get_by_test_id("open-detail-view")).click()
-            expect(page.get_by_test_id("story-title")).to_be_visible()
-
-        def set_story_filters(read: str | None = None, important: str | None = None):
-            if read is not None:
-                self.highlight_element(page.get_by_label("Read")).select_option(read)
-            if important is not None:
-                self.highlight_element(page.get_by_label("Important")).select_option(important)
-
-        def reset_story_filters():
-            self.highlight_element(page.get_by_role("link", name="Reset filters ctrl+esc")).click()
-
-        def assert_story_count(expected_count: str):
-            expect(page.get_by_test_id("assess_story_count").get_by_text(expected_count)).to_be_visible()
-
-        def go_to_assess():
-            self.navigate_to_assess(page)
-
-        def apply_filter():
-            self.highlight_element(page.get_by_role("radio", name="Shift")).check()
-            set_story_filters(read="true")
-            set_story_filters(read="false")
-            set_story_filters(important="false")
-            set_story_filters(important="true")
-            reset_story_filters()
-            set_story_filters(important="true")
-            assert_story_count("5")
-            reset_story_filters()
-            set_story_filters(read="false", important="false")
-
-        def assess_workflow_1(non_important_story_ids: list[str]):
-            # Check summary and mark as read
-            assert len(non_important_story_ids) == 28
-
-            # first story
-            story_card = page.get_by_test_id(f"story-card-{non_important_story_ids[0]}")
-            self.highlight_element(story_card.get_by_test_id("story-summary"), scroll=False)
-            expect(story_card.get_by_test_id("story-summary")).to_be_visible()
-            mark_story_as_read(non_important_story_ids[0])
-
-            # next story
-            story_card = page.get_by_test_id(f"story-card-{non_important_story_ids[1]}")
-            self.highlight_element(story_card.get_by_test_id("story-summary"), scroll=False)
-            expect(story_card.get_by_test_id("story-summary")).to_be_visible()
-            mark_story_as_read(non_important_story_ids[1])
-
-            for i in range(2, 7):
-                mark_story_as_read(non_important_story_ids[i])
-
-            # select multiple, press mark as read once
-            for i in range(7, 10):
-                story_card = page.get_by_test_id(f"story-card-{non_important_story_ids[i]}")
-                self.highlight_element(story_card, scroll=False).click(position={"x": 5, "y": 5})
-                expect(story_card).to_have_attribute("aria-selected", "true")
-            self.highlight_element(page.get_by_test_id("assess-tob-bar-actions-menu")).click()
-            self.highlight_element(page.get_by_test_id("bulk-toggle-read")).click()
-            expect(page.get_by_test_id("assess_story_selection_count")).to_be_hidden()
-            expect(page.get_by_test_id(f"story-card-{non_important_story_ids[10]}")).to_be_visible()
-
-            # remaining stories
-            for i in range(10, 20):
-                mark_story_as_read(non_important_story_ids[i])
-
-            for i in range(20, 28):
-                print(f"Marking story {non_important_story_ids[i]} as read AND is {i}/28")
-                mark_story_as_read(non_important_story_ids[i])
-
-        def assess_workflow_2(important_story_ids: list[str]):
-            set_story_filters(important="true")
-
-            # Show/unshow details of all stories
-            for story_id in important_story_ids[:5]:
-                toggle_story_summary(story_id)
-                toggle_story_summary(story_id)
-
-            # Open specific story
-            open_story_detail(important_story_ids[0])
-
-            # Mark as read and remove important (using manual clicks since base method may not fit)
-            self.highlight_element(page.get_by_test_id("story-actions-menu")).click()
-            self.highlight_element(page.get_by_test_id("toggle-read")).click()
-            expect(page.get_by_test_id(f"story-card-{important_story_ids[0]}")).to_have_attribute("data-story-read", "true")
-            # Remove mark as important
-            self.highlight_element(page.get_by_test_id("story-actions-menu")).click()
-            self.highlight_element(page.get_by_test_id("toggle-important")).click()
-            expect(page.get_by_test_id(f"story-card-{important_story_ids[0]}")).to_have_attribute("data-story-important", "false")
-
-            go_to_assess()
-            reset_story_filters()
-            set_story_filters(read="false", important="true")
-
-            # Merge stories
-            self.highlight_element(page.get_by_test_id(f"story-card-{important_story_ids[2]}")).click()
-            self.highlight_element(page.get_by_test_id(f"story-card-{important_story_ids[3]}")).click()
-            self.highlight_element(page.get_by_role("button", name="Cluster")).click()
-            expect(page.get_by_test_id("story-to-merge")).to_have_count(2)
-            self.expect_list_of_test_ids_visible(
-                page,
-                [
-                    f"story-card-{important_story_ids[2]}",
-                    f"story-card-{important_story_ids[3]}",
-                ],
-            )
-            page.get_by_test_id("dialog-story-cluster-submit").click()
-            expect(page.get_by_test_id("story-to-merge")).to_have_count(0)
-
-            # Edit story
-            self.highlight_element(page.get_by_test_id(f"story-card-{important_story_ids[4]}").get_by_test_id("edit-story")).click()
-
-            self.highlight_element(page.get_by_role("textbox", name="Summary")).fill(
-                "Recent cyber activities highlight significant threats from various Advanced Persistent Threat (APT) groups. APT67 has been conducting espionage operations targeting the global mining industry, while APT55 has been injecting malicious code into widely used applications by attacking software development firms. Additionally, APT56 has been involved in cross-border hacking operations affecting government websites. Meanwhile, APT65 has led a malware campaign that leaked sensitive data from several legal firms. These incidents underscore the persistent and diverse nature of cyber threats posed by these groups across industries and regions."
-            )
-            self.highlight_element(page.get_by_role("textbox", name="Analyst comments")).fill("I like this story, it needs to be reviewed.")
-
-            page.get_by_test_id("edit-newsitem-tags").first.click()
-            page.get_by_test_id("news-item-tag-name-input").last.fill("Austria")
-            page.get_by_test_id("news-item-tag-value-input").last.fill("Location")
-            page.get_by_role("button", name="Save tags").click()
-            page.get_by_role("button", name="Add attribute").click()
-            page.get_by_test_id("attribute-key-input").last.fill("Analyst_1")
-            page.get_by_test_id("attribute-value-input").last.fill("read")
-            page.get_by_role("button", name="Save changes").click()
-
-            go_to_assess()
-
-        #           Run test
-        # ============================
-
         page = non_admin_logged_in_page
+        self.navigate_to_assess(page)
+        read_filter = page.get_by_role("combobox", name="Read", exact=True)
+        important_filter = page.get_by_role("combobox", name="Important", exact=True)
+        read_filter.select_option("")
+        important_filter.select_option("")
+        self.wait_for_htmx_settled(page)
 
-        go_to_assess()
-        # test_hotkey_menu()
-        apply_filter()
-        assess_workflow_1(stories_date_descending_not_important)
-        assess_workflow_2(stories_date_descending_important)
+        story_cards = page.locator("[data-testid^='story-card-'][data-story-read='false'][data-story-important='false']")
+        expect(story_cards.nth(1)).to_be_visible()
+        story_ids = story_cards.evaluate_all("cards => cards.slice(0, 2).map(card => card.dataset.storyId)")
+        for story_id in story_ids:
+            card = page.get_by_test_id(f"story-card-{story_id}")
+            self.highlight_element(card.get_by_test_id("story-summary"))
+            self.highlight_element(card.get_by_test_id("story-actions-menu")).click()
+            self.highlight_element(card.get_by_test_id("toggle-read")).click()
+            expect(card).to_have_attribute("data-story-read", "true")
+
+        for story_id in story_ids:
+            card = page.get_by_test_id(f"story-card-{story_id}")
+            self.highlight_element(card.get_by_test_id("story-actions-menu")).click()
+            self.highlight_element(card.get_by_test_id("toggle-important")).click()
+            expect(card).to_have_attribute("data-story-important", "true")
+
+        for story_id in story_ids:
+            card = page.get_by_test_id(f"story-card-{story_id}")
+            expect(card).to_be_visible()
+            expect(card).to_have_attribute("data-story-read", "true")
+            expect(card).to_have_attribute("data-story-important", "true")
+        self.highlight_element(page.get_by_test_id(f"story-card-{story_ids[0]}").get_by_test_id("story-title"))
+        self.capture_screenshot(page, "./tests/playwright/screenshots/screenshot_assess_triage.png")
 
     def test_reports(
         self,
