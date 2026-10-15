@@ -15,6 +15,7 @@ def demo_chat_provider(core_request_client):
     if external_core_api_url() or external_frontend_base_url():
         pytest.skip("The scripted chat demo requires the isolated local E2E stack")
 
+    allow_requests_passthru()
     settings = core_request_client.json_request("GET", "/settings/settings")["items"][0]["settings"]
     endpoint = core_request_client.json_request(
         "POST",
