@@ -2,6 +2,7 @@ from llm_bot.schemas import SummarizeRequest, TitleRequest
 from llm_bot.tasks.summarize import prepare_summary
 from llm_bot.tasks.title import prepare_title
 from rq import Retry
+from rq.timeouts import JobTimeoutException
 
 from worker.bot_api import BotServiceUnavailableError
 from worker.llm import get_llm_client, run_llm_tasks
@@ -52,7 +53,7 @@ class SummaryBot(BaseBot):
 
                 if story_update_data:
                     story_updates[story["id"]] = story_update_data
-            except BotServiceUnavailableError:
+            except (BotServiceUnavailableError, JobTimeoutException):
                 raise
             except Exception:
                 logger.exception(f"Could not generate summary for {story['id']}")

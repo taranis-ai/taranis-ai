@@ -1,6 +1,7 @@
 from llm_bot.schemas import ClusterRequest
 from llm_bot.tasks.cluster import prepare_cluster
 from rq import Retry
+from rq.timeouts import JobTimeoutException
 
 from worker.llm import get_llm_client, run_llm_tasks
 from worker.log import logger
@@ -28,6 +29,8 @@ class StoryBot(BaseBot):
             request = ClusterRequest.model_validate(
                 {"stories": [{"id": story["id"], "tags": story.get("tags", {}), "summary": story.get("summary")} for story in data]}
             )
+        except JobTimeoutException:
+            raise
         except Exception:
             logger.exception("Invalid story clustering input")
             raise RuntimeError("Story clustering failed") from None
