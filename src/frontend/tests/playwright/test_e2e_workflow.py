@@ -300,29 +300,22 @@ class TestUserWorkflow(BaseE2ETest):
             page.wait_for_url("**/chat", wait_until="domcontentloaded")
             expect(page.get_by_test_id("chat-help")).to_be_visible()
             expect(page.get_by_test_id("chat-configuration-warning")).not_to_be_visible()
-            self.short_sleep(3)
 
-            self.highlight_element(page.get_by_test_id("chat-input")).press_sequentially(
-                "Find ransomware stories in my collection.", delay=0 if self.ci_run else 45
-            )
+            self.highlight_element(page.get_by_test_id("chat-input")).fill("Find ransomware stories in my collection.")
             self.highlight_element(page.get_by_test_id("chat-send")).click()
             page.wait_for_url("**/chat/*", wait_until="domcontentloaded")
             conversation_id = page.url.rsplit("/", 1)[-1]
             answer = page.get_by_test_id("chat-message-assistant")
             expect(answer).to_have_count(1)
             expect(answer).to_contain_text("Ransomware campaign targets European hospitals")
-            self.highlight_element(answer)
-            self.short_sleep(5)
+            self.highlight_element(answer.locator(".chat-bubble"))
 
-            self.highlight_element(page.get_by_test_id("chat-input")).press_sequentially(
-                "Which of those stories are still unread?", delay=0 if self.ci_run else 45
-            )
+            self.highlight_element(page.get_by_test_id("chat-input")).fill("Which of those stories are still unread?")
             self.highlight_element(page.get_by_test_id("chat-send")).click()
             expect(answer).to_have_count(2)
             expect(answer.last).to_contain_text("unread ransomware")
             expect(answer.last).not_to_contain_text("Manufacturing sector")
-            self.highlight_element(answer.last)
-            self.short_sleep(5)
+            self.highlight_element(answer.last.locator(".chat-bubble"))
             self.capture_screenshot(page, "./tests/playwright/screenshots/screenshot_chat.png")
 
             self.highlight_element(page.get_by_test_id("chat-new")).click()
@@ -337,7 +330,15 @@ class TestUserWorkflow(BaseE2ETest):
             for story_id in demo_chat_provider[:2]:
                 expect(page.get_by_test_id(f"story-card-{story_id}")).to_be_visible()
             expect(page.get_by_test_id(f"story-card-{demo_chat_provider[2]}")).not_to_be_visible()
-            self.short_sleep(3)
+
+            evidence_story = page.get_by_test_id(f"story-card-{demo_chat_provider[0]}")
+            self.highlight_element(evidence_story.get_by_test_id("open-detail-view")).click()
+            page.wait_for_url(f"**/story/{demo_chat_provider[0]}", wait_until="domcontentloaded")
+            expect(page.get_by_test_id("news-item-title")).to_have_text("Ransomware campaign targets European hospitals")
+            evidence = page.get_by_role("paragraph").filter(has_text="Demo intelligence for the landing-page chat walkthrough.")
+            expect(evidence).to_be_visible()
+            evidence.scroll_into_view_if_needed()
+            self.highlight_element(evidence)
         finally:
             if conversation_id:
                 core_request_client.with_access_token(access_token_basic).delete(f"/chat/conversations/{conversation_id}")

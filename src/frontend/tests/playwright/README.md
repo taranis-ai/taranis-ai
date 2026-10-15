@@ -68,12 +68,12 @@ uv run pytest tests/playwright/test_e2e_workflow.py::TestUserWorkflow::test_chat
 ```
 
 Direct pytest recording saves a WebM per browser page under `tests/playwright/videos/`. The script above joins clips automatically.
-The Chat segment shows a ransomware search, an unread follow-up, reopening saved history, and reviewing matching stories in Assess.
+The Chat segment shows a ransomware search, an unread follow-up, reopening saved history, clicking the matching-stories link, and opening a source story in Assess to inspect the evidence.
 It uses the real frontend, Core search, and conversation persistence with three disposable demo stories.
 Only the provider is scripted (`fixtures/chat_provider.py`, the internal `demo-llm` Compose service): no credentials or real LLM calls are needed.
 Chat is enabled in the local E2E servers. The fixture temporarily assigns the demo provider only to Chat and restores the assignment afterward.
 The demo is skipped against external instances, so recording cannot reconfigure their providers. Successful runs remove their demo conversation and stories.
-Headless CI also runs this workflow; typing and reading pauses are omitted there.
+Chat uses the same highlight helper and instant form filling as the other segments: `--highlight-delay=0` adds no typing or reading delays; a positive delay highlights the controls, answer bubbles, evidence link, and source content for that duration. Headless CI also runs this workflow without highlights or pauses.
 
 ### Run only the RQ/Redis integration E2E suite
 
