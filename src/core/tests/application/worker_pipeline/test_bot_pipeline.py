@@ -2,6 +2,8 @@
 
 import uuid
 
+from sqlalchemy import select
+
 from tests.application.support.builders import build_news_item_payload, create_osint_source, create_story
 
 
@@ -24,6 +26,19 @@ def test_bot_pipeline_uses_one_snapshot_and_commits_only_complete_runs(app, clie
         first_item_id = first.news_items[0].id
         second_item_id = second.news_items[0].id
         bot_ids = {bot_type: Bot.filter_by_type(bot_type.lower()).id for bot_type in ("NLP_BOT", "STORY_BOT", "SUMMARY_BOT", "IOC_BOT")}
+        nlp_bot = Bot.get(bot_ids["NLP_BOT"])
+        previous = Task(
+            id=f"old-{uuid.uuid4()}",
+            task=nlp_bot.task_id,
+            worker_id=nlp_bot.id,
+            worker_type="NLP_BOT",
+            status="FAILURE",
+            result={"message": "Previous run failed"},
+        )
+        session.add(previous)
+        session.commit()
+        assert nlp_bot.status["status"] == "FAILURE"
+
         filters = {
             bot_id: {"source": [source.id], "story_ids": [first.id, second.id], "worker": True, "exclude_attr": bot_type}
             for bot_type, bot_id in bot_ids.items()
@@ -107,6 +122,8 @@ def test_bot_pipeline_uses_one_snapshot_and_commits_only_complete_runs(app, clie
             assert NewsItem.get(first_item_id).tags == []
             assert Story.get(first.id).revision == snapshot["revisions"][first.id]
             assert Task.get_by_job_id(invalid_payload["id"]) is None
+            assert Task.get_by_job_id(f"{invalid_payload['id']}:bot:{nlp_bot.id}") is None
+            assert nlp_bot.status["status"] == "FAILURE"
 
         committed = client.post("/api/tasks", json=payload, headers=api_header)
         assert committed.status_code == 200
@@ -120,9 +137,21 @@ def test_bot_pipeline_uses_one_snapshot_and_commits_only_complete_runs(app, clie
         assert all(Story.get(unrelated.id).find_attribute_by_key(bot_type) is None for bot_type in bot_ids)
         assert {tag.name for tag in NewsItem.get(first_item_id).tags} == {"CVE-2026-1234"}
         assert {tag.name for tag in NewsItem.get(second_item_id).tags} == {"CVE-2026-5678"}
+        pipeline = Task.get_by_job_id(payload["id"])
+        for bot_type, bot_id in bot_ids.items():
+            status = Bot.get(bot_id).status
+            assert status["status"] == "SUCCESS"
+            assert status["worker_type"] == bot_type
+            assert status["last_run"] == pipeline.last_run.isoformat()
+            assert status["last_success"] == pipeline.last_run.isoformat()
+        assert nlp_bot.id not in {bot.id for bot in session.execute(select(Bot).where(Bot.failure_condition())).scalars()}
+        stage_job_id = f"{payload['id']}:bot:{nlp_bot.id}"
+        stage_task_id = Task.get_by_job_id(stage_job_id).id
         revision = merged.revision
         assert client.post("/api/tasks", json=payload, headers=api_header).status_code == 200
         assert Story.get(first.id).revision == revision
+        assert Task.get_by_job_id(stage_job_id).id == stage_task_id
+        assert nlp_bot.status["last_run"] == pipeline.last_run.isoformat()
 
         # Successful bots, including a zero-finding IOC run, are omitted from the next scoped snapshot.
         repeated = client.post("/api/worker/bot-pipeline/stories", json={"filters": filters}, headers=api_header)

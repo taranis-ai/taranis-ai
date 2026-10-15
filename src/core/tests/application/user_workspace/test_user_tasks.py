@@ -162,3 +162,32 @@ def test_user_tasks_supports_search_sorting_and_paging(app, client, api_header, 
 
 def test_user_tasks_requires_authentication(client):
     assert client.get("/api/tasks/user").status_code == 401
+
+
+def test_completed_runs_includes_background_jobs_and_filters_without_exposing_payloads(app, client, api_header):
+    prefix = f"completed-{uuid.uuid4().hex}"
+    job_ids = [f"{prefix}-{suffix}" for suffix in ("success", "failure", "active")]
+    try:
+        for job_id, status in zip(job_ids, ("SUCCESS", "FAILURE", "STARTED"), strict=True):
+            payload = _task_payload(job_id, user_id=None, status=status)
+            if status == "FAILURE":
+                payload["result"].update(message="private traceback and provider secret", reason="job_timeout")
+            assert client.post("/api/tasks", json=payload, headers=api_header).status_code == 200
+        response = client.get("/api/tasks/runs", query_string={"search": prefix, "limit": 1}, headers=api_header)
+        assert response.status_code == 200
+        assert response.json["total_count"] == 2
+        assert response.json["items"][0]["job_id"] == job_ids[1]
+        assert response.json["items"][0]["result"]["message"] == "The job exceeded its execution timeout."
+        assert "private traceback" not in response.text
+        assert "secret" not in response.text
+        assert "data" not in response.json["items"][0]["result"]
+        success = client.get("/api/tasks/runs", query_string={"search": prefix, "status": "SUCCESS"}, headers=api_header)
+        assert success.json["total_count"] == 1
+        assert success.json["items"][0]["job_id"] == job_ids[0]
+        assert client.get("/api/tasks/runs", query_string={"search": f"hidden-{prefix}"}, headers=api_header).json["total_count"] == 0
+        invalid = client.get("/api/tasks/runs", query_string={"search": prefix, "status": "INVALID", "limit": -1}, headers=api_header)
+        assert invalid.status_code == 200
+        assert invalid.json["total_count"] == 2
+        assert client.get("/api/tasks/runs").status_code == 401
+    finally:
+        _delete_tasks(app, job_ids)

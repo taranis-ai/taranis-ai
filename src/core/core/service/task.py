@@ -1,8 +1,8 @@
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from models.task import FAILURE_MESSAGES, TaskHistoryResponse, TaskResult, TaskRunFilter, TaskSubmission, UserTaskFilter, UserTaskList
 from models.task import Task as TaskResponseModel
-from models.task import TaskHistoryResponse, TaskResult, TaskSubmission, UserTaskFilter, UserTaskList
 
 from core.config import Config
 from core.log import logger
@@ -46,6 +46,19 @@ class TaskService:
             return result, status
         validated = UserTaskList.model_validate(result)
         return validated.model_dump(mode="json", exclude_none=False), status
+
+    @staticmethod
+    def get_completed_runs(filters: TaskRunFilter) -> tuple[dict[str, Any], int]:
+        result, status = TaskModel.get_completed_runs_for_api(filters)
+        for item in result["items"]:
+            if item["status"] == "FAILURE":
+                reason = item["result"].get("reason")
+                item["result"] = {
+                    "message": FAILURE_MESSAGES.get(reason, "The task failed. Check worker logs using the job ID."),
+                    "reason": reason if reason in FAILURE_MESSAGES else None,
+                    "retryable": bool(item["result"].get("retryable")),
+                }
+        return UserTaskList.model_validate(result).model_dump(mode="json"), status
 
     @staticmethod
     def delete_task(task_id: str) -> tuple[dict[str, Any], int]:

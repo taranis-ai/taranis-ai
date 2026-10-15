@@ -27,6 +27,8 @@ Endpoint probe health is stored separately from execution history; see [LLM Endp
 
 ## History and UI
 
+Committed pipeline steps produce separate per-bot results with the pipeline owner and completion timestamp; they also appear in My Tasks and the scheduler Completed Runs view.
+
 My Tasks lists only completed persisted results owned by the authenticated user, including successful `PREVIEW` results. It never queries Redis for queued/running jobs. Omit task `result.data`; search only visible relational fields, never serialized results. This differs from [Notification Center](notification-center.md) history.
 
 Daily `cleanup_task_history` applies global `TASK_HISTORY_RETENTION_DAYS` across task families. Cleanup records core HTTP/transport failures as `core_http_error`/`core_transport_error`.

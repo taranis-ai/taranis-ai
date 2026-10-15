@@ -33,6 +33,7 @@ pytestmark = pytest.mark.usefixtures("_clear_scheduler_cache")
         ("admin.scheduler_active_jobs", "active"),
         ("admin.scheduler_failed_jobs", "failed"),
         ("admin.scheduler_history", "history"),
+        ("admin.scheduler_completed_runs", "completed"),
     ],
 )
 def test_scheduler_deep_link_renders_dashboard(endpoint, expected_tab, authenticated_client, mock_core_get_endpoints):
@@ -138,8 +139,8 @@ def test_scheduler_dashboard_auto_refresh_is_opt_in_and_tab_scoped(authenticated
     assert 'id="scheduled-jobs-table"' in html
     assert 'id="active-jobs-table"' in html
     assert 'id="failed-jobs-table"' in html
-    assert html.count('hx-trigger="scheduler:refresh"') == 5
-    assert html.count("intervalMs: 10000") == 3
+    assert html.count('hx-trigger="scheduler:refresh"') == 6
+    assert html.count("intervalMs: 10000") == 4
     assert "intervalMs: 5000" not in html
     assert "let autoRefreshEnabled = false" in html
     assert "!config || !autoRefreshEnabled" in html
@@ -205,7 +206,7 @@ def test_scheduler_dashboard_renders_inactive_tabs_as_placeholders(authenticated
     assert 'id="active-jobs-table"' in html
     assert 'id="failed-jobs-table"' in html
     assert 'id="execution-history"' in html
-    assert html.count("Loading...</p>") == 3
+    assert html.count("Loading...</p>") == 4
     assert 'data-testid="active-jobs"' not in html
     assert 'data-testid="failed-jobs"' not in html
     assert 'data-testid="execution-history-jobs"' not in html
@@ -219,6 +220,7 @@ def test_scheduler_dashboard_renders_inactive_tabs_as_placeholders(authenticated
         ("admin.scheduler_active_jobs", ["/config/workers/active"], "Running Bot"),
         ("admin.scheduler_failed_jobs", ["/config/workers/failed"], "Failed Connector"),
         ("admin.scheduler_history", ["/tasks"], "Success Rate"),
+        ("admin.scheduler_completed_runs", ["/tasks/runs"], "Ran 4 bots"),
     ],
 )
 def test_scheduler_htmx_partials_use_granular_endpoints(
@@ -311,6 +313,7 @@ def test_scheduler_jobs_table_formats_next_run_in_profile_timezone(
         ("admin.scheduler_active_jobs", "active-jobs", "active-jobs-table"),
         ("admin.scheduler_failed_jobs", "failed-jobs", "failed-jobs-table"),
         ("admin.scheduler_history", "execution-history-jobs", "execution-history-table"),
+        ("admin.scheduler_completed_runs", "completed-runs", "completed-runs-table"),
     ],
 )
 def test_scheduler_tables_render_standard_controls(
@@ -502,3 +505,19 @@ def test_scheduler_history_uses_default_order_for_invalid_direction(
     assert response.status_code == 200
     html = response.get_data(as_text=True)
     assert html.index("Newer Task") < html.index("Older Task")
+
+
+def test_completed_run_filters_preserve_search_and_reset_page(authenticated_client, responses_mock, mock_core_get_endpoints, htmx_header):
+    with authenticated_client.application.app_context():
+        url = url_for("admin.scheduler_completed_runs", status="SUCCESS", search="pipeline", page=2, limit=5)
+    response = authenticated_client.get(url, headers=htmx_header)
+    assert response.status_code == 200
+    assert responses_mock.calls[-1].request.params["status"] == "SUCCESS"
+    assert responses_mock.calls[-1].request.params["order"] == "last_run_desc"
+    tree = lxml_html.fromstring(response.text)
+    form = tree.xpath('//select[@name="status"]/ancestor::form')[0]
+    assert form.xpath('.//option[@value="SUCCESS"][@selected]')
+    assert form.xpath('.//input[@name="search"][@value="pipeline"]')
+    assert not form.xpath('.//input[@name="page"]')
+    search_form = tree.xpath('//*[@id="completed-runs-table-search"]/ancestor::form')[0]
+    assert search_form.xpath('.//input[@name="status"][@value="SUCCESS"]')

@@ -2,7 +2,7 @@ import json
 from datetime import datetime
 from typing import Any, ClassVar
 
-from models.task import UserTaskFilter
+from models.task import TaskRunFilter, UserTaskFilter
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Mapped
 from sqlalchemy.sql.elements import ColumnElement
@@ -153,11 +153,15 @@ class Task(BaseModel):
 
     @classmethod
     def get_user_tasks_for_api(cls, user_id: str, filters: UserTaskFilter) -> tuple[dict[str, Any], int]:
-        query = db.select(cls).where(
-            cls.user_id == user_id,
-            cls.status.in_(cls.USER_TASK_TERMINAL_STATUSES),
-            cls.last_run.is_not(None),
-        )
+        return cls.get_completed_runs_for_api(filters, user_id=user_id)
+
+    @classmethod
+    def get_completed_runs_for_api(cls, filters: UserTaskFilter, *, user_id: str | None = None) -> tuple[dict[str, Any], int]:
+        query = db.select(cls).where(cls.status.in_(cls.USER_TASK_TERMINAL_STATUSES), cls.last_run.is_not(None))
+        if user_id is not None:
+            query = query.where(cls.user_id == user_id)
+        if isinstance(filters, TaskRunFilter) and filters.status:
+            query = query.where(cls.status == filters.status)
 
         if filters.search:
             pattern = f"%{filters.search}%"
@@ -175,7 +179,7 @@ class Task(BaseModel):
 
         count = cls.get_filtered_count(query)
         query = cls._add_paging_to_query(filter_args, query)
-        query = cls._add_sorting_to_query(filter_args, query)
+        query = cls._add_sorting_to_query(filter_args, query).order_by(cls.id.desc())
         items = cls.get_filtered(query) or []
         return {"items": cls.to_list(items), "total_count": count}, 200
 

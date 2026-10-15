@@ -8,6 +8,23 @@ from pydantic import BaseModel as PydanticBaseModel
 from models.base import TaranisBaseModel
 
 
+FAILURE_MESSAGES = {
+    "job_timeout": "The job exceeded its execution timeout.",
+    "llm_request_timeout": "An LLM provider request timed out. Check the endpoint and REQUESTS_TIMEOUT.",
+    "bot_service_unavailable": "The configured bot or LLM service could not be reached. Check its availability and worker connectivity.",
+    "llm_invalid_output": "The LLM provider returned invalid output. Check the configured model and worker logs.",
+    "llm_not_configured": "No enabled LLM endpoint is configured. Check Admin Settings > LLM Endpoints.",
+    "llm_processing_failed": "LLM processing failed. Check worker logs for details.",
+    "llm_batch_failed": "The provider batch failed. Check batch status and model support at the provider.",
+    "ner_save_failed": "Extracted NER tags could not be saved. Check Core connectivity and worker logs.",
+    "bot_pipeline_failed": "The bot pipeline failed during processing or final result submission.",
+    "bot_execution_failed": "Bot execution failed. Check the bot configuration and worker logs.",
+    "collection_failed": "Source collection failed. Check source configuration, network access, and worker logs.",
+    "work_horse_killed": "The worker process ended before completing the job.",
+    "job_failed": "The background job failed. Check worker logs for details.",
+}
+
+
 class CronTaskSpec(TaranisBaseModel):
     queue_name: str
     func_path: str
@@ -145,6 +162,21 @@ class UserTaskFilter(TaranisBaseModel):
             "last_run_desc",
         }
         return str(value) if value in allowed_orders else "last_run_desc"
+
+
+class TaskRun(UserTask):
+    _core_endpoint = "/tasks/runs"
+    _model_name = "task_run"
+    _pretty_name = "Completed Run"
+
+
+class TaskRunFilter(UserTaskFilter):
+    status: Literal["SUCCESS", "FAILURE", "WARNING", "NOT_MODIFIED", "PREVIEW"] | None = None
+
+    @field_validator("status", mode="before")
+    @classmethod
+    def normalize_status(cls, value: Any) -> str | None:
+        return value if value in {"SUCCESS", "FAILURE", "WARNING", "NOT_MODIFIED", "PREVIEW"} else None
 
 
 class TaskSubmission(TaranisBaseModel):

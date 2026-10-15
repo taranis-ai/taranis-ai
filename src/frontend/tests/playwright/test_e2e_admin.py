@@ -141,7 +141,7 @@ class TestEndToEndAdmin(BaseE2ETest):
         expect(page.locator(".driver-popover")).not_to_be_visible()
 
     @pytest.mark.e2e_full_stack
-    def test_admin_dashboard(self, logged_in_page: Page, forward_console_and_page_errors, core_request_client):
+    def test_admin_dashboard(self, logged_in_page: Page, forward_console_and_page_errors, core_request_client, api_header):
         page = logged_in_page
 
         page.goto(url_for("admin.dashboard", _external=True))
@@ -184,6 +184,34 @@ class TestEndToEndAdmin(BaseE2ETest):
         expect(page).to_have_url(url_for("admin.scheduler", tab="active", _external=True))
         expect(page.locator("#active-jobs-table-search")).to_have_value("")
         expect(page.locator("#active-jobs-table")).to_contain_text("No jobs currently running")
+
+        run_prefix = f"scheduler-run-{uuid.uuid4().hex}"
+        for outcome in ("SUCCESS", "FAILURE"):
+            core_request_client.post(
+                "/tasks",
+                headers=api_header,
+                authenticated=False,
+                json_data={
+                    "id": f"{run_prefix}-{outcome}",
+                    "task": "scheduler_test",
+                    "worker_type": "Scheduler Test",
+                    "status": outcome,
+                    "result": {"message": "Scheduler test completed", "reason": "job_timeout" if outcome == "FAILURE" else None},
+                },
+            )
+        with_htmx_wait(page, lambda: page.locator('.tab[data-tab="completed"]').click())
+        expect(page.get_by_test_id("completed-runs")).to_be_visible()
+        search = page.locator("#completed-runs-table-search")
+        with_htmx_wait(page, lambda: search.fill(run_prefix))
+        expect(page.get_by_test_id("completed-run-row")).to_have_count(2)
+        page.get_by_test_id("completed-run-status").select_option("SUCCESS")
+        with_htmx_wait(page, lambda: page.locator("#completed-runs-table").get_by_role("button", name="Apply", exact=True).first.click())
+        expect(page.get_by_test_id("completed-run-row")).to_have_count(1)
+        expect(page.get_by_test_id("completed-run-row")).to_contain_text("Success")
+        expect(page.locator("#completed-runs-table-search")).to_have_value(run_prefix)
+        page.reload()
+        expect(page.get_by_test_id("completed-run-status")).to_have_value("SUCCESS")
+        expect(page.get_by_test_id("completed-run-row")).to_have_count(1)
 
         with_htmx_wait(page, lambda: page.locator('.tab[data-tab="history"]').click())
         expect(page.locator("#execution-history-table")).to_be_visible()

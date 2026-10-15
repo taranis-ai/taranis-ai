@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% set current_tab = initial_tab if initial_tab in ["scheduled", "active", "failed", "history"] else "scheduled" %}
+{% set current_tab = initial_tab if initial_tab in ["scheduled", "active", "completed", "failed", "history"] else "scheduled" %}
 {% from "schedule/table.html" import refreshable_table_placeholder %}
 {% block content %}
   <div class="p-4" id="scheduler-dashboard">
@@ -21,8 +21,9 @@
     <div class="tabs tabs-border tabs-boxed mt-6 mb-4">
       <a class="tab {% if current_tab == 'scheduled' %}tab-active{% endif %}" data-tab="scheduled">Scheduled Jobs</a>
       <a class="tab {% if current_tab == 'active' %}tab-active{% endif %}" data-tab="active">Active Jobs</a>
+      <a class="tab {% if current_tab == 'completed' %}tab-active{% endif %}" data-tab="completed">Completed Runs</a>
       <a class="tab {% if current_tab == 'failed' %}tab-active{% endif %}" data-tab="failed">Queue Failures</a>
-      <a class="tab {% if current_tab == 'history' %}tab-active{% endif %}" data-tab="history">Execution History</a>
+      <a class="tab {% if current_tab == 'history' %}tab-active{% endif %}" data-tab="history">Worker Summary</a>
     </div>
 
     <!-- Tab Content -->
@@ -75,6 +76,20 @@
         </div>
       </div>
 
+      <div id="completed-tab" class="tab-panel {% if current_tab != 'completed' %}hidden{% endif %}">
+        <div class="card bg-base-200 shadow-lg">
+          <div class="card-body">
+            <h2 class="card-title">Completed Runs</h2>
+            <p class="text-sm opacity-70">Finished jobs and committed pipeline steps, newest first. Successful jobs leave Active Jobs and appear here.</p>
+            {% if current_tab == "completed" %}
+              {% include "schedule/completed_runs.html" %}
+            {% else %}
+              {{ refreshable_table_placeholder('completed-runs-table', url_for('admin.scheduler_completed_runs')) }}
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
       <!-- Failed Jobs Tab -->
       <div id="failed-tab" class="tab-panel {% if current_tab != 'failed' %}hidden{% endif %}">
         <div class="card bg-base-200 shadow-lg">
@@ -113,7 +128,7 @@
                    class="w-6 h-6">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
               </svg>
-              Execution History
+              Worker Summary
             </h2>
             {% if current_tab == "history" %}
               {% include "schedule/execution_history.html" %}
@@ -155,6 +170,7 @@
       scheduled: { id: 'scheduled-jobs-table', intervalMs: 10000 },
       active: { id: 'active-jobs-table', intervalMs: 10000 },
       failed: { id: 'failed-jobs-table', intervalMs: 10000 },
+      completed: { id: 'completed-runs-table', intervalMs: 10000 },
       history: { id: 'execution-history', intervalMs: null },
     };
     let activeRefreshTimer = null;
@@ -164,7 +180,7 @@
       try {
         const url = new URL(window.location.href);
         url.searchParams.set('tab', tabName);
-        ['search', 'page', 'limit', 'order'].forEach(param => url.searchParams.delete(param));
+        ['search', 'page', 'limit', 'order', 'status'].forEach(param => url.searchParams.delete(param));
         history.replaceState(null, '', `${url.pathname}?${url.searchParams.toString()}${url.hash}`);
       } catch (err) {
         console.debug('Failed to update tab query param', err);

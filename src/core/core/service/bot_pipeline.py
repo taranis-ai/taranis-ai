@@ -79,6 +79,10 @@ class BotPipelineService:
                 "status": submission.status,
             }
             result, _ = Task.add_or_update(task_data, commit=False)
+            if submission.task == "bot_pipeline":
+                run = Task.get_by_job_id(submission.id)
+                assert run is not None
+                cls.record_stage_results(run)
             db.session.commit()
         except StaleBotRun:
             db.session.rollback()
@@ -103,6 +107,34 @@ class BotPipelineService:
             except Exception:
                 logger.exception("Bot run committed but MISP refresh failed")
         return TaskResponseModel.model_validate(result).model_dump(mode="json", exclude_none=False), 200, True
+
+    @staticmethod
+    def record_stage_results(run: Task) -> None:
+        """Project committed pipeline stages into each bot's execution history."""
+        data = run.to_dict()["result"].get("data") or {}
+        if run.task != "bot_pipeline" or run.status != "SUCCESS" or not isinstance(data, dict):
+            return
+        for stage in data.get("bot_stages", []):
+            bot_id = stage["bot_id"]
+            job_id = f"{run.job_id}:bot:{bot_id}"
+            if Task.get_by_job_id(job_id) or not Bot.get(bot_id):
+                continue
+            warning = bool(stage["result"].get("errors"))
+            entry = Task(
+                id=job_id,
+                task=f"bot_{bot_id}",
+                worker_id=bot_id,
+                worker_type=stage["bot_type"],
+                user_id=run.user_id,
+                status="WARNING" if warning else "SUCCESS",
+                result={
+                    "message": "Pipeline step completed with warnings." if warning else "Pipeline step completed successfully.",
+                    "data": {"pipeline_job_id": run.job_id},
+                },
+            )
+            entry.last_run = run.last_run
+            entry.last_success = run.last_run
+            db.session.add(entry)
 
     @classmethod
     def _apply_stage(cls, stage: Any, allowed_stories: set[str], allowed_items: set[str], affected_story_ids: set[str]) -> None:
