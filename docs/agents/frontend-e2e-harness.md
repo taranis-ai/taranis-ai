@@ -6,12 +6,13 @@ Playwright stack setup, `--e2e-ci`, Compose service selection, RQ readiness, scr
 
 ## Harness Contracts
 
-- Ordinary stack-backed tests start Core and Redis. A selected, non-skipped `e2e_full_stack` test activates the `rq` profile (worker, cron, testdata server). Mark every worker/cron-dependent test accordingly.
+- Ordinary stack-backed tests start Core, Redis, and the internal scripted demo chat provider. A selected, non-skipped `e2e_full_stack` test activates the `rq` profile (worker, cron, testdata server). Mark every worker/cron-dependent test accordingly.
 - Local sessions create and remove an isolated Compose project with fresh SQLite/Redis state and random host ports. Core readiness uses `/isalive`; full-stack startup additionally waits for authenticated RQ worker registration. Endpoint probes can degrade `/health`, so it does not gate stack readiness. RQ fixtures also check cron leadership.
 - HTTP test services use matching `DEBUG=true` / `FLASK_DEBUG=1` so production Secure cookies and HSTS do not interfere with the isolated HTTP stack. Production cookie/header behavior has dedicated request-level coverage.
 - The frontend runs in a session-scoped spawned Werkzeug process. `pytest-flask`'s fork-based live server is unsafe with native threads on Python 3.14; the separate process also isolates Core requests from per-test HTTP mocks.
 - Worker prepares the shared RQ environment once; cron waits for `.e2e-ready`.
 - Authenticated page fixtures complete onboarding tasks; onboarding tests explicitly reset them.
+- Local E2E servers enable Chat. The landing-page workflow's `demo_chat_provider` fixture assigns `demo-llm` to Chat temporarily and seeds disposable stories; it skips external instances. The scripted Responses service returns search calls and answers from real search results without contacting an LLM, and accepts synthetic endpoint health probes.
 - `dev/testpipeline.sh` prepares component environments, then runs one complete E2E suite alongside lint/unit tests. CI likewise runs the full suite in one job; disposable GitHub runners skip container teardown.
 - `--e2e-ci` omits documentation screenshots and successful-test traces. CI reruns failures with unique traces under `test-results/e2e-traces/`; unconditional tracing adds substantial teardown cost.
 

@@ -7,7 +7,55 @@ from base_e2e_test import BaseE2ETest
 from flask import url_for
 from playwright.sync_api import Page, expect
 
-from tests.external_e2e import allow_requests_passthru
+from tests.external_e2e import allow_requests_passthru, external_core_api_url, external_frontend_base_url
+
+
+@pytest.fixture
+def demo_chat_provider(core_request_client):
+    if external_core_api_url() or external_frontend_base_url():
+        pytest.skip("The scripted chat demo requires the isolated local E2E stack")
+
+    settings = core_request_client.json_request("GET", "/settings/settings")["items"][0]["settings"]
+    endpoint = core_request_client.json_request(
+        "POST",
+        "/settings/llm-endpoints",
+        json_data={"name": "Landing page demo", "base_url": "http://demo-llm:8080/v1", "enabled": True, "api_format": "responses"},
+    )
+    news_item_ids = []
+    story_ids = []
+    try:
+        core_request_client.patch("/settings/settings", json_data={"settings": {"llm_chat_endpoint": endpoint["id"]}})
+        for index, title in enumerate(
+            [
+                "Ransomware campaign targets European hospitals",
+                "New ransomware advisory urges rapid patching",
+                "Manufacturing sector strengthens ransomware defenses",
+            ]
+        ):
+            timestamp = datetime.now(UTC).isoformat()
+            created = core_request_client.json_request(
+                "POST",
+                "/assess/news-items",
+                json_data={
+                    "id": str(uuid4()),
+                    "title": title,
+                    "content": "Demo intelligence for the landing-page chat walkthrough.",
+                    "link": f"https://example.invalid/chat-demo/{index}",
+                    "source": "manual",
+                    "osint_source_id": "manual",
+                    "published": timestamp,
+                    "collected": timestamp,
+                },
+            )
+            news_item_ids.extend(created["news_item_ids"])
+            story_ids.append(created["story_id"])
+            core_request_client.patch(f"/assess/stories/{created['story_id']}", json_data={"read": index == 2})
+        yield story_ids
+    finally:
+        core_request_client.patch("/settings/settings", json_data={"settings": {"llm_chat_endpoint": settings.get("llm_chat_endpoint", "")}})
+        core_request_client.post(f"/settings/llm-endpoints/{endpoint['id']}/delete", json_data={})
+        for news_item_id in news_item_ids:
+            core_request_client.delete(f"/assess/news-items/{news_item_id}", raise_for_status=False)
 
 
 @pytest.mark.usefixtures("e2e_ci")
@@ -234,6 +282,64 @@ class TestUserWorkflow(BaseE2ETest):
         page.wait_for_url("**/bookmarks", wait_until="domcontentloaded")
         expect(page.get_by_text(bookmark_name)).not_to_be_visible()
         self.wait_for_htmx_settled(page)
+
+    @pytest.mark.e2e_ci
+    def test_chat(
+        self,
+        demo_chat_provider: list[str],
+        non_admin_logged_in_page: Page,
+        forward_console_and_page_errors_non_admin: None,
+        core_request_client,
+        access_token_basic,
+    ):
+        page = non_admin_logged_in_page
+        conversation_id = None
+        try:
+            self.highlight_element(page.get_by_test_id("nav-chat")).click()
+            page.wait_for_url("**/chat", wait_until="domcontentloaded")
+            expect(page.get_by_test_id("chat-help")).to_be_visible()
+            expect(page.get_by_test_id("chat-configuration-warning")).not_to_be_visible()
+            self.short_sleep(3)
+
+            self.highlight_element(page.get_by_test_id("chat-input")).press_sequentially(
+                "Find ransomware stories in my collection.", delay=0 if self.ci_run else 45
+            )
+            self.highlight_element(page.get_by_test_id("chat-send")).click()
+            page.wait_for_url("**/chat/*", wait_until="domcontentloaded")
+            conversation_id = page.url.rsplit("/", 1)[-1]
+            answer = page.get_by_test_id("chat-message-assistant")
+            expect(answer).to_have_count(1)
+            expect(answer).to_contain_text("Ransomware campaign targets European hospitals")
+            self.highlight_element(answer)
+            self.short_sleep(5)
+
+            self.highlight_element(page.get_by_test_id("chat-input")).press_sequentially(
+                "Which of those stories are still unread?", delay=0 if self.ci_run else 45
+            )
+            self.highlight_element(page.get_by_test_id("chat-send")).click()
+            expect(answer).to_have_count(2)
+            expect(answer.last).to_contain_text("unread ransomware")
+            expect(answer.last).not_to_contain_text("Manufacturing sector")
+            self.highlight_element(answer.last)
+            self.short_sleep(5)
+            self.capture_screenshot(page, "./tests/playwright/screenshots/screenshot_chat.png")
+
+            self.highlight_element(page.get_by_test_id("chat-new")).click()
+            expect(page.get_by_test_id("chat-help")).to_be_visible()
+            self.highlight_element(page.get_by_test_id("chat-history-item").filter(has_text="Find ransomware stories")).click()
+            expect(answer).to_have_count(2)
+            expect(page.get_by_test_id("chat-message-user")).to_have_count(2)
+
+            self.highlight_element(page.get_by_test_id("chat-assess-link").last).click()
+            expect(page.get_by_test_id("assess")).to_be_visible()
+            expect(page.get_by_role("combobox", name="Read", exact=True)).to_have_value("false")
+            for story_id in demo_chat_provider[:2]:
+                expect(page.get_by_test_id(f"story-card-{story_id}")).to_be_visible()
+            expect(page.get_by_test_id(f"story-card-{demo_chat_provider[2]}")).not_to_be_visible()
+            self.short_sleep(3)
+        finally:
+            if conversation_id:
+                core_request_client.with_access_token(access_token_basic).delete(f"/chat/conversations/{conversation_id}")
 
     def test_assess(
         self,

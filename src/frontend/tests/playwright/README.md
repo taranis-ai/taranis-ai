@@ -12,7 +12,7 @@ pytest --e2e-ci
 
 The E2E harness starts and stops a dedicated Docker/Podman Compose test stack automatically for the session.
 Core is started from a plain Python container with `src/core` mounted, so Core code changes are picked up without image rebuilds.
-The harness starts only Core and Redis unless a selected `e2e_full_stack` test requires the worker, cron, and testdata services.
+The harness starts Core, Redis, and a scripted demo chat provider unless a selected `e2e_full_stack` test also requires the worker, cron, and testdata services.
 You need Docker Compose or Podman Compose available locally. For Podman, install `podman` and either `podman-compose` or a working `podman compose` provider.
 The same frontend-owned test root also contains the RQ/Redis integration E2E suite.
 The frontend test app runs in a spawned Werkzeug server process. This avoids Python 3.14's unsafe `fork()` behavior in
@@ -34,6 +34,28 @@ All flags:
 - `--highlight-delay=<float>` - control time (seconds) to highlight elements in the video (`default=2`)
 - `--e2e-trace` - record unique traces for stack-backed browser tests
 - `-s` - see all logs on stdout
+
+### Record the landing-page workflow
+
+From `src/frontend`, record the complete analyst workflow, including Chat:
+
+```bash
+uv run pytest tests/playwright/test_e2e_workflow.py --e2e-user-workflow --record-video --highlight-delay=2
+```
+
+To record only the Chat segment:
+
+```bash
+uv run pytest tests/playwright/test_e2e_workflow.py::TestUserWorkflow::test_chat --e2e-user-workflow --record-video --highlight-delay=2
+```
+
+Playwright saves a WebM per browser page under `tests/playwright/videos/`; join the segments when editing the landing-page video.
+The Chat segment shows a ransomware search, an unread follow-up, reopening saved history, and reviewing matching stories in Assess.
+It uses the real frontend, Core search, and conversation persistence with three disposable demo stories.
+Only the provider is scripted (`fixtures/chat_provider.py`, the internal `demo-llm` Compose service): no credentials or real LLM calls are needed.
+Chat is enabled in the local E2E servers. The fixture temporarily assigns the demo provider only to Chat and restores the assignment afterward.
+The demo is skipped against external instances, so recording cannot reconfigure their providers. Successful runs remove their demo conversation and stories.
+Headless CI also runs this workflow; typing and reading pauses are omitted there.
 
 ### Run only the RQ/Redis integration E2E suite
 
