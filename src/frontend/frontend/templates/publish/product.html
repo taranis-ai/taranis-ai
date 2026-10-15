@@ -91,15 +91,10 @@
 
           {% if product.product_type_id or selected_report_items %}
             <div class="mt-2">
-              <div data-product-report-items-enhanced>
+              <div data-product-report-items-enhanced x-cloak>
                 {{ datatable('Report Items', supported_reports, columns, selected_items=selected_report_items, input_name='report_items[]', headline='Report Items') }}
               </div>
               <noscript>
-                <style>
-                  [data-product-report-items-enhanced] {
-                    display: none;
-                  }
-                </style>
                 <section data-testid="report-items-native">
                   <h4 class="text-l font-bold mb-1 mt-5">Report Items</h4>
                   <table class="table table-sm" id="report-items-native-table">
