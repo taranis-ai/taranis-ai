@@ -188,6 +188,18 @@ def test_completed_runs_includes_background_jobs_and_filters_without_exposing_pa
         invalid = client.get("/api/tasks/runs", query_string={"search": prefix, "status": "INVALID", "limit": -1}, headers=api_header)
         assert invalid.status_code == 200
         assert invalid.json["total_count"] == 2
+        for number in range(100):
+            job_id = f"{prefix}-extra-{number}"
+            job_ids.append(job_id)
+            assert client.post("/api/tasks", json=_task_payload(job_id, user_id=None), headers=api_header).status_code == 200
+        bounded = client.get("/api/tasks/runs", query_string={"search": prefix, "limit": 100000000}, headers=api_header)
+        assert bounded.status_code == 200
+        assert bounded.json["total_count"] == 102
+        assert len(bounded.json["items"]) == 100
+        next_page = client.get("/api/tasks/runs", query_string={"search": prefix, "limit": 100000000, "page": 2}, headers=api_header)
+        assert next_page.json["total_count"] == 102
+        assert len(next_page.json["items"]) == 2
+        assert {item["id"] for item in bounded.json["items"]}.isdisjoint(item["id"] for item in next_page.json["items"])
         assert client.get("/api/tasks/runs").status_code == 401
     finally:
         _delete_tasks(app, job_ids)

@@ -173,6 +173,11 @@ class TaskRun(UserTask):
 class TaskRunFilter(UserTaskFilter):
     status: Literal["SUCCESS", "FAILURE", "WARNING", "NOT_MODIFIED", "PREVIEW"] | None = None
 
+    @field_validator("limit", mode="after")
+    @classmethod
+    def bound_limit(cls, value: int) -> int:
+        return min(value, 100)
+
     @field_validator("status", mode="before")
     @classmethod
     def normalize_status(cls, value: Any) -> str | None:

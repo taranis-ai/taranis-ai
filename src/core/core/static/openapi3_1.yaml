@@ -2744,9 +2744,11 @@ paths:
       - name: limit
         in: query
         required: false
+        description: Page size, capped at 100. Invalid or non-positive values use the default.
         schema:
           type: integer
           minimum: 1
+          maximum: 100
           default: 20
       - name: order
         in: query
