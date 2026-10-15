@@ -3,11 +3,13 @@
 Functions for executing bots to process news items.
 """
 
+from functools import partial
 from typing import Any
 
 from models.llm import LLM_BOT_FEATURES
 from models.worker_parameters import effective_parameter_values
 from rq import Retry, get_current_job
+from rq.job import Job
 from rq.timeouts import JobTimeoutException
 
 import worker.bots
@@ -21,9 +23,28 @@ from worker.telemetry import instrument_job
 
 
 TAGGING_BOTS = {"WORDLIST_BOT", "IOC_BOT", "NLP_BOT", "TAGGING_BOT"}
-JOB_TIMEOUT_MESSAGE = (
-    "Bot exceeded its execution timeout. Reduce the selected stories or increase EXECUTION_TIMEOUT. Saved NER tags are retained."
-)
+JOB_TIMEOUT_MESSAGE = "Bot stopped after repeated execution timeouts without progress. Check worker logs or increase EXECUTION_TIMEOUT. Saved NER tags are retained."
+
+
+def _save_checkpoint(job: Job, state: dict) -> None:
+    state["progress"] = state.get("progress", 0) + 1
+    job.save_meta()
+
+
+def _retry_timeout(job: Job) -> Retry | None:
+    # Resume only fully persisted checkpoints, including completed stage/context updates.
+    job.refresh()
+    state = job.meta.get("bot_pipeline") or job.meta.get("llm_batch") or {}
+    progress = state.get("progress", 0)
+    previous = job.meta.get("bot_timeout", {"progress": 0, "stalled": 0})
+    stalled = previous["stalled"] + 1 if previous["progress"] == progress else 0
+    job.meta["bot_timeout"] = {"progress": progress, "stalled": stalled}
+    job.save_meta()
+    if stalled >= 3:
+        return None
+    logger.warning(f"Bot job {job.id} exceeded its attempt deadline; requeueing immediately from checkpoint")
+    # Batch polling shares RQ's retry counter; only consecutive stalled timeouts limit continuation.
+    return Retry(max=(job.number_of_retries or 0) + 1, interval=0)
 
 
 @instrument_job
@@ -56,15 +77,20 @@ def bot_task(bot_id: str, filter: dict | None = None, trigger_dependents: bool =
             raise ValueError(f"Bot with id {bot_id} not found")
 
         worker_type = bot_config.get("type", worker_type).upper()
-        if (bot_config.get("llm_endpoint") or {}).get("processing_mode") == "openrouter_batch":
-            if not job:
-                raise RuntimeError("Batch processing requires a queued job")
-            if batch_state is None:
-                batch_state = {"config": bot_config}
-                job.meta["llm_batch"] = batch_state
-                job.save_meta()
+        if not job and (bot_config.get("llm_endpoint") or {}).get("processing_mode") == "openrouter_batch":
+            raise RuntimeError("Batch processing requires a queued job")
+        if job and bot_config.get("type") in LLM_BOT_FEATURES and batch_state is None:
+            batch_state = {"config": bot_config}
+            job.meta["llm_batch"] = batch_state
+            job.save_meta()
         bot = _bot_for_config(bot_config)
-        bot_result = _execute_by_config(bot_config, filter, bot=bot, batch_state=batch_state, save_batch_state=job.save_meta if job else None)
+        bot_result = _execute_by_config(
+            bot_config,
+            filter,
+            bot=bot,
+            batch_state=batch_state,
+            save_batch_state=partial(_save_checkpoint, job, batch_state) if job and batch_state is not None else None,
+        )
         if isinstance(bot_result, Retry):
             return bot_result
         if bot_result is None:
@@ -93,6 +119,7 @@ def bot_task(bot_id: str, filter: dict | None = None, trigger_dependents: bool =
         if batch_state is not None:
             assert job is not None
             job.meta.pop("llm_batch", None)
+            job.meta.pop("bot_timeout", None)
             job.save_meta()
         return (
             {"worker_id": bot_id, "worker_type": worker_type, **bot_result}
@@ -100,6 +127,8 @@ def bot_task(bot_id: str, filter: dict | None = None, trigger_dependents: bool =
             else {"worker_id": bot_id, "worker_type": worker_type, "result": bot_result}
         )
     except Exception as exc:
+        if isinstance(exc, JobTimeoutException) and job and (retry := _retry_timeout(job)):
+            return retry
         not_found = isinstance(exc, ValueError) and exc.args == (f"Bot with id {bot_id} not found",)
         empty_result = isinstance(exc, RuntimeError) and exc.args == (f"Bot {bot_id} returned no result",)
         logger.exception("Bot execution failed")
@@ -179,6 +208,10 @@ def _execute_by_config(bot_config: dict, filter: dict | None = None, *, bot=None
     if batch_state is not None:
         if "stories" not in batch_state:
             batch_state["stories"] = bot.get_stories(dict(bot_params))
+        bot.story_revisions = batch_state.setdefault(
+            "story_revisions", {story["id"]: story["revision"] for story in batch_state["stories"] if "revision" in story}
+        )
+        bot.pipeline_stories = batch_state["stories"]
         bot_params["_stories"] = batch_state["stories"]
         bot_params["_llm_batch_state"] = batch_state
         bot_params["_save_llm_batch_state"] = save_batch_state
@@ -284,8 +317,7 @@ def bot_pipeline_task(bot_ids: list[str], filter: dict | None = None):
                 "stages": [],
                 "llm_batch": {},
             }
-            if uses_batch:
-                assert job is not None
+            if job:
                 job.meta["bot_pipeline"] = state
                 job.save_meta()
 
@@ -300,8 +332,15 @@ def bot_pipeline_task(bot_ids: list[str], filter: dict | None = None):
             selected_ids = list(dict.fromkeys(aliases.get(story_id, story_id) for story_id in selected))
             bot.pipeline_stories = [stories[story_id] for story_id in selected_ids if story_id in stories]
             bot.story_revisions = snapshot["revisions"]
-            batch_state = state["llm_batch"] if (config.get("llm_endpoint") or {}).get("processing_mode") == "openrouter_batch" else None
-            result = _execute_by_config(config, filter, bot=bot, batch_state=batch_state, save_batch_state=job.save_meta if job else None)
+            batch_state = state["llm_batch"]
+            batch_state["story_revisions"] = snapshot["revisions"]
+            result = _execute_by_config(
+                config,
+                filter,
+                bot=bot,
+                batch_state=batch_state,
+                save_batch_state=partial(_save_checkpoint, job, state) if job else None,
+            )
             if isinstance(result, Retry):
                 return result
             if result is None:
@@ -311,7 +350,7 @@ def bot_pipeline_task(bot_ids: list[str], filter: dict | None = None):
             _apply_context(stories, aliases, bot_type, result)
             state["llm_batch"] = {}
             if job and "bot_pipeline" in job.meta:
-                job.save_meta()
+                _save_checkpoint(job, state)
 
         saved = core_api.save_task_result(
             run_id,
@@ -332,9 +371,12 @@ def bot_pipeline_task(bot_ids: list[str], filter: dict | None = None):
             raise RuntimeError("Bot pipeline result could not be submitted")
         if job and "bot_pipeline" in job.meta:
             job.meta.pop("bot_pipeline")
+            job.meta.pop("bot_timeout", None)
             job.save_meta()
         return {"worker_type": "BOT_PIPELINE", "bots": bot_ids, "stories": len(snapshot["stories"])}
     except Exception as exc:
+        if isinstance(exc, JobTimeoutException) and job and (retry := _retry_timeout(job)):
+            return retry
         logger.exception("Bot pipeline failed")
         is_public = isinstance(exc, (BotServiceUnavailableError, LLMConfigurationError, LLMTaskError, BatchExecutionError))
         timed_out = isinstance(exc, JobTimeoutException)

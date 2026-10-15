@@ -1,5 +1,7 @@
 import asyncio
-from collections.abc import Coroutine
+from collections.abc import Callable, Coroutine
+from dataclasses import replace
+from functools import partial
 from typing import Any
 
 from llm_bot.client import LLMClient, UpstreamLLMError
@@ -73,9 +75,51 @@ def run_llm_task[T](task: Coroutine[Any, Any, T]) -> T:
         raise LLMTaskError("LLM processing failed. Check the worker logs for details.", "llm_processing_failed") from None
 
 
-def run_llm_tasks[T](tasks: list[LLMTask[T]], client: LLMClient, parameters: dict) -> list[T] | Retry:
+def _record_response[T](response: dict, *, parser: Callable[[dict], T], saved: dict, recovered: bool = False) -> T:
+    result = parser(response)
+    saved.update(response=response, recovered=recovered)
+    return result
+
+
+def run_llm_tasks[T](
+    tasks: list[LLMTask[T]], client: LLMClient, parameters: dict, *, on_result: Callable[[int, T], None] | None = None
+) -> list[T] | Retry:
+    state = parameters.get("_llm_batch_state", {})
+    save_state = parameters.get("_save_llm_batch_state") or (lambda: None)
     if parameters["llm_endpoint"].get("processing_mode") == "openrouter_batch":
-        processor = BatchProcessor(client, parameters["_llm_batch_state"], parameters["_save_llm_batch_state"])
+        processor = BatchProcessor(client, state, save_state)
         results = processor.process(tasks)
-        return Retry(max=600, interval=300) if results is None else results
-    return [run_llm_task(task.run(client)) for task in tasks]
+        if results is None:
+            return Retry(max=600, interval=300)
+        for index in range(state.get("completed_items", 0), len(results)):
+            if on_result:
+                on_result(index, results[index])
+            state["completed_items"] = index + 1
+            save_state()
+        return results
+
+    responses = state.setdefault("responses", [])
+    results = []
+    for index, task in enumerate(tasks):
+        if index < len(responses):
+            saved = responses[index]
+            parser = task.recover_response if saved["recovered"] else task.parse_response
+            assert parser is not None
+            results.append(parser(saved["response"]))
+            continue
+        saved = {}
+
+        recorded_task = replace(
+            task,
+            parse_response=partial(_record_response, parser=task.parse_response, saved=saved),
+            recover_response=partial(_record_response, parser=task.recover_response, saved=saved, recovered=True)
+            if task.recover_response
+            else None,
+        )
+        result = run_llm_task(recorded_task.run(client))
+        if on_result:
+            on_result(index, result)
+        responses.append(saved)
+        save_state()
+        results.append(result)
+    return results
