@@ -37,20 +37,21 @@ All flags:
 
 ### Record the landing-page workflow
 
-From the repository root, create one final MP4 of the complete analyst workflow, including Chat:
+From the repository root, create one final WebM of the complete analyst workflow, including Chat:
 
 ```bash
 ./dev/record_workflow_video.py
 ```
 
 Requires `uv`, `ffmpeg`, and the normal Playwright/Compose test setup. The script runs all workflow tests,
-joins the clips in workflow order, and creates a 1920×1080 H.264 MP4. Its final line prints the absolute path:
+joins the clips in workflow order without re-encoding, and creates a 1920×1080 WebM. It prints the absolute path and copy instruction:
 
 ```text
-Video created -> it is here: /path/to/taranis-ai/src/frontend/tests/playwright/videos/user-workflow.mp4
+Video created -> it is here: /path/to/taranis-ai/src/frontend/tests/playwright/videos/taranis-walkthrough-video.webm
+Now copy to 'taranis.ai' repository under 'static/taranis-walkthrough-video.webm'
 ```
 
-Use `--output /path/to/demo.mp4` to choose the destination, or `--highlight-delay=0` for a quick run instead of the default two-second highlights.
+Use `--output /path/to/demo.webm` to choose the destination, or `--highlight-delay=0` for a quick run instead of the default two-second highlights.
 Clips are recorded in a temporary directory and removed after the run. An existing final video is replaced only after the tests and encoding succeed.
 The script requires the isolated local stack so the Chat segment always uses the scripted provider.
 

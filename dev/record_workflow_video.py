@@ -1,5 +1,5 @@
 #!/usr/bin/env -S uv run --script
-"""Record the analyst workflow and combine its browser clips into one MP4."""
+"""Record the analyst workflow and combine its browser clips into one WebM."""
 
 import argparse
 import json
@@ -11,6 +11,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 FRONTEND = ROOT / "src/frontend"
+VIDEO_FILENAME = "taranis-walkthrough-video.webm"
 
 
 def join_clips(clips: list[Path], output: Path, ffmpeg: str) -> None:
@@ -40,13 +41,7 @@ def join_clips(clips: list[Path], output: Path, ffmpeg: str) -> None:
             str(manifest),
             "-an",
             "-c:v",
-            "libx264",
-            "-crf",
-            "20",
-            "-pix_fmt",
-            "yuv420p",
-            "-movflags",
-            "+faststart",
+            "copy",
             str(output),
         ],
         check=True,
@@ -58,7 +53,7 @@ def main() -> None:
     parser.add_argument(
         "--output",
         type=Path,
-        default=FRONTEND / "tests/playwright/videos/user-workflow.mp4",
+        default=FRONTEND / "tests/playwright/videos" / VIDEO_FILENAME,
     )
     parser.add_argument(
         "--highlight-delay",
@@ -70,8 +65,8 @@ def main() -> None:
     if args.highlight_delay < 0:
         parser.error("--highlight-delay must be non-negative")
     output = args.output.expanduser().resolve()
-    if output.suffix.lower() != ".mp4":
-        parser.error("--output must end in .mp4")
+    if output.suffix.lower() != ".webm":
+        parser.error("--output must end in .webm")
     if os.getenv("TARANIS_E2E_EXTERNAL_BASE_URL") or os.getenv(
         "TARANIS_E2E_EXTERNAL_CORE_API_URL"
     ):
@@ -110,10 +105,14 @@ def main() -> None:
             .read_text(encoding="utf-8")
             .splitlines()
         ]
-        combined = recording_dir / "user-workflow.mp4"
+        combined = recording_dir / VIDEO_FILENAME
         join_clips(clips, combined, "ffmpeg")
         combined.replace(output)
     print(f"Video created -> it is here: {output}", flush=True)
+    print(
+        "Now copy to 'taranis.ai' repository under 'static/taranis-walkthrough-video.webm'",
+        flush=True,
+    )
 
 
 if __name__ == "__main__":

@@ -4,7 +4,7 @@ Dependency updates use [Renovate](https://docs.renovatebot.com/) with [`.github/
 
 ## Record the landing-page video
 
-Run `./dev/record_workflow_video.py` from the repository root to record the full analyst workflow, including scripted Chat, and export one MP4.
+Run `./dev/record_workflow_video.py` from the repository root to record the full analyst workflow, including scripted Chat, and export one `taranis-walkthrough-video.webm`.
 Install `uv` and `ffmpeg` first and use the normal Playwright/Compose test setup. The script prints the final absolute path on success.
 See the [Playwright recording guide](../src/frontend/tests/playwright/README.md#record-the-landing-page-workflow) for output and pacing options.
 

@@ -18,7 +18,7 @@ def test_join_clips_preserves_workflow_order_and_quoted_paths(tmp_path):
         )
         clips.append(clip)
 
-    output = tmp_path / "final video.mp4"
+    output = tmp_path / "taranis-walkthrough-video.webm"
     join_clips(list(reversed(clips)), output, ffmpeg)
     frames = subprocess.run(
         [ffmpeg, "-v", "error", "-i", str(output), "-vf", "fps=1", "-f", "rawvideo", "-pix_fmt", "rgb24", "pipe:1"],
