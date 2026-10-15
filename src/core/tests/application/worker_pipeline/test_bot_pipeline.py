@@ -43,6 +43,9 @@ def test_bot_pipeline_uses_one_snapshot_and_commits_only_complete_runs(app, clie
             bot_id: {"source": [source.id], "story_ids": [first.id, second.id], "worker": True, "exclude_attr": bot_type}
             for bot_type, bot_id in bot_ids.items()
         }
+        filters[bot_ids["NLP_BOT"]].update(
+            {"read": "false", "important": "true", "language": "en", "timeto": "2000-01-01", "offset": "999", "relevant": "true"}
+        )
         snapshot_response = client.post("/api/worker/bot-pipeline/stories", json={"filters": filters}, headers=api_header)
         assert snapshot_response.status_code == 200
         snapshot = snapshot_response.json

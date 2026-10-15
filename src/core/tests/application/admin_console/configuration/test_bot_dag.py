@@ -68,8 +68,17 @@ def test_bot_timeouts_apply_to_manual_chained_and_cron_jobs(app, session, redis_
         queue = manager.get_queue("bots")
         expected_timeout = execution_timeout or 900
 
-        assert manager.execute_bot_task(parent.id)[1] == 200
-        assert queue.fetch_job(f"bot_{parent.id}").timeout == expected_timeout
+        manual_jobs = []
+        for _ in range(2):
+            queued_ids = set(queue.job_ids)
+            assert manager.execute_bot_task(parent.id)[1] == 200
+            manual_job_ids = set(queue.job_ids) - queued_ids
+            assert len(manual_job_ids) == 1
+            manual_job = queue.fetch_job(manual_job_ids.pop())
+            assert manual_job.timeout == expected_timeout
+            assert manual_job.meta["task"] == f"bot_{parent.id}"
+            assert manual_job.meta["worker_id"] == parent.id
+            manual_jobs.append(manual_job)
         assert manager.schedule_bot_dependents(parent.id, {"STORY_IDS": ["changed-story"]}, user_id="user-1")[1] == 200
         chained_jobs = [job for job in queue.get_jobs() if job.args == ([child.id],)]
         assert len(chained_jobs) == 1
@@ -101,7 +110,7 @@ def test_bot_timeouts_apply_to_manual_chained_and_cron_jobs(app, session, redis_
             Bot.update(parent.id, {"parameters": {"REQUESTS_TIMEOUT": 240}}, patch=True)
             spec = json.loads(redis_client.hget(CRON_DEFS_KEY, parent.cron_job_id))
             assert spec["job_options"]["job_timeout"] == expected_timeout
-            assert queue.fetch_job(f"bot_{parent.id}").timeout == expected_timeout
+            assert all(queue.fetch_job(job.id).timeout == expected_timeout for job in manual_jobs)
 
 
 @pytest.mark.parametrize(

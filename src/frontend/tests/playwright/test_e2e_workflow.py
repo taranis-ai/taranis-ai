@@ -53,10 +53,16 @@ def demo_chat_provider(core_request_client):
             core_request_client.patch(f"/assess/stories/{created['story_id']}", json_data={"read": index == 2})
         yield story_ids
     finally:
-        core_request_client.patch("/settings/settings", json_data={"settings": {"llm_chat_endpoint": settings.get("llm_chat_endpoint", "")}})
-        core_request_client.post(f"/settings/llm-endpoints/{endpoint['id']}/delete", json_data={})
-        for news_item_id in news_item_ids:
-            core_request_client.delete(f"/assess/news-items/{news_item_id}", raise_for_status=False)
+        try:
+            core_request_client.patch(
+                "/settings/settings", json_data={"settings": {"llm_chat_endpoint": settings.get("llm_chat_endpoint", "")}}
+            )
+        finally:
+            try:
+                core_request_client.post(f"/settings/llm-endpoints/{endpoint['id']}/delete", json_data={})
+            finally:
+                for news_item_id in news_item_ids:
+                    core_request_client.delete(f"/assess/news-items/{news_item_id}", raise_for_status=False)
 
 
 @pytest.mark.usefixtures("e2e_ci")

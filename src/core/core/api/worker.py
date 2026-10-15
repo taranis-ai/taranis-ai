@@ -265,9 +265,9 @@ class BotPipelineStories(MethodView):
         selected: dict[str, list[str]] = {}
         try:
             for bot_id, raw_filter in filters.items():
-                if not isinstance(bot_id, str) or set(raw_filter) - allowed:
+                if not isinstance(bot_id, str):
                     return {"error": "Invalid bot pipeline filters"}, 400
-                filter_args = dict(raw_filter)
+                filter_args = {key: value for key, value in raw_filter.items() if key in allowed}
                 for key in ("source", "group", "story_ids"):
                     if key in filter_args and not isinstance(filter_args[key], list):
                         filter_args[key] = [filter_args[key]]

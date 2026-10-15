@@ -974,7 +974,7 @@ class QueueManager:
         if self.enqueue_task(
             "bots",
             "bot_task",
-            job_id=f"bot_{bot_id}",
+            job_id=self._build_unique_job_id(f"bot_{bot_id}", "manual"),
             job_timeout=bot.job_timeout,
             meta=self._build_task_meta(
                 f"bot_{bot_id}",
