@@ -28,23 +28,6 @@ class _DummyQueue:
         self.connection = object()
 
 
-class _FailedResult:
-    exc_string = "Traceback (most recent call last):\nValueError: boom"
-
-
-class _FailedJob:
-    def __init__(self, job_id):
-        self.id = job_id
-        self.func_name = "other.task"
-        self.args = []
-        self.meta = {}
-        self.ended_at = datetime(2025, 1, 1, 12, 0, tzinfo=UTC)
-
-    @staticmethod
-    def latest_result():
-        return _FailedResult()
-
-
 def _make_queue_manager() -> QueueManager:
     qm = QueueManager.__new__(QueueManager)
     qm.error = ""
@@ -294,29 +277,64 @@ def test_get_active_jobs_uses_registry(monkeypatch):
     assert payload["items"][0]["status"] == "running"
 
 
-def test_get_failed_jobs_uses_registry(monkeypatch):
-    class FakeRegistry:
-        def __init__(self, queue=None):
-            self.queue = queue
-
-        def get_job_ids(self):
-            return ["job-9"]
-
-    def fake_fetch(job_id, connection=None):
-        return _FailedJob(job_id)
-
-    monkeypatch.setattr(rq_registry, "FailedJobRegistry", FakeRegistry)
-    monkeypatch.setattr(qm_module, "Job", type("Job", (), {"fetch": staticmethod(fake_fetch)}))
-
+@pytest.mark.parametrize("reason", [None, "job_timeout", "llm_request_timeout", "private-unknown-reason"])
+@pytest.mark.parametrize("checkpoint", [False, True])
+def test_get_failed_jobs_uses_registry(app, session, reason, checkpoint):
     qm = _make_queue_manager()
-    qm._queues = {"misc": _DummyQueue("misc")}  # type: ignore[assignment]
-
-    payload, status = qm.get_failed_jobs({})
+    queue = Queue("bots", connection=qm._redis)
+    qm._queues = {"bots": queue}
+    meta = {"worker_type": "BOT_PIPELINE"}
+    if checkpoint:
+        meta["bot_pipeline"] = {
+            "configs": [
+                {"id": "ioc", "type": "ioc_bot", "name": "IOCs"},
+                {"id": "ner", "type": "nlp_bot", "name": "Extract entities", "parameters": {"API_KEY": "private-key"}},
+            ],
+            "stages": [{"result": "private-stage-content"}],
+            "llm_batch": {"responses": [{"response": "private-provider-content"}]},
+        }
+        meta["bot_timeout"] = {"stalled": 3}
+    job = queue.enqueue("worker.bots.bot_tasks.bot_pipeline_task", ["ioc", "ner"], job_id="job-9", job_timeout=864, meta=meta)
+    job.ended_at = datetime(2025, 1, 1, 12, 0, tzinfo=UTC)
+    job.number_of_retries = 2
+    job.save()
+    queue.failed_job_registry.add(job, exc_string="Traceback: private exception details and API_KEY=private-key")
+    with app.app_context():
+        if reason is not None:
+            TaskModel.add_or_update(
+                {
+                    "id": job.id,
+                    "task": "bot_pipeline",
+                    "status": "FAILURE",
+                    "result": {"message": "private historical exception", "reason": reason},
+                }
+            )
+        payload, status = qm.get_failed_jobs({})
 
     assert status == 200
     assert payload["items"][0]["id"] == "job-9"
     assert payload["items"][0]["status"] == "failed"
-    assert payload["items"][0]["error"] == "Task failed"
+    error = payload["items"][0]["error"]
+    assert "Execution budget per attempt: 864 seconds" in error
+    assert "Attempts: 3" in error
+    assert "Worker log reference: job-9" in error
+    assert "private" not in str(payload)
+    assert "Traceback" not in str(payload)
+    if reason in qm_module.FAILURE_MESSAGES:
+        assert qm_module.FAILURE_MESSAGES[reason] in error
+        assert f"Reason: {reason}" in error
+    else:
+        assert "No detailed failure result was recorded" in error
+    if checkpoint:
+        assert "Completed bots: 1/2" in error
+        assert "Failed bot: Extract entities (ner)" in error
+        assert "Completed LLM requests in current bot: 1" in error
+        assert "three consecutive execution timeouts without progress" in error
+    else:
+        assert "No checkpoint was recorded for this run" in error
+    with app.app_context():
+        filtered, status = qm.get_failed_jobs({"search": "Execution budget"})
+    assert status == 200 and filtered["total_count"] == 1
 
 
 def test_get_failed_jobs_removes_stale_registry_entries(monkeypatch):

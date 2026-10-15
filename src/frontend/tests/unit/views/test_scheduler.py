@@ -1,3 +1,4 @@
+import json
 from urllib.parse import parse_qs, urlparse
 
 import pytest
@@ -254,14 +255,32 @@ def test_scheduler_history_displays_worker_type_and_hover_worker_id(
     assert 'title="Worker ID: bot-1"' in html
 
 
-def test_scheduler_failed_jobs_renders_rq_error(authenticated_client, mock_core_get_endpoints, htmx_header):
+@pytest.mark.parametrize("bot_name", ["Extract entities", "NER 'test' <script>alert(1)</script>"])
+def test_scheduler_failed_jobs_renders_rq_error(authenticated_client, responses_mock, mock_core_get_endpoints, htmx_header, bot_name):
+    error = f"The job exceeded its execution timeout.\nExecution budget per attempt: 864 seconds\nFailed bot: {bot_name}"
+    responses_mock.replace(
+        responses.GET,
+        f"{Config.TARANIS_CORE_URL}/config/workers/failed",
+        json={
+            "items": [{"id": "failed-1", "name": bot_name, "queue": "bots", "failed_at": "2025-01-01T11:50:00", "error": error}],
+            "total_count": 1,
+        },
+    )
     with authenticated_client.application.app_context():
         url = url_for("admin.scheduler_failed_jobs")
 
     response = authenticated_client.get(url, headers=htmx_header)
 
     assert response.status_code == 200
-    assert "Boom" in response.get_data(as_text=True)
+    html = response.get_data(as_text=True)
+    document = lxml_html.fromstring(html)
+    summary = document.xpath("//td/p")[0].text_content()
+    assert summary == error.split("\n", 1)[0]
+    handler = document.xpath("//button[contains(@onclick, 'showJobErrorModal')]/@onclick")[0]
+    payload = json.loads(handler.removeprefix("window.showJobErrorModal(").removesuffix(")"))
+    assert payload["error"] == error
+    assert payload["name"] == bot_name
+    assert "<script>alert(1)</script>" not in html
 
 
 def test_scheduler_jobs_table_formats_next_run_in_profile_timezone(

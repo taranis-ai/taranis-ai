@@ -69,6 +69,21 @@ TASK_HISTORY_CLEANUP_JOB_ID = "cleanup_task_history"
 TASK_HISTORY_CLEANUP_CRON = "0 3 * * *"
 TASK_HISTORY_CLEANUP_DISPLAY_NAME = "Maintenance: Cleanup Task History"
 RQ_JOB_ID_COMPONENT_RE = re.compile(r"^[A-Za-z0-9_-]+$")
+FAILURE_MESSAGES = {
+    "job_timeout": "The job exceeded its execution timeout.",
+    "llm_request_timeout": "An LLM provider request timed out. Check the endpoint and REQUESTS_TIMEOUT.",
+    "bot_service_unavailable": "The configured bot or LLM service could not be reached. Check its availability and worker connectivity.",
+    "llm_invalid_output": "The LLM provider returned invalid output. Check the configured model and worker logs.",
+    "llm_not_configured": "No enabled LLM endpoint is configured. Check Admin Settings > LLM Endpoints.",
+    "llm_processing_failed": "LLM processing failed. Check worker logs for details.",
+    "llm_batch_failed": "The provider batch failed. Check batch status and model support at the provider.",
+    "ner_save_failed": "Extracted NER tags could not be saved. Check Core connectivity and worker logs.",
+    "bot_pipeline_failed": "The bot pipeline failed during processing or final result submission.",
+    "bot_execution_failed": "Bot execution failed. Check the bot configuration and worker logs.",
+    "collection_failed": "Source collection failed. Check source configuration, network access, and worker logs.",
+    "work_horse_killed": "The worker process ended before completing the job.",
+    "job_failed": "The background job failed. Check worker logs for details.",
+}
 
 
 queue_manager: "QueueManager"
@@ -1494,7 +1509,8 @@ class QueueManager:
         try:
             from rq.registry import FailedJobRegistry
 
-            failed_jobs = []
+            failed_jobs: list[dict[str, Any]] = []
+            jobs_by_id = {}
             for queue_name, queue in self._queues.items():
                 registry = FailedJobRegistry(queue=queue)
                 job_ids = list(registry.get_job_ids())
@@ -1502,6 +1518,7 @@ class QueueManager:
                 for job_id in job_ids:
                     try:
                         job = Job.fetch(job_id, connection=self._redis)
+                        jobs_by_id[job.id] = job
                         job_name = self._get_job_display_name(job)
                         failed_jobs.append(
                             {
@@ -1524,10 +1541,50 @@ class QueueManager:
                         logger.debug(f"Skipping failed job {job_id}: {e}")
                         continue
 
+            if failed_jobs:
+                from core.managers.db_manager import db
+                from core.model.task import Task
+
+                tasks = db.session.execute(db.select(Task).where(Task.job_id.in_(jobs_by_id))).scalars()
+                reasons = {task.job_id: StoredTaskResult.model_validate(task).result.reason for task in tasks}
+                for entry in failed_jobs:
+                    entry["error"] = self._failed_job_details(jobs_by_id[entry["id"]], reasons.get(entry["id"]))
             return JobFilter.model_validate(filter_args).paginate(failed_jobs, default_order="failed_at_desc"), 200
         except Exception as e:
             logger.exception(f"Failed to get failed jobs: {e}")
             return {"error": "Failed to get failed jobs"}, 500
+
+    @staticmethod
+    def _failed_job_details(job: Job, reason: str | None) -> str:
+        # Historical task messages and RQ tracebacks may contain credentials or raw exceptions.
+        message = FAILURE_MESSAGES.get(reason or "", "No detailed failure result was recorded. Check worker logs using this job ID.")
+        lines = [message]
+        if reason in FAILURE_MESSAGES:
+            lines.append(f"Reason: {reason}")
+        if timeout := getattr(job, "timeout", None):
+            lines.append(f"Execution budget per attempt: {timeout} seconds")
+        lines.append(f"Attempts: {(getattr(job, 'number_of_retries', None) or 0) + 1}")
+        meta = job.meta or {}
+        state = meta.get("bot_pipeline") or meta.get("llm_batch")
+        if state:
+            configs = state.get("configs") or [state["config"]]
+            completed = len(state.get("stages", []))
+            lines.append(f"Completed bots: {completed}/{len(configs)}")
+            if completed < len(configs):
+                config = configs[completed]
+                lines.append(f"Failed bot: {config.get('name') or config.get('type')} ({config['id']})")
+            else:
+                lines.append("Failed step: final result submission")
+            current = state.get("llm_batch", state)
+            processed = len(current.get("responses", [])) or current.get("completed_items", 0)
+            lines.append(f"Completed LLM requests in current bot: {processed}")
+            lines.append("Checkpoint retained. Previously saved NER tags are retained.")
+        elif meta.get("worker_type") == "BOT_PIPELINE":
+            lines.append("No checkpoint was recorded for this run. A rerun starts from the beginning; previously saved NER tags remain.")
+        if (meta.get("bot_timeout") or {}).get("stalled", 0) >= 3:
+            lines.append("Automatic continuation stopped after three consecutive execution timeouts without progress.")
+        lines.append(f"Worker log reference: {job.id}")
+        return "\n".join(lines)
 
     def get_worker_stats(self) -> tuple[dict, int]:
         """Get worker statistics"""

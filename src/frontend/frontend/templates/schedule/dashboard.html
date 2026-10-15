@@ -129,7 +129,7 @@
   <dialog id="job-error-modal" class="modal modal-bottom sm:modal-middle">
     <div class="modal-box max-w-4xl">
       <h3 class="font-bold text-lg">
-        Job Error
+        Job Failure Details
         <span class="block text-sm font-normal text-base-content/60 truncate">
           <span data-role="job-name"></span>
           <span class="opacity-60">(<span data-role="job-id"></span>)</span>
@@ -137,6 +137,7 @@
       </h3>
       <pre class="mt-4 max-h-[60vh] overflow-auto whitespace-pre-wrap bg-base-200 p-4 rounded text-xs"
            data-role="job-error">No error selected.</pre>
+      <p class="mt-3 text-sm text-base-content/60">Use the job ID to find technical diagnostics in the worker logs.</p>
       <div class="modal-action">
         <form method="dialog">
           <button class="btn">Close</button>
