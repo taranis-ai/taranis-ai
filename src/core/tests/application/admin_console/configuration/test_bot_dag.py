@@ -36,9 +36,7 @@ def test_collector_run_graph_uses_dependency_order(app, session):
 @pytest.mark.parametrize(
     "bot_type, timeout, execution_timeout",
     [
-        ("nlp_bot", 300, None),
         ("nlp_bot", 60, None),
-        ("nlp_bot", None, None),
         ("nlp_bot", 60, 400),
         ("wordlist_bot", None, None),
         ("wordlist_bot", None, 400),

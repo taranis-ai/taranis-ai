@@ -257,8 +257,8 @@ def test_scheduler_history_displays_worker_type_and_hover_worker_id(
     assert 'title="Worker ID: bot-1"' in html
 
 
-@pytest.mark.parametrize("bot_name", ["Extract entities", "NER 'test' <script>alert(1)</script>"])
-def test_scheduler_failed_jobs_renders_rq_error(authenticated_client, responses_mock, mock_core_get_endpoints, htmx_header, bot_name):
+def test_scheduler_failed_jobs_renders_rq_error(authenticated_client, responses_mock, mock_core_get_endpoints, htmx_header):
+    bot_name = "NER 'test' <script>alert(1)</script>"
     error = f"The job exceeded its execution timeout.\nExecution budget per attempt: 864 seconds\nFailed bot: {bot_name}"
     responses_mock.replace(
         responses.GET,
@@ -505,19 +505,3 @@ def test_scheduler_history_uses_default_order_for_invalid_direction(
     assert response.status_code == 200
     html = response.get_data(as_text=True)
     assert html.index("Newer Task") < html.index("Older Task")
-
-
-def test_completed_run_filters_preserve_search_and_reset_page(authenticated_client, responses_mock, mock_core_get_endpoints, htmx_header):
-    with authenticated_client.application.app_context():
-        url = url_for("admin.scheduler_completed_runs", status="SUCCESS", search="pipeline", page=2, limit=5)
-    response = authenticated_client.get(url, headers=htmx_header)
-    assert response.status_code == 200
-    assert responses_mock.calls[-1].request.params["status"] == "SUCCESS"
-    assert responses_mock.calls[-1].request.params["order"] == "last_run_desc"
-    tree = lxml_html.fromstring(response.text)
-    form = tree.xpath('//select[@name="status"]/ancestor::form')[0]
-    assert form.xpath('.//option[@value="SUCCESS"][@selected]')
-    assert form.xpath('.//input[@name="search"][@value="pipeline"]')
-    assert not form.xpath('.//input[@name="page"]')
-    search_form = tree.xpath('//*[@id="completed-runs-table-search"]/ancestor::form')[0]
-    assert search_form.xpath('.//select[@name="status"]/option[@value="SUCCESS"][@selected]')

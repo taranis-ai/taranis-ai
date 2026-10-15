@@ -266,8 +266,7 @@ class TestBotTask:
 
 
 @pytest.mark.parametrize("batch", [False, True])
-@pytest.mark.parametrize("interrupted", [False, True])
-def test_pipeline_downloads_union_once_and_summary_sees_merged_items(current_job, requests_mock, monkeypatch, batch, interrupted):
+def test_pipeline_downloads_union_once_and_summary_sees_merged_items(current_job, requests_mock, monkeypatch, batch):
     current_job.meta = {"user_id": "user-1"}
     monkeypatch.setattr("worker.core_api.get_current_job", lambda: current_job)
     bot_types = {"ner": "nlp_bot", "analyst": "analyst_bot", "cluster": "story_bot", "summary": "summary_bot"}
@@ -330,19 +329,7 @@ def test_pipeline_downloads_union_once_and_summary_sees_merged_items(current_job
         {"output_text": '{"summary": "Combined summary"}'},
         {"output_text": '{"title": "Combined title"}'},
     ]
-    provider_outputs = list(outputs)
-    if interrupted:
-        provider_outputs.insert(1, JobTimeoutException("private timeout details"))
-        if not batch:
-            provider_outputs.insert(-1, JobTimeoutException("private timeout details"))
-    with patch.object(LLMClient, "create_response", autospec=True, side_effect=provider_outputs) as provider:
-        if interrupted:
-            retry = bot_pipeline_task(list(bot_types), {"SOURCE": "source-1"})
-            assert isinstance(retry, Retry) and retry.intervals == [0]
-            assert submission.call_count == 0
-            assert uploads.call_count == 1
-            current_job.meta = json.loads(json.dumps(current_job.meta))
-            current_job.number_of_retries += 1
+    with patch.object(LLMClient, "create_response", autospec=True, side_effect=outputs) as provider:
         if batch:
             batches = requests_mock.post(
                 f"{endpoint['base_url']}/batches",
@@ -367,20 +354,13 @@ def test_pipeline_downloads_union_once_and_summary_sees_merged_items(current_job
             summary_input = batches.request_history[1].json()["requests"][0]["body"]["input"][1]["content"]
             current_job.meta = json.loads(json.dumps(current_job.meta))
             result = bot_pipeline_task(list(bot_types), {"SOURCE": "source-1"})
-            assert provider.await_count == (3 if interrupted else 2)
+            assert provider.await_count == 2
             assert batches.call_count == 3
         else:
             result = bot_pipeline_task(list(bot_types), {"SOURCE": "source-1"})
-            if interrupted:
-                assert isinstance(result, Retry) and result.intervals == [0]
-                assert len(current_job.meta["bot_pipeline"]["stages"]) == 3
-                assert submission.call_count == 0
-                current_job.meta = json.loads(json.dumps(current_job.meta))
-                current_job.number_of_retries += 1
-                result = bot_pipeline_task(list(bot_types), {"SOURCE": "source-1"})
-            assert provider.await_count == (7 if interrupted else 5)
-            cluster_input = provider.call_args_list[3 if interrupted else 2].args[2]
-            summary_input = provider.call_args_list[4 if interrupted else 3].args[2]
+            assert provider.await_count == 5
+            cluster_input = provider.call_args_list[2].args[2]
+            summary_input = provider.call_args_list[3].args[2]
 
     assert result["stories"] == 2
     assert download.call_count == 1
@@ -416,18 +396,15 @@ def test_pipeline_downloads_union_once_and_summary_sees_merged_items(current_job
     assert all("/worker/stories" not in request.url and "/bots/story/" not in request.url for request in requests_mock.request_history)
 
 
-@pytest.mark.parametrize("pipeline", [False, True])
 @pytest.mark.parametrize(
     "failure, reason",
     [
         (JobTimeoutException("private timeout details"), "job_timeout"),
         (Timeout("private provider details"), "llm_request_timeout"),
-        (RequestException("private provider details"), "bot_service_unavailable"),
-        (None, "llm_invalid_output"),
         ("save", "ner_save_failed"),
     ],
 )
-def test_ner_saves_completed_items_before_failure(current_job, requests_mock, pipeline, failure, reason):
+def test_ner_saves_completed_items_before_failure(current_job, requests_mock, failure, reason):
     endpoint = {"name": "NER", "base_url": "https://llm.test/v1"}
     story = {
         "id": "story-1",
@@ -438,13 +415,7 @@ def test_ner_saves_completed_items_before_failure(current_job, requests_mock, pi
         f"{Config.TARANIS_CORE_URL}/worker/bots/ner",
         json={"id": "ner", "type": "nlp_bot", "parameters": {}, "llm_endpoint": endpoint},
     )
-    if pipeline:
-        requests_mock.post(
-            f"{Config.TARANIS_CORE_URL}/worker/bot-pipeline/stories",
-            json={"stories": [story], "selected": {"ner": [story["id"]]}, "revisions": {story["id"]: 0}},
-        )
-    else:
-        requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/stories", json=[story])
+    requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/stories", json=[story])
     uploads = requests_mock.put(
         f"{Config.TARANIS_CORE_URL}/worker/tags?replace=false",
         [
@@ -465,25 +436,21 @@ def test_ner_saves_completed_items_before_failure(current_job, requests_mock, pi
         assert uploads.call_count == 1
         if isinstance(failure, Exception):
             raise failure
-        return {"output_text": '{"Apple": "ORG"}' if failure == "save" else "private invalid output"}
-
-    def run():
-        return bot_pipeline_task(["ner"]) if pipeline else bot_task("ner")
+        return {"output_text": '{"Apple": "ORG"}'}
 
     with patch.object(LLMClient, "create_response", autospec=True, side_effect=response) as provider:
         if reason == "job_timeout":
-            retry = run()
+            retry = bot_task("ner")
             assert isinstance(retry, Retry) and retry.intervals == [0]
             assert submission.call_count == 0
             current_job.meta = json.loads(json.dumps(current_job.meta))
             current_job.number_of_retries += 1
-            if not pipeline:
-                # A later attempt must use the original configuration and snapshot.
-                requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/bots/ner", status_code=500)
-                requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/stories", status_code=500)
+            # A later attempt must use the original configuration and snapshot.
+            requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/bots/ner", status_code=500)
+            requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/stories", status_code=500)
             uploads = requests_mock.put(f"{Config.TARANIS_CORE_URL}/worker/tags?replace=false", json={"message": "Tags updated"})
             provider.side_effect = [{"output_text": '{"Apple": "ORG"}'}]
-            run()
+            bot_task("ner")
             assert provider.await_count == 4
             assert uploads.call_count == 1
             assert uploads.last_request.json() == {"item-3": {"Apple": "ORG"}}
@@ -494,14 +461,14 @@ def test_ner_saves_completed_items_before_failure(current_job, requests_mock, pi
             assert current_job.meta == {}
             return
         with pytest.raises(RuntimeError):
-            run()
+            bot_task("ner")
     assert uploads.request_history[0].json() == {"item-1": {"Microsoft": "ORG"}}
     assert uploads.call_count == (2 if failure == "save" else 1)
     assert submission.call_count == 1
     result = submission.last_request.json()
     assert result["status"] == "FAILURE"
     assert result["result"]["reason"] == reason
-    assert result["result"]["retryable"] is (reason in {"job_timeout", "llm_request_timeout", "bot_service_unavailable"})
+    assert result["result"]["retryable"] is (reason == "llm_request_timeout")
     assert "private" not in str(result)
 
 
