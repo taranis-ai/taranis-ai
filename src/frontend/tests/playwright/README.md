@@ -31,13 +31,30 @@ All flags:
 - `--e2e-ci` - e2e tests of user and admin parts (headless)
 - `--e2e-admin` - end to end tests of admin section; generate pictures for documentation (also User sections)
 - `--record-video` - record a video (save to `src/frontend/tests/playwright/videos`)
-- `--highlight-delay=<float>` - control time (seconds) to highlight elements in the video (`default=2`)
+- `--highlight-delay=<float>` - control time (seconds) to highlight elements in the video (pytest default: `0`; recording script default: `2`)
 - `--e2e-trace` - record unique traces for stack-backed browser tests
 - `-s` - see all logs on stdout
 
 ### Record the landing-page workflow
 
-From `src/frontend`, record the complete analyst workflow, including Chat:
+From the repository root, create one final MP4 of the complete analyst workflow, including Chat:
+
+```bash
+./dev/record_workflow_video.py
+```
+
+Requires `uv`, `ffmpeg`, and the normal Playwright/Compose test setup. The script runs all workflow tests,
+joins the clips in workflow order, and creates a 1920×1080 H.264 MP4. Its final line prints the absolute path:
+
+```text
+Video created -> it is here: /path/to/taranis-ai/src/frontend/tests/playwright/videos/user-workflow.mp4
+```
+
+Use `--output /path/to/demo.mp4` to choose the destination, or `--highlight-delay=0` for a quick run instead of the default two-second highlights.
+Clips are recorded in a temporary directory and removed after the run. An existing final video is replaced only after the tests and encoding succeed.
+The script requires the isolated local stack so the Chat segment always uses the scripted provider.
+
+To keep separate raw clips instead, run from `src/frontend`:
 
 ```bash
 uv run pytest tests/playwright/test_e2e_workflow.py --e2e-user-workflow --record-video --highlight-delay=2
@@ -49,7 +66,7 @@ To record only the Chat segment:
 uv run pytest tests/playwright/test_e2e_workflow.py::TestUserWorkflow::test_chat --e2e-user-workflow --record-video --highlight-delay=2
 ```
 
-Playwright saves a WebM per browser page under `tests/playwright/videos/`; join the segments when editing the landing-page video.
+Direct pytest recording saves a WebM per browser page under `tests/playwright/videos/`. The script above joins clips automatically.
 The Chat segment shows a ransomware search, an unread follow-up, reopening saved history, and reviewing matching stories in Assess.
 It uses the real frontend, Core search, and conversation persistence with three disposable demo stories.
 Only the provider is scripted (`fixtures/chat_provider.py`, the internal `demo-llm` Compose service): no credentials or real LLM calls are needed.

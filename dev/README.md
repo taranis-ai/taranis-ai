@@ -2,6 +2,12 @@
 
 Dependency updates use [Renovate](https://docs.renovatebot.com/) with [`.github/renovate.json`](../.github/renovate.json). Each Python component explicitly selects the established Ruff rule baseline so a Ruff upgrade does not silently enable new rules; rule-set migrations should be reviewed separately.
 
+## Record the landing-page video
+
+Run `./dev/record_workflow_video.py` from the repository root to record the full analyst workflow, including scripted Chat, and export one MP4.
+Install `uv` and `ffmpeg` first and use the normal Playwright/Compose test setup. The script prints the final absolute path on success.
+See the [Playwright recording guide](../src/frontend/tests/playwright/README.md#record-the-landing-page-workflow) for output and pacing options.
+
 ## Optional local signoff
 
 This repo accepts either a successful `test and lint` workflow run or a successful local `gh signoff` on the current PR head commit. See [basecamp/gh-signoff](https://github.com/basecamp/gh-signoff/blob/main/README.md) for upstream details.
