@@ -36,6 +36,11 @@ def app():
 
     with patch("redis.Redis.from_url", side_effect=isolated_redis_from_url):
         app = create_app()
+        # Scheduling workflows opt in explicitly; development seeds stay disabled.
+        with app.app_context():
+            from core.model.settings import Settings
+
+            Settings.save_llm_endpoint({"enabled": True}, Settings.get_settings()["llm_default_endpoint"])
         app.config.update(
             {
                 "TESTING": True,
@@ -275,95 +280,6 @@ def sample_report_type(app):
         # Cleanup
         try:
             db.session.delete(report_type)
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
-
-
-@pytest.fixture
-def sample_product_type(app, sample_report_type):
-    """Create a sample ProductType linked to the ReportItemType"""
-    with app.app_context():
-        from models.types import PRESENTER_TYPES
-
-        from core.managers.db_manager import db
-        from core.model.product_type import ProductType
-
-        product_type = ProductType(
-            title="Test Product Type",
-            type=PRESENTER_TYPES.HTML_PRESENTER,
-            description="A test product type",
-            parameters={"TEMPLATE_PATH": "osint_report_tailwind.html"},
-            report_types=[sample_report_type.id],
-        )
-        db.session.add(product_type)
-        db.session.commit()
-        yield product_type
-        # Cleanup
-        try:
-            db.session.delete(product_type)
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
-
-
-@pytest.fixture
-def additional_product_type(app, sample_report_type):
-    """Create another ProductType linked to the same ReportItemType"""
-    with app.app_context():
-        from models.types import PRESENTER_TYPES
-
-        from core.managers.db_manager import db
-        from core.model.product_type import ProductType
-
-        product_type2 = ProductType(
-            title="Second Test Product Type",
-            type=PRESENTER_TYPES.PDF_PRESENTER,
-            description="A second test product type",
-            parameters={"TEMPLATE_PATH": "pdf_template.html"},
-            report_types=[sample_report_type.id],
-        )
-        db.session.add(product_type2)
-        db.session.commit()
-        yield product_type2
-        # Cleanup
-        try:
-            db.session.delete(product_type2)
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
-
-
-@pytest.fixture
-def sample_product_type_multi_report_types(app):
-    with app.app_context():
-        from models.types import PRESENTER_TYPES
-
-        from core.managers.db_manager import db
-        from core.model.product_type import ProductType
-        from core.model.report_item_type import ReportItemType
-
-        # Create multiple ReportItemTypes
-        report_type1 = ReportItemType(title="Report Type 1", description="First report type")
-        report_type2 = ReportItemType(title="Report Type 2", description="Second report type")
-        report_type3 = ReportItemType(title="Report Type 3", description="Third report type")
-
-        db.session.add_all([report_type1, report_type2, report_type3])
-        db.session.flush()
-
-        # Create a ProductType that references all three ReportItemTypes
-        product_type = ProductType(
-            title="Multi-Report Product Type",
-            type=PRESENTER_TYPES.HTML_PRESENTER,
-            description="Product type with multiple report types",
-            parameters={"TEMPLATE_PATH": "osint_report_tailwind.html"},
-            report_types=[report_type1.id, report_type2.id, report_type3.id],
-        )
-        db.session.add(product_type)
-        db.session.commit()
-        yield product_type
-        try:
-            db.session.delete(product_type)
             db.session.commit()
         except Exception:
             db.session.rollback()

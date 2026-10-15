@@ -10,7 +10,9 @@ Story bot inputs, clustering execution, or grouping results.
 
 Each `ClusterRequest` story contains its original non-empty `id`, name-keyed `tags` dictionary, and nullable `summary`. Missing tags default to `{}`; each tag requires `tag_type`. News-item content and other fields are discarded. The library builds the prompt, truncates summaries, validates membership, and maps temporary numeric IDs back to original story IDs.
 
-Only clusters with multiple stories reach Core's grouping endpoint. Singleton-only results report no clusters; empty input skips inference. Invalid input/output fails with a static message. Immediate execution can attempt one output repair; invalid batch output fails without a repair request. Queue identity, filters, scheduling, and dependencies use the existing bot UUID workflow.
+Only clusters with multiple stories are staged for Core's final bot-result submission. The pipeline applies those groups to its shared context so later bots see merged news items before the Core transaction. Singleton-only results report no clusters; empty input skips inference. Invalid input/output fails with a static message. Immediate execution can attempt one output repair; invalid batch output fails without a repair request. Queue identity, filters, scheduling, and dependencies use the existing bot UUID workflow.
+
+Core marks the surviving processed stories complete when the staged run commits, including singleton-only results. Later automatic runs skip these stories until collection changes their content or membership; explicit manual selections can force a rerun.
 
 ## Coverage
 

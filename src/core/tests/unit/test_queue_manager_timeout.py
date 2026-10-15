@@ -40,8 +40,8 @@ def test_queue_manager_initializes_queues_with_default_timeout(monkeypatch):
     assert all(call["default_timeout"] == Config.RQ_DEFAULT_JOB_TIMEOUT for call in queue_calls)
 
 
-def test_core_settings_default_rq_timeout_is_180():
-    assert Settings.model_fields["RQ_DEFAULT_JOB_TIMEOUT"].default == 180
+def test_core_settings_default_rq_timeout_is_30_minutes():
+    assert Settings.model_fields["RQ_DEFAULT_JOB_TIMEOUT"].default == 1800
 
 
 @pytest.mark.parametrize("bot_id", [None, 7, "bad id!"])

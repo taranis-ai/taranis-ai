@@ -1,5 +1,13 @@
 name: Test schema migration
 
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  group: ${{ github.workflow }}-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 on:
   pull_request_review:
     types: [submitted]
@@ -9,14 +17,16 @@ permissions:
 
 jobs:
   schema_change:
+    timeout-minutes: 10
     name: detect schema changes
     if: github.event.review.state == 'approved'
     runs-on: ubuntu-latest
     outputs:
       changed: ${{ steps.changes.outputs.changed }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
+          persist-credentials: false
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
 
@@ -35,6 +45,7 @@ jobs:
           fi
 
   migration_upgrade:
+    timeout-minutes: 10
     name: migrate released database to approved PR
     needs: schema_change
     if: needs.schema_change.outputs.changed == 'true'
@@ -42,13 +53,14 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
+          persist-credentials: false
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@v10.3.0
         with:
           enable-cache: true
           prune-cache: false

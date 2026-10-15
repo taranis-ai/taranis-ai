@@ -10,6 +10,7 @@
   <p class="text-sm text-base-content/70 mt-2 mb-6">
     Configure providers and models for Chat, NER, sentiment, cybersecurity classification, clustering, and summarization. Set a default, then override individual functions if needed.
     Changes apply to the next message or bot run. Prompts and selected story content are sent to the assigned provider.
+    Disabled endpoints pause health checks, Chat, and bot scheduling.
   </p>
   <form method="post"
         action="{{ links.update_settings | admin_action }}"
@@ -41,6 +42,7 @@
           {% if endpoint.health %}<p class="text-sm mb-3">{{ endpoint.health.message }}</p>{% endif %}
           <form method="post" action="{{ endpoint_url }}" hx-post="{{ endpoint_url }}" data-test-id="llm-endpoint-form">
             <input type="hidden" name="csrf_token" value="{{ request.cookies.get(config['JWT_ACCESS_CSRF_COOKIE_NAME'], '') }}" />
+            {{ form_select('Endpoint state', 'enabled', 'true' if endpoint.enabled | default(not config['DEBUG']) else 'false', options=[{'id': 'true', 'name': 'Enabled'}, {'id': 'false', 'name': 'Disabled'}], input_id='llm-' ~ endpoint_id ~ '-enabled') }}
             {{ form_input('Name', 'name', endpoint.name | default(''), preserve=False, floating=False, required=True, input_id='llm-' ~ endpoint_id ~ '-name') }}
             {{ form_input('Provider base URL', 'base_url', endpoint.base_url | default(''), type='url', preserve=False, floating=False, required=True, placeholder='https://provider.example/v1', input_id='llm-' ~ endpoint_id ~ '-base_url') }}
             <p class="text-sm text-base-content/70 mb-4">Enter the base URL without /responses, /chat/completions, or /batches.</p>

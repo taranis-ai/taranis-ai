@@ -1,3 +1,4 @@
+import json
 from urllib.parse import parse_qs, urlparse
 
 import pytest
@@ -32,6 +33,7 @@ pytestmark = pytest.mark.usefixtures("_clear_scheduler_cache")
         ("admin.scheduler_active_jobs", "active"),
         ("admin.scheduler_failed_jobs", "failed"),
         ("admin.scheduler_history", "history"),
+        ("admin.scheduler_completed_runs", "completed"),
     ],
 )
 def test_scheduler_deep_link_renders_dashboard(endpoint, expected_tab, authenticated_client, mock_core_get_endpoints):
@@ -137,8 +139,8 @@ def test_scheduler_dashboard_auto_refresh_is_opt_in_and_tab_scoped(authenticated
     assert 'id="scheduled-jobs-table"' in html
     assert 'id="active-jobs-table"' in html
     assert 'id="failed-jobs-table"' in html
-    assert html.count('hx-trigger="scheduler:refresh"') == 5
-    assert html.count("intervalMs: 10000") == 3
+    assert html.count('hx-trigger="scheduler:refresh"') == 6
+    assert html.count("intervalMs: 10000") == 4
     assert "intervalMs: 5000" not in html
     assert "let autoRefreshEnabled = false" in html
     assert "!config || !autoRefreshEnabled" in html
@@ -204,7 +206,7 @@ def test_scheduler_dashboard_renders_inactive_tabs_as_placeholders(authenticated
     assert 'id="active-jobs-table"' in html
     assert 'id="failed-jobs-table"' in html
     assert 'id="execution-history"' in html
-    assert html.count("Loading...</p>") == 3
+    assert html.count("Loading...</p>") == 4
     assert 'data-testid="active-jobs"' not in html
     assert 'data-testid="failed-jobs"' not in html
     assert 'data-testid="execution-history-jobs"' not in html
@@ -218,6 +220,7 @@ def test_scheduler_dashboard_renders_inactive_tabs_as_placeholders(authenticated
         ("admin.scheduler_active_jobs", ["/config/workers/active"], "Running Bot"),
         ("admin.scheduler_failed_jobs", ["/config/workers/failed"], "Failed Connector"),
         ("admin.scheduler_history", ["/tasks"], "Success Rate"),
+        ("admin.scheduler_completed_runs", ["/tasks/runs"], "Ran 4 bots"),
     ],
 )
 def test_scheduler_htmx_partials_use_granular_endpoints(
@@ -254,14 +257,32 @@ def test_scheduler_history_displays_worker_type_and_hover_worker_id(
     assert 'title="Worker ID: bot-1"' in html
 
 
-def test_scheduler_failed_jobs_renders_rq_error(authenticated_client, mock_core_get_endpoints, htmx_header):
+def test_scheduler_failed_jobs_renders_rq_error(authenticated_client, responses_mock, mock_core_get_endpoints, htmx_header):
+    bot_name = "NER 'test' <script>alert(1)</script>"
+    error = f"The job exceeded its execution timeout.\nExecution budget per attempt: 864 seconds\nFailed bot: {bot_name}"
+    responses_mock.replace(
+        responses.GET,
+        f"{Config.TARANIS_CORE_URL}/config/workers/failed",
+        json={
+            "items": [{"id": "failed-1", "name": bot_name, "queue": "bots", "failed_at": "2025-01-01T11:50:00", "error": error}],
+            "total_count": 1,
+        },
+    )
     with authenticated_client.application.app_context():
         url = url_for("admin.scheduler_failed_jobs")
 
     response = authenticated_client.get(url, headers=htmx_header)
 
     assert response.status_code == 200
-    assert "Boom" in response.get_data(as_text=True)
+    html = response.get_data(as_text=True)
+    document = lxml_html.fromstring(html)
+    summary = document.xpath("//td/p")[0].text_content()
+    assert summary == error.split("\n", 1)[0]
+    handler = document.xpath("//button[contains(@onclick, 'showJobErrorModal')]/@onclick")[0]
+    payload = json.loads(handler.removeprefix("window.showJobErrorModal(").removesuffix(")"))
+    assert payload["error"] == error
+    assert payload["name"] == bot_name
+    assert "<script>alert(1)</script>" not in html
 
 
 def test_scheduler_jobs_table_formats_next_run_in_profile_timezone(
@@ -292,6 +313,7 @@ def test_scheduler_jobs_table_formats_next_run_in_profile_timezone(
         ("admin.scheduler_active_jobs", "active-jobs", "active-jobs-table"),
         ("admin.scheduler_failed_jobs", "failed-jobs", "failed-jobs-table"),
         ("admin.scheduler_history", "execution-history-jobs", "execution-history-table"),
+        ("admin.scheduler_completed_runs", "completed-runs", "completed-runs-table"),
     ],
 )
 def test_scheduler_tables_render_standard_controls(

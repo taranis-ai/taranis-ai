@@ -10,6 +10,7 @@ from urllib.parse import quote
 from llm_bot.client import LLMClient
 from llm_bot.tasks.llm_utils import LLMTask
 from niquests.exceptions import RequestException
+from rq.timeouts import JobTimeoutException
 
 from worker.http_client import http_request
 from worker.log import logger
@@ -58,6 +59,8 @@ class BatchProcessor:
             raise BatchExecutionError
         try:
             return [task.parse_result(responses[str(index)], self.client) for index, task in enumerate(tasks)]
+        except JobTimeoutException:
+            raise
         except Exception:
             logger.exception("Invalid LLM batch output")
             raise BatchExecutionError from None

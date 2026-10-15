@@ -15,7 +15,8 @@ Task entry points and RQ failure hooks own their HTTP session scope, including r
 - Authenticated runs, including auto-render after product edits, carry `user_id`; scheduler runs do not. Propagate attribution through dependencies and post-collection bots.
 - User jobs enqueue at the front of their functional queue (LIFO); background jobs remain FIFO. Workers check presenters, publishers, connectors, misc, bots, then collectors. Priority does not preempt running jobs or affect workers subscribed to other queues.
 - RQ `enqueue_at` promotion does not wait for unfinished dependencies. Scheduled user jobs keep front priority, but scheduled dependencies cannot model execution ordering.
-- Persist actual RQ failures, including timeouts/killed workhorses. Worker hooks synthesize results when task code cannot save; the reconciler covers missed/stalled runs.
+- Persist actual RQ failures, including timeouts/killed workhorses. Worker hooks synthesize results when task code cannot save; the reconciler covers missed/stalled runs. LLM task/pipeline handlers preserve `job_timeout` and distinguish request timeout, invalid output, and failed NER uploads with curated messages.
+- Bot execution deadlines first continue the same RQ job immediately from its persisted checkpoint. These attempts do not create a completed failure result; My Tasks receives only the final success or terminal failure (three consecutive deadlines without progress). RQ results and worker logs retain attempt evidence. Provider request timeouts remain terminal task failures.
 - Publisher network failures persist a curated message, publisher/product IDs, publisher type, and the operation from the publisher exception. Operations are logged normally without phase metadata or timing state. RQ deadlines and killed workhorses use generic static failures; deduplication and user attribution remain intact. User-visible messages never contain raw exception text.
 - Publisher handlers and cleanup propagate RQ timeout exceptions to the failure bridge. Network timeout classification requires a timeout exception (direct or wrapped); elapsed time alone does not turn an ordinary failure into a timeout.
 - Successful presenter results publish user-scoped `product.rendered` after commit; notification failure cannot change task success. See [Realtime Events](realtime-events.md).
@@ -25,6 +26,8 @@ Task entry points and RQ failure hooks own their HTTP session scope, including r
 Endpoint probe health is stored separately from execution history; see [LLM Endpoints](llm-endpoints.md#endpoint-checks).
 
 ## History and UI
+
+Committed pipeline steps produce separate per-bot results with the pipeline owner and completion timestamp; they also appear in My Tasks and the scheduler Completed Runs view.
 
 My Tasks lists only completed persisted results owned by the authenticated user, including successful `PREVIEW` results. It never queries Redis for queued/running jobs. Omit task `result.data`; search only visible relational fields, never serialized results. This differs from [Notification Center](notification-center.md) history.
 

@@ -43,6 +43,7 @@
       {% endif %}
     </td>
     <td>
+      <p class="text-sm max-w-prose whitespace-normal">{{ (job.error or 'No failure details recorded.').split('\n', 1)[0] }}</p>
       <button type="button"
               class="btn btn-ghost btn-xs text-error underline"
               onclick='window.showJobErrorModal({{ {"id": job.id, "name": job.name, "error": job.error}|tojson }})'>View Error</button>

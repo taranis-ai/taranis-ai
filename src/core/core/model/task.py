@@ -2,7 +2,7 @@ import json
 from datetime import datetime
 from typing import Any, ClassVar
 
-from models.task import UserTaskFilter
+from models.task import TaskRunFilter, UserTaskFilter
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Mapped
 from sqlalchemy.sql.elements import ColumnElement
@@ -63,7 +63,7 @@ class Task(BaseModel):
         self.last_run = self.utcnow()
 
     @classmethod
-    def add_or_update(cls, entry_data):
+    def add_or_update(cls, entry_data, *, commit: bool = True):
         if entry := cls.get_by_job_id(entry_data["id"]):
             entry.result = cls._serialize_result(entry_data["result"])
             entry.status = entry_data.get("status")
@@ -74,9 +74,17 @@ class Task(BaseModel):
             if entry.status in cls.SUCCESS_STATUSES:
                 entry.last_success = cls.utcnow()
             entry.last_run = cls.utcnow()
-            db.session.commit()
+            if commit:
+                db.session.commit()
+            else:
+                db.session.flush()
             return entry.to_dict(), 200
-        new_entry = cls.add(entry_data)
+        if commit:
+            new_entry = cls.add(entry_data)
+        else:
+            new_entry = cls.from_dict(entry_data)
+            db.session.add(new_entry)
+            db.session.flush()
         return new_entry.to_dict(), 201
 
     def to_dict(self):
@@ -145,11 +153,15 @@ class Task(BaseModel):
 
     @classmethod
     def get_user_tasks_for_api(cls, user_id: str, filters: UserTaskFilter) -> tuple[dict[str, Any], int]:
-        query = db.select(cls).where(
-            cls.user_id == user_id,
-            cls.status.in_(cls.USER_TASK_TERMINAL_STATUSES),
-            cls.last_run.is_not(None),
-        )
+        return cls.get_completed_runs_for_api(filters, user_id=user_id)
+
+    @classmethod
+    def get_completed_runs_for_api(cls, filters: UserTaskFilter, *, user_id: str | None = None) -> tuple[dict[str, Any], int]:
+        query = db.select(cls).where(cls.status.in_(cls.USER_TASK_TERMINAL_STATUSES), cls.last_run.is_not(None))
+        if user_id is not None:
+            query = query.where(cls.user_id == user_id)
+        if isinstance(filters, TaskRunFilter) and filters.status:
+            query = query.where(cls.status == filters.status)
 
         if filters.search:
             pattern = f"%{filters.search}%"
@@ -167,7 +179,7 @@ class Task(BaseModel):
 
         count = cls.get_filtered_count(query)
         query = cls._add_paging_to_query(filter_args, query)
-        query = cls._add_sorting_to_query(filter_args, query)
+        query = cls._add_sorting_to_query(filter_args, query).order_by(cls.id.desc())
         items = cls.get_filtered(query) or []
         return {"items": cls.to_list(items), "total_count": count}, 200
 

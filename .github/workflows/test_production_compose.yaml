@@ -1,4 +1,13 @@
 name: Smoke test docker compose
+
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
 on:
   workflow_dispatch:
     inputs:
@@ -14,6 +23,7 @@ permissions:
 
 jobs:
   test_docker_deployment:
+    timeout-minutes: 20
     if: ${{ github.event.review.state == 'approved' || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     env:
@@ -23,6 +33,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - name: Build Docker images from PR code
         if: ${{ !inputs.use_latest_published_images }}
@@ -37,15 +49,19 @@ jobs:
       - name: Pull latest published application images
         if: ${{ inputs.use_latest_published_images }}
         working-directory: docker
-        run: docker compose pull $APPLICATION_SERVICES
+        run: |
+          read -r -a application_services <<< "$APPLICATION_SERVICES"
+          docker compose pull "${application_services[@]}"
 
       - name: Run docker compose for last commit
         working-directory: docker
         env:
           PRE_SEED_PASSWORD_USER: test
         run: |
-          docker compose pull $SUPPORT_SERVICES
-          docker compose up $APPLICATION_SERVICES $SUPPORT_SERVICES --pull=never --wait-timeout=180 --wait
+          read -r -a application_services <<< "$APPLICATION_SERVICES"
+          read -r -a support_services <<< "$SUPPORT_SERVICES"
+          docker compose pull "${support_services[@]}"
+          docker compose up "${application_services[@]}" "${support_services[@]}" --pull=never --wait-timeout=180 --wait
 
       - name: Check container status
         # Show status/logs only when a previous step failed (e.g. compose --wait)

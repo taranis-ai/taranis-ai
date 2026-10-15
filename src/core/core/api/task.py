@@ -3,7 +3,7 @@ from typing import Any
 from flask import Blueprint, Flask, g, request
 from flask.views import MethodView
 from flask_jwt_extended import current_user
-from models.task import TaskSubmission, UserTaskFilter
+from models.task import TaskRunFilter, TaskSubmission, UserTaskFilter
 from pydantic import ValidationError
 
 from core.config import Config
@@ -50,9 +50,17 @@ class UserTasks(MethodView):
         return TaskService.get_user_tasks(current_user.id, filters)
 
 
+class CompletedRuns(MethodView):
+    @api_key_or_auth_required("CONFIG_OSINT_SOURCE_ACCESS")
+    @extract_args("search", "page", "limit", "order", "status")
+    def get(self, filter_args: dict[str, Any] | None = None):
+        return TaskService.get_completed_runs(TaskRunFilter.model_validate(filter_args or {}))
+
+
 def initialize(app: Flask):
     task_bp = Blueprint("tasks", __name__, url_prefix=f"{Config.APPLICATION_ROOT}api/tasks")
     task_bp.add_url_rule("", view_func=Task.as_view("tasks"))
+    task_bp.add_url_rule("/runs", view_func=CompletedRuns.as_view("completed_runs"), methods=["GET"])
     task_bp.add_url_rule("/user", view_func=UserTasks.as_view("user_tasks"), methods=["GET"])
     task_bp.add_url_rule("/<string:task_id>", view_func=Task.as_view("task"), methods=["GET", "DELETE"])
     app.register_blueprint(task_bp)

@@ -31,6 +31,7 @@ When a source/bot schedule is updated:
 import contextlib
 import hashlib
 import json
+import math
 import re
 import time
 from collections.abc import Callable, Iterable, Sequence
@@ -42,6 +43,7 @@ from croniter import croniter
 from flask import Flask
 from models.admin import CronSpec
 from models.scheduler import JobFilter, ScheduledJob, StoredTaskResult
+from models.task import FAILURE_MESSAGES
 from opentelemetry.propagate import inject
 from pydantic import TypeAdapter
 from redis import Redis
@@ -78,6 +80,7 @@ TASK_MAP = {
     "collector_task": "worker.collectors.collector_tasks.collector_task",
     "collector_preview": "worker.collectors.collector_tasks.collector_preview",
     "bot_task": "worker.bots.bot_tasks.bot_task",
+    "bot_pipeline_task": "worker.bots.bot_tasks.bot_pipeline_task",
     "presenter_task": "worker.presenters.presenter_tasks.presenter_task",
     "publisher_task": "worker.publishers.publisher_tasks.publisher_task",
     "connector_task": "worker.connectors.connector_tasks.connector_task",
@@ -956,6 +959,8 @@ class QueueManager:
             return {"error": "Invalid bot_id"}, 400
         if not (bot := Bot.get(bot_id)):
             return {"error": "Bot not found"}, 404
+        if not bot.is_llm_endpoint_enabled():
+            return {"error": "LLM endpoint is disabled"}, 400
         try:
             effective_parameters(bot.type, bot.parameters)
         except ValueError:
@@ -969,7 +974,7 @@ class QueueManager:
         if self.enqueue_task(
             "bots",
             "bot_task",
-            job_id=f"bot_{bot_id}",
+            job_id=self._build_unique_job_id(f"bot_{bot_id}", "manual"),
             job_timeout=bot.job_timeout,
             meta=self._build_task_meta(
                 f"bot_{bot_id}",
@@ -1072,24 +1077,25 @@ class QueueManager:
         logger.error(f"Could not schedule publishing for product {product_id} with publisher {publisher_id}")
         return {"error": self.error or "Could not reach Redis"}, 503 if not Config.QUEUE_ENABLED else 500
 
-    def post_collection_bots(self, source_id: str, user_id: str | None = None, story_ids: list[str] | None = None):
+    def post_collection_bots(self, source_id: str, story_ids: list[str], user_id: str | None = None):
         """Run post-collection bots"""
         from core.model.bot import Bot
 
         if error := self.queue_action_error():
             return error
 
-        post_collection_bots, dependencies_by_id = Bot.get_collector_run_graph()
+        if not story_ids:
+            return {"message": "No changed stories found"}, 200
+
+        post_collection_bots, _ = Bot.get_collector_run_graph()
         if not post_collection_bots:
             return {"message": "No post collection bots found"}, 200
 
         if not self._enqueue_bot_graph(
             post_collection_bots,
-            dependencies_by_id,
-            filter={"SOURCE": source_id, **({"STORY_IDS": story_ids} if story_ids else {})},
+            filter={"SOURCE": source_id, "STORY_IDS": story_ids, "skip_processed": True},
             job_suffix=source_id,
             user_id=user_id,
-            trigger_dependents=False,
         ):
             return {"error": "Could not schedule post collection bot"}, 500
 
@@ -1102,17 +1108,15 @@ class QueueManager:
         if error := self.queue_action_error():
             return error
 
-        dependent_bots, dependencies_by_id = Bot.get_dependent_run_graph(bot_id)
+        dependent_bots, _ = Bot.get_dependent_run_graph(bot_id)
         if not dependent_bots:
             return {"message": "No dependent bots found"}, 200
 
         if not self._enqueue_bot_graph(
             dependent_bots,
-            dependencies_by_id,
             filter=filter,
             job_suffix=bot_id,
             user_id=user_id,
-            trigger_dependents=False,
         ):
             return {"error": "Could not schedule dependent bot"}, 500
         return {"message": "Dependent bots scheduled"}, 200
@@ -1120,45 +1124,33 @@ class QueueManager:
     def _enqueue_bot_graph(
         self,
         bots: Sequence[Any],
-        dependencies_by_id: dict[str, list[str]],
         *,
         filter: dict | None,
         job_suffix: str,
         user_id: str | None,
-        trigger_dependents: bool,
     ) -> bool:
         from core.service.worker_parameters import effective_parameters
 
         for bot in bots:
             effective_parameters(bot.type, bot.parameters)
 
-        jobs_by_bot_id: dict[str, Any] = {}
-        for bot in bots:
-            dependency_ids = dependencies_by_id.get(bot.id, [])
-            bot_type = getattr(bot, "type", None)
-            worker_type = getattr(bot_type, "value", bot_type)
-            bot_args: dict[str, str | dict | bool] = {"bot_id": bot.id, "trigger_dependents": trigger_dependents}
-            if filter:
-                bot_args["filter"] = filter
-            parent_jobs = [jobs_by_bot_id[dependency_id] for dependency_id in dependency_ids if dependency_id in jobs_by_bot_id]
-            job = self.enqueue_task(
+        timeout = math.ceil(1.2 * sum(bot.job_timeout for bot in bots))
+        return bool(
+            self.enqueue_task(
                 "bots",
-                "bot_task",
-                job_id=self._build_unique_job_id("bot", f"{bot.id}_{job_suffix}"),
-                job_timeout=bot.job_timeout,
-                depends_on=parent_jobs or None,
+                "bot_pipeline_task",
+                [bot.id for bot in bots],
+                filter=filter,
+                job_id=self._build_unique_job_id("bot_pipeline", job_suffix),
+                job_timeout=timeout,
                 meta=self._build_task_meta(
-                    f"bot_{bot.id}",
+                    "bot_pipeline",
                     user_id=user_id,
-                    worker_id=bot.id,
-                    worker_type=str(worker_type).upper() if worker_type else "BOT_TASK",
+                    worker_id="bot_pipeline",
+                    worker_type="BOT_PIPELINE",
                 ),
-                **bot_args,
             )
-            if not job:
-                return False
-            jobs_by_bot_id[bot.id] = job
-        return True
+        )
 
     def _get_job_display_name(self, job: Job) -> str:
         """Get human-readable name for a job based on its function and args"""
@@ -1503,7 +1495,8 @@ class QueueManager:
         try:
             from rq.registry import FailedJobRegistry
 
-            failed_jobs = []
+            failed_jobs: list[dict[str, Any]] = []
+            jobs_by_id = {}
             for queue_name, queue in self._queues.items():
                 registry = FailedJobRegistry(queue=queue)
                 job_ids = list(registry.get_job_ids())
@@ -1511,6 +1504,7 @@ class QueueManager:
                 for job_id in job_ids:
                     try:
                         job = Job.fetch(job_id, connection=self._redis)
+                        jobs_by_id[job.id] = job
                         job_name = self._get_job_display_name(job)
                         failed_jobs.append(
                             {
@@ -1533,10 +1527,50 @@ class QueueManager:
                         logger.debug(f"Skipping failed job {job_id}: {e}")
                         continue
 
+            if failed_jobs:
+                from core.managers.db_manager import db
+                from core.model.task import Task
+
+                tasks = db.session.execute(db.select(Task).where(Task.job_id.in_(jobs_by_id))).scalars()
+                reasons = {task.job_id: StoredTaskResult.model_validate(task).result.reason for task in tasks}
+                for entry in failed_jobs:
+                    entry["error"] = self._failed_job_details(jobs_by_id[entry["id"]], reasons.get(entry["id"]))
             return JobFilter.model_validate(filter_args).paginate(failed_jobs, default_order="failed_at_desc"), 200
         except Exception as e:
             logger.exception(f"Failed to get failed jobs: {e}")
             return {"error": "Failed to get failed jobs"}, 500
+
+    @staticmethod
+    def _failed_job_details(job: Job, reason: str | None) -> str:
+        # Historical task messages and RQ tracebacks may contain credentials or raw exceptions.
+        message = FAILURE_MESSAGES.get(reason or "", "No detailed failure result was recorded. Check worker logs using this job ID.")
+        lines = [message]
+        if reason in FAILURE_MESSAGES:
+            lines.append(f"Reason: {reason}")
+        if timeout := getattr(job, "timeout", None):
+            lines.append(f"Execution budget per attempt: {timeout} seconds")
+        lines.append(f"Attempts: {(getattr(job, 'number_of_retries', None) or 0) + 1}")
+        meta = job.meta or {}
+        state = meta.get("bot_pipeline") or meta.get("llm_batch")
+        if state:
+            configs = state.get("configs") or [state["config"]]
+            completed = len(state.get("stages", []))
+            lines.append(f"Completed bots: {completed}/{len(configs)}")
+            if completed < len(configs):
+                config = configs[completed]
+                lines.append(f"Failed bot: {config.get('name') or config.get('type')} ({config['id']})")
+            else:
+                lines.append("Failed step: final result submission")
+            current = state.get("llm_batch", state)
+            processed = len(current.get("responses", [])) or current.get("completed_items", 0)
+            lines.append(f"Completed LLM requests in current bot: {processed}")
+            lines.append("Checkpoint retained. Previously saved NER tags are retained.")
+        elif meta.get("worker_type") == "BOT_PIPELINE":
+            lines.append("No checkpoint was recorded for this run. A rerun starts from the beginning; previously saved NER tags remain.")
+        if (meta.get("bot_timeout") or {}).get("stalled", 0) >= 3:
+            lines.append("Automatic continuation stopped after three consecutive execution timeouts without progress.")
+        lines.append(f"Worker log reference: {job.id}")
+        return "\n".join(lines)
 
     def get_worker_stats(self) -> tuple[dict, int]:
         """Get worker statistics"""
