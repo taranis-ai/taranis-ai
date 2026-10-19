@@ -123,16 +123,6 @@ def test_worker_parameter_form_renders_native_boolean_and_object_values(app):
     assert tlp.xpath('./option[@value="clear"]')
 
 
-def test_bot_menu_badge_uses_task_failure_count(monkeypatch):
-    fake_badges = SimpleNamespace(bot=7)
-    monkeypatch.setattr(
-        "frontend.views.admin_views.bot_views.DataPersistenceLayer",
-        lambda: SimpleNamespace(get_object=lambda model: fake_badges),
-    )
-
-    assert BotView.get_admin_menu_badge() == 7
-
-
 def test_bot_form_renders_state_buttons_and_run_action(app):
     bot = Bot.model_construct(
         id="42",

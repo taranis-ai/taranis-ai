@@ -190,6 +190,13 @@ def mock_core_get_endpoints(responses_mock, core_payloads):
         content_type="application/json",
     )
     responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/config/osint-source-groups/options",
+        json={
+            "osint_sources": [{"id": "source-option", "name": "Source option"}],
+            "word_lists": [{"id": "word-list-option", "name": "Word list option"}],
+        },
+    )
+    responses_mock.get(
         f"{Config.TARANIS_CORE_URL}/realtime/clients",
         json={
             "num_clients": 1,

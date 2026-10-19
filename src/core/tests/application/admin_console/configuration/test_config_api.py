@@ -417,7 +417,7 @@ class TestSourcesConfigApi(BaseTest):
             for source_id, status in zip(source_ids, statuses, strict=True)
         ]
         tasks = [
-            {"id": f"collect_rss_collector_{source_id}", "task": "collector_task", "status": status}
+            {"id": f"collect_rss_collector_{source_id}", "task": "collector_task", "worker_id": source_id, "status": status}
             for source_id, status in zip(source_ids, statuses, strict=True)
         ]
 
@@ -555,6 +555,62 @@ class TestSourcesConfigApi(BaseTest):
         response = self.assert_post_ok(client, uri="osint-source-groups", json_data=cleanup_source_groups, auth_header=auth_header)
         assert response.json["message"] == "OSINT source group created successfully"
         assert response.json["id"] == cleanup_source_groups["id"]
+
+    def test_source_group_options_only_load_names_and_ids(self, client, auth_header, app):
+        from sqlalchemy import event
+
+        from core.managers.db_manager import db
+        from core.model.osint_source import OSINTSource
+        from core.model.word_list import WordList
+
+        source_ids = [str(uuid.uuid7()), str(uuid.uuid7())]
+        word_list_ids = [str(uuid.uuid7()), str(uuid.uuid7())]
+        with app.app_context():
+            OSINTSource.add(
+                {
+                    "id": source_ids[0],
+                    "name": f"Options RSS {source_ids[0]}",
+                    "type": "rss_collector",
+                    "parameters": {"FEED_URL": "https://example.invalid/feed"},
+                }
+            )
+            OSINTSource.add({"id": source_ids[1], "name": f"Options manual {source_ids[1]}", "type": "manual_collector"})
+            for word_list_id, usage in zip(word_list_ids, (["COLLECTOR_INCLUDELIST", "TAGGING_BOT"], ["TAGGING_BOT"]), strict=True):
+                WordList.add({"id": word_list_id, "name": f"Options words {word_list_id}", "usage": usage, "entries": [{"value": "example"}]})
+            engine = db.engine
+
+        statements = []
+
+        def record_query(conn, cursor, statement, parameters, context, executemany):
+            statements.append(statement)
+
+        event.listen(engine, "before_cursor_execute", record_query)
+        try:
+            response = self.assert_get_ok(client, uri="osint-source-groups/options", auth_header=auth_header)
+            assert source_ids[0] in {item["id"] for item in response.json["osint_sources"]}
+            assert source_ids[1] not in {item["id"] for item in response.json["osint_sources"]}
+            assert word_list_ids[0] in {item["id"] for item in response.json["word_lists"]}
+            assert word_list_ids[1] not in {item["id"] for item in response.json["word_lists"]}
+            assert all(set(item) == {"id", "name"} for items in response.json.values() for item in items)
+            assert not any("FROM task" in sql or "FROM word_list_entry" in sql or "osint_source.icon" in sql for sql in statements)
+        finally:
+            event.remove(engine, "before_cursor_execute", record_query)
+            with app.app_context():
+                for source_id in source_ids:
+                    OSINTSource.delete(source_id)
+                for word_list_id in word_list_ids:
+                    WordList.delete(word_list_id)
+
+    @pytest.mark.parametrize(
+        "missing_permission", ["CONFIG_OSINT_SOURCE_GROUP_ACCESS", "CONFIG_OSINT_SOURCE_ACCESS", "CONFIG_WORD_LIST_ACCESS"]
+    )
+    def test_source_group_options_require_each_permission(self, client, auth_header, monkeypatch, missing_permission):
+        from core.model.user import User
+
+        permissions = {"CONFIG_OSINT_SOURCE_GROUP_ACCESS", "CONFIG_OSINT_SOURCE_ACCESS", "CONFIG_WORD_LIST_ACCESS"} - {missing_permission}
+        monkeypatch.setattr(User, "get_permissions", lambda self: permissions)
+        response = client.get(self.concat_url("osint-source-groups/options"), headers=auth_header)
+        assert response.status_code == 403
 
     def test_modify_source_group(self, client, auth_header, cleanup_source_groups):
         source_group_data = {
@@ -1332,10 +1388,12 @@ class TestAdminMenuBadgesConfigApi(BaseTest):
         source_id = cleanup_sources["id"]
         bot_id = cleanup_bot["id"]
         task_ids = [
-            f"collect_rss_collector_{source_id}",
-            f"bot_{bot_id}",
+            f"manual-source-run-{source_id}",
+            f"manual-bot-run-{bot_id}",
             f"cron_osint_source_{source_id}_success",
             f"cron_bot_{bot_id}_success",
+            f"cron_osint_source_{source_id}_missing_worker",
+            f"one-off-fetch-{source_id}",
         ]
 
         with app.app_context():
@@ -1401,6 +1459,19 @@ class TestAdminMenuBadgesConfigApi(BaseTest):
 
             resolved_response = self.assert_get_ok(client, uri="admin-menu-badges", auth_header=auth_header)
             assert resolved_response.json == {"osint_source": 0, "bot": 0}
+            with app.app_context():
+                Task.add({"id": task_ids[4], "task": "collector_task", "status": "FAILURE", "result": {"message": "No worker association"}})
+                Task.add(
+                    {
+                        "id": task_ids[5],
+                        "task": "simple_web_collector",
+                        "worker_id": source_id,
+                        "status": "FAILURE",
+                        "result": {"message": "One-off fetch"},
+                    }
+                )
+            assert self.assert_get_ok(client, uri="admin-menu-badges", auth_header=auth_header).json == {"osint_source": 0, "bot": 0}
+            assert self.assert_get_ok(client, uri=f"osint-sources/{source_id}", auth_header=auth_header).json["status"]["status"] == "SUCCESS"
             assert self.assert_get_ok(client, uri="osint-sources?state=failure", auth_header=auth_header).json["items"] == []
             assert self.assert_get_ok(client, uri="bots?state=failure", auth_header=auth_header).json["items"] == []
         finally:

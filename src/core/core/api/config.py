@@ -6,11 +6,13 @@ from typing import Any, ClassVar
 from flask import Blueprint, Flask, jsonify, make_response, request, send_file
 from flask.views import MethodView
 from flask_jwt_extended import current_user
-from models.admin import BotCreate, BotUpdate, CuratedOSINTSourceSelection
+from models.admin import BotCreate, BotUpdate, CuratedOSINTSourceSelection, OSINTSourceGroupOptions
 from models.admin import OSINTSource as OSINTSourceModel
 from models.base import TaranisBaseModel
+from models.types import COLLECTOR_TYPES
 from psycopg.errors import NotNullViolation, UniqueViolation
 from pydantic import ValidationError
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
 from core.config import Config
@@ -961,6 +963,27 @@ class CuratedOSINTSourceLists(MethodView):
         return response
 
 
+class OSINTSourceGroupOptionsView(MethodView):
+    @auth_required("CONFIG_OSINT_SOURCE_GROUP_ACCESS")
+    @auth_required("CONFIG_OSINT_SOURCE_ACCESS")
+    @auth_required("CONFIG_WORD_LIST_ACCESS")
+    def get(self):
+        sources = db.session.execute(
+            select(osint_source.OSINTSource.id, osint_source.OSINTSource.name)
+            .where(osint_source.OSINTSource.type != COLLECTOR_TYPES.MANUAL_COLLECTOR)
+            .order_by(osint_source.OSINTSource.name)
+        ).mappings()
+        word_lists = db.session.execute(
+            select(word_list.WordList.id, word_list.WordList.name)
+            .where(word_list.WordList.usage.op("&")(int(word_list.WordListUsage.COLLECTOR_INCLUDELIST)) > 0)
+            .order_by(word_list.WordList.name)
+        ).mappings()
+        return OSINTSourceGroupOptions(
+            osint_sources=[dict(row) for row in sources],
+            word_lists=[dict(row) for row in word_lists],
+        ).model_dump(mode="json")
+
+
 class OSINTSourceGroups(MethodView):
     @auth_required("CONFIG_OSINT_SOURCE_GROUP_ACCESS")
     @extract_args("search", "page", "limit", "sort", "order", "fetch_all")
@@ -1276,6 +1299,9 @@ def build_config_blueprint(name: str) -> Blueprint:
     config_bp.add_url_rule("/workers/failed", view_func=FailedJobs.as_view(f"{name}_failed_jobs"))
     config_bp.add_url_rule("/workers/stats", view_func=WorkerStats.as_view(f"{name}_worker_stats"))
     config_bp.add_url_rule("/admin-menu-badges", view_func=AdminMenuBadges.as_view(f"{name}_admin_menu_badges"))
+    config_bp.add_url_rule(
+        "/osint-source-groups/options", view_func=OSINTSourceGroupOptionsView.as_view(f"{name}_osint_source_group_options")
+    )
     config_bp.add_url_rule("/schedule", view_func=Schedule.as_view(f"{name}_queue_schedule"))
     config_bp.add_url_rule("/schedule/<string:task_id>", view_func=Schedule.as_view(f"{name}_queue_schedule_task"))
     config_bp.add_url_rule(

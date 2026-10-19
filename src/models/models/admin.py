@@ -285,6 +285,14 @@ class WordList(TaranisBaseModel):
     entries: list[WordListEntry] | None = Field(default_factory=list)
 
 
+class OSINTSourceGroupOptions(TaranisBaseModel):
+    _core_endpoint = "/config/osint-source-groups/options"
+    _model_name = "osint_source_group_options"
+
+    osint_sources: list[dict[str, str]] = Field(default_factory=list)
+    word_lists: list[dict[str, str]] = Field(default_factory=list)
+
+
 class OSINTSource(TaranisBaseModel):
     _core_endpoint = "/config/osint-sources"
     _model_name = "osint_source"

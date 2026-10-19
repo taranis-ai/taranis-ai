@@ -59,8 +59,6 @@ class Bot(BaseModel):
     @property
     def status(self):
         if task_result := TaskModel.get_latest_matching(
-            exact_ids={self.task_id},
-            prefixes=[self.cron_run_prefix],
             task_name=self.task_id,
             worker_id=self.id,
         ):
@@ -432,12 +430,11 @@ class Bot(BaseModel):
     @classmethod
     def _latest_task_status(cls):
         task_name = func.concat(literal("bot_"), cls.id)
-        cron_prefix = func.concat(literal("cron_bot_"), cls.id, literal("_%"))
         return (
             db.select(TaskModel.status)
             .where(
                 TaskModel.task == task_name,
-                db.or_(TaskModel.job_id == task_name, TaskModel.job_id.like(cron_prefix), TaskModel.worker_id == cls.id),
+                TaskModel.worker_id == cls.id,
             )
             .order_by(TaskModel.last_run.desc(), TaskModel.last_success.desc(), TaskModel.job_id.desc())
             .limit(1)
