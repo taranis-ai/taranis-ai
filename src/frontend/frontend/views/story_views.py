@@ -1225,28 +1225,25 @@ class StoryView(BaseView):
     @classmethod
     def _create_news_item_from_file(cls, file: FileStorage):
         if file.filename == "":
-            flash("No file selected for upload", "error")
-            return cls.redirect_htmx(url_for("assess.get_news_item", news_item_id="0"))
+            return make_response(cls.render_response_notification({"error": "No file selected for upload."}), 400)
         if file.mimetype not in ["text/plain", "application/json"]:
-            flash("Unsupported file type. Please upload a .txt or .json file.", "error")
-            return cls.redirect_htmx(url_for("assess.get_news_item", news_item_id="0"))
+            return make_response(cls.render_response_notification({"error": "Unsupported file type. Please upload a JSON file."}), 400)
 
         try:
-            data = file.read()
-            json_data = json.loads(data)
+            json_data = json.loads(file.read())
             core_response = CoreApi().api_post("/assess/import", json_data=json_data)
-            if core_response.ok:
-                flash("File imported successfully", "success")
-            else:
-                cls.add_flash_notification(core_response)
-            return cls.redirect_htmx(url_for("assess.assess") if core_response.ok else url_for("assess.get_news_item", news_item_id="0"))
+        except JSONDecodeError:
+            return make_response(cls.render_response_notification({"error": "Invalid JSON file."}), 400)
         except HTTPException:
             raise
         except Exception:
             logger.exception("Failed to create news item from file.")
-            flash("Failed to create news item from file", "error")
+            return make_response(cls.render_response_notification({"error": "Failed to create news item from file."}), 500)
 
-        return cls.redirect_htmx(url_for("assess.get_news_item", news_item_id="0"))
+        if not core_response.ok:
+            return make_response(cls.get_notification_from_response(core_response), core_response.status_code)
+        flash("File imported successfully", "success")
+        return cls.redirect_htmx(url_for("assess.assess"))
 
     @classmethod
     @auth_required()
