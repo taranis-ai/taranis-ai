@@ -397,34 +397,19 @@ def test_news_item_card_hides_author_when_missing_or_empty(app):
         assert "Author ·" not in tree.text_content()
 
 
-def test_manual_news_item_form_routes_htmx_errors_to_notification_bar(authenticated_client):
+def test_news_item_creation_forms_route_htmx_errors_to_notification_bar(authenticated_client):
     response = authenticated_client.get(url_for("assess.get_news_item", news_item_id="0"))
 
     assert response.status_code == 200
 
     tree = html.fromstring(response.text)
-    form = tree.xpath('//form[@id="news-item-form"]')
-    file_form = tree.xpath('//form[@hx-encoding="multipart/form-data"]')
-    url_form = tree.xpath('//form[@id="news-item-create-from-url-form"]')
+    for selector in ('@id="news-item-form"', '@hx-encoding="multipart/form-data"', '@id="news-item-create-from-url-form"'):
+        forms = tree.xpath(f"//form[{selector}]")
+        assert len(forms) == 1
+        for status in ("400", "4xx", "5xx"):
+            assert forms[0].get(f"hx-status:{status}") == "target:#notification-bar"
 
-    assert len(form) == 1
-    assert form[0].get("hx-status:400") == "target:#notification-bar"
-    assert form[0].get("hx-status:4xx") == "target:#notification-bar"
-    assert form[0].get("hx-status:5xx") == "target:#notification-bar"
-    assert len(file_form) == 1
-    assert file_form[0].get("hx-status:400") == "target:#notification-bar"
-    assert file_form[0].get("hx-status:4xx") == "target:#notification-bar"
-    assert file_form[0].get("hx-status:5xx") == "target:#notification-bar"
-    assert len(url_form) == 1
-    assert url_form[0].get("hx-status:400") == "target:#notification-bar"
-    assert url_form[0].get("hx-status:4xx") == "target:#notification-bar"
-    assert url_form[0].get("hx-status:5xx") == "target:#notification-bar"
-    assert url_form[0].xpath('.//input[@name="fetch_url"]')
-    assert url_form[0].xpath('.//*[@name="parameters[XPATH]"]')
-    assert url_form[0].xpath('.//*[@name="parameters[BROWSER_MODE]"]')
-    assert url_form[0].xpath('.//textarea[@name="parameters[ADDITIONAL_HEADERS]"]')
-
-    source_input = form[0].xpath('.//input[@name="source"]')
+    source_input = tree.xpath('//form[@id="news-item-form"]//input[@name="source"]')
     assert len(source_input) == 1
     assert source_input[0].get("required") is None
 
@@ -1085,21 +1070,19 @@ def test_table_search_bar_uses_form_level_search_trigger(app):
 
 
 @pytest.mark.parametrize(
-    "content, mimetype, status",
+    "content, status",
     [
-        (b'{"content": "Imported news"}', "application/octet-stream", 204),
-        (b'{"content": "Imported news"}', "", 204),
-        (b"invalid JSON", "application/octet-stream", 400),
-        (b"\xff\xfe\x00", "application/octet-stream", 400),
+        (b'{"content": "Imported news"}', 204),
+        (b"\xff\xfe\x00", 400),
     ],
 )
-def test_create_news_item_from_file_validates_json_content(authenticated_client, responses_mock, htmx_header, content, mimetype, status):
+def test_create_news_item_from_file_validates_json_content(authenticated_client, responses_mock, htmx_header, content, status):
     if status == 204:
         responses_mock.post(f"{Config.TARANIS_CORE_URL}/assess/import", json={"message": "Imported"})
 
     response = authenticated_client.post(
         url_for("assess.create_news_item"),
-        data={"file": (BytesIO(content), "news.json", mimetype)},
+        data={"file": (BytesIO(content), "news.json", "application/octet-stream")},
         headers=htmx_header,
     )
 

@@ -162,7 +162,8 @@ class NewsItem(BaseModel):
         if not title and not link and not content:
             raise ValueError("At least one of the following parameters must be provided: title, link, content")
         combined_str = f"{title}{link}" or content
-        return hashlib.sha256(combined_str.encode()).hexdigest()
+        digest = hashlib.sha256(combined_str.encode()).hexdigest()
+        return digest if title or link else f"content:{digest}"
 
     @classmethod
     def identical(cls, hash) -> bool:

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import uuid
 from datetime import datetime
 
@@ -162,7 +163,7 @@ def test_news_item_service_update_creates_story_revisions(admin_user):
 
 @pytest.mark.usefixtures("session")
 @pytest.mark.parametrize("content_only", [False, True])
-def test_story_add_single_news_item_detects_duplicates_by_identity(admin_user, content_only):
+def test_story_add_single_news_item_detects_duplicates_by_identity(content_only):
     shared_title = "" if content_only else f"Duplicate {uuid.uuid4()}"
     shared_link = "" if content_only else "https://example.invalid/duplicate"
     first_payload = _news_item_payload(source="manual")
@@ -186,16 +187,32 @@ def test_story_add_single_news_item_detects_duplicates_by_identity(admin_user, c
         second_item = Story.get(second_response["story_id"]).news_items[0]
         assert first_item.hash != second_item.hash
         assert second_item.hash == NewsItem.get_hash(content=second_payload["content"])
-        first_item_id = first_item.id
-        assert NewsItemService.update(first_item.id, {"content": "updated-content"}, admin_user)[1] == 200
         first_response = second_response
         second_response, second_status = Story.add_single_news_item(second_payload)
 
     assert second_status == 409
     assert second_response["error"] == "Identical news item found. Skipping..."
     assert second_response["skipped_news_item_story_id"] == first_response["story_id"]
-    if content_only:
-        assert NewsItemService.update(first_item_id, {"content": second_payload["content"]}, admin_user)[1] == 409
+
+
+@pytest.mark.usefixtures("session")
+@pytest.mark.parametrize("content_first, link", [(False, ""), (True, "https://example.invalid/story")])
+def test_story_add_single_news_item_distinguishes_content_from_title_and_link(content_first, link):
+    title = f"Incident {uuid.uuid4()}"
+    titled_payload = _news_item_payload(source="manual") | {"title": title, "link": link}
+    content_payload = _news_item_payload(source="manual") | {"title": "", "link": "", "content": title + link}
+    payloads = [content_payload, titled_payload] if content_first else [titled_payload, content_payload]
+
+    items = []
+    for payload in payloads:
+        response, status = Story.add_single_news_item(payload)
+        assert status == 200
+        item = Story.get(response["story_id"]).news_items[0]
+        items.append(item)
+
+    assert items[0].hash != items[1].hash
+    titled_item = items[1] if content_first else items[0]
+    assert titled_item.hash == hashlib.sha256((title + link).encode()).hexdigest()
 
 
 @pytest.mark.usefixtures("session")
@@ -217,7 +234,8 @@ def test_story_from_dict_accepts_news_item_tag_mapping():
 
 
 @pytest.mark.usefixtures("session")
-def test_news_item_service_update_rejects_duplicate_title_and_link_hash(admin_user):
+@pytest.mark.parametrize("content_only", [False, True])
+def test_news_item_service_update_rejects_duplicate_identity(admin_user, content_only):
     first_story = _create_story()
     second_story = _create_story()
     first_news_item = first_story.news_items[0]
@@ -225,10 +243,16 @@ def test_news_item_service_update_rejects_duplicate_title_and_link_hash(admin_us
     first_news_item_id = first_news_item.id
     first_story_id = first_story.id
 
+    if content_only:
+        for item in (first_news_item, second_news_item):
+            assert NewsItemService.update(item.id, {"title": "", "link": ""}, admin_user)[1] == 200
+        assert NewsItemService.update(second_news_item.id, {"content": f"updated-{uuid.uuid4()}"}, admin_user)[1] == 200
+        assert second_news_item.hash == NewsItem.get_hash(content=second_news_item.content)
+
     update_payload = {
         "title": first_news_item.title,
         "link": first_news_item.link,
-        "content": f"new-content-{uuid.uuid4()}",
+        "content": first_news_item.content if content_only else f"new-content-{uuid.uuid4()}",
     }
     response, status = NewsItemService.update(second_news_item.id, update_payload, admin_user)
 
