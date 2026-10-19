@@ -1,0 +1,3 @@
+rules:
+  unpinned-uses: off
+  superfluous-actions: off

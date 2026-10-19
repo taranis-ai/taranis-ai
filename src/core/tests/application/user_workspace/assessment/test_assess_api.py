@@ -25,8 +25,9 @@ class TestAssessApi(BaseTest):
             json={"story_id": story.id, "bot_id": bot_type if use_type else bot.id},
         )
         assert response.status_code == 200, response.json
-        job = app.extensions["rq"].get_queue("bots").fetch_job(f"bot_{bot.id}")
-        assert job is not None
+        jobs = [job for job in app.extensions["rq"].get_queue("bots").get_jobs() if job.kwargs.get("bot_id") == bot.id]
+        assert len(jobs) == 1
+        job = jobs[0]
         assert job.kwargs["bot_id"] == bot.id
         assert job.kwargs["filter"] == {"story_id": story.id}
         assert job.meta["user_id"] == User.find_by_name("admin").id

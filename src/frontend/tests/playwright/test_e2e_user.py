@@ -1371,6 +1371,7 @@ class TestEndToEndUser(BaseE2ETest):
         load_product_list()
         add_product()
         expect(page.get_by_test_id("copy-product")).to_be_visible()
+        expect(page.locator("[data-product-report-items-enhanced]")).to_be_visible()
         source_url = page.url
         product_type = page.locator("#product_type_id").input_value()
 

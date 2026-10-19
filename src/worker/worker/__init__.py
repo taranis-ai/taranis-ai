@@ -28,6 +28,8 @@ def get_redis_connection(redis_url: str, redis_password: str | None, *, decode_r
         redis_url,
         password=redis_password,
         decode_responses=decode_responses,
+        # RQ drops maintenance settings when rebuilding scheduler and spawned-worker connections.
+        protocol=2,
         maint_notifications_config=MaintNotificationsConfig(enabled=False),
     )
 

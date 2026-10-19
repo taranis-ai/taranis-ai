@@ -66,6 +66,7 @@ class TestWorkerApi:
     @pytest.mark.parametrize("preceding_candidates", [0, 501])
     def test_fuzzy_collection_groups_distinct_urls(self, client, api_header, session, preceding_candidates):
         from core.model.news_item import NewsItem
+        from core.model.news_item_attribute import NewsItemAttribute
         from tests.application.support.builders import build_news_item_payload, create_osint_source, create_story
 
         source = create_osint_source(rank=0)
@@ -79,10 +80,18 @@ class TestWorkerApi:
         body = (Path(__file__).parents[2] / "test_data" / "fuzzy_article.txt").read_text()
         original = build_news_item_payload(source.id, content=body)
         duplicate = build_news_item_payload(source.id, content=body.replace("on Tuesday", "on Wednesday"))
-        response = client.post(f"{self.base_uri}/news-items", json=[original, duplicate], headers=api_header)
+        response = client.post(f"{self.base_uri}/news-items", json=[original], headers=api_header)
         assert response.status_code == 200
-        assert response.json["news_item_ids"] == [original["id"], duplicate["id"]]
+        story = NewsItem.get(original["id"]).story
+        story.upsert_attribute(NewsItemAttribute("SUMMARY_BOT", "completed"))
+        session.commit()
+
+        response = client.post(f"{self.base_uri}/news-items", json=[duplicate], headers=api_header)
+        assert response.status_code == 200
+        assert response.json["news_item_ids"] == [duplicate["id"]]
+        assert response.json["story_ids"] == [story.id]
         assert response.json["counts"]["grouped"] == 1
+        assert story.find_attribute_by_key("SUMMARY_BOT") is None
         assert NewsItem.get(original["id"]).story_id == NewsItem.get(duplicate["id"]).story_id
         assert NewsItem.get(original["id"]).fuzzy_hash
 
@@ -96,6 +105,7 @@ class TestWorkerApi:
         from models.revision_diff import build_story_revision_diff_payload
 
         from core.model.news_item import NewsItem
+        from core.model.news_item_attribute import NewsItemAttribute
         from core.model.revision import StoryRevision
         from core.model.story import Story
         from tests.application.support.builders import build_news_item_payload, create_osint_source
@@ -111,6 +121,7 @@ class TestWorkerApi:
         story.read = True
         story.title = "Analyst headline"
         story.summary = "Analyst summary"
+        story.upsert_attribute(NewsItemAttribute("SUMMARY_BOT", "completed"))
         item.review = "Analyst review"
         session.commit()
         published, collected = item.published, item.collected
@@ -125,6 +136,8 @@ class TestWorkerApi:
         assert response.status_code == 200
         assert response.json["counts"]["updated"] == 1
         assert response.json["news_item_ids"] == [item.id]
+        assert response.json["story_ids"] == [story.id]
+        assert story.find_attribute_by_key("SUMMARY_BOT") is None
         assert len(story.news_items) == 1
         assert item.content == corrected["content"]
         assert item.title == corrected["title"]
@@ -140,6 +153,8 @@ class TestWorkerApi:
         diff = build_story_revision_diff_payload(story.id, story.title, revisions[-2].to_dict(), revisions[-1].to_dict())
         assert any(change.field.endswith(": Content") for change in diff.changes)
         revision_count = story.revision
+        story.upsert_attribute(NewsItemAttribute("SUMMARY_BOT", "completed-again"))
+        session.commit()
         older = original | {"published": (item.published - timedelta(seconds=1)).isoformat()}
         for retry, expected_action in (
             (corrected, "unchanged"),
@@ -152,6 +167,7 @@ class TestWorkerApi:
             assert response.json["counts"][expected_action] == 1
             assert item.content == corrected["content"]
             assert story.revision == revision_count
+            assert story.find_attribute_by_key("SUMMARY_BOT").value == "completed-again"
 
         # A newer date alone advances the comparison date without creating a content revision.
         newer_published = item.published + timedelta(days=1)
@@ -407,18 +423,24 @@ class TestWorkerApi:
         def fake_post_collection_bots(source_id, user_id=None, story_ids=None):
             captured["source_id"] = source_id
             captured["user_id"] = user_id
+            captured["story_ids"] = story_ids
             return {"message": "scheduled"}, 200
 
         monkeypatch.setattr("core.api.worker.queue_manager.queue_manager.post_collection_bots", fake_post_collection_bots)
 
         response = client.put(
             f"{self.base_uri}/post-collection-bots",
-            json={"source_id": "source-1", "user_id": "user-1"},
+            json={"source_id": "source-1", "user_id": "user-1", "story_ids": ["changed-story"]},
             headers=api_header,
         )
 
         assert response.status_code == 200
-        assert captured == {"source_id": "source-1", "user_id": "user-1"}
+        assert captured == {"source_id": "source-1", "user_id": "user-1", "story_ids": ["changed-story"]}
+        for invalid in (None, "changed-story", [1], [""]):
+            response = client.put(
+                f"{self.base_uri}/post-collection-bots", json={"source_id": "source-1", "story_ids": invalid}, headers=api_header
+            )
+            assert response.status_code == 400
 
     @pytest.mark.parametrize(
         "result_payload",
@@ -744,6 +766,14 @@ class TestWorkerApi:
         assert all(tag.get("tag_type") == "misc" for tag in updated_tags)
         assert refreshed == [[story_1_id]]
 
+        revision = updated_story["revision"]
+        response = client.put(f"{self.base_uri}/tags?replace=false", json={news_item_id: {"Microsoft": "ORG"}}, headers=api_header)
+        assert response.status_code == 200
+        appended = client.get(f"{self.base_uri}/stories", headers=api_header, query_string={"story_id": story_1_id}).json[0]
+        item = next(item for item in appended["news_items"] if item["id"] == news_item_id)
+        assert {tag["name"]: tag["tag_type"] for tag in item["tags"]} == {"tag3": "misc", "tag4": "misc", "Microsoft": "ORG"}
+        assert appended["revision"] == revision + 1
+
     def test_worker_put_tags_invalid_cases(self, client, stories, api_header):
         story_1_id = stories[0]
         story_response = client.get(f"{self.base_uri}/stories", headers=api_header, query_string={"story_id": story_1_id})
@@ -783,6 +813,9 @@ class TestWorkerApi:
         response = client.put(f"{self.base_uri}/tags", json={}, headers=api_header)
         assert response.status_code == 400
         assert "error" in response.get_json()
+
+        response = client.put(f"{self.base_uri}/tags?replace=invalid", json={news_item_id: ["tag1"]}, headers=api_header)
+        assert response.status_code == 400
 
     def test_worker_story_roundtrip_preserves_news_item_tag_distribution(self, client, full_story_with_multiple_items_id, api_header):
         story_id, _ = full_story_with_multiple_items_id

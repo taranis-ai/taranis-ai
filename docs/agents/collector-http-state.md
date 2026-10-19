@@ -9,7 +9,7 @@ RSS/Simple Web conditional requests, ETag/Last-Modified, 304 results, collector 
 - Scheduled collection replays stored validators only when the configured primary URL still matches. Manual runs bypass conditional headers. ETags (including weak tags) are opaque. Stored ETag and Last-Modified validators apply only to the primary URL; never replay feed validators to linked articles, digests, attachments, icons, or a shared browser session.
 - Only a primary-resource 200 replaces validators. A primary-resource 304 preserves them and reports `NOT_MODIFIED`, except it must retain a preceding failure, the `rss_feed_empty` reason/message, or an RSS entry-limit `WARNING` for the same URL. Unchanged content cannot prove recovery. `HTTPNotModifiedError` identifies the URL and whether it is the primary resource; duplicate-only publication and secondary-resource 304s do not retain prior source health.
 - Validator state is source-keyed runtime data, independent of task retention, exposed as worker-only `http_validators` and returned in task results. Do not put it in editable parameters or derive it from task times.
-- Fetch/parse/publish failures propagate to `collector_task`, persist FAILURE, and prevent post-collection bots. Cleanup must still run and must not return from `finally`.
+- Fetch/parse/publish failures propagate to `collector_task` and persist FAILURE. Post-collection bots receive only IDs successfully committed during this run, including progress before partial ingestion failure; no affected IDs means no bot dispatch. Cleanup must still run and must not return from `finally`. See [Fuzzy Deduplication](fuzzy-deduplication.md) for content-change detection.
 
 ## Network Failures
 

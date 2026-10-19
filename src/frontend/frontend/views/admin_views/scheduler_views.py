@@ -4,7 +4,7 @@ from flask import render_template, request
 from flask.typing import ResponseReturnValue
 from flask.views import MethodView
 from models.admin import ActiveJob, FailedJob, Job, QueueStatus, WorkerStats
-from models.task import TaskHistoryResponse
+from models.task import TaskHistoryResponse, TaskRun, TaskRunFilter
 from werkzeug.exceptions import HTTPException
 
 from frontend.auth import auth_required
@@ -18,7 +18,7 @@ from frontend.views.base_view import BaseView
 
 def _task_stats_page(task_history: TaskHistoryResponse) -> CacheObject:
     paging_data = parse_paging_data()
-    rows = [
+    rows: list[dict[str, Any]] = [
         {
             "id": task_id,
             "task": stats.worker_type or task_id,
@@ -57,6 +57,20 @@ def _task_stats_page(task_history: TaskHistoryResponse) -> CacheObject:
     return CacheObject(rows[offset : offset + limit], total_count=len(rows), page=page, limit=limit, order=order)
 
 
+def _completed_runs_page() -> CacheObject:
+    filters = TaskRunFilter.model_validate(request.args.to_dict())
+    paging = parse_paging_data().model_copy(
+        update={
+            "page": filters.page,
+            "limit": filters.limit,
+            "order": filters.order,
+            "search": filters.search,
+            "query_params": {**{key: str(value) for key, value in filters.model_dump(exclude_none=True).items()}, "tab": "completed"},
+        }
+    )
+    return DataPersistenceLayer().get_objects(TaskRun, paging)
+
+
 class SchedulerView(AdminBaseView):
     model = Job
     icon = "calendar-days"
@@ -66,13 +80,13 @@ class SchedulerView(AdminBaseView):
     base_route = "admin.scheduler"
     _read_only = True
     _index = 61
-    allowed_tabs = frozenset({"scheduled", "active", "failed", "history"})
+    allowed_tabs = frozenset({"scheduled", "active", "completed", "failed", "history"})
 
     @classmethod
     def _resolve_tab(cls, initial_tab: str | None) -> str:
         tab = (request.args.get("tab") or initial_tab or "scheduled").lower()
         match tab:
-            case "scheduled" | "active" | "failed" | "history":
+            case "scheduled" | "active" | "completed" | "failed" | "history":
                 return tab
             case _:
                 return "scheduled"
@@ -84,7 +98,7 @@ class SchedulerView(AdminBaseView):
             persistence = DataPersistenceLayer()
             queues = persistence.get_objects(QueueStatus)
             worker_stats = persistence.get_object(WorkerStats)
-            jobs = active_jobs = failed_jobs = task_stats = None
+            jobs = active_jobs = failed_jobs = task_stats = completed_runs = None
             total_successes = total_warnings = total_failures = overall_success_rate = 0
 
             paging_data = parse_paging_data()
@@ -93,6 +107,8 @@ class SchedulerView(AdminBaseView):
                     jobs = persistence.get_objects(Job, paging_data)
                 case "active":
                     active_jobs = persistence.get_objects(ActiveJob, paging_data)
+                case "completed":
+                    completed_runs = _completed_runs_page()
                 case "failed":
                     failed_jobs = persistence.get_objects(FailedJob, paging_data)
                 case "history":
@@ -112,6 +128,7 @@ class SchedulerView(AdminBaseView):
                     "queues": queues,
                     "worker_stats": worker_stats,
                     "active_jobs": active_jobs,
+                    "completed_runs": completed_runs,
                     "failed_jobs": failed_jobs,
                     "task_stats": task_stats,
                     "total_successes": total_successes,
@@ -197,6 +214,14 @@ class ScheduleFailedJobsAPI(MethodView):
             raise
         except Exception as exc:  # pragma: no cover - defensive rendering path
             return BaseView.render_response_notification({"error": f"Failed to load failed jobs: {exc}"}), 500
+
+
+class ScheduleCompletedRunsAPI(MethodView):
+    @auth_required()
+    def get(self):
+        if not is_htmx_request():
+            return SchedulerView().get(initial_tab="completed")
+        return render_template("schedule/completed_runs.html", completed_runs=_completed_runs_page())
 
 
 class ScheduleHistoryAPI(MethodView):

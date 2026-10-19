@@ -22,6 +22,13 @@ Run component commands from that component's directory; CI definitions are in `.
 - Models has no unit tests. Worker browser-scraping tests require Playwright browsers.
 - Core tests use in-process Redis fakes to avoid affecting running instances. Do not uncomment disabled E2E admin tests on `master` without proving they pass.
 - Project Codex configuration filters inherited `DEBUG` values so the extension's `DEBUG=release` cannot override component boolean settings.
+- `jactionlint` reads `.github/jactionlint.yaml`. It allows version-tagged actions and the release action while keeping other workflow checks enabled.
+- Workflows with `run` steps set `defaults.run.shell: bash` so a failing pipeline command fails the step. Keep exceptions explicit at the step level.
+- The model package workflow disables uv caching because pushed tags publish package artifacts.
+- The Copilot setup workflow validates matching changes on pull requests and on pushes to `master`; Copilot also runs its setup steps when an agent starts.
+- CI checkout steps use `persist-credentials: false`; give later Git write steps credentials explicitly if a workflow needs them.
+- CI job timeouts use twice the longest successful GitHub Actions job duration, rounded up to five minutes with a ten-minute minimum. Refresh them from `gh` job history when workloads change.
+- CI concurrency is scoped by workflow: newer `master` image builds replace older ones, while pull request checks replace only older runs for that same PR. Manual checks can run independently. Model package tags run per tag; releases queue because they share the `stable` image tags, and only the highest numeric release tag updates `stable`.
 
 ### Feature Signoff Loop
 

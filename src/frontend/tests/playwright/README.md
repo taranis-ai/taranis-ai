@@ -12,7 +12,7 @@ pytest --e2e-ci
 
 The E2E harness starts and stops a dedicated Docker/Podman Compose test stack automatically for the session.
 Core is started from a plain Python container with `src/core` mounted, so Core code changes are picked up without image rebuilds.
-The harness starts only Core and Redis unless a selected `e2e_full_stack` test requires the worker, cron, and testdata services.
+The harness starts Core, Redis, and a scripted demo chat provider unless a selected `e2e_full_stack` test also requires the worker, cron, and testdata services.
 You need Docker Compose or Podman Compose available locally. For Podman, install `podman` and either `podman-compose` or a working `podman compose` provider.
 The same frontend-owned test root also contains the RQ/Redis integration E2E suite.
 The frontend test app runs in a spawned Werkzeug server process. This avoids Python 3.14's unsafe `fork()` behavior in
@@ -31,9 +31,50 @@ All flags:
 - `--e2e-ci` - e2e tests of user and admin parts (headless)
 - `--e2e-admin` - end to end tests of admin section; generate pictures for documentation (also User sections)
 - `--record-video` - record a video (save to `src/frontend/tests/playwright/videos`)
-- `--highlight-delay=<float>` - control time (seconds) to highlight elements in the video (`default=2`)
+- `--highlight-delay=<float>` - control time (seconds) to highlight elements in the video (pytest default: `0`; recording script default: `2`)
 - `--e2e-trace` - record unique traces for stack-backed browser tests
 - `-s` - see all logs on stdout
+
+### Record the landing-page workflow
+
+From the repository root, create one final WebM of the complete analyst workflow, including Chat:
+
+```bash
+./dev/record_workflow_video.py
+```
+
+Requires `uv`, `ffmpeg`, and the normal Playwright/Compose test setup. The script runs all workflow tests,
+joins the clips in workflow order without re-encoding, and creates a 1920×1080 WebM. It prints the absolute path and copy instruction:
+
+```text
+Video created -> it is here: /path/to/taranis-ai/src/frontend/tests/playwright/videos/taranis-walkthrough-video.webm
+Now copy to 'taranis.ai' repository under 'static/taranis-walkthrough-video.webm'
+```
+
+Use `--output /path/to/demo.webm` to choose the destination, or `--highlight-delay=0` for a quick run instead of the default two-second highlights.
+Clips are recorded in a temporary directory and removed after the run. An existing final video is replaced only after the tests and encoding succeed.
+The script requires the isolated local stack so the Chat segment always uses the scripted provider.
+
+To keep separate raw clips instead, run from `src/frontend`:
+
+```bash
+uv run pytest tests/playwright/test_e2e_workflow.py --e2e-user-workflow --record-video --highlight-delay=2
+```
+
+To record only the Chat segment:
+
+```bash
+uv run pytest tests/playwright/test_e2e_workflow.py::TestUserWorkflow::test_chat --e2e-user-workflow --record-video --highlight-delay=2
+```
+
+Direct pytest recording saves a WebM per browser page under `tests/playwright/videos/`. The script above joins clips automatically.
+The Assess segment keeps triage brief: review two stories, mark them read, then flag those same stories as important. Detailed filtering, bulk actions, clustering, and editing remain covered by the regular user E2E workflows.
+The Chat segment shows a ransomware search, an unread follow-up, reopening saved history, clicking the matching-stories link, and opening a source story in Assess to inspect the evidence.
+It uses the real frontend, Core search, and conversation persistence with three disposable demo stories.
+Only the provider is scripted (`fixtures/chat_provider.py`, the internal `demo-llm` Compose service): no credentials or real LLM calls are needed.
+Chat is enabled in the local E2E servers. The fixture temporarily assigns the demo provider only to Chat and restores the assignment afterward.
+The demo is skipped against external instances, so recording cannot reconfigure their providers. Successful runs remove their demo conversation and stories.
+Chat uses the same highlight helper and instant form filling as the other segments: `--highlight-delay=0` adds no typing or reading delays; a positive delay highlights the controls, answer bubbles, evidence link, and source content for that duration. Headless CI also runs this workflow without highlights or pauses.
 
 ### Run only the RQ/Redis integration E2E suite
 

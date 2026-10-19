@@ -64,7 +64,13 @@ info
 {% endmacro %}
 
 {% macro endpoint_health_badge(health) %}
-  {% set labels = {"up": "Endpoint OK", "down": "Endpoint error", "pending": "Endpoint pending", "n/a": "Endpoint unchecked"} %}
+  {% set labels = {
+    "up": "Endpoint OK",
+    "down": "Endpoint error",
+    "pending": "Endpoint pending",
+    "n/a": "Endpoint unchecked",
+    "disabled": "Endpoint disabled"
+  } %}
   <span class="badge badge-{{ 'error' if health.status == 'down' else 'success' if health.status == 'up' else 'warning' }}"
         title="{{ health.message }}"
         data-test-id="endpoint-health">{{ labels.get(health.status, 'Endpoint unchecked') }}</span>

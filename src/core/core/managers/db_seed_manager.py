@@ -66,7 +66,6 @@ def pre_seed_update(db_engine: Engine):
     from core.model.bot import Bot
     from core.model.product_type import ProductType
     from core.model.report_item import ReportItemType
-    from core.model.settings import Settings
 
     pre_seed_source_groups()
     pre_seed_manual_source()
@@ -105,17 +104,22 @@ def pre_seed_update(db_engine: Engine):
         if not pt:
             ProductType.add(p)
 
-    Settings.initialize()
+    pre_seed_llm_endpoints()
 
 
-def migrate_bot_endpoint_parameters(settings):
+def pre_seed_llm_endpoints():
     from models.llm import LLM_BOT_FEATURES, LLMEndpoint
 
     from core.managers.db_manager import db
     from core.model.bot import Bot
     from core.model.settings import Settings
 
-    endpoint = LLMEndpoint(name="internal", base_url="http://llm-inference:8000/v1", api_format="chat_completions").model_dump()
+    Settings.initialize()
+    settings = Settings.get_settings_entry()
+    assert settings is not None
+    endpoint = LLMEndpoint(
+        name="internal", base_url="http://llm-inference:8000/v1", api_format="chat_completions", enabled=not Config.DEBUG
+    ).model_dump()
     endpoint["api_key"] = Config.LLM_INFERENCE_API_KEY.get_secret_value()
     values = deepcopy(settings.settings)
     endpoints = values["llm_endpoints"]
@@ -137,6 +141,7 @@ def migrate_bot_endpoint_parameters(settings):
         obsolete = obsolete_parameters if bot.type.value in LLM_BOT_FEATURES else {"INTEL_OWL_EMAIL_ENRICHMENT"}
         if obsolete.intersection(bot.parameters):
             bot.parameters = {key: value for key, value in bot.parameters.items() if key not in obsolete}
+    db.session.commit()
 
 
 def cleanup_invalid_source_icons():
@@ -562,7 +567,6 @@ def pre_seed_default_user():
 
 def pre_seed_assets():
     from core.model.asset import AssetGroup
-    from core.model.settings import Settings
 
     AssetGroup.get_default_group()
-    Settings.initialize()
+    pre_seed_llm_endpoints()

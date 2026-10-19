@@ -13,10 +13,10 @@
     "sweetalert2": "npm:sweetalert2@^11.26.25",
     "tailwindcss": "npm:tailwindcss@4.3.0",
     "@codemirror/state": "npm:@codemirror/state@^6.7.6",
-    "@codemirror/view": "npm:@codemirror/view@^6.43.13",
+    "@codemirror/view": "npm:@codemirror/view@^6.43.14",
     "@codemirror/commands": "npm:@codemirror/commands@^6.11.1",
-    "@codemirror/language": "npm:@codemirror/language@^6.12.4",
-    "@codemirror/legacy-modes": "npm:@codemirror/legacy-modes@^6.5.4",
+    "@codemirror/language": "npm:@codemirror/language@^6.13.1",
+    "@codemirror/legacy-modes": "npm:@codemirror/legacy-modes@^6.5.5",
     "@codemirror/merge": "npm:@codemirror/merge@^6.12.2",
     "codemirror": "npm:codemirror@^6.0.2"
   },

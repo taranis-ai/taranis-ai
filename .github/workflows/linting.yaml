@@ -1,5 +1,13 @@
 name: test and lint
 
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
 on:
   workflow_dispatch:
   pull_request:
@@ -13,6 +21,7 @@ env:
 
 jobs:
   detect_signoff:
+    timeout-minutes: 10
     name: detect signoff
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: ubuntu-latest
@@ -57,6 +66,7 @@ jobs:
             core.setOutput("signedoff", signedoff ? "true" : "false");
 
   test_core:
+    timeout-minutes: 10
     name: pytest core
     needs: detect_signoff
     if: (github.event_name != 'pull_request' || github.event.pull_request.draft == false) && needs.detect_signoff.outputs.signedoff != 'true'
@@ -66,9 +76,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v8.2.0
+        uses: astral-sh/setup-uv@v10.3.0
         with:
           enable-cache: true
 
@@ -93,13 +105,16 @@ jobs:
         run: |
           set -o pipefail
           uv run pytest | tee pytest_output.txt
-          echo "### Test Summary" >> $GITHUB_STEP_SUMMARY
-          echo "- **✅ Passed:** $(grep -oP '\d+(?= passed)' pytest_output.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
-          echo "- **❌ Failed:** $(grep -oP '\d+(?= failed)' pytest_output.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
-          echo "- **⚠️ Skipped:** $(grep -oP '\d+(?= skipped)' pytest_output.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
-          echo "- **🚨 Errors:** $(grep -oP '\d+(?= error)' pytest_output.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
+          {
+            echo "### Test Summary"
+            echo "- **✅ Passed:** $(grep -oP '\d+(?= passed)' pytest_output.txt || echo 0)"
+            echo "- **❌ Failed:** $(grep -oP '\d+(?= failed)' pytest_output.txt || echo 0)"
+            echo "- **⚠️ Skipped:** $(grep -oP '\d+(?= skipped)' pytest_output.txt || echo 0)"
+            echo "- **🚨 Errors:** $(grep -oP '\d+(?= error)' pytest_output.txt || echo 0)"
+          } >> "$GITHUB_STEP_SUMMARY"
 
   test_frontend:
+    timeout-minutes: 15
     name: pytest frontend
     needs: detect_signoff
     if: (github.event_name != 'pull_request' || github.event.pull_request.draft == false) && needs.detect_signoff.outputs.signedoff != 'true'
@@ -109,9 +124,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v8.2.0
+        uses: astral-sh/setup-uv@v10.3.0
         with:
           enable-cache: true
 
@@ -137,13 +154,16 @@ jobs:
         run: |
           set -o pipefail
           uv run pytest | tee pytest_output.txt
-          echo "### Test Summary" >> $GITHUB_STEP_SUMMARY
-          echo "- **✅ Passed:** $(grep -oP '\d+(?= passed)' pytest_output.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
-          echo "- **❌ Failed:** $(grep -oP '\d+(?= failed)' pytest_output.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
-          echo "- **⚠️ Skipped:** $(grep -oP '\d+(?= skipped)' pytest_output.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
-          echo "- **🚨 Errors:** $(grep -oP '\d+(?= error)' pytest_output.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
+          {
+            echo "### Test Summary"
+            echo "- **✅ Passed:** $(grep -oP '\d+(?= passed)' pytest_output.txt || echo 0)"
+            echo "- **❌ Failed:** $(grep -oP '\d+(?= failed)' pytest_output.txt || echo 0)"
+            echo "- **⚠️ Skipped:** $(grep -oP '\d+(?= skipped)' pytest_output.txt || echo 0)"
+            echo "- **🚨 Errors:** $(grep -oP '\d+(?= error)' pytest_output.txt || echo 0)"
+          } >> "$GITHUB_STEP_SUMMARY"
 
   e2e_tests:
+    timeout-minutes: 35
     name: End-to-End Tests
     if: (github.event_name != 'pull_request' || github.event.pull_request.draft == false) && needs.detect_signoff.outputs.signedoff != 'true'
     runs-on: ubuntu-latest
@@ -152,17 +172,19 @@ jobs:
       TARANIS_E2E_PROJECT_NAME: taranis-e2e-ci-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v8.2.0
+        uses: astral-sh/setup-uv@v10.3.0
         with:
           enable-cache: true
 
       - name: Set PLAYWRIGHT_BROWSERS_PATH and TRACES_ARTIFACT_NAME
         run: |
-          echo "PLAYWRIGHT_BROWSERS_PATH=$HOME/.cache/ms-playwright" >> $GITHUB_ENV
+          echo "PLAYWRIGHT_BROWSERS_PATH=$HOME/.cache/ms-playwright" >> "$GITHUB_ENV"
           TRACES_ARTIFACT_NAME="playwright-traces-${{ github.event.pull_request.number || github.run_number }}"
-          echo "TRACES_ARTIFACT_NAME=${TRACES_ARTIFACT_NAME//\//-}" >> $GITHUB_ENV
+          echo "TRACES_ARTIFACT_NAME=${TRACES_ARTIFACT_NAME//\//-}" >> "$GITHUB_ENV"
 
       - name: Check Playwright version consistency in uv.lock files
         run: |
@@ -231,6 +253,7 @@ jobs:
           path: src/frontend/test-results/
 
   test_worker:
+    timeout-minutes: 40
     name: pytest worker
     needs: detect_signoff
     if: (github.event_name != 'pull_request' || github.event.pull_request.draft == false) && needs.detect_signoff.outputs.signedoff != 'true'
@@ -240,9 +263,11 @@ jobs:
         working-directory: src/worker
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v8.2.0
+        uses: astral-sh/setup-uv@v10.3.0
         with:
           enable-cache: true
 
@@ -268,13 +293,16 @@ jobs:
         run: |
           set -o pipefail
           uv run pytest | tee pytest_output.txt
-          echo "### Test Summary" >> $GITHUB_STEP_SUMMARY
-          echo "- **✅ Passed:** $(grep -oP '\d+(?= passed)' pytest_output.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
-          echo "- **❌ Failed:** $(grep -oP '\d+(?= failed)' pytest_output.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
-          echo "- **⚠️ Skipped:** $(grep -oP '\d+(?= skipped)' pytest_output.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
-          echo "- **🚨 Errors:** $(grep -oP '\d+(?= error)' pytest_output.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
+          {
+            echo "### Test Summary"
+            echo "- **✅ Passed:** $(grep -oP '\d+(?= passed)' pytest_output.txt || echo 0)"
+            echo "- **❌ Failed:** $(grep -oP '\d+(?= failed)' pytest_output.txt || echo 0)"
+            echo "- **⚠️ Skipped:** $(grep -oP '\d+(?= skipped)' pytest_output.txt || echo 0)"
+            echo "- **🚨 Errors:** $(grep -oP '\d+(?= error)' pytest_output.txt || echo 0)"
+          } >> "$GITHUB_STEP_SUMMARY"
 
   local_or_ci:
+    timeout-minutes: 10
     name: local or ci
     if: always() && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
     runs-on: ubuntu-latest

@@ -1,11 +1,10 @@
 from typing import Any
+from unittest.mock import patch
 
 import pytest
+from rq.timeouts import JobTimeoutException
 
 from worker import bots
-
-
-pytestmark = pytest.mark.usefixtures("set_transformers_offline")
 
 
 class FakeIntelOwlClient:
@@ -25,7 +24,8 @@ class FakeIntelOwlClient:
         }
 
 
-def test_intelowl_bot_submits_unique_tagged_observables_before_polling(monkeypatch: Any) -> None:
+@pytest.mark.parametrize("deadline_phase", [None, "send_observable_analysis_request", "get_job_by_id"])
+def test_intelowl_bot_submits_unique_tagged_observables_before_polling(monkeypatch: Any, deadline_phase: str | None) -> None:
     stories = [
         {
             "id": "story-1",
@@ -49,13 +49,16 @@ def test_intelowl_bot_submits_unique_tagged_observables_before_polling(monkeypat
     monkeypatch.setattr(bot, "_create_client", lambda *args: client)
     bot.poll_delay_seconds = 0
 
-    result = bot.execute(
-        {
-            "INTEL_OWL_URL": "https://intelowl.example",
-            "INTEL_OWL_API_KEY": "secret-token",
-            "filter": {"story_ids": ["story-1", "story-2"]},
-        }
-    )
+    parameters = {
+        "INTEL_OWL_URL": "https://intelowl.example",
+        "INTEL_OWL_API_KEY": "secret-token",
+        "filter": {"story_ids": ["story-1", "story-2"]},
+    }
+    if deadline_phase:
+        with patch.object(client, deadline_phase, side_effect=JobTimeoutException("private details")), pytest.raises(JobTimeoutException):
+            bot.execute(parameters)
+        return
+    result = bot.execute(parameters)
 
     assert [call[0] for call in client.submissions] == ["CVE-2024-1234", "analyst@example.com"]
     assert client.submissions[0][1]["analyzers_requested"] == ["NVD_CVE", "Vulners"]

@@ -35,6 +35,7 @@ class TaggingBot(BaseBot):
                     if (finding := re.search(f"({regexp})", element.strip(".,"))) and finding[1] not in existing_tags:
                         findings.add(finding[1])
                 found_tags[news_item["id"]] = sorted(findings)
+                self.save_tags(news_item["id"], news_item.get("story_id", story["id"]), found_tags[news_item["id"]])
 
         logger.info({"message": f"Extracted {len(found_tags)} tags"})
         return found_tags

@@ -217,7 +217,7 @@
   </form>
 {% endmacro %}
 
-{% macro table_search_bar(table_id, base_url, preserve_params=[], search_delay=500) %}
+{% macro table_search_bar(table_id, base_url, preserve_params=[], search_delay=500, filters="") %}
   {% set current_search = request.args.get('search', '') %}
   <div class="grow">
     <form method="get"
@@ -233,6 +233,7 @@
           hx-swap="outerHTML"
           hx-sync="this:replace"
           hx-on::before:request="restoreSearchAfterSwap(ctx)">
+      {{ filters }}
       <label class="input w-full">
         {{ heroicon_outline('magnifying-glass', class="h-5 w-5") }}
         <input type="search"
