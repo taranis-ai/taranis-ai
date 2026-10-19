@@ -703,6 +703,12 @@ def test_assess_filters_support_htmx_and_native_form_submission(authenticated_cl
     assert clear_button.get("hx-include") == "#assess-sidebar"
     assert filter_form.get("hx-target:inherited") == "#assess"
     assert filter_form.get("hx-swap:inherited") == "outerHTML"
+    notification_rule = "target:#notification-bar select:#notification-bar swap:outerHTML"
+    assert filter_form.get("hx-status:5xx:inherited") == notification_rule
+    for test_id in ("bulk-toggle-read", "bulk-toggle-important", "delete-story"):
+        buttons = tree.xpath(f'//button[@data-testid="{test_id}"]')
+        assert buttons
+        assert all(button.get("hx-status:5xx") == notification_rule for button in buttons)
     assert filter_form.get("hx-push-url:inherited") == "true"
     assert clear_button.get("hx-on::config:request") == (
         "ctx.request.body.delete('timefrom'); ctx.request.body.delete('timeto'); ctx.request.body.delete('range')"
