@@ -1,9 +1,8 @@
 from llm_bot.schemas import NerRequest, NerResponse
 from llm_bot.tasks.ner import prepare_ner
-from niquests.exceptions import RequestException
 from rq import Retry
 
-from worker.llm import LLMTaskError, get_llm_client, run_llm_tasks
+from worker.llm import get_llm_client, run_llm_tasks
 from worker.log import logger
 
 from .base_bot import BaseBot
@@ -42,17 +41,7 @@ class NLPBot(BaseBot):
         def upload_tags(index: int, result: NerResponse) -> None:
             item_id, story_id = items[index]
             logger.info(f"Saving NER for news item {item_id} ({index + 1}/{len(items)})")
-            if result.root:
-                try:
-                    response = self.core_api.api_put("/worker/tags?replace=false", {item_id: result.root})
-                except RequestException:
-                    logger.exception(f"Failed to upload NER tags for news item {item_id}")
-                    response = None
-                if not response or response.get("errors"):
-                    raise LLMTaskError("Could not save extracted NER tags. Check Core connectivity and worker logs.", "ner_save_failed")
-                if story_id in self.story_revisions:
-                    # Each successful tag update records one story revision.
-                    self.story_revisions[story_id] += 1
+            self.save_tags(item_id, story_id, result.root)
 
         results = run_llm_tasks(tasks, self.llm_client, parameters, on_result=upload_tags)
         if isinstance(results, Retry):

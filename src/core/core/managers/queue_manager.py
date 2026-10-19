@@ -1564,9 +1564,9 @@ class QueueManager:
             current = state.get("llm_batch", state)
             processed = len(current.get("responses", [])) or current.get("completed_items", 0)
             lines.append(f"Completed LLM requests in current bot: {processed}")
-            lines.append("Checkpoint retained. Previously saved NER tags are retained.")
+            lines.append("Checkpoint retained. Previously saved tags are retained.")
         elif meta.get("worker_type") == "BOT_PIPELINE":
-            lines.append("No checkpoint was recorded for this run. A rerun starts from the beginning; previously saved NER tags remain.")
+            lines.append("No checkpoint was recorded for this run. A rerun starts from the beginning; previously saved tags remain.")
         if (meta.get("bot_timeout") or {}).get("stalled", 0) >= 3:
             lines.append("Automatic continuation stopped after three consecutive execution timeouts without progress.")
         lines.append(f"Worker log reference: {job.id}")

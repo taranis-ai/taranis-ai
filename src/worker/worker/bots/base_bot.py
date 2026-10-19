@@ -1,7 +1,10 @@
+from collections.abc import Callable
 from urllib.parse import parse_qs
 
+from niquests.exceptions import RequestException
 from rq import Retry
 
+from worker.bot_api import BotTagSaveError
 from worker.core_api import CoreApi
 from worker.log import logger
 
@@ -14,6 +17,27 @@ class BaseBot:
         self.description = "Base abstract type for all bots"
         self.language: str | None = None
         self.model: str | None = None
+        self.story_revisions: dict[str, int] = {}
+        self.saved_tag_items: dict[str, bool] = {}
+        self.save_tag_state: Callable[[], None] | None = None
+
+    def save_tags(self, item_id: str, story_id: str, tags: dict | list) -> None:
+        if self.save_tag_state and item_id in self.saved_tag_items:
+            return
+        if tags:
+            try:
+                response = self.core_api.api_put("/worker/tags?replace=false", {item_id: tags})
+            except RequestException:
+                logger.exception(f"Failed to upload tags for news item {item_id}")
+                response = None
+            if not response or response.get("errors"):
+                raise BotTagSaveError from None
+            if story_id in self.story_revisions:
+                # Each successful tag update records one story revision in Core.
+                self.story_revisions[story_id] += 1
+        self.saved_tag_items[item_id] = True
+        if self.save_tag_state:
+            self.save_tag_state()
 
     def execute(self, parameters: dict | None = None) -> dict | Retry:
         if not parameters:

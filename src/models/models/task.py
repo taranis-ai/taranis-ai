@@ -17,6 +17,7 @@ FAILURE_MESSAGES = {
     "llm_processing_failed": "LLM processing failed. Check worker logs for details.",
     "llm_batch_failed": "The provider batch failed. Check batch status and model support at the provider.",
     "ner_save_failed": "Extracted NER tags could not be saved. Check Core connectivity and worker logs.",
+    "tag_save_failed": "Extracted tags could not be saved. Check Core connectivity and worker logs.",
     "bot_pipeline_failed": "The bot pipeline failed during processing or final result submission.",
     "bot_execution_failed": "Bot execution failed. Check the bot configuration and worker logs.",
     "collection_failed": "Source collection failed. Check source configuration, network access, and worker logs.",

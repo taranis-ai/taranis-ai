@@ -33,14 +33,16 @@ def test_bot_story_filters_preserve_scope(parameters, expected):
     assert filter_dict == expected
 
 
-def test_ioc_bot(stories, story_get_mock):
+def test_ioc_bot(stories, story_get_mock, requests_mock):
     from worker import bots
 
     ioc_bot = bots.IOCBot()
+    uploads = requests_mock.put(f"{Config.TARANIS_CORE_URL}/worker/tags?replace=false", json={"message": "Tags updated"})
     result = ioc_bot.execute()
 
     item = next(item for story in stories for item in story["news_items"] if "CVE-2023-5678" in item["content"])
     assert result[item["id"]] == {"CVE-2023-5678": "cves"}
+    assert {item["id"]: result[item["id"]]} in [request.json() for request in uploads.request_history]
 
 
 @pytest.mark.parametrize("enabled", [True, False])

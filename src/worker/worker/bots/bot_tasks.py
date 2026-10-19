@@ -13,7 +13,7 @@ from rq.job import Job
 from rq.timeouts import JobTimeoutException
 
 import worker.bots
-from worker.bot_api import BotServiceUnavailableError
+from worker.bot_api import BotServiceUnavailableError, BotTagSaveError
 from worker.core_api import CoreApi, build_failure_task_result, build_success_task_result
 from worker.http_client import http_session_scope
 from worker.llm import LLMConfigurationError, LLMTaskError
@@ -23,7 +23,7 @@ from worker.telemetry import instrument_job
 
 
 TAGGING_BOTS = {"WORDLIST_BOT", "IOC_BOT", "NLP_BOT", "TAGGING_BOT"}
-JOB_TIMEOUT_MESSAGE = "Bot stopped after repeated execution timeouts without progress. Check worker logs or increase EXECUTION_TIMEOUT. Saved NER tags are retained."
+JOB_TIMEOUT_MESSAGE = "Bot stopped after repeated execution timeouts without progress. Check worker logs or increase EXECUTION_TIMEOUT. Saved tags are retained."
 
 
 def _save_checkpoint(job: Job, state: dict) -> None:
@@ -79,7 +79,7 @@ def bot_task(bot_id: str, filter: dict | None = None, trigger_dependents: bool =
         worker_type = bot_config.get("type", worker_type).upper()
         if not job and (bot_config.get("llm_endpoint") or {}).get("processing_mode") == "openrouter_batch":
             raise RuntimeError("Batch processing requires a queued job")
-        if job and bot_config.get("type") in LLM_BOT_FEATURES and batch_state is None:
+        if job and (bot_config.get("type") in LLM_BOT_FEATURES or worker_type in TAGGING_BOTS) and batch_state is None:
             batch_state = {"config": bot_config}
             job.meta["llm_batch"] = batch_state
             job.save_meta()
@@ -136,7 +136,7 @@ def bot_task(bot_id: str, filter: dict | None = None, trigger_dependents: bool =
             error_message = JOB_TIMEOUT_MESSAGE
             reason = "job_timeout"
             retryable = True
-        elif isinstance(exc, (BotServiceUnavailableError, LLMConfigurationError, LLMTaskError, BatchExecutionError)):
+        elif isinstance(exc, (BotServiceUnavailableError, BotTagSaveError, LLMConfigurationError, LLMTaskError, BatchExecutionError)):
             error_message = exc.public_message
             reason = exc.reason
             retryable = exc.retryable
@@ -212,6 +212,8 @@ def _execute_by_config(bot_config: dict, filter: dict | None = None, *, bot=None
             "story_revisions", {story["id"]: story["revision"] for story in batch_state["stories"] if "revision" in story}
         )
         bot.pipeline_stories = batch_state["stories"]
+        bot.saved_tag_items = batch_state.setdefault("saved_tag_items", {})
+        bot.save_tag_state = save_batch_state
         bot_params["_stories"] = batch_state["stories"]
         bot_params["_llm_batch_state"] = batch_state
         bot_params["_save_llm_batch_state"] = save_batch_state
@@ -243,13 +245,6 @@ def _apply_context(stories: dict[str, dict], aliases: dict[str, str], bot_type: 
                     if isinstance(name, str) and name not in names:
                         existing.append({"name": name, "tag_type": tag_type})
                         names.add(name)
-        for story in stories.values():
-            story["tags"] = {
-                tag["name"]: tag
-                for item in story.get("news_items", [])
-                for tag in item.get("tags", [])
-                if isinstance(tag, dict) and isinstance(tag.get("name"), str)
-            }
     for item_id, attributes in changes.get("item_attributes", {}).items():
         if item := items.get(item_id):
             existing = item.setdefault("attributes", [])
@@ -284,6 +279,14 @@ def _apply_context(stories: dict[str, dict], aliases: dict[str, str], bot_type: 
                 aliases[old_id] = resolved[0]
     if "groups" in changes:
         changes["groups"] = normalized_groups
+    if bot_type in TAGGING_BOTS or "groups" in changes:
+        for story in stories.values():
+            story["tags"] = {
+                tag["name"]: tag
+                for item in story.get("news_items", [])
+                for tag in item.get("tags", [])
+                if isinstance(tag, dict) and isinstance(tag.get("name"), str)
+            }
 
 
 @instrument_job
@@ -384,7 +387,7 @@ def bot_pipeline_task(bot_ids: list[str], filter: dict | None = None):
         if isinstance(exc, JobTimeoutException) and job and (retry := _retry_timeout(job)):
             return retry
         logger.exception("Bot pipeline failed")
-        is_public = isinstance(exc, (BotServiceUnavailableError, LLMConfigurationError, LLMTaskError, BatchExecutionError))
+        is_public = isinstance(exc, (BotServiceUnavailableError, BotTagSaveError, LLMConfigurationError, LLMTaskError, BatchExecutionError))
         timed_out = isinstance(exc, JobTimeoutException)
         core_api.save_task_result(
             run_id,

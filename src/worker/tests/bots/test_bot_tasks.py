@@ -3,6 +3,7 @@
 import asyncio
 import json
 import traceback
+from functools import partial
 from unittest.mock import patch
 
 # pyright: reportMissingParameterType=false
@@ -64,6 +65,9 @@ def bot_config():
 def stub_bots(monkeypatch):
     class DummyBot:
         _execute_impl = staticmethod(lambda params: {"message": "ok"})
+
+        def get_stories(self, params):
+            return []
 
         def execute(self, params):
             return type(self)._execute_impl(params)
@@ -402,7 +406,16 @@ def test_pipeline_submits_surviving_group_ids(current_job, requests_mock, redund
         {
             "id": story_id,
             "revision": 0,
-            "news_items": [{"id": f"{story_id}-{index}", "title": "", "content": f"CVE-2026-{cve}"} for index, cve in enumerate(cves)],
+            "tags": {story_id: {"name": story_id, "tag_type": "misc"}},
+            "news_items": [
+                {
+                    "id": f"{story_id}-{index}",
+                    "title": "",
+                    "content": f"CVE-2026-{cve}",
+                    "tags": [{"name": story_id, "tag_type": "misc"}],
+                }
+                for index, cve in enumerate(cves)
+            ],
         }
         for story_id, cves in (
             ("A", ["1111", "3333"] if redundant_overlap else ["1111"]),
@@ -415,25 +428,33 @@ def test_pipeline_submits_surviving_group_ids(current_job, requests_mock, redund
             f"{Config.TARANIS_CORE_URL}/worker/bots/{bot_id}",
             json={"id": bot_id, "type": "grouping_bot", "parameters": {"REGULAR_EXPRESSION": r"CVE-\d{4}-\d{4,7}"}},
         )
+    requests_mock.get(
+        f"{Config.TARANIS_CORE_URL}/worker/bots/cluster",
+        json={"id": "cluster", "type": "story_bot", "parameters": {}, "llm_endpoint": {"name": "Cluster", "base_url": "https://llm.test/v1"}},
+    )
     requests_mock.post(
         f"{Config.TARANIS_CORE_URL}/worker/bot-pipeline/stories",
         json={
             "stories": stories,
-            "selected": {bot_id: ["A", "B", "C"] for bot_id in ("group", "regroup")},
+            "selected": {bot_id: ["A", "B", "C"] for bot_id in ("group", "regroup", "cluster")},
             "revisions": {story["id"]: 0 for story in stories},
         },
     )
     submission = requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"status": "SUCCESS"})
 
-    bot_pipeline_task(["group", "regroup"])
+    with patch.object(LLMClient, "create_response", autospec=True) as provider:
+        provider.return_value = {"output_text": '{"cluster_ids": {"event_clusters": [[1]]}, "cluster_reasons": [], "message": "Done"}'}
+        bot_pipeline_task(["group", "regroup", "cluster"])
+    assert json.loads(provider.call_args.args[2])["stories"][0]["tags"] == {"A": "misc", "B": "misc", "C": "misc"}
 
     assert submission.call_count == 1
     payload = submission.last_request.json()
     assert payload["status"] == "SUCCESS"
-    first, second = payload["result"]["data"]["bot_stages"]
+    first, second, cluster = payload["result"]["data"]["bot_stages"]
     assert first["result"]["changes"]["groups"] == [["A", "B"], ["A", "C"]]
     assert second["story_ids"] == ["A"]
     assert second["result"]["changes"]["groups"] == []
+    assert cluster["story_ids"] == ["A"]
     assert current_job.meta == {}
 
 
@@ -442,26 +463,60 @@ def test_pipeline_submits_surviving_group_ids(current_job, requests_mock, redund
     [
         (JobTimeoutException("private timeout details"), "job_timeout"),
         (Timeout("private provider details"), "llm_request_timeout"),
-        ("save", "ner_save_failed"),
+        ("save", "tag_save_failed"),
+        (RequestException("private Core details"), "tag_save_failed"),
     ],
 )
-def test_ner_saves_completed_items_before_failure(current_job, requests_mock, failure, reason):
+@pytest.mark.parametrize("bot_type", ["nlp_bot", "wordlist_bot", "ioc_bot", "tagging_bot"])
+@pytest.mark.parametrize("pipeline", [False, True])
+def test_tagging_bots_save_completed_items_before_failure(current_job, requests_mock, failure, reason, bot_type, pipeline):
+    expected_first, expected_last = {
+        "nlp_bot": ({"Microsoft": "ORG"}, {"Apple": "ORG"}),
+        "wordlist_bot": ({"Microsoft": "ORG"}, {"Apple": "ORG"}),
+        "ioc_bot": ({"CVE-2026-1111": "cves"}, {"CVE-2026-2222": "cves"}),
+        "tagging_bot": (["Microsoft"], ["Apple"]),
+    }[bot_type]
     endpoint = {"name": "NER", "base_url": "https://llm.test/v1"}
     story = {
         "id": "story-1",
         "revision": 0,
-        "news_items": [{"id": f"item-{number}", "title": "Story", "content": "Content"} for number in (1, 2, 3)],
+        "news_items": [
+            {"id": "item-1", "title": "", "content": "Microsoft CVE-2026-1111"},
+            {"id": "item-2", "title": "", "content": ""},
+            {"id": "item-3", "title": "", "content": "Apple CVE-2026-2222"},
+        ],
     }
     requests_mock.get(
         f"{Config.TARANIS_CORE_URL}/worker/bots/ner",
-        json={"id": "ner", "type": "nlp_bot", "parameters": {}, "llm_endpoint": endpoint},
+        json={
+            "id": "ner",
+            "type": bot_type,
+            "parameters": {"REGULAR_EXPRESSION": "Microsoft|Apple"} if bot_type == "tagging_bot" else {},
+            "llm_endpoint": endpoint,
+        },
     )
     requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/stories", json=[story])
+    requests_mock.post(
+        f"{Config.TARANIS_CORE_URL}/worker/bot-pipeline/stories",
+        json={"stories": [story], "selected": {"ner": [story["id"]]}, "revisions": {story["id"]: 0}},
+    )
+    run_bot = partial(bot_pipeline_task, ["ner"]) if pipeline else partial(bot_task, "ner")
+    requests_mock.get(
+        f"{Config.TARANIS_CORE_URL}/worker/word-lists?usage=4&with_entries=true",
+        json={"items": [{"entries": [{"value": "Microsoft", "category": "ORG"}, {"value": "Apple", "category": "ORG"}]}]},
+    )
+    if bot_type != "nlp_bot" and isinstance(failure, Timeout):
+        reason = "tag_save_failed"
+    failed_upload = (
+        {"exc": failure}
+        if isinstance(failure, RequestException) or (bot_type != "nlp_bot" and isinstance(failure, Exception))
+        else {"json": {"errors": {"item-3": "private Core details"}}, "status_code": 207}
+    )
     uploads = requests_mock.put(
         f"{Config.TARANIS_CORE_URL}/worker/tags?replace=false",
         [
             {"json": {"message": "Tags updated"}},
-            {"json": {"errors": {"item-3": "private Core details"}}, "status_code": 207},
+            failed_upload,
         ],
     )
     submission = requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"status": "FAILURE"})
@@ -475,13 +530,13 @@ def test_ner_saves_completed_items_before_failure(current_job, requests_mock, fa
             assert uploads.call_count == 1
             return {"output_text": "{}"}
         assert uploads.call_count == 1
-        if isinstance(failure, Exception):
+        if isinstance(failure, (JobTimeoutException, Timeout)):
             raise failure
         return {"output_text": '{"Apple": "ORG"}'}
 
     with patch.object(LLMClient, "create_response", autospec=True, side_effect=response) as provider:
         if reason == "job_timeout":
-            retry = bot_task("ner")
+            retry = run_bot()
             assert isinstance(retry, Retry) and retry.intervals == [0]
             assert submission.call_count == 0
             current_job.meta = json.loads(json.dumps(current_job.meta))
@@ -489,12 +544,13 @@ def test_ner_saves_completed_items_before_failure(current_job, requests_mock, fa
             # A later attempt must use the original configuration and snapshot.
             requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/bots/ner", status_code=500)
             requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/stories", status_code=500)
+            requests_mock.post(f"{Config.TARANIS_CORE_URL}/worker/bot-pipeline/stories", status_code=500)
             uploads = requests_mock.put(f"{Config.TARANIS_CORE_URL}/worker/tags?replace=false", json={"message": "Tags updated"})
             provider.side_effect = [{"output_text": '{"Apple": "ORG"}'}]
-            bot_task("ner")
-            assert provider.await_count == 4
+            run_bot()
+            assert provider.await_count == (4 if bot_type == "nlp_bot" else 0)
             assert uploads.call_count == 1
-            assert uploads.last_request.json() == {"item-3": {"Apple": "ORG"}}
+            assert uploads.last_request.json() == {"item-3": expected_last}
             assert submission.call_count == 1
             result = submission.last_request.json()
             assert result["status"] == "SUCCESS"
@@ -502,9 +558,9 @@ def test_ner_saves_completed_items_before_failure(current_job, requests_mock, fa
             assert current_job.meta == {}
             return
         with pytest.raises(RuntimeError):
-            bot_task("ner")
-    assert uploads.request_history[0].json() == {"item-1": {"Microsoft": "ORG"}}
-    assert uploads.call_count == (2 if failure == "save" else 1)
+            run_bot()
+    assert uploads.request_history[0].json() == {"item-1": expected_first}
+    assert uploads.call_count == (1 if reason == "llm_request_timeout" else 2)
     assert submission.call_count == 1
     result = submission.last_request.json()
     assert result["status"] == "FAILURE"
