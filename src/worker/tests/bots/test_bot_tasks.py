@@ -396,6 +396,47 @@ def test_pipeline_downloads_union_once_and_summary_sees_merged_items(current_job
     assert all("/worker/stories" not in request.url and "/bots/story/" not in request.url for request in requests_mock.request_history)
 
 
+@pytest.mark.parametrize("redundant_overlap", [False, True])
+def test_pipeline_submits_surviving_group_ids(current_job, requests_mock, redundant_overlap):
+    stories = [
+        {
+            "id": story_id,
+            "revision": 0,
+            "news_items": [{"id": f"{story_id}-{index}", "title": "", "content": f"CVE-2026-{cve}"} for index, cve in enumerate(cves)],
+        }
+        for story_id, cves in (
+            ("A", ["1111", "3333"] if redundant_overlap else ["1111"]),
+            ("B", ["1111", "1111", "2222"]),
+            ("C", ["2222", "3333"] if redundant_overlap else ["2222"]),
+        )
+    ]
+    for bot_id in ("group", "regroup"):
+        requests_mock.get(
+            f"{Config.TARANIS_CORE_URL}/worker/bots/{bot_id}",
+            json={"id": bot_id, "type": "grouping_bot", "parameters": {"REGULAR_EXPRESSION": r"CVE-\d{4}-\d{4,7}"}},
+        )
+    requests_mock.post(
+        f"{Config.TARANIS_CORE_URL}/worker/bot-pipeline/stories",
+        json={
+            "stories": stories,
+            "selected": {bot_id: ["A", "B", "C"] for bot_id in ("group", "regroup")},
+            "revisions": {story["id"]: 0 for story in stories},
+        },
+    )
+    submission = requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"status": "SUCCESS"})
+
+    bot_pipeline_task(["group", "regroup"])
+
+    assert submission.call_count == 1
+    payload = submission.last_request.json()
+    assert payload["status"] == "SUCCESS"
+    first, second = payload["result"]["data"]["bot_stages"]
+    assert first["result"]["changes"]["groups"] == [["A", "B"], ["A", "C"]]
+    assert second["story_ids"] == ["A"]
+    assert second["result"]["changes"]["groups"] == []
+    assert current_job.meta == {}
+
+
 @pytest.mark.parametrize(
     "failure, reason",
     [

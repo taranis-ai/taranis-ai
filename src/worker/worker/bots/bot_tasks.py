@@ -266,9 +266,13 @@ def _apply_context(stories: dict[str, dict], aliases: dict[str, str], bot_type: 
     for story_id, updates in changes.get("story_updates", {}).items():
         if story := stories.get(aliases.get(story_id, story_id)):
             story.update(updates)
+    normalized_groups = []
     for group in changes.get("groups", []):
         resolved = list(dict.fromkeys(aliases.get(story_id, story_id) for story_id in group))
-        if len(resolved) < 2 or resolved[0] not in stories:
+        if len(resolved) < 2:
+            continue
+        normalized_groups.append(resolved)
+        if resolved[0] not in stories:
             continue
         target = stories[resolved[0]]
         for source_id in resolved[1:]:
@@ -278,6 +282,8 @@ def _apply_context(stories: dict[str, dict], aliases: dict[str, str], bot_type: 
         for old_id, current_id in list(aliases.items()):
             if current_id in resolved[1:]:
                 aliases[old_id] = resolved[0]
+    if "groups" in changes:
+        changes["groups"] = normalized_groups
 
 
 @instrument_job

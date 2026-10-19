@@ -21,10 +21,12 @@ def test_bot_pipeline_uses_one_snapshot_and_commits_only_complete_runs(app, clie
         first_payload = build_news_item_payload(source.id, title="First story")
         first = create_story(news_items=[first_payload])
         second = create_story(news_items=[build_news_item_payload(source.id, title="Second story")])
+        third = create_story(news_items=[build_news_item_payload(source.id, title="Third story")])
         other_source = create_osint_source(rank=1)
         unrelated = create_story(news_items=[build_news_item_payload(other_source.id, title="Unrelated source story")])
         first_item_id = first.news_items[0].id
         second_item_id = second.news_items[0].id
+        third_item_id = third.news_items[0].id
         bot_ids = {bot_type: Bot.filter_by_type(bot_type.lower()).id for bot_type in ("NLP_BOT", "STORY_BOT", "SUMMARY_BOT", "IOC_BOT")}
         nlp_bot = Bot.get(bot_ids["NLP_BOT"])
         previous = Task(
@@ -40,7 +42,7 @@ def test_bot_pipeline_uses_one_snapshot_and_commits_only_complete_runs(app, clie
         assert nlp_bot.status["status"] == "FAILURE"
 
         filters = {
-            bot_id: {"source": [source.id], "story_ids": [first.id, second.id], "worker": True, "exclude_attr": bot_type}
+            bot_id: {"source": [source.id], "story_ids": [first.id, second.id, third.id], "worker": True, "exclude_attr": bot_type}
             for bot_type, bot_id in bot_ids.items()
         }
         filters[bot_ids["NLP_BOT"]].update(
@@ -49,8 +51,8 @@ def test_bot_pipeline_uses_one_snapshot_and_commits_only_complete_runs(app, clie
         snapshot_response = client.post("/api/worker/bot-pipeline/stories", json={"filters": filters}, headers=api_header)
         assert snapshot_response.status_code == 200
         snapshot = snapshot_response.json
-        assert {story["id"] for story in snapshot["stories"]} == {first.id, second.id}
-        assert all(set(ids) == {first.id, second.id} for ids in snapshot["selected"].values())
+        assert {story["id"] for story in snapshot["stories"]} == {first.id, second.id, third.id}
+        assert all(set(ids) == {first.id, second.id, third.id} for ids in snapshot["selected"].values())
         limited = client.post(
             "/api/worker/bot-pipeline/stories",
             json={
@@ -62,7 +64,7 @@ def test_bot_pipeline_uses_one_snapshot_and_commits_only_complete_runs(app, clie
             headers=api_header,
         )
         assert limited.status_code == 200
-        limited_story_id = min(first.id, second.id)
+        limited_story_id = min(first.id, second.id, third.id)
         assert limited.json["selected"] == {bot_ids["STORY_BOT"]: [limited_story_id], bot_ids["SUMMARY_BOT"]: [unrelated.id]}
         assert {story["id"] for story in limited.json["stories"]} == {limited_story_id, unrelated.id}
         assert set(limited.json["revisions"]) == {limited_story_id, unrelated.id}
@@ -77,8 +79,8 @@ def test_bot_pipeline_uses_one_snapshot_and_commits_only_complete_runs(app, clie
             {
                 "bot_id": bot_ids["STORY_BOT"],
                 "bot_type": "STORY_BOT",
-                "story_ids": [first.id, second.id],
-                "result": {"message": "Grouped", "changes": {"groups": [[first.id, second.id]]}},
+                "story_ids": [first.id, second.id, third.id],
+                "result": {"message": "Grouped", "changes": {"groups": [[first.id, second.id], [first.id, third.id]]}},
             },
             {
                 "bot_id": bot_ids["SUMMARY_BOT"],
@@ -131,8 +133,9 @@ def test_bot_pipeline_uses_one_snapshot_and_commits_only_complete_runs(app, clie
         committed = client.post("/api/tasks", json=payload, headers=api_header)
         assert committed.status_code == 200
         assert Story.get(second.id) is None
+        assert Story.get(third.id) is None
         merged = Story.get(first.id)
-        assert {item.id for item in merged.news_items} == {first_item_id, second_item_id}
+        assert {item.id for item in merged.news_items} == {first_item_id, second_item_id, third_item_id}
         assert merged.title == "Combined title"
         assert merged.summary == "Combined summary"
         assert all(merged.find_attribute_by_key(bot_type) for bot_type in bot_ids)
