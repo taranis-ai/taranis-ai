@@ -26,7 +26,7 @@ class ProductChoices(MethodView):
 class ProductTypeChoices(MethodView):
     @auth_required("PUBLISH_ACCESS")
     def get(self):
-        return product_type.ProductType.get_choices_for_api(current_user)
+        return product_type.ProductType.get_choices_for_api(current_user, request.args.getlist("report_ids"))
 
 
 class ProductMetadata(MethodView):

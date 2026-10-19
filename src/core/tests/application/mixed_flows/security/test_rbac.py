@@ -300,6 +300,22 @@ class TestRBAC:
 
 
 class TestRBACAclBehavior:
+    @pytest.mark.parametrize("restriction", ["acl", "tlp"])
+    def test_product_type_choices_reject_inaccessible_selected_reports(self, client, session, auth_header_user_permissions, restriction):
+        from core.model.role import Role
+        from core.model.role_based_access import ItemType
+
+        report = create_rbac_report_item(f"product-choice-{restriction}", TLPLevel.RED if restriction == "tlp" else TLPLevel.CLEAR)
+        role = Role.filter_by_name("User")
+        role.tlp_level = TLPLevel.CLEAR
+        grant_acl(role if restriction == "tlp" else Role.filter_by_name("Admin"), ItemType.REPORT_ITEM_TYPE, report.report_item_type_id)
+
+        response = client.get(
+            "/api/publish/product-type-choices", headers=auth_header_user_permissions, query_string={"report_ids": [report.id]}
+        )
+        assert response.status_code == 404
+        assert response.json == {"error": "Selected reports not found or not accessible"}
+
     def test_product_choices_include_all_visible_products_without_render_data(self, client, session, auth_header_user_permissions):
         from core.model.product import Product
         from core.model.product_type import ProductType

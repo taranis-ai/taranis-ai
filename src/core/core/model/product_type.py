@@ -95,14 +95,37 @@ class ProductType(BaseModel):
         return {"items": cls.to_list(items)}, 200
 
     @classmethod
-    def get_choices_for_api(cls, user) -> tuple[dict[str, Any], int]:
+    def get_choices_for_api(cls, user, report_ids: list[str] | None = None) -> tuple[dict[str, Any], int]:
+        from core.model.report_item import ReportItem
+
+        selected_report_type_ids: set[str] = set()
+        if report_ids:
+            report_query = (
+                db.select(ReportItem.id, ReportItem.report_item_type_id)
+                .outerjoin(ReportItemType, ReportItem.report_item_type_id == ReportItemType.id)
+                .where(ReportItem.id.in_(report_ids))
+            )
+            report_query = RoleBasedAccessService.filter_query_with_acl(
+                report_query, RBACQuery(user=user, resource_type=ItemType.REPORT_ITEM_TYPE)
+            )
+            report_query = RoleBasedAccessService.filter_report_query_with_tlp(report_query, user)
+            reports = db.session.execute(report_query).mappings().all()
+            if {report["id"] for report in reports} != set(report_ids):
+                return {"error": "Selected reports not found or not accessible"}, 404
+            selected_report_type_ids = {report["report_item_type_id"] for report in reports if report["report_item_type_id"]}
+
         query = (
             cls.get_filter_query_with_acl({}, user)
             .order_by(cls.title, cls.id)
             .options(load_only(cls.id, cls.title), selectinload(cls.report_types).load_only(ReportItemType.id))
         )
         items = db.session.execute(query).scalars().all()
-        return {"items": [{"id": item.id, "title": item.title, "report_types": [rt.id for rt in item.report_types]} for item in items]}, 200
+        return {
+            "items": [{"id": item.id, "title": item.title} for item in items if item.supports_report_types(selected_report_type_ids)]
+        }, 200
+
+    def supports_report_types(self, report_type_ids: set[str]) -> bool:
+        return report_type_ids.issubset({report_type.id for report_type in self.report_types})
 
     @classmethod
     def update(cls, product_type_id: str, data, user=None, *, patch: bool = False) -> tuple[dict, int]:

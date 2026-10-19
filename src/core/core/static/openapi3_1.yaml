@@ -8962,7 +8962,17 @@ paths:
       - UserAuth: []
       tags: [publish]
       operationId: publish.product_type_choices.get
-      description: All ACL-visible Product Type choices with compatible Report Type IDs, ordered by title/ID. Requires PUBLISH_ACCESS. Presenter parameters are omitted.
+      description: ACL-visible Product Type IDs/titles, ordered by title/ID. With report_ids, only types supporting every selected typed report are returned; untyped reports impose no restriction. Requires PUBLISH_ACCESS. Presenter parameters are omitted.
+      parameters:
+      - name: report_ids
+        in: query
+        description: Selected Report IDs, repeated for multiple reports. Omit for all visible types. All selected reports must exist and pass Report Type ACL and TLP checks.
+        schema:
+          type: array
+          items:
+            type: string
+        style: form
+        explode: true
       responses:
         '200':
           description: Product Type catalog
@@ -8975,20 +8985,18 @@ paths:
                     type: array
                     items:
                       type: object
-                      required: [id, title, report_types]
+                      required: [id, title]
                       properties:
                         id:
                           type: string
                         title:
                           type: string
-                        report_types:
-                          type: array
-                          items:
-                            type: string
         '401':
           $ref: '#/components/responses/401Unauthorized'
         '403':
           description: Publishing access denied
+        '404':
+          description: One or more selected reports do not exist or are not accessible. No partial catalog is returned.
   /publish/product-types:
     get:
       security:

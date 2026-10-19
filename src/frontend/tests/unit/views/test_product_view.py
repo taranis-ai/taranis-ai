@@ -2,10 +2,12 @@ from unittest.mock import call, patch
 
 import pytest
 from flask import render_template, render_template_string, url_for
-from models.product import Product, ProductMetadata, ProductType, ProductTypeChoice, PublisherPreset
+from models.product import Product, ProductMetadata, ProductTypeChoice, PublisherPreset
 from models.report import ReportItem
 from pydantic import ValidationError
+from responses import matchers
 
+from frontend.cache_models import PagingData
 from frontend.config import Config
 from frontend.views.product_views import ProductView
 
@@ -109,9 +111,7 @@ def test_product_list_does_not_load_editor_catalogs():
 
 
 def test_product_view_preselects_report_from_query(app):
-    product_type = ProductType.model_construct(
-        id="product-type-1", title="CERT Daily Report", description="cert.at Daily Report HTML", type="HTML_PRESENTER"
-    )
+    product_type = ProductTypeChoice(id="product-type-1", title="CERT Daily Report")
     report = ReportItem.model_construct(id="report-1", title="Selected report", report_item_type_id="report-type-1")
     product_instance = Product.model_construct(
         id="product-1",
@@ -125,44 +125,42 @@ def test_product_view_preselects_report_from_query(app):
     with patch("frontend.views.product_views.DataPersistenceLayer") as persistence_cls:
         persistence = persistence_cls.return_value
         persistence.get_objects.side_effect = [
-            [product_type],
             [
                 PublisherPreset.model_construct(
                     id="publisher-1", name="FTP Publisher", description="Primary FTP publisher", type="FTP_PUBLISHER"
                 )
             ],
+            [product_type],
         ]
         persistence.get_object.return_value = report
 
         with app.test_request_context("/publish/product-1?report_id=report-1"):
             context = ProductView.get_extra_context({"product": product_instance})
 
-    assert persistence.get_objects.call_args_list == [call(ProductTypeChoice), call(PublisherPreset)]
+    assert persistence.get_objects.call_args_list == [
+        call(PublisherPreset),
+        call(ProductTypeChoice, PagingData(query_params={"report_ids": ["report-1", "report-2"]}).set_fetch_all()),
+    ]
     assert context["selected_report_items"] == ["report-2", "report-1"]
     assert context["supported_reports"] == [{"id": "report-2", "title": "Already selected"}, report.model_dump(mode="json")]
 
 
-def test_product_view_only_offers_product_types_compatible_with_selected_reports(app):
-    product_types = [
-        ProductType.model_construct(id="compatible", title="Compatible", report_types=["report-type-1"]),
-        ProductType.model_construct(id="incompatible", title="Incompatible", report_types=["report-type-2"]),
-    ]
-    product = Product.model_construct(
-        id="product-1",
-        title="Existing product",
-        product_type_id="compatible",
-        report_items=["report-1"],
-        supported_reports=[{"id": "report-1", "report_item_type_id": "report-type-1"}],
-    )
+def test_product_view_uses_core_choices_cached_by_report_selection(app, responses_mock, test_cache_backend):
+    for report_id, type_id in [("report-1", "type-1"), ("report-2", "type-2")]:
+        responses_mock.get(
+            f"{Config.TARANIS_CORE_URL}/publish/product-type-choices",
+            match=[matchers.query_param_matcher({"report_ids": report_id, "fetch_all": "true"})],
+            json={"items": [{"id": type_id, "title": type_id}]},
+        )
 
-    with patch("frontend.views.product_views.DataPersistenceLayer") as persistence_cls:
-        persistence = persistence_cls.return_value
-        persistence.get_objects.side_effect = [product_types, []]
-
-        with app.test_request_context("/publish/product-1"):
+    for report_id, type_id in [("report-1", "type-1"), ("report-2", "type-2"), ("report-1", "type-1")]:
+        product = Product(title="New product", product_type_id=type_id, id="0", report_items=[report_id])
+        with app.test_request_context("/publish/0"):
             context = ProductView.get_extra_context({"product": product})
-
-    assert context["product_types"] == [{"id": "compatible", "name": "Compatible"}]
+            markup = render_template("publish/product.html", **context)
+        assert context["product_types"] == [{"id": type_id, "name": type_id}]
+        assert f'value="{type_id}"' in markup
+    assert len(responses_mock.calls) == 2
 
 
 @pytest.mark.parametrize("report_items", [[], ["report-1", "report-2"]])
@@ -184,7 +182,7 @@ def test_product_copy_prefills_only_creation_fields(app, report_items):
         persistence = persistence_cls.return_value
         persistence.get_object.return_value = source
         persistence.get_objects.side_effect = [
-            [ProductType.model_construct(id="product-type-1", title="Daily", report_types=[])],
+            [ProductTypeChoice(id="product-type-1", title="Daily")],
             [],
         ]
         with app.test_request_context("/publish/0?copy_from=source-product"):

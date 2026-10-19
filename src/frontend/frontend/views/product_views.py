@@ -7,6 +7,7 @@ from models.report import ReportItem
 from werkzeug.exceptions import HTTPException
 
 from frontend.auth import auth_required
+from frontend.cache_models import PagingData
 from frontend.core_api import CoreApi
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.filters import render_count, render_datetime, render_item_type
@@ -63,7 +64,6 @@ class ProductView(BaseView):
         if cls.model_name() not in base_context:
             return base_context
         dpl = DataPersistenceLayer()
-        product_types = dpl.get_objects(ProductTypeChoice)
         base_context["publishers"] = []
 
         product: Product = base_context[cls.model_name()]
@@ -99,13 +99,8 @@ class ProductView(BaseView):
         base_context["selected_report_items"] = selected_report_items
         base_context["supported_reports"] = supported_reports
 
-        if selected_report_type_ids := {
-            str(item["report_item_type_id"])
-            for item in supported_reports
-            if str(item["id"]) in selected_report_items and item.get("report_item_type_id")
-        }:
-            product_types = [pt for pt in product_types if selected_report_type_ids.issubset(set(pt.report_types))]
-
+        paging_data = PagingData(query_params={"report_ids": sorted(set(selected_report_items))}).set_fetch_all()
+        product_types = dpl.get_objects(ProductTypeChoice, paging_data)
         base_context["product_types"] = [{"id": pt.id, "name": pt.title} for pt in product_types]
 
         return base_context

@@ -106,11 +106,45 @@ class TestPublishApi(BaseTest):
         assert full.pop("render_result") == base64.b64encode(b"Old product render").decode()
         assert metadata == full
 
-    def test_product_type_choices_exclude_parameters_and_preserve_compatibility(self, client, auth_header):
+    def test_product_type_choices_filter_by_all_selected_reports(self, client, session, auth_header):
+        from core.model.product_type import ProductType
+        from core.model.report_item import ReportItem
+        from core.model.report_item_type import ReportItemType
+
+        prefix = uuid4().hex
+        report_types = [ReportItemType(f"{prefix} {index}") for index in range(2)]
+        session.add_all(report_types)
+        session.flush()
+        reports = [ReportItem(f"{prefix} {index}", report_type.id) for index, report_type in enumerate(report_types)]
+        untyped = ReportItem(f"{prefix} untyped", None)
+        session.add_all([*reports, untyped])
+        original = ProductType.filter_by_title("Default TEXT Presenter")
+        types = [ProductType(f"{prefix} {index}", original.type, parameters=original.parameters) for index in range(4)]
+        for item, supported in zip(types, [report_types[:1], report_types[1:], report_types, []], strict=True):
+            item.report_types = supported
+        session.add_all(types)
+        session.flush()
+
         choices = self.assert_get_ok(client, "product-type-choices", auth_header).get_json()["items"]
         full = self.assert_get_ok(client, "product-types", auth_header).get_json()["items"]
-        assert {item["id"]: item["report_types"] for item in choices} == {item["id"]: item["report_types"] for item in full}
-        assert all(set(item) == {"id", "title", "report_types"} for item in choices)
+        assert choices == sorted([{"id": item["id"], "title": item["title"]} for item in full], key=lambda item: (item["title"], item["id"]))
+        type_ids = {item.id for item in types}
+        for selection, expected in [
+            ([], type_ids),
+            ([untyped.id], type_ids),
+            ([reports[0].id], {types[0].id, types[2].id}),
+            ([reports[0].id, reports[0].id, untyped.id], {types[0].id, types[2].id}),
+            ([report.id for report in reports], {types[2].id}),
+        ]:
+            response = client.get(self.concat_url("product-type-choices"), headers=auth_header, query_string={"report_ids": selection})
+            assert response.status_code == 200
+            assert {item["id"] for item in response.json["items"]} & type_ids == expected
+
+        response = client.get(
+            self.concat_url("product-type-choices"), headers=auth_header, query_string={"report_ids": [reports[0].id, str(uuid4())]}
+        )
+        assert response.status_code == 404
+        assert response.json == {"error": "Selected reports not found or not accessible"}
 
     def test_post_Product(self, client, auth_header, cleanup_product):
         """

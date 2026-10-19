@@ -267,14 +267,13 @@ class Product(BaseModel):
 
         report_item_ids = data.get("report_items")
         report_items = product.report_items if report_item_ids is None else ReportItem.get_bulk(report_item_ids)
-        supported_report_type_ids = {report_type.id for report_type in product_type.report_types if report_type}
         selected_report_type_ids = {report_item.report_item_type_id for report_item in report_items if report_item.report_item_type_id}
-        if unsupported_report_type_ids := selected_report_type_ids - supported_report_type_ids:
+        if not product_type.supports_report_types(selected_report_type_ids):
             logger.warning(
-                "Rejected product type %s for product %s; unsupported report types: %s",
+                "Rejected product type %s for product %s; selected report types: %s",
                 product_type.id,
                 product.id,
-                sorted(map(str, unsupported_report_type_ids)),
+                sorted(selected_report_type_ids),
             )
             return {"error": "Selected product type does not support the selected reports"}, 400
 

@@ -78,7 +78,6 @@ class ProductTypeChoice(TaranisBaseModel):
 
     id: str
     title: str
-    report_types: list[str] = Field(default_factory=list)
 
 
 class Product(TaranisBaseModel):
