@@ -214,7 +214,10 @@
                           @click="previewOpen = true"
                           data-testid="load-product-preview">{{ _("Load preview") }}</button>
                   <template x-if="previewOpen">{{ html_preview(product, rendered_mime_type) }}</template>
-                  <noscript>{{ html_preview(product, rendered_mime_type) }}</noscript>
+                  <noscript>
+                    <a class="btn btn-outline"
+                       href="{{ url_for('publish.product_download', product_id=product.id) }}">{{ _("Download rendered product") }}</a>
+                  </noscript>
                 </div>
               {% elif rendered_mime_type == "application/pdf" %}
                 <iframe class="w-full h-[80vh]"
