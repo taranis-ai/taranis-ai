@@ -3,7 +3,7 @@ from typing import Any
 
 from models.types import PRESENTER_TYPES
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import Mapped, relationship
+from sqlalchemy.orm import Mapped, load_only, relationship, selectinload
 from sqlalchemy.sql.expression import Select
 
 from core.log import logger
@@ -93,6 +93,16 @@ class ProductType(BaseModel):
             count = cls.get_filtered_count(query)
             return {"total_count": count, "items": cls.to_list(items)}, 200
         return {"items": cls.to_list(items)}, 200
+
+    @classmethod
+    def get_choices_for_api(cls, user) -> tuple[dict[str, Any], int]:
+        query = (
+            cls.get_filter_query_with_acl({}, user)
+            .order_by(cls.title, cls.id)
+            .options(load_only(cls.id, cls.title), selectinload(cls.report_types).load_only(ReportItemType.id))
+        )
+        items = db.session.execute(query).scalars().all()
+        return {"items": [{"id": item.id, "title": item.title, "report_types": [rt.id for rt in item.report_types]} for item in items]}, 200
 
     @classmethod
     def update(cls, product_type_id: str, data, user=None, *, patch: bool = False) -> tuple[dict, int]:

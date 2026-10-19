@@ -158,3 +158,19 @@ def test_report_editor_cache_is_cleared_when_its_content_changes(monkeypatch, sc
     service.invalidate_scope(scope, object_ids={"report": "one"})
 
     assert not list(service._client.scan_iter(match="*:model:report_editor:*"))
+
+
+@pytest.mark.parametrize("scope", ["publish_views", "report_views", "user_views"])
+def test_product_metadata_cache_is_cleared_with_product_choices(monkeypatch, scope):
+    monkeypatch.setattr("core.service.cache_invalidation.Config.CACHE_ENABLED", True)
+    monkeypatch.setattr("core.service.cache_invalidation.Config.CACHE_KEY_PREFIX", "taranis_frontend")
+    service = _build_service(
+        [
+            "taranis_frontend:user:alice:model:product_metadata:detail:one",
+            "taranis_frontend:user:bob:model:product_metadata:detail:one",
+            "taranis_frontend:user:alice:model:product:list:choices",
+        ]
+    )
+
+    assert service.invalidate_scope(scope) == 3
+    assert not list(service._client.scan_iter())

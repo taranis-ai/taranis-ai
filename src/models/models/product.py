@@ -72,6 +72,15 @@ class ProductChoice(TaranisBaseModel):
     product_type_title: str
 
 
+class ProductTypeChoice(TaranisBaseModel):
+    _core_endpoint = "/publish/product-type-choices"
+    _model_name = "product_type"
+
+    id: str
+    title: str
+    report_types: list[str] = Field(default_factory=list)
+
+
 class Product(TaranisBaseModel):
     _core_endpoint = "/publish/products"
     _model_name = "product"
@@ -102,3 +111,8 @@ class Product(TaranisBaseModel):
         if auto_publish and not value:
             raise ValueError("default_publisher is required when auto_publish is enabled")
         return value
+
+
+class ProductMetadata(Product):
+    _core_endpoint = "/publish/product-metadata"
+    _model_name = "product_metadata"

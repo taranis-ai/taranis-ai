@@ -1,6 +1,14 @@
 {% from "macros/forms.html" import form_input, form_textarea, form_select, form_switch %}
 {% from "macros/datatable.html" import datatable %}
 
+{% macro html_preview(product, mime_type) %}
+  <iframe class="w-full h-[80vh]"
+          title="{{ _('Product preview') }}"
+          data-testid="html-render"
+          sandbox
+          src="data:{{ mime_type }};charset=utf-8;base64,{{ product.render_result }}"></iframe>
+{% endmacro %}
+
 {% set form_error = form_error | default({}) %}
 {% set product = product | default({}) %}
 {% set product_types = product_types | default([]) %}
@@ -203,11 +211,16 @@
           <div class="border rounded-md p-3 bg-base-50 min-h-40" id="preview" data-testid="product-render">
             {% if rendered_product %}
               {% if rendered_mime_type in ["text/html", "application/json", "text/plain"] %}
-                <iframe class="w-full h-[80vh]"
-                        data-testid="html-render"
-                        sandbox
-                        src="data:{{ rendered_mime_type }};charset=utf-8;base64,{{ product.render_result }}">
-                </iframe>
+                <div x-data="{ previewOpen: false }">
+                  <button type="button"
+                          class="btn btn-outline"
+                          x-cloak
+                          x-show="!previewOpen"
+                          @click="previewOpen = true"
+                          data-testid="load-product-preview">{{ _("Load preview") }}</button>
+                  <template x-if="previewOpen">{{ html_preview(product, rendered_mime_type) }}</template>
+                  <noscript>{{ html_preview(product, rendered_mime_type) }}</noscript>
+                </div>
               {% elif rendered_mime_type == "application/pdf" %}
                 <iframe class="w-full h-[80vh]"
                         title="{{ _('PDF preview') }}"

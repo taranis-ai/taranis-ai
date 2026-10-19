@@ -116,7 +116,8 @@
   new_item_target="#form-container",
   search_params=[],
   force_delete=false,
-  delete_name=none
+  delete_name=none,
+  search_delay=500
 ) %}
   <div class="flex gap-4 mb-4">
     {% if routes.edit_route %}
@@ -127,7 +128,7 @@
            data-testid="new-{{ model_name }}-button">New {{ name }}</a>
       </div>
     {% endif %}
-    {% if searchbar %}{{ table_search_bar(container_id, routes.base_route, search_params) }}{% endif %}
+    {% if searchbar %}{{ table_search_bar(container_id, routes.base_route, search_params, search_delay=search_delay) }}{% endif %}
     {% if routes.edit_route %}
       <div class="grow-0">
         <button type="button"
@@ -216,7 +217,7 @@
   </form>
 {% endmacro %}
 
-{% macro table_search_bar(table_id, base_url, preserve_params=[]) %}
+{% macro table_search_bar(table_id, base_url, preserve_params=[], search_delay=500) %}
   {% set current_search = request.args.get('search', '') %}
   <div class="grow">
     <form method="get"
@@ -228,7 +229,7 @@
           hx-status:400:inherited="target:#notification-bar select:#notification-bar swap:outerHTML"
           hx-status:4xx:inherited="target:#notification-bar select:#notification-bar swap:outerHTML"
           hx-status:5xx:inherited="target:#notification-bar select:#notification-bar swap:outerHTML"
-          hx-trigger="submit, {{ search_trigger(table_id ~ '-search') }}"
+          hx-trigger="submit, {{ search_trigger(table_id ~ '-search', search_delay) }}"
           hx-swap="outerHTML"
           hx-sync="this:replace"
           hx-on::before:request="restoreSearchAfterSwap(ctx)">

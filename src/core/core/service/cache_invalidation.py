@@ -44,8 +44,8 @@ SCOPE_MODEL_NAMES: dict[str, tuple[str, ...]] = {
     SCOPE_ASSESS_VIEWS: ("story", "news_item", "filter_lists", "story_bookmark"),
     SCOPE_STORY_VIEWS: ("story", "news_item", "report_item", "report_editor", "story_bookmark", "filter_lists"),
     SCOPE_STORY_REPORT_VIEWS: ("story", "news_item", "report_item", "report_editor", "story_bookmark", "filter_lists"),
-    SCOPE_REPORT_VIEWS: ("report", "report_editor", "story", "product"),
-    SCOPE_PUBLISH_VIEWS: ("product",),
+    SCOPE_REPORT_VIEWS: ("report", "report_editor", "story", "product", "product_metadata"),
+    SCOPE_PUBLISH_VIEWS: ("product", "product_metadata"),
     SCOPE_USER_VIEWS: (
         "dashboard",
         "trending_clusters",
@@ -60,6 +60,7 @@ SCOPE_MODEL_NAMES: dict[str, tuple[str, ...]] = {
         "report",
         "report_editor",
         "product",
+        "product_metadata",
     ),
 }
 

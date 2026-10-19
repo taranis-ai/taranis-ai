@@ -5518,6 +5518,20 @@ paths:
         in: query
         schema:
           type: string
+      - name: order
+        in: query
+        description: Sort before pagination with a stable Product ID tie breaker. Defaults to created_desc.
+        schema:
+          type: string
+          enum: [title_asc, title_desc, created_asc, created_desc, type_asc, type_desc, report_items_asc, report_items_desc]
+      - name: page
+        in: query
+        schema:
+          type: integer
+      - name: fetch_all
+        in: query
+        schema:
+          type: boolean
       - name: offset
         in: query
         schema:
@@ -8815,6 +8829,66 @@ paths:
                           type: string
                         product_type_title:
                           type: string
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: Publishing access denied
+  /publish/product-metadata/{product_id}:
+    parameters:
+    - name: product_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    get:
+      security:
+      - UserAuth: []
+      tags: [publish]
+      operationId: publish.product_metadata.get
+      description: Product fields and compatible report metadata without fetching or returning the render. Requires PUBLISH_ACCESS and Product Type read access; compatible reports obey ACL/TLP visibility.
+      responses:
+        '200':
+          description: Product metadata without render_result
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: Product access denied
+        '404':
+          $ref: '#/components/responses/404NotFound'
+  /publish/product-type-choices:
+    get:
+      security:
+      - UserAuth: []
+      tags: [publish]
+      operationId: publish.product_type_choices.get
+      description: All ACL-visible Product Type choices with compatible Report Type IDs, ordered by title/ID. Requires PUBLISH_ACCESS. Presenter parameters are omitted.
+      responses:
+        '200':
+          description: Product Type catalog
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      required: [id, title, report_types]
+                      properties:
+                        id:
+                          type: string
+                        title:
+                          type: string
+                        report_types:
+                          type: array
+                          items:
+                            type: string
         '401':
           $ref: '#/components/responses/401Unauthorized'
         '403':

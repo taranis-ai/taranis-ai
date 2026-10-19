@@ -6,7 +6,8 @@ from base64 import b64decode
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from sqlalchemy.orm import Mapped, deferred, relationship
+from sqlalchemy import String, cast, func
+from sqlalchemy.orm import Mapped, contains_eager, deferred, joinedload, lazyload, load_only, relationship, selectinload
 from sqlalchemy.sql import Select
 
 from core.log import logger
@@ -15,6 +16,7 @@ from core.managers.db_manager import db
 from core.model.base_model import UUID_STR_LENGTH, BaseModel
 from core.model.product_type import ProductType
 from core.model.report_item import ReportItem
+from core.model.report_item_type import ReportItemType
 from core.model.role_based_access import ItemType
 from core.model.user import User
 from core.service.role_based_access import RBACQuery, RoleBasedAccessService
@@ -73,7 +75,7 @@ class Product(BaseModel):
         rbac = RBACQuery(user=user, resource_type=ItemType.PRODUCT_TYPE)
         return RoleBasedAccessService.filter_query_with_acl(query, rbac)
 
-    def get_supported_reports(self) -> list[ReportItem]:
+    def get_supported_reports(self, user: User | None = None) -> list[ReportItem]:
         """Returns list of ReportItems that are have the correct 'report_item_type' of that is set by the 'product_type' of the current 'product'"""
         if not self.product_type or not self.product_type.report_types:
             return []
@@ -82,12 +84,21 @@ class Product(BaseModel):
         if not allowed_type_ids:
             return []
 
-        query = db.select(ReportItem).where(ReportItem.report_item_type_id.in_(allowed_type_ids)).order_by(db.asc(ReportItem.title))
+        query = ReportItem.get_filter_query_with_acl({}, user) if user else db.select(ReportItem)
+        query = (
+            query.where(ReportItem.report_item_type_id.in_(allowed_type_ids))
+            .order_by(ReportItem.title, ReportItem.id)
+            .options(
+                lazyload(ReportItem.attributes),
+                load_only(ReportItem.id, ReportItem.title, ReportItem.created, ReportItem.report_item_type_id),
+                joinedload(ReportItem.report_item_type).load_only(ReportItemType.title),
+            )
+        )
         return list(db.session.execute(query).scalars().all())
 
     @classmethod
     def get_filter_query(cls, filter_args: dict) -> Select:
-        query = db.select(cls)
+        query = db.select(cls).join(ProductType, cls.product_type_id == ProductType.id)
 
         if search := filter_args.get("search"):
             query = query.filter(
@@ -106,14 +117,55 @@ class Product(BaseModel):
 
             query = query.filter(Product.created >= date_limit)
 
-        if sort := filter_args.get("sort"):
-            if sort == "DATE_DESC":
-                query = query.order_by(db.desc(Product.created))
-
-            elif sort == "DATE_ASC":
-                query = query.order_by(db.asc(Product.created))
-
         return query
+
+    @classmethod
+    def default_sort_column(cls) -> str:
+        return "created_desc"
+
+    @classmethod
+    def _add_sorting_to_query(cls, filter_args: dict[str, Any], query: Select) -> Select:
+        order = filter_args.get("order") or filter_args.get("sort") or cls.default_sort_column()
+        order = {"DATE_DESC": "created_desc", "DATE_ASC": "created_asc"}.get(order, order)
+        descending = order.endswith("_desc")
+        if order in {"report_items_asc", "report_items_desc"}:
+            column = db.select(func.count()).where(ProductReportItem.product_id == cls.id).correlate(cls).scalar_subquery()
+        elif order in {"type_asc", "type_desc"}:
+            column = cast(ProductType.type, String)
+        else:
+            return super()._add_sorting_to_query({"order": order}, query).order_by(cls.id.desc() if descending else cls.id.asc())
+        return query.order_by(None).order_by(column.desc() if descending else column.asc(), cls.id.desc() if descending else cls.id.asc())
+
+    @classmethod
+    def get_all_for_api(cls, filter_args: dict[str, Any] | None, with_count: bool = False, user=None) -> tuple[dict[str, Any], int]:
+        filter_args = filter_args or {}
+        base_query = cls.get_filter_query_with_acl(filter_args, user) if user else cls.get_filter_query(filter_args)
+        query = base_query if cls._should_fetch_all(filter_args) else cls._add_paging_to_query(filter_args, base_query)
+        query = cls._add_sorting_to_query(filter_args, query).options(
+            contains_eager(cls.product_type).load_only(ProductType.type),
+            selectinload(cls.report_items).load_only(ReportItem.id).lazyload(ReportItem.attributes),
+        )
+        response: dict[str, Any] = {"items": cls.to_list(cls.get_filtered(query) or [])}
+        if with_count:
+            response["total_count"] = cls.get_filtered_count(base_query)
+        return response, 200
+
+    @classmethod
+    def get_for_api(cls, item_id: str, user: User | None = None, *, include_render: bool = True) -> tuple[dict[str, Any], int]:
+        query = (
+            cls.get_filter_query({})
+            .where(cls.id == item_id)
+            .options(
+                contains_eager(cls.product_type).selectinload(ProductType.report_types).load_only(ReportItemType.id),
+                selectinload(cls.report_items).load_only(ReportItem.id).lazyload(ReportItem.attributes),
+            )
+        )
+        item = cls.get_first(query)
+        if item is None:
+            return {"error": "Product not found"}, 404
+        if user and not item.product_type.allowed_with_acl(user, require_write_access=False):
+            return {"error": "User is not allowed to read product"}, 403
+        return item.to_detail_dict(user=user, include_render=include_render), 200
 
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict(exclude={"render_result"})
@@ -125,16 +177,16 @@ class Product(BaseModel):
     def get_choices_for_api(cls, user: User) -> tuple[dict[str, Any], int]:
         query = (
             cls.get_filter_query_with_acl({}, user)
-            .join(ProductType, cls.product_type_id == ProductType.id)
             .with_only_columns(cls.id, cls.title, ProductType.title.label("product_type_title"))
             .order_by(cls.title, cls.id)
         )
         return {"items": [dict(row) for row in db.session.execute(query).mappings()]}, 200
 
-    def to_detail_dict(self) -> dict[str, Any]:
+    def to_detail_dict(self, user: User | None = None, *, include_render: bool = True) -> dict[str, Any]:
         data = self.to_dict()
-        data["supported_reports"] = [r.to_supported_products_dict() for r in self.get_supported_reports()]
-        data["render_result"] = self.render_result
+        data["supported_reports"] = [r.to_supported_products_dict() for r in self.get_supported_reports(user)]
+        if include_render:
+            data["render_result"] = self.render_result
         data["mime_type"] = self.product_type.get_mimetype() if self.product_type else None
         return data
 

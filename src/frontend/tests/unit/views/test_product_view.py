@@ -2,9 +2,8 @@ from unittest.mock import call, patch
 
 import pytest
 from flask import render_template, render_template_string, url_for
-from models.product import Product, ProductType, PublisherPreset
+from models.product import Product, ProductMetadata, ProductType, ProductTypeChoice, PublisherPreset
 from models.report import ReportItem
-from models.types import PRESENTER_TYPES, PUBLISHER_TYPES
 from pydantic import ValidationError
 
 from frontend.config import Config
@@ -101,33 +100,12 @@ def test_product_download_streams_core_response(authenticated_client, responses_
     assert responses_mock.calls[0].response.raw.closed
 
 
-def test_product_view_uses_publish_product_types_endpoint():
-    product_types = [
-        ProductType(
-            id="product-type-1",
-            title="CERT Daily Report",
-            description="cert.at Daily Report HTML",
-            type=PRESENTER_TYPES.HTML_PRESENTER,
-        )
-    ]
-    publishers = [
-        PublisherPreset(
-            id="publisher-1",
-            name="FTP Publisher",
-            description="Primary FTP publisher",
-            type=PUBLISHER_TYPES.FTP_PUBLISHER,
-        )
-    ]
-
+def test_product_list_does_not_load_editor_catalogs():
     with patch("frontend.views.product_views.DataPersistenceLayer") as persistence_cls:
-        persistence = persistence_cls.return_value
-        persistence.get_objects.side_effect = [product_types, publishers]
+        context = ProductView.get_extra_context({"products": []})
 
-        context = ProductView.get_extra_context({})
-
-    assert persistence.get_objects.call_args_list == [call(ProductType), call(PublisherPreset)]
-    assert context["product_types"] == [{"id": "product-type-1", "name": "CERT Daily Report"}]
-    assert context["publishers"] == [{"id": "publisher-1", "name": "FTP Publisher"}]
+    assert context == {"products": []}
+    persistence_cls.assert_not_called()
 
 
 def test_product_view_preselects_report_from_query(app):
@@ -159,7 +137,7 @@ def test_product_view_preselects_report_from_query(app):
         with app.test_request_context("/publish/product-1?report_id=report-1"):
             context = ProductView.get_extra_context({"product": product_instance})
 
-    assert persistence.get_objects.call_args_list == [call(ProductType), call(PublisherPreset)]
+    assert persistence.get_objects.call_args_list == [call(ProductTypeChoice), call(PublisherPreset)]
     assert context["selected_report_items"] == ["report-2", "report-1"]
     assert context["supported_reports"] == [{"id": "report-2", "title": "Already selected"}, report.model_dump(mode="json")]
 
@@ -230,6 +208,7 @@ def test_product_copy_prefills_only_creation_fields(app, report_items):
     assert "cmVuZGVyZWQ=" not in markup
     assert "/reports/source-product" not in markup
     assert source.title == "Daily report"
+    persistence.get_object.assert_called_once_with(ProductMetadata, "source-product")
     persistence.store_object.assert_not_called()
 
 

@@ -56,6 +56,62 @@ def product_type_change_resources(app):
 class TestPublishApi(BaseTest):
     base_uri = "/api/publish"
 
+    def test_product_search_and_sorts_apply_before_pagination(self, client, session, auth_header):
+        from core.model.product import Product
+        from core.model.product_type import ProductType
+        from core.model.report_item import ReportItem
+
+        prefix = uuid4().hex
+        originals = [ProductType.filter_by_title("Default PDF Presenter"), ProductType.filter_by_title("CERT Daily Report")]
+        types = [
+            ProductType(f"{prefix} Type {index}", original.type, parameters=original.parameters) for index, original in enumerate(originals)
+        ]
+        session.add_all(types)
+        session.flush()
+        reports = [ReportItem(f"{prefix} Report {index}", None) for index in range(2)]
+        session.add_all(reports)
+        session.flush()
+        products = [Product(f"{prefix} {title}", types[index % 2].id, description=prefix) for index, title in enumerate(["z", "a", "a", "m"])]
+        for product, count in zip(products, [0, 2, 1, 0], strict=True):
+            product.report_items = reports[:count]
+            product.created = datetime(2026, 1, 1)
+        session.add_all(products)
+        session.flush()
+        counts = {product.id: len(product.report_items) for product in products}
+        type_names = {item.id: item.type for item in types}
+        for column, key in [
+            ("title", lambda item: item.title),
+            ("created", lambda item: item.created),
+            ("type", lambda item: type_names[item.product_type_id]),
+            ("report_items", lambda item: counts[item.id]),
+        ]:
+            for direction in ["asc", "desc"]:
+                expected = sorted(products, key=lambda item: (key(item), item.id), reverse=direction == "desc")
+                actual = []
+                for page in [1, 2]:
+                    data = self.assert_get_ok(
+                        client, f"products?search={prefix}&order={column}_{direction}&limit=2&page={page}", auth_header
+                    ).get_json()
+                    assert data["total_count"] == 4
+                    actual.extend(item["id"] for item in data["items"])
+                assert actual == [item.id for item in expected]
+        data = self.assert_get_ok(client, f"products?search={quote(types[0].title)}", auth_header).get_json()
+        assert data["total_count"] == 2
+        assert {item["id"] for item in data["items"]} == {item.id for item in products if item.product_type_id == types[0].id}
+
+    def test_product_copy_metadata_omits_render_and_preserves_reports(self, client, auth_header, product_type_change_resources):
+        product_id = product_type_change_resources["product_id"]
+        full = self.assert_get_ok(client, f"products/{product_id}", auth_header).get_json()
+        metadata = self.assert_get_ok(client, f"product-metadata/{product_id}", auth_header).get_json()
+        assert full.pop("render_result") == base64.b64encode(b"Old product render").decode()
+        assert metadata == full
+
+    def test_product_type_choices_exclude_parameters_and_preserve_compatibility(self, client, auth_header):
+        choices = self.assert_get_ok(client, "product-type-choices", auth_header).get_json()["items"]
+        full = self.assert_get_ok(client, "product-types", auth_header).get_json()["items"]
+        assert {item["id"]: item["report_types"] for item in choices} == {item["id"]: item["report_types"] for item in full}
+        assert all(set(item) == {"id", "title", "report_types"} for item in choices)
+
     def test_post_Product(self, client, auth_header, cleanup_product):
         """
         This test queries the /api/publish/products endpoint with a POST request.

@@ -323,6 +323,18 @@ class TestRBACAclBehavior:
         assert all(set(item) == {"id", "title", "product_type_title"} for item in items)
         assert [item["title"] for item in items] == sorted(item["title"] for item in items)
 
+        listed = client.get("/api/publish/products?search=Choice&fetch_all=true", headers=auth_header_user_permissions)
+        assert listed.status_code == 200
+        assert listed.json["total_count"] == 21
+        assert {item["id"] for item in listed.json["items"]} == {item.id for item in products}
+        types = client.get("/api/publish/product-type-choices", headers=auth_header_user_permissions)
+        assert types.status_code == 200
+        assert visible_type.id in {item["id"] for item in types.json["items"]}
+        assert hidden_type.id not in {item["id"] for item in types.json["items"]}
+        for path in [f"products/{hidden.id}", f"product-metadata/{hidden.id}", f"products/{hidden.id}/render"]:
+            assert client.get(f"/api/publish/{path}", headers=auth_header_user_permissions).status_code == 403
+        assert client.get(f"/api/publish/product-metadata/{products[0].id}", headers=auth_header_user_permissions).status_code == 200
+
     def test_admin_operations_bypasses_acl_filtering_but_not_tlp(self, session):
         from core.model.report_item import ReportItem
         from core.model.role import Role
