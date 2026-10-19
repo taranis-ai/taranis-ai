@@ -419,8 +419,15 @@ class TestEndToEndAdmin(BaseE2ETest):
         def load_osint_sources():
             page.goto(url_for("admin.osint_sources", _external=True))
             expect(page.get_by_role("button", name="Curated sources")).to_be_visible()
+            filter_forms = page.locator("form").filter(has=page.get_by_role("radiogroup"))
+            expect(filter_forms.get_by_role("button", name="Apply", exact=True)).to_have_count(0)
             self.capture_screenshot(page, "./tests/playwright/screenshots/docs_osint_sources.png")
             with_htmx_wait(page, lambda: page.get_by_role("radio", name="Show", exact=True).check())
+            with_htmx_wait(page, lambda: page.get_by_role("radio", name="Failed", exact=True).check())
+            expect(page.get_by_role("radio", name="Failed", exact=True)).to_be_checked()
+            expect(page.get_by_role("link", name="Manual", exact=True)).to_have_count(0)
+            with_htmx_wait(page, lambda: page.get_by_role("radio", name="All", exact=True).check())
+            expect(filter_forms.get_by_role("button", name="Apply", exact=True)).to_have_count(0)
             with_htmx_wait(page, lambda: page.get_by_role("button", name="Collect All", exact=True).click())
             expect(page.locator("#osint_source-table-container")).to_have_count(1)
             expect(page.get_by_test_id("osint_source-table").locator("tbody tr")).to_have_count(1)
@@ -553,6 +560,37 @@ class TestEndToEndAdmin(BaseE2ETest):
         add_osint_sources()
         update_osint_sources()
         remove_osint_sources()
+
+    def test_osint_source_filters_without_javascript(self, browser, browser_context_args, logged_in_page):
+        context = browser.new_context(
+            **browser_context_args,
+            storage_state=logged_in_page.context.storage_state(),
+            java_script_enabled=False,
+        )
+        page = context.new_page()
+        try:
+            page.goto(url_for("admin.osint_sources", _external=True))
+            filter_forms = page.locator("form").filter(has=page.get_by_role("radiogroup"))
+            expect(filter_forms.get_by_role("button", name="Apply", exact=True)).to_have_count(2)
+            manual_filter = page.locator("form").filter(has=page.get_by_role("radiogroup", name="Manual sources"))
+            status_filter = page.locator("form").filter(has=page.get_by_role("radiogroup", name="Status", exact=True))
+
+            page.get_by_role("radio", name="Show", exact=True).check()
+            expect(page.get_by_role("link", name="Manual", exact=True)).to_have_count(0)
+            manual_filter.get_by_role("button", name="Apply", exact=True).click()
+            expect(page.get_by_role("link", name="Manual", exact=True)).to_be_visible()
+
+            page.get_by_role("radio", name="Failed", exact=True).check()
+            status_filter.get_by_role("button", name="Apply", exact=True).click()
+            expect(page.get_by_role("radio", name="Show", exact=True)).to_be_checked()
+            expect(page.get_by_role("radio", name="Failed", exact=True)).to_be_checked()
+            expect(page.get_by_role("link", name="Manual", exact=True)).to_have_count(0)
+
+            page.get_by_role("radio", name="All", exact=True).check()
+            status_filter.get_by_role("button", name="Apply", exact=True).click()
+            expect(page.get_by_role("link", name="Manual", exact=True)).to_be_visible()
+        finally:
+            context.close()
 
     def test_admin_osint_source_group_management(
         self,
