@@ -130,13 +130,19 @@ class StoryView(BaseView):
     @staticmethod
     def get_filter_lists() -> FilterLists:
         username = getattr(current_user, "username", getattr(current_user, "id", "anonymous"))
+        request_lists = request.environ.setdefault("taranis.assess_filter_lists", {})
+        if username in request_lists:
+            return request_lists[username]
         if filter_lists := get_model_from_cache(FilterLists._model_name, "", username):
-            return FilterLists(**filter_lists)
-        if filter_lists_content := CoreApi().get_filter_lists():
+            result = FilterLists(**filter_lists)
+        elif filter_lists_content := CoreApi().get_filter_lists():
             filter_lists = FilterLists(**filter_lists_content)
             add_model_to_cache(filter_lists, "", username)
-            return filter_lists
-        return FilterLists(tags=[], sources=[], groups=[])
+            result = filter_lists
+        else:
+            result = FilterLists(tags=[], sources=[], groups=[])
+        request_lists[username] = result
+        return result
 
     @staticmethod
     def _filter_token_item(value: str, label: str, name: str, group: str | None = None) -> dict[str, str]:
@@ -805,18 +811,23 @@ class StoryView(BaseView):
             items, error = None, format_pydantic_errors(exc, cls.model)
         except HTTPException:
             raise
-        except Exception as exc:
+        except Exception:
             logger.exception(f"Error retrieving {cls.model_name()} items")
-            items, error = None, str(exc)
+            items, error = None, "Unable to load stories. Please try again."
+
+        if items is None:
+            error = "Unable to load stories. Please try again."
+            if is_htmx_request():
+                return render_template("notification/index.html", notification={"message": error, "error": True}, oob=False), 502
+            flash(error, "error")
 
         context = cls.get_view_context(items, error)
-        if items is not None:
-            context[cls.model_plural_name()] = items
+        context[cls.model_plural_name()] = items if items is not None else CacheObject([])
         context["pagination"] = cls._build_pagination_context(items, paging_data, request_params)
         context["assess_selection_key"] = cls._build_assess_selection_key(request_params)
         context["selected_story_ids"] = selected_story_ids or []
 
-        return render_template(cls.get_list_template(), **context), 200
+        return render_template(cls.get_list_template(), **context), 200 if items is not None else 502
 
     @classmethod
     def rerender_list(cls, notification: str | None = None):
