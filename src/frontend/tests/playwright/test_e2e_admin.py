@@ -419,8 +419,11 @@ class TestEndToEndAdmin(BaseE2ETest):
         def load_osint_sources():
             page.goto(url_for("admin.osint_sources", _external=True))
             expect(page.get_by_role("button", name="Curated sources")).to_be_visible()
+            filter_forms = page.locator("form").filter(has=page.get_by_role("radiogroup"))
+            expect(filter_forms.get_by_role("button", name="Apply", exact=True)).to_have_count(0)
             self.capture_screenshot(page, "./tests/playwright/screenshots/docs_osint_sources.png")
             with_htmx_wait(page, lambda: page.get_by_role("radio", name="Show", exact=True).check())
+            expect(filter_forms.get_by_role("button", name="Apply", exact=True)).to_have_count(0)
             with_htmx_wait(page, lambda: page.get_by_role("button", name="Collect All", exact=True).click())
             expect(page.locator("#osint_source-table-container")).to_have_count(1)
             expect(page.get_by_test_id("osint_source-table").locator("tbody tr")).to_have_count(1)
