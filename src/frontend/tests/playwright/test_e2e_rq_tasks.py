@@ -15,6 +15,7 @@ from rq.job import Job
 from rq.results import Result
 
 from tests.core_requests import CoreRequestClient
+from tests.playwright.notification_helpers import dismiss_notifications
 
 
 pytest_plugins = ("tests.playwright.rq_e2e_fixtures",)
@@ -306,6 +307,7 @@ def test_url_news_item_creation(logged_in_page, worker_process, core_request_cli
         expect(form).to_be_visible()
         expect(page.locator("#create-from-url")).to_have_value(source_url)
         expect(headers).to_have_value("invalid JSON")
+        dismiss_notifications(page)
     headers.fill('{"X-Collection-Test": "browser-workflow"}')
     with page.expect_response(submit_url, timeout=60000) as response_info:
         form.get_by_role("button", name="Create from URL", exact=True).click()
