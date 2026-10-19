@@ -21,6 +21,8 @@ News-item fingerprints, collection identity, URL updates, fuzzy grouping, revisi
 
 Core: `core/service/collection.py`, `core/model/news_item.py`, `core/model/story.py`, `core/api/worker.py`, `core/managers/queue_manager.py`, and `migrations/20260911_01_f8H2q-add-news-item-fuzzy-hash.py` under `src/core`.
 
+`NewsItem.__init__` resolves sources (including the manual fallback) inside `no_autoflush`: earlier items in a story batch can already reference a persistent source while still outside the session. Keep lookup queries inside that block until the graph is attached by the caller. The existing Assess news-item-order workflow treats transient-item relationship warnings as errors while creating its multi-item story.
+
 Shared diffs: `src/models/models/revision_diff.py`. Worker: `base_collector.py`, `base_web_collector.py`, `collector_tasks.py`, and `core_api.py`.
 
 `CollectionService.ingest_item` handles source locking and identity dispatch; `_update_item` and `_create_item` handle their respective decisions, with `_record_change` sharing status/revision work. Transaction commits remain owned by `ingest`.

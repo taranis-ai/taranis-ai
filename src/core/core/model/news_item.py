@@ -121,12 +121,12 @@ class NewsItem(BaseModel):
         self.review = payload.review or ""
         self.content = payload.content or ""
         self.fuzzy_hash = self.get_fuzzy_hash(self.content)
-        if osint_source := OSINTSource.get(payload.osint_source_id):
-            with db.session.no_autoflush:
+        with db.session.no_autoflush:
+            if osint_source := OSINTSource.get(payload.osint_source_id):
                 self.osint_source = osint_source
-        else:
-            logger.warning(f"OSINT Source {payload.osint_source_id} not found. Setting osint_source_id to manual.")
-            self.osint_source = OSINTSource.get_manual()
+            else:
+                logger.warning(f"OSINT Source {payload.osint_source_id} not found. Setting osint_source_id to manual.")
+                self.osint_source = OSINTSource.get_manual()
         self.source = payload.source or ""
         self.link = payload.link or ""
         self.author = payload.author or ""
