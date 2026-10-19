@@ -405,7 +405,6 @@ def test_manual_news_item_form_routes_htmx_errors_to_notification_bar(authentica
     form = tree.xpath('//form[@id="news-item-form"]')
     file_form = tree.xpath('//form[@hx-encoding="multipart/form-data"]')
     url_form = tree.xpath('//form[@id="news-item-create-from-url-form"]')
-    url_parameters_dialog = tree.xpath('//dialog[@id="create_from_url_parameters_dialog"]')
 
     assert len(form) == 1
     assert form[0].get("hx-status:400") == "target:#notification-bar"
@@ -420,12 +419,9 @@ def test_manual_news_item_form_routes_htmx_errors_to_notification_bar(authentica
     assert url_form[0].get("hx-status:4xx") == "target:#notification-bar"
     assert url_form[0].get("hx-status:5xx") == "target:#notification-bar"
     assert url_form[0].xpath('.//input[@name="fetch_url"]')
-    assert len(url_parameters_dialog) == 1
-    assert url_parameters_dialog[0].xpath('.//*[@name="parameters[XPATH]"]')
-    assert url_parameters_dialog[0].xpath('.//*[@name="parameters[BROWSER_MODE]"]')
-    additional_headers_input = url_parameters_dialog[0].xpath('.//input[@name="parameters[ADDITIONAL_HEADERS]"]')
-    assert len(additional_headers_input) == 1
-    assert not url_parameters_dialog[0].xpath('.//textarea[@name="parameters[ADDITIONAL_HEADERS]"]')
+    assert url_form[0].xpath('.//*[@name="parameters[XPATH]"]')
+    assert url_form[0].xpath('.//*[@name="parameters[BROWSER_MODE]"]')
+    assert url_form[0].xpath('.//textarea[@name="parameters[ADDITIONAL_HEADERS]"]')
 
     source_input = form[0].xpath('.//input[@name="source"]')
     assert len(source_input) == 1
@@ -1116,11 +1112,26 @@ def test_create_news_item_from_url_posts_simple_web_collector_payload(authentica
             "WEB_URL": "https://example.com/story",
             "XPATH": "//article",
             "TLP_LEVEL": "green",
-            "BROWSER_MODE": "true",
-            "DIGEST_SPLITTING": "false",
-            "DIGEST_SPLITTING_LIMIT": "30",
+            "BROWSER_MODE": True,
+            "DIGEST_SPLITTING": False,
+            "DIGEST_SPLITTING_LIMIT": 30,
         },
     }
+
+
+@pytest.mark.parametrize(
+    "parameters, message",
+    [
+        ({"parameters[ADDITIONAL_HEADERS]": "invalid"}, "Additional headers"),
+        ({"parameters[DIGEST_SPLITTING]": "true"}, "XPath selecting article links is required"),
+        ({"parameters[DIGEST_SPLITTING_LIMIT]": "0"}, "Digest splitting limit"),
+    ],
+)
+def test_url_collection_rejects_invalid_settings_without_contacting_core(authenticated_client, responses_mock, parameters, message):
+    response = authenticated_client.post(url_for("assess.create_news_item"), data={"fetch_url": "https://example.com/story", **parameters})
+    assert response.status_code == 400
+    assert message in html.fromstring(response.text).text_content()
+    assert not responses_mock.calls
 
 
 def test_story_share_page_loads_connectors_from_assess_endpoint(authenticated_client_basic, responses_mock):

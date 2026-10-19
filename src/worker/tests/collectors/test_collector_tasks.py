@@ -348,75 +348,62 @@ def test_rss_parse_failure_is_not_reclassified_as_not_modified(current_job, requ
     assert recovered["result"]["message"] == "No changes: All news items were skipped"
 
 
-def test_fetch_single_news_item_accepts_simple_web_source_payload_and_persists_success_result(current_job, requests_mock, monkeypatch):
-    captured_parameters = {}
+@pytest.mark.parametrize("browser_mode", [False, "false", True, "true"])
+def test_fetch_single_news_item_accepts_simple_web_source_payload_and_persists_success_result(
+    current_job, requests_mock, web_collector_url_mock, browser_web_collector_mock, browser_mode
+):
+    from tests.testdata import web_collector_result_title, web_collector_url
 
-    class FakeSimpleWebCollector:
-        name = "Simple Web Collector"
-
-        def preview_collector(self, parameters):
-            captured_parameters.update(parameters)
-            return [{"title": "Fetched item", "source": parameters["parameters"]["WEB_URL"]}]
-
-    monkeypatch.setattr(collector_tasks.worker.collectors, "SimpleWebCollector", FakeSimpleWebCollector)
     requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
-
     result = collector_tasks.fetch_single_news_item(
         {
             "id": "manual",
             "type": "simple_web_collector",
-            "parameters": {"WEB_URL": "https://example.com/story", "XPATH": "//article"},
+            "parameters": {
+                "WEB_URL": web_collector_url,
+                "BROWSER_MODE": browser_mode,
+                "DIGEST_SPLITTING": "false",
+                "XPATH": "",
+                "ADDITIONAL_HEADERS": '{"X-Test": "normalization"}',
+                "TLP_LEVEL": "green",
+            },
         }
     )
-
-    assert result == [{"title": "Fetched item", "source": "https://example.com/story"}]
-    assert captured_parameters == {
-        "id": "manual",
-        "type": "simple_web_collector",
-        "parameters": {"WEB_URL": "https://example.com/story", "XPATH": "//article"},
-    }
-
+    assert len(result) == 1
+    assert result[0]["title"] == web_collector_result_title
+    assert result[0]["link"] == web_collector_url
+    assert result[0]["attributes"] == [{"key": "TLP", "value": "green"}]
+    if browser_mode in (True, "true"):
+        browser_web_collector_mock.fetch_content_with_js.assert_called_once_with(web_collector_url, "")
+        browser_web_collector_mock.stop_playwright_if_needed.assert_called_once()
+        assert browser_web_collector_mock.request_headers["X-Test"] == "normalization"
+    else:
+        browser_web_collector_mock.fetch_content_with_js.assert_not_called()
+        article_request = next(req for req in requests_mock.request_history if req.url == web_collector_url)
+        assert article_request.headers["X-Test"] == "normalization"
     post_calls = [req for req in requests_mock.request_history if req.method == "POST" and req.url.endswith("/tasks")]
     assert len(post_calls) == 1
-    assert post_calls[0].json() == {
-        "id": "test-job-123",
-        "task": "collector_task",
-        "worker_id": "https://example.com/story",
-        "worker_type": "simple_web_collector",
-        "result": {
-            "message": "Fetched news item from https://example.com/story",
-            "reason": None,
-            "retryable": False,
-            "data": [{"title": "Fetched item", "source": "https://example.com/story"}],
-        },
-        "status": "SUCCESS",
-    }
+    saved = post_calls[0].json()
+    assert saved["status"] == "SUCCESS"
+    assert saved["worker_id"] == web_collector_url
+    assert saved["result"]["data"] == result
 
 
-def test_fetch_single_news_item_persists_failure_result(current_job, requests_mock, monkeypatch):
-    class FakeSimpleWebCollector:
-        name = "Simple Web Collector"
-
-        def preview_collector(self, parameters):
-            raise ValueError("connection refused")
-
-    monkeypatch.setattr(collector_tasks.worker.collectors, "SimpleWebCollector", FakeSimpleWebCollector)
+def test_fetch_single_news_item_persists_failure_result(current_job, requests_mock):
+    requests_mock.get("https://example.com/story", status_code=500, reason="private connection details")
     requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
-
-    with pytest.raises(RuntimeError, match="connection refused"):
+    with pytest.raises(RuntimeError, match="Failed to fetch news items") as error:
         collector_tasks.fetch_single_news_item(
             {"id": "manual", "type": "simple_web_collector", "parameters": {"WEB_URL": "https://example.com/story"}}
         )
-
+    assert "private connection details" not in str(error.value)
     post_calls = [req for req in requests_mock.request_history if req.method == "POST" and req.url.endswith("/tasks")]
     assert len(post_calls) == 1
-    assert post_calls[0].json()["status"] == "FAILURE"
-    assert post_calls[0].json()["result"] == {
-        "message": "connection refused",
-        "reason": "collection_failed",
-        "retryable": False,
-        "data": {"source_id": "https://example.com/story"},
-    }
+    saved = post_calls[0].json()
+    assert saved["status"] == "FAILURE"
+    assert saved["result"]["reason"] == "collection_failed"
+    assert saved["result"]["message"] == str(error.value)
+    assert saved["result"]["data"] == {"source_id": "https://example.com/story"}
 
 
 def test_collector_preview_persists_with_preview_status(current_job, requests_mock, monkeypatch):

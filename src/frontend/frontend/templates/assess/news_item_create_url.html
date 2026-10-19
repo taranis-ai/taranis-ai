@@ -1,0 +1,124 @@
+<form id="news-item-create-from-url-form"
+      class="card border border-base-200 bg-base-100 shadow-sm"
+      hx-post="{{ url_for('assess.create_news_item') }}"
+      hx-target="main"
+      hx-status:400="target:#notification-bar"
+      hx-status:4xx="target:#notification-bar"
+      hx-status:5xx="target:#notification-bar"
+      hx-swap="outerHTML"
+      hx-disabled-elt="#collect-url-submit"
+      hx-indicator="#collect-url-progress">
+  <div class="card-body gap-6">
+    <div class="space-y-1">
+      <h2 class="text-xl font-semibold" tabindex="-1" x-ref="urlHeading">From URL</h2>
+      <p class="text-sm text-base-content/70">Turn a web article into a news item, or collect linked articles from a digest page.</p>
+    </div>
+    <label class="flex flex-col gap-2">
+      <span class="label-text font-semibold">Page URL <span class="text-error">*</span></span>
+      <input id="create-from-url"
+             type="url"
+             name="fetch_url"
+             placeholder="https://example.com/article"
+             class="input input-bordered w-full"
+             required>
+      <span class="text-sm text-base-content/60">Use the full http:// or https:// address of the page you want to collect.</span>
+    </label>
+
+    <fieldset class="space-y-4 rounded-box border border-base-200 p-4" x-data="{ splitting: 'false' }">
+      <legend class="px-2 font-semibold">What to collect</legend>
+      <label class="flex flex-col gap-2">
+        <span class="label-text font-semibold">Collection mode</span>
+        <select name="parameters[DIGEST_SPLITTING]" class="select select-bordered w-full" x-model="splitting">
+          <option value="false">Single article</option>
+          <option value="true">Linked articles from a digest page</option>
+        </select>
+      </label>
+      <p class="text-sm text-base-content/70"
+         x-show="splitting === 'false'">Collect just the supplied URL. Article text is extracted automatically.</p>
+      <p class="text-sm text-base-content/70"
+         x-show="splitting === 'true'"
+         x-cloak>Select the part of the page containing article links. Each linked article becomes a separate news item.</p>
+      <label class="flex flex-col gap-2">
+        <span class="label-text font-semibold" x-show="splitting === 'false'">Content XPath (optional)</span>
+        <span class="label-text font-semibold"
+              x-show="splitting === 'true'"
+              x-cloak>Article links XPath <span class="text-error">*</span></span>
+        <input type="text"
+               name="parameters[XPATH]"
+               class="input input-bordered w-full"
+               :required="splitting === 'true'"
+               :placeholder="splitting === 'true' ? '//div[@class=&quot;articles&quot;]' : '//article'"
+               aria-describedby="url-xpath-help">
+        <span id="url-xpath-help" class="text-sm text-base-content/60">
+          <span x-show="splitting === 'false'">Leave blank for automatic extraction. Set an XPath only to extract a specific part of the article.</span>
+          <span x-show="splitting === 'true'" x-cloak>For example, //main selects links inside the main section. Choose a container with article links to avoid collecting navigation links.</span>
+        </span>
+      </label>
+      <label class="flex flex-col gap-2" x-show="splitting === 'true'" x-cloak>
+        <span class="label-text font-semibold">Maximum linked articles</span>
+        <input type="number"
+               name="parameters[DIGEST_SPLITTING_LIMIT]"
+               min="1"
+               value="30"
+               class="input input-bordered w-full"
+               :disabled="splitting !== 'true'"
+               required>
+        <span class="text-sm text-base-content/60">Collect at most this many links, in page order. Start with a small number to check your selection.</span>
+      </label>
+    </fieldset>
+
+    <div class="grid gap-6 md:grid-cols-2">
+      <label class="flex flex-col gap-2">
+        <span class="label-text font-semibold">Page loading</span>
+        <select name="parameters[BROWSER_MODE]" class="select select-bordered w-full">
+          <option value="false">Direct request (default)</option>
+          <option value="true">Browser rendering</option>
+        </select>
+        <span class="text-sm text-base-content/60">Use browser rendering when the article content is loaded by JavaScript. It takes longer than a direct request.</span>
+      </label>
+      <label class="flex flex-col gap-2">
+        <span class="label-text font-semibold">News item TLP</span>
+        <select name="parameters[TLP_LEVEL]" class="select select-bordered w-full">
+          <option value="">Inherit default classification</option>
+          {% for level in ['clear', 'green', 'amber', 'amber+strict', 'red'] %}
+            <option value="{{ level }}">{{ level | upper }}</option>
+          {% endfor %}
+        </select>
+        <span class="text-sm text-base-content/60">An explicit classification applies to every news item created by this collection.</span>
+      </label>
+    </div>
+
+    <details class="rounded-box border border-base-200 p-4">
+      <summary class="cursor-pointer font-semibold">Advanced request settings</summary>
+      <div class="mt-4 grid gap-4 md:grid-cols-2">
+        <label class="flex flex-col gap-2">
+          <span class="label-text font-semibold">User agent (optional)</span>
+          <input type="text" name="parameters[USER_AGENT]" class="input input-bordered w-full" placeholder="Use the collector default">
+          <span class="text-sm text-base-content/60">Override the User-Agent header when a site requires a particular browser identity.</span>
+        </label>
+        <label class="flex flex-col gap-2">
+          <span class="label-text font-semibold">Proxy server (optional)</span>
+          <input type="url" name="parameters[PROXY_SERVER]" class="input input-bordered w-full" placeholder="http://proxy.example:8080">
+          <span class="text-sm text-base-content/60">The proxy must be reachable from the collection worker. Leave blank for a direct connection.</span>
+        </label>
+        <label class="flex flex-col gap-2 md:col-span-2">
+          <span class="label-text font-semibold">Additional headers (optional)</span>
+          <textarea name="parameters[ADDITIONAL_HEADERS]"
+                    rows="3"
+                    class="textarea textarea-bordered w-full font-mono"
+                    placeholder='{"Accept": "text/html"}'
+                    aria-describedby="url-headers-help"></textarea>
+          <span id="url-headers-help" class="text-sm text-base-content/60">Enter a JSON object, for example {"Accept": "text/html"}. Headers are sent to the requested site and, in linked-article mode, the collected links.</span>
+        </label>
+      </div>
+    </details>
+
+    <div class="flex flex-wrap items-center gap-3">
+      <button id="collect-url-submit" type="submit" class="btn btn-primary">Create from URL</button>
+      <a href="{{ url_for('assess.assess') }}" class="btn btn-ghost">Cancel</a>
+      <span id="collect-url-progress" class="htmx-indicator flex items-center gap-2 text-sm" role="status">
+        <span class="loading loading-spinner loading-sm" aria-hidden="true"></span>Collecting articles…
+      </span>
+    </div>
+  </div>
+</form>

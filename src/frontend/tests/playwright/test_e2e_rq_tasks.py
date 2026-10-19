@@ -8,6 +8,8 @@ from typing import Any, cast
 import pytest
 import redis
 from croniter import croniter
+from flask import url_for
+from playwright.sync_api import expect
 from rq import Queue
 from rq.job import Job
 from rq.results import Result
@@ -266,6 +268,59 @@ def rq_harness(
     redis_backend: RedisBackend,
 ) -> RqE2EHarness:
     return RqE2EHarness(core_client=core_request_client, redis_backend=redis_backend)
+
+
+@pytest.mark.e2e_ci
+@pytest.mark.parametrize("splitting", ["false", "true"])
+def test_url_news_item_creation(logged_in_page, worker_process, core_request_client, splitting):
+    page = logged_in_page
+    page.goto(url_for("assess.get_news_item", news_item_id="0", _external=True))
+    page.get_by_role("button", name="From URL", exact=True).click()
+    form = page.locator("#news-item-create-from-url-form")
+    expect(form).to_be_visible()
+    xpath = form.locator('input[name="parameters[XPATH]"]')
+    expect(xpath).to_have_value("")
+    assert not xpath.evaluate("element => element.required")
+    target = "digest.html" if splitting == "true" else "item1.html"
+    source_url = f"http://testdata/{target}?collection={uuid.uuid4()}"
+    page.locator("#create-from-url").fill(source_url)
+    form.locator('select[name="parameters[DIGEST_SPLITTING]"]').select_option(splitting)
+    if splitting == "true":
+        assert xpath.evaluate("element => element.required")
+        xpath.fill("//main")
+        form.locator('input[name="parameters[DIGEST_SPLITTING_LIMIT]"]').fill("1")
+    else:
+        expect(form.locator('input[name="parameters[DIGEST_SPLITTING_LIMIT]"]')).not_to_be_visible()
+    form.locator('select[name="parameters[BROWSER_MODE]"]').select_option("true")
+    form.locator('select[name="parameters[BROWSER_MODE]"]').select_option("false")
+    form.locator('select[name="parameters[TLP_LEVEL]"]').select_option("green")
+    form.locator("summary").click()
+    headers = form.locator('textarea[name="parameters[ADDITIONAL_HEADERS]"]')
+    submit_url = url_for("assess.create_news_item", _external=True)
+    if splitting == "false":
+        headers.fill("invalid JSON")
+        with page.expect_response(submit_url) as response_info:
+            form.get_by_role("button", name="Create from URL", exact=True).click()
+        assert response_info.value.status == 400
+        expect(page.locator("#notification-bar")).to_contain_text("Additional headers")
+        expect(form).to_be_visible()
+        expect(page.locator("#create-from-url")).to_have_value(source_url)
+        expect(headers).to_have_value("invalid JSON")
+    headers.fill('{"X-Collection-Test": "browser-workflow"}')
+    with page.expect_response(submit_url, timeout=60000) as response_info:
+        form.get_by_role("button", name="Create from URL", exact=True).click()
+    assert response_info.value.ok
+    page.wait_for_url("**/story/*/edit")
+    story_id = page.url.split("/story/")[1].split("/")[0]
+    try:
+        story = core_request_client.json_request("GET", f"/assess/stories/{story_id}")
+        assert len(story["news_items"]) == 1
+        item = story["news_items"][0]
+        assert "fixture" in item["content"].lower()
+        assert item["link"] == ("http://testdata/item1.html?linked=first" if splitting == "true" else source_url)
+        assert {"key": "TLP", "value": "green"} in item["attributes"]
+    finally:
+        core_request_client.delete(f"/assess/stories/{story_id}", raise_for_status=False)
 
 
 @pytest.mark.e2e_ci
