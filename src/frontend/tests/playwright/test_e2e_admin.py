@@ -285,7 +285,7 @@ class TestEndToEndAdmin(BaseE2ETest):
         title_input.fill("")
         page.locator('input[name="language"]').fill("")
         page.locator('textarea[name="content"]').fill("A content-only manual news item")
-        page.locator('input[name="link"]').fill(f"https://example.com/{uuid.uuid4()}")
+        page.locator('input[name="link"]').fill("")
         with page.expect_response(create_news_item_url) as response_info:
             page.get_by_role("button", name="Create news item", exact=True).click()
         assert response_info.value.ok

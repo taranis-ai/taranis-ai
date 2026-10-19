@@ -238,7 +238,7 @@ class NewsItem(TaranisBaseModel):
         if not self.hash:
             title = self.title or ""
             link = self.link or ""
-            self.hash = hashlib.sha256((title + link).encode()).hexdigest()
+            self.hash = hashlib.sha256((title + link or self.content or "").encode()).hexdigest()
         return self
 
     @field_validator("published", "collected", mode="before")

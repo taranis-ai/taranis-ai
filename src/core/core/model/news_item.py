@@ -161,7 +161,7 @@ class NewsItem(BaseModel):
     def get_hash(cls, title: str = "", link: str = "", content: str = "") -> str:
         if not title and not link and not content:
             raise ValueError("At least one of the following parameters must be provided: title, link, content")
-        combined_str = f"{title}{link}"
+        combined_str = f"{title}{link}" or content
         return hashlib.sha256(combined_str.encode()).hexdigest()
 
     @classmethod
@@ -222,9 +222,10 @@ class NewsItem(BaseModel):
     @classmethod
     def get_by_payload_identity(cls, payload: AssessNewsItem) -> "NewsItem | None":
         # Collection hashes are source/URL scoped; explicit imports retain title/URL identity.
-        return cls.get_by_hash(payload.hash) or cls.get_first(
-            db.select(cls).where(cls.title == (payload.title or ""), cls.link == (payload.link or ""))
-        )
+        query = db.select(cls).where(cls.title == (payload.title or ""), cls.link == (payload.link or ""))
+        if not payload.title and not payload.link:
+            query = query.where(cls.content == (payload.content or ""))
+        return cls.get_by_hash(payload.hash) or cls.get_first(query)
 
     @classmethod
     def get_source_distribution(cls, total: int, user: User | None = None) -> list[dict[str, Any]]:

@@ -1,4 +1,5 @@
 import json
+from io import BytesIO
 from types import SimpleNamespace
 from typing import Any
 from urllib.parse import parse_qs, urlparse
@@ -1081,6 +1082,34 @@ def test_table_search_bar_uses_form_level_search_trigger(app):
     assert form.get("action") == "/frontend/admin/osint-sources"
     assert form.get("hx-on:submit") is None
     assert search_input.get("hx-trigger") is None
+
+
+@pytest.mark.parametrize(
+    "content, mimetype, status",
+    [
+        (b'{"content": "Imported news"}', "application/octet-stream", 204),
+        (b'{"content": "Imported news"}', "", 204),
+        (b"invalid JSON", "application/octet-stream", 400),
+        (b"\xff\xfe\x00", "application/octet-stream", 400),
+    ],
+)
+def test_create_news_item_from_file_validates_json_content(authenticated_client, responses_mock, htmx_header, content, mimetype, status):
+    if status == 204:
+        responses_mock.post(f"{Config.TARANIS_CORE_URL}/assess/import", json={"message": "Imported"})
+
+    response = authenticated_client.post(
+        url_for("assess.create_news_item"),
+        data={"file": (BytesIO(content), "news.json", mimetype)},
+        headers=htmx_header,
+    )
+
+    assert response.status_code == status
+    if status == 204:
+        assert response.headers["HX-Redirect"] == url_for("assess.assess")
+        assert json.loads(responses_mock.calls[0].request.body) == {"content": "Imported news"}
+    else:
+        assert "Invalid JSON file." in response.text
+        assert not responses_mock.calls
 
 
 def test_create_news_item_from_url_posts_simple_web_collector_payload(authenticated_client, responses_mock):

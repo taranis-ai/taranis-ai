@@ -161,9 +161,10 @@ def test_news_item_service_update_creates_story_revisions(admin_user):
 
 
 @pytest.mark.usefixtures("session")
-def test_story_add_single_news_item_detects_duplicates_by_title_and_link():
-    shared_title = f"Duplicate {uuid.uuid4()}"
-    shared_link = "https://example.invalid/duplicate"
+@pytest.mark.parametrize("content_only", [False, True])
+def test_story_add_single_news_item_detects_duplicates_by_identity(admin_user, content_only):
+    shared_title = "" if content_only else f"Duplicate {uuid.uuid4()}"
+    shared_link = "" if content_only else "https://example.invalid/duplicate"
     first_payload = _news_item_payload(source="manual")
     first_payload["title"] = shared_title
     first_payload["link"] = shared_link
@@ -179,9 +180,22 @@ def test_story_add_single_news_item_detects_duplicates_by_title_and_link():
 
     second_response, second_status = Story.add_single_news_item(second_payload)
 
+    if content_only:
+        assert second_status == 200
+        first_item = Story.get(first_response["story_id"]).news_items[0]
+        second_item = Story.get(second_response["story_id"]).news_items[0]
+        assert first_item.hash != second_item.hash
+        assert second_item.hash == NewsItem.get_hash(content=second_payload["content"])
+        first_item_id = first_item.id
+        assert NewsItemService.update(first_item.id, {"content": "updated-content"}, admin_user)[1] == 200
+        first_response = second_response
+        second_response, second_status = Story.add_single_news_item(second_payload)
+
     assert second_status == 409
     assert second_response["error"] == "Identical news item found. Skipping..."
     assert second_response["skipped_news_item_story_id"] == first_response["story_id"]
+    if content_only:
+        assert NewsItemService.update(first_item_id, {"content": second_payload["content"]}, admin_user)[1] == 409
 
 
 @pytest.mark.usefixtures("session")

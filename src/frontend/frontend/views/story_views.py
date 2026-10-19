@@ -1227,13 +1227,10 @@ class StoryView(BaseView):
     def _create_news_item_from_file(cls, file: FileStorage):
         if file.filename == "":
             return make_response(cls.render_response_notification({"error": "No file selected for upload."}), 400)
-        if file.mimetype not in ["text/plain", "application/json"]:
-            return make_response(cls.render_response_notification({"error": "Unsupported file type. Please upload a JSON file."}), 400)
-
         try:
             json_data = json.loads(file.read())
             core_response = CoreApi().api_post("/assess/import", json_data=json_data)
-        except JSONDecodeError:
+        except JSONDecodeError, UnicodeDecodeError:
             return make_response(cls.render_response_notification({"error": "Invalid JSON file."}), 400)
         except HTTPException:
             raise
