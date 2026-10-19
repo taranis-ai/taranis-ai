@@ -35,3 +35,5 @@ Relative date windows and explicit `timefrom` use the publication-derived story 
 ## Coverage
 
 `src/core/tests/application/user_workspace/assessment/test_story_filters.py`; `src/frontend/tests/unit/views/test_story_view.py`; `src/frontend/tests/unit/test_omnisearch.py`; `src/frontend/tests/playwright/test_main_js.py`; pagination in `test_user_profile` in `src/frontend/tests/playwright/test_e2e_user.py`.
+
+The landing-page workflow's `test_assess` records two unread, unimportant stories being marked read and then important. It selects representative visible cards rather than relying on a fixed seed count. Detailed filtering, bulk actions, clustering, and editing belong to the regular `test_e2e_user.py` workflows rather than the recording.

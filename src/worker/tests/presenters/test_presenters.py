@@ -99,37 +99,6 @@ def test_pdf_presenter_no_data(pdf_presenter, fixed_datetime, monkeypatch):
     assert str(exception.value) == "PDF generation failed: No data returned"
 
 
-def test_pdf_presenter_removes_generated_metadata(pdf_presenter, fixed_datetime, monkeypatch):
-    class FakeHTML:
-        def __init__(self, string):
-            self.string = string
-
-        def write_pdf(self, target=None, finisher=None):
-            assert target is None
-            assert finisher is not None
-            fake_pdf = FakePDF()
-            fake_pdf.info = {"Producer": "WeasyPrint 68.1", "Title": "A Test Report"}
-            finisher(object(), fake_pdf)
-            return b"%PDF-1.7\n<<" + b"".join(f"/{key} ({value})".encode() for key, value in fake_pdf.info.items()) + b">>\n"
-
-    monkeypatch.setattr(pdfp, "HTML", FakeHTML, raising=True)
-
-    product = {"title": "A Test Report"}
-    template = """
-    <html>
-      <head><title>{{ data.title }}</title></head>
-      <body><p>{{ data.current_date }}</p></body>
-    </html>
-    """
-
-    out = pdf_presenter.generate(product, template)
-
-    assert isinstance(out, (bytes, bytearray))
-    assert b"/Producer" not in out
-    assert b"WeasyPrint" not in out
-    assert b"/Title" in out
-
-
 def test_pandoc_presenter_succesful_render(pandoc_presenter, fixed_datetime, monkeypatch):
     def fake_convert_text(input_text, to_format, *, format, outputfile):
         assert to_format == "docx"

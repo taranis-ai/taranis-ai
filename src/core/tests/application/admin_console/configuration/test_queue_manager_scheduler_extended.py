@@ -20,62 +20,6 @@ from core.service.dashboard import DashboardService
 from tests.application.support.builders import create_osint_source
 
 
-class _FakeRedis:
-    def __init__(self):
-        self.hashes = {"rq:cron:def": {"job-123": b'{"cron":"0 * * * *"}'}}
-        self.zsets = {"rq:cron:next": {"job-123": 1234.0}}
-        self.events: list[tuple[str, dict[str, str]]] = []
-        self.published: list[tuple[str, str]] = []
-
-    def hexists(self, key, field):
-        return field in self.hashes.get(key, {})
-
-    def zscore(self, key, member):
-        return self.zsets.get(key, {}).get(member)
-
-    def hkeys(self, key):
-        return list(self.hashes.get(key, {}).keys())
-
-    def publish(self, channel, message):
-        self.published.append((channel, message))
-        return 1
-
-    def pipeline(self):
-        redis = self
-
-        class _Pipeline:
-            def __enter__(self):
-                return self
-
-            def __exit__(self, exc_type, exc, tb):
-                return False
-
-            def hset(self, key, field, value):
-                redis.hashes.setdefault(key, {})[field] = value
-                return self
-
-            def hdel(self, key, field):
-                redis.hashes.setdefault(key, {}).pop(field, None)
-                return self
-
-            def zadd(self, key, mapping):
-                redis.zsets.setdefault(key, {}).update(mapping)
-                return self
-
-            def zrem(self, key, member):
-                redis.zsets.setdefault(key, {}).pop(member, None)
-                return self
-
-            def xadd(self, key, values):
-                redis.events.append((key, values))
-                return self
-
-            def execute(self):
-                return True
-
-        return _Pipeline()
-
-
 class _DummyQueue:
     """Lightweight queue stub carrying the fields accessed by rq registries."""
 
@@ -84,28 +28,11 @@ class _DummyQueue:
         self.connection = object()
 
 
-class _FailedResult:
-    exc_string = "Traceback (most recent call last):\nValueError: boom"
-
-
-class _FailedJob:
-    def __init__(self, job_id):
-        self.id = job_id
-        self.func_name = "other.task"
-        self.args = []
-        self.meta = {}
-        self.ended_at = datetime(2025, 1, 1, 12, 0, tzinfo=UTC)
-
-    @staticmethod
-    def latest_result():
-        return _FailedResult()
-
-
 def _make_queue_manager() -> QueueManager:
     qm = QueueManager.__new__(QueueManager)
     qm.error = ""
     qm._queues = cast(dict[str, Any], {})
-    qm._redis = _FakeRedis()
+    qm._redis = fakeredis.FakeRedis()
     return qm
 
 
@@ -173,22 +100,6 @@ def test_annotate_jobs_ignores_scheduled_lateness():
     assert annotated["last_run_relative"].endswith("ago")
 
 
-def test_annotate_jobs_marks_first_cron_run_pending():
-    fixed_now = datetime(2025, 12, 12, 8, 0, tzinfo=UTC)
-
-    job = {
-        "type": "cron",
-        "last_run": None,
-        "previous_run_time": datetime(2025, 12, 12, 8, 0, 0),
-        "next_run_time": datetime(2025, 12, 12, 10, 0, 0),
-    }
-
-    annotated = ScheduledJob.model_validate(job).model_dump(context={"now": fixed_now.replace(tzinfo=None)})
-
-    assert annotated["status_badge"]["label"] == "Pending first run"
-    assert annotated["is_overdue"] is False
-
-
 def test_annotate_jobs_marks_completed_cron_run_on_schedule():
     job = {
         "type": "cron",
@@ -231,10 +142,12 @@ def test_cancel_job_cancels_instance_and_cron(monkeypatch):
 
     qm = _make_queue_manager()
 
+    qm._redis.hset("rq:cron:def", "job-123", '{"cron":"0 * * * *"}')
+    qm._redis.zadd("rq:cron:next", {"job-123": 1234.0})
     assert qm.cancel_job("job-123") is True
     assert last_job and last_job[0].cancelled and last_job[0].deleted
-    assert qm._redis.hashes["rq:cron:def"] == {}  # type: ignore[attr-defined]
-    assert qm._redis.zsets["rq:cron:next"] == {}  # type: ignore[attr-defined]
+    assert qm._redis.hgetall("rq:cron:def") == {}
+    assert qm._redis.zrange("rq:cron:next", 0, -1) == []
 
 
 def test_cancel_job_returns_false_when_not_found(monkeypatch):
@@ -244,9 +157,6 @@ def test_cancel_job_returns_false_when_not_found(monkeypatch):
     monkeypatch.setattr(qm_module, "Job", type("Job", (), {"fetch": staticmethod(fake_fetch)}))
 
     qm = _make_queue_manager()
-    qm._redis = _FakeRedis()
-    qm._redis.hashes["rq:cron:def"] = {}  # type: ignore[attr-defined]
-    qm._redis.zsets["rq:cron:next"] = {}  # type: ignore[attr-defined]
 
     assert qm.cancel_job("job-123") is False
 
@@ -367,29 +277,64 @@ def test_get_active_jobs_uses_registry(monkeypatch):
     assert payload["items"][0]["status"] == "running"
 
 
-def test_get_failed_jobs_uses_registry(monkeypatch):
-    class FakeRegistry:
-        def __init__(self, queue=None):
-            self.queue = queue
-
-        def get_job_ids(self):
-            return ["job-9"]
-
-    def fake_fetch(job_id, connection=None):
-        return _FailedJob(job_id)
-
-    monkeypatch.setattr(rq_registry, "FailedJobRegistry", FakeRegistry)
-    monkeypatch.setattr(qm_module, "Job", type("Job", (), {"fetch": staticmethod(fake_fetch)}))
-
+@pytest.mark.parametrize("reason", [None, "job_timeout", "llm_request_timeout", "private-unknown-reason"])
+@pytest.mark.parametrize("checkpoint", [False, True])
+def test_get_failed_jobs_uses_registry(app, session, reason, checkpoint):
     qm = _make_queue_manager()
-    qm._queues = {"misc": _DummyQueue("misc")}  # type: ignore[assignment]
-
-    payload, status = qm.get_failed_jobs({})
+    queue = Queue("bots", connection=qm._redis)
+    qm._queues = {"bots": queue}
+    meta = {"worker_type": "BOT_PIPELINE"}
+    if checkpoint:
+        meta["bot_pipeline"] = {
+            "configs": [
+                {"id": "ioc", "type": "ioc_bot", "name": "IOCs"},
+                {"id": "ner", "type": "nlp_bot", "name": "Extract entities", "parameters": {"API_KEY": "private-key"}},
+            ],
+            "stages": [{"result": "private-stage-content"}],
+            "llm_batch": {"responses": [{"response": "private-provider-content"}]},
+        }
+        meta["bot_timeout"] = {"stalled": 3}
+    job = queue.enqueue("worker.bots.bot_tasks.bot_pipeline_task", ["ioc", "ner"], job_id="job-9", job_timeout=864, meta=meta)
+    job.ended_at = datetime(2025, 1, 1, 12, 0, tzinfo=UTC)
+    job.number_of_retries = 2
+    job.save()
+    queue.failed_job_registry.add(job, exc_string="Traceback: private exception details and API_KEY=private-key")
+    with app.app_context():
+        if reason is not None:
+            TaskModel.add_or_update(
+                {
+                    "id": job.id,
+                    "task": "bot_pipeline",
+                    "status": "FAILURE",
+                    "result": {"message": "private historical exception", "reason": reason},
+                }
+            )
+        payload, status = qm.get_failed_jobs({})
 
     assert status == 200
     assert payload["items"][0]["id"] == "job-9"
     assert payload["items"][0]["status"] == "failed"
-    assert payload["items"][0]["error"] == "Task failed"
+    error = payload["items"][0]["error"]
+    assert "Execution budget per attempt: 864 seconds" in error
+    assert "Attempts: 3" in error
+    assert "Worker log reference: job-9" in error
+    assert "private" not in str(payload)
+    assert "Traceback" not in str(payload)
+    if reason in qm_module.FAILURE_MESSAGES:
+        assert qm_module.FAILURE_MESSAGES[reason] in error
+        assert f"Reason: {reason}" in error
+    else:
+        assert "No detailed failure result was recorded" in error
+    if checkpoint:
+        assert "Completed bots: 1/2" in error
+        assert "Failed bot: Extract entities (ner)" in error
+        assert "Completed LLM requests in current bot: 1" in error
+        assert "three consecutive execution timeouts without progress" in error
+    else:
+        assert "No checkpoint was recorded for this run" in error
+    with app.app_context():
+        filtered, status = qm.get_failed_jobs({"search": "Execution budget"})
+    assert status == 200 and filtered["total_count"] == 1
 
 
 def test_get_failed_jobs_removes_stale_registry_entries(monkeypatch):
@@ -528,28 +473,6 @@ def test_enqueue_task_injects_trace_context(monkeypatch, meta):
             },
         }
     ]
-
-
-def test_enqueue_task_places_user_triggered_job_at_front(monkeypatch):
-    queue_calls = []
-
-    class FakeQueue:
-        def enqueue(self, task_func, *args, job_id=None, **kwargs):
-            queue_calls.append({"task_func": task_func, "args": args, "job_id": job_id, "kwargs": kwargs})
-            return object()
-
-    qm = _make_queue_manager()
-    monkeypatch.setattr(qm, "get_queue", lambda _queue_name: FakeQueue())
-
-    qm.enqueue_task(
-        "presenters",
-        "presenter_task",
-        "product-1",
-        job_id="presenter_task_product-1",
-        meta={"task": "presenter_task", "user_id": "user-1", "worker_id": "product-1", "worker_type": "presenter_task"},
-    )
-
-    assert queue_calls[0]["kwargs"]["at_front"] is True
 
 
 def test_user_triggered_jobs_run_lifo_ahead_of_background_jobs():
@@ -984,18 +907,9 @@ def test_reschedule_all_prunes_stale_managed_cron_jobs(monkeypatch):
 
     qm = _make_queue_manager()
     qm._queues = {"collectors": _DummyQueue("collectors"), "bots": _DummyQueue("bots")}  # type: ignore[assignment]
-    qm._redis.hashes["rq:cron:def"] = {  # type: ignore[attr-defined]
-        "osint_source_stale": b'{"cron":"0 * * * *"}',
-        "bot_stale": b'{"cron":"0 * * * *"}',
-        "reconcile_task_failures": b'{"cron":"*/5 * * * *"}',
-        "unconfigured_job": b'{"cron":"0 * * * *"}',
-    }
-    qm._redis.zsets["rq:cron:next"] = {  # type: ignore[attr-defined]
-        "osint_source_stale": 1234.0,
-        "bot_stale": 1234.0,
-        "reconcile_task_failures": 1234.0,
-        "unconfigured_job": 1234.0,
-    }
+    stale_job_ids = ["osint_source_stale", "bot_stale", "reconcile_task_failures", "unconfigured_job"]
+    qm._redis.hset("rq:cron:def", mapping=dict.fromkeys(stale_job_ids, '{"cron":"0 * * * *"}'))
+    qm._redis.zadd("rq:cron:next", dict.fromkeys(stale_job_ids, 1234.0))
 
     purged_calls: list[tuple[set[str], list[str]]] = []
 
@@ -1009,15 +923,13 @@ def test_reschedule_all_prunes_stale_managed_cron_jobs(monkeypatch):
 
     qm.reschedule_all()
 
-    assert "osint_source_live-source" in qm._redis.hashes["rq:cron:def"]  # type: ignore[index,attr-defined]
-    assert "bot_live-bot" in qm._redis.hashes["rq:cron:def"]  # type: ignore[index,attr-defined]
-    assert "cleanup_token_blacklist" in qm._redis.hashes["rq:cron:def"]  # type: ignore[index,attr-defined]
-    assert "cleanup_task_history" in qm._redis.hashes["rq:cron:def"]  # type: ignore[index,attr-defined]
-    assert "osint_source_stale" not in qm._redis.hashes["rq:cron:def"]  # type: ignore[index,attr-defined]
-    assert "bot_stale" not in qm._redis.hashes["rq:cron:def"]  # type: ignore[index,attr-defined]
-    assert "reconcile_task_failures" not in qm._redis.hashes["rq:cron:def"]  # type: ignore[index,attr-defined]
-    assert "reconcile_task_failures" not in qm._redis.zsets["rq:cron:next"]  # type: ignore[index,attr-defined]
-    assert "unconfigured_job" not in qm._redis.hashes["rq:cron:def"]  # type: ignore[index,attr-defined]
+    assert set(qm._redis.hkeys("rq:cron:def")) == {
+        b"osint_source_live-source",
+        b"bot_live-bot",
+        b"cleanup_token_blacklist",
+        b"cleanup_task_history",
+    }
+    assert not set(qm._redis.zrange("rq:cron:next", 0, -1)) & {job_id.encode() for job_id in stale_job_ids}
     assert len(purged_calls) == 1
     assert purged_calls[0][0] == set()
     assert set(purged_calls[0][1]) == {

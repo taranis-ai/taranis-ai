@@ -1,0 +1,57 @@
+{% from "schedule/table.html" import refreshable_table %}
+{% set base_url = url_for('admin.scheduler_completed_runs') %}
+{% set columns = [
+  {
+    "title": "Task / Job ID",
+    "field": "worker_type",
+    "sortable": true
+  },
+  {
+    "title": "Outcome",
+    "field": "status",
+    "sortable": true
+  },
+  {
+    "title": "Result",
+    "field": "result",
+    "sortable": false
+  },
+  {
+    "title": "Completed",
+    "field": "last_run",
+    "sortable": true
+  }
+] %}
+{% set filters %}
+  <input type="hidden" name="tab" value="completed">
+  {% for key in ['limit', 'order'] %}
+    {% if request.args.get(key) %}<input type="hidden" name="{{ key }}" value="{{ request.args.get(key) }}">{% endif %}
+  {% endfor %}
+  <div class="flex flex-wrap items-center gap-2 mb-4">
+    <label for="completed-run-status" class="font-medium">Outcome</label>
+    <select id="completed-run-status" name="status" class="select select-sm select-bordered" data-testid="completed-run-status">
+      {% for value, label in [('', 'All outcomes'), ('SUCCESS', 'Success'), ('FAILURE', 'Failed'), ('WARNING', 'Warning'), ('NOT_MODIFIED', 'Not modified'), ('PREVIEW', 'Preview')] %}
+        <option value="{{ value }}" {% if request.args.get('status', '') == value %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    <button type="submit" class="btn btn-sm">Apply</button>
+  </div>
+{% endset %}
+{% call(task) refreshable_table('completed-runs-table', 'completed-runs', completed_runs, columns, base_url, 'No completed runs found.', filters) %}
+  <tr data-testid="completed-run-row">
+    <td>
+      <div class="font-medium">{{ (task.worker_type or task.task or "Task") | replace('_', ' ') | title }}</div>
+      <div class="text-xs opacity-60 break-all">{{ task.job_id or task.id }}</div>
+      {% if ":bot:" in (task.job_id or "") %}<span class="badge badge-ghost badge-xs">Pipeline step</span>{% endif %}
+    </td>
+    <td>
+      {% set variants = {"SUCCESS": "success", "FAILURE": "error", "WARNING": "warning", "NOT_MODIFIED": "info"} %}
+      <span class="badge badge-{{ variants.get(task.status, 'ghost') }} badge-sm">{{ task.status | replace('_', ' ') | title }}</span>
+    </td>
+    <td class="max-w-prose whitespace-normal">
+      {{ task.result.message }}
+      {% if task.result.reason %}<div class="text-xs opacity-60">{{ task.result.reason | replace('_', ' ') | title }}</div>{% endif %}
+    </td>
+    <td class="whitespace-nowrap">{{ task.last_run | format_datetime }}</td>
+  </tr>
+{% endcall %}

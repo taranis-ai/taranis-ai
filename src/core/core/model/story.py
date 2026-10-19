@@ -6,6 +6,7 @@ from typing import Any
 
 from models.assess import NewsItem as AssessNewsItem
 from models.assess import Story as StoryPayload
+from models.types import BOT_TYPES
 from pydantic import ValidationError
 from sqlalchemy import func, inspect, or_
 from sqlalchemy.dialects.postgresql import TSVECTOR
@@ -353,7 +354,10 @@ class Story(BaseModel):
             return query.filter(cls.id == item_id)
 
         if item_ids := filter_args.get("story_ids"):
-            return query.filter(cls.id.in_(item_ids))
+            query = query.filter(cls.id.in_(item_ids))
+            if exclude_attr := filter_args.get("exclude_attr"):
+                query = cls._add_attribute_filter_to_query(query, exclude_attr, exclude=True)
+            return query
 
         source_group_filters = []
 
@@ -796,7 +800,7 @@ class Story(BaseModel):
         StoryConflict.enforce_quota()
         NewsItemConflict.enforce_quota()
         if results:
-            return {"error": "Some stories could not be added", "details": {"errors": results}}, status
+            return {"error": "Some stories could not be added", "details": {"errors": results, "story_ids": story_ids}}, status
         return {"message": "Stories added or updated successfully", "details": {"story_ids": story_ids}}, 200
 
     @classmethod
@@ -1056,6 +1060,9 @@ class Story(BaseModel):
                 db.session.delete(attr)
         self.refresh_tlp()
 
+    def clear_bot_execution_attributes(self) -> None:
+        self.remove_attributes([bot_type.name for bot_type in BOT_TYPES])
+
     def upsert_attribute(self, attribute: NewsItemAttribute) -> None:
         if existing_attribute := self.find_attribute_by_key(attribute.key):
             existing_attribute.value = attribute.value
@@ -1196,6 +1203,8 @@ class Story(BaseModel):
         story_ids: Sequence[str],
         user: User | None = None,
         actor: str | None = None,
+        *,
+        commit: bool = True,
     ):
         actor = cls.resolve_actor(user=user, actor=actor)
         try:
@@ -1226,7 +1235,8 @@ class Story(BaseModel):
             for story in processed_stories:
                 story.record_revision(user, note="group_stories")
             cls.refresh_tag_summaries_for_stories(processed_stories)
-            db.session.commit()
+            if commit:
+                db.session.commit()
             return {"message": "Clustering Stories successful", "id": first_story.id}, 200
         except Exception:
             logger.exception("Grouping Stories Failed")

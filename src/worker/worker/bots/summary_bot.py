@@ -2,6 +2,7 @@ from llm_bot.schemas import SummarizeRequest, TitleRequest
 from llm_bot.tasks.summarize import prepare_summary
 from llm_bot.tasks.title import prepare_title
 from rq import Retry
+from rq.timeouts import JobTimeoutException
 
 from worker.bot_api import BotServiceUnavailableError
 from worker.llm import get_llm_client, run_llm_tasks
@@ -36,6 +37,7 @@ class SummaryBot(BaseBot):
             return results
         results = iter(results)
 
+        story_updates = {}
         for story in data:
             news_items = story.get("news_items", [])
             logger.debug(f"Summarizing {story['id']} with {len(news_items)} news items")
@@ -50,18 +52,15 @@ class SummaryBot(BaseBot):
                     story_update_data["title"] = title
 
                 if story_update_data:
-                    if self.core_api.update_story(story["id"], story_update_data):
-                        self.core_api.update_story_attributes(
-                            story["id"],
-                            [{"key": self.type, "value": 1}],
-                        )
-                    else:
-                        logger.warning(f"Failed to update story {story['id']}, skipping attribute update")
-            except BotServiceUnavailableError:
+                    story_updates[story["id"]] = story_update_data
+            except (BotServiceUnavailableError, JobTimeoutException):
                 raise
             except Exception:
                 logger.exception(f"Could not generate summary for {story['id']}")
                 raise RuntimeError("Story summarization failed") from None
 
             logger.debug(f"Created summary for : {story['id']}")
-        return {"message": f"Summarized {len(data)} stories"}
+        return {
+            "message": f"Summarized {len(data)} stories",
+            "changes": {"story_updates": story_updates},
+        }

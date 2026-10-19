@@ -2,6 +2,12 @@
 
 Dependency updates use [Renovate](https://docs.renovatebot.com/) with [`.github/renovate.json`](../.github/renovate.json). Each Python component explicitly selects the established Ruff rule baseline so a Ruff upgrade does not silently enable new rules; rule-set migrations should be reviewed separately.
 
+## Record the landing-page video
+
+Run `./dev/record_workflow_video.py` from the repository root to record the full analyst workflow, including scripted Chat, and export one `taranis-walkthrough-video.webm`.
+Install `uv` and `ffmpeg` first and use the normal Playwright/Compose test setup. The script prints the final absolute path on success.
+See the [Playwright recording guide](../src/frontend/tests/playwright/README.md#record-the-landing-page-workflow) for output and pacing options.
+
 ## Optional local signoff
 
 This repo accepts either a successful `test and lint` workflow run or a successful local `gh signoff` on the current PR head commit. See [basecamp/gh-signoff](https://github.com/basecamp/gh-signoff/blob/main/README.md) for upstream details.
@@ -340,6 +346,16 @@ The frontend is served by the [Flask & HTMX REST frontend](../src/frontend/READM
 
 ## Local LLM inference
 
+NER uploads each completed item's tags through the existing worker tag update API, preserving existing tags and earlier results if a later item fails. Task errors distinguish execution deadlines (`EXECUTION_TIMEOUT`), provider request timeouts (`REQUESTS_TIMEOUT`), invalid output, and failed uploads.
+
+Core's default RQ execution budget is 1800 seconds (30 minutes); explicit `RQ_DEFAULT_JOB_TIMEOUT` or bot `EXECUTION_TIMEOUT` overrides still apply. Pipelines sum bot budgets with 20% headroom. Job deadlines immediately requeue the same bot/pipeline job from private Redis checkpoints; completed LLM calls and NER uploads are skipped. Three consecutive deadlines without progress produce a final failure; request timeouts do not automatically retry. Check Active Jobs and worker logs during continuation, then My Tasks for the final outcome. Restart Core and workers to load changes when auto-reload is unavailable. Jobs already queued keep their old deadline, and runs created before checkpoint support cannot recover their earlier in-memory progress.
+
+Open **Scheduler > Completed Runs** for individual terminal outcomes across manual and background jobs. Filter by outcome or search by task/job ID; successful jobs remain visible after leaving Active Jobs and after Redis expires their results. Committed pipelines record each bot step separately, updating its Last Run, Last successful run, and error badge only when the entire result transaction succeeds. The former aggregate Execution History is available as **Worker Summary**. Previously saved pipeline results are not automatically backfilled into bot history.
+
+For failed jobs, open **Scheduler > Queue Failures > View Error**. The dialog distinguishes execution deadlines from LLM request failures, shows the actual job budget and attempt count, and includes checkpointed bot/progress information when available. Older runs explicitly report missing checkpoints. Use the displayed job ID to find technical diagnostics in worker logs; raw exception messages and private provider/configuration data are not shown in the browser.
+
 `dev/compose.yml` runs CPU inference at `127.0.0.1:8000`. Add `127.0.0.1 llm-inference` to your hosts file so host-based Core and workers can reach the endpoint Core registers automatically. Allow several minutes for model loading and sufficient RAM; see [inference configuration](../docker/README.md#bundled-llm-inference).
 
 Set the same `LLM_INFERENCE_API_KEY` in Core's private environment and the environment used to launch Compose. Restart both after changing it. Configure providers and assignments in **Admin Settings > LLM Endpoints**.
+
+With `DEBUG=true`, newly created endpoints and saved endpoints without an explicit state default to **Disabled**, including the bundled internal endpoint. Enable an endpoint using **Endpoint state** when you want inference. Disabled endpoints skip health checks and pause Chat and bot scheduling (cron, collector chains, dependent pipelines, and manual runs). Saved states survive restarts. Production defaults to enabled. Jobs already running keep their starting configuration.

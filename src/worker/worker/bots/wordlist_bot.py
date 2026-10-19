@@ -46,6 +46,7 @@ class WordlistBot(BaseBot):
         for story in data:
             for news_item in story["news_items"]:
                 found_tags[news_item["id"]] = self._find_tags(news_item, word_list_entries, override_existing_tags, ignore_case)
+                self.save_tags(news_item["id"], news_item.get("story_id", story["id"]), found_tags[news_item["id"]])
         return found_tags
 
     def _find_tags(self, news_item, word_list_entries, override_existing_tags, ignore_case) -> dict[str, str]:

@@ -306,6 +306,22 @@ def mock_core_get_endpoints(responses_mock, core_payloads):
         status=200,
         content_type="application/json",
     )
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/tasks/runs",
+        json={
+            "items": [
+                {
+                    "id": "completed-1",
+                    "job_id": "pipeline-1",
+                    "worker_type": "BOT_PIPELINE",
+                    "status": "SUCCESS",
+                    "result": {"message": "Ran 4 bots"},
+                    "last_run": "2026-10-15T16:27:02Z",
+                }
+            ],
+            "total_count": 1,
+        },
+    )
     yield core_payloads
 
 

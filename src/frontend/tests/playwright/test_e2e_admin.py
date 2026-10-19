@@ -141,7 +141,7 @@ class TestEndToEndAdmin(BaseE2ETest):
         expect(page.locator(".driver-popover")).not_to_be_visible()
 
     @pytest.mark.e2e_full_stack
-    def test_admin_dashboard(self, logged_in_page: Page, forward_console_and_page_errors, core_request_client):
+    def test_admin_dashboard(self, logged_in_page: Page, forward_console_and_page_errors, core_request_client, api_header):
         page = logged_in_page
 
         page.goto(url_for("admin.dashboard", _external=True))
@@ -184,6 +184,35 @@ class TestEndToEndAdmin(BaseE2ETest):
         expect(page).to_have_url(url_for("admin.scheduler", tab="active", _external=True))
         expect(page.locator("#active-jobs-table-search")).to_have_value("")
         expect(page.locator("#active-jobs-table")).to_contain_text("No jobs currently running")
+
+        run_prefix = f"scheduler-run-{uuid.uuid4().hex}"
+        for outcome in ("SUCCESS", "FAILURE"):
+            core_request_client.post(
+                "/tasks",
+                headers=api_header,
+                authenticated=False,
+                json_data={
+                    "id": f"{run_prefix}-{outcome}",
+                    "task": "scheduler_test",
+                    "worker_type": "Scheduler Test",
+                    "status": outcome,
+                    "result": {"message": "Scheduler test completed", "reason": "job_timeout" if outcome == "FAILURE" else None},
+                },
+            )
+        with_htmx_wait(page, lambda: page.locator('.tab[data-tab="completed"]').click())
+        expect(page.get_by_test_id("completed-runs")).to_be_visible()
+        search = page.locator("#completed-runs-table-search")
+        with page.expect_response(lambda response: "/scheduler/completed?" in response.url and f"search={run_prefix}" in response.url):
+            search.fill(run_prefix)
+        expect(page.get_by_test_id("completed-run-row")).to_have_count(2)
+        page.get_by_test_id("completed-run-status").select_option("SUCCESS")
+        with_htmx_wait(page, lambda: page.locator("#completed-runs-table").get_by_role("button", name="Apply", exact=True).first.click())
+        expect(page.get_by_test_id("completed-run-row")).to_have_count(1)
+        expect(page.get_by_test_id("completed-run-row")).to_contain_text("Success")
+        expect(page.locator("#completed-runs-table-search")).to_have_value(run_prefix)
+        page.reload()
+        expect(page.get_by_test_id("completed-run-status")).to_have_value("SUCCESS")
+        expect(page.get_by_test_id("completed-run-row")).to_have_count(1)
 
         with_htmx_wait(page, lambda: page.locator('.tab[data-tab="history"]').click())
         expect(page.locator("#execution-history-table")).to_be_visible()
@@ -1268,9 +1297,9 @@ class TestEndToEndAdmin(BaseE2ETest):
             if not optional.evaluate("el => el.open"):
                 optional.locator("summary").click()
             timeout_input = page.locator('input[name="parameters[NETWORK_TIMEOUT]"]')
-            timeout_input.fill("91")
+            timeout_input.fill("901")
             page.get_by_role("button", name="Create Publisher Preset").click()
-            expect(page.locator("#notification-bar")).to_contain_text("Network timeout must not exceed 90 seconds")
+            expect(page.locator("#notification-bar")).to_contain_text("Network timeout must not exceed 900 seconds")
             dismiss_notifications(page)
             optional = page.get_by_test_id("optional-worker-parameters")
             if not optional.evaluate("el => el.open"):
@@ -1653,6 +1682,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             if not new_endpoint.evaluate("element => element.open"):
                 new_endpoint.locator("summary").click()
             form = new_endpoint.locator("form")
+            expect(form.get_by_label("Endpoint state")).to_have_value("false")
             expect(form.get_by_text("Model", exact=True)).to_be_visible()
             expect(form.get_by_text("API key", exact=True)).to_be_visible()
             form.get_by_label("Name", exact=False).fill("E2E shared model")
@@ -1672,16 +1702,20 @@ class TestEndToEndAdmin(BaseE2ETest):
             endpoint = section.locator("details").filter(has=page.locator("summary", has_text="E2E shared model"))
             expect(endpoint).to_have_count(1)
             expect(endpoint.locator('[data-test-id="endpoint-health"]')).to_contain_text("Endpoint")
+            expect(endpoint.locator('[data-test-id="endpoint-health"]')).to_have_text("Endpoint disabled")
             assignments = section.locator('[data-test-id="llm-assignments"]')
             assignments.get_by_label("Default endpoint").select_option(label="E2E shared model")
             with_htmx_wait(page, lambda: assignments.get_by_role("button", name="Save Assignments").click())
             page.reload()
             expect(assignments.get_by_label("Default endpoint").locator("option:checked")).to_have_text("E2E shared model")
             endpoint.locator("summary").click()
+            expect(endpoint.get_by_label("Endpoint state")).to_have_value("false")
             expect(endpoint.locator('input[name="api_key"]')).to_have_value("")
             expect(endpoint).to_contain_text("An API key is saved.")
+            endpoint.get_by_label("Endpoint state").select_option("true")
             with_htmx_wait(page, lambda: endpoint.get_by_role("button", name="Save Endpoint", exact=True).click())
             endpoint.locator("summary").click()
+            expect(endpoint.get_by_label("Endpoint state")).to_have_value("true")
             expect(endpoint).to_contain_text("An API key is saved.")
             with page.expect_response(
                 lambda response: response.request.method == "POST" and response.url.endswith("/delete")

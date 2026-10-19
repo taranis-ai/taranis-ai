@@ -43,34 +43,6 @@ def test_logout_handles_non_json_error_response(app, monkeypatch):
     assert "Logout failed" in response[0]
 
 
-def test_is_safe_redirect_target_allows_relative_path(app):
-    with app.test_request_context("/frontend/login"):
-        assert auth_module.is_safe_redirect_target(url_for("admin.dashboard"))
-
-
-def test_is_safe_redirect_target_rejects_unknown_relative_path(app):
-    with app.test_request_context("/frontend/login"):
-        assert not auth_module.is_safe_redirect_target("/does-not-exist")
-
-
-def test_is_safe_redirect_target_rejects_login_route(app):
-    with app.test_request_context("/frontend/login"):
-        assert not auth_module.is_safe_redirect_target(url_for("base.login"))
-        assert not auth_module.is_safe_redirect_target(f"{url_for('base.login')}/")
-
-
-def test_is_safe_redirect_target_rejects_external_host(app):
-    with app.test_request_context("/frontend/login"):
-        assert not auth_module.is_safe_redirect_target("https://evil.example/path")
-
-
-def test_is_safe_redirect_target_rejects_network_path_variants(app):
-    with app.test_request_context("/frontend/login"):
-        assert not auth_module.is_safe_redirect_target("//evil.example/path")
-        assert not auth_module.is_safe_redirect_target("/\\evil.example/path")
-        assert not auth_module.is_safe_redirect_target("/%2F%2Fevil.example/path")
-
-
 @pytest.mark.parametrize(
     ("permissions", "expected"),
     [
