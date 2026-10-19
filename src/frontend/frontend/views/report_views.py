@@ -137,8 +137,14 @@ class ReportItemView(BaseView):
 
     @classmethod
     def _apply_story_ids_to_report(cls, report: ReportItem, story_ids: Any) -> None:
-        normalized_story_ids = set(cls._normalize_story_ids(story_ids))
-        report.stories = [story for story in DataPersistenceLayer().get_objects(Story) if str(story.id) in normalized_story_ids]
+        dpl = DataPersistenceLayer()
+        stories: list[Story | str] = []
+        for story_id in dict.fromkeys(cls._normalize_story_ids(story_ids)):
+            story = dpl.get_object(Story, story_id)
+            if story is None:
+                abort(404, description="Selected story not found.")
+            stories.append(story)
+        report.stories = stories
 
     @classmethod
     def get_extra_context(cls, base_context: dict[str, Any]) -> dict[str, Any]:

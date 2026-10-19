@@ -32,6 +32,7 @@ Preserve selected IDs and retry context on validation errors. Report/clustering 
 
 - Analyze Clone Report and row/bulk delete return `analyze/report_table.html` including `#report`; replace that wrapper with outerHTML.
 - Analyze New Report and Assess Add to Report share `analyze/report.html`. Report Type is required in both UI and core; the existing `test_user_analyze` workflow covers both entry paths.
+- New Reports from Assess resolve selected Stories by ID through `DataPersistenceLayer.get_object`, preserving the unsaved selection and its order across layout switches. The Assess collection ignores `fetch_all` and defaults to 20 Stories; never use its unfiltered first page to resolve a selection. Unavailable Stories fail the preview rather than silently creating a partial selection. Request-level coverage is in `test_report_view.py`; `test_user_analyze` verifies both selected Stories persist after creation and reload.
 
 ## Entry Points and Verification
 

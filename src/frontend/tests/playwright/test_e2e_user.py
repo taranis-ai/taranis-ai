@@ -756,6 +756,7 @@ class TestEndToEndUser(BaseE2ETest):
             page.get_by_test_id("report-type-select").select_option(label=self.CERT_REPORT_TYPE_LABEL)
             page.get_by_role("button", name="Stacked view").click()
             expect(page).to_have_url(re.compile(r"layout=stacked"))
+            expect(page).to_have_url(re.compile(r"layout=stacked"))
             expect(page.get_by_role("textbox", name="Title")).to_have_value("test title")
             expect(page.get_by_test_id("report-type-select")).not_to_have_value("")
             page.get_by_role("button", name="Split view").click()
@@ -803,11 +804,20 @@ class TestEndToEndUser(BaseE2ETest):
             page.get_by_role("textbox", name="Title").fill("Unsaved report from Assess")
             selected_stories = page.locator('#report_form input[name="stories[]"]')
             story_ids = selected_stories.evaluate_all("inputs => inputs.map(input => input.value)")
-            assert story_ids
+            assert set(story_ids) == {report_story_one["id"], report_story_two["id"]}
             check_report_type_required()
             expect(page.get_by_role("textbox", name="Title")).to_have_value("Unsaved report from Assess")
             assert selected_stories.evaluate_all("inputs => inputs.map(input => input.value)") == story_ids
+            page.get_by_test_id("report-type-select").select_option(label=self.CERT_REPORT_TYPE_LABEL)
+            page.get_by_role("button", name="Stacked view").click()
+            assert selected_stories.evaluate_all("inputs => inputs.map(input => input.value)") == story_ids
+            page.get_by_test_id("save-report").click()
+            expect(page.get_by_role("button", name="Completed")).to_be_visible()
+            page.reload()
+            assert set(selected_stories.evaluate_all("inputs => inputs.map(input => input.value)")) == set(story_ids)
             page.get_by_role("link", name="Analyze", exact=True).click()
+            item_id = self.get_table_row_id_by_link_text(page, "report-table", "Unsaved report from Assess")
+            self.delete_table_row(page, f"action-delete-{item_id}")
             new_report_button = page.get_by_role("link", name="New Report")
             expect(new_report_button).to_be_visible()
             new_report_button.click()

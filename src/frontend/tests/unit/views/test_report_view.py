@@ -1,9 +1,42 @@
+import pytest
 from flask import render_template_string, url_for
 from lxml import html
 from models.report import ReportItem, ReportTypes
 
 from frontend.config import Config
 from frontend.views.report_views import ReportItemView
+
+
+@pytest.mark.parametrize(("layout_switch", "unavailable_status"), [(False, None), (True, None), (False, 403), (False, 404)])
+def test_report_create_preserves_selected_stories_outside_first_page(
+    app, authenticated_client_basic, responses_mock, test_cache_backend, layout_switch, unavailable_status
+):
+    story_ids = ["older-story-2", "older-story-1"]
+    responses_mock.get(f"{Config.TARANIS_CORE_URL}/analyze/report-types", json={"items": []})
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/assess/stories",
+        json={"items": [{"id": f"recent-story-{index}"} for index in range(20)], "total_count": 22},
+    )
+    for story_id in story_ids:
+        status = unavailable_status if story_id == story_ids[-1] and unavailable_status else 200
+        payload = {"id": story_id, "title": story_id} if status == 200 else {"error": "Story unavailable"}
+        responses_mock.get(f"{Config.TARANIS_CORE_URL}/assess/stories/{story_id}", json=payload, status=status)
+
+    with app.test_request_context():
+        target = url_for("analyze.report", report_id="0")
+        if layout_switch:
+            response = authenticated_client_basic.post(
+                target,
+                data={"stories[]": story_ids, "layout_switch": "stacked", "title": "Unsaved selection"},
+            )
+        else:
+            response = authenticated_client_basic.get(target, query_string={"story_ids": story_ids})
+
+    assert response.status_code == (unavailable_status or 200)
+    if unavailable_status:
+        return
+    tree = html.fromstring(response.get_data(as_text=True))
+    assert tree.xpath('//form[@id="report_form"]//input[@name="stories[]"]/@value') == story_ids
 
 
 def test_report_view_renders_access_denied_page_when_core_returns_403(app, authenticated_client_basic, responses_mock):
