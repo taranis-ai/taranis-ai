@@ -17,6 +17,12 @@ class ProductTypes(MethodView):
         return product_type.ProductType.get_all_for_api(None, with_count=False, user=current_user)
 
 
+class ProductChoices(MethodView):
+    @auth_required("PUBLISH_ACCESS")
+    def get(self):
+        return product.Product.get_choices_for_api(current_user)
+
+
 class PublisherPresets(MethodView):
     @auth_required("PUBLISH_ACCESS")
     @extract_args("search", "page", "limit", "sort", "order", "fetch_all")
@@ -109,6 +115,7 @@ def initialize(app: Flask):
     publish_bp.add_url_rule("/products", view_func=Products.as_view("products"), methods=["GET", "POST"])
     publish_bp.add_url_rule("/products/<string:product_id>", view_func=Products.as_view("product"), methods=["GET", "PUT", "DELETE"])
     publish_bp.add_url_rule("/product-types", view_func=ProductTypes.as_view("product_types"))
+    publish_bp.add_url_rule("/product-choices", view_func=ProductChoices.as_view("product_choices"))
     publish_bp.add_url_rule("/publisher-presets", view_func=PublisherPresets.as_view("publisher_presets"))
     publish_bp.add_url_rule("/publisher-presets/<string:preset_id>", view_func=PublisherPresets.as_view("publisher_preset"))
     publish_bp.add_url_rule("/products/auto-render/<string:report_item_id>", view_func=AutoRenderProducts.as_view("auto_render_products"))

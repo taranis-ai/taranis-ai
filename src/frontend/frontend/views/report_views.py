@@ -4,8 +4,8 @@ from flask import Response, abort, make_response, render_template, request, url_
 from flask.typing import ResponseReturnValue
 from models.assess import Story
 from models.cti import CTIResponse
-from models.product import Product, ProductType
-from models.report import ReportItem, ReportTypes
+from models.product import ProductChoice
+from models.report import ReportEditor, ReportItem, ReportTypes
 from models.revision_diff import build_report_revision_diff_payload
 from werkzeug.exceptions import Forbidden, HTTPException
 
@@ -28,6 +28,10 @@ class ReportItemView(BaseView):
 
     base_route = "analyze.analyze"
     edit_route = "analyze.report"
+
+    @classmethod
+    def get_object_by_id(cls, object_id: str) -> ReportEditor | None:
+        return DataPersistenceLayer().get_object(ReportEditor, object_id)
 
     @classmethod
     def get_form_action(cls, object_id: str = "0") -> str:
@@ -156,14 +160,12 @@ class ReportItemView(BaseView):
                 if cls.is_create_object_id(report.id):
                     base_context["existing_products"] = []
                 else:
-                    product_types = {product_type.id: product_type.title for product_type in dpl.get_objects(ProductType)}
-                    products = dpl.get_objects(Product)
                     base_context["existing_products"] = [
                         {
                             "id": product.id,
-                            "name": f"{product.title} ({product_types.get(product.product_type_id, 'Unknown')})",
+                            "name": f"{product.title} ({product.product_type_title})",
                         }
-                        for product in products
+                        for product in dpl.get_objects(ProductChoice)
                         if product.id
                     ]
                 submitted_data = cls._get_normalized_request_values()

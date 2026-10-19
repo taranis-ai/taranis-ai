@@ -64,7 +64,7 @@ class TestPublishApi(BaseTest):
         response = self.assert_post_ok(client, "products", auth_header=auth_header, json_data=cleanup_product)
         assert response.get_json()["id"] == cleanup_product["id"]
 
-    def test_get_Products(self, client, auth_header, cleanup_product):
+    def test_get_Products(self, client, auth_header, cleanup_product, app):
         """
         This test queries the /api/publish/products endpoint.
         It expects a valid data and a valid status-code
@@ -72,6 +72,19 @@ class TestPublishApi(BaseTest):
         response = self.assert_get_ok(client, "products", auth_header)
         assert response.get_json()["total_count"] == 1
         assert response.get_json()["items"][0]["title"] == cleanup_product["title"]
+
+        from sqlalchemy import inspect
+
+        from core.managers.db_manager import db
+        from core.model.product import Product
+
+        with app.app_context():
+            db.session.remove()
+            product = Product.get(cleanup_product["id"])
+            assert "render_result" in inspect(product).unloaded
+            assert "render_result" not in product.to_dict()
+            assert "render_result" in inspect(product).unloaded
+            assert "render_result" in product.to_detail_dict()
 
     def test_product_type_change_respects_selected_report_types(self, client, auth_header, product_type_change_resources):
         update_payload = {

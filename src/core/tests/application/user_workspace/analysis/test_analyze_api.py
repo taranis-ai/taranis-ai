@@ -38,6 +38,35 @@ class TestAnalyzeApi(BaseTest):
         assert items
         assert all(isinstance(item["needs_review"], bool) for item in items)
 
+        from core.model.attribute import AttributeType
+        from core.model.report_item_type import ReportItemType
+
+        for item in items:
+            report_type = ReportItemType.get(item["id"])
+            assert item["needs_review"] == any(
+                field.required or field.attribute.type == AttributeType.STORY
+                for group in report_type.attribute_groups
+                for field in group.attribute_group_items
+            )
+
+    def test_report_editor_preserves_form_data_with_story_summaries(self, client, auth_header, cleanup_report_item, stories):
+        payload = {**cleanup_report_item, "id": str(uuid7()), "stories": stories[:2]}
+        report_id = payload["id"]
+        self.assert_post_ok(client, "report-items", json_data=payload, auth_header=auth_header)
+        try:
+            full = self.assert_get_ok(client, f"report-items/{report_id}", auth_header).get_json()
+            editor = self.assert_get_ok(client, f"report-editors/{report_id}", auth_header).get_json()
+            for key in ("title", "completed", "report_item_type_id", "grouped_attributes", "used_story_ids", "revision_count"):
+                assert editor[key] == full[key]
+            assert editor["stories"] == [
+                {key: story[key] for key in ("id", "title", "summary", "important", "links")} for story in full["stories"]
+            ]
+            assert all("news_items" not in story for story in editor["stories"])
+            response = client.get(self.concat_url(f"report-editors/{uuid4()}"), headers=auth_header)
+            assert response.status_code == 404
+        finally:
+            self.assert_delete_ok(client, f"report-items/{report_id}", auth_header)
+
     def test_create_Report(self, client, auth_header, cleanup_report_item):
         """
         POST to /api/analyze/report-items endpoint to create a report.
@@ -62,11 +91,19 @@ class TestAnalyzeApi(BaseTest):
 
         unique_suffix = uuid4().hex
         empty_report_id = str(uuid7())
+        other_empty_report_id = str(uuid7())
         linked_report_id = str(uuid7())
 
         payloads = [
             {
                 "id": empty_report_id,
+                "title": f"Story Count Report {unique_suffix}",
+                "completed": False,
+                "report_item_type_id": cleanup_report_item["report_item_type_id"],
+                "stories": [],
+            },
+            {
+                "id": other_empty_report_id,
                 "title": f"Story Count Report {unique_suffix}",
                 "completed": False,
                 "report_item_type_id": cleanup_report_item["report_item_type_id"],
@@ -89,15 +126,21 @@ class TestAnalyzeApi(BaseTest):
                 assert report_item.id == payload["id"]
 
         try:
-            asc_response = self.assert_get_ok(client, f"report-items?search={unique_suffix}&order=stories_asc", auth_header)
-            asc_payload = asc_response.get_json()
-            assert asc_payload["total_count"] == 2
-            assert [item["id"] for item in asc_payload["items"]] == [empty_report_id, linked_report_id]
-
-            desc_response = self.assert_get_ok(client, f"report-items?search={unique_suffix}&order=stories_desc", auth_header)
-            desc_payload = desc_response.get_json()
-            assert desc_payload["total_count"] == 2
-            assert [item["id"] for item in desc_payload["items"]] == [linked_report_id, empty_report_id]
+            for order, expected in [
+                ("stories_asc", [*sorted([empty_report_id, other_empty_report_id]), linked_report_id]),
+                ("stories_desc", [linked_report_id, *sorted([empty_report_id, other_empty_report_id], reverse=True)]),
+                ("title_asc", sorted([empty_report_id, other_empty_report_id, linked_report_id])),
+                ("title_desc", sorted([empty_report_id, other_empty_report_id, linked_report_id], reverse=True)),
+            ]:
+                actual = []
+                for page in range(1, 4):
+                    response = self.assert_get_ok(
+                        client, f"report-items?search={unique_suffix}&order={order}&limit=1&page={page}", auth_header
+                    ).get_json()
+                    assert response["total_count"] == 3
+                    assert len(response["items"]) == 1
+                    actual.append(response["items"][0]["id"])
+                assert actual == expected
         finally:
             with app.app_context():
                 for payload in payloads:

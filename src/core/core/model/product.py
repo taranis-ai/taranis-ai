@@ -116,11 +116,20 @@ class Product(BaseModel):
         return query
 
     def to_dict(self) -> dict[str, Any]:
-        data = super().to_dict()
+        data = super().to_dict(exclude={"render_result"})
         data["type"] = self.product_type.type
         data["report_items"] = [report_item.id for report_item in self.report_items if report_item]
-        data.pop("render_result", None)
         return data
+
+    @classmethod
+    def get_choices_for_api(cls, user: User) -> tuple[dict[str, Any], int]:
+        query = (
+            cls.get_filter_query_with_acl({}, user)
+            .join(ProductType, cls.product_type_id == ProductType.id)
+            .with_only_columns(cls.id, cls.title, ProductType.title.label("product_type_title"))
+            .order_by(cls.title, cls.id)
+        )
+        return {"items": [dict(row) for row in db.session.execute(query).mappings()]}, 200
 
     def to_detail_dict(self) -> dict[str, Any]:
         data = self.to_dict()

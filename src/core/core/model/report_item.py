@@ -4,8 +4,8 @@ from collections import OrderedDict
 from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
 
-from sqlalchemy import inspect, or_
-from sqlalchemy.orm import Mapped, relationship
+from sqlalchemy import func, inspect, or_
+from sqlalchemy.orm import Mapped, joinedload, lazyload, relationship, selectinload
 from sqlalchemy.sql import Select
 from sqlalchemy.sql.expression import false
 
@@ -16,7 +16,7 @@ from core.model.base_model import UUID_STR_LENGTH, BaseModel
 from core.model.report_item_type import AttributeGroup, AttributeGroupItem, ReportItemType
 from core.model.revision import ReportRevision
 from core.model.role_based_access import ItemType, RoleBasedAccess
-from core.model.story import Story
+from core.model.story import ReportItemStory, Story
 from core.model.user import User
 from core.service.report_story_sync import ReportStorySyncService
 from core.service.role_based_access import RBACQuery, RoleBasedAccessService
@@ -110,15 +110,57 @@ class ReportItem(BaseModel):
     @classmethod
     def get_all_for_api(cls, filter_args: dict[str, Any] | None, with_count: bool = False, user=None) -> tuple[dict[str, Any], int]:
         filter_args = dict(filter_args or {})
+        base_query = cls.get_filter_query_with_acl(filter_args, user) if user else cls.get_filter_query(filter_args)
+        query = base_query if cls._should_fetch_all(filter_args) else cls._add_paging_to_query(filter_args, base_query)
+        query = cls._add_sorting_to_query(filter_args, query).options(
+            lazyload(cls.attributes),
+            joinedload(cls.report_item_type),
+            selectinload(cls.stories).load_only(Story.id),
+        )
+        response: dict[str, Any] = {"items": cls.to_list(cls.get_filtered(query) or [])}
+        if with_count:
+            response["total_count"] = cls.get_filtered_count(base_query)
+        return response, 200
 
-        response, status_code = super().get_all_for_api(filter_args=filter_args, with_count=with_count, user=user)
-        items = response.get("items", [])
-        if filter_args.get("order") == "stories_asc":
-            items.sort(key=lambda item: len(item.get("stories", [])))
-        elif filter_args.get("order") == "stories_desc":
-            items.sort(key=lambda item: len(item.get("stories", [])), reverse=True)
+    @classmethod
+    def _add_sorting_to_query(cls, filter_args: dict[str, Any], query: Select) -> Select:
+        order = filter_args.get("sort", filter_args.get("order", cls.default_sort_column())) or ""
+        descending = order.endswith("_desc")
+        if order in {"stories_asc", "stories_desc"}:
+            story_count = db.select(func.count()).where(ReportItemStory.report_item_id == cls.id).correlate(cls).scalar_subquery()
+            query = query.order_by(None).order_by(story_count.desc() if descending else story_count.asc())
+        else:
+            query = super()._add_sorting_to_query(filter_args, query)
+        return query.order_by(cls.id.desc() if descending else cls.id.asc())
 
-        return response, status_code
+    @classmethod
+    def get_editor_for_api(cls, item_id: str, user: User) -> tuple[dict[str, Any], int]:
+        from core.model.news_item import NewsItem
+
+        query = (
+            db.select(cls)
+            .where(cls.id == item_id)
+            .options(
+                selectinload(cls.stories)
+                .load_only(Story.title, Story.summary, Story.important)
+                .selectinload(Story.news_items)
+                .load_only(NewsItem.link),
+            )
+        )
+        item = cls.get_first(query)
+        if not item:
+            return {"error": "ReportItem not found"}, 404
+        if not item.access_allowed(user, False):
+            return {"error": "User is not allowed to read report"}, 403
+        data = BaseModel.to_dict(item)
+        data["grouped_attributes"] = item.get_grouped_attributes()
+        data["stories"] = [
+            {"id": story.id, "title": story.title, "summary": story.summary, "important": story.important, "links": story.links}
+            for story in item.stories
+        ]
+        data["used_story_ids"] = item._get_used_story_ids(item.attributes)
+        data["revision_count"] = item.get_revision_count()
+        return data, 200
 
     def get_attribute_dict(self) -> list[dict[str, Any]]:
         story_choices = [{"id": story.id, "title": story.title or story.id} for story in self.stories if story and story.id]

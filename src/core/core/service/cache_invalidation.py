@@ -42,9 +42,9 @@ SCOPE_MODEL_NAMES: dict[str, tuple[str, ...]] = {
     ),
     SCOPE_TRENDING_CLUSTERS: ("trending_clusters",),
     SCOPE_ASSESS_VIEWS: ("story", "news_item", "filter_lists", "story_bookmark"),
-    SCOPE_STORY_VIEWS: ("story", "news_item", "report_item", "story_bookmark", "filter_lists"),
-    SCOPE_STORY_REPORT_VIEWS: ("story", "news_item", "report_item", "story_bookmark", "filter_lists"),
-    SCOPE_REPORT_VIEWS: ("report", "story", "product"),
+    SCOPE_STORY_VIEWS: ("story", "news_item", "report_item", "report_editor", "story_bookmark", "filter_lists"),
+    SCOPE_STORY_REPORT_VIEWS: ("story", "news_item", "report_item", "report_editor", "story_bookmark", "filter_lists"),
+    SCOPE_REPORT_VIEWS: ("report", "report_editor", "story", "product"),
     SCOPE_PUBLISH_VIEWS: ("product",),
     SCOPE_USER_VIEWS: (
         "dashboard",
@@ -58,6 +58,7 @@ SCOPE_MODEL_NAMES: dict[str, tuple[str, ...]] = {
         "report_item",
         "filter_lists",
         "report",
+        "report_editor",
         "product",
     ),
 }

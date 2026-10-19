@@ -220,19 +220,20 @@ class ReportItemType(BaseModel):
         data["attribute_groups"] = [attribute_group.to_export_dict() for attribute_group in sorted_groups]
         return data
 
-    def to_user_dict(self) -> dict[str, Any]:
-        needs_review = any(
-            item.required or item.attribute.type == AttributeType.STORY
-            for group in self.attribute_groups
-            for item in group.attribute_group_items
-        )
-        return {"id": self.id, "title": self.title, "needs_review": needs_review}
-
     @classmethod
     def get_all_for_user_api(cls, user):
-        base_query = cls.get_filter_query_with_acl({}, user)
-        items = cls.get_filtered(base_query) or []
-        return {"items": [i.to_user_dict() for i in items]}, 200
+        needs_review = (
+            db.select(AttributeGroupItem.id)
+            .join(AttributeGroup, AttributeGroupItem.attribute_group_id == AttributeGroup.id)
+            .join(Attribute, AttributeGroupItem.attribute_id == Attribute.id)
+            .where(
+                AttributeGroup.report_item_type_id == cls.id,
+                db.or_(AttributeGroupItem.required, Attribute.type == AttributeType.STORY),
+            )
+            .exists()
+        )
+        query = cls.get_filter_query_with_acl({}, user).with_only_columns(cls.id, cls.title, needs_review.label("needs_review"))
+        return {"items": [dict(row) for row in db.session.execute(query).mappings()]}, 200
 
     @classmethod
     def filter_by_title(cls, title: str) -> "ReportItemType | None":

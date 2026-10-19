@@ -178,6 +178,9 @@ class TestRBAC:
         read_error, read_status = ReportItem.get_for_api(report_item_amber.id, clear_user)
         assert read_status == 403
         assert read_error == {"error": "User is not allowed to read report"}
+        editor_error, editor_status = ReportItem.get_editor_for_api(report_item_amber.id, clear_user)
+        assert editor_status == 403
+        assert editor_error == read_error
 
         blocked_report, update_error, update_status = ReportItem.get_report_item_and_check_permission(report_item_amber.id, clear_user)
         assert blocked_report is None
@@ -187,6 +190,9 @@ class TestRBAC:
         read_data, read_status = ReportItem.get_for_api(report_item_amber.id, amber_user)
         assert read_status == 200
         assert read_data["id"] == report_item_amber.id
+        editor_data, editor_status = ReportItem.get_editor_for_api(report_item_amber.id, amber_user)
+        assert editor_status == 200
+        assert editor_data["id"] == report_item_amber.id
 
         allowed_report, update_error, update_status = ReportItem.get_report_item_and_check_permission(report_item_amber.id, amber_user)
         assert allowed_report is not None
@@ -294,6 +300,29 @@ class TestRBAC:
 
 
 class TestRBACAclBehavior:
+    def test_product_choices_include_all_visible_products_without_render_data(self, client, session, auth_header_user_permissions):
+        from core.model.product import Product
+        from core.model.product_type import ProductType
+        from core.model.role import Role
+        from core.model.role_based_access import ItemType
+
+        visible_type = ProductType.filter_by_title("Default TEXT Presenter")
+        hidden_type = ProductType.filter_by_title("CERT Daily Report")
+        grant_acl(Role.filter_by_name("User"), ItemType.PRODUCT_TYPE, visible_type.id)
+        grant_acl(Role.filter_by_name("Admin"), ItemType.PRODUCT_TYPE, hidden_type.id)
+        products = [Product(f"Choice {index:02}", visible_type.id) for index in range(21)]
+        hidden = Product("Hidden choice", hidden_type.id)
+        session.add_all([*products, hidden])
+        session.flush()
+
+        response = client.get("/api/publish/product-choices", headers=auth_header_user_permissions)
+        assert response.status_code == 200
+        items = response.get_json()["items"]
+        assert {product.id for product in products} <= {item["id"] for item in items}
+        assert hidden.id not in {item["id"] for item in items}
+        assert all(set(item) == {"id", "title", "product_type_title"} for item in items)
+        assert [item["title"] for item in items] == sorted(item["title"] for item in items)
+
     def test_admin_operations_bypasses_acl_filtering_but_not_tlp(self, session):
         from core.model.report_item import ReportItem
         from core.model.role import Role

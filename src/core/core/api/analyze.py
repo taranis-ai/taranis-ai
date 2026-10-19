@@ -23,6 +23,12 @@ class ReportTypes(MethodView):
         return report_item_type.ReportItemType.get_all_for_user_api(user=current_user)
 
 
+class ReportEditor(MethodView):
+    @auth_required("ANALYZE_ACCESS")
+    def get(self, report_item_id: str):
+        return report_item.ReportItem.get_editor_for_api(report_item_id, current_user)
+
+
 class ReportStories(MethodView):
     @auth_required("ANALYZE_ACCESS")
     def get(self, report_item_id: str):
@@ -284,6 +290,7 @@ def initialize(app: Flask):
     analyze_bp = Blueprint("analyze", __name__, url_prefix=f"{Config.APPLICATION_ROOT}api/analyze")
 
     analyze_bp.add_url_rule("/report-types", view_func=ReportTypes.as_view("report_types"))
+    analyze_bp.add_url_rule("/report-editors/<string:report_item_id>", view_func=ReportEditor.as_view("report_editor"))
     analyze_bp.add_url_rule("/report-items", view_func=ReportItem.as_view("report_items"))
     analyze_bp.add_url_rule(
         "/report-items/publish-product",

@@ -16,6 +16,7 @@ Product copy/type changes, Taranis Publisher, `/reports/<product-id>`, or persis
 - Intended functionality / clarified requirement: authorized analysts may author HTML in Story summaries and include it in generated HTML products through templates such as `<div>{{ story.summary }}</div>`. Assess Story cards escape the summary; product templates decide whether to render HTML or apply `|e` for plain text. Do not impose blanket stripping or escaping. `ImmutableSandboxedEnvironment` restricts server-side Jinja operations, not HTML content. The preview iframe's `sandbox` and the published response's sandbox CSP protect browser contexts separately; neither guarantees every output is safe. Template path and sandbox hardening: [#780](https://github.com/taranis-ai/taranis-ai/pull/780).
 - Paths and canonical public URLs use the database-reloaded UUID, never the raw request value. Publication links must be same-origin root-relative or absolute HTTP(S), without credentials/whitespace; reject unsafe hrefs.
 - Report/product request schemas remain closed to undeclared fields.
+- Product lists exclude deferred renders before serialization; the report editor uses a lightweight ACL-filtered product-choice catalog. See [Analyze Reports](analyze-reports.md).
 
 ## Entry Points and Coverage
 

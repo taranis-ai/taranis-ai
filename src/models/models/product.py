@@ -63,6 +63,15 @@ class PublisherPreset(TaranisBaseModel):
     parameters: dict[str, Any] = Field(default_factory=dict)
 
 
+class ProductChoice(TaranisBaseModel):
+    _core_endpoint = "/publish/product-choices"
+    _model_name = "product"
+
+    id: str
+    title: str
+    product_type_title: str
+
+
 class Product(TaranisBaseModel):
     _core_endpoint = "/publish/products"
     _model_name = "product"

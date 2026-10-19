@@ -444,6 +444,34 @@ paths:
           $ref: '#/components/responses/401Unauthorized'
         '404':
           $ref: '#/components/responses/404NotFound'
+  /analyze/report-editors/{report_item_id}:
+    parameters:
+    - name: report_item_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    get:
+      security:
+      - UserAuth: []
+      tags:
+      - analyze
+      operationId: analyze.report_editor.get
+      description: Read the report form with linked Story summaries. Requires ANALYZE_ACCESS and report ACL/TLP access. Full Story content remains available from the report-items detail endpoint.
+      responses:
+        '200':
+          description: Report form fields, grouped_attributes, used_story_ids, revision_count, and stories containing only id, title, summary, important, and links.
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: Report access denied
+        '404':
+          $ref: '#/components/responses/404NotFound'
   /analyze/report-items:
     get:
       security:
@@ -8758,6 +8786,39 @@ paths:
           description: forbidden
         '404':
           $ref: '#/components/responses/404NotFound'
+  /publish/product-choices:
+    get:
+      security:
+      - UserAuth: []
+      tags:
+      - publish
+      operationId: publish.product_choices.get
+      description: All ACL-visible Product choices ordered by title and ID. Requires PUBLISH_ACCESS. Does not load rendered output or presenter parameters.
+      responses:
+        '200':
+          description: Product choice catalog
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      required: [id, title, product_type_title]
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        title:
+                          type: string
+                        product_type_title:
+                          type: string
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: Publishing access denied
   /publish/product-types:
     get:
       security:
