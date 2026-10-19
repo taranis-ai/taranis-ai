@@ -26,4 +26,4 @@ Product copy/type changes, Taranis Publisher, `/reports/<product-id>`, or persis
 
 `src/worker/worker/publishers/`, `src/core/core/service/product.py`, `src/core/core/api/worker.py`, `src/core/core/api/publish.py`, `src/ingress/extras/default.conf.template`; API contract in `src/core/core/static/openapi3_1.yaml`.
 
-Tests: `src/core/tests/application/user_workspace/publishing/test_publish_api.py`, `src/worker/tests/publishers/test_taranis_publisher.py`, `src/frontend/tests/unit/views/test_product_view.py`.
+Tests: `src/core/tests/application/user_workspace/publishing/test_publish_api.py`, `src/worker/tests/publishers/test_taranis_publisher.py`, `src/frontend/tests/unit/views/test_product_view.py`, and `src/frontend/tests/playwright/test_no_javascript.py`. The native product/report workflow selects compatible seeded types explicitly; picker ordering is not a compatibility guarantee.
