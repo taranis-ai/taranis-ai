@@ -4917,6 +4917,46 @@ paths:
           description: forbidden
         '404':
           $ref: '#/components/responses/404NotFound'
+  /config/osint-source-groups/options:
+    get:
+      tags: [config]
+      description: >-
+        Get IDs and names for source-group form options. Excludes manual sources
+        and includes only word lists with collector-includelist usage. Requires
+        CONFIG_OSINT_SOURCE_GROUP_ACCESS, CONFIG_OSINT_SOURCE_ACCESS, and
+        CONFIG_WORD_LIST_ACCESS.
+      operationId: config.config_osint_source_group_options.get
+      security:
+      - UserAuth: []
+      responses:
+        '200':
+          description: options ordered by name, without source details or word-list entries
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [osint_sources, word_lists]
+                properties:
+                  osint_sources:
+                    type: array
+                    items:
+                      type: object
+                      required: [id, name]
+                      properties:
+                        id: {type: string}
+                        name: {type: string}
+                  word_lists:
+                    type: array
+                    items:
+                      type: object
+                      required: [id, name]
+                      properties:
+                        id: {type: string}
+                        name: {type: string}
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: forbidden
   /config/osint-source-groups/{group_id}:
     parameters:
     - name: group_id
