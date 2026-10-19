@@ -213,7 +213,9 @@
              {% if current_state == "failure" %}checked{% endif %} />
     </div>
     <span class="label-text text-sm">Status</span>
-    <button type="submit" class="btn btn-ghost btn-xs">Apply</button>
+    <noscript>
+      <button type="submit" class="btn btn-ghost btn-xs">Apply</button>
+    </noscript>
   </form>
 {% endmacro %}
 
