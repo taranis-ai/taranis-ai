@@ -39,6 +39,8 @@ def expect_driver_step(page: Page, title: str):
     popover = page.locator(".driver-popover")
     expect(popover).to_be_visible()
     expect(popover).to_contain_text(title)
+    if title != "Welcome tour complete":
+        expect(page.locator(".driver-active-element")).to_be_visible()
 
 
 def go_to_next_driver_step(page: Page, title: str):
@@ -71,6 +73,29 @@ class TestEndToEndAdmin(BaseE2ETest):
         page = taranis_frontend
         page.context.clear_cookies()
         self.login_with_credentials(page)
+
+    def test_admin_sidebar_groups(self, logged_in_page: Page, forward_console_and_page_errors):
+        page = logged_in_page
+        page.goto(url_for("admin.dashboard", _external=True))
+        sidebar = page.locator("#sidebar")
+        source_link = page.get_by_test_id("admin-menu-OSINT Source")
+        collection = sidebar.locator("summary").filter(has_text="Collection")
+        expect(source_link).not_to_be_visible()
+        collection.focus()
+        collection.press("Enter")
+        expect(source_link).to_be_visible()
+        collection.press("Space")
+        expect(source_link).not_to_be_visible()
+        collection.press("Enter")
+        source_link.click()
+        expect(source_link).to_have_attribute("aria-current", "page")
+        page.reload()
+        expect(source_link).to_be_visible()
+        page.goto(url_for("admin.edit_osint_source", osint_source_id="0", _external=True))
+        expect(source_link).to_be_visible()
+        expect(source_link).to_have_attribute("aria-current", "page")
+        expect(page.get_by_test_id("admin-menu-Settings")).to_be_visible()
+        expect(sidebar.get_by_role("link", name="OpenAPI")).to_be_visible()
 
     def test_admin_welcome_onboarding_tour_complete_now(self, logged_in_page: Page, forward_console_and_page_errors):
         page = logged_in_page
@@ -888,6 +913,7 @@ class TestEndToEndAdmin(BaseE2ETest):
 
             expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
 
+            page.locator("#sidebar summary").filter(has_text="Publishing and content setup").click()
             page.get_by_test_id("admin-menu-Attribute").click()
             expect(page.get_by_role("row", name="Attachment Attachment")).to_be_visible()
 
@@ -967,6 +993,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             page.get_by_role("link", name="Administration").click()
             expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
 
+            page.locator("#sidebar summary").filter(has_text="Publishing and content setup").click()
             page.get_by_test_id("admin-menu-Attribute").click()
             expect(page.get_by_role("row", name="Attachment Attachment")).to_be_visible()
 
@@ -1017,6 +1044,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             page.get_by_role("link", name="Administration").click()
             expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
 
+            page.locator("#sidebar summary").filter(has_text="Publishing and content setup").click()
             page.get_by_test_id("admin-menu-Report Item Type").click()
             expect(page.get_by_role("row", name="CERT Report Example CERT")).to_be_visible()
 
