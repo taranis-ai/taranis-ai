@@ -47,7 +47,7 @@ class NewsItemTag(BaseModel):
         query = (
             select(cls.name, story_count.label("story_count"))
             .join(NewsItem)
-            .where(cls.name != "", or_(cls.tag_type.is_(None), cls.tag_type == "", cls.tag_type.not_ilike("report_%")))
+            .where(cls.name != "", or_(cls.tag_type.is_(None), cls.tag_type == "", cls.tag_type.not_ilike(r"report\_%", escape="\\")))
         )
         if user:
             query = query.where(Story.visible_query(user).where(Story.id == NewsItem.story_id).exists())

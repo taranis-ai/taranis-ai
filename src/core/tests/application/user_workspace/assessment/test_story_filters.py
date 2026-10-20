@@ -57,7 +57,13 @@ def test_tag_suggestions_rank_exact_matches_then_distinct_story_counts(client, a
     stories = [create_story(news_items=[build_news_item_payload()]) for _ in range(2)]
     item = stories[0].news_items[0]
     item.tags.extend(
-        [NewsItemTag("USA"), NewsItemTag("Cusa", ""), NewsItemTag("50%_& #"), NewsItemTag("50xx")]
+        [
+            NewsItemTag("USA", "reporting"),
+            NewsItemTag("Cusa", ""),
+            NewsItemTag("50%_& #"),
+            NewsItemTag("50xx"),
+            NewsItemTag("report-usa", "REPORT_label"),
+        ]
         + [NewsItemTag("Ausa", tag_type) for tag_type in ("misc", "actor", "location")]
         + [NewsItemTag(f"zusa-{index:02}") for index in range(25)]
     )
