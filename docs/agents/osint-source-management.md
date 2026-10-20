@@ -11,7 +11,7 @@ Source administration, bulk creation/deletion, curated lists, source groups, `/a
 - Bulk deletion validates all IDs before mutation and commits atomically. `force` accepts only `true`/`false`; it also removes related news and emptied stories. Queue/scheduler/MISP cleanup runs after commit.
 - Native row deletion redirects to the source list with a success/error flash; successful deletes invalidate the same caches as HTMX deletion.
 - Curated sources/groups use unique stable names as external identities. Loading overlaps/reloads adds missing records/memberships without overwriting fields or removing anything. Renaming catalog entries creates new records on reload.
-- Source-group dropdowns use `GET /config/osint-source-groups/options`: only source and collector-includelist IDs/names, ordered by name. Manual sources are excluded as in the source overview. The endpoint requires group, source, and word-list access independently; it selects columns directly without loading task statuses, icons, parameters, or word-list entries. Admin mutations invalidate its frontend cache with the existing full invalidation.
+- Source-group dropdowns use `GET /config/osint-source-groups/options`: source and collector-includelist IDs/names only, ordered by name, excluding manual sources. Require group, source, and word-list permissions. Select columns directly to avoid status/icon/entry loads; admin mutations retain full cache invalidation.
 - A same-name source with a different collector type (even disabled/manual) rejects the entire curated load with 409 and a rename instruction. Ordinary creation may use catalog names.
 - Curated loading commits reconciliation, then schedules every selected enabled source when queues are enabled. With `QUEUE_ENABLED=false`, loading succeeds without scheduling. Scheduling failure returns 503 without undoing data; repeat loads retry existing sources too. Successful loads invalidate source/group caches.
 - Bulk input errors return 400, core failures retain their status, and transport failures return 502 with the form notification.
@@ -27,8 +27,6 @@ Source administration, bulk creation/deletion, curated lists, source groups, `/a
 The bulk parameter fragment omits only the primary URL; ordinary requests, including `bulk=false`, retain it. Frontend builds the version-4 payload from name/URL rows and shared settings.
 
 Tests: `src/frontend/tests/unit/views/test_views.py`, `src/core/tests/application/admin_console/configuration/test_config_api.py`, and `test_admin_osint_workflow` in `src/frontend/tests/playwright/test_e2e_admin.py`. In E2E, run Collect All before loading curated feeds while only the manual source exists; asynchronous feed collection can otherwise recreate cleaned-up stories and contaminate later workflows.
-
-The options API test checks minimal payloads, filtering, each required permission, and absence of task/entry/icon queries. Source-group create/edit rendering remains covered by the shared frontend view tests and admin OSINT E2E workflow.
 
 `GET /config/osint-sources/{id}?period=day|week|month` adds the rolling metric alongside `news_items_count`; the overview does not calculate or return collection activity. Count and period validation live in `src/core/core/model/osint_source.py`; the UI lives in `src/frontend/frontend/templates/osint_source/osint_source_form.html`.
 

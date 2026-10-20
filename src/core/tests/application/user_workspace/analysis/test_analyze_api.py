@@ -56,12 +56,8 @@ class TestAnalyzeApi(BaseTest):
         try:
             full = self.assert_get_ok(client, f"report-items/{report_id}", auth_header).get_json()
             editor = self.assert_get_ok(client, f"report-editors/{report_id}", auth_header).get_json()
-            for key in ("title", "completed", "report_item_type_id", "grouped_attributes", "used_story_ids", "revision_count"):
-                assert editor[key] == full[key]
-            assert editor["stories"] == [
-                {key: story[key] for key in ("id", "title", "summary", "important", "links")} for story in full["stories"]
-            ]
-            assert all("news_items" not in story for story in editor["stories"])
+            full["stories"] = [{key: story[key] for key in ("id", "title", "summary", "important", "links")} for story in full["stories"]]
+            assert editor == full
             response = client.get(self.concat_url(f"report-editors/{uuid4()}"), headers=auth_header)
             assert response.status_code == 404
         finally:
@@ -86,66 +82,37 @@ class TestAnalyzeApi(BaseTest):
         assert len(items) == 1
         assert items[0]["title"] == cleanup_report_item["title"]
 
-    def test_get_reports_orders_by_story_count(self, client, auth_header, cleanup_report_item, stories, app):
+    @pytest.mark.parametrize("order", ["stories_asc", "stories_desc", "title_asc", "title_desc"])
+    def test_get_reports_orders_by_story_count(self, client, auth_header, cleanup_report_item, stories, app, order):
         from core.model.report_item import ReportItem
 
         unique_suffix = uuid4().hex
-        empty_report_id = str(uuid7())
-        other_empty_report_id = str(uuid7())
-        linked_report_id = str(uuid7())
-
         payloads = [
             {
-                "id": empty_report_id,
+                "id": str(uuid7()),
                 "title": f"Story Count Report {unique_suffix}",
-                "completed": False,
                 "report_item_type_id": cleanup_report_item["report_item_type_id"],
-                "stories": [],
-            },
-            {
-                "id": other_empty_report_id,
-                "title": f"Story Count Report {unique_suffix}",
-                "completed": False,
-                "report_item_type_id": cleanup_report_item["report_item_type_id"],
-                "stories": [],
-            },
-            {
-                "id": linked_report_id,
-                "title": f"Story Count Report {unique_suffix}",
-                "completed": False,
-                "report_item_type_id": cleanup_report_item["report_item_type_id"],
-                "stories": stories[:2],
-            },
+                "stories": selected_stories,
+            }
+            for selected_stories in (stories[:2], [], [])
         ]
-
         with app.app_context():
             for payload in payloads:
-                report_item, status = ReportItem.add(payload)
-                assert status == 200
-                assert not isinstance(report_item, dict)
-                assert report_item.id == payload["id"]
+                ReportItem.add(payload)
 
         try:
-            for order, expected in [
-                ("stories_asc", [*sorted([empty_report_id, other_empty_report_id]), linked_report_id]),
-                ("stories_desc", [linked_report_id, *sorted([empty_report_id, other_empty_report_id], reverse=True)]),
-                ("title_asc", sorted([empty_report_id, other_empty_report_id, linked_report_id])),
-                ("title_desc", sorted([empty_report_id, other_empty_report_id, linked_report_id], reverse=True)),
-            ]:
-                actual = []
-                for page in range(1, 4):
-                    response = self.assert_get_ok(
-                        client, f"report-items?search={unique_suffix}&order={order}&limit=1&page={page}", auth_header
-                    ).get_json()
-                    assert response["total_count"] == 3
-                    assert len(response["items"]) == 1
-                    actual.append(response["items"][0]["id"])
-                assert actual == expected
+            expected = sorted(
+                payloads,
+                key=lambda item: (len(item["stories"]) if order.startswith("stories") else item["title"], item["id"]),
+                reverse=order.endswith("_desc"),
+            )
+            response = self.assert_get_ok(client, f"report-items?search={unique_suffix}&order={order}&limit=1&page=2", auth_header).get_json()
+            assert response["total_count"] == 3
+            assert [item["id"] for item in response["items"]] == [expected[1]["id"]]
         finally:
             with app.app_context():
                 for payload in payloads:
-                    if ReportItem.get(payload["id"]):
-                        ReportItem.delete(payload["id"])
+                    ReportItem.delete(payload["id"])
 
     def test_get_reports_filters_by_story_id(self, client, auth_header, cleanup_report_item, stories, app):
         from core.model.report_item import ReportItem

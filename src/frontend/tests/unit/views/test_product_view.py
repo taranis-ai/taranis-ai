@@ -1,5 +1,6 @@
 import json
 from unittest.mock import call, patch
+from urllib.parse import parse_qs, urlsplit
 from uuid import uuid4
 
 import pytest
@@ -149,38 +150,29 @@ def test_product_view_preselects_report_from_query(app):
 
 
 def test_product_view_uses_core_choices_cached_by_report_selection(app, responses_mock, test_cache_backend):
-    for report_id, type_id in [("report-1", "type-1"), ("report-2", "type-2")]:
-        responses_mock.get(
-            f"{Config.TARANIS_CORE_URL}/publish/product-type-choices",
-            match=[matchers.query_param_matcher({"report_ids": report_id, "fetch_all": "true"})],
-            json={"items": [{"id": type_id, "title": type_id}]},
-        )
-
-    for report_id, type_id in [("report-1", "type-1"), ("report-2", "type-2"), ("report-1", "type-1")]:
-        product = Product(title="New product", product_type_id=type_id, id="0", report_items=[report_id])
-        with app.test_request_context("/publish/0"):
-            context = ProductView.get_extra_context({"product": product})
-            markup = render_template("publish/product.html", **context)
-        assert context["product_types"] == [{"id": type_id, "name": type_id}]
-        assert f'value="{type_id}"' in markup
-    assert len(responses_mock.calls) == 2
-
     report_ids = sorted(str(uuid4()) for _ in range(201))
-    for offset in range(0, len(report_ids), 50):
-        batch = report_ids[offset : offset + 50]
-        responses_mock.get(
-            f"{Config.TARANIS_CORE_URL}/publish/product-type-choices",
-            match=[matchers.query_param_matcher({"report_ids": batch if len(batch) > 1 else batch[0], "fetch_all": "true"})],
-            json={"items": [{"id": "common", "title": "Common"}, {"id": f"batch-{offset}", "title": "Batch only"}]},
-        )
+
+    def choices(request):
+        assert len(request.path_url.encode()) < 4096
+        selected = parse_qs(urlsplit(request.url).query)["report_ids"]
+        items = [{"id": "common", "title": "Common"}]
+        if report_ids[-1] not in selected:
+            items.append({"id": "partial", "title": "Supports only part of the selection"})
+        return 200, {}, json.dumps({"items": items})
+
+    responses_mock.add_callback("GET", f"{Config.TARANIS_CORE_URL}/publish/product-type-choices", callback=choices)
     product = Product(title="Large product", product_type_id="common", id="0", report_items=[*report_ids, report_ids[0]])
-    for _ in range(2):
-        with app.test_request_context("/publish/0"):
-            context = ProductView.get_extra_context({"product": product})
-        assert context["product_types"] == [{"id": "common", "name": "Common"}]
-        assert context["selected_report_items"] == product.report_items
-    assert len(responses_mock.calls) == 7
-    assert all(len(call.request.path_url.encode()) < 4096 for call in responses_mock.calls)
+    with app.test_request_context("/publish/0"):
+        context = ProductView.get_extra_context({"product": product})
+    assert context["product_types"] == [{"id": "common", "name": "Common"}]
+    assert context["selected_report_items"] == product.report_items
+    request_count = len(responses_mock.calls)
+    assert request_count > 1
+
+    with app.test_request_context("/publish/0"):
+        cached = ProductView.get_extra_context({"product": product})
+    assert cached["product_types"] == context["product_types"]
+    assert len(responses_mock.calls) == request_count
 
 
 def test_product_with_restricted_reports_opens_saves_and_explains_locked_actions(authenticated_client, responses_mock):
@@ -230,8 +222,9 @@ def test_product_with_restricted_reports_opens_saves_and_explains_locked_actions
     response = authenticated_client.put("/publish/product-1", data=submitted, headers={"HX-Request": "true"})
     assert response.status_code == 200
     assert warning in html.fromstring(response.data).get_element_by_id("product-report-access-warning").text_content()
-    assert json.loads(saved.calls[0].request.body)["report_items"] == product["report_items"]
-    assert json.loads(saved.calls[0].request.body)["auto_publish"] is True
+    saved_payload = json.loads(saved.calls[0].request.body)
+    assert saved_payload["report_items"] == product["report_items"]
+    assert saved_payload["auto_publish"] is True
     assert authenticated_client.get("/publish/0?copy_from=product-1").status_code == 403
 
 

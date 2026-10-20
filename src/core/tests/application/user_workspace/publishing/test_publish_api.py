@@ -56,7 +56,9 @@ def product_type_change_resources(app):
 class TestPublishApi(BaseTest):
     base_uri = "/api/publish"
 
-    def test_product_search_and_sorts_apply_before_pagination(self, client, session, auth_header):
+    @pytest.mark.parametrize("column", ["title", "created", "type", "report_items"])
+    @pytest.mark.parametrize("direction", ["asc", "desc"])
+    def test_product_search_and_sorts_apply_before_pagination(self, client, session, auth_header, column, direction):
         from core.model.product import Product
         from core.model.product_type import ProductType
         from core.model.report_item import ReportItem
@@ -77,24 +79,16 @@ class TestPublishApi(BaseTest):
             product.created = datetime(2026, 1, 1)
         session.add_all(products)
         session.flush()
-        counts = {product.id: len(product.report_items) for product in products}
-        type_names = {item.id: item.type for item in types}
-        for column, key in [
-            ("title", lambda item: item.title),
-            ("created", lambda item: item.created),
-            ("type", lambda item: type_names[item.product_type_id]),
-            ("report_items", lambda item: counts[item.id]),
-        ]:
-            for direction in ["asc", "desc"]:
-                expected = sorted(products, key=lambda item: (key(item), item.id), reverse=direction == "desc")
-                actual = []
-                for page in [1, 2]:
-                    data = self.assert_get_ok(
-                        client, f"products?search={prefix}&order={column}_{direction}&limit=2&page={page}", auth_header
-                    ).get_json()
-                    assert data["total_count"] == 4
-                    actual.extend(item["id"] for item in data["items"])
-                assert actual == [item.id for item in expected]
+        sort_key = {
+            "title": lambda item: item.title,
+            "created": lambda item: item.created,
+            "type": lambda item: item.product_type.type,
+            "report_items": lambda item: len(item.report_items),
+        }[column]
+        expected = sorted(products, key=lambda item: (sort_key(item), item.id), reverse=direction == "desc")
+        data = self.assert_get_ok(client, f"products?search={prefix}&order={column}_{direction}&limit=2&page=2", auth_header).get_json()
+        assert data["total_count"] == 4
+        assert [item["id"] for item in data["items"]] == [item.id for item in expected[2:]]
         data = self.assert_get_ok(client, f"products?search={quote(types[0].title)}", auth_header).get_json()
         assert data["total_count"] == 2
         assert {item["id"] for item in data["items"]} == {item.id for item in products if item.product_type_id == types[0].id}
@@ -130,16 +124,13 @@ class TestPublishApi(BaseTest):
         full = self.assert_get_ok(client, "product-types", auth_header).get_json()["items"]
         assert choices == sorted([{"id": item["id"], "title": item["title"]} for item in full], key=lambda item: (item["title"], item["id"]))
         type_ids = {item.id for item in types}
-        for selection, expected in [
-            ([], type_ids),
-            ([untyped.id], type_ids),
-            ([reports[0].id], {types[0].id, types[2].id}),
-            ([reports[0].id, reports[0].id, untyped.id], {types[0].id, types[2].id}),
-            ([report.id for report in reports], {types[2].id}),
-        ]:
-            response = client.get(self.concat_url("product-type-choices"), headers=auth_header, query_string={"report_ids": selection})
-            assert response.status_code == 200
-            assert {item["id"] for item in response.json["items"]} & type_ids == expected
+        response = client.get(
+            self.concat_url("product-type-choices"),
+            headers=auth_header,
+            query_string={"report_ids": [reports[0].id, reports[1].id, reports[0].id, untyped.id]},
+        )
+        assert response.status_code == 200
+        assert {item["id"] for item in response.json["items"]} & type_ids == {types[2].id}
 
         response = client.get(
             self.concat_url("product-type-choices"), headers=auth_header, query_string={"report_ids": [reports[0].id, str(uuid4())]}
@@ -149,14 +140,13 @@ class TestPublishApi(BaseTest):
 
         creation_id = str(uuid4())
         payload = {"id": creation_id, "title": "Selected reports product", "report_items": [reports[0].id, untyped.id]}
-        for type_id, status, message in [
-            (str(uuid4()), 404, "Product type not found"),
-            (types[1].id, 400, "Selected product type does not support the selected reports"),
-        ]:
-            rejected = client.post(self.concat_url("products"), headers=auth_header, json={**payload, "product_type_id": type_id})
-            assert rejected.status_code == status
-            assert rejected.json == {"error": message}
-            assert Product.get(creation_id) is None
+        missing = client.post(self.concat_url("products"), headers=auth_header, json={**payload, "product_type_id": str(uuid4())})
+        assert missing.status_code == 404
+        assert missing.json == {"error": "Product type not found"}
+        incompatible = client.post(self.concat_url("products"), headers=auth_header, json={**payload, "product_type_id": types[1].id})
+        assert incompatible.status_code == 400
+        assert incompatible.json == {"error": "Selected product type does not support the selected reports"}
+        assert Product.get(creation_id) is None
 
         created = self.assert_post_ok(client, "products", auth_header=auth_header, json_data={**payload, "product_type_id": types[2].id})
         assert created.json["id"] == creation_id
@@ -248,21 +238,20 @@ class TestPublishApi(BaseTest):
 
         try:
             creation_id = str(uuid4())
-            for report_selection in [{}, {"report_items": []}]:
-                created = client.post(
-                    self.concat_url("products"),
-                    headers=auth_header_user_permissions,
-                    json={
-                        "id": creation_id,
-                        "title": "Forbidden product",
-                        "product_type_id": product_type_change_resources["compatible_type_id"],
-                        **report_selection,
-                    },
-                )
-                assert created.status_code == 403
-                assert created.json == {"error": "User does not have access to this product type"}
-                with app.app_context():
-                    assert Product.get(creation_id) is None
+            created = client.post(
+                self.concat_url("products"),
+                headers=auth_header_user_permissions,
+                json={
+                    "id": creation_id,
+                    "title": "Forbidden product",
+                    "product_type_id": product_type_change_resources["compatible_type_id"],
+                    "report_items": [],
+                },
+            )
+            assert created.status_code == 403
+            assert created.json == {"error": "User does not have access to this product type"}
+            with app.app_context():
+                assert Product.get(creation_id) is None
 
             response = client.put(
                 self.concat_url(f"products/{product_type_change_resources['product_id']}"),

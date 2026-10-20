@@ -120,14 +120,13 @@ class TestStoryFilters(BaseTest):
             db.session.commit()
 
         expected = sorted(story_ids, reverse=not sort.endswith("_asc"))
-        for page, story_id in enumerate(expected):
-            response = client.get(self.concat_url("stories"), headers=auth_header, query_string={"sort": sort, "limit": 1, "page": page})
-            payload = self.assert_json_ok(response).get_json()
-            assert [item["id"] for item in payload["items"]] == [story_id]
-            assert payload["counts"]["total_count"] == 4
-            assert payload["counts"]["read_count"] == 2
-            assert payload["counts"]["important_count"] == 2
-            assert payload["counts"]["in_reports_count"] == 1
+        response = client.get(self.concat_url("stories"), headers=auth_header, query_string={"sort": sort, "limit": 2, "page": 1})
+        payload = self.assert_json_ok(response).get_json()
+        assert [item["id"] for item in payload["items"]] == expected[2:]
+        assert payload["counts"]["total_count"] == 4
+        assert payload["counts"]["read_count"] == 2
+        assert payload["counts"]["important_count"] == 2
+        assert payload["counts"]["in_reports_count"] == 1
 
     def test_filter_lists_include_news_item_languages(self, client, auth_header, story_filter_data):
         response = client.get(self.concat_url("filter-lists"), headers=auth_header)

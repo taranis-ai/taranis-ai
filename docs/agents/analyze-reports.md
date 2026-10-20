@@ -6,19 +6,14 @@ Analyze lists, report editors, story-count sorting, report-type choices, or the 
 
 ## Contracts
 
-- Report lists batch-load only linked Story IDs and the report-type title; they do not load Story content or report attributes. Story-count ordering runs in SQL before pagination. All sorts end in a direction-matching Report ID tie breaker, including tied titles and creation times. Counts retain the full ACL/TLP-filtered query.
-- `/api/analyze/report-editors/<id>` supplies the report form with its ordinary attributes, used Story IDs, revision count, and Story summaries (`id`, `title`, `summary`, `important`, `links`). It shares the full report endpoint's read ACL/TLP checks and 403/404 behavior. The full report API remains available to other callers.
-- Editor responses use the separate user-scoped `report_editor` cache namespace. Report writes, Story writes, and user-access changes invalidate it. Do not reuse a summary response as the full report cache entry.
-- `/api/analyze/report-types` computes `needs_review` with SQL EXISTS: a required field or any Story field requires guided review. Keep the field rules aligned with [Analyst Review](analyst-review.md).
-- `/api/publish/product-choices` requires `PUBLISH_ACCESS` and returns every ACL-visible Product's ID/title and Product Type title, ordered by title/ID. It supplies the report Publish dialog without loading Product renders, report associations, or presenter parameters. Its list cache shares the `product` namespace with an endpoint-specific key, so Product and access changes invalidate both.
-- Report editing requires only `ANALYZE_ACCESS`. Users without `PUBLISH_ACCESS` skip the Product choice lookup and do not see the Publish button or dialog.
-- Ordinary Product serialization excludes deferred `render_result` before reading columns. Product detail/render endpoints still return the render deliberately.
-- Analyze search uses a 250 ms debounce and retains native GET form submission and targeted table replacement.
+- Lists load Story IDs and report-type titles without Story content or report attributes. Sort in SQL before paging, with a direction-matching Report ID tie breaker and ACL/TLP-filtered counts.
+- `/api/analyze/report-editors/<id>` returns form attributes, used Story IDs, revision count, and Story summaries (`id`, `title`, `summary`, `important`, `links`). It shares the full report endpoint's ACL/TLP checks. Its user-scoped `report_editor` cache is separate from full reports and invalidates on Report, Story, and access changes.
+- Report-type `needs_review` is true for a required field or Story field; keep it aligned with [Analyst Review](analyst-review.md).
+- Editing requires `ANALYZE_ACCESS`. The Publish dialog additionally requires `PUBLISH_ACCESS`; other users skip its catalog lookup. `/api/publish/product-choices` returns every visible Product's ID/title and Type title, ordered by title/ID, without renders or presenter parameters. It shares the `product` list-cache namespace with an endpoint-specific key.
+- Search debounces at 250 ms and preserves native GET submission.
 
 ## Entry Points and Coverage
 
-Core: `src/core/core/model/report_item.py`, `report_item_type.py`, `product.py`, `base_model.py`; routes in `src/core/core/api/analyze.py` and `publish.py`; cache scopes in `src/core/core/service/cache_invalidation.py`.
+Core: `src/core/core/api/analyze.py`, `publish.py`, and their Report/Product models. Frontend: `src/frontend/frontend/views/report_views.py`; shared contracts: `src/models/models/report.py` and `product.py`.
 
-Shared contracts: `src/models/models/report.py`, `product.py`. Frontend: `src/frontend/frontend/views/report_views.py`, `src/frontend/frontend/templates/analyze/`.
-
-Coverage: `src/core/tests/application/user_workspace/analysis/test_analyze_api.py`, `src/core/tests/application/user_workspace/publishing/test_publish_api.py`, `src/core/tests/application/mixed_flows/security/test_rbac.py`, `src/core/tests/unit/test_cache_invalidation.py`, `src/frontend/tests/unit/views/test_report_view.py`, and `test_user_analyze` in `src/frontend/tests/playwright/test_e2e_user.py`.
+Coverage: `test_analyze_api.py`, `test_publish_api.py`, `test_rbac.py`, `test_cache_invalidation.py`, `test_report_view.py`, and the `test_user_analyze` browser workflow.

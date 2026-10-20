@@ -1,14 +1,6 @@
 {% from "macros/forms.html" import form_input, form_textarea, form_select, form_switch %}
 {% from "macros/datatable.html" import datatable %}
 
-{% macro html_preview(product, mime_type) %}
-  <iframe class="w-full h-[80vh]"
-          title="{{ _('Product preview') }}"
-          data-testid="html-render"
-          sandbox
-          src="data:{{ mime_type }};charset=utf-8;base64,{{ product.render_result }}"></iframe>
-{% endmacro %}
-
 {% set form_error = form_error | default({}) %}
 {% set product = product | default({}) %}
 {% set product_types = product_types | default([]) %}
@@ -255,7 +247,13 @@
                           x-show="!previewOpen"
                           @click="previewOpen = true"
                           data-testid="load-product-preview">{{ _("Load preview") }}</button>
-                  <template x-if="previewOpen">{{ html_preview(product, rendered_mime_type) }}</template>
+                  <template x-if="previewOpen">
+                    <iframe class="w-full h-[80vh]"
+                            title="{{ _('Product preview') }}"
+                            data-testid="html-render"
+                            sandbox
+                            src="data:{{ rendered_mime_type }};charset=utf-8;base64,{{ rendered_product }}"></iframe>
+                  </template>
                   <noscript>
                     <a class="btn btn-outline"
                        href="{{ url_for('publish.product_download', product_id=product.id) }}">{{ _("Download rendered product") }}</a>

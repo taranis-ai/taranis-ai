@@ -21,7 +21,7 @@ News-item fingerprints, collection identity, URL updates, fuzzy grouping, revisi
 
 Core: `core/service/collection.py`, `core/model/news_item.py`, `core/model/story.py`, `core/api/worker.py`, `core/managers/queue_manager.py`, and `migrations/20260911_01_f8H2q-add-news-item-fuzzy-hash.py` under `src/core`.
 
-`NewsItem.__init__` resolves sources (including the manual fallback) inside `no_autoflush`: earlier items in a story batch can already reference a persistent source while still outside the session. Keep lookup queries inside that block until the graph is attached by the caller. The existing Assess news-item-order workflow treats transient-item relationship warnings as errors while creating its multi-item story.
+`NewsItem.__init__` resolves sources, including the manual fallback, inside `no_autoflush`: earlier batch items may reference persistent sources before the caller attaches them to the session. The Assess ordering test treats these relationship warnings as errors.
 
 Shared diffs: `src/models/models/revision_diff.py`. Worker: `base_collector.py`, `base_web_collector.py`, `collector_tasks.py`, and `core_api.py`.
 

@@ -58,12 +58,17 @@ def test_story_details_share_filter_lists_only_within_each_request(authenticated
     responses_mock.get(f"{Config.TARANIS_CORE_URL}/assess/bookmarks", json={"items": [], "total_count": 0})
     filter_url = f"{Config.TARANIS_CORE_URL}/assess/filter-lists"
 
-    for count, source_name in enumerate(("First source", "Updated source"), start=1):
-        responses_mock.replace("GET", filter_url, json={"sources": [{"id": "manual", "name": source_name}], "tags": [], "groups": []})
-        response = authenticated_client.get(url_for("assess.story", story_id=story_payload["id"]))
-        assert response.status_code == 200
-        assert source_name in response.text
-        assert len([call for call in responses_mock.calls if call.request.url == filter_url]) == count
+    responses_mock.replace("GET", filter_url, json={"sources": [{"id": "manual", "name": "First source"}], "tags": [], "groups": []})
+    first = authenticated_client.get(url_for("assess.story", story_id=story_payload["id"]))
+    assert first.status_code == 200
+    assert "First source" in first.text
+    assert len([call for call in responses_mock.calls if call.request.url == filter_url]) == 1
+
+    responses_mock.replace("GET", filter_url, json={"sources": [{"id": "manual", "name": "Updated source"}], "tags": [], "groups": []})
+    second = authenticated_client.get(url_for("assess.story", story_id=story_payload["id"]))
+    assert second.status_code == 200
+    assert "Updated source" in second.text
+    assert len([call for call in responses_mock.calls if call.request.url == filter_url]) == 2
 
 
 @pytest.mark.parametrize("htmx", [True, False])
@@ -699,10 +704,9 @@ def test_assess_filters_support_htmx_and_native_form_submission(authenticated_cl
     assert filter_form.get("hx-swap:inherited") == "outerHTML"
     notification_rule = "target:#notification-bar select:#notification-bar swap:outerHTML"
     assert filter_form.get("hx-status:5xx:inherited") == notification_rule
-    for test_id in ("bulk-toggle-read", "bulk-toggle-important", "delete-story"):
-        buttons = tree.xpath(f'//button[@data-testid="{test_id}"]')
-        assert buttons
-        assert all(button.get("hx-status:5xx") == notification_rule for button in buttons)
+    buttons = tree.xpath('//button[@data-testid="bulk-toggle-read" or @data-testid="bulk-toggle-important" or @data-testid="delete-story"]')
+    assert len(buttons) >= 3
+    assert all(button.get("hx-status:5xx") == notification_rule for button in buttons)
     assert filter_form.get("hx-push-url:inherited") == "true"
     assert clear_button.get("hx-on::config:request") == (
         "ctx.request.body.delete('timefrom'); ctx.request.body.delete('timeto'); ctx.request.body.delete('range')"

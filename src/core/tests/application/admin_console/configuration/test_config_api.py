@@ -556,50 +556,37 @@ class TestSourcesConfigApi(BaseTest):
         assert response.json["message"] == "OSINT source group created successfully"
         assert response.json["id"] == cleanup_source_groups["id"]
 
-    def test_source_group_options_only_load_names_and_ids(self, client, auth_header, app):
+    def test_source_group_options_only_load_names_and_ids(self, client, auth_header, session):
         from sqlalchemy import event
 
         from core.managers.db_manager import db
         from core.model.osint_source import OSINTSource
         from core.model.word_list import WordList
 
-        source_ids = [str(uuid.uuid7()), str(uuid.uuid7())]
-        word_list_ids = [str(uuid.uuid7()), str(uuid.uuid7())]
-        with app.app_context():
-            OSINTSource.add(
-                {
-                    "id": source_ids[0],
-                    "name": f"Options RSS {source_ids[0]}",
-                    "type": "rss_collector",
-                    "parameters": {"FEED_URL": "https://example.invalid/feed"},
-                }
-            )
-            OSINTSource.add({"id": source_ids[1], "name": f"Options manual {source_ids[1]}", "type": "manual_collector"})
-            for word_list_id, usage in zip(word_list_ids, (["COLLECTOR_INCLUDELIST", "TAGGING_BOT"], ["TAGGING_BOT"]), strict=True):
-                WordList.add({"id": word_list_id, "name": f"Options words {word_list_id}", "usage": usage, "entries": [{"value": "example"}]})
-            engine = db.engine
-
+        source = OSINTSource.add({"name": "Options RSS", "type": "rss_collector", "parameters": {"FEED_URL": "https://example.invalid/feed"}})
+        manual = OSINTSource.get_manual()
+        included = WordList.add(
+            {"name": "Included words", "usage": ["COLLECTOR_INCLUDELIST", "TAGGING_BOT"], "entries": [{"value": "example"}]}
+        )
+        excluded = WordList.add({"name": "Tagging words", "usage": ["TAGGING_BOT"], "entries": [{"value": "example"}]})
         statements = []
 
         def record_query(conn, cursor, statement, parameters, context, executemany):
             statements.append(statement)
 
-        event.listen(engine, "before_cursor_execute", record_query)
+        event.listen(db.engine, "before_cursor_execute", record_query)
         try:
             response = self.assert_get_ok(client, uri="osint-source-groups/options", auth_header=auth_header)
-            assert source_ids[0] in {item["id"] for item in response.json["osint_sources"]}
-            assert source_ids[1] not in {item["id"] for item in response.json["osint_sources"]}
-            assert word_list_ids[0] in {item["id"] for item in response.json["word_lists"]}
-            assert word_list_ids[1] not in {item["id"] for item in response.json["word_lists"]}
-            assert all(set(item) == {"id", "name"} for items in response.json.values() for item in items)
-            assert not any("FROM task" in sql or "FROM word_list_entry" in sql or "osint_source.icon" in sql for sql in statements)
         finally:
-            event.remove(engine, "before_cursor_execute", record_query)
-            with app.app_context():
-                for source_id in source_ids:
-                    OSINTSource.delete(source_id)
-                for word_list_id in word_list_ids:
-                    WordList.delete(word_list_id)
+            event.remove(db.engine, "before_cursor_execute", record_query)
+        source_ids = {item["id"] for item in response.json["osint_sources"]}
+        word_list_ids = {item["id"] for item in response.json["word_lists"]}
+        assert source.id in source_ids
+        assert manual.id not in source_ids
+        assert included.id in word_list_ids
+        assert excluded.id not in word_list_ids
+        assert all(set(item) == {"id", "name"} for items in response.json.values() for item in items)
+        assert not any("FROM task" in sql or "FROM word_list_entry" in sql or "osint_source.icon" in sql for sql in statements)
 
     @pytest.mark.parametrize(
         "missing_permission", ["CONFIG_OSINT_SOURCE_GROUP_ACCESS", "CONFIG_OSINT_SOURCE_ACCESS", "CONFIG_WORD_LIST_ACCESS"]

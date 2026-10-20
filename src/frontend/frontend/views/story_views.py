@@ -806,16 +806,13 @@ class StoryView(BaseView):
     ):
         try:
             items = DataPersistenceLayer().get_objects(cls.model, paging_data=paging_data)
-            error = None if items else f"No {cls.model_name()} items found"
-        except ValidationError as exc:
-            logger.exception(format_pydantic_errors(exc, cls.model))
-            items, error = None, format_pydantic_errors(exc, cls.model)
         except HTTPException:
             raise
         except Exception:
             logger.exception(f"Error retrieving {cls.model_name()} items")
-            items, error = None, "Unable to load stories. Please try again."
+            items = None
 
+        error = None if items else f"No {cls.model_name()} items found"
         if items is None:
             error = "Unable to load stories. Please try again."
             if is_htmx_request():
