@@ -123,7 +123,8 @@ class StoryView(BaseView):
         except ValueError:
             return None
         if candidate.startswith("/") and not parsed.scheme and not parsed.netloc and parsed.path == assess_path:
-            return f"{assess_path}?{parsed.query}" if parsed.query else assess_path
+            query = urlencode(parse_qs(parsed.query), doseq=True)
+            return f"{assess_path}?{query}" if query else assess_path
         return None
 
     @classmethod

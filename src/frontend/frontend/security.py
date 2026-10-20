@@ -13,6 +13,8 @@ def init_app(app: Flask) -> None:
 
 
 def set_security_headers(response: Response) -> Response:
+    if response.mimetype == "text/html":
+        response.vary.update(("HX-Request", "HX-Target"))
     if current_app.debug:
         return response
 
