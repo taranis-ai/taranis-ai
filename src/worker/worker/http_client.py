@@ -60,3 +60,9 @@ def http_request(method: str, url: str, *, external: bool = False, timeout: int 
             return response
         finally:
             session.cookies.clear()
+
+
+async def async_external_request(method: str, url: str, *, timeout: int = 5, **kwargs: Any) -> niquests.Response:
+    """Own one cancellable fetch, isolating cookies between concurrent requests."""
+    async with niquests.AsyncSession(retries=0, disable_http3=Config.DISABLE_HTTP3, allow_incoming_cookies=True) as session:
+        return await session.request(method, url, timeout=(min(10, timeout), timeout), allow_redirects=True, **kwargs)

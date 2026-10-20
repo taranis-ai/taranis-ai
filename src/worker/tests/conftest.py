@@ -60,6 +60,16 @@ class FakeQueue:
         return object()
 
 
+@pytest.fixture
+def requests_mock(requests_mock, monkeypatch):
+    async def async_request(self, method, url, **kwargs):
+        with niquests.Session() as session:
+            return session.request(method, url, **kwargs)
+
+    monkeypatch.setattr(niquests.AsyncSession, "request", async_request)
+    return requests_mock
+
+
 @pytest.fixture(scope="session")
 def redis_config():
     """Redis configuration for testing with fakeredis."""

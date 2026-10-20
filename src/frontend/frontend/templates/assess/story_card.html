@@ -72,9 +72,13 @@
                 {% for source in story.model_extra.source_infos %}
                   <div class="tooltip before:z-[50]" data-tip="{{ source.name }}">
                     {% if source.icon %}
-                      <img src="data:image/png;base64,{{ source.icon | string }}" alt="{{ source.name }}" height="16" width="16" />
+                      <img src="data:image/png;base64,{{ source.icon | string }}"
+                           alt="{{ source.name }}"
+                           height="16"
+                           width="16"
+                           tabindex="0" />
                     {% else %}
-                      <span role="img" aria-label="{{ source.name }}">{{ heroicon_mini("newspaper", class="h-4 w-4") }}</span>
+                      <span role="img" aria-label="{{ source.name }}" tabindex="0">{{ heroicon_mini("newspaper", class="h-4 w-4") }}</span>
                     {% endif %}
                   </div>
                 {% endfor %}
