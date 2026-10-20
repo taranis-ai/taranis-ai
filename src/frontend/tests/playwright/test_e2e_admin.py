@@ -78,6 +78,8 @@ class TestEndToEndAdmin(BaseE2ETest):
         page = logged_in_page
         page.goto(url_for("admin.dashboard", _external=True))
         sidebar = page.locator("#sidebar")
+        expect(sidebar.locator("a").first).to_have_attribute("data-testid", "admin-menu-Admin Dashboard")
+        expect(page.get_by_test_id("admin-menu-Admin Dashboard")).to_be_visible()
         source_link = page.get_by_test_id("admin-menu-OSINT Source")
         collection = sidebar.locator("summary").filter(has_text="Collection")
         expect(source_link).not_to_be_visible()

@@ -43,13 +43,15 @@ def assert_admin_navigation(document, view_name):
     links = tree.xpath('//aside[@id="sidebar"]//a[@data-tour-target]')
     assert {link.get("data-testid") for link in links} == {f"admin-menu-{name}" for name in ADMIN_IDS}
     assert len(links) == len(ADMIN_IDS)
+    assert links[0].get("data-testid") == "admin-menu-Admin Dashboard"
+    assert not links[0].xpath("ancestor::details")
     current = tree.xpath('//aside//a[@aria-current="page"]')
     assert len(current) == 1
     assert current[0].get("data-testid") == f"admin-menu-{view_name}"
     assert "menu-active" in current[0].get("class").split()
     groups = current[0].xpath("ancestor::details")
     assert tree.xpath("//aside//details[@open]") == groups
-    assert len(groups) == (0 if view_name == "Settings" else 1)
+    assert len(groups) == (0 if view_name in {"Admin Dashboard", "Settings"} else 1)
 
 
 def test_native_delete_rejects_create_id(authenticated_client):

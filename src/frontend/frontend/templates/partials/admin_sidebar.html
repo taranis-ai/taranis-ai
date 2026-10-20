@@ -14,7 +14,6 @@
 {% endmacro %}
 {% set menu_groups = {
   "Overview": [
-    "Admin Dashboard",
     "Notifications",
     "Scheduler"
   ],
@@ -42,7 +41,8 @@
   ]
 } %}
 <ul class="menu menu-vertical bg-base-200 w-full">
-  {% set grouped = namespace(names=[]) %}
+  {{ menu_item("Admin Dashboard", admin_views["Admin Dashboard"]) }}
+  {% set grouped = namespace(names=["Admin Dashboard"]) %}
   {% for group_name, view_names in menu_groups.items() %}
     {% set grouped.names = grouped.names + view_names %}
     {% set badges = namespace(values={}) %}
