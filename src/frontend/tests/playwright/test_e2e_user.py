@@ -18,6 +18,22 @@ from tests.playwright.notification_helpers import dismiss_notifications
 ASSESS_STORY_PAGE_SIZE = 20
 
 
+@pytest.fixture
+def enabled_default_llm_endpoint(core_request_client):
+    allow_requests_passthru()
+    settings = core_request_client.json_request("GET", "/settings/settings")["items"][0]["settings"]
+    endpoint_id = settings["llm_default_endpoint"]
+    if not endpoint_id:
+        yield
+        return
+    enabled = settings["llm_endpoints"][endpoint_id]["enabled"]
+    core_request_client.post(f"/settings/llm-endpoints/{endpoint_id}", json_data={"enabled": True})
+    try:
+        yield
+    finally:
+        core_request_client.post(f"/settings/llm-endpoints/{endpoint_id}", json_data={"enabled": enabled})
+
+
 @pytest.mark.e2e_user
 @pytest.mark.e2e_ci
 @pytest.mark.usefixtures("e2e_ci", "ensure_basic_user_permissions")
@@ -363,7 +379,12 @@ class TestEndToEndUser(BaseE2ETest):
         change_password_back()
 
     def test_user_assess(
-        self, non_admin_logged_in_page: Page, forward_console_and_page_errors_non_admin, pre_seed_stories, core_request_client
+        self,
+        non_admin_logged_in_page: Page,
+        forward_console_and_page_errors_non_admin,
+        pre_seed_stories,
+        core_request_client,
+        enabled_default_llm_endpoint,
     ):
         page = non_admin_logged_in_page
         allow_requests_passthru()
@@ -458,11 +479,23 @@ class TestEndToEndUser(BaseE2ETest):
             for reserved_key in ("TLP", "tlp_override"):
                 attribute_key.fill(reserved_key)
                 assert attribute_key.evaluate("element => element.validity.patternMismatch")
-            attribute_key.fill("attr")
+            attribute_key.fill("CUSTOM_")
+            attribute_key.press_sequentially("BOT_NOTE")
+            expect(attribute_key).to_have_value("CUSTOM_BOT_NOTE")
             assert attribute_key.evaluate("element => element.checkValidity()")
             page.get_by_test_id("attribute-value-input").nth(1).fill("value attr")
+            page.get_by_role("button", name="Add attribute").click()
+            page.get_by_test_id("attribute-key-input").last.fill("UI_TEST_BOT")
+            bot_attribute = page.get_by_test_id("attribute-value-input").last
+            bot_attribute.fill("preserved bot marker")
+            page.get_by_role("heading", name="Attributes", exact=True).click()
+            expect(bot_attribute).not_to_be_visible()
             page.get_by_role("button", name="Save changes").click()
             page.get_by_role("link", name="Advanced").click()
+            bot_attribute = page.get_by_test_id("attribute-value-input").last
+            expect(bot_attribute).not_to_be_visible()
+            page.get_by_role("checkbox", name="Show bot attributes").check()
+            expect(bot_attribute).to_have_value("preserved bot marker")
             expect(back_to_assess).to_have_attribute("href", return_url)
             expect(page.get_by_role("complementary")).to_contain_text("Story status")
             page.get_by_text("Cybersecurity · Not Classified").click()
@@ -472,10 +505,12 @@ class TestEndToEndUser(BaseE2ETest):
             expect(page.get_by_role("complementary")).to_contain_text("Run sentiment analysis")
             expect(page.get_by_role("complementary")).to_contain_text("Cybersecurity classification")
             page.get_by_role("textbox", name="Analyst comments").fill("Unsaved analyst comment")
-            for action in ("Generate summary & title", "Run sentiment analysis", "Cybersecurity classification"):
+            for action in ("Generate summary & title", "Generate Tags", "Run sentiment analysis", "Cybersecurity classification"):
                 with_htmx_wait(page, page.get_by_role("button", name=action, exact=True).click)
                 expect(page.locator("#notification-bar")).to_have_count(1)
-                expect(page.locator("#notification-message")).to_contain_text("Executing Bot scheduled")
+                expect(page.locator("#notification-message")).to_contain_text(
+                    "Tag generation scheduled" if action == "Generate Tags" else "Executing Bot scheduled"
+                )
                 expect(page.get_by_role("textbox", name="Title", exact=True)).to_have_value(edited_title)
                 expect(page.get_by_role("textbox", name="Analyst comments")).to_have_value("Unsaved analyst comment")
             page.get_by_role("link", name="Return to story").click()

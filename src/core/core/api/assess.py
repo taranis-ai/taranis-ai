@@ -446,9 +446,12 @@ class BotActions(MethodView):
         if report_ids:
             filter_data["report_ids"] = report_ids
 
-        if selected_bot := bot.Bot.filter_by_type(bot_id):
-            bot_id = selected_bot.id
-        response, code = queue_manager.queue_manager.execute_bot_task(bot_id=bot_id, filter=filter_data, user_id=current_user.id)
+        if bot_id == "generate_tags":
+            response, code = queue_manager.queue_manager.execute_tagging_tasks(filter=filter_data, user_id=current_user.id)
+        else:
+            if selected_bot := bot.Bot.filter_by_type(bot_id):
+                bot_id = selected_bot.id
+            response, code = queue_manager.queue_manager.execute_bot_task(bot_id=bot_id, filter=filter_data, user_id=current_user.id)
         if code == 200:
             realtime_publisher.assess_changed()
         invalidate_frontend_cache_on_success(code, models=("story", "report_item"))
