@@ -80,6 +80,18 @@ def test_assess_upstream_failure_returns_safe_error_page(authenticated_client, r
         assert tree.tag == "section" and tree.get("id") == "notification-bar"
         assert tree.get("hx-swap-oob") is None
 
+        responses_mock.post(f"{Config.TARANIS_CORE_URL}/assess/stories/bulk_action", json={"message": "Stories updated"})
+        response = authenticated_client.post(
+            url_for("assess.bulk_action"), headers=htmx_header, data={"action": "read", "value": "true", "story_ids": ["story-1"]}
+        )
+        assert response.status_code == 502
+        tree = html.fromstring(response.text)
+        assert tree.tag == "section" and tree.get("id") == "notification-bar"
+        assert tree.get("hx-swap-oob") is None
+        assert "Unable to load stories. Please try again." in tree.text_content()
+        assert "Stories updated" not in tree.text_content()
+        assert "private upstream details" not in tree.text_content()
+
 
 @pytest.mark.parametrize(
     "status, payload, message",

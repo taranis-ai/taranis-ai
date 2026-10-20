@@ -2,11 +2,12 @@ import json
 from urllib.parse import parse_qs, urlsplit
 
 import pytest
-from flask import render_template_string, url_for
+from flask import g, render_template_string, url_for
 from lxml import html
 from models.product import ProductChoice
 from models.report import ReportEditor, ReportItem, ReportTypes
 
+from frontend.cache import add_user_to_cache, cache
 from frontend.config import Config
 from frontend.views.report_views import ReportItemView
 
@@ -73,7 +74,7 @@ def test_report_view_renders_access_denied_page_when_core_returns_403(app, authe
     assert "403 - Access denied" in html
 
 
-def test_report_editor_renders_summary_and_product_choices(app, authenticated_client_basic, responses_mock):
+def test_report_editor_renders_summary_and_product_choices(app, authenticated_client_basic, auth_user_basic, responses_mock):
     report_id = "8124ae6f-3c85-49b4-93a1-9f3dc6516310"
     responses_mock.get(
         f"{Config.TARANIS_CORE_URL}/analyze/report-editors/{report_id}",
@@ -104,6 +105,22 @@ def test_report_editor_renders_summary_and_product_choices(app, authenticated_cl
     assert "Story summary" in markup
     assert "Existing product (Product type)" in markup
     assert len(responses_mock.calls) == 3
+
+    reader = auth_user_basic.model_copy(deep=True)
+    reader.permissions = ["ANALYZE_ACCESS"]
+    cache.clear()
+    add_user_to_cache(reader.model_dump(mode="json"))
+    choices_url = f"{Config.TARANIS_CORE_URL}/publish/product-choices"
+    responses_mock.replace("GET", choices_url, json={"error": "Forbidden"}, status=403)
+    with app.test_request_context():
+        g.pop("jwt_user_lookup_user", None)
+        response = authenticated_client_basic.get(url_for("analyze.report", report_id=report_id))
+    assert response.status_code == 200
+    assert "Summary report" in response.text
+    assert "Linked story" in response.text
+    tree = html.fromstring(response.text)
+    assert not tree.xpath('//*[@data-testid="report-publish-button" or @data-testid="report-publish-dialog"]')
+    assert len([call for call in responses_mock.calls if call.request.url.split("?")[0] == choices_url]) == 1
 
 
 def test_report_diff_view_renders_compare_payload(app, authenticated_client_basic, responses_mock):

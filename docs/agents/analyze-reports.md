@@ -11,6 +11,7 @@ Analyze lists, report editors, story-count sorting, report-type choices, or the 
 - Editor responses use the separate user-scoped `report_editor` cache namespace. Report writes, Story writes, and user-access changes invalidate it. Do not reuse a summary response as the full report cache entry.
 - `/api/analyze/report-types` computes `needs_review` with SQL EXISTS: a required field or any Story field requires guided review. Keep the field rules aligned with [Analyst Review](analyst-review.md).
 - `/api/publish/product-choices` requires `PUBLISH_ACCESS` and returns every ACL-visible Product's ID/title and Product Type title, ordered by title/ID. It supplies the report Publish dialog without loading Product renders, report associations, or presenter parameters. Its list cache shares the `product` namespace with an endpoint-specific key, so Product and access changes invalidate both.
+- Report editing requires only `ANALYZE_ACCESS`. Users without `PUBLISH_ACCESS` skip the Product choice lookup and do not see the Publish button or dialog.
 - Ordinary Product serialization excludes deferred `render_result` before reading columns. Product detail/render endpoints still return the render deliberately.
 - Analyze search uses a 250 ms debounce and retains native GET form submission and targeted table replacement.
 

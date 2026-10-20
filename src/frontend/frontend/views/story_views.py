@@ -851,7 +851,7 @@ class StoryView(BaseView):
         paging_data = parse_paging_data(request_params)
         selected_story_ids = request.form.getlist("story_ids") if request.method == "POST" else []
         table, status = cls._render_story_list(paging_data, request_params, selected_story_ids=selected_story_ids)
-        if notification:
+        if notification and status < 400:
             return make_response(notification + table, status)
         return make_response(table, status)
 

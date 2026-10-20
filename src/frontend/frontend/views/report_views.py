@@ -3,6 +3,7 @@ from typing import Any
 
 from flask import Response, abort, make_response, render_template, request, url_for
 from flask.typing import ResponseReturnValue
+from flask_jwt_extended import current_user
 from models.assess import Story
 from models.cti import CTIResponse
 from models.product import ProductChoice
@@ -172,7 +173,7 @@ class ReportItemView(BaseView):
 
             report = base_context.get("report")
             if report:
-                if cls.is_create_object_id(report.id):
+                if cls.is_create_object_id(report.id) or "PUBLISH_ACCESS" not in (current_user.permissions or []):
                     base_context["existing_products"] = []
                 else:
                     base_context["existing_products"] = [
