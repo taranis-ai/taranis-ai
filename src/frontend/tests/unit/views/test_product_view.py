@@ -1,5 +1,6 @@
 import json
 from unittest.mock import call, patch
+from uuid import uuid4
 
 import pytest
 from flask import render_template, render_template_string, url_for
@@ -163,6 +164,23 @@ def test_product_view_uses_core_choices_cached_by_report_selection(app, response
         assert context["product_types"] == [{"id": type_id, "name": type_id}]
         assert f'value="{type_id}"' in markup
     assert len(responses_mock.calls) == 2
+
+    report_ids = sorted(str(uuid4()) for _ in range(201))
+    for offset in range(0, len(report_ids), 50):
+        batch = report_ids[offset : offset + 50]
+        responses_mock.get(
+            f"{Config.TARANIS_CORE_URL}/publish/product-type-choices",
+            match=[matchers.query_param_matcher({"report_ids": batch if len(batch) > 1 else batch[0], "fetch_all": "true"})],
+            json={"items": [{"id": "common", "title": "Common"}, {"id": f"batch-{offset}", "title": "Batch only"}]},
+        )
+    product = Product(title="Large product", product_type_id="common", id="0", report_items=[*report_ids, report_ids[0]])
+    for _ in range(2):
+        with app.test_request_context("/publish/0"):
+            context = ProductView.get_extra_context({"product": product})
+        assert context["product_types"] == [{"id": "common", "name": "Common"}]
+        assert context["selected_report_items"] == product.report_items
+    assert len(responses_mock.calls) == 7
+    assert all(len(call.request.path_url.encode()) < 4096 for call in responses_mock.calls)
 
 
 def test_product_with_restricted_reports_opens_saves_and_explains_locked_actions(authenticated_client, responses_mock):

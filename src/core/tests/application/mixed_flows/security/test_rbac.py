@@ -201,10 +201,13 @@ class TestRBAC:
         assert update_error == {}
 
     def test_filter_report_query_with_tlp(self, report_items):
-        from core.model.report_item import ReportItem
+        from core.model.report_item import AttributeType, ReportItem, ReportItemAttribute
         from core.service.role_based_access import RoleBasedAccessService
 
         report_item_clear, report_item_amber, report_item_red, report_item_without_TLP = report_items
+        for report in (report_item_clear, report_item_red):
+            report.attributes.append(ReportItemAttribute(title="Additional TLP", attribute_type=AttributeType.TLP, value="clear"))
+        db.session.commit()
 
         mock_user = Mock()
         query = db.select(ReportItem)
@@ -216,6 +219,7 @@ class TestRBAC:
         assert results
         result_ids = {r.id for r in results}
         assert {report_item_clear.id, report_item_without_TLP.id} == result_ids
+        assert len(results) == len(result_ids)
 
         # User has TLP:Green -> Should see only Report Item with TLP:Clear
         mock_user.get_highest_tlp.return_value = TLPLevel.GREEN
@@ -308,12 +312,14 @@ class TestRBACAclBehavior:
         from core.model.product import Product
         from core.model.product_type import ProductType
         from core.model.publisher_preset import PublisherPreset
-        from core.model.report_item import ReportItem
+        from core.model.report_item import AttributeType, ReportItem, ReportItemAttribute
         from core.model.report_item_type import ReportItemType
         from core.model.role import Role
         from core.model.role_based_access import ItemType
 
         report = create_rbac_report_item(f"product-choice-{restriction}", TLPLevel.RED if restriction == "tlp" else TLPLevel.CLEAR)
+        if restriction == "tlp":
+            report.attributes.append(ReportItemAttribute(title="Additional TLP", attribute_type=AttributeType.TLP, value="clear"))
         role = Role.filter_by_name("User")
         role.tlp_level = TLPLevel.CLEAR
         grant_acl(role if restriction == "tlp" else Role.filter_by_name("Admin"), ItemType.REPORT_ITEM_TYPE, report.report_item_type_id)

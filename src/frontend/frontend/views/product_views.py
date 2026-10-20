@@ -103,10 +103,17 @@ class ProductView(BaseView):
         base_context["selected_report_items"] = selected_report_items
         base_context["supported_reports"] = supported_reports
 
-        paging_data = PagingData(
-            query_params={"report_ids": [] if report_access_warning else sorted(set(selected_report_items))}
-        ).set_fetch_all()
-        product_types = dpl.get_objects(ProductTypeChoice, paging_data)
+        report_ids = [] if report_access_warning else sorted(set(selected_report_items))
+        product_types: list[ProductTypeChoice] = []
+        # Bound URLs while requiring each choice to support the entire selection.
+        for offset in range(0, max(1, len(report_ids)), 50):
+            paging_data = PagingData(query_params={"report_ids": report_ids[offset : offset + 50]}).set_fetch_all()
+            choices = list(dpl.get_objects(ProductTypeChoice, paging_data))
+            if offset == 0:
+                product_types = choices
+            else:
+                compatible_ids = {pt.id for pt in choices}
+                product_types = [pt for pt in product_types if pt.id in compatible_ids]
         base_context["product_types"] = [{"id": pt.id, "name": pt.title} for pt in product_types]
 
         return base_context

@@ -112,14 +112,15 @@ class RoleBasedAccessService:
         from core.model.report_item import AttributeType, ReportItem, ReportItemAttribute
 
         user_tlp_level = user.get_highest_tlp()
+        if user_tlp_level.value == "red":
+            return query
         accessible_tlps = user_tlp_level.get_accessible_levels()
-
-        TLPAttr = aliased(ReportItemAttribute)
-
-        return query.outerjoin(TLPAttr, db.and_(TLPAttr.report_item_id == ReportItem.id, TLPAttr.attribute_type == AttributeType.TLP)).filter(
-            db.or_(
-                TLPAttr.value.in_(accessible_tlps),
-                TLPAttr.id.is_(None),
+        return query.where(
+            ~ReportItem.attributes.any(
+                db.and_(
+                    ReportItemAttribute.attribute_type == AttributeType.TLP,
+                    db.or_(ReportItemAttribute.value.is_(None), ReportItemAttribute.value.not_in(accessible_tlps)),
+                )
             )
         )
 
