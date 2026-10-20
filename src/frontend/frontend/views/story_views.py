@@ -117,7 +117,7 @@ class StoryView(BaseView):
         try:
             current_url = urlparse(request.headers.get("HX-Current-URL", ""))
             candidate = request.args.get("assess_url", "") or parse_qs(current_url.query).get("assess_url", [""])[0]
-            if current_url.path == assess_path:
+            if not candidate and current_url.path == assess_path:
                 candidate = f"{assess_path}?{current_url.query}"
             parsed = urlparse(candidate)
         except ValueError:

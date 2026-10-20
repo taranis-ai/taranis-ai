@@ -835,10 +835,11 @@ def test_assess_tag_filters_highlight_matches_beyond_collapsed_limit(authenticat
         json={"items": [story_payload], "total_count": 1},
     )
     assess_url = url_for("assess.assess", tags=["tag-22", "actor"])
+    return_url = url_for("assess.assess", tags=["tag-22", "actor"], page=2)
     if method != "GET":
         responses_mock.patch(f"{Config.TARANIS_CORE_URL}/assess/stories/story-1", json={"message": "Story updated"})
         response = authenticated_client.open(
-            url_for("assess.story", story_id="story-1"),
+            url_for("assess.story", story_id="story-1", assess_url=return_url),
             method=method,
             data={"read": "true"},
             headers={"HX-Request": "true", "HX-Current-URL": f"http://localhost{assess_url}"},
@@ -853,6 +854,10 @@ def test_assess_tag_filters_highlight_matches_beyond_collapsed_limit(authenticat
     assert [tag.text_content().strip() for tag in matched] == ["tag-22", "tag-23"]
     assert all(tag.get("x-show").endswith("true") and tag.get("x-cloak") is None for tag in matched)
     assert card.xpath('.//*[@data-testid="toggle-story-tags"]/text()') == ["+17"]
+    if method != "GET":
+        for action in ("open-detail-view", "edit-story"):
+            action_url = card.xpath(f'.//*[@data-testid="{action}"]/@href')[0]
+            assert parse_qs(urlparse(action_url).query)["assess_url"] == [return_url]
 
 
 def test_assess_bookmarks_bar_renders_first_six_ordered_collections(authenticated_client, responses_mock):

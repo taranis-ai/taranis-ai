@@ -596,6 +596,19 @@ class TestEndToEndUser(BaseE2ETest):
             expect(page.get_by_text("End of results.", exact=True)).to_be_visible()
             expect(page.locator("#story-pagination")).to_contain_text(re.compile(rf"Showing\s+1\s*-\s*{expected_total}\s+of"))
 
+            last_card = page.locator("#story-list article[data-story-id]").last
+            detail_url = last_card.get_by_test_id("open-detail-view").get_attribute("href")
+            assert detail_url
+            return_url = parse_qs(urlparse(detail_url).query)["assess_url"][0]
+            assert parse_qs(urlparse(return_url).query)["page"] == [str(last_page)]
+            for action in ("toggle-read", "toggle-important"):
+                last_card.get_by_test_id("story-actions-menu").click()
+                with_htmx_wait(page, last_card.get_by_test_id(action).click)
+                for link in ("open-detail-view", "edit-story"):
+                    link_url = last_card.get_by_test_id(link).get_attribute("href")
+                    assert link_url
+                    assert parse_qs(urlparse(link_url).query)["assess_url"] == [return_url]
+
             expect(page.get_by_test_id("assess_story_selection_count")).to_be_hidden()
             page.get_by_role("button", name="Select all").click()
             expect(page.get_by_test_id("assess_story_selection_count")).to_contain_text("stories selected")
