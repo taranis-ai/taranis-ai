@@ -16,7 +16,7 @@
 {# djlint:off #}
 <div class="p-4"
      id="product"
-     {% if resume_action == 'publish' %}x-init="$nextTick(() => triggerAction('publish'))"{% endif %}
+     {% if resume_action == 'publish' %}x-init="$nextTick(() =&gt; triggerAction('publish'))"{% endif %}
      x-data="
      {
         dirty: {{ 'true' if error or form_error else 'false' }},
