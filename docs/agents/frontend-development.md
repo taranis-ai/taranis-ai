@@ -26,6 +26,8 @@ Taranis uses HTMX 4:
 
 Shared table navigation retains native links/GET forms and `restoreSearchAfterSwap`; `hx-preserve` does not replace request-derived search restoration. Page-size events stay local to the form. Import controls retain the list URL for refresh after success. Assess token filters still require JavaScript.
 
+HTML responses vary on `HX-Request` and `HX-Target`, including in DEBUG, so HTTP caches select the matching response instead of serving an HTMX fragment for a full-page request. Production dynamic responses also retain `Cache-Control: no-store`.
+
 Preserve selected IDs and retry context on validation errors. Report/clustering dialogs close only on success. Non-HTMX forms retain CSRF protection and safe result/retry redirects.
 
 ## Specific Integration Traps

@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 
 {% block head %}
+  <script src="{{ url_for('static', filename='js/assess-navigation.js') }}" defer></script>
   <style>
     ::highlight(search) {
       background-color: rgba(251, 191, 36, 0.45);
