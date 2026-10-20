@@ -31,8 +31,9 @@ Memory files provide expected behavior, code paths, tests, and known pitfalls; i
 
 ## Pull Requests
 
-- Before preparing a contribution, follow [Contributing](CONTRIBUTING.md) and use the [PR template](.github/pull_request_template.md). Ask the contributor for any missing prompts before requesting review.
-- Leave human contributor confirmations unchecked unless the contributor explicitly provided them. An agent cannot establish a human's understanding or acceptance of responsibility.
+- The contributor process in [Contributing](CONTRIBUTING.md) and mandatory use of the [PR template](.github/pull_request_template.md) apply only to outside collaborators. Core members are members of the [taranis-ai/ait team](https://github.com/orgs/taranis-ai/teams/ait); they may omit the template sections and do not need prompt disclosure, contributor confirmations, or human review-time estimates. This exemption does not waive shared code, security, testing, licensing, commit attribution, or review and branch-protection rules.
+- Apply the status of the human contributor when acting on their behalf. Use known team membership or the user's explicit statement of core membership; do not infer it from repository write access alone. Do not ask core members for external-contributor prompts or confirmations.
+- For outside collaborators, follow the contributor process and ask for any missing prompts before requesting review. Leave human contributor confirmations unchecked unless the contributor explicitly provided them. An agent cannot establish a human's understanding or acceptance of responsibility.
 
 ## Test Discipline
 
