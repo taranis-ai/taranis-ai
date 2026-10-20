@@ -50,6 +50,47 @@ FILTER_CASES = [
 ]
 
 
+def test_tag_suggestions_rank_exact_matches_then_distinct_story_counts(client, auth_header, session):
+    from core.model.news_item_tag import NewsItemTag
+    from tests.application.support.builders import build_news_item_payload, create_story
+
+    stories = [create_story(news_items=[build_news_item_payload()]) for _ in range(2)]
+    item = stories[0].news_items[0]
+    item.tags.extend(
+        [
+            NewsItemTag("USA", "reporting"),
+            NewsItemTag("Cusa", ""),
+            NewsItemTag("50%_& #"),
+            NewsItemTag("50xx"),
+            NewsItemTag("report-usa", "REPORT_label"),
+        ]
+        + [NewsItemTag("Ausa", tag_type) for tag_type in ("misc", "actor", "location")]
+        + [NewsItemTag(f"zusa-{index:02}") for index in range(25)]
+    )
+    for story in stories:
+        story.news_items[0].tags.append(NewsItemTag("Busa"))
+    session.commit()
+
+    response = client.get("/api/assess/taglist", headers=auth_header, query_string={"search": " usa "})
+    assert response.status_code == 200
+    tags = response.get_json()
+    names = ["USA", "Busa", "Ausa", "Cusa"] + [f"zusa-{index:02}" for index in range(16)]
+    assert tags == [{"name": name, "story_count": 2 if name == "Busa" else 1} for name in names]
+
+    response = client.get("/api/assess/taglist", headers=auth_header, query_string={"search": "USA", "limit": 1})
+    assert response.status_code == 200
+    assert response.get_json() == [{"name": "USA", "story_count": 1}]
+    response = client.get("/api/assess/taglist", headers=auth_header, query_string={"search": "usa", "limit": 2, "offset": 1})
+    assert response.status_code == 200
+    assert response.get_json() == [{"name": "Busa", "story_count": 2}, {"name": "Ausa", "story_count": 1}]
+    response = client.get("/api/assess/taglist", headers=auth_header, query_string={"search": "50%_"})
+    assert response.status_code == 200
+    assert response.get_json() == [{"name": "50%_& #", "story_count": 1}]
+    response = client.get("/api/assess/taglist", headers=auth_header, query_string={"search": "missing-suggestion"})
+    assert response.status_code == 200
+    assert response.get_json() == []
+
+
 class TestStoryFilters(BaseTest):
     base_uri = "/api/assess"
     _multi_value_filters = frozenset({"source", "group", "story_ids", "tags", "language"})

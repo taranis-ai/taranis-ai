@@ -501,9 +501,32 @@ class TestEndToEndUser(BaseE2ETest):
             story_id = seeded_story["id"]
             news_item_id = seeded_story["news_items"][0]["id"]
             tags = [{"name": f"assess-tag-{index:02}", "tag_type": "misc"} for index in range(24)]
+            tags[0]["name"] = "https://example.invalid/assess-long-tag-" + "url-" * 45
+            tags[1]["name"] = "assess-long-tag-" + "long " * 40
             tags[-1]["tag_type"] = "actor"
             response = core_request_client.put(f"/assess/news-items/{news_item_id}/tags", json_data=tags)
             assert response.ok
+            page.goto(assess_url)
+            tag_search = page.get_by_role("searchbox", name="Search tags", exact=True)
+            tag_search.fill("assess-long-tag")
+            tag_search.press("ArrowRight")
+            suggestions = page.locator("#tag-filter-suggestion-list button")
+            expect(suggestions).to_have_count(2)
+            for button in suggestions.all():
+                expect(button.locator('[data-test-id="tag-suggestion-count"]')).to_have_text("1")
+                label = button.locator('[data-test-id="tag-suggestion-name"]')
+                assert button.get_attribute("title") == label.inner_text()
+                assert label.evaluate("el => el.scrollWidth > el.clientWidth && getComputedStyle(el).textOverflow === 'ellipsis'")
+                assert button.evaluate("el => el.scrollWidth <= el.clientWidth")
+            first_box, second_box = [button.bounding_box() for button in suggestions.all()]
+            assert first_box and second_box and second_box["y"] >= first_box["y"] + first_box["height"]
+            tag_search.fill(tags[-2]["name"].upper())
+            tag_search.press("ArrowRight")
+            suggestion = page.locator("#tag-filter-suggestion-list button").first
+            expect(suggestion.locator('[data-test-id="tag-suggestion-name"]')).to_have_text(tags[-2]["name"])
+            expect(suggestion.locator('[data-test-id="tag-suggestion-count"]')).to_have_text("1")
+            with_htmx_wait(page, suggestion.click)
+            expect(page.locator('#selected-tags input[name="tags"]')).to_have_value(tags[-2]["name"])
             page.goto(url_for("assess.assess", tags=[tags[-2]["name"], "actor"], _external=True))
             card = page.locator(f'article[data-story-id="{story_id}"]')
             matches = card.locator("a.badge-primary")
