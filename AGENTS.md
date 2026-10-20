@@ -39,6 +39,10 @@ Memory files provide expected behavior, code paths, tests, and known pitfalls; i
 
 Keep tests and documentation proportional to a feature's importance, complexity, and risk. For a small method-level change, default to one focused behavior test and a couple of sentences in existing component documentation; add more only for distinct, material risks. Do not create a test matrix or a standalone feature/memory document for a small helper change.
 
+**Do not add automated tests for label-only or cosmetic changes.** Renaming an existing button, changing copy, tooltips, icons, colors, spacing, or layout does not justify new tests, test cases, fixtures, helpers, or extra browser-test steps. Update existing selectors or assertions only where the changed UI requires it, and validate with existing checks and a brief browser inspection. Do not add assertions just to prove that new wording or CSS was rendered.
+
+For functional changes, add coverage only for a concrete new behavior or material risk that existing tests do not cover. A nearby rename or styling change does not justify expanding unrelated workflows. The method-level guidance above is not a minimum test quota; zero new tests is the correct result when existing coverage is sufficient.
+
 Review every newly added test against the existing test suite. Remove tests that duplicate existing coverage or rely so heavily on mocking that they do not meaningfully exercise behavior. Keep a new test only when it adds necessary, effective coverage—the best code is no code, and that applies to test code too.
 
 At the end of feature development, humans and agents run `./dev/test_push_signoff.sh`, not a focused E2E target. If validation fails, fix and commit the problem, then run the same script again. Every full E2E run uses a fresh isolated Compose stack and removes it afterward. See [Development Workflow](docs/agents/development-workflow.md#feature-signoff-loop).

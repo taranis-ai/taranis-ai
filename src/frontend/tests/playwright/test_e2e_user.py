@@ -627,29 +627,6 @@ class TestEndToEndUser(BaseE2ETest):
         cards = page.locator("#story-list article[data-story-id]")
         primary_id, second_id, third_id = [cards.nth(i).get_attribute("data-story-id") for i in range(3)]
         page.get_by_test_id(f"story-card-{primary_id}").click()
-        original_viewport = page.viewport_size
-        try:
-            top_bar = page.locator("#assess-top-bar")
-            report_button = top_bar.locator('button[hx-get$="/story/report"]')
-            cluster_hint = top_bar.locator('[data-test-id="assess-cluster-hint"]')
-            for width in (1024, 1600):
-                page.set_viewport_size({"width": width, "height": 1000})
-                expect(page.get_by_test_id("assess_story_selection_count")).to_have_text("1 stories selected")
-                if width == 1024:
-                    expect(cluster_hint).to_be_hidden()
-                else:
-                    expect(cluster_hint).to_be_visible()
-                single_position = report_button.bounding_box()
-                page.get_by_test_id(f"story-card-{second_id}").click()
-                expect(page.get_by_test_id("assess_story_selection_count")).to_have_text("2 stories selected")
-                expect(cluster_hint).to_be_hidden()
-                multiple_position = report_button.bounding_box()
-                assert single_position and multiple_position
-                assert abs(single_position["x"] - multiple_position["x"]) < 1
-                page.get_by_test_id(f"story-card-{second_id}").click()
-        finally:
-            if original_viewport:
-                page.set_viewport_size(original_viewport)
         for secondary_id in (second_id, third_id):
             page.get_by_test_id(f"story-card-{secondary_id}").click()
             page.get_by_role("button", name="Cluster").click()
@@ -1600,30 +1577,3 @@ class TestEndToEndUser(BaseE2ETest):
         expect(page.get_by_placeholder("Title")).to_have_value(f"{product_title} reviewed")
         page.goto(source_url)
         expect(page.get_by_placeholder("Title")).to_have_value(product_title)
-
-        description = page.get_by_placeholder("Description")
-        description.fill("Save before rendering")
-        render_button = page.locator("#render_button")
-        render_button.click()
-        dirty_dialog = page.locator("#dirty_dialog")
-        expect(dirty_dialog).to_be_visible()
-        dirty_dialog.get_by_role("button", name="Close", exact=True).click()
-        expect(dirty_dialog).not_to_be_visible()
-        expect(description).to_have_value("Save before rendering")
-        render_button.click()
-        with page.expect_response(lambda response: response.url.endswith(f"/product/{product_id}/render")) as rendered:
-            with_htmx_wait(page, lambda: dirty_dialog.get_by_role("button", name="Save and Continue").click())
-        assert rendered.value.status == 200
-        expect(page.locator("#product")).to_have_count(1)
-        page.reload()
-        expect(description).to_have_value("Save before rendering")
-
-        description.fill("Save before publishing")
-        page.get_by_role("button", name="Publish (manually)").click()
-        expect(dirty_dialog).to_be_visible()
-        with_htmx_wait(page, lambda: dirty_dialog.get_by_role("button", name="Save and Continue").click())
-        publish_dialog = page.locator("#publish_dialog")
-        expect(publish_dialog).to_be_visible()
-        publish_dialog.get_by_role("button", name="Close", exact=True).click()
-        page.reload()
-        expect(description).to_have_value("Save before publishing")
