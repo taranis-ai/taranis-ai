@@ -240,7 +240,14 @@ def test_rss_discovers_apple_touch_icon_when_feed_image_fails(rss_collector, req
     validators = {"url": feed_url, "etag": '"feed-only"', "last_modified": None}
     rss_collector.configure_primary_http_resource({"http_validators": validators}, feed_url, manual=False)
     rss_collector.headers["Authorization"] = "Bearer source-secret"
-    requests_mock.get("https://feeds.example.com/image.png", status_code=404)
+    requests_mock.get(feed_url, status_code=302, headers={"Location": "https://example.com/feeds/rss.xml"})
+    requests_mock.get(
+        "https://example.com/feeds/rss.xml",
+        text='<rss version="2.0"><channel><title>Feed</title><image><url>../image.png</url></image></channel></rss>',
+        headers={"ETag": validators["etag"]},
+    )
+    feed = rss_collector.get_feed()
+    image = requests_mock.get("https://example.com/image.png", status_code=404)
     requests_mock.get(
         "https://example.com/",
         text='<link rel="icon" href="/favicon.ico"><link rel="apple-touch-icon" href="icons/touch.png">',
@@ -248,12 +255,13 @@ def test_rss_discovers_apple_touch_icon_when_feed_image_fails(rss_collector, req
     requests_mock.get("https://example.com/icons/touch.png", content=b"touch-icon", headers={"Content-Type": "image/png"})
     upload = requests_mock.put(f"{Config.TARANIS_CORE_URL}/worker/osint-sources/source-1/icon", json={})
 
-    rss_collector.update_favicon_from_feed(feedparser.FeedParserDict(image="/image.png", link="https://example.com/"), "source-1")
+    rss_collector.update_favicon_from_feed(feedparser.FeedParserDict(feed.feed), "source-1")
 
+    assert image.call_count == 1
     assert upload.call_count == 1
     assert b"touch-icon" in upload.last_request.body
     assert rss_collector.http_validators == validators
-    for request in requests_mock.request_history:
+    for request in requests_mock.request_history[2:]:
         if request.method == "GET" and request.url.startswith("https://example.com/"):
             assert "Authorization" not in request.headers
             assert "If-None-Match" not in request.headers

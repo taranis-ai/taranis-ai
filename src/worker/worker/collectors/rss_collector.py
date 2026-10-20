@@ -203,18 +203,20 @@ class RSSCollector(BaseWebCollector):
 
     def update_favicon_from_feed(self, feed: feedparser.FeedParserDict, source_id: str):
         logger.info(f"RSS-Feed {self.feed_url} initial gather, get meta info about source like image icon and language")
+        response = getattr(self, "feed_content", None)
+        feed_url = (response.url if response is not None else None) or self.feed_url
         icon_urls: list[str] = []
         for key in ("icon", "image", "logo"):
             if url := self.extract_icon_url(feed.get(key)):
                 try:
-                    icon_urls.append(urljoin(self.feed_url, url))
+                    icon_urls.append(urljoin(feed_url, url))
                 except ValueError:
                     logger.warning("Ignoring invalid feed icon URL")
         homepage = feed.get("link")
         try:
-            page_url = urljoin(self.feed_url, homepage if isinstance(homepage, str) and homepage.strip() else "/")
+            page_url = urljoin(feed_url, homepage if isinstance(homepage, str) and homepage.strip() else "/")
         except ValueError:
-            page_url = urljoin(self.feed_url, "/")
+            page_url = urljoin(feed_url, "/")
         self.update_favicon(page_url, source_id, icon_urls=icon_urls)
 
     def parse_feed(

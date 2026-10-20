@@ -8,7 +8,7 @@ RSS sources expose collection health through their persisted task status. Respon
 
 Collectors using the shared HTTP request helper (including RSS, Simple Web, and RT) report guidance for connection failures and timeouts to check worker-container DNS, network access, and `PROXY_SERVER`. Read timeouts can occur after a connection succeeds. Technical exception details stay in worker logs at ERROR level, with tracebacks available at DEBUG level. Connection and timeout diagnostics remain HTTP request exceptions, preserving RT’s existing per-item error handling. This does not add automatic retries; see [deployment troubleshooting](../../deploy/README.md#collector-network-errors).
 
-During initial collection, collectors try feed/RT images, declared Apple touch icons and favicons, then conventional root icon paths, resolving relative URLs and redirects.
+During initial collection, collectors try feed/RT images, declared Apple touch icons and favicons, then conventional root icon paths, resolving relative URLs and redirects. RSS resolves relative metadata and missing homepage links against the final feed response URL, falling back to the configured feed URL when no response URL is available.
 Failed candidates fall through without failing collection; Core validates and normalizes accepted images, and existing source icons are not automatically refreshed.
 
 Email, FTP, and SFTP publishers use `NETWORK_TIMEOUT` (default: 30 seconds) for network inactivity. Saving a preset rejects explicit or default values above half a positive core `RQ_DEFAULT_JOB_TIMEOUT` (900 seconds with the default 1800-second job timeout); errors show the maximum and required job timeout. Execution also caps the effective value at half the actual job timeout, including existing presets.
