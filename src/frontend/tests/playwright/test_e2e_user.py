@@ -461,8 +461,19 @@ class TestEndToEndUser(BaseE2ETest):
             attribute_key.fill("attr")
             assert attribute_key.evaluate("element => element.checkValidity()")
             page.get_by_test_id("attribute-value-input").nth(1).fill("value attr")
+            page.get_by_role("checkbox", name="Show bot attributes").check()
+            page.get_by_role("button", name="Add attribute").click()
+            page.get_by_test_id("attribute-key-input").last.fill("UI_TEST_BOT")
+            bot_attribute = page.get_by_test_id("attribute-value-input").last
+            bot_attribute.fill("preserved bot marker")
+            page.get_by_role("checkbox", name="Show bot attributes").uncheck()
+            expect(bot_attribute).not_to_be_visible()
             page.get_by_role("button", name="Save changes").click()
             page.get_by_role("link", name="Advanced").click()
+            bot_attribute = page.get_by_test_id("attribute-value-input").last
+            expect(bot_attribute).not_to_be_visible()
+            page.get_by_role("checkbox", name="Show bot attributes").check()
+            expect(bot_attribute).to_have_value("preserved bot marker")
             expect(back_to_assess).to_have_attribute("href", return_url)
             expect(page.get_by_role("complementary")).to_contain_text("Story status")
             page.get_by_text("Cybersecurity · Not Classified").click()
@@ -472,10 +483,12 @@ class TestEndToEndUser(BaseE2ETest):
             expect(page.get_by_role("complementary")).to_contain_text("Run sentiment analysis")
             expect(page.get_by_role("complementary")).to_contain_text("Cybersecurity classification")
             page.get_by_role("textbox", name="Analyst comments").fill("Unsaved analyst comment")
-            for action in ("Generate summary & title", "Run sentiment analysis", "Cybersecurity classification"):
+            for action in ("Generate summary & title", "Generate Tags", "Run sentiment analysis", "Cybersecurity classification"):
                 with_htmx_wait(page, page.get_by_role("button", name=action, exact=True).click)
                 expect(page.locator("#notification-bar")).to_have_count(1)
-                expect(page.locator("#notification-message")).to_contain_text("Executing Bot scheduled")
+                expect(page.locator("#notification-message")).to_contain_text(
+                    "Tag generation scheduled" if action == "Generate Tags" else "Executing Bot scheduled"
+                )
                 expect(page.get_by_role("textbox", name="Title", exact=True)).to_have_value(edited_title)
                 expect(page.get_by_role("textbox", name="Analyst comments")).to_have_value("Unsaved analyst comment")
             page.get_by_role("link", name="Return to story").click()

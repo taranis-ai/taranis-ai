@@ -993,6 +993,30 @@ class QueueManager:
             return {"message": "Executing Bot scheduled"}, 200
         return {"error": self.error or "Could not reach Redis"}, 503 if not Config.QUEUE_ENABLED else 500
 
+    def execute_tagging_tasks(self, filter: dict, user_id: str):
+        from core.model.bot import Bot
+
+        if error := self.queue_action_error():
+            return error
+
+        bots = []
+        for bot_type in ("wordlist_bot", "ioc_bot", "nlp_bot"):
+            if not (bot := Bot.filter_by_type(bot_type)):
+                return {"error": "Generate Tags requires configured Wordlist, IOC, and NER bots"}, 400
+            if not bot.is_llm_endpoint_enabled():
+                return {"error": "LLM endpoint is disabled"}, 400
+            bots.append(bot)
+
+        try:
+            # Share one pipeline context so tagging writes cannot race each other's story revisions.
+            queued = self._enqueue_bot_graph(bots, filter=filter, job_suffix="generate_tags", user_id=user_id)
+        except ValueError:
+            logger.exception("Invalid tagging bot configuration")
+            return {"error": "Invalid bot configuration"}, 400
+        if queued:
+            return {"message": "Tag generation scheduled"}, 200
+        return {"error": self.error or "Could not reach Redis"}, 500
+
     def generate_product(self, product_id: str, countdown: int = 0, user_id: str | None = None):
         """Generate product"""
         from datetime import timedelta

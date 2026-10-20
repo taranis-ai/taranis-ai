@@ -6,7 +6,7 @@ Scheduled MISP pushes, proposal warnings, `has_proposals`, or `StoryMispAutoUpda
 
 ## Contracts
 
-- Configuration stores connector/enabled state in the Advanced story editor. Only authenticated users with `CONNECTOR_USER_ACCESS` may change it or request connector choices; others can see status/proposal links. Bot payloads cannot change configuration.
+- Configuration stores connector/enabled state behind the MISP auto-update button in the Advanced story editor. The collapsed controls still submit with Save changes. Only authenticated users with `CONNECTOR_USER_ACCESS` may change it or request connector choices; others can see status/proposal links. Bot payloads cannot change configuration.
 - Approved user/bot content mutations refresh a push scheduled five minutes later. This includes story/news edits, deletion, tags (including tag deletion), attributes, language, grouping, report membership/title, and completed bot results. Only schedule after commit.
 - Inbound MISP/conflict ingestion and outbound sync-result application do not schedule feedback pushes. `NewsItemConflictService` uses model primitives for this boundary; ingestion cancels jobs for deleted stories.
 - Ordinary source collection updates/grouping refresh affected stories after commit through `CollectionService`; unchanged/stale fetches do not schedule pushes. See [Collection Updates](fuzzy-deduplication.md).

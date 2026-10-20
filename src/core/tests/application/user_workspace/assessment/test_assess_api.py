@@ -32,6 +32,44 @@ class TestAssessApi(BaseTest):
         assert job.kwargs["filter"] == {"story_id": story.id}
         assert job.meta["user_id"] == User.find_by_name("admin").id
 
+    @pytest.mark.parametrize("unavailable", [None, "missing_bot", "disabled_endpoint", "queue_disabled"])
+    def test_generate_tags_queues_one_scoped_pipeline(self, app, client, auth_header, session, redis_client, monkeypatch, unavailable):
+        from core.config import Config
+        from core.managers.db_manager import db
+        from core.model.bot import Bot
+        from core.model.settings import Settings
+        from core.model.user import User
+        from tests.application.support.builders import build_news_item_payload, create_story
+
+        story = create_story(news_items=[build_news_item_payload()])
+        bots = [Bot.filter_by_type(kind) for kind in ("wordlist_bot", "ioc_bot", "nlp_bot")]
+        assert all(bots)
+        if unavailable == "missing_bot":
+            db.session.delete(bots[-1])
+            db.session.commit()
+        elif unavailable == "disabled_endpoint":
+            Settings.save_llm_endpoint({"enabled": False}, Settings.get_settings()["llm_default_endpoint"])
+        elif unavailable == "queue_disabled":
+            monkeypatch.setattr(Config, "QUEUE_ENABLED", False)
+
+        response = client.post(
+            "/api/assess/stories/botactions",
+            headers=auth_header,
+            json={"story_id": story.id, "bot_id": "generate_tags"},
+        )
+        jobs = app.extensions["rq"].get_queue("bots").get_jobs()
+        if unavailable:
+            assert response.status_code == (503 if unavailable == "queue_disabled" else 400), response.json
+            assert not jobs
+            return
+        assert response.status_code == 200, response.json
+        assert len(jobs) == 1
+        job = jobs[0]
+        assert job.func_name == "worker.bots.bot_tasks.bot_pipeline_task"
+        assert job.args == ([bot.id for bot in bots],)
+        assert job.kwargs["filter"] == {"story_id": story.id}
+        assert job.meta["user_id"] == User.find_by_name("admin").id
+
     @pytest.mark.filterwarnings("error:Object of type <NewsItem> not in session:sqlalchemy.exc.SAWarning")
     def test_order_saves_without_changing_content_and_rejects_stale_or_invalid_requests(self, client, auth_header, session):
         from core.managers.db_manager import db
