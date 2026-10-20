@@ -15,6 +15,7 @@
     x-data='{
       selectedItems: [],
       storyIds: [],
+      firstStoryIndex: {{ pagination.page_start | default(0) }},
       storyImportantMap: {},
       storyReadMap: {},
       pruneToVisibleOnNextInit: false,
@@ -145,6 +146,15 @@
   </div>
   {% include "assess/bookmarks_bar.html" %}
   {% include "assess/assess_top_bar.html" %}
+  {% if pagination.infinite_scroll and pagination.has_previous %}
+    <div class="alert mb-4" role="status" data-test-id="assess-resume-position">
+      <span>
+        Starting at result <strong>{{ pagination.page_start }}</strong> of {{ pagination.total_count }}.
+        Earlier results are not loaded.
+      </span>
+      <a href="{{ pagination.first_url }}" class="btn btn-sm btn-primary">Start from beginning</a>
+    </div>
+  {% endif %}
   {% if stories %}
     <div id="story-list"
          x-ref="storyList"

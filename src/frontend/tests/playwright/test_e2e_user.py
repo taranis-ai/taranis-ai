@@ -546,7 +546,26 @@ class TestEndToEndUser(BaseE2ETest):
             page.goto(assess_url)
 
         def infinite_scroll_all_items(expected_total: int):
-            page.goto(assess_url)
+            assert expected_total > ASSESS_STORY_PAGE_SIZE
+            last_page = (expected_total - 1) // ASSESS_STORY_PAGE_SIZE
+            page.goto(url_for("assess.assess", source=seeded_story["news_items"][0]["osint_source_id"], page=last_page, _external=True))
+            page.get_by_role("link", name="Dashboard", exact=True).click()
+            page.locator("#navbar").get_by_role("link", name="Assess", exact=True).click()
+            page.get_by_role("link", name="Restore last search", exact=True).click()
+
+            notice = page.locator('[data-test-id="assess-resume-position"]')
+            expect(notice).to_contain_text(f"Starting at result {last_page * ASSESS_STORY_PAGE_SIZE + 1} of {expected_total}.")
+            expect(notice).to_contain_text("Earlier results are not loaded.")
+            resumed_count, resumed_total = self._get_assess_story_counts(page)
+            assert resumed_count == expected_total - last_page * ASSESS_STORY_PAGE_SIZE
+            assert resumed_total == expected_total
+            expect(page.get_by_test_id("assess_story_count")).to_contain_text("Stories loaded")
+            expect(page.get_by_text("End of results.", exact=True)).to_be_visible()
+            expect(page.locator("#infinite-scroll-trigger")).to_have_count(0)
+
+            notice.get_by_role("link", name="Start from beginning", exact=True).click()
+            expect(notice).to_have_count(0)
+            assert parse_qs(urlparse(page.url).query) == parse_qs(urlparse(assess_url).query)
 
             expect(page.get_by_test_id("assess")).to_be_visible()
             initial_visible_count, initial_total = self._get_assess_story_counts(page)
@@ -574,9 +593,8 @@ class TestEndToEndUser(BaseE2ETest):
             assert final_total == expected_total
             assert final_visible_count >= expected_total
 
-            caught_up_message = page.get_by_text("You're all caught up.")
-            if caught_up_message.count():
-                expect(caught_up_message).to_be_visible()
+            expect(page.get_by_text("End of results.", exact=True)).to_be_visible()
+            expect(page.locator("#story-pagination")).to_contain_text(re.compile(rf"Showing\s+1\s*-\s*{expected_total}\s+of"))
 
             expect(page.get_by_test_id("assess_story_selection_count")).to_be_hidden()
             page.get_by_role("button", name="Select all").click()

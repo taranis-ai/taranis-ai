@@ -710,6 +710,35 @@ def test_update_news_item_tags_propagates_core_error_and_does_not_rerender_card(
     assert 'id="news-item-card-news-1"' not in response.text
 
 
+@pytest.mark.parametrize("infinite_scroll", [True, False])
+def test_assess_later_page_explains_missing_earlier_results(authenticated_client, auth_user, responses_mock, infinite_scroll):
+    user = auth_user.model_copy(deep=True)
+    user.profile.infinite_scroll = infinite_scroll
+    add_user_to_cache(user.model_dump(mode="json"))
+    responses_mock.get(f"{Config.TARANIS_CORE_URL}/assess/filter-lists", json={"tags": [], "sources": [], "groups": []})
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/assess/stories",
+        json={"items": [{**story_with_news_item_tags(), "id": f"story-{index}"} for index in range(15)], "total_count": 55},
+    )
+
+    response = authenticated_client.get(url_for("assess.assess", search="web", tags=["one", "two"], sort="date_desc", page=2))
+
+    assert response.status_code == 200
+    tree = html.fromstring(response.text)
+    notice = tree.xpath('//*[@data-test-id="assess-resume-position"]')
+    assert bool(notice) is infinite_scroll
+    count = tree.xpath('//*[@data-testid="assess_story_count"]')[0]
+    assert ("Stories loaded" in count.text_content()) is infinite_scroll
+    if infinite_scroll:
+        assert "Starting at result 41 of 55." in " ".join(notice[0].text_content().split())
+        assert "Earlier results are not loaded." in notice[0].text_content()
+        restart = notice[0].xpath(".//a")[0]
+        assert urlparse(restart.get("href")).path == url_for("assess.assess")
+        assert parse_qs(urlparse(restart.get("href")).query) == {"search": ["web"], "tags": ["one", "two"], "sort": ["date_desc"]}
+        assert "End of results." in response.text
+        assert 'id="infinite-scroll-trigger"' not in response.text
+
+
 def test_assess_filters_support_htmx_and_native_form_submission(authenticated_client, responses_mock):
     responses_mock.get(
         f"{Config.TARANIS_CORE_URL}/assess/filter-lists",

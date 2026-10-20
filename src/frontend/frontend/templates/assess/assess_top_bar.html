@@ -51,7 +51,9 @@
       <div class="flex flex-wrap items-center">
         <div class="flex items-center gap-1" data-testid="assess_story_count">
           <span class="badge badge-ghost badge-lg"><span x-text="storyIds.length"></span> / {{ stories.total_count | default(0) }}</span>
-          <span class="font-medium text-base-content">Stories</span>
+          <span class="font-medium text-base-content">
+            {{ 'Stories loaded' if not bookmark_mode and pagination is defined and pagination.infinite_scroll else 'Stories' }}
+          </span>
         </div>
       </div>
       <span class="inline-block min-w-[9rem] text-base-content/60 text-xs"

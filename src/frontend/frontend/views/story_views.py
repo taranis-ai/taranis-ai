@@ -806,12 +806,14 @@ class StoryView(BaseView):
             page_start = 0
             page_end = 0
 
+        first_url = build_url(0)
         return {
             "infinite_scroll": current_user.profile.infinite_scroll,
             "current_page": clamped_index + 1,
             "total_pages": total_pages,
             "has_previous": clamped_index > 0,
             "has_next": (clamped_index + 1) < total_pages,
+            "first_url": first_url if first_url != cls.get_base_route() else url_for("assess.assess", reset="true"),
             "previous_url": build_url(clamped_index - 1) if clamped_index > 0 else "",
             "next_url": build_url(clamped_index + 1) if (clamped_index + 1) < total_pages else "",
             "page_start": page_start,
