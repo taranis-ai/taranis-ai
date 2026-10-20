@@ -563,7 +563,10 @@ class TestSourcesConfigApi(BaseTest):
         from core.model.osint_source import OSINTSource
         from core.model.word_list import WordList
 
-        source = OSINTSource.add({"name": "Options RSS", "type": "rss_collector", "parameters": {"FEED_URL": "https://example.invalid/feed"}})
+        source = OSINTSource.from_dict(
+            {"name": "Options RSS", "type": "rss_collector", "parameters": {"FEED_URL": "https://example.invalid/feed"}}
+        )
+        session.add(source)
         manual = OSINTSource.get_manual()
         included = WordList.add(
             {"name": "Included words", "usage": ["COLLECTOR_INCLUDELIST", "TAGGING_BOT"], "entries": [{"value": "example"}]}

@@ -106,9 +106,9 @@ class TestAnalyzeApi(BaseTest):
                 key=lambda item: (len(item["stories"]) if order.startswith("stories") else item["title"], item["id"]),
                 reverse=order.endswith("_desc"),
             )
-            response = self.assert_get_ok(client, f"report-items?search={unique_suffix}&order={order}&limit=1&page=2", auth_header).get_json()
+            response = self.assert_get_ok(client, f"report-items?search={unique_suffix}&order={order}&limit=2&page=2", auth_header).get_json()
             assert response["total_count"] == 3
-            assert [item["id"] for item in response["items"]] == [expected[1]["id"]]
+            assert [item["id"] for item in response["items"]] == [item["id"] for item in expected[2:]]
         finally:
             with app.app_context():
                 for payload in payloads:

@@ -276,17 +276,12 @@ class TestRBAC:
 
 
 class TestRBACAclBehavior:
+    @pytest.mark.parametrize("restriction", ["acl", "tlp"])
     @pytest.mark.parametrize(
-        ("restriction", "detail_path", "locked_change", "action"),
-        [
-            ("acl", "products", {"report_items": []}, "render"),
-            ("acl", "product-metadata", {"product_type_id": "another-type"}, "publish"),
-            ("tlp", "products", {"auto_publish": False}, "render"),
-            ("tlp", "product-metadata", {"default_publisher": None}, "publish"),
-        ],
+        "locked_change", [{"report_items": []}, {"product_type_id": "another-type"}, {"auto_publish": False}, {"default_publisher": None}]
     )
     def test_product_with_restricted_reports_allows_only_metadata_edits(
-        self, client, session, auth_header_user_permissions, restriction, detail_path, locked_change, action, monkeypatch
+        self, client, session, auth_header_user_permissions, restriction, locked_change, monkeypatch
     ):
         from core.managers import queue_manager
         from core.model.product import Product
@@ -337,7 +332,7 @@ class TestRBACAclBehavior:
         assert response.status_code == 404
         assert response.json == {"error": "Selected reports not found or not accessible"}
 
-        detail = client.get(f"/api/publish/{detail_path}/{product.id}", headers=auth_header_user_permissions)
+        detail = client.get(f"/api/publish/product-metadata/{product.id}", headers=auth_header_user_permissions)
         assert detail.status_code == 200
         assert detail.json["report_access_warning"] == Product.RESTRICTED_REPORTS_MESSAGE
         assert set(detail.json["report_items"]) == original_report_ids
@@ -362,10 +357,12 @@ class TestRBACAclBehavior:
         assert rejected.status_code == 403
         assert rejected.json == {"error": Product.RESTRICTED_REPORTS_MESSAGE}
 
-        action_path = "render" if action == "render" else f"publishers/{publisher.id}"
-        rejected = client.post(f"/api/publish/products/{product.id}/{action_path}", headers=auth_header_user_permissions)
-        assert rejected.status_code == 403
-        assert rejected.json == {"error": Product.RESTRICTED_REPORTS_MESSAGE}
+        rendered = client.post(f"/api/publish/products/{product.id}/render", headers=auth_header_user_permissions)
+        assert rendered.status_code == 403
+        assert rendered.json == {"error": Product.RESTRICTED_REPORTS_MESSAGE}
+        published = client.post(f"/api/publish/products/{product.id}/publishers/{publisher.id}", headers=auth_header_user_permissions)
+        assert published.status_code == 403
+        assert published.json == {"error": Product.RESTRICTED_REPORTS_MESSAGE}
         copied = client.post("/api/publish/products", headers=auth_header_user_permissions, json={**payload, "title": "Forbidden copy"})
         assert copied.status_code == 404
         assert Product.get_first(db.select(Product).where(Product.title == "Forbidden copy")) is None
