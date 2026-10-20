@@ -7,7 +7,7 @@
     <form method="dialog">
       <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
     </form>
-    <h3 class="font-bold text-lg mt-1 mb-2">Share Stories</h3>
+    <h3 class="font-bold text-lg mt-1 mb-2">Add stories to report</h3>
     <form>
       <label class="select w-full mb-5">
         <span class="label">Report</span>
@@ -27,7 +27,7 @@
                 hx-status:4xx="target:#notification-bar"
                 hx-status:5xx="target:#notification-bar"
                 hx-on::after:request="if (ctx.response.status < 400) document.getElementById('share_story_to_report_dialog')?.close()"
-                data-testid="share-to-report-dialog-button">Share</button>
+                data-testid="share-to-report-dialog-button">Add to report</button>
         <a type="button"
            class="btn btn-outline btn-wide"
            href="{{ url_for('analyze.report', report_id='0') }}?{% for story_id in story_ids %}story_ids={{ story_id }}&{% endfor %}"

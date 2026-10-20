@@ -5799,7 +5799,7 @@ paths:
       tags:
       - publish
       operationId: publish.publish_product.post
-      description: generate a specific product at a specific publisher
+      description: Publish the current rendered product using a publisher. After saving, wait for rendering to finish before publishing.
       security:
       - UserAuth: []
       responses:
@@ -5809,6 +5809,8 @@ paths:
           $ref: '#/components/responses/401Unauthorized'
         '404':
           $ref: '#/components/responses/404NotFound'
+        '409':
+          description: No current render is available; wait for rendering to finish and retry.
   /publish/publisher-presets:
     get:
       tags:

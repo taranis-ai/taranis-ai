@@ -182,7 +182,9 @@ class TestPublishApi(BaseTest):
             assert "render_result" in inspect(product).unloaded
             assert "render_result" in product.to_detail_dict()
 
-    def test_product_type_change_respects_selected_report_types(self, client, auth_header, product_type_change_resources):
+    def test_product_type_change_respects_selected_report_types(
+        self, client, auth_header, product_type_change_resources, publish_publisher_preset
+    ):
         update_payload = {
             "title": product_type_change_resources["product_title"],
             "product_type_id": product_type_change_resources["compatible_type_id"],
@@ -193,6 +195,20 @@ class TestPublishApi(BaseTest):
         }
 
         product_url = self.concat_url(f"products/{product_type_change_resources['product_id']}")
+        same_type_response = client.put(
+            product_url,
+            headers=auth_header,
+            json={**update_payload, "product_type_id": product_type_change_resources["initial_type_id"]},
+        )
+        assert same_type_response.status_code == 200
+        saved_product = same_type_response.get_json()["product"]
+        assert saved_product["render_result"] is None
+        assert saved_product["last_rendered"] is None
+        assert saved_product["last_published_url"] == f"/reports/{product_type_change_resources['product_id']}"
+        premature_publish = client.post(f"{product_url}/publishers/{publish_publisher_preset['id']}", headers=auth_header)
+        assert premature_publish.status_code == 409
+        assert premature_publish.json == {"error": "Product has no current render. Wait for rendering to finish, then try publishing again."}
+
         compatible_response = client.put(product_url, headers=auth_header, json=update_payload)
         assert compatible_response.status_code == 200
         compatible_product = compatible_response.get_json()["product"]

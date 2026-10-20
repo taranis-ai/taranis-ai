@@ -127,7 +127,7 @@ def test_dashboard_limits_recent_tags_and_shows_saved_filters(authenticated_clie
     saved_filter_url = urlparse(saved_filter_cards[0].xpath('./a[text()="Shift queue"]')[0].get("href"))
     delete_button = saved_filter_row.xpath('.//button[normalize-space()="Delete"]')[0]
 
-    assert not saved_filter_row.xpath('.//button[normalize-space()="Update"]')
+    assert not saved_filter_row.xpath('.//button[normalize-space()="Replace with current filters"]')
     assert not saved_filter_row.xpath('.//button[normalize-space()="Set default"]')
     assert delete_button.get("hx-delete") == url_for("assess.delete_saved_filter", filter_id="filter-1")
     assert delete_button.get("hx-target") == "closest [data-testid='dashboard-saved-filter-card']"

@@ -1054,6 +1054,8 @@ class QueueManager:
             return {"error": "Product not found"}, 404
         if user_id and (error := product.get_action_error(user_id)):
             return {"error": error}, 403
+        if not product.render_result:
+            return {"error": "Product has no current render. Wait for rendering to finish, then try publishing again."}, 409
         if not (publisher := PublisherPreset.get(publisher_id)):
             return {"error": "Publisher preset not found"}, 404
         try:

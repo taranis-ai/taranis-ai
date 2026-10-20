@@ -326,7 +326,6 @@ class Product(BaseModel):
             )
             return {"error": "Selected product type does not support the selected reports"}, 400
 
-        product_type_changed = product_type.id != product.product_type_id
         mime_type_changed = product_type.get_mimetype() != product.product_type.get_mimetype()
 
         if title := data.get("title"):
@@ -334,9 +333,8 @@ class Product(BaseModel):
 
         product.description = data.get("description")
         product.product_type = product_type
-        if product_type_changed:
-            product.render_result = None
-            product.last_rendered = None
+        product.render_result = None
+        product.last_rendered = None
         if mime_type_changed:
             product.last_published_url = None
         if report_item_ids is not None:

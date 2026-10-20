@@ -266,7 +266,7 @@ document.addEventListener('htmx:after:swap', function (event) {
     </span>
   </a>
   <button type="button"
-          class="btn btn-secondary btn-sm w-full"
+          class="btn btn-accent btn-sm w-full"
           data-testid="assess-saved-filters-button"
           hx-get="{{ url_for('assess.saved_filters') }}"
           hx-include="#assess-sidebar"
@@ -274,7 +274,7 @@ document.addEventListener('htmx:after:swap', function (event) {
           hx-swap="beforeend"
           hx-on::before:request="document.getElementById('assess_saved_filters_dialog')?.remove()">
     {{ heroicon_outline('bookmark-square', class='h-4 w-4') }}
-    Saved filters
+    Filters
   </button>
   <a class="btn btn-secondary btn-sm w-full" href="{{ url_for('assess.get_news_item', news_item_id='0') }}">
     {{ heroicon_outline('pencil-square', class='h-4 w-4') }}
