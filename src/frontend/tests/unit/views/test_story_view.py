@@ -700,8 +700,8 @@ def test_story_read_action_replaces_story_card(app):
     assert toggle_read.get("hx-swap") == "outerHTML"
 
 
-@pytest.mark.parametrize("htmx_post", [False, True])
-def test_assess_tag_filters_highlight_matches_beyond_collapsed_limit(authenticated_client, responses_mock, htmx_post):
+@pytest.mark.parametrize("method", ["GET", "POST", "PUT"])
+def test_assess_tag_filters_highlight_matches_beyond_collapsed_limit(authenticated_client, responses_mock, method):
     story_payload = story_with_news_item_tags()
     story_payload["tags"] = [{"name": f"tag-{index}", "tag_type": "misc"} for index in range(24)]
     story_payload["tags"][-1]["tag_type"] = "actor"
@@ -711,10 +711,11 @@ def test_assess_tag_filters_highlight_matches_beyond_collapsed_limit(authenticat
         json={"items": [story_payload], "total_count": 1},
     )
     assess_url = url_for("assess.assess", tags=["tag-22", "actor"])
-    if htmx_post:
+    if method != "GET":
         responses_mock.patch(f"{Config.TARANIS_CORE_URL}/assess/stories/story-1", json={"message": "Story updated"})
-        response = authenticated_client.post(
+        response = authenticated_client.open(
             url_for("assess.story", story_id="story-1"),
+            method=method,
             data={"read": "true"},
             headers={"HX-Request": "true", "HX-Current-URL": f"http://localhost{assess_url}"},
         )

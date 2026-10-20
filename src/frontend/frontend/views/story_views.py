@@ -88,7 +88,7 @@ class StoryView(BaseView):
         filter_lists = cls.get_filter_lists()
         base_context["filter_lists"] = filter_lists
         tag_request_args = request.args.to_dict(flat=False)
-        if request.method == "POST" and cls._get_current_url_path() == url_for("assess.assess"):
+        if request.method != "GET" and cls._get_current_url_path() == url_for("assess.assess"):
             tag_request_args = parse_qs(urlparse(request.headers["HX-Current-URL"]).query)
         base_context["active_tag_filters"] = tag_request_args.get("tags", [])
         assess_request_args: dict[str, list[str]] = {}
