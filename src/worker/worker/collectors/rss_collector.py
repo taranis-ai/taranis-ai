@@ -10,7 +10,6 @@ from models.assess import NewsItem
 
 from worker.collectors.base_web_collector import BaseWebCollector, parse_datetime
 from worker.collectors.playwright_manager import PlaywrightManager
-from worker.core_api import IconFile
 from worker.log import logger
 
 
@@ -204,39 +203,19 @@ class RSSCollector(BaseWebCollector):
 
     def update_favicon_from_feed(self, feed: feedparser.FeedParserDict, source_id: str):
         logger.info(f"RSS-Feed {self.feed_url} initial gather, get meta info about source like image icon and language")
-
-        default_icon_url = f"{urlparse(self.feed_url).scheme}://{urlparse(self.feed_url).netloc}/favicon.ico"
-
-        icon = feed.get("icon") or feed.get("image")
-
-        icon_url = default_icon_url
-        if possible_icon_url := RSSCollector.extract_icon_url(icon):
-            icon_url = urljoin(self.feed_url, possible_icon_url)
-
+        icon_urls: list[str] = []
+        for key in ("icon", "image", "logo"):
+            if url := self.extract_icon_url(feed.get(key)):
+                try:
+                    icon_urls.append(urljoin(self.feed_url, url))
+                except ValueError:
+                    logger.warning("Ignoring invalid feed icon URL")
+        homepage = feed.get("link")
         try:
-            r = self._fetch_icon(icon_url)
-            if not r.ok:
-                logger.warning(f"Failed to fetch icon from {icon_url}, status: {r.status_code}")
-                return
-
-            content_type = (r.headers.get("content-type") or "").lower()
-            if not content_type.startswith("image/"):
-                logger.warning(f"URL {icon_url} did not return an image (content-type: {content_type})")
-                return
-            if not (content := r.content):
-                logger.warning(f"URL {icon_url} returned no content")
-                return
-
-            parsed = urlparse(icon_url)
-            filename = parsed.path.rsplit("/", 1)[-1] or "favicon.ico"
-            icon_content: IconFile = {"file": (filename, content)}
-
-            self.core_api.update_osint_source_icon(source_id, icon_content)
-
-        except (ValueError, requests.exceptions.RequestException) as e:
-            logger.error(f"Exception while fetching icon from {icon_url}: {e}")
-
-        return
+            page_url = urljoin(self.feed_url, homepage if isinstance(homepage, str) and homepage.strip() else "/")
+        except ValueError:
+            page_url = urljoin(self.feed_url, "/")
+        self.update_favicon(page_url, source_id, icon_urls=icon_urls)
 
     def parse_feed(
         self,
