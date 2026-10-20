@@ -6811,7 +6811,8 @@ paths:
         Get unique non-report tag names from stories visible to the current user.
         Search matches literal substrings case-insensitively. Exact names rank
         first, followed by distinct story count descending and name ascending.
-        Pagination is applied after ranking (20 results by default).
+        Each result includes its visible story count. Pagination is applied
+        after ranking (20 results by default).
       operationId: assess.taglist.get
       responses:
         '200':
@@ -6821,7 +6822,14 @@ paths:
               schema:
                 type: array
                 items:
-                  type: string
+                  type: object
+                  required: [name, story_count]
+                  properties:
+                    name:
+                      type: string
+                    story_count:
+                      type: integer
+                      minimum: 1
         '401':
           $ref: '#/components/responses/401Unauthorized'
         '403':

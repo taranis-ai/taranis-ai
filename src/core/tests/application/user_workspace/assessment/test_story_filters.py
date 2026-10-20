@@ -68,17 +68,18 @@ def test_tag_suggestions_rank_exact_matches_then_distinct_story_counts(client, a
     response = client.get("/api/assess/taglist", headers=auth_header, query_string={"search": " usa "})
     assert response.status_code == 200
     tags = response.get_json()
-    assert tags == ["USA", "Busa", "Ausa", "Cusa"] + [f"zusa-{index:02}" for index in range(16)]
+    names = ["USA", "Busa", "Ausa", "Cusa"] + [f"zusa-{index:02}" for index in range(16)]
+    assert tags == [{"name": name, "story_count": 2 if name == "Busa" else 1} for name in names]
 
     response = client.get("/api/assess/taglist", headers=auth_header, query_string={"search": "USA", "limit": 1})
     assert response.status_code == 200
-    assert response.get_json() == ["USA"]
+    assert response.get_json() == [{"name": "USA", "story_count": 1}]
     response = client.get("/api/assess/taglist", headers=auth_header, query_string={"search": "usa", "limit": 2, "offset": 1})
     assert response.status_code == 200
-    assert response.get_json() == ["Busa", "Ausa"]
+    assert response.get_json() == [{"name": "Busa", "story_count": 2}, {"name": "Ausa", "story_count": 1}]
     response = client.get("/api/assess/taglist", headers=auth_header, query_string={"search": "50%_"})
     assert response.status_code == 200
-    assert response.get_json() == ["50%_& #"]
+    assert response.get_json() == [{"name": "50%_& #", "story_count": 1}]
     response = client.get("/api/assess/taglist", headers=auth_header, query_string={"search": "missing-suggestion"})
     assert response.status_code == 200
     assert response.get_json() == []

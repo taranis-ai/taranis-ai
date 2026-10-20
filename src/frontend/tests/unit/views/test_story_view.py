@@ -25,14 +25,20 @@ def expected_search_trigger(input_id: str) -> str:
 
 def test_tag_suggestions_preserve_search_query_and_upstream_order(authenticated_client, responses_mock):
     query = "USA & 50%_#"
-    suggestions = [query, "USA & 50%_# partial"]
+    suggestions = [{"name": query, "story_count": 9}, {"name": "USA & 50%_# partial", "story_count": 1}]
     responses_mock.get(f"{Config.TARANIS_CORE_URL}/assess/taglist", json=suggestions)
 
     response = authenticated_client.get(url_for("assess.get_tags"), query_string={"q": query})
 
     assert response.status_code == 200
     buttons = html.fromstring(response.text).xpath("//button")
-    assert [button.text_content().strip() for button in buttons] == suggestions
+    assert [button.get("title") for button in buttons] == [tag["name"] for tag in suggestions]
+    assert [button.xpath('.//span[@data-test-id="tag-suggestion-name"]/text()')[0] for button in buttons] == [
+        tag["name"] for tag in suggestions
+    ]
+    counts = [button.xpath('.//span[@data-test-id="tag-suggestion-count"]')[0] for button in buttons]
+    assert [count.text for count in counts] == ["9", "1"]
+    assert [count.get("aria-label") for count in counts] == ["9 matching stories", "1 matching story"]
     assert parse_qs(urlparse(responses_mock.calls[-1].request.url).query) == {"search": [query]}
 
 

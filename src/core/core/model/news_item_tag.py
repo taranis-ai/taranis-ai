@@ -39,13 +39,13 @@ class NewsItemTag(BaseModel):
         self.tag_type = tag_type
 
     @classmethod
-    def get_filtered_tags(cls, filter_args: dict, user=None) -> dict[str, str]:
+    def get_list(cls, filter_args: dict, user=None) -> list[dict[str, Any]]:
         from core.model.news_item import NewsItem
         from core.model.story import Story
 
         story_count = func.count(func.distinct(NewsItem.story_id))
         query = (
-            select(cls.name, func.min(cls.tag_type), story_count.label("story_count"))
+            select(cls.name, story_count.label("story_count"))
             .join(NewsItem)
             .where(cls.name != "", or_(cls.tag_type.is_(None), cls.tag_type == "", cls.tag_type.not_ilike("report_%")))
         )
@@ -68,17 +68,11 @@ class NewsItemTag(BaseModel):
         offset = filter_args.get("offset", 0)
         limit = filter_args.get("limit", 20)
         query = query.offset(offset).limit(limit)
-        result = db.session.execute(query)
-        return {name: tag_type for name, tag_type, _ in result}
+        return [dict(row) for row in db.session.execute(query).mappings()]
 
     @classmethod
     def get_all_for_collector(cls):
         return cls.get_filtered(db.select(cls))
-
-    @classmethod
-    def get_list(cls, filter_args: dict, user=None) -> list[str]:
-        tags = cls.get_filtered_tags(filter_args, user=user)
-        return list(tags.keys())
 
     @classmethod
     def remove_by_story(cls, story):
