@@ -32,7 +32,7 @@ class TestAssessApi(BaseTest):
         assert job.kwargs["filter"] == {"story_id": story.id}
         assert job.meta["user_id"] == User.find_by_name("admin").id
 
-    @pytest.mark.parametrize("unavailable", [None, "missing_bot", "disabled_endpoint", "queue_disabled"])
+    @pytest.mark.parametrize("unavailable", [None, "missing_bot", "disabled_bot", "disabled_endpoint", "queue_disabled"])
     def test_generate_tags_queues_one_scoped_pipeline(self, app, client, auth_header, session, redis_client, monkeypatch, unavailable):
         from core.config import Config
         from core.managers.db_manager import db
@@ -46,6 +46,9 @@ class TestAssessApi(BaseTest):
         assert all(bots)
         if unavailable == "missing_bot":
             db.session.delete(bots[-1])
+            db.session.commit()
+        elif unavailable == "disabled_bot":
+            bots[-1].enabled = False
             db.session.commit()
         elif unavailable == "disabled_endpoint":
             endpoint, status = Settings.save_llm_endpoint(

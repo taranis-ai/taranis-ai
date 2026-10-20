@@ -18,6 +18,22 @@ from tests.playwright.notification_helpers import dismiss_notifications
 ASSESS_STORY_PAGE_SIZE = 20
 
 
+@pytest.fixture
+def enabled_default_llm_endpoint(core_request_client):
+    allow_requests_passthru()
+    settings = core_request_client.json_request("GET", "/settings/settings")["items"][0]["settings"]
+    endpoint_id = settings["llm_default_endpoint"]
+    if not endpoint_id:
+        yield
+        return
+    enabled = settings["llm_endpoints"][endpoint_id]["enabled"]
+    core_request_client.post(f"/settings/llm-endpoints/{endpoint_id}", json_data={"enabled": True})
+    try:
+        yield
+    finally:
+        core_request_client.post(f"/settings/llm-endpoints/{endpoint_id}", json_data={"enabled": enabled})
+
+
 @pytest.mark.e2e_user
 @pytest.mark.e2e_ci
 @pytest.mark.usefixtures("e2e_ci", "ensure_basic_user_permissions")
@@ -363,7 +379,12 @@ class TestEndToEndUser(BaseE2ETest):
         change_password_back()
 
     def test_user_assess(
-        self, non_admin_logged_in_page: Page, forward_console_and_page_errors_non_admin, pre_seed_stories, core_request_client
+        self,
+        non_admin_logged_in_page: Page,
+        forward_console_and_page_errors_non_admin,
+        pre_seed_stories,
+        core_request_client,
+        enabled_default_llm_endpoint,
     ):
         page = non_admin_logged_in_page
         allow_requests_passthru()

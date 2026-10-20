@@ -1003,6 +1003,8 @@ class QueueManager:
         for bot_type in ("wordlist_bot", "ioc_bot", "nlp_bot"):
             if not (bot := Bot.filter_by_type(bot_type)):
                 return {"error": "Generate Tags requires configured Wordlist, IOC, and NER bots"}, 400
+            if not bot.enabled:
+                return {"error": "Generate Tags requires enabled Wordlist, IOC, and NER bots"}, 400
             if not bot.is_llm_endpoint_enabled():
                 return {"error": "LLM endpoint is disabled"}, 400
             bots.append(bot)
