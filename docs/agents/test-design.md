@@ -13,6 +13,7 @@ Before keeping a new test, compare existing coverage and extend the nearest rele
 ## Fixtures
 
 - Reuse the nearest `conftest.py`. Core shared application fixtures belong in `src/core/tests/application/conftest.py`, cluster fixtures locally, and cross-application payload/setup fixtures in `src/core/tests/conftest.py`.
+- Core's session-scoped app fixture uses `tmp_path_factory` for an isolated SQLite database; keep both the environment and loaded Core config pointed at it so config reloads remain isolated. Never delete a shared `/tmp` database during test startup.
 - Put shared builders in `src/core/tests/application/support/` and large data in fixtures or `src/core/tests/test_data/`.
 - Do not create inline fake classes/ad-hoc doubles inside tests or use autouse fixtures. Request fixtures explicitly or use module/class `pytest.mark.usefixtures`.
 - Prefer frontend E2E coverage for cross-component cache invalidation, scheduling, and seeding. Reuse established test selectors; prefer `data-test-id` for new ones.
