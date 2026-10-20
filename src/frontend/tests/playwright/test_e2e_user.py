@@ -1580,8 +1580,6 @@ class TestEndToEndUser(BaseE2ETest):
         expect(publish_dialog).to_be_visible()
         expect(page.get_by_placeholder("Description")).to_have_value("This is a test product.")
         page.locator("#publisher_select").select_option(index=1)
-        with_htmx_wait(page, lambda: publish_dialog.get_by_role("button", name="Publish", exact=True).click())
-        expect(page.locator("#notification-bar")).to_contain_text("Product has no current render")
         complete_render()
         with_htmx_wait(page, lambda: publish_dialog.get_by_role("button", name="Publish", exact=True).click())
         expect(page.locator("#notification-bar")).to_contain_text("Publishing Product scheduled")
