@@ -1,5 +1,6 @@
 import datetime
 import uuid
+from collections import Counter
 from collections.abc import Callable
 from json import JSONDecodeError
 from typing import Any, cast
@@ -125,11 +126,13 @@ class StoryView(BaseView):
     def _enhance_story_with_details(story: Story, sources: dict[str, Any]) -> Story:
         if not story.news_items:
             return story
-        if first_news_item := story.news_items[0]:
-            if source := sources.get(first_news_item.osint_source_id):
-                # Add the source as an pydantic extra field to the story for easier access in the template
-                story.source_info = source  # type: ignore
-            story.summary_content = story.summary or first_news_item.content  # type: ignore
+        source_ids = [item.osint_source_id for item in story.news_items if item.osint_source_id in sources]
+        if len(story.news_items) > 5:
+            source_ids = [source_id for source_id, _ in Counter(source_ids).most_common(5)]
+        else:
+            source_ids = list(dict.fromkeys(source_ids))
+        story.source_infos = [sources[source_id] for source_id in source_ids]  # type: ignore
+        story.summary_content = story.summary or story.news_items[0].content  # type: ignore
         return story
 
     @staticmethod

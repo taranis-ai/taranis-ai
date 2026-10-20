@@ -385,6 +385,21 @@ class TestEndToEndUser(BaseE2ETest):
             def story_card():
                 return page.locator(f'article[data-story-id="{story_id}"]')
 
+            source_icon = story_card().locator('[data-test-id="story-source-icons"] [tabindex="0"]').first
+            expect(source_icon).to_be_visible()
+            page.mouse.move(0, 0)
+            source_icon.focus()
+            page.keyboard.press("Shift+Tab")
+            page.wait_for_function(
+                "icon => getComputedStyle(icon.parentElement, '::before').opacity === '0'", arg=source_icon.element_handle()
+            )
+            page.keyboard.press("Tab")
+            expect(source_icon).to_be_focused()
+            page.wait_for_function(
+                "icon => getComputedStyle(icon.parentElement, '::before').opacity === '1'", arg=source_icon.element_handle()
+            )
+            page.keyboard.press("Tab")
+
             menu = story_card().get_by_test_id("story-actions-menu")
             expect(menu).to_be_attached()
             expect(menu).to_be_visible()

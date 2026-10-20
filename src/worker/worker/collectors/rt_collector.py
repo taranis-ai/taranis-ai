@@ -7,7 +7,6 @@ import niquests as requests
 from models.assess import NewsItem
 
 from worker.collectors.base_web_collector import BaseWebCollector, NoChangeError
-from worker.core_api import IconFile
 from worker.log import logger
 
 
@@ -183,17 +182,7 @@ class RTCollector(BaseWebCollector):
         return [self.get_story_dict(ticket_id, source) for ticket_id in ticket_ids]
 
     def update_rt_favicon(self, osint_source_id: str):
-        icon_url = f"{urlparse(self.base_url).scheme}://{urlparse(self.base_url).netloc}/static/images/favicon.png"
-        r = self._fetch_icon(icon_url)
-        if not r.ok or not (content := r.content):
-            return
-
-        filename = r.headers.get("content-disposition")
-        if not isinstance(filename, str):
-            filename = "file"
-        icon_content: IconFile = {"file": (filename, content)}
-        self.core_api.update_osint_source_icon(osint_source_id, icon_content)
-        return
+        self.update_favicon(self.base_url, osint_source_id, icon_urls=[urljoin(self.base_url, "/static/images/favicon.png")])
 
     def rt_collector(self, source: dict) -> list[dict]:
         self.last_attempted = self.get_last_attempted(source)

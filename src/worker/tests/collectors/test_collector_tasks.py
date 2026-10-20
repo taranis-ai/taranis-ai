@@ -162,7 +162,8 @@ def test_empty_rss_feed_result_is_preserved_after_not_modified_response(current_
             {"status_code": 304},
         ],
     )
-    requests_mock.get("https://example.com/favicon.ico", status_code=404)
+    for path in ("", "apple-touch-icon.png", "apple-touch-icon-precomposed.png", "favicon.ico"):
+        requests_mock.get(f"https://example.com/{path}", status_code=404)
     requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
 
     result = collector_tasks.collector_task("source-1", False)
@@ -218,7 +219,8 @@ def test_rss_entry_limit_warning_and_recovery(
         feed_url,
         [{"text": feed, "headers": {"ETag": '"feed"'}}, {"status_code": 304}, {"status_code": 304}, {"text": feed}],
     )
-    requests_mock.get("https://example.com/favicon.ico", status_code=404)
+    for path in ("", "apple-touch-icon.png", "apple-touch-icon-precomposed.png", "favicon.ico"):
+        requests_mock.get(f"https://example.com/{path}", status_code=404)
     source_endpoint = f"{Config.TARANIS_CORE_URL}/worker/osint-sources/source-1"
     requests_mock.get(source_endpoint, json=source)
     requests_mock.post(

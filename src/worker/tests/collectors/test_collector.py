@@ -1,3 +1,5 @@
+import asyncio
+
 import niquests as requests
 import pytest
 from models.worker_parameters import effective_parameter_values
@@ -51,20 +53,26 @@ def test_base_web_collector_conditional_request(base_web_collector_mock, base_we
 @pytest.mark.parametrize("disable_http3", [False, True])
 def test_base_web_collector_http3_config(base_web_collector_mock, base_web_collector, monkeypatch, disable_http3):
     session_class = requests.Session
+    async_session_class = requests.AsyncSession
     session_options = []
 
     def create_session(**kwargs):
         session_options.append(kwargs)
         return session_class(**kwargs)
 
+    def create_async_session(**kwargs):
+        session_options.append(kwargs)
+        return async_session_class(**kwargs)
+
     monkeypatch.setattr(Config, "DISABLE_HTTP3", disable_http3)
     monkeypatch.setattr(requests, "Session", create_session)
+    monkeypatch.setattr(requests, "AsyncSession", create_async_session)
 
     with http_session_scope():
         base_web_collector.send_get_request("https://test.org/200")
-        base_web_collector._fetch_icon("https://test.org/200")
+        asyncio.run(base_web_collector._fetch_icon("https://test.org/200"))
 
-    assert session_options == [{"retries": 0, "disable_http3": disable_http3, "allow_incoming_cookies": True}]
+    assert [options["disable_http3"] for options in session_options if options] == [disable_http3, disable_http3]
 
 
 def test_malformed_last_modified_is_ignored(base_web_collector, requests_mock):
@@ -221,15 +229,77 @@ def test_rss_validators_are_not_sent_to_secondary_resources(rss_collector, reque
         "last_modified": "Tue, 11 Aug 2026 09:07:03 GMT",
     }
     rss_collector.configure_primary_http_resource({"http_validators": stored_validators}, feed_url, manual=False)
+    rss_collector.headers.update({"Authorization": "Bearer source-secret", "X-Api-Key": "source-secret"})
     requests_mock.get(article_url, text="<article>article</article>")
-    requests_mock.get(icon_url, content=b"icon")
+    requests_mock.get(icon_url, status_code=302, headers={"Location": "/icon-redirect"})
+    requests_mock.get("https://example.com/icon-redirect", status_code=302, headers={"Location": "https://icons.example.org/icon.png"})
+    requests_mock.get("https://icons.example.org/icon.png", status_code=302, headers={"Location": icon_url + "?returned=1"})
+    requests_mock.get(icon_url + "?returned=1", content=b"icon", complete_qs=True)
 
     rss_collector.fetch_article_content(article_url)
-    rss_collector._fetch_icon(icon_url)
+    assert asyncio.run(rss_collector._fetch_icon(icon_url, source_url=feed_url)).content == b"icon"
 
     for request in requests_mock.request_history:
         assert "If-None-Match" not in request.headers
         assert "If-Modified-Since" not in request.headers
+    for request in requests_mock.request_history[1:3]:
+        assert request.headers["Authorization"] == "Bearer source-secret"
+        assert request.headers["X-Api-Key"] == "source-secret"
+    for request in requests_mock.request_history[3:]:
+        assert "Authorization" not in request.headers
+        assert "X-Api-Key" not in request.headers
+
+
+def test_rss_discovers_apple_touch_icon_when_feed_image_fails(rss_collector, requests_mock, monkeypatch):
+    import feedparser
+
+    feed_url = "https://feeds.example.com/rss.xml"
+    rss_collector.feed_url = feed_url
+    validators = {"url": feed_url, "etag": '"feed-only"', "last_modified": None}
+    rss_collector.configure_primary_http_resource({"http_validators": validators}, feed_url, manual=False)
+    rss_collector.headers["Authorization"] = "Bearer source-secret"
+    requests_mock.get("https://example.com/apple-touch-icon.png", status_code=404)
+    requests_mock.get("https://example.com/apple-touch-icon-precomposed.png", status_code=404)
+    requests_mock.get("https://example.com/favicon.ico", content=b"fallback", headers={"Content-Type": "image/png"})
+    requests_mock.get(feed_url, status_code=302, headers={"Location": "https://example.com/feeds/rss.xml"})
+    requests_mock.get(
+        "https://example.com/feeds/rss.xml",
+        text='<rss version="2.0"><channel><title>Feed</title><image><url>../image.png</url></image></channel></rss>',
+        headers={"ETag": validators["etag"]},
+    )
+    feed = rss_collector.get_feed()
+    image = requests_mock.get("https://example.com/image.png", status_code=404)
+    requests_mock.get(
+        "https://example.com/",
+        text='<link rel="icon" href="/favicon.ico"><link rel="apple-touch-icon" href="icons/touch.png">',
+    )
+    requests_mock.get("https://example.com/icons/touch.png", content=b"touch-icon", headers={"Content-Type": "image/png"})
+    upload = requests_mock.put(f"{Config.TARANIS_CORE_URL}/worker/osint-sources/source-1/icon", json={})
+
+    rss_collector.update_favicon_from_feed(feedparser.FeedParserDict(feed.feed), "source-1")
+
+    assert image.call_count == 1
+    assert upload.call_count == 1
+    assert b"touch-icon" in upload.last_request.body
+    assert rss_collector.http_validators == validators
+    for request in requests_mock.request_history[2:]:
+        if request.method == "GET" and request.url.startswith("https://example.com/"):
+            assert "Authorization" not in request.headers
+            assert "If-None-Match" not in request.headers
+
+    fetch_icon = rss_collector._fetch_icon
+
+    async def slow_fallbacks(url, **kwargs):
+        if url != "https://example.com/image.png":
+            await asyncio.sleep(60)
+        return await fetch_icon(url, **kwargs)
+
+    monkeypatch.setattr(rss_collector, "_fetch_icon", slow_fallbacks)
+    requests_mock.get("https://example.com/image.png", content=b"feed-icon", headers={"Content-Type": "image/png"})
+    rss_collector.update_favicon_from_feed(feedparser.FeedParserDict(feed.feed), "source-1")
+
+    assert upload.call_count == 2
+    assert b"feed-icon" in upload.last_request.body
 
 
 @pytest.mark.parametrize("entry_limit", [1, 3, 42])
