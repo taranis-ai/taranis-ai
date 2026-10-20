@@ -651,9 +651,14 @@ class TestEndToEndUser(BaseE2ETest):
         primary_id, second_id, third_id = [cards.nth(i).get_attribute("data-story-id") for i in range(3)]
         page.get_by_test_id(f"story-card-{primary_id}").click()
         for secondary_id in (second_id, third_id):
+            if secondary_id == third_id:
+                page.get_by_test_id(f"story-card-{primary_id}").click()
             page.get_by_test_id(f"story-card-{secondary_id}").click()
+            if secondary_id == third_id:
+                page.get_by_test_id(f"story-card-{primary_id}").click()
             page.get_by_role("button", name="Cluster").click()
             expect(page.get_by_test_id("story-to-merge")).to_have_count(2)
+            expect(page.get_by_test_id("story-to-merge").first).to_have_attribute("data-story-id", primary_id)
             page.get_by_test_id("dialog-story-cluster-submit").click()
             expect(page.get_by_test_id("story-to-merge")).to_have_count(0)
             expect(page.get_by_test_id("assess_story_selection_count")).to_have_text("1 stories selected")

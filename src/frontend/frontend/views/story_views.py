@@ -569,6 +569,7 @@ class StoryView(BaseView):
         bookmark_id = cls._get_bookmark_id()
         logger.debug(f"Opening cluster dialog for stories {story_ids}")
         stories = [DataPersistenceLayer().get_object(Story, s) for s in story_ids]
+        stories.sort(key=lambda story: len(story.news_items or []) if story else 0, reverse=True)
         target = cls._get_story_action_target(story_ids)
         return render_template("assess/story_grouping_dialog.html", stories=stories, target=target, bookmark_id=bookmark_id), 200
 
