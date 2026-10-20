@@ -1,3 +1,4 @@
+import re
 import time
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
@@ -314,6 +315,8 @@ class TestUserWorkflow(BaseE2ETest):
             answer = page.get_by_test_id("chat-message-assistant")
             expect(answer).to_have_count(1)
             expect(answer).to_contain_text("Ransomware campaign targets European hospitals")
+            expect(answer.locator("time")).to_be_visible()
+            expect(answer.locator("time")).to_have_attribute("datetime", re.compile(r".+Z$"))
             self.highlight_element(answer.locator(".chat-bubble"))
 
             self.highlight_element(page.get_by_test_id("chat-input")).fill("Which of those stories are still unread?")
@@ -321,6 +324,10 @@ class TestUserWorkflow(BaseE2ETest):
             expect(answer).to_have_count(2)
             expect(answer.last).to_contain_text("unread ransomware")
             expect(answer.last).not_to_contain_text("Manufacturing sector")
+            timestamps = page.locator("#chat-messages time")
+            expect(timestamps).to_have_count(4)
+            saved_timestamps = timestamps.all_text_contents()
+            assert all(timestamp.strip() for timestamp in saved_timestamps)
             self.highlight_element(answer.last.locator(".chat-bubble"))
             self.capture_screenshot(page, "./tests/playwright/screenshots/screenshot_chat.png")
 
@@ -329,6 +336,7 @@ class TestUserWorkflow(BaseE2ETest):
             self.highlight_element(page.get_by_test_id("chat-history-item").filter(has_text="Find ransomware stories")).click()
             expect(answer).to_have_count(2)
             expect(page.get_by_test_id("chat-message-user")).to_have_count(2)
+            expect(timestamps).to_have_text(saved_timestamps)
 
             self.highlight_element(page.get_by_test_id("chat-assess-link").last).click()
             expect(page.get_by_test_id("assess")).to_be_visible()

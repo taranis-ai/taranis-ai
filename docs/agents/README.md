@@ -19,6 +19,7 @@ Read matching memories before planning or editing related features, routes, mode
 - [Analyst Chat](analyst-chat.md) - persistent chat workflow, Responses and Chat Completions integration, Assess search planning, privacy, ownership, and deployment configuration.
 - [LLM Endpoints](llm-endpoints.md): shared provider settings, feature assignments, secrets, and worker execution.
 - [Global Settings](global-settings.md): transaction-scoped read caching, defaults, and invalidation.
+- [News Item Creation](news-item-creation.md): method chooser, independent drafts, validation, and file-import retry.
 - [News Item Ordering](news-item-ordering.md) - local shared item order, editor controls, conflict normalization, and ungrouping title fallback.
 - [Story Cards](story-cards.md): source icons, frequency ranking, and shared story enrichment.
 - [Assess Filters](assess-filters.md): sidebar queries, saved filters, pagination, and cache invalidation.

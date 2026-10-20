@@ -1,4 +1,5 @@
 import json
+from io import BytesIO
 from types import SimpleNamespace
 from typing import Any
 from urllib.parse import parse_qs, urlparse
@@ -445,38 +446,19 @@ def test_news_item_card_hides_author_when_missing_or_empty(app):
         assert "Author ·" not in tree.text_content()
 
 
-def test_manual_news_item_form_routes_htmx_errors_to_notification_bar(authenticated_client):
+def test_news_item_creation_forms_route_htmx_errors_to_notification_bar(authenticated_client):
     response = authenticated_client.get(url_for("assess.get_news_item", news_item_id="0"))
 
     assert response.status_code == 200
 
     tree = html.fromstring(response.text)
-    form = tree.xpath('//form[@id="news-item-form"]')
-    file_form = tree.xpath('//form[@hx-encoding="multipart/form-data"]')
-    url_form = tree.xpath('//form[@id="news-item-create-from-url-form"]')
-    url_parameters_dialog = tree.xpath('//dialog[@id="create_from_url_parameters_dialog"]')
+    for selector in ('@id="news-item-form"', '@hx-encoding="multipart/form-data"', '@id="news-item-create-from-url-form"'):
+        forms = tree.xpath(f"//form[{selector}]")
+        assert len(forms) == 1
+        for status in ("400", "4xx", "5xx"):
+            assert forms[0].get(f"hx-status:{status}") == "target:#notification-bar"
 
-    assert len(form) == 1
-    assert form[0].get("hx-status:400") == "target:#notification-bar"
-    assert form[0].get("hx-status:4xx") == "target:#notification-bar"
-    assert form[0].get("hx-status:5xx") == "target:#notification-bar"
-    assert len(file_form) == 1
-    assert file_form[0].get("hx-status:400") == "target:#notification-bar"
-    assert file_form[0].get("hx-status:4xx") == "target:#notification-bar"
-    assert file_form[0].get("hx-status:5xx") == "target:#notification-bar"
-    assert len(url_form) == 1
-    assert url_form[0].get("hx-status:400") == "target:#notification-bar"
-    assert url_form[0].get("hx-status:4xx") == "target:#notification-bar"
-    assert url_form[0].get("hx-status:5xx") == "target:#notification-bar"
-    assert url_form[0].xpath('.//input[@name="fetch_url"]')
-    assert len(url_parameters_dialog) == 1
-    assert url_parameters_dialog[0].xpath('.//*[@name="parameters[XPATH]"]')
-    assert url_parameters_dialog[0].xpath('.//*[@name="parameters[BROWSER_MODE]"]')
-    additional_headers_input = url_parameters_dialog[0].xpath('.//input[@name="parameters[ADDITIONAL_HEADERS]"]')
-    assert len(additional_headers_input) == 1
-    assert not url_parameters_dialog[0].xpath('.//textarea[@name="parameters[ADDITIONAL_HEADERS]"]')
-
-    source_input = form[0].xpath('.//input[@name="source"]')
+    source_input = tree.xpath('//form[@id="news-item-form"]//input[@name="source"]')
     assert len(source_input) == 1
     assert source_input[0].get("required") is None
 
@@ -1136,6 +1118,32 @@ def test_table_search_bar_uses_form_level_search_trigger(app):
     assert search_input.get("hx-trigger") is None
 
 
+@pytest.mark.parametrize(
+    "content, status",
+    [
+        (b'{"content": "Imported news"}', 204),
+        (b"\xff\xfe\x00", 400),
+    ],
+)
+def test_create_news_item_from_file_validates_json_content(authenticated_client, responses_mock, htmx_header, content, status):
+    if status == 204:
+        responses_mock.post(f"{Config.TARANIS_CORE_URL}/assess/import", json={"message": "Imported"})
+
+    response = authenticated_client.post(
+        url_for("assess.create_news_item"),
+        data={"file": (BytesIO(content), "news.json", "application/octet-stream")},
+        headers=htmx_header,
+    )
+
+    assert response.status_code == status
+    if status == 204:
+        assert response.headers["HX-Redirect"] == url_for("assess.assess")
+        assert json.loads(responses_mock.calls[0].request.body) == {"content": "Imported news"}
+    else:
+        assert "Invalid JSON file." in response.text
+        assert not responses_mock.calls
+
+
 def test_create_news_item_from_url_posts_simple_web_collector_payload(authenticated_client, responses_mock):
     responses_mock.post(
         f"{Config.TARANIS_CORE_URL}/assess/news-items/fetch",
@@ -1165,11 +1173,26 @@ def test_create_news_item_from_url_posts_simple_web_collector_payload(authentica
             "WEB_URL": "https://example.com/story",
             "XPATH": "//article",
             "TLP_LEVEL": "green",
-            "BROWSER_MODE": "true",
-            "DIGEST_SPLITTING": "false",
-            "DIGEST_SPLITTING_LIMIT": "30",
+            "BROWSER_MODE": True,
+            "DIGEST_SPLITTING": False,
+            "DIGEST_SPLITTING_LIMIT": 30,
         },
     }
+
+
+@pytest.mark.parametrize(
+    "parameters, message",
+    [
+        ({"parameters[ADDITIONAL_HEADERS]": "invalid"}, "Additional headers"),
+        ({"parameters[DIGEST_SPLITTING]": "true"}, "XPath selecting article links is required"),
+        ({"parameters[DIGEST_SPLITTING_LIMIT]": "0"}, "Digest splitting limit"),
+    ],
+)
+def test_url_collection_rejects_invalid_settings_without_contacting_core(authenticated_client, responses_mock, parameters, message):
+    response = authenticated_client.post(url_for("assess.create_news_item"), data={"fetch_url": "https://example.com/story", **parameters})
+    assert response.status_code == 400
+    assert message in html.fromstring(response.text).text_content()
+    assert not responses_mock.calls
 
 
 def test_story_share_page_loads_connectors_from_assess_endpoint(authenticated_client_basic, responses_mock):

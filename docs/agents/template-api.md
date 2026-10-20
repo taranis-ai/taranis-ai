@@ -16,7 +16,7 @@ Detail/list responses contain `name`, nullable base64 `content`, and `validation
 Core builds Pydantic `TemplateResponse` objects and serializes them at the HTTP boundary. The frontend `Template` stores `name`; its `id` property supplies the filename to shared admin routing/table actions and the `0` sentinel for unpopulated forms. That property is not a serialized API field.
 
 ## Testing
-Core template service tests cover content states, ordering, and a filesystem-backed API lifecycle. The existing admin template management E2E covers creating, editing, and deleting via the UI. Run `./dev/test_push_signoff.sh` for full signoff.
+Core template service tests cover content states, ordering, and a filesystem-backed API lifecycle. The existing admin template management E2E covers creating, editing, and deleting via the UI.
 
 ## Pitfalls
 Deploy Core and Frontend together; see `docs/releasing.md`. Preserve null content when serializing missing templates. Keep exception details server-side.

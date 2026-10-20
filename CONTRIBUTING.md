@@ -4,6 +4,20 @@ Keep contributions focused, explain the problem and your approach, and follow th
 [development workflow](docs/agents/development-workflow.md) for setup, validation,
 and feature signoff. Agents must also follow [AGENTS.md](AGENTS.md).
 
+## Who these requirements apply to
+
+The contributor process below is mandatory only for outside collaborators:
+contributors who are not members of the [taranis-ai/ait team](https://github.com/orgs/taranis-ai/teams/ait).
+Members of that team are core members and are exempt from this process, including
+mandatory PR template use, prompt disclosure, contributor confirmations, and
+human review-time estimates. Core members may omit the corresponding template
+sections. Agents acting for a core member must not request these disclosures or
+confirmations as a prerequisite to opening or updating a PR.
+
+This exemption does not waive the project's code, security, testing, licensing,
+or review and branch-protection rules. The commit attribution rule below also
+applies to everyone.
+
 ## Responsibility and review
 
 You are responsible for every change you submit, whether it originated from an
@@ -48,8 +62,8 @@ Include a concise explanation of the change and actual validation results in
 the description. Identify checks not run and explain why. For features, follow
 the full signoff procedure in the development workflow. Highlight important
 decisions, risks, and useful verification steps; include screenshots for UI
-changes and migration or rollback notes where relevant. Human review-time
-estimates are optional.
+changes and migration or rollback notes where relevant. Include a human
+review-time estimate.
 
 Keep the description, prompt disclosure, and validation evidence current when
 review changes alter the implementation. Rerun applicable validation for the

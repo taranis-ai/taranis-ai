@@ -20,6 +20,7 @@ Chat routes, `CHAT_ENABLED`, `chat_*` settings, provider integration, conversati
 - Shipped ingress and development Nginx give `/chat/` requests a 660-second read timeout so the synchronous POST can return final HTML and navigation headers. Separate realtime updates do not keep that POST alive. Recopy/reload installed development configs after changing `dev/nginx.conf`.
 - Roll back database work before outbound provider calls. Re-fetch the owned conversation and commit both messages together only after success. Store canonical filters, total count, and selected IDs as search metadata, never story text.
 - Frontend escapes plain-text answers and builds the Assess link. The empty workspace explains supported story searches with clickable starter prompts and states that administrative and system data are outside Chat's scope. Chat bypasses frontend model caching. Failed deletion retains the conversation.
+- Saved user and assistant messages display their persisted UTC `created` timestamp through the shared `format_datetime` filter, using the authenticated user's locale and profile timezone. Final turn responses and reopened history use the same template; pending/streaming placeholders have no timestamp until the turn is saved.
 - Cumulative realtime snapshots carry turn ID, increasing sequence, stage, and text on `user:#<user_id>`; text updates are throttled to 200 ms. Ignore other turns/older sequences. Final HTMX replaces transient content. Never log snapshots or enable channel history.
 
 ## Configuration
