@@ -837,7 +837,7 @@ class StoryView(BaseView):
 
         request_params = request.args.to_dict(flat=False)
 
-        if request.method == "POST" and "HX-Current-URL" in request.headers:
+        if request.method != "GET" and "HX-Current-URL" in request.headers:
             url = request.headers.get("HX-Current-URL", "")
 
             parsed_url = urlparse(url)
