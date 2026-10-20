@@ -57,11 +57,19 @@ class Products(MethodView):
 
     @auth_required("PUBLISH_CREATE")
     def post(self):
-        if report_ids := request.json.get("report_items"):
+        data = request.json or {}
+        selected_type = product_type.ProductType.get(data.get("product_type_id"))
+        if selected_type is None:
+            return {"error": "Product type not found"}, 404
+        if not selected_type.allowed_with_acl(current_user, require_write_access=False):
+            return {"error": "User does not have access to this product type"}, 403
+        if report_ids := data.get("report_items"):
             response, status = product_type.ProductType.get_choices_for_api(current_user, report_ids)
             if status != 200:
                 return response, status
-        new_product = product.Product.add(request.json, user_id=current_user.id)
+            if selected_type.id not in {item["id"] for item in response["items"]}:
+                return {"error": "Selected product type does not support the selected reports"}, 400
+        new_product = product.Product.add(data, user_id=current_user.id)
         invalidate_frontend_cache_on_success(201, scopes=(SCOPE_PUBLISH_VIEWS,))
         return jsonify(
             {"message": "New Product created", "id": new_product.id, "product": new_product.to_detail_dict(user=current_user)}

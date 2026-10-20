@@ -107,6 +107,7 @@ class TestPublishApi(BaseTest):
         assert metadata == full
 
     def test_product_type_choices_filter_by_all_selected_reports(self, client, session, auth_header):
+        from core.model.product import Product
         from core.model.product_type import ProductType
         from core.model.report_item import ReportItem
         from core.model.report_item_type import ReportItemType
@@ -145,6 +146,21 @@ class TestPublishApi(BaseTest):
         )
         assert response.status_code == 404
         assert response.json == {"error": "Selected reports not found or not accessible"}
+
+        creation_id = str(uuid4())
+        payload = {"id": creation_id, "title": "Selected reports product", "report_items": [reports[0].id, untyped.id]}
+        for type_id, status, message in [
+            (str(uuid4()), 404, "Product type not found"),
+            (types[1].id, 400, "Selected product type does not support the selected reports"),
+        ]:
+            rejected = client.post(self.concat_url("products"), headers=auth_header, json={**payload, "product_type_id": type_id})
+            assert rejected.status_code == status
+            assert rejected.json == {"error": message}
+            assert Product.get(creation_id) is None
+
+        created = self.assert_post_ok(client, "products", auth_header=auth_header, json_data={**payload, "product_type_id": types[2].id})
+        assert created.json["id"] == creation_id
+        assert set(created.json["product"]["report_items"]) == set(payload["report_items"])
 
     def test_post_Product(self, client, auth_header, cleanup_product):
         """
@@ -231,6 +247,23 @@ class TestPublishApi(BaseTest):
             acl_id = acl.id
 
         try:
+            creation_id = str(uuid4())
+            for report_selection in [{}, {"report_items": []}]:
+                created = client.post(
+                    self.concat_url("products"),
+                    headers=auth_header_user_permissions,
+                    json={
+                        "id": creation_id,
+                        "title": "Forbidden product",
+                        "product_type_id": product_type_change_resources["compatible_type_id"],
+                        **report_selection,
+                    },
+                )
+                assert created.status_code == 403
+                assert created.json == {"error": "User does not have access to this product type"}
+                with app.app_context():
+                    assert Product.get(creation_id) is None
+
             response = client.put(
                 self.concat_url(f"products/{product_type_change_resources['product_id']}"),
                 headers=auth_header_user_permissions,
