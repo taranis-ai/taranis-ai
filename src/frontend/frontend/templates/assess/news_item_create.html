@@ -17,13 +17,15 @@
   {% set current_url = request.full_path.rstrip('?') if request.full_path else request.path %}
   {% set form_submit_url = url_for('assess.update_news_item', news_item_id=item_id) if is_edit else url_for('assess.create_news_item') %}
 
-  <section id="news-item-editor" class="px-4 py-4">
+  <section id="news-item-editor"
+           class="px-4 py-4"
+           x-data="{ method: '{{ 'manual' if is_edit else '' }}', choose(value) { this.method = value; $nextTick(() => $refs[value ? value + 'Heading' : 'fileChoice'].focus()); } }">
     <div class="mx-auto flex max-w-5xl flex-col gap-6">
       <header class="space-y-3">
-        <p class="text-xs uppercase tracking-wide text-base-content/60">News item · {{ item_id if is_edit else 'manual-draft' }}</p>
+        <p class="text-xs uppercase tracking-wide text-base-content/60">News item · {{ item_id if is_edit else 'new' }}</p>
         <div class="flex flex-wrap items-center gap-3">
-          <h1 class="text-3xl font-semibold tracking-tight">{{ title or 'Create manual news item' }}</h1>
-          <span class="badge {{ source_badge }} badge-sm">{{ source or 'manual' }}</span>
+          <h1 class="text-3xl font-semibold tracking-tight">{{ (title or 'Edit news item') if is_edit else 'Create news item' }}</h1>
+          {% if is_edit %}<span class="badge {{ source_badge }} badge-sm">{{ source or 'manual' }}</span>{% endif %}
           {% if story_id_val %}<span class="badge badge-outline badge-sm">Story {{ story_id_val }}</span>{% endif %}
         </div>
         {% if story_id_val %}
@@ -41,7 +43,34 @@
       {% endif %}
 
       {% if not is_edit %}
-        <div class="grid gap-4 md:grid-cols-2">
+        <p class="text-sm text-base-content/70">Choose one creation method: import a JSON file, collect from a URL, or write a news item manually.</p>
+        <div x-show="!method" class="divide-y divide-base-200 rounded-box border border-base-200 bg-base-100">
+          {% for value, label, description, icon in [
+            ('file', 'From file', 'Import stories or news items from a JSON file.', 'document-arrow-up'),
+            ('url', 'From URL', 'Collect an article from its web address.', 'link'),
+            ('manual', 'Manually', 'Write a news item from scratch.', 'pencil-square')
+          ] %}
+            <button type="button"
+                    class="flex w-full items-center gap-4 p-5 text-left hover:bg-base-200 focus-visible:outline focus-visible:outline-primary"
+                    aria-label="{{ label }}"
+                    aria-describedby="{{ value }}-choice-description"
+                    x-ref="{{ value }}Choice"
+                    @click="choose('{{ value }}')">
+              {{ heroicon_outline(icon, class='h-6 w-6 shrink-0') }}
+              <span class="flex-1">
+                <span class="block text-lg font-semibold">{{ label }}</span>
+                <span id="{{ value }}-choice-description" class="block text-sm text-base-content/70">{{ description }}</span>
+              </span>
+              {{ heroicon_outline('arrow-right', class='h-5 w-5 shrink-0') }}
+            </button>
+          {% endfor %}
+        </div>
+        <button type="button"
+                class="btn btn-ghost self-start"
+                x-show="method"
+                x-cloak
+                @click="choose('')">{{ heroicon_outline('arrow-left', class='h-4 w-4') }} Change creation method</button>
+        <div x-show="method === 'file'" x-cloak>
           <form class="card border border-base-200 bg-base-100 shadow-sm"
                 hx-post="{{ url_for('assess.create_news_item') }}"
                 hx-status:400="target:#notification-bar"
@@ -51,50 +80,24 @@
                 enctype="multipart/form-data">
             <div class="card-body space-y-3">
               <div class="space-y-1">
-                <h2 class="text-lg font-semibold">Create from file</h2>
+                <h2 class="text-lg font-semibold" tabindex="-1" x-ref="fileHeading">From file</h2>
                 {% include "assess/story_import_help.html" %}
               </div>
-              <input type="file" accept="application/json,.json" name="file" class="file-input file-input-bordered w-full" required>
+              <label class="form-control">
+                <span class="label-text font-semibold">JSON file <span class="text-error">*</span></span>
+                <input type="file" accept="application/json,.json" name="file" class="file-input file-input-bordered w-full" required>
+              </label>
               <button type="submit" class="btn btn-outline">Create from file</button>
             </div>
           </form>
 
-          <form id="news-item-create-from-url-form"
-                class="card border border-base-200 bg-base-100 shadow-sm"
-                hx-post="{{ url_for('assess.create_news_item') }}"
-                hx-target="main"
-                hx-status:400="target:#notification-bar"
-                hx-status:4xx="target:#notification-bar"
-                hx-status:5xx="target:#notification-bar"
-                hx-swap="outerHTML">
-            <div class="card-body space-y-3">
-              <div class="space-y-1">
-                <h2 class="text-lg font-semibold">Create from URL</h2>
-                <p class="text-xs text-base-content/60">Fetch an article with the Simple Web Collector and create a news item.</p>
-              </div>
-              <label class="input w-full">
-                <span class="label-text font-semibold">URL <span class="text-error">*</span></span>
-                <input id="create-from-url"
-                       type="url"
-                       name="fetch_url"
-                       placeholder="https://example.com/story"
-                       class="input input-bordered w-full"
-                       required>
-              </label>
-              <div class="flex flex-col gap-2 sm:flex-row">
-                <button type="button"
-                        class="btn btn-outline sm:flex-1"
-                        onclick="document.getElementById('create_from_url_parameters_dialog').showModal()">Parameters</button>
-                <button type="submit" class="btn btn-outline sm:flex-1">Create from URL</button>
-              </div>
-            </div>
-          </form>
         </div>
-
-        {% include "assess/news_item_create_url_parameters_dialog.html" %}
+        <div x-show="method === 'url'" x-cloak>{% include "assess/news_item_create_url.html" %}</div>
       {% endif %}
 
       <form id="news-item-form"
+            x-show="method === 'manual'"
+            {% if not is_edit %}x-cloak{% endif %}
             class="card bg-base-100 shadow-xl border border-base-200"
             hx-post="{{ form_submit_url }}"
             hx-target="main"
@@ -103,12 +106,15 @@
             hx-status:5xx="target:#notification-bar"
             hx-swap="outerHTML">
         <div class="card-body space-y-6">
+          {% if not is_edit %}<h2 class="text-lg font-semibold" tabindex="-1" x-ref="manualHeading">Manually</h2>{% endif %}
+          <p id="manual-required-help"
+             class="text-sm text-base-content/70">Enter either a title or content. Neither field is individually required.</p>
           <label class="input w-full">
-            <span class="label-text font-semibold">Title <span class="text-error">*</span></span>
+            <span class="label-text font-semibold">Title</span>
             <input type="text"
                    name="title"
                    value="{{ title }}"
-                   required
+                   aria-describedby="manual-required-help"
                    placeholder="Add a headline that summarises the article"
                    class="input input-bordered input-lg w-full"
                    {% if read_only %}readonly{% endif %}>
@@ -125,15 +131,13 @@
           </label>
 
           <label class="input w-full">
-            <span class="label-text font-semibold">Published <span class="text-error">*</span></span>
+            <span class="label-text font-semibold">Published (optional)</span>
             <input type="datetime-local"
                    name="published"
                    value="{{ published }}"
-                   x-data="{}"
-                   x-init="if (!$el.value) { const now = new Date(); now.setMinutes(now.getMinutes() - now.getTimezoneOffset()); $el.value = now.toISOString().slice(0, 16); }"
-                   class="input input-bordered w-full required"
+                   class="input input-bordered w-full"
                    {% if read_only %}readonly{% endif %}>
-            <span class="label-text-alt text-xs text-base-content/60">Use local time</span>
+            <span class="label-text-alt text-xs text-base-content/60">Use local time. Leave blank to use the current time.</span>
           </label>
 
           <label class="input w-full">
@@ -162,6 +166,7 @@
           <label class="floating-label w-full">
             <span class="label font-semibold">Content</span>
             <textarea name="content"
+                      aria-describedby="manual-required-help"
                       class="textarea textarea-bordered w-full"
                       placeholder="Paste the relevant excerpt or your own summary"
                       {% if read_only %}readonly{% endif %}>{{ content }}</textarea>
