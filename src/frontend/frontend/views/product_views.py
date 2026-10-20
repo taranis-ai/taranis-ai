@@ -31,6 +31,11 @@ class ProductView(BaseView):
         return cls.get_edit_route(product_id=object_id)
 
     @classmethod
+    def _normalize_form_data(cls, form_data: dict[str, Any]) -> dict[str, Any]:
+        form_data.pop("_continue_action", None)
+        return form_data
+
+    @classmethod
     def get_default_actions(cls) -> list[dict[str, Any]]:
         actions = super().get_default_actions()
         actions.insert(
@@ -93,6 +98,16 @@ class ProductView(BaseView):
 
         report_access_warning = getattr(product, "report_access_warning", None)
         base_context["report_access_warning"] = report_access_warning
+        resume_action = request.form.get("_continue_action")
+        if (
+            request.method in {"POST", "PUT"}
+            and is_edit
+            and not report_access_warning
+            and not base_context.get("error")
+            and not base_context.get("form_error")
+            and resume_action in {"render", "publish"}
+        ):
+            base_context["resume_action"] = resume_action
         if not report_access_warning and (report_id := request.args.get("report_id")) and (report := dpl.get_object(ReportItem, report_id)):
             if report_id not in selected_report_items:
                 selected_report_items.append(report_id)

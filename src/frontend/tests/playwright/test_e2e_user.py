@@ -611,7 +611,7 @@ class TestEndToEndUser(BaseE2ETest):
                     assert parse_qs(urlparse(link_url).query)["assess_url"] == [return_url]
 
             expect(page.get_by_test_id("assess_story_selection_count")).to_be_hidden()
-            page.get_by_role("button", name="Select all").click()
+            page.get_by_role("button", name="Select loaded stories").click()
             expect(page.get_by_test_id("assess_story_selection_count")).to_contain_text("stories selected")
             selected_count = self._get_assess_selection_count(page)
             assert expected_total <= selected_count <= final_visible_count
@@ -1061,7 +1061,7 @@ class TestEndToEndUser(BaseE2ETest):
             popup = page.get_by_label("Add Stories to report")
             popup.click()
             popup.get_by_text("Test report").click()
-            page.locator("#share_story_to_report_dialog").get_by_role("button", name="Share").click()
+            page.locator("#share_story_to_report_dialog").get_by_role("button", name="Add to report").click()
             expect(page.get_by_text("In Reports").nth(1)).to_be_visible()
             expect(page.get_by_text("In Reports").nth(2)).to_be_visible()
 
@@ -1184,7 +1184,7 @@ class TestEndToEndUser(BaseE2ETest):
                 popup = page.get_by_label("Add Stories to report")
                 popup.click()
                 popup.get_by_text("all attr report").click()
-                page.locator("#share_story_to_report_dialog").get_by_role("button", name="Share").click()
+                page.locator("#share_story_to_report_dialog").get_by_role("button", name="Add to report").click()
 
             def set_report_fields():
                 boolean_attribute = page.get_by_test_id("report-boolean-attribute-checkbox")
@@ -1328,7 +1328,7 @@ class TestEndToEndUser(BaseE2ETest):
                 popup = page.get_by_label("Add Stories to report")
                 popup.click()
                 popup.get_by_text("all attr report REQUIRED").click()
-                page.locator("#share_story_to_report_dialog").get_by_role("button", name="Share").click()
+                page.locator("#share_story_to_report_dialog").get_by_role("button", name="Add to report").click()
 
             def set_report_fields_required():
                 boolean_attribute = page.get_by_test_id("report-boolean-attribute-checkbox")
@@ -1577,3 +1577,30 @@ class TestEndToEndUser(BaseE2ETest):
         expect(page.get_by_placeholder("Title")).to_have_value(f"{product_title} reviewed")
         page.goto(source_url)
         expect(page.get_by_placeholder("Title")).to_have_value(product_title)
+
+        description = page.get_by_placeholder("Description")
+        description.fill("Save before rendering")
+        render_button = page.locator("#render_button")
+        render_button.click()
+        dirty_dialog = page.locator("#dirty_dialog")
+        expect(dirty_dialog).to_be_visible()
+        dirty_dialog.get_by_role("button", name="Close", exact=True).click()
+        expect(dirty_dialog).not_to_be_visible()
+        expect(description).to_have_value("Save before rendering")
+        render_button.click()
+        with page.expect_response(lambda response: response.url.endswith(f"/product/{product_id}/render")) as rendered:
+            with_htmx_wait(page, lambda: dirty_dialog.get_by_role("button", name="Save and Continue").click())
+        assert rendered.value.status == 200
+        expect(page.locator("#product")).to_have_count(1)
+        page.reload()
+        expect(description).to_have_value("Save before rendering")
+
+        description.fill("Save before publishing")
+        page.get_by_role("button", name="Publish (manually)").click()
+        expect(dirty_dialog).to_be_visible()
+        with_htmx_wait(page, lambda: dirty_dialog.get_by_role("button", name="Save and Continue").click())
+        publish_dialog = page.locator("#publish_dialog")
+        expect(publish_dialog).to_be_visible()
+        publish_dialog.get_by_role("button", name="Close", exact=True).click()
+        page.reload()
+        expect(description).to_have_value("Save before publishing")

@@ -1292,7 +1292,7 @@ def test_assess_saved_filter_update_button_reuses_save_endpoint(authenticated_cl
 
     response = authenticated_client.get(url_for("assess.saved_filters", search="incident"))
     tree = html.fromstring(response.text)
-    update_button = tree.xpath('//button[normalize-space()="Update"]')[0]
+    update_button = tree.xpath('//button[normalize-space()="Replace with current filters"]')[0]
     update_values = update_button.get("hx-vals")
 
     assert update_button.get("hx-post") == url_for("assess.save_saved_filter")

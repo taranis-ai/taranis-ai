@@ -106,6 +106,29 @@ def test_product_download_streams_core_response(authenticated_client, responses_
     assert responses_mock.calls[0].response.raw.closed
 
 
+@pytest.mark.parametrize("action", ["render", "publish"])
+@pytest.mark.parametrize("save_status", [200, 400])
+def test_product_save_continues_only_after_success(authenticated_client, responses_mock, action, save_status):
+    product = {"id": "product-1", "title": "Saved product", "product_type_id": "type-1"}
+    responses_mock.get(f"{Config.TARANIS_CORE_URL}/publish/publisher-presets", json={"items": []})
+    responses_mock.get(f"{Config.TARANIS_CORE_URL}/publish/product-type-choices", json={"items": [{"id": "type-1", "title": "Type"}]})
+    saved = responses_mock.put(
+        f"{Config.TARANIS_CORE_URL}/publish/products/product-1",
+        json={"id": "product-1", "product": product, "message": "Saved"} if save_status == 200 else {"error": "Save failed"},
+        status=save_status,
+    )
+
+    response = authenticated_client.put("/publish/product-1", data={**product, "_continue_action": action}, headers={"HX-Request": "true"})
+
+    assert response.status_code == save_status
+    assert "_continue_action" not in json.loads(saved.calls[0].request.body)
+    root = html.fromstring(response.data).get_element_by_id("product")
+    if save_status == 200:
+        assert root.get("x-init") == f"$nextTick(() => triggerAction('{action}'))"
+    else:
+        assert root.get("x-init") is None
+
+
 def test_product_list_does_not_load_editor_catalogs():
     with patch("frontend.views.product_views.DataPersistenceLayer") as persistence_cls:
         context = ProductView.get_extra_context({"products": []})

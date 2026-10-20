@@ -171,12 +171,12 @@
         {% if story_ids %}
           <button type="button"
                   class="btn btn-outline tooltip"
-                  data-tip="{{ _('Select all') }}"
+                  data-tip="{{ _('Select loaded stories') }}"
                   @keyup.window="canUseAssessShortcut($event, 'a') && selectAll()"
                   @click="selectAll() "
                   data-testid="assess-select-all-button">
             {{ heroicon_mini("check-circle") }}
-            <span class="text-sm sr-only 2xl:not-sr-only">Select all</span>
+            <span class="text-sm sr-only 2xl:not-sr-only">Select loaded stories</span>
             <span class="text-xs opacity-80" x-show="showHints">
               <kbd class="kbd kbd-xs">Shift+A</kbd>
             </span>
