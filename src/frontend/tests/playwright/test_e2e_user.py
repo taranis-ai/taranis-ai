@@ -2,6 +2,7 @@ import json
 import re
 import uuid
 from pathlib import Path
+from urllib.parse import parse_qs, urlparse
 
 import pytest
 from base_e2e_test import BaseE2ETest
@@ -299,6 +300,13 @@ class TestEndToEndUser(BaseE2ETest):
             expect(page.get_by_test_id("assess_story_count")).to_be_visible()
             expect(page.locator("#story-pagination")).to_contain_text("Page 2 of")
             page.wait_for_function("() => window.scrollY === 0")
+            second_page_url = page.url
+            page.get_by_test_id("open-detail-view").first.click()
+            back_url = page.locator('[data-test-id="back-to-assess"]').get_attribute("href")
+            assert back_url
+            assert parse_qs(urlparse(back_url).query) == parse_qs(urlparse(second_page_url).query)
+            page.go_back()
+            expect(page.locator("#story-pagination")).to_contain_text("Page 2 of")
 
             with_htmx_wait(page, page.go_back)
             expect(page.locator("#story-pagination")).to_contain_text("Page 1 of")
@@ -422,7 +430,16 @@ class TestEndToEndUser(BaseE2ETest):
             dialog.get_by_role("button", name="✕").click()
             story_card().get_by_test_id("open-detail-view").click()
             expect(page.get_by_test_id("story-title")).to_contain_text(title)
+            back_to_assess = page.locator('[data-test-id="back-to-assess"]')
+            return_url = back_to_assess.get_attribute("href")
+            assert return_url
+            assert parse_qs(urlparse(return_url).query) == parse_qs(urlparse(assess_url).query)
+            page.go_back()
+            expect(page.get_by_placeholder("Search stories")).to_have_value(target_title)
+            story_card().get_by_test_id("open-detail-view").click()
+            expect(back_to_assess).to_have_attribute("href", return_url)
             page.get_by_test_id("edit-story").click()
+            expect(back_to_assess).to_have_attribute("href", return_url)
             page.get_by_role("textbox", name="Title").fill(edited_title)
             page.get_by_role("textbox", name="Summary").fill("Test summary")
             page.get_by_role("textbox", name="Analyst comments").fill("Test analyst comment")
@@ -445,6 +462,7 @@ class TestEndToEndUser(BaseE2ETest):
             page.get_by_test_id("attribute-value-input").nth(1).fill("value attr")
             page.get_by_role("button", name="Save changes").click()
             page.get_by_role("link", name="Advanced").click()
+            expect(back_to_assess).to_have_attribute("href", return_url)
             expect(page.get_by_role("complementary")).to_contain_text("Story status")
             page.get_by_text("Cybersecurity · Not Classified").click()
             expect(page.get_by_role("complementary")).to_contain_text("Cybersecurity · Not Classified")
@@ -461,6 +479,22 @@ class TestEndToEndUser(BaseE2ETest):
                 expect(page.get_by_role("textbox", name="Analyst comments")).to_have_value("Unsaved analyst comment")
             page.get_by_role("link", name="Return to story").click()
             expect(page.get_by_test_id("story-title")).to_contain_text(edited_title)
+            back_to_assess.click()
+            expect(page.get_by_placeholder("Search stories")).to_have_value(target_title)
+            expect(story_card()).to_be_visible()
+            page.get_by_role("link", name="Dashboard", exact=True).click()
+            page.locator("#navbar").get_by_role("link", name="Assess", exact=True).click()
+            restore = page.locator('[data-test-id="restore-assess-search"]')
+            expect(restore).to_be_visible()
+            restore.get_by_role("link", name="Restore last search").click()
+            expect(page.get_by_placeholder("Search stories")).to_have_value(target_title)
+            expect(story_card()).to_be_visible()
+            expect(restore).not_to_be_visible()
+            page.get_by_role("link", name="Dashboard", exact=True).click()
+            page.locator("#navbar").get_by_role("link", name="Assess", exact=True).click()
+            restore.get_by_role("button", name="Dismiss").click()
+            page.reload()
+            expect(restore).not_to_be_visible()
 
         def check_story_tags():
             story_id = seeded_story["id"]

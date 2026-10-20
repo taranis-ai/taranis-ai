@@ -1,5 +1,12 @@
 {% from "assess/story_card.html" import story_card with context %}
-<div id="assess" data-testid="assess" data-tour-target="assess-page">
+<div id="assess"
+     data-testid="assess"
+     data-tour-target="assess-page"
+     data-assess-url="{{ assess_return_url }}"
+     data-assess-path="{{ url_for('assess.assess') }}"
+     data-user-id="{{ current_user.id }}"
+     data-offer-restore="{{ 'true' if not request.args and not request.headers.get('HX-Request') else 'false' }}"
+     x-data="assessSearchState">
   {% set actions = actions | default([]) %}
   {% set pagination = pagination | default({}) %}
 
@@ -124,12 +131,18 @@
         if (this.selectedItems.length !== 1) return;
         const storyId = this.selectedItems[0];
         const storyEditTemplate = "{{ url_for("assess.story_edit", story_id="__ID__") }}";
-        const url = storyEditTemplate.replace("__ID__", storyId);
+        const url = new URL(storyEditTemplate.replace("__ID__", storyId), window.location.origin);
+        url.searchParams.set("assess_url", document.getElementById("assess").dataset.assessUrl);
         window.location.href = url;
       }
     }'
     >
   {# djlint:on #}
+  <div class="alert mb-4" x-show="previousSearch" style="display: none" role="status" data-test-id="restore-assess-search">
+    <span>Continue where you left off in Assess?</span>
+    <a :href="previousSearch" class="btn btn-sm btn-primary">Restore last search</a>
+    <button type="button" class="btn btn-sm btn-ghost" @click="dismiss()">Dismiss</button>
+  </div>
   {% include "assess/bookmarks_bar.html" %}
   {% include "assess/assess_top_bar.html" %}
   {% if stories %}
@@ -140,7 +153,10 @@
     </div>
     {% if pagination %}
       {% set hx_target = request.headers.get("HX-Target") %}
-      <div id="story-pagination" {% if hx_target == 'div#story-list' %}hx-swap-oob="outerHTML:#story-pagination"{% endif %}>
+      <div id="story-pagination"
+           x-init="saveSearch($el.dataset.assessUrl)"
+           data-assess-url="{{ assess_return_url }}"
+           {% if hx_target == 'div#story-list' %}hx-swap-oob="outerHTML:#story-pagination"{% endif %}>
         {% if pagination.infinite_scroll %}
           {% include "assess/story_table_infinite_scroll.html" %}
         {% else %}

@@ -96,6 +96,11 @@ class StoryView(BaseView):
         if request.endpoint == "assess.assess":
             assess_request_args = cls._get_assess_request_params()
             base_context["assess_request_args"] = assess_request_args
+            base_context["assess_return_url"] = (
+                cls._build_assess_filters_url(assess_request_args) if assess_request_args else url_for("assess.assess", reset="true")
+            )
+        else:
+            base_context["assess_return_url"] = cls._get_assess_return_url()
         base_context["bookmark_collections"] = cls._get_bookmark_bar_collections()
         base_context["assess_bookmark_bar_limit"] = ASSESS_BOOKMARK_BAR_LIMIT
         base_context["source_filter_select"] = cls._build_source_filter_select(filter_lists, assess_request_args)
@@ -105,6 +110,21 @@ class StoryView(BaseView):
             base_context["story_ids"] = [story.id for story in enhanced_stories if getattr(story, "id", None)]
             base_context["stories"] = enhanced_stories
         return base_context
+
+    @staticmethod
+    def _get_assess_return_url() -> str | None:
+        assess_path = url_for("assess.assess")
+        try:
+            current_url = urlparse(request.headers.get("HX-Current-URL", ""))
+            candidate = request.args.get("assess_url", "") or parse_qs(current_url.query).get("assess_url", [""])[0]
+            if current_url.path == assess_path:
+                candidate = f"{assess_path}?{current_url.query}"
+            parsed = urlparse(candidate)
+        except ValueError:
+            return None
+        if candidate.startswith("/") and not parsed.scheme and not parsed.netloc and parsed.path == assess_path:
+            return f"{assess_path}?{parsed.query}" if parsed.query else assess_path
+        return None
 
     @classmethod
     def model_plural_name(cls) -> str:
@@ -876,7 +896,7 @@ class StoryView(BaseView):
         context["_show_sidebar"] = False
         bookmark_id = cls._get_bookmark_id()
         context["bookmark_id"] = bookmark_id
-        form_url = url_for("assess.story_edit", story_id=object_id)
+        form_url = url_for("assess.story_edit", story_id=object_id, assess_url=context["assess_return_url"])
         if bookmark_id:
             form_url = url_for("assess.story_edit", story_id=object_id, bookmark_id=bookmark_id, return_to_bookmark="1")
         context["form_action"] = form_url
@@ -1522,7 +1542,7 @@ class StoryView(BaseView):
             cls.add_flash_notification(response)
             if bookmark_id:
                 return cls.redirect_htmx(url_for("assess.bookmark", bookmark_id=bookmark_id))
-            return cls.redirect_htmx(url_for("assess.story", story_id=story_id))
+            return cls.redirect_htmx(url_for("assess.story", story_id=story_id, assess_url=cls._get_assess_return_url()))
 
         notification_html = cls.get_notification_from_response(response)
 

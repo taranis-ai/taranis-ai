@@ -40,6 +40,8 @@ Assess sidebar filters can be saved per user from the Saved filters dialog. Savi
 
 Story cards always show and highlight tags matching an active tag-name or tag-type filter, including in compact view. The `+N` button expands just the tags; Show fewer tags collapses them again. Opening story details also shows all tags.
 
+Story details and editing include Back to Assess, preserving the search filters and page you opened the story from, including after saving or switching editor layouts. Assess also remembers the last search in this browser per user and offers to restore it when opening Assess without filters. Dismiss clears that remembered search; explicit filters, saved defaults, and Reset filters take precedence. Return links work without JavaScript or browser storage.
+
 Colon-containing terms that are not supported qualifiers, such as URLs or CVE-style identifiers, are preserved as plain search text.
 
 ### Story Bookmarks

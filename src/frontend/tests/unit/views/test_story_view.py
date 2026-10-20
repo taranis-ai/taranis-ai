@@ -51,6 +51,44 @@ def mock_story_for_edit(responses_mock, story_payload: dict):
 
 
 @pytest.mark.parametrize(
+    "return_url",
+    [None, "/assess?search=example&tags=one&tags=two&page=2", "https://example.com/assess", "//example.com/assess", "//[invalid", "/publish"],
+)
+def test_story_assess_return_navigation(authenticated_client, responses_mock, return_url):
+    mock_story_for_edit(responses_mock, story_with_news_item_tags())
+    responses_mock.get(f"{Config.TARANIS_CORE_URL}/assess/bookmarks", json={"items": [], "total_count": 0})
+    responses_mock.patch(f"{Config.TARANIS_CORE_URL}/assess/stories/story-1", json={"message": "Story updated"})
+    expected_return = return_url if return_url and return_url.startswith("/assess?") else url_for("assess.assess")
+
+    response = authenticated_client.get(url_for("assess.story", story_id="story-1", assess_url=return_url))
+    tree = html.fromstring(response.text)
+    assert tree.xpath('//*[@data-test-id="back-to-assess"]/@href') == [expected_return]
+    edit_url = tree.xpath('//*[@data-testid="edit-story"]/@href')[0]
+    response = authenticated_client.get(edit_url)
+    tree = html.fromstring(response.text)
+    assert tree.xpath('//*[@data-test-id="back-to-assess"]/@href') == [expected_return]
+
+    advanced_url = tree.xpath('//a[normalize-space()="Advanced"]/@href')[0]
+    response = authenticated_client.get(advanced_url)
+    tree = html.fromstring(response.text)
+    form_action = tree.xpath('//form[@id="story-edit-form"]/@action')[0]
+    response = authenticated_client.post(
+        form_action,
+        data={"title": "Updated title"},
+        headers={"HX-Request": "true", "HX-Current-URL": f"http://localhost{advanced_url}"},
+    )
+    assert response.status_code == 200
+    tree = html.fromstring(response.text)
+    assert tree.xpath('//*[@data-test-id="back-to-assess"]/@href') == [expected_return]
+
+    response = authenticated_client.post(form_action, data={"title": "Updated title"})
+    assert response.status_code == 302
+    response = authenticated_client.get(response.headers["Location"])
+    tree = html.fromstring(response.text)
+    assert tree.xpath('//*[@data-test-id="back-to-assess"]/@href') == [expected_return]
+
+
+@pytest.mark.parametrize(
     "status, payload, message",
     [
         (200, {"message": "Executing Bot scheduled"}, "Executing Bot scheduled"),
