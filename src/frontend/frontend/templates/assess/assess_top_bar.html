@@ -40,8 +40,8 @@
      @keydown.window="preventAssessShortcutDefault($event, 'Space')"
      @keydown.shift.window="showHints = true"
      @keyup.shift.window="showHints = false">
-  <div class="flex p-2 flex-row gap-2 min-h-[3rem] bg-base-100 border border-base-300 shadow-lg rounded-box">
-    <div class="flex flex-1 min-w-0 gap-2 items-center text-sm">
+  <div class="flex flex-wrap p-2 flex-row gap-2 min-h-[3rem] bg-base-100 border border-base-300 shadow-lg rounded-box">
+    <div class="flex flex-1 flex-wrap gap-2 items-center text-sm">
       <div class="flex shrink-0 items-center gap-3"
            x-show="selectedItems.length"
            x-transition.opacity
@@ -64,7 +64,7 @@
               data-test-id="assess-cluster-hint">Select one more to cluster</span>
       </div>
     </div>
-    <div class="flex shrink-0 items-center gap-2">
+    <div class="flex min-w-0 flex-wrap items-center gap-2">
       <div class="flex flex-wrap items-center gap-2"
            x-show="selectedItems.length"
            x-transition.opacity

@@ -1517,23 +1517,31 @@ class TestEndToEndUser(BaseE2ETest):
         product_type = page.locator("#product_type_id").input_value()
 
         product_id = source_url.rstrip("/").rsplit("/", 1)[-1]
-        render_data = core_request_client.json_request("GET", f"/worker/products/{product_id}", headers=api_header, authenticated=False)
         rendered_html = b64encode(b"<p>Product preview content</p>").decode()
-        core_request_client.post(
-            "/tasks",
-            headers=api_header,
-            authenticated=False,
-            json_data={
-                "id": f"preview-{uuid.uuid4()}",
-                "task": "presenter_task",
-                "status": "SUCCESS",
-                "result": {
-                    "message": "ok",
-                    "retryable": False,
-                    "data": {"product_id": product_id, "render_result": rendered_html, "render_revision": render_data["render_revision"]},
+
+        def complete_render():
+            render_data = core_request_client.json_request("GET", f"/worker/products/{product_id}", headers=api_header, authenticated=False)
+            core_request_client.post(
+                "/tasks",
+                headers=api_header,
+                authenticated=False,
+                json_data={
+                    "id": f"preview-{uuid.uuid4()}",
+                    "task": "presenter_task",
+                    "status": "SUCCESS",
+                    "result": {
+                        "message": "ok",
+                        "retryable": False,
+                        "data": {
+                            "product_id": product_id,
+                            "render_result": rendered_html,
+                            "render_revision": render_data["render_revision"],
+                        },
+                    },
                 },
-            },
-        )
+            )
+
+        complete_render()
         page.reload()
         preview = page.get_by_test_id("html-render")
         expect(page.get_by_test_id("load-product-preview")).to_be_visible()
@@ -1544,11 +1552,41 @@ class TestEndToEndUser(BaseE2ETest):
         expect(preview).to_have_attribute("src", re.compile(r"^data:text/html;charset=utf-8;base64,"))
         expect(page.frame_locator('[data-testid="html-render"]').locator("body")).not_to_be_empty()
 
-        with_htmx_wait(page, lambda: page.get_by_test_id("save-product").click())
+        render_requests = []
+        page.on("request", lambda request: render_requests.append(request.url) if request.method == "POST" else None)
+        page.get_by_placeholder("Description").fill("Updated before rendering")
+        page.locator("#render_button").click()
+        dirty_dialog = page.locator("#dirty_dialog")
+        expect(dirty_dialog).to_be_visible()
+        with_htmx_wait(page, lambda: dirty_dialog.get_by_role("button", name="Save and Continue").click())
+        expect(dirty_dialog).not_to_be_visible()
+        expect(page.get_by_placeholder("Description")).to_have_value("Updated before rendering")
+        assert not any(url.endswith("/render") for url in render_requests)
         expect(preview).to_have_count(0)
+
+        complete_render()
+        page.reload()
         page.get_by_test_id("load-product-preview").click()
         expect(preview).to_have_count(1)
         expect(preview).to_have_attribute("sandbox", "")
+
+        page.get_by_placeholder("Description").fill("This is a test product.")
+        page.get_by_role("button", name="Publish (manually)").click()
+        dirty_dialog.get_by_role("button", name="Close", exact=True).click()
+        expect(page.locator("#publish_dialog")).not_to_be_visible()
+        page.get_by_role("button", name="Publish (manually)").click()
+        with_htmx_wait(page, lambda: dirty_dialog.get_by_role("button", name="Save and Continue").click())
+        publish_dialog = page.locator("#publish_dialog")
+        expect(publish_dialog).to_be_visible()
+        expect(page.get_by_placeholder("Description")).to_have_value("This is a test product.")
+        page.locator("#publisher_select").select_option(index=1)
+        with_htmx_wait(page, lambda: publish_dialog.get_by_role("button", name="Publish", exact=True).click())
+        expect(page.locator("#notification-bar")).to_contain_text("Product has no current render")
+        complete_render()
+        with_htmx_wait(page, lambda: publish_dialog.get_by_role("button", name="Publish", exact=True).click())
+        expect(page.locator("#notification-bar")).to_contain_text("Publishing Product scheduled")
+        assert not any(url.endswith("/render") for url in render_requests)
+        publish_dialog.get_by_role("button", name="Close", exact=True).click()
 
         page.get_by_test_id("copy-product").click()
         expect(page.get_by_role("heading", name="Create Product")).to_be_visible()

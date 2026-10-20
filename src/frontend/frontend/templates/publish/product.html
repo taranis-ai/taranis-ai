@@ -16,7 +16,7 @@
 {# djlint:off #}
 <div class="p-4"
      id="product"
-     {% if resume_action %}x-init="$nextTick(() => triggerAction('{{ resume_action }}'))"{% endif %}
+     {% if resume_action == 'publish' %}x-init="$nextTick(() => triggerAction('publish'))"{% endif %}
      x-data="
      {
         dirty: {{ 'true' if error or form_error else 'false' }},
@@ -331,6 +331,8 @@
                 <button class="btn btn-primary"
                         hx-post="{{ url_for('publish.product_publish', product_id=product.id) }}"
                         hx-target="#notification-bar"
+                        hx-status:4xx="target:#notification-bar"
+                        hx-status:5xx="target:#notification-bar"
                         hx-include="#publisher_select"
                         hx-swap="outerHTML">Publish</button>
                 <form method="dialog">
