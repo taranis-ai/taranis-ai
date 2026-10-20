@@ -23,6 +23,19 @@ def expected_search_trigger(input_id: str) -> str:
     return f"input changed delay:500ms from:#{input_id}, search from:#{input_id}"
 
 
+def test_tag_suggestions_preserve_search_query_and_upstream_order(authenticated_client, responses_mock):
+    query = "USA & 50%_#"
+    suggestions = [query, "USA & 50%_# partial"]
+    responses_mock.get(f"{Config.TARANIS_CORE_URL}/assess/taglist", json=suggestions)
+
+    response = authenticated_client.get(url_for("assess.get_tags"), query_string={"q": query})
+
+    assert response.status_code == 200
+    buttons = html.fromstring(response.text).xpath("//button")
+    assert [button.text_content().strip() for button in buttons] == suggestions
+    assert parse_qs(urlparse(responses_mock.calls[-1].request.url).query) == {"search": [query]}
+
+
 def test_news_item_order_returns_local_safe_error_when_core_is_unavailable(authenticated_client_basic, responses_mock, htmx_header):
     responses_mock.put(
         f"{Config.TARANIS_CORE_URL}/assess/stories/story-1/news-item-order",

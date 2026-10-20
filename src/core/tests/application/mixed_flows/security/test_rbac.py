@@ -43,6 +43,10 @@ class TestRBAC:
         assert response.status_code == 200
         assert response.json["tags"] == ["10-public", "11-shared"]
 
+        response = client.get("/api/assess/taglist", headers=auth_header_user_permissions, query_string={"limit": 2})
+        assert response.status_code == 200
+        assert response.json == ["10-public", "11-shared"]
+
     def test_selected_export_requires_read_access_to_every_item(self, client, session, auth_header_user_permissions):
         from core.model.news_item_attribute import NewsItemAttribute
         from core.model.role import Role

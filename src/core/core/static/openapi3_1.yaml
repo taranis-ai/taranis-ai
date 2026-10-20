@@ -6807,7 +6807,11 @@ paths:
       - UserAuth: []
       tags:
       - assess
-      description: get tag list
+      description: >-
+        Get unique non-report tag names from stories visible to the current user.
+        Search matches literal substrings case-insensitively. Exact names rank
+        first, followed by distinct story count descending and name ascending.
+        Pagination is applied after ranking (20 results by default).
       operationId: assess.taglist.get
       responses:
         '200':

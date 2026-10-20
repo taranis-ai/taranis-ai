@@ -470,6 +470,14 @@ class TestEndToEndUser(BaseE2ETest):
             tags[-1]["tag_type"] = "actor"
             response = core_request_client.put(f"/assess/news-items/{news_item_id}/tags", json_data=tags)
             assert response.ok
+            page.goto(assess_url)
+            tag_search = page.get_by_role("searchbox", name="Search tags", exact=True)
+            tag_search.fill(tags[-2]["name"].upper())
+            tag_search.press("ArrowRight")
+            suggestion = page.locator("#tag-filter-suggestion-list button").first
+            expect(suggestion).to_have_text(tags[-2]["name"])
+            with_htmx_wait(page, suggestion.click)
+            expect(page.locator('#selected-tags input[name="tags"]')).to_have_value(tags[-2]["name"])
             page.goto(url_for("assess.assess", tags=[tags[-2]["name"], "actor"], _external=True))
             card = page.locator(f'article[data-story-id="{story_id}"]')
             matches = card.locator("a.badge-primary")

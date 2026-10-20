@@ -294,7 +294,7 @@ class StoryTagList(MethodView):
             limit = min(int(request.args.get("limit", 20)), 200)
             offset = min(int(request.args.get("offset", 0)), (2**31) - 1)
             filter_args = {"limit": limit, "offset": offset, "search": search}
-            return news_item_tag.NewsItemTag.get_list(filter_args)
+            return news_item_tag.NewsItemTag.get_list(filter_args, user=current_user)
         except Exception:
             logger.exception()
             return {"error": "Failed to get Tags"}, 400
