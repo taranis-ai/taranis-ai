@@ -178,6 +178,9 @@ class TestRBAC:
         read_error, read_status = ReportItem.get_for_api(report_item_amber.id, clear_user)
         assert read_status == 403
         assert read_error == {"error": "User is not allowed to read report"}
+        editor_error, editor_status = ReportItem.get_editor_for_api(report_item_amber.id, clear_user)
+        assert editor_status == 403
+        assert editor_error == read_error
 
         blocked_report, update_error, update_status = ReportItem.get_report_item_and_check_permission(report_item_amber.id, clear_user)
         assert blocked_report is None
@@ -187,6 +190,9 @@ class TestRBAC:
         read_data, read_status = ReportItem.get_for_api(report_item_amber.id, amber_user)
         assert read_status == 200
         assert read_data["id"] == report_item_amber.id
+        editor_data, editor_status = ReportItem.get_editor_for_api(report_item_amber.id, amber_user)
+        assert editor_status == 200
+        assert editor_data["id"] == report_item_amber.id
 
         allowed_report, update_error, update_status = ReportItem.get_report_item_and_check_permission(report_item_amber.id, amber_user)
         assert allowed_report is not None
@@ -194,48 +200,24 @@ class TestRBAC:
         assert update_status == 200
         assert update_error == {}
 
-    def test_filter_report_query_with_tlp(self, report_items):
-        from core.model.report_item import ReportItem
+    @pytest.mark.parametrize(
+        ("level", "visible_indices"),
+        [(TLPLevel.CLEAR, (0, 3)), (TLPLevel.GREEN, (0, 3)), (TLPLevel.AMBER, (0, 1, 3)), (TLPLevel.RED, (0, 1, 2, 3))],
+    )
+    def test_filter_report_query_with_tlp(self, report_items, level, visible_indices):
+        from core.model.report_item import AttributeType, ReportItem, ReportItemAttribute
         from core.service.role_based_access import RoleBasedAccessService
 
-        report_item_clear, report_item_amber, report_item_red, report_item_without_TLP = report_items
+        clear_report, _, red_report, _ = report_items
+        clear_report.attributes.append(ReportItemAttribute(attribute_type=AttributeType.TLP, value="clear"))
+        red_report.attributes.append(ReportItemAttribute(attribute_type=AttributeType.TLP, value="clear"))
+        db.session.commit()
+        user = Mock()
+        user.get_highest_tlp.return_value = level
 
-        mock_user = Mock()
-        query = db.select(ReportItem)
-
-        # User has TLP:Clear -> Should see only Report Item with TLP:Clear
-        mock_user.get_highest_tlp.return_value = TLPLevel.CLEAR
-        filter_query = RoleBasedAccessService.filter_report_query_with_tlp(query, mock_user)
-        results = ReportItem.get_filtered(filter_query)
-        assert results
-        result_ids = {r.id for r in results}
-        assert {report_item_clear.id, report_item_without_TLP.id} == result_ids
-
-        # User has TLP:Green -> Should see only Report Item with TLP:Clear
-        mock_user.get_highest_tlp.return_value = TLPLevel.GREEN
-        filter_query = RoleBasedAccessService.filter_report_query_with_tlp(query, mock_user)
-        results = ReportItem.get_filtered(filter_query)
-        assert results
-
-        result_ids = {r.id for r in results}
-        assert {report_item_clear.id, report_item_without_TLP.id} == result_ids
-
-        # User has TLP:Amber -> Should see Report Items with TLP:Clear & TLP:Amber
-        mock_user.get_highest_tlp.return_value = TLPLevel.AMBER
-        filter_query = RoleBasedAccessService.filter_report_query_with_tlp(query, mock_user)
-        results = ReportItem.get_filtered(filter_query)
-        assert results
-        result_ids = {r.id for r in results}
-        assert {report_item_clear.id, report_item_amber.id, report_item_without_TLP.id} == result_ids
-
-        # User has TLP:Red -> Should see all Report Items
-        mock_user.get_highest_tlp.return_value = TLPLevel.RED
-
-        filter_query = RoleBasedAccessService.filter_report_query_with_tlp(query, mock_user)
-        results = ReportItem.get_filtered(filter_query)
-        assert results
-        result_ids = {r.id for r in results}
-        assert {report_item_clear.id, report_item_amber.id, report_item_red.id, report_item_without_TLP.id} == result_ids
+        results = ReportItem.get_filtered(RoleBasedAccessService.filter_report_query_with_tlp(db.select(ReportItem), user))
+        assert {report.id for report in results} == {report_items[index].id for index in visible_indices}
+        assert len(results) == len(visible_indices)
 
     def test_filter_query_with_tlp(self, stories_with_tlp):
         from core.model.story import Story
@@ -294,6 +276,157 @@ class TestRBAC:
 
 
 class TestRBACAclBehavior:
+    @pytest.mark.parametrize("restriction", ["acl", "tlp"])
+    @pytest.mark.parametrize(
+        "locked_change", [{"report_items": []}, {"product_type_id": "another-type"}, {"auto_publish": False}, {"default_publisher": None}]
+    )
+    def test_product_with_restricted_reports_allows_only_metadata_edits(
+        self, client, session, auth_header_user_permissions, restriction, locked_change, monkeypatch
+    ):
+        from core.managers import queue_manager
+        from core.model.product import Product
+        from core.model.product_type import ProductType
+        from core.model.publisher_preset import PublisherPreset
+        from core.model.report_item import AttributeType, ReportItem, ReportItemAttribute
+        from core.model.report_item_type import ReportItemType
+        from core.model.role import Role
+        from core.model.role_based_access import ItemType
+
+        report = create_rbac_report_item(f"product-choice-{restriction}", TLPLevel.RED if restriction == "tlp" else TLPLevel.CLEAR)
+        if restriction == "tlp":
+            report.attributes.append(ReportItemAttribute(title="Additional TLP", attribute_type=AttributeType.TLP, value="clear"))
+        role = Role.filter_by_name("User")
+        role.tlp_level = TLPLevel.CLEAR
+        grant_acl(role if restriction == "tlp" else Role.filter_by_name("Admin"), ItemType.REPORT_ITEM_TYPE, report.report_item_type_id)
+
+        visible_type = ReportItemType(f"Visible report type {restriction}")
+        session.add(visible_type)
+        session.flush()
+        grant_acl(role, ItemType.REPORT_ITEM_TYPE, visible_type.id)
+        visible_report = ReportItem("Visible report", visible_type.id)
+        session.add(visible_report)
+        session.flush()
+        product_type = ProductType.filter_by_title("Default TEXT Presenter")
+        product_type.report_types = [visible_type, ReportItemType.get(report.report_item_type_id)]
+        publisher = PublisherPreset.get_first(db.select(PublisherPreset))
+        product = Product(
+            "Restricted product",
+            product_type.id,
+            description="Original description",
+            report_items=[report.id, visible_report.id],
+            auto_publish=True,
+            default_publisher=publisher.id,
+        )
+        product.render_result = "ZXhpc3RpbmcgcmVuZGVy"
+        product.last_published_url = f"/reports/{product.id}"
+        session.add(product)
+        session.commit()
+        original_report_ids = {report.id, visible_report.id}
+        enqueue = Mock()
+        monkeypatch.setattr(queue_manager.queue_manager, "enqueue_task", enqueue)
+        monkeypatch.setattr(queue_manager.queue_manager, "enqueue_at", enqueue)
+
+        response = client.get(
+            "/api/publish/product-type-choices", headers=auth_header_user_permissions, query_string={"report_ids": [report.id]}
+        )
+        assert response.status_code == 404
+        assert response.json == {"error": "Selected reports not found or not accessible"}
+
+        detail = client.get(f"/api/publish/product-metadata/{product.id}", headers=auth_header_user_permissions)
+        assert detail.status_code == 200
+        assert detail.json["report_access_warning"] == Product.RESTRICTED_REPORTS_MESSAGE
+        assert set(detail.json["report_items"]) == original_report_ids
+        assert report.title not in str(detail.json["supported_reports"])
+        assert visible_report.id in {item["id"] for item in detail.json["supported_reports"]}
+
+        payload = {
+            "title": "Updated metadata",
+            "description": "Updated description",
+            "product_type_id": product_type.id,
+            "report_items": list(original_report_ids),
+            "auto_publish": True,
+            "default_publisher": publisher.id,
+        }
+        updated = client.put(f"/api/publish/products/{product.id}", headers=auth_header_user_permissions, json=payload)
+        assert updated.status_code == 200
+        assert updated.json["product"]["title"] == "Updated metadata"
+        assert updated.json["product"]["description"] == "Updated description"
+        assert updated.json["product"]["report_access_warning"] == Product.RESTRICTED_REPORTS_MESSAGE
+        assert report.title not in str(updated.json["product"]["supported_reports"])
+        rejected = client.put(f"/api/publish/products/{product.id}", headers=auth_header_user_permissions, json={**payload, **locked_change})
+        assert rejected.status_code == 403
+        assert rejected.json == {"error": Product.RESTRICTED_REPORTS_MESSAGE}
+
+        rendered = client.post(f"/api/publish/products/{product.id}/render", headers=auth_header_user_permissions)
+        assert rendered.status_code == 403
+        assert rendered.json == {"error": Product.RESTRICTED_REPORTS_MESSAGE}
+        published = client.post(f"/api/publish/products/{product.id}/publishers/{publisher.id}", headers=auth_header_user_permissions)
+        assert published.status_code == 403
+        assert published.json == {"error": Product.RESTRICTED_REPORTS_MESSAGE}
+        copied = client.post("/api/publish/products", headers=auth_header_user_permissions, json={**payload, "title": "Forbidden copy"})
+        assert copied.status_code == 404
+        assert Product.get_first(db.select(Product).where(Product.title == "Forbidden copy")) is None
+        empty_product = Product("Empty product", product_type.id)
+        session.add(empty_product)
+        session.commit()
+        attached = client.put(f"/api/publish/products/{empty_product.id}", headers=auth_header_user_permissions, json=payload)
+        assert attached.status_code == 404
+        assert empty_product.report_items == []
+        session.expire_all()
+        assert {item.id for item in product.report_items} == original_report_ids
+        assert product.render_result == "ZXhpc3RpbmcgcmVuZGVy"
+        assert product.last_published_url == f"/reports/{product.id}"
+        assert product.auto_publish is True
+        assert product.default_publisher == publisher.id
+        enqueue.assert_not_called()
+
+        if restriction == "tlp":
+            role.tlp_level = TLPLevel.RED
+        else:
+            grant_acl(role, ItemType.REPORT_ITEM_TYPE, report.report_item_type_id)
+        session.commit()
+        accessible = client.get(f"/api/publish/products/{product.id}", headers=auth_header_user_permissions)
+        assert accessible.status_code == 200
+        assert accessible.json["report_access_warning"] is None
+        assert original_report_ids <= {item["id"] for item in accessible.json["supported_reports"]}
+        assert client.put(f"/api/publish/products/{product.id}", headers=auth_header_user_permissions, json=payload).status_code == 200
+        enqueue.assert_called_once()
+
+    def test_product_choices_include_all_visible_products_without_render_data(self, client, session, auth_header_user_permissions):
+        from core.model.product import Product
+        from core.model.product_type import ProductType
+        from core.model.role import Role
+        from core.model.role_based_access import ItemType
+
+        visible_type = ProductType.filter_by_title("Default TEXT Presenter")
+        hidden_type = ProductType.filter_by_title("CERT Daily Report")
+        grant_acl(Role.filter_by_name("User"), ItemType.PRODUCT_TYPE, visible_type.id)
+        grant_acl(Role.filter_by_name("Admin"), ItemType.PRODUCT_TYPE, hidden_type.id)
+        products = [Product(f"Choice {index:02}", visible_type.id) for index in range(21)]
+        hidden = Product("Hidden choice", hidden_type.id)
+        session.add_all([*products, hidden])
+        session.flush()
+
+        response = client.get("/api/publish/product-choices", headers=auth_header_user_permissions)
+        assert response.status_code == 200
+        items = response.get_json()["items"]
+        assert {product.id for product in products} <= {item["id"] for item in items}
+        assert hidden.id not in {item["id"] for item in items}
+        assert all(set(item) == {"id", "title", "product_type_title"} for item in items)
+        assert [item["title"] for item in items] == sorted(item["title"] for item in items)
+
+        listed = client.get("/api/publish/products?search=Choice&fetch_all=true", headers=auth_header_user_permissions)
+        assert listed.status_code == 200
+        assert listed.json["total_count"] == 21
+        assert {item["id"] for item in listed.json["items"]} == {item.id for item in products}
+        types = client.get("/api/publish/product-type-choices", headers=auth_header_user_permissions)
+        assert types.status_code == 200
+        assert visible_type.id in {item["id"] for item in types.json["items"]}
+        assert hidden_type.id not in {item["id"] for item in types.json["items"]}
+        for path in [f"products/{hidden.id}", f"product-metadata/{hidden.id}", f"products/{hidden.id}/render"]:
+            assert client.get(f"/api/publish/{path}", headers=auth_header_user_permissions).status_code == 403
+        assert client.get(f"/api/publish/product-metadata/{products[0].id}", headers=auth_header_user_permissions).status_code == 200
+
     def test_admin_operations_bypasses_acl_filtering_but_not_tlp(self, session):
         from core.model.report_item import ReportItem
         from core.model.role import Role

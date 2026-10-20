@@ -25,6 +25,7 @@ Read matching memories before planning or editing related features, routes, mode
 - [Assess Filters](assess-filters.md): sidebar queries, saved filters, pagination, and cache invalidation.
 - [Story Bookmarks](story-bookmarks.md): private collections, ordering, and Assess action context.
 - [Analyst Review](analyst-review.md): Shift/Unread triage and Report-to-Publish handoff.
+- [Analyze Reports](analyze-reports.md): report lists/editors, story-count sorting, lightweight publishing choices, and cache contracts.
 - [Dashboard Cards](dashboard-cards.md): workflow counts and UTC week boundaries.
 - [PizzINT Dashboard](pizzint-dashboard.md): opt-in external signal, cache, and stale fallback.
 - [OSINT Source Management](osint-source-management.md): bulk creation/deletion, curated lists, and transactions.

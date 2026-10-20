@@ -2,7 +2,7 @@ from typing import Any, ClassVar, Literal
 
 from flask import render_template, request, url_for
 from markupsafe import Markup, escape
-from models.admin import AdminMenuBadges, Bot, Settings, WordList
+from models.admin import Bot, Settings, WordList
 from models.llm import LLM_BOT_FEATURES
 from models.types import BOT_TYPES
 from werkzeug.exceptions import HTTPException
@@ -81,18 +81,7 @@ class BotView(AdminBaseView):
 
     @classmethod
     def get_admin_menu_badge(cls) -> int:
-        try:
-            badges = DataPersistenceLayer().get_object(AdminMenuBadges)
-            if not badges:
-                return 0
-
-            return int(getattr(badges, "bot", 0) or 0)
-        except HTTPException:
-            raise
-        except Exception:
-            logger.exception("Error retrieving bot admin menu badge")
-
-        return 0
+        return cls.get_admin_menu_badges().bot
 
     @classmethod
     def get_admin_menu_badge_route(cls) -> str:

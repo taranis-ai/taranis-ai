@@ -1,12 +1,16 @@
 import json
 from typing import Any, ClassVar
 
-from flask import current_app
+from flask import current_app, request
 from flask.typing import ResponseReturnValue
 from jinja2 import TemplateNotFound
+from models.admin import AdminMenuBadges
 from models.worker_parameters import parameter_schema
+from werkzeug.exceptions import HTTPException
 
 from frontend.auth import admin_required
+from frontend.data_persistence import DataPersistenceLayer
+from frontend.log import logger
 from frontend.views.base_view import BaseView
 
 
@@ -22,6 +26,18 @@ class AdminBaseView(BaseView):
     @classmethod
     def get_sidebar_template(cls) -> str:
         return "partials/admin_sidebar.html"
+
+    @staticmethod
+    def get_admin_menu_badges() -> AdminMenuBadges:
+        if "taranis.admin_menu_badges" not in request.environ:
+            try:
+                request.environ["taranis.admin_menu_badges"] = DataPersistenceLayer().get_object(AdminMenuBadges) or AdminMenuBadges()
+            except HTTPException:
+                raise
+            except Exception:
+                logger.exception("Error retrieving admin menu badges")
+                request.environ["taranis.admin_menu_badges"] = AdminMenuBadges()
+        return request.environ["taranis.admin_menu_badges"]
 
     @classmethod
     def _common_context(cls, error: str | None = None, object_id: str = "0") -> dict[str, Any]:

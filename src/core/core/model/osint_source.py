@@ -11,7 +11,7 @@ from models.admin import OSINTSource as OSINTSourceModel
 from models.scheduler import StoredTaskResult
 from models.types import COLLECTOR_TYPES
 from PIL import Image, ImageOps, UnidentifiedImageError
-from sqlalchemy import String, and_, cast, func, literal
+from sqlalchemy import String, and_, cast, func, literal, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Mapped, deferred, relationship
 from sqlalchemy.sql import Select
@@ -228,8 +228,6 @@ class OSINTSource(BaseModel):
     @property
     def status(self):
         if task_result := TaskModel.get_latest_matching(
-            exact_ids={self.task_id},
-            prefixes=[self.cron_run_prefix],
             task_name="collector_task",
             worker_id=self.id,
         ):
@@ -357,24 +355,26 @@ class OSINTSource(BaseModel):
 
     @classmethod
     def get_current_failure_count(cls) -> int:
-        query = db.select(func.count()).select_from(cls).where(cls._latest_task_status() == "FAILURE")
+        query = db.select(func.count()).select_from(cls).where(cls.id.in_(cls._failed_worker_ids()))
         return db.session.execute(query).scalar_one()
 
     @classmethod
-    def _latest_task_status(cls):
-        task_id = func.concat(literal("collect_"), func.lower(cast(cls.type, String)), literal("_"), cls.id)
-        cron_prefix = func.concat(literal("cron_osint_source_"), cls.id, literal("_%"))
-        return (
-            db.select(TaskModel.status)
-            .where(
-                TaskModel.task == "collector_task",
-                db.or_(TaskModel.job_id == task_id, TaskModel.job_id.like(cron_prefix), TaskModel.worker_id == cls.id),
+    def _failed_worker_ids(cls):
+        latest = (
+            select(
+                TaskModel.worker_id,
+                TaskModel.status,
+                func.row_number()
+                .over(
+                    partition_by=TaskModel.worker_id,
+                    order_by=(TaskModel.last_run.desc(), TaskModel.last_success.desc(), TaskModel.job_id.desc()),
+                )
+                .label("position"),
             )
-            .order_by(TaskModel.last_run.desc(), TaskModel.last_success.desc(), TaskModel.job_id.desc())
-            .limit(1)
-            .correlate(cls)
-            .scalar_subquery()
+            .where(TaskModel.task == "collector_task", TaskModel.worker_id.is_not(None))
+            .subquery()
         )
+        return db.select(latest.c.worker_id).where(latest.c.position == 1, latest.c.status == "FAILURE")
 
     @staticmethod
     def _filter_manual_enabled(value: Any) -> bool:
@@ -405,7 +405,7 @@ class OSINTSource(BaseModel):
             query = query.where(cls.type != COLLECTOR_TYPES.MANUAL_COLLECTOR)
 
         if str(filter_args.get("state") or "").strip().lower() == "failure":
-            query = query.where(cls._latest_task_status() == "FAILURE")
+            query = query.where(cls.id.in_(cls._failed_worker_ids()))
 
         return query
 

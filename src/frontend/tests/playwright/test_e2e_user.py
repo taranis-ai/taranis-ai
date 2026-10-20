@@ -1,6 +1,7 @@
 import json
 import re
 import uuid
+from base64 import b64encode
 from pathlib import Path
 
 import pytest
@@ -1417,7 +1418,14 @@ class TestEndToEndUser(BaseE2ETest):
         page.goto(url_for("analyze.report", report_id=report_id, _external=True))
         expect(page.get_by_text("403 - Access denied")).to_be_visible()
 
-    def test_publish(self, non_admin_logged_in_page: Page, forward_console_and_page_errors_non_admin, stories_session_wrapper):
+    def test_publish(
+        self,
+        non_admin_logged_in_page: Page,
+        forward_console_and_page_errors_non_admin,
+        stories_session_wrapper,
+        core_request_client,
+        api_header,
+    ):
         page = non_admin_logged_in_page
         product_title = f"test_product_{str(uuid.uuid4())[:8]}"
 
@@ -1430,13 +1438,7 @@ class TestEndToEndUser(BaseE2ETest):
             self.highlight_element(page.get_by_test_id("new-product-button")).click()
             expect(page.get_by_test_id("product-form")).to_be_visible()
             product_type_select = page.get_by_label("Product Type * Select an item")
-            product_type_options = product_type_select.locator("option").evaluate_all(
-                """options => options
-                .filter(option => option.value)
-                .map(option => ({ value: option.value, label: option.textContent?.trim() ?? "" }))"""
-            )
-            assert product_type_options, "No product type options available for product creation"
-            self.highlight_element(product_type_select).select_option(product_type_options[0]["value"])
+            self.highlight_element(product_type_select).select_option(label="Default html tailwindcss Presenter")
 
             self.highlight_element(page.get_by_placeholder("Title")).fill(product_title)
             page.get_by_placeholder("Description").fill("This is a test product.")
@@ -1448,6 +1450,40 @@ class TestEndToEndUser(BaseE2ETest):
         expect(page.locator("[data-product-report-items-enhanced]")).to_be_visible()
         source_url = page.url
         product_type = page.locator("#product_type_id").input_value()
+
+        product_id = source_url.rstrip("/").rsplit("/", 1)[-1]
+        render_data = core_request_client.json_request("GET", f"/worker/products/{product_id}", headers=api_header, authenticated=False)
+        rendered_html = b64encode(b"<p>Product preview content</p>").decode()
+        core_request_client.post(
+            "/tasks",
+            headers=api_header,
+            authenticated=False,
+            json_data={
+                "id": f"preview-{uuid.uuid4()}",
+                "task": "presenter_task",
+                "status": "SUCCESS",
+                "result": {
+                    "message": "ok",
+                    "retryable": False,
+                    "data": {"product_id": product_id, "render_result": rendered_html, "render_revision": render_data["render_revision"]},
+                },
+            },
+        )
+        page.reload()
+        preview = page.get_by_test_id("html-render")
+        expect(page.get_by_test_id("load-product-preview")).to_be_visible()
+        expect(preview).to_have_count(0)
+        page.get_by_test_id("load-product-preview").click()
+        expect(preview).to_be_visible()
+        expect(preview).to_have_attribute("sandbox", "")
+        expect(preview).to_have_attribute("src", re.compile(r"^data:text/html;charset=utf-8;base64,"))
+        expect(page.frame_locator('[data-testid="html-render"]').locator("body")).not_to_be_empty()
+
+        with_htmx_wait(page, lambda: page.get_by_test_id("save-product").click())
+        expect(preview).to_have_count(0)
+        page.get_by_test_id("load-product-preview").click()
+        expect(preview).to_have_count(1)
+        expect(preview).to_have_attribute("sandbox", "")
 
         page.get_by_test_id("copy-product").click()
         expect(page.get_by_role("heading", name="Create Product")).to_be_visible()

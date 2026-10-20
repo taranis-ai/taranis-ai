@@ -133,6 +133,8 @@ Make sure the paths are correct. Some distributions use a different nginx config
 Existing installed nginx configurations are not updated automatically when `dev/nginx.conf` changes. Public product publishing requires the active server block to include the tracked `/reports` proxy; recopy or update the installed configuration before validating that route.
 Chat requires the tracked `/chat/` proxy with `proxy_read_timeout 660s` to cover the frontend's 600-second request timeout. Recopy the configuration and reload Nginx when updating an existing development setup.
 
+For `IncompleteRead` or `ERR_CONTENT_LENGTH_MISMATCH`, check Nginx's error log for `proxy_temp` permission failures after mixing root/per-user instances. Match ownership to the worker shown by `ps -Ao user,comm | rg nginx`; for a Homebrew worker running as `nobody`, use `sudo chown -R nobody:admin "$(brew --prefix)/var/run/nginx/proxy_temp"`. Keep private permissions and proxy buffering enabled. No reload is needed; verify the failing response completes without new permission errors.
+
 ```bash
 # Debian based example
 sudo cp dev/nginx.conf /etc/nginx/sites-available/local.taranis.ai

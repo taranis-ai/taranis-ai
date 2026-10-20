@@ -1333,7 +1333,7 @@ class TestWorkerTaskResults:
         from core.model.osint_source import OSINTSource
         from core.model.task import Task
 
-        source_id = f"cron-failure-{uuid.uuid4().hex}"
+        source_id = str(uuid.uuid7())
         source = {
             "id": source_id,
             "name": f"Cron Failure Source {source_id}",

@@ -2,7 +2,6 @@ import contextlib
 import os
 import sys
 from unittest.mock import patch
-from urllib.parse import urlparse
 
 import fakeredis
 import pytest
@@ -21,20 +20,21 @@ load_dotenv(dotenv_path=env_file, override=True)
 
 
 @pytest.fixture(scope="session")
-def app():
+def app(tmp_path_factory):
     from core.__init__ import create_app
+    from core.config import Config
 
-    with contextlib.suppress(Exception):
-        parsed_uri = urlparse(os.getenv("SQLALCHEMY_DATABASE_URI"))
-        print(f"Cleaning up database file at {parsed_uri.path} before tests")
-        os.remove(f"{parsed_uri.path}")
-
+    database_uri = f"sqlite:///{tmp_path_factory.mktemp('core-db') / 'test.db'}"
     redis_server = fakeredis.FakeServer()
 
     def isolated_redis_from_url(url, *args, **kwargs):
         return fakeredis.FakeRedis.from_url(url, *args, server=redis_server, **kwargs)
 
-    with patch("redis.Redis.from_url", side_effect=isolated_redis_from_url):
+    with (
+        patch.dict(os.environ, {"SQLALCHEMY_DATABASE_URI": database_uri}),
+        patch.multiple(Config, SQLALCHEMY_DATABASE_URI=database_uri, SQLALCHEMY_DATABASE_URI_MASK=database_uri),
+        patch("redis.Redis.from_url", side_effect=isolated_redis_from_url),
+    ):
         app = create_app()
         # Scheduling workflows opt in explicitly; development seeds stay disabled.
         with app.app_context():
@@ -50,10 +50,6 @@ def app():
         )
 
         yield app
-
-    with contextlib.suppress(Exception):
-        parsed_uri = urlparse(os.getenv("SQLALCHEMY_DATABASE_URI"))
-        # os.remove(f"{parsed_uri.path}")
 
 
 @pytest.fixture(scope="session")

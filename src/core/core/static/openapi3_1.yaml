@@ -444,6 +444,34 @@ paths:
           $ref: '#/components/responses/401Unauthorized'
         '404':
           $ref: '#/components/responses/404NotFound'
+  /analyze/report-editors/{report_item_id}:
+    parameters:
+    - name: report_item_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    get:
+      security:
+      - UserAuth: []
+      tags:
+      - analyze
+      operationId: analyze.report_editor.get
+      description: Read the report form with linked Story summaries. Requires ANALYZE_ACCESS and report ACL/TLP access. Full Story content remains available from the report-items detail endpoint.
+      responses:
+        '200':
+          description: Report form fields, grouped_attributes, used_story_ids, revision_count, and stories containing only id, title, summary, important, and links.
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: Report access denied
+        '404':
+          $ref: '#/components/responses/404NotFound'
   /analyze/report-items:
     get:
       security:
@@ -5013,6 +5041,46 @@ paths:
           description: forbidden
         '404':
           $ref: '#/components/responses/404NotFound'
+  /config/osint-source-groups/options:
+    get:
+      tags: [config]
+      description: >-
+        Get IDs and names for source-group form options. Excludes manual sources
+        and includes only word lists with collector-includelist usage. Requires
+        CONFIG_OSINT_SOURCE_GROUP_ACCESS, CONFIG_OSINT_SOURCE_ACCESS, and
+        CONFIG_WORD_LIST_ACCESS.
+      operationId: config.config_osint_source_group_options.get
+      security:
+      - UserAuth: []
+      responses:
+        '200':
+          description: options ordered by name, without source details or word-list entries
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [osint_sources, word_lists]
+                properties:
+                  osint_sources:
+                    type: array
+                    items:
+                      type: object
+                      required: [id, name]
+                      properties:
+                        id: {type: string}
+                        name: {type: string}
+                  word_lists:
+                    type: array
+                    items:
+                      type: object
+                      required: [id, name]
+                      properties:
+                        id: {type: string}
+                        name: {type: string}
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: forbidden
   /config/osint-source-groups/{group_id}:
     parameters:
     - name: group_id
@@ -5546,6 +5614,20 @@ paths:
         in: query
         schema:
           type: string
+      - name: order
+        in: query
+        description: Sort before pagination with a stable Product ID tie breaker. Defaults to created_desc.
+        schema:
+          type: string
+          enum: [title_asc, title_desc, created_asc, created_desc, type_asc, type_desc, report_items_asc, report_items_desc]
+      - name: page
+        in: query
+        schema:
+          type: integer
+      - name: fetch_all
+        in: query
+        schema:
+          type: boolean
       - name: offset
         in: query
         schema:
@@ -8814,6 +8896,107 @@ paths:
           description: forbidden
         '404':
           $ref: '#/components/responses/404NotFound'
+  /publish/product-choices:
+    get:
+      security:
+      - UserAuth: []
+      tags:
+      - publish
+      operationId: publish.product_choices.get
+      description: All ACL-visible Product choices ordered by title and ID. Requires PUBLISH_ACCESS. Does not load rendered output or presenter parameters.
+      responses:
+        '200':
+          description: Product choice catalog
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      required: [id, title, product_type_title]
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        title:
+                          type: string
+                        product_type_title:
+                          type: string
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: Publishing access denied
+  /publish/product-metadata/{product_id}:
+    parameters:
+    - name: product_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    get:
+      security:
+      - UserAuth: []
+      tags: [publish]
+      operationId: publish.product_metadata.get
+      description: Product fields and compatible report metadata without fetching or returning the render. Requires PUBLISH_ACCESS and Product Type read access; compatible reports obey ACL/TLP visibility.
+      responses:
+        '200':
+          description: Product metadata without render_result
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: Product access denied
+        '404':
+          $ref: '#/components/responses/404NotFound'
+  /publish/product-type-choices:
+    get:
+      security:
+      - UserAuth: []
+      tags: [publish]
+      operationId: publish.product_type_choices.get
+      description: ACL-visible Product Type IDs/titles, ordered by title/ID. With report_ids, only types supporting every selected typed report are returned; untyped reports impose no restriction. Requires PUBLISH_ACCESS. Presenter parameters are omitted.
+      parameters:
+      - name: report_ids
+        in: query
+        description: Selected Report IDs, repeated for multiple reports. Omit for all visible types. All selected reports must exist and pass Report Type ACL and TLP checks.
+        schema:
+          type: array
+          items:
+            type: string
+        style: form
+        explode: true
+      responses:
+        '200':
+          description: Product Type catalog
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      required: [id, title]
+                      properties:
+                        id:
+                          type: string
+                        title:
+                          type: string
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: Publishing access denied
+        '404':
+          description: One or more selected reports do not exist or are not accessible. No partial catalog is returned.
   /publish/product-types:
     get:
       security:
@@ -11301,6 +11484,14 @@ components:
     product_base:
       type: object
       properties:
+        report_access_warning:
+          type: [string, 'null']
+          readOnly: true
+          description: >-
+            Present when linked reports are restricted by Report Type ACL or TLP.
+            Only title and description may be changed; report links, type, and publishing
+            settings are preserved. Copying, rendering, and publishing are unavailable.
+            Metadata saves do not queue rendering or change the existing render/publication.
         id:
           type: string
         title:

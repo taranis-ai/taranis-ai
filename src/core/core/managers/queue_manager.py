@@ -1002,6 +1002,8 @@ class QueueManager:
 
         if not (product := Product.get(product_id)) or not product.product_type:
             return {"error": "Product not found"}, 404
+        if user_id and (error := product.get_action_error(user_id)):
+            return {"error": error}, 403
         try:
             effective_parameters(product.product_type.type, product.product_type.parameters)
         except ValueError as exc:
@@ -1044,9 +1046,14 @@ class QueueManager:
 
     def publish_product(self, product_id: str, publisher_id: str, user_id: str | None = None):
         """Publish product"""
+        from core.model.product import Product
         from core.model.publisher_preset import PublisherPreset
         from core.service.worker_parameters import effective_parameters
 
+        if not (product := Product.get(product_id)) or not product.product_type:
+            return {"error": "Product not found"}, 404
+        if user_id and (error := product.get_action_error(user_id)):
+            return {"error": error}, 403
         if not (publisher := PublisherPreset.get(publisher_id)):
             return {"error": "Publisher preset not found"}, 404
         try:
@@ -1645,6 +1652,8 @@ class QueueManager:
 
         if not (product := Product.get(product_id)) or not product.product_type:
             return {"error": "Product not found"}, 404
+        if user_id and (error := product.get_action_error(user_id)):
+            return {"error": error}, 403
         if not (publisher := PublisherPreset.get(auto_publisher_id)):
             return {"error": "Publisher preset not found"}, 404
         try:

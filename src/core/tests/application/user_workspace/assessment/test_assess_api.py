@@ -32,6 +32,7 @@ class TestAssessApi(BaseTest):
         assert job.kwargs["filter"] == {"story_id": story.id}
         assert job.meta["user_id"] == User.find_by_name("admin").id
 
+    @pytest.mark.filterwarnings("error:Object of type <NewsItem> not in session:sqlalchemy.exc.SAWarning")
     def test_order_saves_without_changing_content_and_rejects_stale_or_invalid_requests(self, client, auth_header, session):
         from core.managers.db_manager import db
         from tests.application.support.builders import build_news_item_payload, create_story

@@ -14,7 +14,7 @@ from requests import RequestException
 from werkzeug.datastructures import MultiDict
 from werkzeug.exceptions import Forbidden
 
-from frontend.cache import add_user_to_cache
+from frontend.cache import add_user_to_cache, cache
 from frontend.config import Config
 from frontend.views.story_views import ASSESS_SAVED_FILTER_SESSION_KEY, StoryView
 
@@ -48,6 +48,54 @@ def mock_story_for_edit(responses_mock, story_payload: dict):
         f"{Config.TARANIS_CORE_URL}/assess/stories/{story_payload['id']}",
         json=story_payload,
     )
+
+
+def test_story_details_share_filter_lists_only_within_each_request(authenticated_client, auth_user, responses_mock, monkeypatch):
+    monkeypatch.setattr(cache, "client", None)
+    responses_mock.get(f"{Config.TARANIS_CORE_URL}/users", json=auth_user.model_dump(mode="json"))
+    story_payload = story_with_news_item_tags()
+    mock_story_for_edit(responses_mock, story_payload)
+    responses_mock.get(f"{Config.TARANIS_CORE_URL}/assess/bookmarks", json={"items": [], "total_count": 0})
+    filter_url = f"{Config.TARANIS_CORE_URL}/assess/filter-lists"
+
+    responses_mock.replace("GET", filter_url, json={"sources": [{"id": "manual", "name": "First source"}], "tags": [], "groups": []})
+    first = authenticated_client.get(url_for("assess.story", story_id=story_payload["id"]))
+    assert first.status_code == 200
+    assert "First source" in first.text
+    assert len([call for call in responses_mock.calls if call.request.url == filter_url]) == 1
+
+    responses_mock.replace("GET", filter_url, json={"sources": [{"id": "manual", "name": "Updated source"}], "tags": [], "groups": []})
+    second = authenticated_client.get(url_for("assess.story", story_id=story_payload["id"]))
+    assert second.status_code == 200
+    assert "Updated source" in second.text
+    assert len([call for call in responses_mock.calls if call.request.url == filter_url]) == 2
+
+
+@pytest.mark.parametrize("htmx", [True, False])
+def test_assess_upstream_failure_returns_safe_error_page(authenticated_client, responses_mock, htmx_header, htmx):
+    responses_mock.get(f"{Config.TARANIS_CORE_URL}/assess/stories", body=RequestException("private upstream details"))
+    responses_mock.get(f"{Config.TARANIS_CORE_URL}/assess/filter-lists", json={"sources": [], "tags": [], "groups": []})
+    responses_mock.get(f"{Config.TARANIS_CORE_URL}/assess/bookmarks", json={"items": [], "total_count": 0})
+    response = authenticated_client.get(url_for("assess.assess"), headers=htmx_header if htmx else {})
+    assert response.status_code == 502
+    assert "Unable to load stories. Please try again." in response.text
+    assert "private upstream details" not in response.text
+    if htmx:
+        tree = html.fromstring(response.text)
+        assert tree.tag == "section" and tree.get("id") == "notification-bar"
+        assert tree.get("hx-swap-oob") is None
+
+        responses_mock.post(f"{Config.TARANIS_CORE_URL}/assess/stories/bulk_action", json={"message": "Stories updated"})
+        response = authenticated_client.post(
+            url_for("assess.bulk_action"), headers=htmx_header, data={"action": "read", "value": "true", "story_ids": ["story-1"]}
+        )
+        assert response.status_code == 502
+        tree = html.fromstring(response.text)
+        assert tree.tag == "section" and tree.get("id") == "notification-bar"
+        assert tree.get("hx-swap-oob") is None
+        assert "Unable to load stories. Please try again." in tree.text_content()
+        assert "Stories updated" not in tree.text_content()
+        assert "private upstream details" not in tree.text_content()
 
 
 @pytest.mark.parametrize(
@@ -704,6 +752,11 @@ def test_assess_filters_support_htmx_and_native_form_submission(authenticated_cl
     assert clear_button.get("hx-include") == "#assess-sidebar"
     assert filter_form.get("hx-target:inherited") == "#assess"
     assert filter_form.get("hx-swap:inherited") == "outerHTML"
+    notification_rule = "target:#notification-bar select:#notification-bar swap:outerHTML"
+    assert filter_form.get("hx-status:5xx:inherited") == notification_rule
+    buttons = tree.xpath('//button[@data-testid="bulk-toggle-read" or @data-testid="bulk-toggle-important" or @data-testid="delete-story"]')
+    assert len(buttons) >= 3
+    assert all(button.get("hx-status:5xx") == notification_rule for button in buttons)
     assert filter_form.get("hx-push-url:inherited") == "true"
     assert clear_button.get("hx-on::config:request") == (
         "ctx.request.body.delete('timefrom'); ctx.request.body.delete('timeto'); ctx.request.body.delete('range')"

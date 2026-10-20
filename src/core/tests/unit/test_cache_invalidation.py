@@ -1,4 +1,5 @@
 import fakeredis
+import pytest
 
 from core.service.cache_invalidation import (
     SCOPE_ASSESS_VIEWS,
@@ -140,3 +141,18 @@ def test_invalidate_scope_user_views_clears_user_facing_content_models(monkeypat
 
     assert deleted == 11
     assert set(service._client.scan_iter(match="*")) == {"taranis_frontend:user:alice:model:asset:list:one"}
+
+
+@pytest.mark.parametrize("scope", ["publish_views", "report_views", "story_views", "story_report_views", "user_views"])
+def test_product_metadata_cache_is_cleared_with_product_choices(monkeypatch, scope):
+    monkeypatch.setattr("core.service.cache_invalidation.Config.CACHE_ENABLED", True)
+    monkeypatch.setattr("core.service.cache_invalidation.Config.CACHE_KEY_PREFIX", "taranis_frontend")
+    models = ["product", "product_metadata"]
+    if scope != "publish_views":
+        models += ["report_editor", "product_type"]
+    keys = [f"taranis_frontend:user:{user}:model:{model}:detail:one" for user in ("alice", "bob") for model in models]
+    untouched = "taranis_frontend:user:alice:model:asset:list:one"
+    service = _build_service([*keys, untouched])
+
+    assert service.invalidate_scope(scope, object_ids={"report": "one"}) == len(keys)
+    assert list(service._client.scan_iter()) == [untouched]
