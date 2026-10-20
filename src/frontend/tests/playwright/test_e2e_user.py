@@ -479,8 +479,8 @@ class TestEndToEndUser(BaseE2ETest):
             suggestions = page.locator("#tag-filter-suggestion-list button")
             expect(suggestions).to_have_count(2)
             for button in suggestions.all():
-                expect(button.get_by_test_id("tag-suggestion-count")).to_have_text("1")
-                label = button.get_by_test_id("tag-suggestion-name")
+                expect(button.locator('[data-test-id="tag-suggestion-count"]')).to_have_text("1")
+                label = button.locator('[data-test-id="tag-suggestion-name"]')
                 assert button.get_attribute("title") == label.inner_text()
                 assert label.evaluate("el => el.scrollWidth > el.clientWidth && getComputedStyle(el).textOverflow === 'ellipsis'")
                 assert button.evaluate("el => el.scrollWidth <= el.clientWidth")
@@ -489,8 +489,8 @@ class TestEndToEndUser(BaseE2ETest):
             tag_search.fill(tags[-2]["name"].upper())
             tag_search.press("ArrowRight")
             suggestion = page.locator("#tag-filter-suggestion-list button").first
-            expect(suggestion.get_by_test_id("tag-suggestion-name")).to_have_text(tags[-2]["name"])
-            expect(suggestion.get_by_test_id("tag-suggestion-count")).to_have_text("1")
+            expect(suggestion.locator('[data-test-id="tag-suggestion-name"]')).to_have_text(tags[-2]["name"])
+            expect(suggestion.locator('[data-test-id="tag-suggestion-count"]')).to_have_text("1")
             with_htmx_wait(page, suggestion.click)
             expect(page.locator('#selected-tags input[name="tags"]')).to_have_value(tags[-2]["name"])
             page.goto(url_for("assess.assess", tags=[tags[-2]["name"], "actor"], _external=True))
