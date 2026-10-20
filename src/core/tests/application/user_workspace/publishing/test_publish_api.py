@@ -210,8 +210,11 @@ class TestPublishApi(BaseTest):
         from core.model.product import Product
         from core.model.role import Role
         from core.model.role_based_access import ItemType, RoleBasedAccess
+        from tests.application.support.rbac import grant_acl
 
         with app.app_context():
+            current_type_acl = grant_acl(Role.filter_by_name("User"), ItemType.PRODUCT_TYPE, product_type_change_resources["initial_type_id"])
+            current_type_acl_id = current_type_acl.id
             admin_role = Role.filter_by_name("Admin")
             assert admin_role is not None
             acl = RoleBasedAccess(
@@ -246,6 +249,7 @@ class TestPublishApi(BaseTest):
                 assert product.product_type_id == product_type_change_resources["initial_type_id"]
         finally:
             with app.app_context():
+                RoleBasedAccess.delete(current_type_acl_id)
                 if RoleBasedAccess.get(acl_id):
                     RoleBasedAccess.delete(acl_id)
 

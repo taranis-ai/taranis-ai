@@ -25,6 +25,8 @@ from core.service.role_based_access import RBACQuery, RoleBasedAccessService
 class Product(BaseModel):
     __tablename__ = "product"
 
+    RESTRICTED_REPORTS_MESSAGE = "Some linked reports are restricted; only title and description can be edited."
+
     id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), primary_key=True, default=BaseModel.uuid7_str)
     title: Mapped[str] = db.Column(db.String(), nullable=False)
     description: Mapped[str] = db.Column(db.String())
@@ -95,6 +97,26 @@ class Product(BaseModel):
             )
         )
         return list(db.session.execute(query).scalars().all())
+
+    def has_restricted_reports(self, user: User | None) -> bool:
+        if user is None or not self.report_items:
+            return False
+        report_ids = {report.id for report in self.report_items}
+        query = db.select(ReportItem.id).outerjoin(ReportItemType).where(ReportItem.id.in_(report_ids))
+        query = RoleBasedAccessService.filter_query_with_acl(query, RBACQuery(user=user, resource_type=ItemType.REPORT_ITEM_TYPE))
+        query = RoleBasedAccessService.filter_report_query_with_tlp(query, user)
+        return report_ids != set(db.session.execute(query).scalars())
+
+    def get_action_error(self, user_id: str | None) -> str | None:
+        if user_id is None:
+            return None
+        user = User.get(user_id)
+        if not user or not self.product_type.allowed_with_acl(user, require_write_access=False):
+            return "User is not allowed to access product"
+        if self.has_restricted_reports(user):
+            logger.info("Blocked product action for user %s: product %s has restricted reports", user_id, self.id)
+            return self.RESTRICTED_REPORTS_MESSAGE
+        return None
 
     @classmethod
     def get_filter_query(cls, filter_args: dict) -> Select:
@@ -184,6 +206,7 @@ class Product(BaseModel):
 
     def to_detail_dict(self, user: User | None = None, *, include_render: bool = True) -> dict[str, Any]:
         data = self.to_dict()
+        data["report_access_warning"] = self.RESTRICTED_REPORTS_MESSAGE if self.has_restricted_reports(user) else None
         data["supported_reports"] = [r.to_supported_products_dict() for r in self.get_supported_reports(user)]
         if include_render:
             data["render_result"] = self.render_result
@@ -258,6 +281,28 @@ class Product(BaseModel):
         product = Product.get(product_id)
         if product is None:
             return {"error": "Product not found"}, 404
+        if user and not product.product_type.allowed_with_acl(user, require_write_access=False):
+            return {"error": "User is not allowed to access product"}, 403
+
+        if product.has_restricted_reports(user):
+            locked_values = {
+                "product_type_id": product.product_type_id,
+                "auto_publish": product.auto_publish,
+                "default_publisher": product.default_publisher,
+            }
+            changed_reports = "report_items" in data and set(data["report_items"] or []) != {report.id for report in product.report_items}
+            if changed_reports or any(key in data and data[key] != value for key, value in locked_values.items()):
+                return {"error": cls.RESTRICTED_REPORTS_MESSAGE}, 403
+            if title := data.get("title"):
+                product.title = title
+            if "description" in data:
+                product.description = data["description"]
+            db.session.commit()
+            return {
+                "message": "Product details updated. Rendering was skipped because some linked reports are restricted.",
+                "id": product.id,
+                "product": product.to_detail_dict(user=user),
+            }, 200
 
         product_type = ProductType.get(data.get("product_type_id", product.product_type_id))
         if product_type is None:
@@ -266,6 +311,10 @@ class Product(BaseModel):
             return {"error": "User does not have access to this product type"}, 403
 
         report_item_ids = data.get("report_items")
+        if user and report_item_ids:
+            response, status = ProductType.get_choices_for_api(user, report_item_ids)
+            if status != 200:
+                return response, status
         report_items = product.report_items if report_item_ids is None else ReportItem.get_bulk(report_item_ids)
         selected_report_type_ids = {report_item.report_item_type_id for report_item in report_items if report_item.report_item_type_id}
         if not product_type.supports_report_types(selected_report_type_ids):
@@ -300,7 +349,7 @@ class Product(BaseModel):
 
         db.session.commit()
         queue_manager.queue_manager.generate_product(product.id, user_id=user.id if user else None)
-        return {"message": "Product updated", "id": product.id, "product": product.to_detail_dict()}, 200
+        return {"message": "Product updated", "id": product.id, "product": product.to_detail_dict(user=user)}, 200
 
     @classmethod
     def get_for_worker(cls, item_id: str) -> tuple[dict[str, Any], int]:

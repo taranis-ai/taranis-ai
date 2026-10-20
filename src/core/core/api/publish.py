@@ -57,9 +57,15 @@ class Products(MethodView):
 
     @auth_required("PUBLISH_CREATE")
     def post(self):
+        if report_ids := request.json.get("report_items"):
+            response, status = product_type.ProductType.get_choices_for_api(current_user, report_ids)
+            if status != 200:
+                return response, status
         new_product = product.Product.add(request.json, user_id=current_user.id)
         invalidate_frontend_cache_on_success(201, scopes=(SCOPE_PUBLISH_VIEWS,))
-        return jsonify({"message": "New Product created", "id": new_product.id, "product": new_product.to_detail_dict()}), 201
+        return jsonify(
+            {"message": "New Product created", "id": new_product.id, "product": new_product.to_detail_dict(user=current_user)}
+        ), 201
 
     @auth_required("PUBLISH_UPDATE")
     def put(self, product_id: str | None = None):

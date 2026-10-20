@@ -162,7 +162,7 @@ def test_report_editor_cache_is_cleared_when_its_content_changes(monkeypatch, sc
     assert not list(service._client.scan_iter(match="*:model:product_type:*"))
 
 
-@pytest.mark.parametrize("scope", ["publish_views", "report_views", "user_views"])
+@pytest.mark.parametrize("scope", ["publish_views", "report_views", "story_views", "story_report_views", "user_views"])
 def test_product_metadata_cache_is_cleared_with_product_choices(monkeypatch, scope):
     monkeypatch.setattr("core.service.cache_invalidation.Config.CACHE_ENABLED", True)
     monkeypatch.setattr("core.service.cache_invalidation.Config.CACHE_KEY_PREFIX", "taranis_frontend")

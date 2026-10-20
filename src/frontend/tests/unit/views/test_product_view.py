@@ -1,7 +1,9 @@
+import json
 from unittest.mock import call, patch
 
 import pytest
 from flask import render_template, render_template_string, url_for
+from lxml import html
 from models.product import Product, ProductMetadata, ProductTypeChoice, PublisherPreset
 from models.report import ReportItem
 from pydantic import ValidationError
@@ -161,6 +163,58 @@ def test_product_view_uses_core_choices_cached_by_report_selection(app, response
         assert context["product_types"] == [{"id": type_id, "name": type_id}]
         assert f'value="{type_id}"' in markup
     assert len(responses_mock.calls) == 2
+
+
+def test_product_with_restricted_reports_opens_saves_and_explains_locked_actions(authenticated_client, responses_mock):
+    warning = "Some linked reports are restricted; only title and description can be edited."
+    product = {
+        "id": "product-1",
+        "title": "Limited product",
+        "description": "Existing description",
+        "product_type_id": "type-1",
+        "report_items": ["visible-report", "restricted-report"],
+        "report_access_warning": warning,
+        "supported_reports": [{"id": "visible-report", "title": "Visible report"}],
+        "auto_publish": True,
+        "default_publisher": "publisher-1",
+    }
+    responses_mock.get(f"{Config.TARANIS_CORE_URL}/publish/products/product-1", json=product)
+    responses_mock.get(f"{Config.TARANIS_CORE_URL}/publish/product-metadata/product-1", json=product)
+    responses_mock.get(f"{Config.TARANIS_CORE_URL}/publish/publisher-presets", json={"items": []})
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/publish/product-type-choices",
+        match=[matchers.query_param_matcher({"fetch_all": "true"})],
+        json={"items": [{"id": "type-1", "title": "Current product type"}]},
+    )
+    opened = authenticated_client.get("/publish/product-1?report_id=ignored-report")
+    assert opened.status_code == 200
+    tree = html.fromstring(opened.data)
+    assert warning in tree.get_element_by_id("product-report-access-warning").text_content()
+    assert "Report Type permissions or TLP clearance" in tree.get_element_by_id("product-report-access-help").text_content()
+    assert tree.xpath('//button[@aria-label="Why editing is limited"][@aria-describedby="product-report-access-help"]')
+    assert tree.xpath('//fieldset[@disabled]//select[@name="product_type_id"]')
+    assert tree.xpath('//fieldset[@disabled]//button[contains(., "Publish")]')
+    assert tree.xpath('//button[@id="render_button"][@disabled]')
+    assert tree.xpath('//button[@disabled][contains(., "Create copy")]')
+    assert not tree.xpath("//*[@data-product-report-items-enhanced]")
+    assert tree.xpath('//section//li[text()="Visible report"]')
+    assert tree.xpath('//input[@name="report_items[]"]/@value') == product["report_items"]
+
+    saved_product = {**product, "title": "Updated title", "description": "Updated description"}
+    saved = responses_mock.put(
+        f"{Config.TARANIS_CORE_URL}/publish/products/product-1",
+        json={"id": "product-1", "product": saved_product, "message": "Details updated"},
+    )
+    submitted = {
+        item.name: item.value for item in tree.xpath('//form[@id="product_form"]//input[@type="hidden"]') if item.name != "report_items[]"
+    }
+    submitted.update({"title": "Updated title", "description": "Updated description", "report_items[]": product["report_items"]})
+    response = authenticated_client.put("/publish/product-1", data=submitted, headers={"HX-Request": "true"})
+    assert response.status_code == 200
+    assert warning in html.fromstring(response.data).get_element_by_id("product-report-access-warning").text_content()
+    assert json.loads(saved.calls[0].request.body)["report_items"] == product["report_items"]
+    assert json.loads(saved.calls[0].request.body)["auto_publish"] is True
+    assert authenticated_client.get("/publish/0?copy_from=product-1").status_code == 403
 
 
 @pytest.mark.parametrize("report_items", [[], ["report-1", "report-2"]])

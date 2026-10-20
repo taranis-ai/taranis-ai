@@ -11484,6 +11484,14 @@ components:
     product_base:
       type: object
       properties:
+        report_access_warning:
+          type: [string, 'null']
+          readOnly: true
+          description: >-
+            Present when linked reports are restricted by Report Type ACL or TLP.
+            Only title and description may be changed; report links, type, and publishing
+            settings are preserved. Copying, rendering, and publishing are unavailable.
+            Metadata saves do not queue rendering or change the existing render/publication.
         id:
           type: string
         title:

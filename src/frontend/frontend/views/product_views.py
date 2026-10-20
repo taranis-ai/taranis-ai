@@ -71,6 +71,8 @@ class ProductView(BaseView):
             source = dpl.get_object(ProductMetadata, copy_from)
             if source is None:
                 abort(404)
+            if warning := getattr(source, "report_access_warning", None):
+                abort(403, description=warning)
             product = Product(
                 id="0",
                 product_type_id=source.product_type_id,
@@ -89,7 +91,9 @@ class ProductView(BaseView):
         selected_report_items = [str(report_item_id) for report_item_id in product.report_items if report_item_id]
         supported_reports = base_context.get("supported_reports", list(getattr(product, "supported_reports", None) or []))
 
-        if (report_id := request.args.get("report_id")) and (report := dpl.get_object(ReportItem, report_id)):
+        report_access_warning = getattr(product, "report_access_warning", None)
+        base_context["report_access_warning"] = report_access_warning
+        if not report_access_warning and (report_id := request.args.get("report_id")) and (report := dpl.get_object(ReportItem, report_id)):
             if report_id not in selected_report_items:
                 selected_report_items.append(report_id)
 
@@ -99,7 +103,9 @@ class ProductView(BaseView):
         base_context["selected_report_items"] = selected_report_items
         base_context["supported_reports"] = supported_reports
 
-        paging_data = PagingData(query_params={"report_ids": sorted(set(selected_report_items))}).set_fetch_all()
+        paging_data = PagingData(
+            query_params={"report_ids": [] if report_access_warning else sorted(set(selected_report_items))}
+        ).set_fetch_all()
         product_types = dpl.get_objects(ProductTypeChoice, paging_data)
         base_context["product_types"] = [{"id": pt.id, "name": pt.title} for pt in product_types]
 
