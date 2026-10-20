@@ -756,7 +756,6 @@ class TestEndToEndUser(BaseE2ETest):
             page.get_by_test_id("report-type-select").select_option(label=self.CERT_REPORT_TYPE_LABEL)
             page.get_by_role("button", name="Stacked view").click()
             expect(page).to_have_url(re.compile(r"layout=stacked"))
-            expect(page).to_have_url(re.compile(r"layout=stacked"))
             expect(page.get_by_role("textbox", name="Title")).to_have_value("test title")
             expect(page.get_by_test_id("report-type-select")).not_to_have_value("")
             page.get_by_role("button", name="Split view").click()
