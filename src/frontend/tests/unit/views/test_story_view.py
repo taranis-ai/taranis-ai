@@ -118,6 +118,51 @@ def test_assess_upstream_failure_returns_safe_error_page(authenticated_client, r
 
 
 @pytest.mark.parametrize(
+    ("return_url", "expected_return"),
+    [
+        (None, "/assess"),
+        ("/assess?search=example&tags=one&tags=two&page=2&read=", "/assess?search=example&tags=one&tags=two&page=2"),
+        ("https://example.com/assess", "/assess"),
+        ("//example.com/assess", "/assess"),
+        ("//[invalid", "/assess"),
+        ("/publish", "/assess"),
+    ],
+)
+def test_story_assess_return_navigation(authenticated_client, responses_mock, return_url, expected_return):
+    mock_story_for_edit(responses_mock, story_with_news_item_tags())
+    responses_mock.get(f"{Config.TARANIS_CORE_URL}/assess/bookmarks", json={"items": [], "total_count": 0})
+    responses_mock.patch(f"{Config.TARANIS_CORE_URL}/assess/stories/story-1", json={"message": "Story updated"})
+
+    response = authenticated_client.get(url_for("assess.story", story_id="story-1", assess_url=return_url))
+    assert {"HX-Request", "HX-Target"} <= set(response.vary)
+    tree = html.fromstring(response.text)
+    assert tree.xpath('//*[@data-test-id="back-to-assess"]/@href') == [expected_return]
+    edit_url = tree.xpath('//*[@data-testid="edit-story"]/@href')[0]
+    response = authenticated_client.get(edit_url)
+    tree = html.fromstring(response.text)
+    assert tree.xpath('//*[@data-test-id="back-to-assess"]/@href') == [expected_return]
+
+    advanced_url = tree.xpath('//a[normalize-space()="Advanced"]/@href')[0]
+    response = authenticated_client.get(advanced_url)
+    tree = html.fromstring(response.text)
+    form_action = tree.xpath('//form[@id="story-edit-form"]/@action')[0]
+    response = authenticated_client.post(
+        form_action,
+        data={"title": "Updated title"},
+        headers={"HX-Request": "true", "HX-Current-URL": f"http://localhost{advanced_url}"},
+    )
+    assert response.status_code == 200
+    tree = html.fromstring(response.text)
+    assert tree.xpath('//*[@data-test-id="back-to-assess"]/@href') == [expected_return]
+
+    response = authenticated_client.post(form_action, data={"title": "Updated title"})
+    assert response.status_code == 302
+    response = authenticated_client.get(response.headers["Location"])
+    tree = html.fromstring(response.text)
+    assert tree.xpath('//*[@data-test-id="back-to-assess"]/@href') == [expected_return]
+
+
+@pytest.mark.parametrize(
     "status, payload, message",
     [
         (200, {"message": "Executing Bot scheduled"}, "Executing Bot scheduled"),
@@ -732,6 +777,35 @@ def test_update_news_item_tags_propagates_core_error_and_does_not_rerender_card(
     assert 'id="news-item-card-news-1"' not in response.text
 
 
+@pytest.mark.parametrize("infinite_scroll", [True, False])
+def test_assess_later_page_explains_missing_earlier_results(authenticated_client, auth_user, responses_mock, infinite_scroll):
+    user = auth_user.model_copy(deep=True)
+    user.profile.infinite_scroll = infinite_scroll
+    add_user_to_cache(user.model_dump(mode="json"))
+    responses_mock.get(f"{Config.TARANIS_CORE_URL}/assess/filter-lists", json={"tags": [], "sources": [], "groups": []})
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/assess/stories",
+        json={"items": [{**story_with_news_item_tags(), "id": f"story-{index}"} for index in range(15)], "total_count": 55},
+    )
+
+    response = authenticated_client.get(url_for("assess.assess", search="web", tags=["one", "two"], sort="date_desc", page=2))
+
+    assert response.status_code == 200
+    tree = html.fromstring(response.text)
+    notice = tree.xpath('//*[@data-test-id="assess-resume-position"]')
+    assert bool(notice) is infinite_scroll
+    count = tree.xpath('//*[@data-testid="assess_story_count"]')[0]
+    assert ("Stories loaded" in count.text_content()) is infinite_scroll
+    if infinite_scroll:
+        assert "Starting at result 41 of 55." in " ".join(notice[0].text_content().split())
+        assert "Earlier results are not loaded." in notice[0].text_content()
+        restart = notice[0].xpath(".//a")[0]
+        assert urlparse(restart.get("href")).path == url_for("assess.assess")
+        assert parse_qs(urlparse(restart.get("href")).query) == {"search": ["web"], "tags": ["one", "two"], "sort": ["date_desc"]}
+        assert "End of results." in response.text
+        assert 'id="infinite-scroll-trigger"' not in response.text
+
+
 def test_assess_filters_support_htmx_and_native_form_submission(authenticated_client, responses_mock):
     responses_mock.get(
         f"{Config.TARANIS_CORE_URL}/assess/filter-lists",
@@ -833,10 +907,11 @@ def test_assess_tag_filters_highlight_matches_beyond_collapsed_limit(authenticat
         json={"items": [story_payload], "total_count": 1},
     )
     assess_url = url_for("assess.assess", tags=["tag-22", "actor"])
+    return_url = url_for("assess.assess", tags=["tag-22", "actor"], page=2)
     if method != "GET":
         responses_mock.patch(f"{Config.TARANIS_CORE_URL}/assess/stories/story-1", json={"message": "Story updated"})
         response = authenticated_client.open(
-            url_for("assess.story", story_id="story-1"),
+            url_for("assess.story", story_id="story-1", assess_url=return_url),
             method=method,
             data={"read": "true"},
             headers={"HX-Request": "true", "HX-Current-URL": f"http://localhost{assess_url}"},
@@ -851,6 +926,10 @@ def test_assess_tag_filters_highlight_matches_beyond_collapsed_limit(authenticat
     assert [tag.text_content().strip() for tag in matched] == ["tag-22", "tag-23"]
     assert all(tag.get("x-show").endswith("true") and tag.get("x-cloak") is None for tag in matched)
     assert card.xpath('.//*[@data-testid="toggle-story-tags"]/text()') == ["+17"]
+    if method != "GET":
+        for action in ("open-detail-view", "edit-story"):
+            action_url = card.xpath(f'.//*[@data-testid="{action}"]/@href')[0]
+            assert parse_qs(urlparse(action_url).query)["assess_url"] == [return_url]
 
 
 @pytest.mark.parametrize("has_remaining_story", [True, False])

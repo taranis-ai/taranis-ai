@@ -13,6 +13,53 @@ STORY_CONFLICTS_TEMPLATE_PATH = Path(__file__).parents[2] / "frontend/templates/
 VENDOR_JS_PATH = Path(__file__).parents[2] / "frontend/static/vendor/vendor.bundle.js"
 
 
+def test_assess_search_storage_is_scoped_and_rejects_unsafe_targets(page: Page):
+    page.route("http://assess.test/**", lambda route: route.fulfill(body='<div id="assess"></div>', content_type="text/html"))
+    page.goto("http://assess.test/frontend/assess")
+    page.add_script_tag(path=str(MAIN_JS_PATH.with_name("assess-navigation.js")))
+
+    result = page.evaluate("""() => {
+        const root = document.getElementById('assess');
+        Object.assign(root.dataset, {
+            assessPath: '/frontend/assess', assessUrl: '/frontend/assess?reset=true',
+            userId: 'first', offerRestore: 'true',
+        });
+        function mount() {
+            const state = assessSearchState();
+            state.$el = root;
+            state.init();
+            return state;
+        }
+        let state = mount();
+        state.saveSearch('/frontend/assess?tags=one&tags=two&page=2');
+        root.dataset.assessUrl = '/frontend/assess?reset=true';
+        root.dataset.userId = 'second';
+        const otherUser = mount().previousSearch;
+        root.dataset.userId = 'first';
+        state = mount();
+        const restored = state.previousSearch;
+        state.dismiss();
+        const dismissed = mount().previousSearch;
+        const unsafe = ['//example.com/frontend/assess?search=x', '/publish?search=x',
+            '/assess?search=x', 'javascript:alert(1)', '//[invalid'];
+        const rejected = unsafe.map(value => {
+            localStorage.setItem(state.storageKey(), value);
+            return mount().previousSearch;
+        });
+        Object.defineProperty(window, 'localStorage', { get() { throw new Error('Storage disabled'); } });
+        const withoutStorage = mount().previousSearch;
+        return { otherUser, restored, dismissed, rejected, withoutStorage };
+    }""")
+
+    assert result == {
+        "otherUser": "",
+        "restored": "/frontend/assess?tags=one&tags=two&page=2",
+        "dismissed": "",
+        "rejected": [""] * 5,
+        "withoutStorage": "",
+    }
+
+
 def load_main_js(page: Page, html: str = '<section id="notification-bar"></section>') -> None:
     page.goto(f"data:text/html,{quote(html)}")
     page.add_script_tag(path=str(MAIN_JS_PATH))

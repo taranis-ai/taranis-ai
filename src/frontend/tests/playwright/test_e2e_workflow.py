@@ -1,6 +1,7 @@
 import re
 import time
 from datetime import UTC, datetime, timedelta
+from urllib.parse import urlparse
 from uuid import uuid4
 
 import pytest
@@ -347,7 +348,10 @@ class TestUserWorkflow(BaseE2ETest):
 
             evidence_story = page.get_by_test_id(f"story-card-{demo_chat_provider[0]}")
             self.highlight_element(evidence_story.get_by_test_id("open-detail-view")).click()
-            page.wait_for_url(f"**/story/{demo_chat_provider[0]}", wait_until="domcontentloaded")
+            page.wait_for_url(
+                lambda url: urlparse(url).path == url_for("assess.story", story_id=demo_chat_provider[0]),
+                wait_until="domcontentloaded",
+            )
             expect(page.get_by_test_id("news-item-title")).to_have_text("Ransomware campaign targets European hospitals")
             evidence = page.get_by_role("paragraph").filter(has_text="Demo intelligence for the landing-page chat walkthrough.")
             expect(evidence).to_be_visible()

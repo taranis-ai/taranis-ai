@@ -3,6 +3,7 @@ import re
 import uuid
 from base64 import b64encode
 from pathlib import Path
+from urllib.parse import parse_qs, urlparse
 
 import pytest
 from base_e2e_test import BaseE2ETest
@@ -300,6 +301,13 @@ class TestEndToEndUser(BaseE2ETest):
             expect(page.get_by_test_id("assess_story_count")).to_be_visible()
             expect(page.locator("#story-pagination")).to_contain_text("Page 2 of")
             page.wait_for_function("() => window.scrollY === 0")
+            second_page_url = page.url
+            page.get_by_test_id("open-detail-view").first.click()
+            back_url = page.locator('[data-test-id="back-to-assess"]').get_attribute("href")
+            assert back_url
+            assert parse_qs(urlparse(back_url).query) == parse_qs(urlparse(second_page_url).query)
+            page.go_back()
+            expect(page.locator("#story-pagination")).to_contain_text("Page 2 of")
 
             with_htmx_wait(page, page.go_back)
             expect(page.locator("#story-pagination")).to_contain_text("Page 1 of")
@@ -423,7 +431,16 @@ class TestEndToEndUser(BaseE2ETest):
             dialog.get_by_role("button", name="✕").click()
             story_card().get_by_test_id("open-detail-view").click()
             expect(page.get_by_test_id("story-title")).to_contain_text(title)
+            back_to_assess = page.locator('[data-test-id="back-to-assess"]')
+            return_url = back_to_assess.get_attribute("href")
+            assert return_url
+            assert parse_qs(urlparse(return_url).query) == parse_qs(urlparse(assess_url).query)
+            page.go_back()
+            expect(page.get_by_placeholder("Search stories")).to_have_value(target_title)
+            story_card().get_by_test_id("open-detail-view").click()
+            expect(back_to_assess).to_have_attribute("href", return_url)
             page.get_by_test_id("edit-story").click()
+            expect(back_to_assess).to_have_attribute("href", return_url)
             page.get_by_role("textbox", name="Title").fill(edited_title)
             page.get_by_role("textbox", name="Summary").fill("Test summary")
             page.get_by_role("textbox", name="Analyst comments").fill("Test analyst comment")
@@ -446,6 +463,7 @@ class TestEndToEndUser(BaseE2ETest):
             page.get_by_test_id("attribute-value-input").nth(1).fill("value attr")
             page.get_by_role("button", name="Save changes").click()
             page.get_by_role("link", name="Advanced").click()
+            expect(back_to_assess).to_have_attribute("href", return_url)
             expect(page.get_by_role("complementary")).to_contain_text("Story status")
             page.get_by_text("Cybersecurity · Not Classified").click()
             expect(page.get_by_role("complementary")).to_contain_text("Cybersecurity · Not Classified")
@@ -462,6 +480,22 @@ class TestEndToEndUser(BaseE2ETest):
                 expect(page.get_by_role("textbox", name="Analyst comments")).to_have_value("Unsaved analyst comment")
             page.get_by_role("link", name="Return to story").click()
             expect(page.get_by_test_id("story-title")).to_contain_text(edited_title)
+            back_to_assess.click()
+            expect(page.get_by_placeholder("Search stories")).to_have_value(target_title)
+            expect(story_card()).to_be_visible()
+            page.get_by_role("link", name="Dashboard", exact=True).click()
+            page.locator("#navbar").get_by_role("link", name="Assess", exact=True).click()
+            restore = page.locator('[data-test-id="restore-assess-search"]')
+            expect(restore).to_be_visible()
+            restore.get_by_role("link", name="Restore last search").click()
+            expect(page.get_by_placeholder("Search stories")).to_have_value(target_title)
+            expect(story_card()).to_be_visible()
+            expect(restore).not_to_be_visible()
+            page.get_by_role("link", name="Dashboard", exact=True).click()
+            page.locator("#navbar").get_by_role("link", name="Assess", exact=True).click()
+            restore.get_by_role("button", name="Dismiss").click()
+            page.reload()
+            expect(restore).not_to_be_visible()
 
         def check_story_tags():
             story_id = seeded_story["id"]
@@ -536,7 +570,26 @@ class TestEndToEndUser(BaseE2ETest):
             page.goto(assess_url)
 
         def infinite_scroll_all_items(expected_total: int):
-            page.goto(assess_url)
+            assert expected_total > ASSESS_STORY_PAGE_SIZE
+            last_page = (expected_total - 1) // ASSESS_STORY_PAGE_SIZE
+            page.goto(url_for("assess.assess", source=seeded_story["news_items"][0]["osint_source_id"], page=last_page, _external=True))
+            page.get_by_role("link", name="Dashboard", exact=True).click()
+            page.locator("#navbar").get_by_role("link", name="Assess", exact=True).click()
+            page.get_by_role("link", name="Restore last search", exact=True).click()
+
+            notice = page.locator('[data-test-id="assess-resume-position"]')
+            expect(notice).to_contain_text(f"Starting at result {last_page * ASSESS_STORY_PAGE_SIZE + 1} of {expected_total}.")
+            expect(notice).to_contain_text("Earlier results are not loaded.")
+            resumed_count, resumed_total = self._get_assess_story_counts(page)
+            assert resumed_count == expected_total - last_page * ASSESS_STORY_PAGE_SIZE
+            assert resumed_total == expected_total
+            expect(page.get_by_test_id("assess_story_count")).to_contain_text("Stories loaded")
+            expect(page.get_by_text("End of results.", exact=True)).to_be_visible()
+            expect(page.locator("#infinite-scroll-trigger")).to_have_count(0)
+
+            notice.get_by_role("link", name="Start from beginning", exact=True).click()
+            expect(notice).to_have_count(0)
+            assert parse_qs(urlparse(page.url).query) == parse_qs(urlparse(assess_url).query)
 
             expect(page.get_by_test_id("assess")).to_be_visible()
             initial_visible_count, initial_total = self._get_assess_story_counts(page)
@@ -564,9 +617,21 @@ class TestEndToEndUser(BaseE2ETest):
             assert final_total == expected_total
             assert final_visible_count >= expected_total
 
-            caught_up_message = page.get_by_text("You're all caught up.")
-            if caught_up_message.count():
-                expect(caught_up_message).to_be_visible()
+            expect(page.get_by_text("End of results.", exact=True)).to_be_visible()
+            expect(page.locator("#story-pagination")).to_contain_text(re.compile(rf"Showing\s+1\s*-\s*{expected_total}\s+of"))
+
+            last_card = page.locator("#story-list article[data-story-id]").last
+            detail_url = last_card.get_by_test_id("open-detail-view").get_attribute("href")
+            assert detail_url
+            return_url = parse_qs(urlparse(detail_url).query)["assess_url"][0]
+            assert parse_qs(urlparse(return_url).query)["page"] == [str(last_page)]
+            for action in ("toggle-read", "toggle-important"):
+                last_card.get_by_test_id("story-actions-menu").click()
+                with_htmx_wait(page, last_card.get_by_test_id(action).click)
+                for link in ("open-detail-view", "edit-story"):
+                    link_url = last_card.get_by_test_id(link).get_attribute("href")
+                    assert link_url
+                    assert parse_qs(urlparse(link_url).query)["assess_url"] == [return_url]
 
             expect(page.get_by_test_id("assess_story_selection_count")).to_be_hidden()
             page.get_by_role("button", name="Select all").click()
