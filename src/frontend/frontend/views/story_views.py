@@ -87,6 +87,10 @@ class StoryView(BaseView):
     def get_extra_context(cls, base_context: dict[str, Any]) -> dict[str, Any]:
         filter_lists = cls.get_filter_lists()
         base_context["filter_lists"] = filter_lists
+        tag_request_args = request.args.to_dict(flat=False)
+        if request.method != "GET" and cls._get_current_url_path() == url_for("assess.assess"):
+            tag_request_args = parse_qs(urlparse(request.headers["HX-Current-URL"]).query)
+        base_context["active_tag_filters"] = tag_request_args.get("tags", [])
         assess_request_args: dict[str, list[str]] = {}
         if request.endpoint == "assess.assess":
             assess_request_args = cls._get_assess_request_params()

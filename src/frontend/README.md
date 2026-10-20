@@ -38,6 +38,8 @@ Assess keyword filters are implicit story mode. `vpn tag:apt read:false sort:rel
 
 Assess sidebar filters can be saved per user from the Saved filters dialog. Saving with an existing saved filter name updates it, duplicate filter criteria under another name are rejected, and each saved filter can be updated from the current sidebar filters or deleted from the dashboard cards. One saved filter can be marked as the default; loading `/assess` without query parameters redirects to that saved filter, while `?reset=true` shows the unfiltered list.
 
+Story cards always show and highlight tags matching an active tag-name or tag-type filter, including in compact view. The `+N` button expands just the tags; Show fewer tags collapses them again. Opening story details also shows all tags.
+
 Colon-containing terms that are not supported qualifiers, such as URLs or CVE-style identifiers, are preserved as plain search text.
 
 ### Story Bookmarks

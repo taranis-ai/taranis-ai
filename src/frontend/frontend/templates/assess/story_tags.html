@@ -1,46 +1,34 @@
-{% macro story_tags(story, compact_view, detail_view) %}
+{% macro story_tags(story, compact_view, selected_tags=[]) %}
   {% from "macros/query_params.html" import update_query_params %}
+  {% set tags = (story.tags or []) | selectattr('name') | list %}
 
-  {% if story.tags and not compact_view %}
-
-    <div class="w-full max-w-full">
-      <div class="flex flex-col gap-2 lg:flex-row lg:items-start lg:gap-4 w-full max-w-full">
-        <div class="lg:flex-shrink-0 min-w-0 max-w-full">
-          {% set collapsed_limit = 5 %}
-          {% set expanded_limit = (story.tags|length) if detail_view else 20 %}
-
-          <template x-if="!isOpen">
-            <div class="flex flex-wrap gap-1">
-              {% for tag in story.tags[:collapsed_limit] if tag.name %}
-                <a href="{{ update_query_params({'tags': tag.name}) | trim }}" class="badge badge-ghost badge-xs max-w-full truncate">
-                  <span>{{ tag.name }}</span>
-                </a>
-              {% endfor %}
-              {% if story.tags|length > collapsed_limit %}
-                <span class="badge badge-outline badge-xs">+{{ story.tags|length - collapsed_limit }}</span>
-              {% endif %}
-            </div>
-          </template>
-
-          <template x-if="isOpen">
-            <div class="flex flex-wrap gap-1">
-              {% for tag in story.tags[:expanded_limit] if tag.name %}
-                <a href="{{ update_query_params({'tags': tag.name}) | trim }}"
-                   class="tooltip before:z-[50] badge badge-ghost badge-xs max-w-full"
-                   data-tip="{{ tag.tag_type }}">
-                  <span>{{ tag.name }}</span>
-                </a>
-              {% endfor %}
-              {% if (not detail_view) and (story.tags|length > expanded_limit) %}
-                <span class="badge badge-outline badge-xs">+{{ story.tags|length - expanded_limit }}</span>
-              {% endif %}
-            </div>
-          </template>
-
-        </div>
-      </div>
+  {% if tags and (not compact_view or selected_tags) %}
+    <div class="flex flex-wrap gap-1 w-full max-w-full" x-data="{ tagsExpanded: false }" @click.stop>
+      {% set ns = namespace(hidden_count=0) %}
+      {% for tag in tags %}
+        {% set matched = tag.name in selected_tags or tag.tag_type in selected_tags %}
+        {% set visible = loop.index <= 5 or matched %}
+        {% if not visible %}
+          {% set ns.hidden_count = ns.hidden_count + 1 %}
+        {% endif %}
+        <a href="{{ update_query_params({'tags': tag.name}) | trim }}"
+           class="tooltip before:z-[50] badge {{ 'badge-primary font-semibold' if matched else 'badge-ghost' }} badge-xs max-w-full"
+           data-tip="{{ tag.tag_type }}{{ ' (matches tag filter)' if matched else '' }}"
+           x-show="tagsExpanded || isOpen || {{ 'true' if visible else 'false' }}"
+           {% if not visible %}x-cloak{% endif %}>
+          <span>{{ tag.name }}</span>
+        </a>
+      {% endfor %}
+      {% if ns.hidden_count %}
+        <button type="button"
+                class="badge badge-outline badge-xs cursor-pointer"
+                data-testid="toggle-story-tags"
+                x-show="!isOpen"
+                @click="tagsExpanded = !tagsExpanded"
+                :aria-expanded="tagsExpanded.toString()"
+                :aria-label="tagsExpanded ? 'Show fewer tags' : 'Show all tags'"
+                x-text="tagsExpanded ? 'Show fewer tags' : '+{{ ns.hidden_count }}'">+{{ ns.hidden_count }}</button>
+      {% endif %}
     </div>
-
   {% endif %}
-
 {% endmacro %}

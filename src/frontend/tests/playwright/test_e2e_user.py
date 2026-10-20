@@ -447,6 +447,55 @@ class TestEndToEndUser(BaseE2ETest):
             page.get_by_role("link", name="Return to story").click()
             expect(page.get_by_test_id("story-title")).to_contain_text(edited_title)
 
+        def check_story_tags():
+            story_id = seeded_story["id"]
+            news_item_id = seeded_story["news_items"][0]["id"]
+            tags = [{"name": f"assess-tag-{index:02}", "tag_type": "misc"} for index in range(24)]
+            tags[-1]["tag_type"] = "actor"
+            response = core_request_client.put(f"/assess/news-items/{news_item_id}/tags", json_data=tags)
+            assert response.ok
+            page.goto(url_for("assess.assess", tags=[tags[-2]["name"], "actor"], _external=True))
+            card = page.locator(f'article[data-story-id="{story_id}"]')
+            matches = card.locator("a.badge-primary")
+            expect(matches).to_have_text([tags[-2]["name"], tags[-1]["name"]])
+            for match in matches.all():
+                expect(match).to_be_visible()
+            hidden_tag = card.locator("a.badge").filter(has_text=tags[20]["name"])
+            expect(hidden_tag).not_to_be_visible()
+            toggle_tags = card.get_by_test_id("toggle-story-tags")
+            expect(toggle_tags).to_have_text("+17")
+            selection_count = self._get_assess_selection_count(page)
+            toggle_tags.click()
+            expect(hidden_tag).to_be_visible()
+            expect(toggle_tags).to_have_attribute("aria-expanded", "true")
+            expect(card.get_by_test_id("toggle-summary")).to_have_attribute("aria-expanded", "false")
+            assert self._get_assess_selection_count(page) == selection_count
+            toggle_tags.click()
+            expect(hidden_tag).not_to_be_visible()
+            card.get_by_test_id("toggle-summary").click()
+            expect(hidden_tag).to_be_visible()
+            expect(toggle_tags).not_to_be_visible()
+            card.get_by_test_id("toggle-summary").click()
+            expect(hidden_tag).not_to_be_visible()
+            for match in matches.all():
+                expect(match).to_be_visible()
+
+            card.get_by_test_id("story-actions-menu").click()
+            with_htmx_wait(page, card.get_by_test_id("toggle-important").click)
+            expect(matches).to_have_count(2)
+            for match in matches.all():
+                expect(match).to_be_visible()
+
+            compact = page.get_by_role("checkbox", name="Compact view", exact=True)
+            with page.expect_navigation(wait_until="load"):
+                compact.check()
+            for match in matches.all():
+                expect(match).to_be_visible()
+            with page.expect_navigation(wait_until="load"):
+                compact.uncheck()
+            core_request_client.put(f"/assess/news-items/{news_item_id}/tags", json_data=seeded_story["news_items"][0]["tags"])
+            page.goto(assess_url)
+
         def infinite_scroll_all_items(expected_total: int):
             page.goto(assess_url)
 
@@ -489,6 +538,7 @@ class TestEndToEndUser(BaseE2ETest):
             expect(page.get_by_test_id("assess_story_selection_count")).to_be_hidden()
 
         total_count = go_to_assess()
+        check_story_tags()
         access_story()
         infinite_scroll_all_items(total_count)
 

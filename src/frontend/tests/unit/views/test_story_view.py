@@ -700,6 +700,37 @@ def test_story_read_action_replaces_story_card(app):
     assert toggle_read.get("hx-swap") == "outerHTML"
 
 
+@pytest.mark.parametrize("method", ["GET", "POST", "PUT"])
+def test_assess_tag_filters_highlight_matches_beyond_collapsed_limit(authenticated_client, responses_mock, method):
+    story_payload = story_with_news_item_tags()
+    story_payload["tags"] = [{"name": f"tag-{index}", "tag_type": "misc"} for index in range(24)]
+    story_payload["tags"][-1]["tag_type"] = "actor"
+    mock_story_for_edit(responses_mock, story_payload)
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/assess/stories",
+        json={"items": [story_payload], "total_count": 1},
+    )
+    assess_url = url_for("assess.assess", tags=["tag-22", "actor"])
+    if method != "GET":
+        responses_mock.patch(f"{Config.TARANIS_CORE_URL}/assess/stories/story-1", json={"message": "Story updated"})
+        response = authenticated_client.open(
+            url_for("assess.story", story_id="story-1"),
+            method=method,
+            data={"read": "true"},
+            headers={"HX-Request": "true", "HX-Current-URL": f"http://localhost{assess_url}"},
+        )
+    else:
+        response = authenticated_client.get(assess_url)
+
+    assert response.status_code == 200
+    tree = html.fromstring(response.text)
+    card = tree.xpath('//*[@data-story-id="story-1"]')[0]
+    matched = card.xpath('.//a[contains(@class, "badge-primary")]')
+    assert [tag.text_content().strip() for tag in matched] == ["tag-22", "tag-23"]
+    assert all(tag.get("x-show").endswith("true") and tag.get("x-cloak") is None for tag in matched)
+    assert card.xpath('.//*[@data-testid="toggle-story-tags"]/text()') == ["+17"]
+
+
 def test_assess_bookmarks_bar_renders_first_six_ordered_collections(authenticated_client, responses_mock):
     story_payload = story_with_news_item_tags()
     story_payload["misp_auto_update"] = {"connector_id": "connector-1", "enabled": True}

@@ -162,7 +162,7 @@
       </div>
 
       <!-- tags section -->
-      {{ story_tags(story, compact_view=compact_view, detail_view=detail_view) }}
+      {{ story_tags(story, compact_view=compact_view, selected_tags=active_tag_filters | default([])) }}
 
       <!-- expandable details section -->
       <div class="border-t border-base-200 pt-2 space-y-1 w-full max-w-full" x-show="isOpen" x-transition x-cloak>
