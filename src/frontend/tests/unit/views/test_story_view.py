@@ -781,6 +781,42 @@ def test_assess_tag_filters_highlight_matches_beyond_collapsed_limit(authenticat
     assert card.xpath('.//*[@data-testid="toggle-story-tags"]/text()') == ["+17"]
 
 
+@pytest.mark.parametrize("has_remaining_story", [True, False])
+def test_delete_story_preserves_assess_filters(authenticated_client, responses_mock, has_remaining_story):
+    story_payload = story_with_news_item_tags()
+    filters = {
+        "search": "incident",
+        "source": ["source-1", "source-2"],
+        "language": ["en", "de"],
+        "tags": ["actor", "item-tag"],
+        "read": "false",
+        "sort": "date_desc",
+    }
+    responses_mock.delete(f"{Config.TARANIS_CORE_URL}/assess/story/deleted-story", json={"message": "Story deleted"})
+    responses_mock.get(f"{Config.TARANIS_CORE_URL}/assess/filter-lists", json={"tags": [], "sources": [], "groups": []})
+    responses_mock.get(f"{Config.TARANIS_CORE_URL}/assess/bookmarks", json={"items": [], "total_count": 0})
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/assess/stories",
+        json={"items": [story_payload] if has_remaining_story else [], "total_count": int(has_remaining_story)},
+    )
+
+    response = authenticated_client.delete(
+        url_for("assess.story_delete", story_id="deleted-story"),
+        headers={"HX-Request": "true", "HX-Current-URL": url_for("assess.assess", **filters, _external=True)},
+    )
+
+    assert response.status_code == 200
+    assert "Story deleted" in response.text
+    story_request = next(call for call in responses_mock.calls if urlparse(call.request.url).path.endswith("/assess/stories"))
+    assert parse_qs(urlparse(story_request.request.url).query) == {
+        key: value if isinstance(value, list) else [value] for key, value in filters.items()
+    }
+    tree = html.fromstring(response.text)
+    assert len(tree.xpath('//*[@data-story-id="story-1"]')) == int(has_remaining_story)
+    if not has_remaining_story:
+        assert "No stories found." in response.text
+
+
 def test_assess_bookmarks_bar_renders_first_six_ordered_collections(authenticated_client, responses_mock):
     story_payload = story_with_news_item_tags()
     story_payload["misp_auto_update"] = {"connector_id": "connector-1", "enabled": True}
