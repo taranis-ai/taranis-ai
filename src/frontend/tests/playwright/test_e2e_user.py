@@ -460,7 +460,7 @@ class TestEndToEndUser(BaseE2ETest):
             expect(matches).to_have_text([tags[-2]["name"], tags[-1]["name"]])
             for match in matches.all():
                 expect(match).to_be_visible()
-            hidden_tag = card.get_by_role("link", name=tags[20]["name"], exact=True)
+            hidden_tag = card.locator("a.badge").filter(has_text=tags[20]["name"])
             expect(hidden_tag).not_to_be_visible()
             toggle_tags = card.get_by_test_id("toggle-story-tags")
             expect(toggle_tags).to_have_text("+17")
