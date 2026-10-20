@@ -639,15 +639,23 @@ class TestAssessStories(BaseTest):
         assert "revision_count" in items[stories[0]]
         assert items[stories[0]]["revision_count"] > 0
 
-    def test_bulk_story_update_returns_404_for_unknown_story(self, client, stories, auth_header):
+    @pytest.mark.parametrize(
+        ("story_ids", "status", "error"),
+        [
+            (["missing-story"], 404, "Story not found"),
+            ([[None, None]], 400, "Story ids must be strings"),
+            ([{}], 400, "Story ids must be strings"),
+        ],
+    )
+    def test_bulk_story_update_rejects_invalid_or_unknown_story_ids(self, client, stories, auth_header, story_ids, status, error):
         response = client.post(
             "/api/assess/stories/bulk_action",
-            json={"story_ids": ["missing-story", stories[0]], "payload": {"read": True}},
+            json={"story_ids": [*story_ids, stories[0]], "payload": {"read": True}},
             headers=auth_header,
         )
 
-        assert response.status_code == 404
-        assert response.get_json() == {"error": "Story not found"}
+        assert response.status_code == status
+        assert response.get_json() == {"error": error}
 
     def test_delete_story(self, client, stories, auth_header):
         response = self.assert_delete_ok(client, f"story/{stories[0]}", auth_header)

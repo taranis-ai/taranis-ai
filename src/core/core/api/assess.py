@@ -214,6 +214,8 @@ class Stories(MethodView):
         payload = data_json.get("payload")
         if not isinstance(story_ids, list) or not story_ids:
             return {"error": "No story ids provided"}, 400
+        if any(not isinstance(story_id, str) for story_id in story_ids):
+            return {"error": "Story ids must be strings"}, 400
         if payload is not None and not isinstance(payload, dict):
             return {"error": "Invalid payload provided"}, 400
 

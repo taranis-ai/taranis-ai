@@ -24,6 +24,7 @@ from models.assess import (
 from models.cti import CTIResponse
 from models.report import ReportItem
 from models.revision_diff import build_story_revision_diff_payload
+from models.worker_parameters import SimpleWebCollectorParameters, normalize_parameter_values
 from pydantic import ValidationError
 from requests import RequestException
 from requests import Response as RequestsResponse
@@ -1236,28 +1237,22 @@ class StoryView(BaseView):
     @classmethod
     def _create_news_item_from_file(cls, file: FileStorage):
         if file.filename == "":
-            flash("No file selected for upload", "error")
-            return cls.redirect_htmx(url_for("assess.get_news_item", news_item_id="0"))
-        if file.mimetype not in ["text/plain", "application/json"]:
-            flash("Unsupported file type. Please upload a .txt or .json file.", "error")
-            return cls.redirect_htmx(url_for("assess.get_news_item", news_item_id="0"))
-
+            return make_response(cls.render_response_notification({"error": "No file selected for upload."}), 400)
         try:
-            data = file.read()
-            json_data = json.loads(data)
+            json_data = json.loads(file.read())
             core_response = CoreApi().api_post("/assess/import", json_data=json_data)
-            if core_response.ok:
-                flash("File imported successfully", "success")
-            else:
-                cls.add_flash_notification(core_response)
-            return cls.redirect_htmx(url_for("assess.assess") if core_response.ok else url_for("assess.get_news_item", news_item_id="0"))
+        except JSONDecodeError, UnicodeDecodeError:
+            return make_response(cls.render_response_notification({"error": "Invalid JSON file."}), 400)
         except HTTPException:
             raise
         except Exception:
             logger.exception("Failed to create news item from file.")
-            flash("Failed to create news item from file", "error")
+            return make_response(cls.render_response_notification({"error": "Failed to create news item from file."}), 500)
 
-        return cls.redirect_htmx(url_for("assess.get_news_item", news_item_id="0"))
+        if not core_response.ok:
+            return make_response(cls.get_notification_from_response(core_response), core_response.status_code)
+        flash("File imported successfully", "success")
+        return cls.redirect_htmx(url_for("assess.assess"))
 
     @classmethod
     @auth_required()
@@ -1302,6 +1297,7 @@ class StoryView(BaseView):
     def _build_simple_web_collector_payload(url: str, parameters: dict[str, Any] | None = None) -> dict[str, Any]:
         collector_parameters = {key: value for key, value in (parameters or {}).items() if value not in ("", None) and key != "WEB_URL"}
         collector_parameters["WEB_URL"] = url.strip()
+        collector_parameters = normalize_parameter_values("simple_web_collector", collector_parameters)
         return {
             "id": "manual",
             "type": "simple_web_collector",
@@ -1312,13 +1308,27 @@ class StoryView(BaseView):
     def _create_news_item_from_url(cls, url: str, parameters: dict[str, Any] | None = None):
         try:
             payload = cls._build_simple_web_collector_payload(url, parameters)
+            collector_parameters = payload["parameters"]
+            if collector_parameters.get("DIGEST_SPLITTING") and not collector_parameters.get("XPATH", "").strip():
+                return make_response(
+                    cls.render_response_notification({"error": "An XPath selecting article links is required for linked articles."}), 400
+                )
             core_response = CoreApi().api_post("/assess/news-items/fetch", json_data=payload)
             return cls.news_item_edit_view(core_response)
+        except ValidationError as exc:
+            logger.exception("Invalid URL collection settings")
+            fields = {
+                SimpleWebCollectorParameters.model_fields[name].title or name
+                for error in exc.errors()
+                if error["loc"] and (name := error["loc"][0]) in SimpleWebCollectorParameters.model_fields
+            }
+            message = "Invalid collection settings." + (f" Check: {', '.join(sorted(fields))}." if fields else "")
+            return make_response(cls.render_response_notification({"error": message}), 400)
         except HTTPException:
             raise
         except Exception:
             logger.exception("Failed to create news item from URL.")
-            return cls.render_response_notification({"error": "Failed to create news item from URL."})
+            return make_response(cls.render_response_notification({"error": "Failed to create news item from URL."}), 500)
 
     @classmethod
     @auth_required()

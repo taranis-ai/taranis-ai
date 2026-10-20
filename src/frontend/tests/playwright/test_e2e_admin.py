@@ -221,14 +221,27 @@ class TestEndToEndAdmin(BaseE2ETest):
         with_htmx_wait(page, lambda: page.locator('.tab[data-tab="history"]').click())
         expect(page.locator("#history-tab .stats")).to_have_count(1)
 
-    def test_manual_news_item_invalid_language_shows_notification(self, logged_in_page: Page):
+    def test_news_item_creation_methods(self, logged_in_page: Page, core_request_client):
         page = logged_in_page
 
         page.goto(url_for("assess.get_news_item", news_item_id="0", _external=True))
-        expect(page.get_by_role("heading", name="Create manual news item")).to_be_visible()
+        expect(page.get_by_role("heading", name="Create news item", exact=True)).to_be_visible()
+        expect(page.locator("#news-item-form")).not_to_be_visible()
+        page.get_by_role("button", name="Manually", exact=True).press("Enter")
         create_news_item_url = url_for("assess.create_news_item", _external=True)
 
-        page.get_by_role("textbox", name="Title *").fill("Invalid language test")
+        title_input = page.get_by_role("textbox", name="Title", exact=True)
+        title_input.fill("Invalid language test")
+        expect(page.locator('input[name="published"]')).to_have_value("")
+        page.get_by_role("button", name="Change creation method").click()
+        page.get_by_role("button", name="From URL", exact=True).press("Enter")
+        expect(page.locator("#news-item-form")).not_to_be_visible()
+        expect(page.get_by_role("button", name="Create from file", exact=True)).not_to_be_visible()
+        page.locator("#create-from-url").fill("https://example.com/article")
+        page.locator('input[name="parameters[XPATH]"]').fill("//article")
+        page.get_by_role("button", name="Change creation method").click()
+        page.get_by_role("button", name="Manually", exact=True).click()
+        expect(title_input).to_have_value("Invalid language test")
         page.get_by_role(
             "textbox",
             name="Link Providing a URL helps others trace the original source.",
@@ -247,7 +260,49 @@ class TestEndToEndAdmin(BaseE2ETest):
         assert response_info.value.status == 400, f"Expected 400 status, but got {response_info.value.status}"
         expect(page.locator("#notification-bar")).to_contain_text("Invalid BCP 47 language tag")
         expect(page.locator("#news-item-form")).to_be_visible()
+        expect(title_input).to_have_value("Invalid language test")
         dismiss_notifications(page)
+        page.get_by_role("button", name="Change creation method").click()
+        page.get_by_role("button", name="From URL", exact=True).click()
+        expect(page.locator("#create-from-url")).to_have_value("https://example.com/article")
+        expect(page.locator('input[name="parameters[XPATH]"]')).to_have_value("//article")
+        page.get_by_role("button", name="Change creation method").click()
+        page.get_by_role("button", name="From file", exact=True).click()
+        file_input = page.locator('input[type="file"]')
+        file_input.set_input_files({"name": "invalid.json", "mimeType": "application/json", "buffer": b"invalid JSON"})
+        with page.expect_response(create_news_item_url) as response_info:
+            page.get_by_role("button", name="Create from file", exact=True).click()
+        assert response_info.value.status == 400
+        expect(page.locator("#notification-bar")).to_contain_text("Invalid JSON file.")
+        expect(file_input).to_be_visible()
+        assert file_input.evaluate("input => input.files[0].name") == "invalid.json"
+        page.get_by_role("button", name="Change creation method").click()
+        page.get_by_role("button", name="From file", exact=True).click()
+        assert file_input.evaluate("input => input.files[0].name") == "invalid.json"
+        dismiss_notifications(page)
+        page.get_by_role("button", name="Change creation method").click()
+        page.get_by_role("button", name="Manually", exact=True).click()
+        title_input.fill("")
+        page.locator('input[name="language"]').fill("")
+        page.locator('textarea[name="content"]').fill("A content-only manual news item")
+        page.locator('input[name="link"]').fill("")
+        with page.expect_response(create_news_item_url) as response_info:
+            page.get_by_role("button", name="Create news item", exact=True).click()
+        assert response_info.value.ok
+        page.wait_for_url("**/story/*/edit")
+        story_id = page.url.split("/story/")[1].split("/")[0]
+        allow_requests_passthru()
+        try:
+            story = core_request_client.json_request("GET", f"/assess/stories/{story_id}")
+            news_item = story["news_items"][0]
+            assert news_item["content"] == "A content-only manual news item"
+            assert news_item["published"]
+            page.goto(url_for("assess.get_news_item", news_item_id=news_item["id"], _external=True))
+            expect(page.locator("#news-item-form")).to_be_visible()
+            expect(page.get_by_role("button", name="Manually", exact=True)).to_have_count(0)
+            expect(page.get_by_role("button", name="Change creation method")).to_have_count(0)
+        finally:
+            core_request_client.delete(f"/assess/stories/{story_id}", raise_for_status=False)
 
     def test_admin_organizations(self, logged_in_page: Page, forward_console_and_page_errors):
         page = logged_in_page
@@ -1377,6 +1432,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             core_request_client.delete(f"/assess/stories/{story_id}")
             if destination == "create":
                 page.goto(url_for("assess.get_news_item", news_item_id="0", _external=True))
+                page.get_by_role("button", name="From file", exact=True).click()
                 form = page.locator("form").filter(has=page.get_by_role("button", name="Create from file", exact=True))
                 submit_url = url_for("assess.create_news_item", _external=True)
             else:

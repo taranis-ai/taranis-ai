@@ -1,4 +1,3 @@
-from datetime import UTC, datetime
 from typing import Any
 
 import pytest
@@ -6,6 +5,7 @@ import requests
 from flask import url_for
 
 from frontend.__init__ import create_app
+from frontend.cache import add_user_to_cache
 from frontend.config import Config
 
 
@@ -14,7 +14,7 @@ MESSAGE_ID = "01981234-5678-7abc-8def-0123456789ac"
 
 
 def _conversation(answer: str = "Summary") -> dict[str, Any]:
-    now = datetime.now(UTC).isoformat()
+    now = "2026-06-11T23:30:00Z"
     return {
         "id": CONVERSATION_ID,
         "title": "Vienna incidents",
@@ -41,10 +41,23 @@ def app():
     return create_app({"TESTING": True, "DEBUG": True, "SERVER_NAME": "localhost", "CHAT_ENABLED": True})
 
 
+@pytest.mark.parametrize(
+    ("timezone", "expected_timestamp"),
+    [
+        ("UTC", "11. June 2026 23:30"),
+        ("Europe/Vienna", "12. June 2026 01:30"),
+        ("America/New_York", "11. June 2026 19:30"),
+    ],
+)
 def test_chat_history_escapes_answers_and_builds_doseq_assess_link(
     authenticated_client_basic,
+    auth_user_basic,
     responses,
+    timezone,
+    expected_timestamp,
 ):
+    user = auth_user_basic.model_copy(update={"profile": auth_user_basic.profile.model_copy(update={"timezone": timezone})})
+    add_user_to_cache(user.model_dump(mode="json"))
     conversation = _conversation('<img src=x onerror="alert(1)">\nSecond line')
     responses.get(f"{Config.TARANIS_CORE_URL}/chat/conversations", json={"items": [conversation]}, status=200)
     responses.get(f"{Config.TARANIS_CORE_URL}/chat/conversations/{CONVERSATION_ID}", json=conversation, status=200)
@@ -57,6 +70,8 @@ def test_chat_history_escapes_answers_and_builds_doseq_assess_link(
     assert '<img src=x onerror="alert(1)">' not in body
     assert "source=source-one&amp;source=source-two&amp;range=last7" in body
     assert "View 12 matching stories in Assess" in body
+    assert '<time datetime="2026-06-11T23:30:00Z"' in body
+    assert f">{expected_timestamp}</time>" in body
     assert 'data-testid="nav-chat"' in body
     assert 'hx-indicator="#chat-answer-loading"' in body
     assert 'data-testid="chat-answer-loading"' in body
@@ -79,6 +94,7 @@ def test_new_chat_pushes_conversation_url(authenticated_client_basic, responses)
     assert response.status_code == 200
     assert response.headers["HX-Push-Url"] == url_for("chat.conversation", conversation_id=CONVERSATION_ID)
     assert 'data-testid="chat-message-assistant"' in response.get_data(as_text=True)
+    assert ">11. June 2026 23:30</time>" in response.get_data(as_text=True)
 
 
 def test_chat_provider_error_keeps_draft_retryable(authenticated_client_basic, responses):

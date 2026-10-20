@@ -1,3 +1,7 @@
+import json
+from urllib.parse import parse_qs, urlsplit
+
+import pytest
 from flask import render_template_string, url_for
 from lxml import html
 from models.product import ProductChoice
@@ -5,6 +9,51 @@ from models.report import ReportEditor, ReportItem, ReportTypes
 
 from frontend.config import Config
 from frontend.views.report_views import ReportItemView
+
+
+@pytest.mark.parametrize(("layout_switch", "unavailable_status"), [(False, None), (True, None), (False, 403), (False, 404), (False, 503)])
+def test_report_create_preserves_selected_stories_outside_first_page(
+    app, authenticated_client_basic, responses_mock, test_cache_backend, layout_switch, unavailable_status
+):
+    story_ids = [f"00000000-0000-0000-0000-{index:012d}" for index in range(123, 0, -1)]
+    requested_batches = []
+    responses_mock.get(f"{Config.TARANIS_CORE_URL}/analyze/report-types", json={"items": []})
+
+    def selected_stories_response(core_request):
+        params = parse_qs(urlsplit(core_request.url).query)
+        batch = params["story_ids"]
+        assert 1 <= len(batch) <= 50
+        assert params["limit"] == [str(len(batch))]
+        assert params["no_count"] == ["true"]
+        requested_batches.append(batch)
+        if story_ids[-1] in batch and unavailable_status in (403, 503):
+            return unavailable_status, {}, json.dumps({"error": "Stories unavailable"})
+        items = [
+            {"id": story_id, "title": story_id}
+            for story_id in reversed(batch)
+            if not (unavailable_status == 404 and story_id == story_ids[-1])
+        ]
+        return 200, {}, json.dumps({"items": items})
+
+    responses_mock.add_callback("GET", f"{Config.TARANIS_CORE_URL}/assess/stories", callback=selected_stories_response)
+
+    with app.test_request_context():
+        target = url_for("analyze.report", report_id="0")
+        if layout_switch:
+            response = authenticated_client_basic.post(
+                target,
+                data={"stories[]": [*story_ids, story_ids[0]], "layout_switch": "stacked", "title": "Unsaved selection"},
+            )
+        else:
+            response = authenticated_client_basic.get(target, query_string={"story_ids": [*story_ids, story_ids[0]]})
+
+    assert response.status_code == (502 if unavailable_status == 503 else unavailable_status or 200)
+    assert len(requested_batches) == 3
+    assert [story_id for batch in requested_batches for story_id in batch] == story_ids
+    if unavailable_status:
+        return
+    tree = html.fromstring(response.get_data(as_text=True))
+    assert tree.xpath('//form[@id="report_form"]//input[@name="stories[]"]/@value') == story_ids
 
 
 def test_report_view_renders_access_denied_page_when_core_returns_403(app, authenticated_client_basic, responses_mock):
