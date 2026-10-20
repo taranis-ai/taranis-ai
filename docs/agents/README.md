@@ -27,7 +27,6 @@ Read matching memories before planning or editing related features, routes, mode
 - [Dashboard Cards](dashboard-cards.md): workflow counts and UTC week boundaries.
 - [PizzINT Dashboard](pizzint-dashboard.md): opt-in external signal, cache, and stale fallback.
 - [OSINT Source Management](osint-source-management.md): bulk creation/deletion, curated lists, and transactions.
-- [Source Icon Discovery](source-icons.md): feed images, Apple touch icons, website fallbacks, and upload validation.
 - [Collector HTTP State](collector-http-state.md): validators, request scoping, dates, and 304 handling.
 - [Fuzzy Deduplication and Collection Updates](fuzzy-deduplication.md): source/URL identity, revisions, CTPH grouping, concurrency, and backfill.
 - [HTTP Client Lifetimes](http-clients.md): pooling, service/source policies, credentials, streaming cleanup, and SDK boundaries.

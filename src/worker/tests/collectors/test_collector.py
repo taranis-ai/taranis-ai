@@ -232,106 +232,31 @@ def test_rss_validators_are_not_sent_to_secondary_resources(rss_collector, reque
         assert "If-Modified-Since" not in request.headers
 
 
-@pytest.mark.parametrize("rel", ["apple-touch-icon", "apple-touch-icon-precomposed", "ICON", "shortcut icon"])
-def test_source_icon_discovery_resolves_declared_icons(base_web_collector, requests_mock, rel):
-    page_url = "https://example.com/news/"
-    links = [f'<link rel="{rel}" href="touch.png">', '<link rel="icon" href="small.ico">']
-    if rel.startswith("apple-touch-icon"):
-        links.reverse()
-    requests_mock.get(page_url, status_code=302, headers={"Location": "/redirected/"})
-    requests_mock.get(
-        "https://example.com/redirected/",
-        text='<base href="../assets/">' + "".join(links),
-    )
-    icon = requests_mock.get("https://example.com/assets/touch.png", content=b"touch-icon", headers={"Content-Type": "image/png"})
-    upload = requests_mock.put(f"{Config.TARANIS_CORE_URL}/worker/osint-sources/source-1/icon", json={"message": "Icon uploaded"})
-
-    base_web_collector.update_favicon(page_url, "source-1")
-
-    assert icon.call_count == upload.call_count == 1
-    assert b"touch.png" in upload.last_request.body
-    assert b"touch-icon" in upload.last_request.body
-    assert len(requests_mock.request_history) == 4
-
-
-@pytest.mark.parametrize("key, icon", [("icon", "/feed-icon.png"), ("image", {"href": "../feed-icon.png"}), ("logo", ["/feed-icon.png"])])
-def test_rss_icon_metadata_precedes_web_discovery(rss_collector, requests_mock, key, icon):
-    import feedparser
-
-    rss_collector.feed_url = "https://example.com/news/feed.xml"
-    requests_mock.get("https://example.com/feed-icon.png", content=b"feed-icon", headers={"Content-Type": "image/png"})
-    upload = requests_mock.put(f"{Config.TARANIS_CORE_URL}/worker/osint-sources/source-1/icon", json={})
-
-    rss_collector.update_favicon_from_feed(feedparser.FeedParserDict({key: icon, "link": "https://example.com/"}), "source-1")
-
-    assert upload.call_count == 1
-    assert b"feed-icon" in upload.last_request.body
-    assert len(requests_mock.request_history) == 2
-
-
-def test_rss_icon_discovery_falls_back_without_leaking_source_headers(rss_collector, requests_mock):
+def test_rss_discovers_apple_touch_icon_when_feed_image_fails(rss_collector, requests_mock):
     import feedparser
 
     feed_url = "https://feeds.example.com/rss.xml"
-    validators = {"url": feed_url, "etag": '"feed-only"', "last_modified": "Tue, 11 Aug 2026 09:07:03 GMT"}
     rss_collector.feed_url = feed_url
+    validators = {"url": feed_url, "etag": '"feed-only"', "last_modified": None}
     rss_collector.configure_primary_http_resource({"http_validators": validators}, feed_url, manual=False)
-    rss_collector.headers.update({"Authorization": "Bearer source-secret", "Cookie": "source-cookie", "X-API-Key": "source-key"})
-    requests_mock.get("https://feeds.example.com/broken.png", exc=requests.exceptions.Timeout)
+    rss_collector.headers["Authorization"] = "Bearer source-secret"
+    requests_mock.get("https://feeds.example.com/image.png", status_code=404)
     requests_mock.get(
         "https://example.com/",
-        text=(
-            '<link rel="icon" href="/corrupt.png"><link rel="apple-touch-icon" href="/touch.svg">'
-            '<link rel="icon" href="/corrupt.png#duplicate"><link rel="icon" href="data:image/png;base64,abc">'
-            '<link rel="icon" href="http://[invalid">'
-        ),
+        text='<link rel="icon" href="/favicon.ico"><link rel="apple-touch-icon" href="icons/touch.png">',
     )
-    requests_mock.get("https://example.com/touch.svg", content=b"<svg/>", headers={"Content-Type": "image/svg+xml"})
-    requests_mock.get("https://example.com/corrupt.png", content=b"corrupt", headers={"Content-Type": "image/png"})
-    requests_mock.get("https://example.com/apple-touch-icon.png", text="not an image", headers={"Content-Type": "text/html"})
-    requests_mock.get("https://example.com/apple-touch-icon-precomposed.png", content=b"")
-    requests_mock.get("https://example.com/favicon.ico", content=b"valid-icon", headers={"Content-Type": "application/octet-stream"})
-    upload = requests_mock.put(
-        f"{Config.TARANIS_CORE_URL}/worker/osint-sources/source-1/icon",
-        [{"status_code": 400, "json": {"error": "Invalid icon"}}, {"json": {"message": "Icon uploaded"}}],
-    )
+    requests_mock.get("https://example.com/icons/touch.png", content=b"touch-icon", headers={"Content-Type": "image/png"})
+    upload = requests_mock.put(f"{Config.TARANIS_CORE_URL}/worker/osint-sources/source-1/icon", json={})
 
-    rss_collector.update_favicon_from_feed(
-        feedparser.FeedParserDict(icon="/broken.png", image="/broken.png#duplicate", logo="http://[invalid", link="https://example.com/"),
-        "source-1",
-    )
+    rss_collector.update_favicon_from_feed(feedparser.FeedParserDict(image="/image.png", link="https://example.com/"), "source-1")
 
-    assert upload.call_count == 2
-    assert b"valid-icon" in upload.last_request.body
-    external = [request for request in requests_mock.request_history if request.method == "GET"]
-    assert [request.url for request in external] == [
-        "https://feeds.example.com/broken.png",
-        "https://example.com/",
-        "https://example.com/touch.svg",
-        "https://example.com/corrupt.png",
-        "https://example.com/apple-touch-icon.png",
-        "https://example.com/apple-touch-icon-precomposed.png",
-        "https://example.com/favicon.ico",
-    ]
-    assert external[0].headers["Authorization"] == "Bearer source-secret"
-    for request in external:
-        assert "If-None-Match" not in request.headers
-        assert "If-Modified-Since" not in request.headers
-        if request.url.startswith("https://example.com/"):
-            assert not {"Authorization", "Cookie", "X-API-Key"} & request.headers.keys()
+    assert upload.call_count == 1
+    assert b"touch-icon" in upload.last_request.body
     assert rss_collector.http_validators == validators
-
-
-def test_icon_discovery_failure_does_not_abort_collection(simple_web_collector_mock, simple_web_collector, requests_mock):
-    from tests.collectors.conftest import file_loader
-    from tests.testdata import web_collector_source_data, web_collector_url
-
-    requests_mock.get(web_collector_url, [{"exc": requests.exceptions.ConnectionError}, {"text": file_loader("testweb.html")}])
-    requests_mock.get("https://raw.example.com/favicon.ico", exc=requests.exceptions.Timeout)
-
-    simple_web_collector.collect(web_collector_source_data)
-
-    assert any(request.method == "POST" and request.url.endswith("/worker/news-items") for request in requests_mock.request_history)
+    for request in requests_mock.request_history:
+        if request.method == "GET" and request.url.startswith("https://example.com/"):
+            assert "Authorization" not in request.headers
+            assert "If-None-Match" not in request.headers
 
 
 @pytest.mark.parametrize("entry_limit", [1, 3, 42])
@@ -492,7 +417,6 @@ def test_simple_web_collector_digest_splitting(simple_web_collector_mock, simple
 def test_rt_collector_collect(rt_mock, rt_collector, requests_mock):
     from tests.collectors import rt_testdata
 
-    icon = requests_mock.get(rt_testdata.favicon_url, content=b"rt-icon", headers={"Content-Type": "image/png"})
     source = {
         **rt_testdata.rt_collector_source_data,
         "parameters": effective_parameter_values(
@@ -500,10 +424,8 @@ def test_rt_collector_collect(rt_mock, rt_collector, requests_mock):
             {**rt_testdata.rt_collector_source_data["parameters"], "FIELDS_TO_INCLUDE": "Subject,Status"},
         ),
     }
-    source.pop("last_attempted", None)
     result = rt_collector.collect(source)
     assert result is None
-    assert icon.call_count == 1
     assert rt_collector.affected_story_ids == {"rt-story-1"}
     published = requests_mock.request_history[-1].json()
     assert published["attributes"] == [

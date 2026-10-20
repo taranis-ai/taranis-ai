@@ -36,6 +36,8 @@ Memory files provide expected behavior, code paths, tests, and known pitfalls; i
 
 ## Test Discipline
 
+Keep tests and documentation proportional to a feature's importance, complexity, and risk. For a small method-level change, default to one focused behavior test and a couple of sentences in existing component documentation; add more only for distinct, material risks. Do not create a test matrix or a standalone feature/memory document for a small helper change.
+
 Review every newly added test against the existing test suite. Remove tests that duplicate existing coverage or rely so heavily on mocking that they do not meaningfully exercise behavior. Keep a new test only when it adds necessary, effective coverage—the best code is no code, and that applies to test code too.
 
 At the end of feature development, humans and agents run `./dev/test_push_signoff.sh`, not a focused E2E target. If validation fails, fix and commit the problem, then run the same script again. Every full E2E run uses a fresh isolated Compose stack and removes it afterward. See [Development Workflow](docs/agents/development-workflow.md#feature-signoff-loop).
