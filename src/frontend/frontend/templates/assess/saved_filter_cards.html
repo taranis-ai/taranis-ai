@@ -26,7 +26,7 @@
                   hx-status:400="target:#assess_saved_filters_dialog"
                   hx-status:4xx="target:#assess_saved_filters_dialog"
                   hx-status:5xx="target:#assess_saved_filters_dialog"
-                  {% if not has_current_filters %}disabled title="Apply at least one Assess filter before updating."{% endif %}>Update</button>
+                  {% if not has_current_filters %}disabled title="Apply at least one Assess filter before updating."{% endif %}>Replace with current filters</button>
           {% if saved_filter.is_default %}
             <button type="button"
                     class="btn btn-outline btn-xs whitespace-nowrap"

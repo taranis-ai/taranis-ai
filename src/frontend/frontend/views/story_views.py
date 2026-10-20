@@ -1093,7 +1093,7 @@ class StoryView(BaseView):
         query = request.args.get("q", "")
         api = CoreApi()
         try:
-            tags = api.api_get(f"/assess/taglist?search={query}")
+            tags = api.api_get("/assess/taglist", params={"search": query})
         except HTTPException:
             raise
         except Exception:

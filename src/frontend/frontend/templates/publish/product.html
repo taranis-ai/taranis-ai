@@ -16,22 +16,22 @@
 {# djlint:off #}
 <div class="p-4"
      id="product"
+     {% if resume_action == 'publish' %}x-init="$nextTick(() =&gt; triggerAction('publish'))"{% endif %}
      x-data="
      {
-        dirty: false,
+        dirty: {{ 'true' if error or form_error else 'false' }},
+        pendingAction: '',
         triggerAction(action) {
           if (this.dirty) {
-            dirty_dialog.showModal();
+            this.pendingAction = action;
+            this.$refs.dirtyDialog.showModal();
             return;
           }
           if (action === 'render') {
-            render_button.click();
+            htmx.trigger(this.$refs.renderButton, 'product:render');
           } else if (action === 'publish') {
-            publish_dialog.showModal();
+            this.$refs.publishDialog.showModal();
           }
-        },
-        saveAndContinue() {
-          product_form.requestSubmit();
         }
      }
      ">
@@ -60,9 +60,12 @@
              download>Download</a>
         {% endif %}
         <button id="render_button"
+                x-ref="renderButton"
                 type="button"
                 class="btn btn-outline"
                 {% if report_access_warning %}disabled aria-describedby="product-report-access-warning"{% endif %}
+                @click="triggerAction('render')"
+                hx-trigger="product:render"
                 hx-target="#notification-bar"
                 hx-post="{{ url_for('publish.product_render', product_id=product.id) }}">Render</button>
       {% endif %}
@@ -94,7 +97,7 @@
               method="post"
               action="{{ form_action }}"
               {% if is_edit %}hx-put="{{ form_action }}"{% else %}hx-post="{{ form_action }}"{% endif %}
-              hx-swap="innerHTML"
+              hx-swap="outerHTML"
               hx-target="#product"
               hx-status:400="target:#product"
               hx-status:4xx="target:#product"
@@ -292,7 +295,7 @@
         </div>
 
         <!-- Dirty Dialog -->
-        <dialog id="dirty_dialog" class="modal">
+        <dialog id="dirty_dialog" class="modal" x-ref="dirtyDialog" @close="pendingAction = ''">
           <div class="modal-box">
             <h3 class="font-bold text-lg">Unsaved Changes</h3>
             <p class="py-4">You have unsaved changes. Do you want to save before continuing?</p>
@@ -300,14 +303,18 @@
               <form method="dialog">
                 <button class="btn">Close</button>
               </form>
-              <button class="btn btn-primary" @click="saveAndContinue()">Save and Continue</button>
+              <button type="submit"
+                      form="product_form"
+                      name="_continue_action"
+                      :value="pendingAction"
+                      class="btn btn-primary">Save and Continue</button>
             </div>
           </div>
         </dialog>
 
         <!-- Publish Dialog -->
         {% if not report_access_warning %}
-          <dialog id="publish_dialog" class="modal">
+          <dialog id="publish_dialog" class="modal" x-ref="publishDialog">
             <div class="modal-box min-w-[28rem]">
               <h3 class="font-bold text-lg mb-2">Publish Product</h3>
               {% if has_incomplete_reports | default(false) %}
@@ -324,6 +331,8 @@
                 <button class="btn btn-primary"
                         hx-post="{{ url_for('publish.product_publish', product_id=product.id) }}"
                         hx-target="#notification-bar"
+                        hx-status:4xx="target:#notification-bar"
+                        hx-status:5xx="target:#notification-bar"
                         hx-include="#publisher_select"
                         hx-swap="outerHTML">Publish</button>
                 <form method="dialog">

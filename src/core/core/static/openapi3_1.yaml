@@ -5799,7 +5799,7 @@ paths:
       tags:
       - publish
       operationId: publish.publish_product.post
-      description: generate a specific product at a specific publisher
+      description: Publish the current rendered product using a publisher. After saving, wait for rendering to finish before publishing.
       security:
       - UserAuth: []
       responses:
@@ -5809,6 +5809,8 @@ paths:
           $ref: '#/components/responses/401Unauthorized'
         '404':
           $ref: '#/components/responses/404NotFound'
+        '409':
+          description: No current render is available; wait for rendering to finish and retry.
   /publish/publisher-presets:
     get:
       tags:
@@ -6807,7 +6809,12 @@ paths:
       - UserAuth: []
       tags:
       - assess
-      description: get tag list
+      description: >-
+        Get unique non-report tag names from stories visible to the current user.
+        Search matches literal substrings case-insensitively. Exact names rank
+        first, followed by distinct story count descending and name ascending.
+        Each result includes its visible story count. Pagination is applied
+        after ranking (20 results by default).
       operationId: assess.taglist.get
       responses:
         '200':
@@ -6817,7 +6824,14 @@ paths:
               schema:
                 type: array
                 items:
-                  type: string
+                  type: object
+                  required: [name, story_count]
+                  properties:
+                    name:
+                      type: string
+                    story_count:
+                      type: integer
+                      minimum: 1
         '401':
           $ref: '#/components/responses/401Unauthorized'
         '403':
