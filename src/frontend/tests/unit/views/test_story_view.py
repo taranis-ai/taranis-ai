@@ -101,6 +101,55 @@ def story_with_news_item_tags() -> dict:
     }
 
 
+@pytest.mark.parametrize(
+    "source_ids, expected_sources",
+    [
+        ([], []),
+        (["a"], ["a"]),
+        (["b", "a", "b", "a", "a"], ["b", "a"]),
+        (["a", "b", "c", "d", "e"], ["a", "b", "c", "d", "e"]),
+        (["b", "a", "b", "a", "a", "a"], ["a", "b"]),
+        (["a", "b", "c", "d", "e", "f", "f", "e", "f"], ["f", "e", "a", "b", "c"]),
+        (["missing", "missing", "a", "b", "c", "d", "e", "f"], ["a", "b", "c", "d", "e"]),
+        (["missing"], []),
+    ],
+)
+def test_story_card_shows_distinct_top_source_icons(authenticated_client, responses_mock, source_ids, expected_sources):
+    story_payload = story_with_news_item_tags()
+    story_payload["news_items"] = [
+        {"id": f"news-{index}", "story_id": story_payload["id"], "osint_source_id": source_id, "content": "News content"}
+        for index, source_id in enumerate(source_ids)
+    ]
+    mock_story_for_edit(responses_mock, story_payload)
+    responses_mock.get(f"{Config.TARANIS_CORE_URL}/assess/bookmarks", json={"items": [], "total_count": 0})
+    responses_mock.replace(
+        "GET",
+        f"{Config.TARANIS_CORE_URL}/assess/filter-lists",
+        json={
+            "tags": [],
+            "groups": [],
+            "sources": [
+                {"id": source_id, "name": f"Source {source_id}", "icon": "aWNvbg==" if source_id == "a" else None} for source_id in "abcdef"
+            ],
+        },
+    )
+
+    response = authenticated_client.get(url_for("assess.story", story_id=story_payload["id"]))
+
+    assert response.status_code == 200
+    tree = html.fromstring(response.text)
+    source_icons = tree.xpath('//*[@data-test-id="story-source-icons"]')
+    if not expected_sources:
+        assert not source_icons
+        return
+    icons = source_icons[0]
+    assert icons.xpath("./*/@title") == [f"Source {source_id}" for source_id in expected_sources]
+    assert "Source" not in icons.text_content()
+    assert icons.xpath("./img/@alt | ./span/@aria-label") == [f"Source {source_id}" for source_id in expected_sources]
+    if "a" in expected_sources:
+        assert icons.xpath('./img[@alt="Source a"]/@src') == ["data:image/png;base64,aWNvbg=="]
+
+
 def _bookmark_collection_payload(bookmark_id: str, name: str, story_count: int, position: int = 0) -> dict:
     return {
         "id": bookmark_id,
