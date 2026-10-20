@@ -328,19 +328,22 @@ def test_bookmark_detail_renders_stories_and_remove_selected(
 
 
 def test_bookmark_cluster_dialog_offers_cluster_and_open(authenticated_client_basic: FlaskClient, responses_mock: RequestsMock) -> None:
-    responses_mock.get(f"{Config.TARANIS_CORE_URL}/assess/stories/story-1", json=_story_payload())
-    responses_mock.get(f"{Config.TARANIS_CORE_URL}/assess/stories/story-2", json=_story_payload("story-2"))
+    for story_id, count in (("story-1", 1), ("story-2", 3), ("story-3", 3)):
+        story = _story_payload(story_id)
+        story["news_items"] = [story["news_items"][0] | {"id": f"{story_id}-news-{index}"} for index in range(count)]
+        responses_mock.get(f"{Config.TARANIS_CORE_URL}/assess/stories/{story_id}", json=story)
 
     response = authenticated_client_basic.get(
         url_for(
             "assess.cluster_story",
-            story_ids=["story-1", "story-2"],
+            story_ids=["story-1", "story-2", "story-3"],
             bookmark_id="bookmark-1",
         )
     )
 
     assert response.status_code == 200
     tree = html.fromstring(response.text)
+    assert tree.xpath('//input[@name="story_ids"]/@value') == ["story-2", "story-3", "story-1"]
     assert tree.xpath('//input[@name="bookmark_id" and @value="bookmark-1"]')
     submit_button = tree.xpath('//*[@data-testid="dialog-story-cluster-submit"]')[0]
     assert submit_button.get("hx-on::after:request") == (
