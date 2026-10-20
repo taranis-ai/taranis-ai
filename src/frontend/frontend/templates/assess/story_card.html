@@ -70,17 +70,13 @@
               <span class="font-semibold uppercase tracking-wide text-xs text-base-content/60">Sources</span>
               <div class="flex items-center gap-1" data-test-id="story-source-icons">
                 {% for source in story.model_extra.source_infos %}
-                  {% if source.icon %}
-                    <img src="data:image/png;base64,{{ source.icon | string }}"
-                         alt="{{ source.name }}"
-                         title="{{ source.name }}"
-                         height="16"
-                         width="16" />
-                  {% else %}
-                    <span role="img"
-                          aria-label="{{ source.name }}"
-                          title="{{ source.name }}">{{ heroicon_mini("newspaper", class="h-4 w-4") }}</span>
-                  {% endif %}
+                  <div class="tooltip before:z-[50]" data-tip="{{ source.name }}">
+                    {% if source.icon %}
+                      <img src="data:image/png;base64,{{ source.icon | string }}" alt="{{ source.name }}" height="16" width="16" />
+                    {% else %}
+                      <span role="img" aria-label="{{ source.name }}">{{ heroicon_mini("newspaper", class="h-4 w-4") }}</span>
+                    {% endif %}
+                  </div>
                 {% endfor %}
               </div>
             </div>

@@ -143,11 +143,11 @@ def test_story_card_shows_distinct_top_source_icons(authenticated_client, respon
         assert not source_icons
         return
     icons = source_icons[0]
-    assert icons.xpath("./*/@title") == [f"Source {source_id}" for source_id in expected_sources]
+    assert icons.xpath("./*/@data-tip") == [f"Source {source_id}" for source_id in expected_sources]
     assert "Source" not in icons.text_content()
-    assert icons.xpath("./img/@alt | ./span/@aria-label") == [f"Source {source_id}" for source_id in expected_sources]
+    assert icons.xpath("./*/img/@alt | ./*/span/@aria-label") == [f"Source {source_id}" for source_id in expected_sources]
     if "a" in expected_sources:
-        assert icons.xpath('./img[@alt="Source a"]/@src') == ["data:image/png;base64,aWNvbg=="]
+        assert icons.xpath('./*/img[@alt="Source a"]/@src') == ["data:image/png;base64,aWNvbg=="]
 
 
 def _bookmark_collection_payload(bookmark_id: str, name: str, story_count: int, position: int = 0) -> dict:

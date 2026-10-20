@@ -6,7 +6,7 @@ Assess or bookmark story-card metadata, source icons, or frontend story enrichme
 
 ## Contracts
 
-- Story cards show up to five distinct sources as icons, with names in tooltips and accessible labels. Sources without an image use a newspaper icon; sources absent from the user-visible filter catalog are omitted.
+- Story cards show up to five distinct sources as icons, with each name in the shared styled hover tooltip and accessible label. Sources without an image use a newspaper icon with the same tooltip; sources absent from the user-visible filter catalog are omitted.
 - With at most five news items, sources retain their first appearance order without frequency ranking. With more than five items, rank by news-item count and keep the first five sources; ties retain first appearance order.
 - Enrichment uses the already-loaded source catalog for both lists and detail views. `source_infos` is frontend-only story metadata; summary fallback remains the first news item's content.
 
