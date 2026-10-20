@@ -48,7 +48,12 @@ class TestAssessApi(BaseTest):
             db.session.delete(bots[-1])
             db.session.commit()
         elif unavailable == "disabled_endpoint":
-            Settings.save_llm_endpoint({"enabled": False}, Settings.get_settings()["llm_default_endpoint"])
+            endpoint, status = Settings.save_llm_endpoint(
+                {"name": "Disabled tagging endpoint", "base_url": "https://llm.example/v1", "enabled": False}
+            )
+            assert status == 200
+            bots[-1].parameters = {**bots[-1].parameters, "LLM_ENDPOINT": endpoint["id"]}
+            db.session.commit()
         elif unavailable == "queue_disabled":
             monkeypatch.setattr(Config, "QUEUE_ENABLED", False)
 
