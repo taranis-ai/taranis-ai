@@ -118,16 +118,33 @@ def apply_import(
     create: SbomCreateAsset | None = None,
     asset_id: str | None = None,
     expected_sha256: str | None = None,
+    enable_software_matching: bool = True,
+    enable_cve_matching: bool = True,
 ) -> tuple[Asset, bool]:
     """Apply one snapshot atomically; callers schedule matching only after this commits."""
     with db.session.begin_nested():
-        asset, changed = _apply_import(import_id, user, create=create, asset_id=asset_id, expected_sha256=expected_sha256)
+        asset, changed = _apply_import(
+            import_id,
+            user,
+            create=create,
+            asset_id=asset_id,
+            expected_sha256=expected_sha256,
+            enable_software_matching=create.enable_software_matching if create else enable_software_matching,
+            enable_cve_matching=create.enable_cve_matching if create else enable_cve_matching,
+        )
     db.session.commit()
     return asset, changed
 
 
 def _apply_import(
-    import_id: str, user: User, *, create: SbomCreateAsset | None, asset_id: str | None, expected_sha256: str | None
+    import_id: str,
+    user: User,
+    *,
+    create: SbomCreateAsset | None,
+    asset_id: str | None,
+    expected_sha256: str | None,
+    enable_software_matching: bool,
+    enable_cve_matching: bool,
 ) -> tuple[Asset, bool]:
     asset = None
     if asset_id:
@@ -170,6 +187,10 @@ def _apply_import(
     asset.asset_cpes = [c for c in asset.asset_cpes if c.value in desired_cpes]
     retained_cpes = {c.value for c in asset.asset_cpes}
     asset.asset_cpes.extend(AssetCpe(cpe) for cpe in sorted(desired_cpes - retained_cpes))
+    # Seed new CVEs before preserve_rules restores decisions for existing IDs.
+    for finding in record.findings:
+        if finding.cve_id:
+            finding.matching_enabled = enable_cve_matching
     if previous:
         preserve_rules(previous, record)
         previous.asset_id = None
@@ -177,7 +198,7 @@ def _apply_import(
         db.session.delete(previous)
     record.asset_id = asset.id
     db.session.flush()
-    generate_triggers(asset.id)
+    generate_triggers(asset.id, enable_software_matching=enable_software_matching)
     db.session.execute(
         db.update(AssetMatchRun)
         .where(AssetMatchRun.asset_id == asset.id, AssetMatchRun.status.in_(("QUEUED", "RUNNING")))

@@ -11,6 +11,21 @@ from frontend.cache_models import PagingData
 from frontend.core_api import CoreApi
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.log import logger
+from frontend.views.asset_views import asset_display_name
+
+
+def _matching_choices() -> dict[str, bool]:
+    return {key: request.method != "POST" or request.form.get(key) == "on" for key in ("enable_software_matching", "enable_cve_matching")}
+
+
+def _render_upload(*, target_id=None, error=None, status=200, read_only=False):
+    return render_template(
+        "assets/sbom_upload.html",
+        target_asset_id=target_id,
+        asset_name=asset_display_name(target_id),
+        error=error,
+        read_only=read_only,
+    ), status
 
 
 def _render_inventory(payload, *, preview=False, error=None, status=200):
@@ -26,6 +41,8 @@ def _render_inventory(payload, *, preview=False, error=None, status=200):
         tags_text=request.form.get("tags_text", ""),
         group_id=request.form.get("asset_group_id", ""),
         description=request.form.get("description", inventory.summary.description[:10000]),
+        asset_name=inventory.comparison.asset_name if inventory.comparison else asset_display_name(inventory.asset_id),
+        **_matching_choices(),
     ), status
 
 
@@ -43,31 +60,43 @@ def upload_sbom():
                 response = CoreApi().upload_sbom(upload, asset_id=target_id or None)
                 payload = response.json()
                 if response.ok:
-                    return redirect(url_for("assets.sbom_progress", upload_id=payload["id"]), code=303)
+                    return redirect(url_for("assets.sbom_progress", upload_id=payload["id"], asset_id=target_id or None), code=303)
                 error, status = payload.get("error", "Unable to preview this SBOM."), response.status_code
             except RequestException, ValueError:
                 logger.exception("SBOM upload failed")
                 error, status = "Unable to upload the SBOM. Please try again.", 502
-    return render_template("assets/sbom_upload.html", error=error, target_asset_id=target_id), status
+    return _render_upload(target_id=target_id, error=error, status=status)
 
 
 @auth_required("ASSETS_CREATE")
 def sbom_progress(upload_id: str):
     api = CoreApi()
+    target_id = request.args.get("asset_id")
+    progress = None
+    error, status = None, 200
     try:
         response = api.session.get(f"{api.api_url}/assets/sbom-uploads/{upload_id}", timeout=api.timeout)
         if not response.ok:
-            return render_template("assets/sbom_upload.html", error="SBOM processing status unavailable."), response.status_code
-        progress = SbomUploadStatus.model_validate(response.json())
-        if progress.status == "READY" and progress.import_id:
-            target = url_for("assets.sbom_preview", import_id=progress.import_id, asset_id=progress.target_asset_id)
-            if request.headers.get("HX-Request"):
-                return "", 200, {"HX-Redirect": target}
-            return redirect(target, code=303)
-        return render_template("assets/sbom_progress.html", progress=progress)
+            error, status = "SBOM processing status unavailable.", response.status_code
+        else:
+            progress = SbomUploadStatus.model_validate(response.json())
+            target_id = progress.target_asset_id
+            if progress.status == "READY" and progress.import_id:
+                target = url_for("assets.sbom_preview", import_id=progress.import_id, asset_id=target_id)
+                if request.headers.get("HX-Request"):
+                    return "", 200, {"HX-Redirect": target}
+                return redirect(target, code=303)
     except RequestException, ValueError:
         logger.exception("SBOM processing status unavailable")
-        return render_template("assets/sbom_upload.html", error="Unable to load SBOM processing status. Please reload this page."), 502
+        error, status = "Unable to load SBOM processing status. Please reload this page.", 502
+    return render_template(
+        "assets/sbom_progress.html",
+        progress=progress,
+        upload_id=upload_id,
+        target_asset_id=target_id,
+        asset_name=asset_display_name(target_id),
+        error=error,
+    ), status
 
 
 @auth_required("ASSETS_CREATE")
@@ -85,6 +114,7 @@ def preview_sbom(import_id: str):
                     {
                         "import_id": import_id,
                         "expected_sha256": request.form.get("expected_sha256") or None,
+                        **_matching_choices(),
                     },
                 )
             else:
@@ -95,6 +125,7 @@ def preview_sbom(import_id: str):
                         "asset_group_id": request.form.get("asset_group_id", ""),
                         "description": request.form.get("description", ""),
                         "tags": request.form.get("tags_text", "").splitlines(),
+                        **_matching_choices(),
                     },
                 )
             payload = response.json()
@@ -109,13 +140,13 @@ def preview_sbom(import_id: str):
         )
         payload = response.json()
         if not response.ok:
-            return render_template("assets/sbom_upload.html", error=payload.get("error", "Preview unavailable.")), response.status_code
+            return _render_upload(target_id=target_id, error=payload.get("error", "Preview unavailable."), status=response.status_code)
         if payload.get("asset_id") and not target_id:
             return redirect(url_for(destination, asset_id=payload["asset_id"]), code=303)
         return _render_inventory(payload, preview=True, error=error, status=status)
     except RequestException, ValueError:
         logger.exception("SBOM preview failed")
-        return render_template("assets/sbom_upload.html", error="Unable to load the SBOM preview. Please try again."), 502
+        return _render_upload(target_id=target_id, error="Unable to load the SBOM preview. Please try again.", status=502)
 
 
 @auth_required("ASSETS_ACCESS")
@@ -129,10 +160,10 @@ def asset_inventory(asset_id: str):
         )
         payload = response.json()
         if not response.ok:
-            return render_template(
-                "assets/sbom_upload.html", error=payload.get("error", "Inventory unavailable."), read_only=True
-            ), response.status_code
+            return _render_upload(
+                target_id=asset_id, error=payload.get("error", "Inventory unavailable."), read_only=True, status=response.status_code
+            )
         return _render_inventory(payload)
     except RequestException, ValueError:
         logger.exception("SBOM inventory failed")
-        return render_template("assets/sbom_upload.html", error="Unable to load the inventory. Please try again.", read_only=True), 502
+        return _render_upload(target_id=asset_id, error="Unable to load the inventory. Please try again.", read_only=True, status=502)

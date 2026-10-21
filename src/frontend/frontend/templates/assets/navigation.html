@@ -1,0 +1,29 @@
+{% macro asset_navigation(asset_id, active, asset_name=none, intelligence_query=none) %}
+  <div class="space-y-3 mb-4">
+    <a class="link" href="{{ url_for('assets.assets') }}">Assets</a>
+    <div>
+      {% if asset_name %}<p class="text-lg font-semibold break-words">{{ asset_name }}</p>{% endif %}
+      <p class="text-sm text-base-content/70 break-all">Asset ID: {{ asset_id }}</p>
+    </div>
+    {% set can_read = 'ASSETS_ACCESS' in current_user.permissions %}
+    {% set intelligence_url = url_for('assets.asset_intelligence', **intelligence_query) if intelligence_query else url_for('assets.asset_intelligence', asset_id=asset_id) %}
+    <nav aria-label="Asset views" class="flex flex-wrap gap-2">
+      {% for key, label, href, available in [
+        ('details', 'Asset details', url_for('assets.asset', asset_id=asset_id), can_read),
+        ('inventory', 'Software inventory', url_for('assets.asset_sbom', asset_id=asset_id), can_read),
+        ('rules', 'Matching rules', url_for('assets.asset_triggers', asset_id=asset_id), can_read),
+        ('intelligence', 'Relevant intelligence', intelligence_url, can_read and 'ASSESS_ACCESS' in current_user.permissions),
+        ('findings', 'Findings & indicators', url_for('assets.asset_cti', asset_id=asset_id), can_read),
+        ('update', 'Update SBOM', url_for('assets.sbom_upload', asset_id=asset_id), 'ASSETS_CREATE' in current_user.permissions)
+      ] %}
+        {% if available %}
+          <a class="btn btn-sm {{ 'btn-primary' if active == key else 'btn-outline' }}"
+             href="{{ href }}"
+             {% if active == key %}aria-current="page"{% endif %}>{{ label }}</a>
+        {% else %}
+          <span class="btn btn-sm btn-disabled" aria-disabled="true" title="Permission required">{{ label }}</span>
+        {% endif %}
+      {% endfor %}
+    </nav>
+  </div>
+{% endmacro %}

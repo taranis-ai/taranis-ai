@@ -1,15 +1,12 @@
 {% extends "base.html" %}
+{% from "assets/navigation.html" import asset_navigation with context %}
 {% block content %}
   <div class="p-4 space-y-4">
-    <nav class="flex gap-4">
-      <a class="link" href="{{ url_for('assets.asset_sbom', asset_id=asset_id) }}">SBOM inventory</a>
-      {% if "ASSESS_ACCESS" in current_user.permissions %}<a class="link"
-   href="{{ url_for('assets.asset_intelligence', asset_id=asset_id) }}">Relevant intelligence</a>{% endif %}
-    </nav>
-    <h1 class="text-2xl font-bold">Component triggers{% if data %} · {{ data.asset_name }}{% endif %}</h1>
+    {{ asset_navigation(asset_id, 'rules', data.asset_name if data else none) }}
+    <h1 class="text-2xl font-bold">Matching rules{% if data %} · {{ data.asset_name }}{% endif %}</h1>
     {% if error %}<div role="alert" class="alert alert-error">{{ error }}</div>{% endif %}
     {% if data %}
-      <p>Product names are enabled automatically. Adjust these rules only when you need to refine the results. Broad vendor, supplier, and ambiguous terms stay disabled by default.</p>
+      <p>Software-name phrases and optional context used to match collected articles. Import choices set defaults for new rules; you can enable, disable, or refine them here. Broad vendor, supplier, and ambiguous terms start disabled.</p>
       <p>Each rule applies to the listed versions of the same package. Editing, enabling, or disabling it updates those versions together.</p>
       <p>Phrases match whole words, ignoring case. Optional context requires at least one context phrase in the same article. Installed versions are shown for reference and need not appear in the article.</p>
       <form method="get" class="flex flex-wrap gap-2 items-end">
@@ -26,7 +23,7 @@
             <option value="false" {% if request.args.get('enabled') == 'false' %}selected{% endif %}>Disabled</option>
           </select>
         </label>
-        <button class="btn" type="submit">Filter triggers</button>
+        <button class="btn" type="submit">Filter rules</button>
         <a class="link" href="{{ url_for('assets.asset_triggers', asset_id=asset_id) }}">Clear filters</a>
       </form>
       {% set can_edit = 'ASSETS_CREATE' in current_user.permissions %}
@@ -80,7 +77,7 @@
             {% if trigger.context %}<p>Requires any context: {{ trigger.context | join(", ") }}</p>{% endif %}
             {% if can_edit %}
               <details {% if error and request.form.get('trigger_id') == trigger.id %}open{% endif %}>
-                <summary class="cursor-pointer">Edit trigger</summary>
+                <summary class="cursor-pointer">Edit rule</summary>
                 <form method="post" class="space-y-2 max-w-xl">
                   <input type="hidden" name="csrf_token" value="{{ request.cookies.get(config['JWT_ACCESS_CSRF_COOKIE_NAME'], '') }}">
                   <input type="hidden" name="action" value="edit">
@@ -109,7 +106,7 @@
        name="enabled"
        class="checkbox"
        {% if (retry and request.form.get('enabled') == 'on') or (not retry and trigger.enabled) %}checked{% endif %}>Enabled</label>
-                  <button class="btn btn-primary" type="submit">Save trigger</button>
+                  <button class="btn btn-primary" type="submit">Save rule</button>
                 </form>
               </details>
               <details {% if error and request.form.get('component_id') == trigger.component_id %}open{% endif %}>
@@ -148,13 +145,13 @@
             {% endif %}
           </section>
         {% else %}
-          <p>No triggers match these filters.</p>
+          <p>No rules match these filters.</p>
         {% endfor %}
       </div>
-      <nav aria-label="Trigger pages" class="flex gap-4 items-center">
+      <nav aria-label="Rule pages" class="flex gap-4 items-center">
         {% if data.page > 1 %}<a class="btn btn-sm"
    href="{{ url_for('assets.asset_triggers', asset_id=asset_id, page=data.page - 1, search=request.args.get('search', ''), enabled=request.args.get('enabled', ''), component_id=request.args.get('component_id', '')) }}">Previous</a>{% endif %}
-        <span>{{ data.total }} triggers · Page {{ data.page }} of {{ data.pages }}</span>
+        <span>{{ data.total }} rules · Page {{ data.page }} of {{ data.pages }}</span>
         {% if data.page < data.pages %}<a class="btn btn-sm"
    href="{{ url_for('assets.asset_triggers', asset_id=asset_id, page=data.page + 1, search=request.args.get('search', ''), enabled=request.args.get('enabled', ''), component_id=request.args.get('component_id', '')) }}">Next</a>{% endif %}
       </nav>

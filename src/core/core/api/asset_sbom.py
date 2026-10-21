@@ -13,8 +13,9 @@ from werkzeug.utils import secure_filename
 from core.managers.auth_manager import api_key_required, auth_required
 from core.managers.db_manager import db
 from core.model.asset import Asset
+from core.model.asset_intelligence import AssetTrigger
 from core.model.asset_sbom import AssetSbomComponent, AssetSbomFinding, AssetSbomImport
-from core.service.asset_intelligence import start_match_run, trigger_suggestions
+from core.service.asset_intelligence import asset_triggers, start_match_run, trigger_suggestions
 from core.service.asset_sbom import SbomImportError, apply_import, compare_import, current_import, owned_import
 from core.service.cache_invalidation import invalidate_frontend_cache_on_success
 from core.service.sbom_upload import (
@@ -66,7 +67,9 @@ def inventory_response(record: AssetSbomImport) -> dict:
 def applied_response(asset: Asset, changed: bool, status: int):
     if changed:
         invalidate_frontend_cache_on_success(status, models=("asset",), object_ids={"asset": asset.id})
-        if {"ASSETS_ACCESS", "ASSESS_ACCESS"}.issubset(current_user.get_permissions()):
+        if {"ASSETS_ACCESS", "ASSESS_ACCESS"}.issubset(current_user.get_permissions()) and db.session.scalar(
+            asset_triggers(asset.id).where(AssetTrigger.enabled.is_(True)).limit(1)
+        ):
             start_match_run(asset.id, current_user)
     return {"id": asset.id, "message": "SBOM applied." if changed else "This SBOM has already been applied."}, status if changed else 200
 
@@ -188,7 +191,14 @@ class AssetSbomInventory(MethodView):
     def put(self, asset_id: str):
         try:
             data = SbomReplaceAsset.model_validate(request.get_json(silent=True))
-            asset, changed = apply_import(data.import_id, current_user, asset_id=asset_id, expected_sha256=data.expected_sha256)
+            asset, changed = apply_import(
+                data.import_id,
+                current_user,
+                asset_id=asset_id,
+                expected_sha256=data.expected_sha256,
+                enable_software_matching=data.enable_software_matching,
+                enable_cve_matching=data.enable_cve_matching,
+            )
             return applied_response(asset, changed, 200)
         except ValidationError:
             return {"error": "Provide a preview import ID and the expected current SBOM hash."}, 400

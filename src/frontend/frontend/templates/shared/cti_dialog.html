@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "assets/navigation.html" import asset_navigation with context %}
 
 {% macro status_badge(status) %}
   {% set normalized = status | default('', true) | lower %}
@@ -256,19 +257,20 @@
 
 {% block content %}
   <section id="cti-view" class="p-4 space-y-4" data-testid="cti-view">
+    {% if cti.item_type == "asset" and cti.item_id != "all" %}
+      {{ asset_navigation(cti.item_id, 'findings', asset_name) }}
+    {% elif cti.item_type == "asset" %}
+      <a class="link" href="{{ url_for('assets.assets') }}">Assets</a>
+    {% endif %}
     <div class="flex flex-wrap items-start gap-3">
       <div class="min-w-0 flex-1">
-        <h1 class="text-2xl font-bold">CTI information</h1>
+        <h1 class="text-2xl font-bold">{{ 'Findings & indicators' if cti.item_type == 'asset' else 'CTI information' }}</h1>
+        {% if cti.item_type == "asset" %}<p>Imported vulnerability findings, asset indicators, and available enrichment. Findings remain visible when matching is disabled; source assessments do not confirm exposure.</p>{% endif %}
         <p class="mt-1 text-sm text-base-content/70">
           {{ cti.item_type | replace('_', ' ') | title }}:
           <span class="font-mono break-all">{{ cti.item_id }}</span>
         </p>
       </div>
-      {% if cti.item_type == "asset" and cti.item_id != "all" %}
-        <a class="btn btn-outline btn-sm" href="{{ url_for('assets.asset_sbom', asset_id=cti.item_id) }}">SBOM inventory</a>
-        {% if "ASSESS_ACCESS" in current_user.permissions %}<a class="btn btn-outline btn-sm"
-   href="{{ url_for('assets.asset_intelligence', asset_id=cti.item_id) }}">Relevant intelligence</a>{% endif %}
-      {% endif %}
       <button type="button" onclick="window.history.back()" class="btn btn-outline btn-sm" data-testid="cti-back-link">Back</button>
     </div>
 
@@ -278,7 +280,8 @@
         <label>
           CVE or component<input class="input input-bordered" name="search" value="{{ cti.pagination.search }}">
         </label>
-        <button class="btn btn-primary" type="submit">Search CTI</button>
+        <button class="btn btn-primary"
+                type="submit">{{ 'Search findings & indicators' if cti.item_type == 'asset' else 'Search CTI' }}</button>
       </form>
       <p>{{ cti.pagination.total }} distinct indicators or finding IDs</p>
     {% endif %}
@@ -312,7 +315,7 @@
         {% endfor %}
       </div>
     {% else %}
-      <div class="alert">No CTI information available.</div>
+      <div class="alert">{{ 'No findings or indicators available.' if cti.item_type == 'asset' else 'No CTI information available.' }}</div>
     {% endif %}
     {% if cti.pagination %}
       <nav aria-label="CTI pages" class="flex gap-4 items-center">

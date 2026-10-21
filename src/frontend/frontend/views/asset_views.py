@@ -2,6 +2,7 @@ from typing import Any
 from urllib.parse import urlencode
 
 from flask import redirect, render_template, request, url_for
+from flask_jwt_extended import current_user
 from models.asset import Asset
 from models.cti import CTIResponse
 from requests import RequestException
@@ -10,6 +11,20 @@ from frontend.auth import auth_required
 from frontend.core_api import CoreApi
 from frontend.log import logger
 from frontend.views.base_view import BaseView
+
+
+def asset_display_name(asset_id: str | None) -> str | None:
+    if not asset_id or "ASSETS_ACCESS" not in current_user.permissions:
+        return None
+    try:
+        # Read current access rather than reuse a cached name after group changes.
+        api = CoreApi()
+        response = api.session.get(f"{api.api_url}/assets/{asset_id}", timeout=api.timeout)
+        if response.ok:
+            return Asset.model_validate(response.json()).name
+    except RequestException, ValueError:
+        logger.exception("Asset display name unavailable")
+    return None
 
 
 class AssetView(BaseView):
@@ -106,9 +121,9 @@ def _render_asset_cti(asset_id: str | None, *, error=None, status=200) -> tuple[
         if response.ok:
             cti = CTIResponse.model_validate(response.json())
         else:
-            error, status = "Unable to load asset CTI information.", response.status_code
+            error, status = "Unable to load asset findings and indicators.", response.status_code
     except RequestException, ValueError:
         logger.exception("Asset CTI read failed")
-        error, status = "Unable to load asset CTI information.", 502
+        error, status = "Unable to load asset findings and indicators.", 502
     cti_url = url_for("assets.asset_cti", asset_id=asset_id) if asset_id else url_for("assets.assets_cti")
-    return render_template("shared/cti_dialog.html", cti=cti, cti_url=cti_url, error=error), status
+    return render_template("shared/cti_dialog.html", cti=cti, cti_url=cti_url, error=error, asset_name=asset_display_name(asset_id)), status

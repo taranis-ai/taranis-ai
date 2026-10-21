@@ -134,7 +134,7 @@ def grouped_triggers(asset_id: str, *, lock=False) -> list[list[AssetTrigger]]:
     return list(groups.values())
 
 
-def generate_triggers(asset_id: str) -> int:
+def generate_triggers(asset_id: str, *, enable_software_matching: bool = True) -> int:
     # Serialize suggestion generation without rewriting an analyst's saved decisions.
     record = db.session.scalar(db.select(AssetSbomImport).where(AssetSbomImport.asset_id == asset_id).with_for_update())
     if not record:
@@ -153,7 +153,7 @@ def generate_triggers(asset_id: str) -> int:
                     suggestion["context"],
                     suggestion["sources"],
                     suggestion=key,
-                    enabled=suggestion["enabled"],
+                    enabled=enable_software_matching and suggestion["enabled"],
                 )
             )
             added += 1

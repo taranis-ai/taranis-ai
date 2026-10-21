@@ -1,24 +1,20 @@
 {% extends "base.html" %}
+{% from "assets/navigation.html" import asset_navigation with context %}
 {% from "macros/table.html" import table_controls %}
 {% block content %}
   <div class="p-4 space-y-4" x-data="{ expandedArticles: {} }">
     {% if assess_return_url %}
       {% include "assess/back_link.html" %}
     {% endif %}
-    <nav class="flex gap-4">
-      <a class="link" href="{{ url_for('assets.assets_intelligence', **query) }}">Intelligence overview</a>
-      <a class="link" href="{{ url_for('assets.asset', asset_id=asset_id) }}">Asset details</a>
-      <a class="link" href="{{ url_for('assets.asset_sbom', asset_id=asset_id) }}">SBOM inventory</a>
-      <a class="link" href="{{ url_for('assets.asset_triggers', asset_id=asset_id) }}">Component triggers</a>
-      <a class="link" href="{{ url_for('assets.asset_cti', asset_id=asset_id) }}">CTI information</a>
-    </nav>
+    <a class="link" href="{{ url_for('assets.assets_intelligence', **query) }}">Intelligence overview</a>
+    {{ asset_navigation(asset_id, 'intelligence', data.asset_name if data else none, query) }}
     <h1 class="text-2xl font-bold">Relevant intelligence{% if data %} · {{ data.asset_name }}{% endif %}</h1>
     <p>These mentions indicate potential relevance. They do not confirm a vulnerability or that the installed version is affected.</p>
     {% if error %}<div role="alert" class="alert alert-error">{{ error }}</div>{% endif %}
     {% include "assets/intelligence_filters.html" %}
     {% if data %}
-      <p>Product-name matching starts automatically on import, with an initial scan of articles collected in the last 30 days. New and updated articles are matched as they arrive. Component triggers let you optionally refine the results; scan again after changing them.</p>
-      <p>Imported CVEs match existing CVE tags across collected history as soon as IOC Bot has tagged an article. These associations update automatically.</p>
+      <p>Enabled software-name rules match new and updated articles as they arrive. Import starts a scan of the last 30 days when software rules are enabled. Use Matching rules to enable or refine phrases, then scan existing articles to update historical results.</p>
+      <p>Imported CVEs with matching enabled match existing CVE tags across collected history as soon as IOC Bot has tagged an article. Manage CVE matching in Findings &amp; indicators; these associations update without a scan.</p>
       {% if "ASSETS_CREATE" in current_user.permissions %}
         <form method="post" class="flex flex-wrap gap-2 items-end">
           <input type="hidden" name="csrf_token" value="{{ request.cookies.get(config['JWT_ACCESS_CSRF_COOKIE_NAME'], '') }}">

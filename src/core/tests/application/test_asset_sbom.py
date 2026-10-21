@@ -515,6 +515,49 @@ def import_findings(client, headers, document):
     return preview, f"/api/assets/{created.json['id']}"
 
 
+@pytest.mark.parametrize(("software_matching", "cve_matching"), [(True, False), (False, True), (False, False)])
+def test_import_matching_choices(client, auth_header, api_header, session, finding_document, software_matching, cve_matching):
+    source = create_osint_source(rank=0)
+    story = create_story(news_items=[build_news_item_payload(source.id, title="BuildKit security bulletin")])
+    story.news_items[0].tags.append(NewsItemTag("CVE-2026-12345", "CVE"))
+    db.session.commit()
+    preview = upload(client, auth_header, finding_document).json
+    endpoint = f"/api/assets/sbom-imports/{preview['id']}"
+    body = {
+        "name": "Reviewed import",
+        "asset_group_id": AssetGroup.get_default_group().id,
+        "enable_software_matching": software_matching,
+        "enable_cve_matching": cve_matching,
+    }
+    created = client.post(endpoint, headers=auth_header, json=body)
+    assert created.status_code == 201, created.json
+    base = f"/api/assets/{created.json['id']}"
+    rules = client.get(base + "/triggers", headers=auth_header).json["items"]
+    assert rules and any(rule["enabled"] for rule in rules) == software_matching
+    inventory = client.get(base + "/sbom", headers=auth_header).json
+    assert inventory["summary"]["component_count"] == preview["summary"]["component_count"]
+    findings = client.get(base + "/cti", headers=auth_header).json["iocs"]
+    cve = next(item for item in findings if item["value"] == "CVE-2026-12345")
+    assert cve["findings"][0]["matching_enabled"] == cve_matching
+    assert bool(cve["news_item_ids"]) == cve_matching
+    assert cve["findings"][0]["records"] == finding_document["vulnerabilities"][:2]
+    run = client.get(base + "/match-runs", headers=auth_header).json["run"]
+    assert bool(run) == software_matching
+    if run:
+        assert client.post(f"/api/worker/asset-match-runs/{run['id']}/batch", headers=api_header, json={}).status_code == 200
+    matches = client.get(base + "/intelligence", headers=auth_header).json["items"]
+    assert bool(matches) == (software_matching or cve_matching)
+    if matches:
+        article = matches[0]["articles"][0]
+        assert bool(article["evidence"]) == software_matching
+        assert bool(article["cve_matches"]) == cve_matching
+    body.update(enable_software_matching=not software_matching, enable_cve_matching=not cve_matching)
+    assert client.post(endpoint, headers=auth_header, json=body).status_code == 200
+    assert client.get(base + "/triggers", headers=auth_header).json["items"] == rules
+    assert client.get(base + "/cti", headers=auth_header).json["iocs"] == findings
+    assert len(db.session.scalars(db.select(AssetMatchRun).filter_by(asset_id=created.json["id"])).all()) == int(software_matching)
+
+
 def test_imported_findings_cti_and_live_tag_associations(
     client, auth_header, auth_header_user_permissions, api_header, session, finding_document
 ):
@@ -633,16 +676,25 @@ def test_replacement_preserves_decisions_and_removes_obsolete_snapshot(client, a
     )
     replacement["vulnerabilities"] = [replacement["vulnerabilities"][0]]
     replacement["vulnerabilities"][0]["affects"].append({"ref": "buildkit-new"})
+    replacement["components"].append({"type": "library", "name": "new-software", "version": "1", "bom-ref": "new-software"})
+    replacement["vulnerabilities"].append({"id": "CVE-2026-54321", "affects": [{"ref": "new-software"}]})
     new = upload(client, auth_header, replacement).json
     comparison = client.get(f"/api/assets/sbom-imports/{new['id']}?asset_id={asset.id}", headers=auth_header).json["comparison"]
-    assert comparison["components_added"] == 1 and comparison["components_removed"] == 1
+    assert comparison["components_added"] == 2 and comparison["components_removed"] == 1
     assert comparison["cves_removed"] == 1 and comparison["expected_sha256"] == preview["sha256"]
-    body = {"import_id": new["id"], "expected_sha256": "stale"}
+    body = {"import_id": new["id"], "expected_sha256": "stale", "enable_software_matching": False, "enable_cve_matching": False}
     assert client.put(base + "/sbom", headers=auth_header, json=body).status_code == 409
     assert client.get(base + "/sbom", headers=auth_header).json["id"] == preview["id"]
     body["expected_sha256"] = preview["sha256"]
     assert client.put(base + "/sbom", headers=auth_header, json=body).status_code == 200
+    body.update(enable_software_matching=True, enable_cve_matching=True)
     assert client.put(base + "/sbom", headers=auth_header, json=body).status_code == 200
+    new_rules = client.get(base + "/triggers?search=new-software", headers=auth_header).json["items"]
+    assert new_rules and not any(rule["enabled"] for rule in new_rules)
+    new_cve = client.get(base + "/cti?search=54321", headers=auth_header).json["iocs"][0]
+    assert not new_cve["findings"][0]["matching_enabled"]
+    retained_rules = client.get(base + "/triggers?search=internal-agent", headers=auth_header).json["items"]
+    assert any(rule["enabled"] for rule in retained_rules)
     assert db.session.get(AssetSbomImport, preview["id"]) is None
     remaining_matches = db.session.scalars(db.select(AssetArticleMatch)).all()
     assert len(remaining_matches) == 1 and remaining_matches[0].trigger.component.inventory["name"] == "internal-agent"

@@ -7024,7 +7024,7 @@ paths:
       - assets
       operationId: sbom_preview.post
       description: Atomically create one asset from an owned preview. Requires ASSETS_CREATE
-        and access to the destination group. Enables product-name matching and automatically queues a 30-day historical scan when the importer has ASSETS_ACCESS and ASSESS_ACCESS. Queue failure preserves the asset and records a failed run for retry. Repeated confirmation returns the same
+        and access to the destination group. Software-name and CVE matching default to enabled and can be disabled independently. Automatically queues a 30-day historical scan when enabled software rules remain and the importer has ASSETS_ACCESS and ASSESS_ACCESS. Queue failure preserves the asset and records a failed run for retry. Repeated confirmation returns the same
         asset without queuing another scan.
       responses:
         '200':
@@ -7097,7 +7097,8 @@ paths:
         and current asset-group access. expected_sha256 must equal the current snapshot hash, or null for an asset without inventory.
         Stale previews return 409. Repeating an applied import is idempotent. Asset identity, manual fields, unrelated CPEs, unchanged
         rules and CVE decisions survive. New versions inherit unanimous package decisions; conflicts require review. Missing vulnerability
-        data clears old findings. Supersedes older scans and queues the normal historical scan after commit.
+        data clears old findings. Matching options apply only to newly generated rules and newly introduced CVEs; preserved decisions take precedence.
+        Supersedes older scans and queues the normal historical scan after commit only when enabled software rules remain and the user is authorized.
       parameters:
       - name: asset_id
         in: path
@@ -11372,6 +11373,14 @@ components:
       type: object
     SbomReplaceAsset:
       properties:
+        enable_software_matching:
+          type: boolean
+          default: true
+          description: Enable eligible newly generated software-name rules; preserved and inherited decisions take precedence.
+        enable_cve_matching:
+          type: boolean
+          default: true
+          description: Enable matching for newly introduced CVEs; existing CVE decisions take precedence. Findings remain stored when disabled.
         import_id:
           title: Import Id
           type: string
@@ -11859,6 +11868,14 @@ components:
       type: object
     SbomCreateAsset:
       properties:
+        enable_software_matching:
+          type: boolean
+          default: true
+          description: Enable eligible product-name rules. When false, retain all generated rules disabled for review.
+        enable_cve_matching:
+          type: boolean
+          default: true
+          description: Enable live matching of imported CVEs to article tags. Findings remain stored when disabled.
         name:
           maxLength: 255
           minLength: 1

@@ -124,11 +124,15 @@ class SbomCreateAsset(BaseModel):
     asset_group_id: str = Field(min_length=1)
     description: str = Field(default="", max_length=10000)
     tags: list[str] = Field(default_factory=list)
+    enable_software_matching: bool = True
+    enable_cve_matching: bool = True
 
 
 class SbomReplaceAsset(BaseModel):
     import_id: str
     expected_sha256: str | None
+    enable_software_matching: bool = True
+    enable_cve_matching: bool = True
 
 
 class SbomCveMatching(BaseModel):

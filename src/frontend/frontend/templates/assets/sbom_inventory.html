@@ -1,9 +1,15 @@
 {% extends "base.html" %}
+{% from "assets/navigation.html" import asset_navigation with context %}
 {% block content %}
   <div class="p-4 space-y-4" data-test-id="sbom-inventory">
-    <a href="{{ url_for('assets.assets') }}" class="link">Assets</a>
-    <h1 class="text-2xl font-bold">{{ 'Review SBOM import' if preview else 'SBOM inventory' }}</h1>
     {% set target_id = inventory.comparison.asset_id if inventory.comparison else none %}
+    {% if target_id or inventory.asset_id %}
+      {{ asset_navigation(target_id or inventory.asset_id, 'update' if preview else 'inventory', asset_name) }}
+    {% else %}
+      <a href="{{ url_for('assets.assets') }}" class="link">Assets</a>
+    {% endif %}
+    <h1 class="text-2xl font-bold">{{ 'Review SBOM import' if preview else 'Software inventory' }}</h1>
+    <p>Software, versions, identifiers, and installation locations supplied by the SBOM.</p>
     {% if error %}<div role="alert" class="alert alert-error">{{ error }}</div>{% endif %}
     <p>{{ inventory.filename }} · CycloneDX {{ inventory.summary.spec_version }} · {{ inventory.imported_at }}</p>
     <details>
@@ -58,7 +64,11 @@
         <p>The current snapshot will be replaced. Applicable matching decisions and manually maintained asset details are preserved.</p>
       </section>
     {% endif %}
-    <p>Product names match automatically, including components without CPEs. Broad vendor, supplier, and ambiguous terms stay disabled. You can adjust matching after import.</p>
+    {% if preview %}
+      <p>Suggested matching defaults identify eligible product names, including components without CPEs. Choose whether to enable them in the confirmation form below. Broad vendor, supplier, and ambiguous phrases start disabled.</p>
+    {% else %}
+      <p>Open Matching rules to review software-name matching. Imported vulnerability findings and CVE matching are available in Findings &amp; indicators.</p>
+    {% endif %}
     <div class="overflow-x-auto">
       <table class="table table-zebra">
         <thead>
@@ -67,7 +77,7 @@
             <th>Version</th>
             <th>CPE coverage</th>
             <th>Occurrences</th>
-            <th>{{ 'Matching terms' if preview else 'Triggers' }}</th>
+            <th>{{ 'Suggested matching defaults' if preview else 'Matching rules' }}</th>
           </tr>
         </thead>
         <tbody>
@@ -108,10 +118,10 @@
             </td>
             <td>
               {% if preview %}
-                <ul>{% for suggestion in component.suggestions %}<li>{{ suggestion.phrase }} · {{ 'Enabled' if suggestion.enabled else 'Disabled' }} · {{ suggestion.sources | join(", ") }}{% if suggestion.context %} · context: {{ suggestion.context | join(", ") }}{% endif %}</li>{% endfor %}</ul>
+                <ul>{% for suggestion in component.suggestions %}<li>{{ suggestion.phrase }} · {{ 'Eligible for automatic matching' if suggestion.enabled else 'Disabled by default' }} · {{ suggestion.sources | join(", ") }}{% if suggestion.context %} · context: {{ suggestion.context | join(", ") }}{% endif %}</li>{% endfor %}</ul>
               {% else %}
                 <a class="link"
-                   href="{{ url_for('assets.asset_triggers', asset_id=inventory.asset_id, component_id=component.id) }}">Review triggers</a>
+                   href="{{ url_for('assets.asset_triggers', asset_id=inventory.asset_id, component_id=component.id) }}">Review rules</a>
               {% endif %}
             </td>
             </tr>
@@ -131,6 +141,21 @@
             action="{{ url_for('assets.sbom_preview', import_id=inventory.id, page=inventory.page, asset_id=target_id) }}"
             class="space-y-4 max-w-xl">
         <input type="hidden" name="csrf_token" value="{{ request.cookies.get(config['JWT_ACCESS_CSRF_COOKIE_NAME'], '') }}">
+        <fieldset class="space-y-3">
+          <legend class="font-semibold">Matching defaults{{ ' for new rules and CVEs' if target_id else '' }}</legend>
+          <label class="flex items-center gap-2">
+            <input type="checkbox" class="checkbox" name="enable_software_matching" {% if enable_software_matching %}checked{% endif %}>
+            Enable software-name matching
+          </label>
+          <p class="text-sm">Enable eligible product phrases. Broad vendor, supplier, and ambiguous phrases start disabled. Uncheck to keep new rules disabled for review.</p>
+          <label class="flex items-center gap-2">
+            <input type="checkbox" class="checkbox" name="enable_cve_matching" {% if enable_cve_matching %}checked{% endif %}>
+            Enable CVE matching
+          </label>
+          <p class="text-sm">Match imported CVEs to tagged articles. Findings remain available when matching is disabled.</p>
+          {% if target_id %}<p class="text-sm">Existing rules, inherited decisions, and CVE decisions are preserved. These choices apply only to newly generated rules and newly introduced CVEs.</p>{% endif %}
+          {% if "ASSESS_ACCESS" in current_user.permissions %}<p class="text-sm">When software rules are enabled, an initial scan checks articles collected in the last 30 days. CVE matching uses existing article tags without a scan.</p>{% endif %}
+        </fieldset>
         {% if target_id %}
           <input type="hidden" name="expected_sha256" value="{{ inventory.comparison.expected_sha256 or '' }}">
           <button class="btn btn-primary" type="submit" data-test-id="sbom-update">Update asset</button>
@@ -162,18 +187,10 @@
                     name="description"
                     maxlength="10000"
                     class="textarea textarea-bordered w-full">{{ description }}</textarea>
-          <p class="text-sm">Create one asset with the complete software inventory and automatic product-name matching.{% if "ASSESS_ACCESS" in current_user.permissions %} An initial scan checks articles collected in the last 30 days.{% endif %}</p>
+          <p class="text-sm">Create one asset with the complete software inventory and the matching defaults selected above.</p>
           <button class="btn btn-primary" type="submit" data-test-id="sbom-create">Create asset</button>
         {% endif %}
       </form>
-    {% else %}
-      <a class="btn btn-outline" href="{{ url_for('assets.asset_cti', asset_id=inventory.asset_id) }}">CTI information</a>
-      {% if "ASSETS_CREATE" in current_user.permissions %}<a class="btn btn-outline"
-   href="{{ url_for('assets.sbom_upload', asset_id=inventory.asset_id) }}">Update SBOM</a>{% endif %}
-      <a class="btn btn-outline" href="{{ url_for('assets.asset', asset_id=inventory.asset_id) }}">Asset details</a>
-      <a class="btn btn-primary" href="{{ url_for('assets.asset_triggers', asset_id=inventory.asset_id) }}">Component triggers</a>
-      {% if "ASSESS_ACCESS" in current_user.permissions %}<a class="btn btn-outline"
-   href="{{ url_for('assets.asset_intelligence', asset_id=inventory.asset_id) }}">Relevant intelligence</a>{% endif %}
     {% endif %}
   </div>
 {% endblock content %}
