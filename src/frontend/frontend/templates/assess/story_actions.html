@@ -22,6 +22,7 @@
               hx-push-url="false"
               hx-swap="outerHTML"
               data-testid="toggle-read"
+              title="{{ 'Mark unread' if story.read else 'Mark read' }}"
               {% if not story.can_edit %}disabled{% endif %}>
         {% if story.read | default(false) %}
           {{ heroicon_mini("eye-slash") }}
@@ -50,6 +51,7 @@
               hx-push-url="false"
               hx-swap="outerHTML"
               data-testid="toggle-important"
+              title="{{ 'Remove important' if story.important else 'Mark important' }}"
               {% if not story.can_edit %}disabled{% endif %}>
         {{ heroicon_mini("star") }}
         <span>
@@ -67,7 +69,8 @@
          hx-get="{{ url_for('assess.report_story', story_ids=story_id, bookmark_id=bookmark_id or None) }}"
          hx-target="body"
          hx-swap="beforeend"
-         data-testid="report-story">
+         data-testid="report-story"
+         title="Add to report">
         {{ heroicon_mini("document-chart-bar") }}<span>Add to report</span>
       </a>
     {% endif %}
@@ -127,17 +130,19 @@
 
 {% macro story_card_actions(story, compact_view=False, detail_view=False, show_bookmark=True, bookmark_id=None) %}
   {% set story_id = story.id %}
-  <div class="contents @min-[80rem]:grid @min-[80rem]:grid-cols-2 @min-[80rem]:gap-2">
+  <div class="contents {{ '' if compact_view else '@min-[80rem]:grid @min-[80rem]:grid-cols-2 @min-[80rem]:gap-2' }}">
     {{ story_actions(story, size='xs', show_bookmark=show_bookmark, bookmark_id=bookmark_id, primary_only=True) }}
   </div>
-  <div class="contents @min-[80rem]:grid @min-[80rem]:grid-cols-2 @min-[80rem]:gap-2">
+  <div class="contents {{ '' if compact_view else '@min-[80rem]:grid @min-[80rem]:grid-cols-2 @min-[80rem]:gap-2' }}">
     <button type="button"
             class="btn btn-outline btn-xs gap-2 story-card-action"
             x-bind:class="isOpen ? 'btn-active' : ''"
             x-on:click="isOpen = !isOpen; if (isOpen && !detailsLoaded) $nextTick(() => htmx.trigger($refs.details, 'load-story-details'))"
             data-testid="toggle-summary"
             x-bind:aria-expanded="isOpen.toString()"
-            aria-label="Show story details">
+            aria-label="Show story details"
+            :aria-label="isOpen ? 'Hide story details' : 'Show story details'"
+            :title="isOpen ? 'Hide story details' : 'Show story details'">
       <div x-bind:class="isOpen ? 'rotate-180' : ''" class="transition-transform">{{ heroicon_mini("chevron-down") }}</div>
       {% if not compact_view %}<span x-text="isOpen ? 'Hide details' : 'Show details'"></span>{% endif %}
     </button>
@@ -156,6 +161,7 @@
       <summary class="btn btn-outline btn-xs gap-2 story-card-action"
                data-testid="story-actions-menu"
                aria-label="Additional Story actions"
+               title="More actions"
                hx-get="{{ url_for('assess.story_actions', story_id=story_id, bookmark_id=bookmark_id or None, assess_url=assess_return_url | default(None), include_edit='true' if not detail_view else None) }}"
                hx-target="#story-more-{{ story_id }}"
                hx-swap="innerHTML"
@@ -165,7 +171,7 @@
                hx-status:400="target:#notification-bar select:#notification-bar swap:outerHTML"
                hx-status:4xx="target:#notification-bar select:#notification-bar swap:outerHTML"
                hx-status:5xx="target:#notification-bar select:#notification-bar swap:outerHTML">
-        {{ heroicon_mini("ellipsis-horizontal") }} More
+        {{ heroicon_mini("ellipsis-horizontal") }} <span>More</span>
       </summary>
       <div id="story-more-{{ story_id }}" class="dropdown-content z-20 mt-2 w-48 rounded-box bg-base-100 p-2 shadow">
         <span class="loading loading-spinner loading-sm" aria-label="Loading actions" data-assess-js-only></span>

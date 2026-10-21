@@ -202,6 +202,18 @@
   width: 100%;
 }
 
+.story-card-actions-compact .story-card-action {
+  min-width: 1.75rem;
+  height: 1.75rem;
+  padding-inline: 0.25rem;
+  justify-content: center;
+  gap: 0;
+}
+
+.story-card-actions-compact .story-card-action > span {
+  @apply sr-only;
+}
+
 [x-cloak] {
   display: none !important;
 }

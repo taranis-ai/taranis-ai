@@ -44,20 +44,21 @@
            x-data="{ detailsLoaded: false, isOpen: {{ 'true' if detail_view else 'false' }} }"
            {% if not detail_view %}x-init="$dispatch('story-card-updated')" @click="toggleSelection('{{ story_id }}')"{% endif %}
            aria-selected="{{ 'true' if is_selected else 'false' }}">
-    <div class="p-2 space-y-2 w-full max-w-full" id="story-card-content-{{ story_id }}">
-      <div class="grid grid-cols-[min(16rem,32%)_minmax(0,1fr)] gap-2 gap-x-4 @min-[80rem]:grid-cols-[16rem_minmax(0,1fr)_20rem] w-full max-w-full">
+    <div class="{{ 'px-2 py-1.5' if compact_view else 'p-2 space-y-2' }} w-full max-w-full" id="story-card-content-{{ story_id }}">
+      <div class="grid {{ 'grid-cols-[minmax(0,1fr)_auto] gap-1 gap-x-2' if compact_view else 'grid-cols-[min(16rem,32%)_minmax(0,1fr)] gap-2 gap-x-4 @min-[80rem]:grid-cols-[16rem_minmax(0,1fr)_20rem]' }} w-full max-w-full">
 
         <!-- status and metadata column -->
-        <section class="flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-base-content/70 min-w-0 content-start">
+        <section class="flex flex-wrap items-center gap-x-3 {{ 'gap-y-1 col-span-2' if compact_view else 'gap-y-2' }} text-xs text-base-content/70 min-w-0 content-start">
           {% if not detail_view %}
-            <input type="checkbox" name="story_ids" value="{{ story_id }}" class="checkbox checkbox-sm" aria-label="Select {{ story.title }}" @click.stop {% if bookmark_id %}form="bookmark-selection-form" {% if is_selected %}checked{% endif %}{% else %}x-model="selectedItems"{% endif %}>
+            <input type="checkbox" name="story_ids" value="{{ story_id }}" class="checkbox {{ 'checkbox-xs' if compact_view else 'checkbox-sm' }}" aria-label="Select {{ story.title }}" @click.stop {% if bookmark_id %}form="bookmark-selection-form" {% if is_selected %}checked{% endif %}{% else %}x-model="selectedItems"{% endif %}>
           {% endif %}
           <div class="flex items-start gap-2">
-            <span class="font-semibold uppercase tracking-wide text-xs text-base-content/60">Published</span>
-            <div class="flex flex-col gap-1">
+            <span class="{{ 'sr-only' if compact_view else 'font-semibold uppercase tracking-wide text-xs text-base-content/60' }}">Published</span>
+            <div class="flex flex-col gap-1"
+                 title="Published: {{ pub.get('earliest') | format_datetime if pub.get('earliest') else 'Not available' }}{% if pub.get('latest') and pub.get('latest') != pub.get('earliest') %} – {{ pub.get('latest') | format_datetime }}{% endif %}">
               {% if pub.get("earliest") %}
                 <span class="text-xs">{{ pub.get("earliest") | format_datetime }}</span>
-                {% if pub.get("latest") and pub.get("latest") != pub.get("earliest") %}
+                {% if not compact_view and pub.get("latest") and pub.get("latest") != pub.get("earliest") %}
                   <span class="text-xs">{{ pub.get("latest") | format_datetime }}</span>
                 {% endif %}
               {% else %}
@@ -67,8 +68,8 @@
           </div>
 
           {% if story.model_extra.source_infos %}
-            <div class="flex items-center gap-2 w-full">
-              <span class="font-semibold uppercase tracking-wide text-xs text-base-content/60">Sources</span>
+            <div class="flex items-center gap-2 {{ '' if compact_view else 'w-full' }}">
+              <span class="{{ 'sr-only' if compact_view else 'font-semibold uppercase tracking-wide text-xs text-base-content/60' }}">Sources</span>
               <div class="flex items-center gap-1" data-test-id="story-source-icons">
                 {% for source in story.model_extra.source_infos %}
                   <div class="tooltip before:z-[50]" data-tip="{{ source.name }}">
@@ -97,7 +98,7 @@
             </div>
           {% endif %}
 
-          <div class="flex items-center gap-1 w-full">
+          <div class="flex items-center gap-1 {{ '' if compact_view else 'w-full' }}">
             <div class="flex flex-wrap items-center gap-2 gap-y-1 text-xs">
               {% if story.read | default(false) %}
                 <span class="badge badge-success badge-outline badge-xs whitespace-nowrap">Read</span>
@@ -108,11 +109,11 @@
               {% if story.misp_auto_update and story.misp_auto_update.enabled %}
                 <span class="badge badge-success badge-outline badge-xs whitespace-nowrap">MISP auto-update</span>
               {% endif %}
-              {% if story.relevance %}
+              {% if story.relevance and not compact_view %}
                 <span class="badge badge-outline badge-xs whitespace-nowrap">Relevance {{ story.relevance }}</span>
               {% endif %}
               {% if news_count > 1 %}
-                <span class="badge badge-outline badge-xs whitespace-nowrap">News Items {{ story.news_items | length }}</span>
+                <span class="badge badge-outline badge-xs whitespace-nowrap">{{ (news_count ~ ' items') if compact_view else ('News Items ' ~ news_count) }}</span>
               {% endif %}
             </div>
           </div>
@@ -120,8 +121,12 @@
           {% if story.in_reports_count %}
             {% set report_count = story.in_reports_count | int %}
             <div class="flex items-center gap-1">
-              <span class="font-semibold uppercase tracking-wide text-xs text-base-content/60">In Reports</span>
-              <div class="tooltip gap-1 text-warning" data-tip="Story in {{ report_count }} Reports">
+              <span class="{{ 'sr-only' if compact_view else 'font-semibold uppercase tracking-wide text-xs text-base-content/60' }}">In Reports</span>
+              <div class="tooltip inline-flex items-center gap-1 text-warning"
+                   aria-label="In {{ report_count }} reports"
+                   tabindex="0"
+                   data-tip="Story in {{ report_count }} Reports">
+                {% if compact_view %}<span>{{ report_count }}</span>{% endif %}
                 {% if report_count < 2 %}
                   {{ heroicon_mini("arrow-up-on-square", class="h-4 w-4") }}
                 {% else %}
@@ -133,16 +138,18 @@
         </section>
 
         <!-- main content column -->
-        <section class="space-y-1 min-w-0">
-          <div class="flex flex-col gap-1 min-w-0">
-            <h2 class="text-lg font-semibold leading-tight text-base-content highlight max-w-full truncate" data-testid="story-title">
+        <section class="{{ 'col-span-2 @min-[48rem]:col-span-1' if compact_view else 'space-y-1' }} min-w-0">
+          <div class="flex {{ 'items-center' if compact_view else 'flex-col' }} gap-1 min-w-0">
+            <h2 class="{{ 'text-sm' if compact_view else 'text-lg' }} font-semibold leading-tight text-base-content highlight max-w-full truncate"
+                data-testid="story-title">
               {% if detail_view %}
                 {{ story.title }}
               {% else %}
                 <a href="{{ url_for('assess.story', story_id=story_id, assess_url=assess_return_url | default(None)) }}"
                    @click.stop
                    data-testid="open-detail-view"
-                   class="hover:underline">{{ story.title }}</a>
+                   class="hover:underline"
+                   title="{{ story.title }}">{{ story.title }}</a>
               {% endif %}
             </h2>
             {% if story.links %}
@@ -150,10 +157,11 @@
                  target="_blank"
                  rel="noopener"
                  title="{{ story.links[0] }}"
-                 class="link link-primary text-xs inline-flex items-center gap-1 self-start max-w-full min-w-0"
+                 class="link link-primary text-xs inline-flex items-center gap-1 {{ 'shrink-0' if compact_view else 'self-start max-w-full min-w-0' }}"
+                 @click.stop
                  data-testid="story-link-{{ story_id }}">
                 {{ heroicon_mini("arrow-top-right-on-square", class="h-4 w-4 shrink-0") }}
-                <span class="truncate">{{ story.links[0] }}</span>
+                <span class="{{ 'sr-only' if compact_view else 'truncate' }}">{{ story.links[0] }}</span>
               </a>
             {% endif %}
           </div>
@@ -170,7 +178,7 @@
           {{ story_tags(story, compact_view=compact_view, selected_tags=active_tag_filters | default([])) }}
         </section>
 
-        <footer class="story-card-actions grid grid-flow-col auto-cols-fr content-start gap-2 text-xs col-span-2 @min-[80rem]:grid-flow-row @min-[80rem]:grid-cols-1 @min-[80rem]:auto-cols-auto @min-[80rem]:col-span-1 @min-[80rem]:col-start-3 @min-[80rem]:row-start-1"
+        <footer class="story-card-actions grid grid-flow-col auto-cols-fr content-start text-xs {{ 'story-card-actions-compact gap-1 col-span-2 @min-[48rem]:col-span-1 @min-[48rem]:self-center' if compact_view else 'gap-2 col-span-2 @min-[80rem]:grid-flow-row @min-[80rem]:grid-cols-1 @min-[80rem]:auto-cols-auto @min-[80rem]:col-span-1 @min-[80rem]:col-start-3 @min-[80rem]:row-start-1' }}"
                 @click.stop>
           {{ story_card_actions(story, compact_view=compact_view, detail_view=detail_view, show_bookmark=show_bookmark, bookmark_id=bookmark_id) }}
         </footer>
