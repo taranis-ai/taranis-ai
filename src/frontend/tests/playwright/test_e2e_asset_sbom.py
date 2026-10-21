@@ -44,6 +44,12 @@ def sbom_finding_news(core_request_client, api_header, fake_source, worker_proce
             "link": "https://example.invalid/sbom/product-announcement",
             "osint_source_id": fake_source,
         },
+        {
+            "title": "Community calendar (synthetic)",
+            "content": "An unrelated local event announcement.",
+            "link": "https://example.invalid/sbom/community-calendar",
+            "osint_source_id": fake_source,
+        },
     ]
     created = core_request_client.json_request("POST", "/worker/news-items", json_data=articles, headers=api_header, authenticated=False)
     try:
@@ -455,6 +461,33 @@ class TestAssetSbomWorkflow(BaseE2ETest):
             expect(page).to_have_url(re.compile(re.escape(article_url) + "$"))
             page.go_back()
             expect(page.get_by_label("Software phrase match", exact=True)).to_have_value("no")
+
+            page.goto(url_for("assess.assess", source=sbom_finding_news["osint_source_id"], search="synthetic", _external=True))
+            cards = page.locator("#story-list article[data-story-id]")
+            asset_names = page.locator('[data-test-id="story-matched-assets"]')
+            expect(cards).to_have_count(3)
+            expect(asset_names).to_have_count(0)
+            with_htmx_wait(page, page.get_by_label("Asset matches only").check)
+            expect(cards).to_have_count(2)
+            expect(asset_names).to_have_count(2)
+            expect(asset_names.first.get_by_role("link", name="SBOM Findings Showcase", exact=True)).to_be_visible()
+            expect(asset_names.first.get_by_role("link", name="SBOM Secondary Host", exact=True)).to_be_visible()
+            cards.first.get_by_test_id("story-actions-menu").click()
+            with_htmx_wait(page, cards.first.get_by_test_id("toggle-read").click)
+            expect(asset_names).to_have_count(2)
+            expect(page.get_by_label("Asset matches only")).to_be_checked()
+            asset_names.first.get_by_role("link", name="SBOM Secondary Host", exact=True).click()
+            expect(page).to_have_url(re.compile(f"/assets/{overview_asset_id}/intelligence$"))
+            page.go_back()
+            expect(page.get_by_label("Asset matches only")).to_be_checked()
+            compact = page.get_by_label("Compact view", exact=True)
+            was_compact = compact.is_checked()
+            with_htmx_wait(page, lambda: compact.set_checked(not was_compact))
+            expect(asset_names.first).to_be_visible()
+            with_htmx_wait(page, lambda: compact.set_checked(was_compact))
+            with_htmx_wait(page, page.get_by_label("Asset matches only").uncheck)
+            expect(cards).to_have_count(3)
+            expect(asset_names).to_have_count(0)
         finally:
             core_request_client.delete(f"/assets/{asset_id}", raise_for_status=False)
             if overview_asset_id:

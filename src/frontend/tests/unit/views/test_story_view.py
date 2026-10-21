@@ -896,6 +896,36 @@ def test_story_read_action_replaces_story_card(app):
     assert toggle_read.get("hx-swap") == "outerHTML"
 
 
+def test_asset_filtered_assess_refreshes_matches_after_story_actions(authenticated_client, responses_mock):
+    story = story_with_news_item_tags() | {"matched_assets": [{"id": "asset-1", "name": "Current host"}]}
+    responses_mock.get(f"{Config.TARANIS_CORE_URL}/assess/filter-lists", json={"sources": [], "tags": [], "groups": []})
+    responses_mock.get(f"{Config.TARANIS_CORE_URL}/assess/bookmarks", json={"items": []})
+    endpoint = f"{Config.TARANIS_CORE_URL}/assess/stories"
+    responses_mock.get(endpoint, json={"items": [story], "counts": {"total_count": 21}})
+    assess_url = url_for("assess.assess", asset_match="true", limit=1)
+    response = authenticated_client.get(assess_url)
+    tree = html.fromstring(response.text)
+    assert tree.xpath('//input[@name="asset_match" and @checked]')
+    assert tree.xpath('//*[@data-test-id="story-matched-assets"]//a/@href') == [url_for("assets.asset_intelligence", asset_id="asset-1")]
+    next_url = tree.xpath('//*[@id="story-pagination"]//a[contains(@href, "page=1")]/@href')[0]
+    assert parse_qs(urlparse(next_url).query)["asset_match"] == ["true"]
+
+    story["matched_assets"] = [{"id": "asset-2", "name": "Replacement host"}]
+    responses_mock.replace("GET", endpoint, json={"items": [story], "counts": {"total_count": 1}})
+    responses_mock.patch(f"{endpoint}/{story['id']}", json={"message": "Story updated"})
+    headers = {"HX-Request": "true", "HX-Current-URL": assess_url, "HX-Target": "story-story-1"}
+    updated = authenticated_client.put(url_for("assess.story", story_id=story["id"]), data={"read": "true"}, headers=headers)
+    assert updated.status_code == 200
+    assert updated.headers["HX-Retarget"] == "#assess"
+    assert "Replacement host" in updated.text and "Current host" not in updated.text
+    returned_url = html.fromstring(updated.text).xpath('//*[@id="assess"]/@data-assess-url')[0]
+    assert parse_qs(urlparse(returned_url).query)["asset_match"] == ["true"]
+
+    responses_mock.replace("GET", endpoint, json={"items": [], "counts": {"total_count": 0}})
+    refreshed = authenticated_client.get(assess_url)
+    assert not html.fromstring(refreshed.text).xpath('//*[@data-test-id="story-matched-assets"]')
+
+
 @pytest.mark.parametrize("method", ["GET", "POST", "PUT"])
 def test_assess_tag_filters_highlight_matches_beyond_collapsed_limit(authenticated_client, responses_mock, method):
     story_payload = story_with_news_item_tags()
@@ -1048,6 +1078,7 @@ def test_assess_redirects_default_saved_filter_into_browser_url(authenticated_cl
                 "source": ["source-1"],
                 "language": ["en"],
                 "read": "true",
+                "asset_match": "true",
                 "sort": "date_desc",
             },
             is_default=True,
@@ -1079,6 +1110,7 @@ def test_assess_redirects_default_saved_filter_into_browser_url(authenticated_cl
         "source": ["source-1"],
         "language": ["en"],
         "read": ["true"],
+        "asset_match": ["true"],
         "sort": ["date_desc"],
     }
 
@@ -1144,6 +1176,7 @@ def test_assess_save_saved_filter_posts_selected_filters_to_profile(authenticate
                 ("language", "en"),
                 ("language", "de"),
                 ("read", "true"),
+                ("asset_match", "true"),
                 ("important", "false"),
                 ("sort", "date_desc"),
                 ("range", "week"),
@@ -1172,6 +1205,7 @@ def test_assess_save_saved_filter_posts_selected_filters_to_profile(authenticate
             "tags": ["alpha", "beta"],
             "language": ["en", "de"],
             "read": "true",
+            "asset_match": "true",
             "important": "false",
             "sort": "date_desc",
             "range": "week",

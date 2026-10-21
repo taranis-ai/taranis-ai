@@ -3,15 +3,17 @@
 from models.asset_intelligence import IntelligenceFilters
 from sqlalchemy import or_, select
 from sqlalchemy.orm import joinedload, selectinload
+from sqlalchemy.sql import Select
 
 from core.managers.db_manager import db
 from core.model.asset import Asset, AssetGroup
 from core.model.asset_intelligence import AssetArticleMatch
 from core.model.asset_sbom import AssetSbomFinding, AssetSbomImport
 from core.model.news_item import NewsItem
+from core.model.story import Story
 from core.model.user import User
 from core.service.asset_findings import finding_cvss_ratings
-from core.service.asset_intelligence import article_intelligence, matching_stories, product_identity
+from core.service.asset_intelligence import STORY_BATCH_SIZE, article_intelligence, matching_stories, product_identity
 
 
 def matches_choice(choice: str, present: bool) -> bool:
@@ -94,9 +96,9 @@ def overview_story(matches, tagged, imports: dict[str, Asset], filters: Intellig
     return {"id": story.id, "title": story.title, "software_count": len(packages), "articles": [articles[key] for key in sorted(articles)]}
 
 
-def intelligence_overview(user: User, filters: IntelligenceFilters) -> dict:
+def accessible_assets(user: User) -> list[Asset]:
     # Match individual asset access: the shared default group plus the user's organization.
-    catalog = list(
+    return list(
         db.session.scalars(
             select(Asset)
             .join(AssetGroup)
@@ -110,6 +112,57 @@ def intelligence_overview(user: User, filters: IntelligenceFilters) -> dict:
             .order_by(Asset.name, Asset.id)
         )
     )
+
+
+def assess_match_page(user: User, story_query: Select, filter_args: dict) -> tuple[dict[str, list[dict]], dict[str, int] | None]:
+    """Count current matches while retaining only the requested Assess page."""
+    assets = {asset.id: asset for asset in accessible_assets(user)}
+    import_asset_ids = dict(
+        db.session.execute(select(AssetSbomImport.id, AssetSbomImport.asset_id).where(AssetSbomImport.asset_id.in_(assets))).all()
+    )
+    page_assets: dict[str, list[dict]] = {}
+    counts = dict.fromkeys(("total_count", "read_count", "important_count", "in_reports_count"), 0)
+    include_counts = not filter_args.get("no_count", False)
+    offset, limit = int(filter_args.get("offset", 0)), int(filter_args.get("limit") or 0)
+    matching_count = 0
+    count_batch = []
+
+    def accumulate_counts() -> None:
+        totals = Story.get_additional_counts(story_query.where(Story.id.in_(count_batch)))._mapping
+        for key in counts:
+            counts[key] += totals[key]
+        count_batch.clear()
+
+    if assets:
+        for matches, tagged in matching_stories(list(assets), user, IntelligenceFilters(), story_query):
+            # Default overview filters accept either current phrase evidence or a CVE/component association.
+            matched_imports = {match.trigger.component.import_id for match, _ in matches}
+            matched_imports.update(finding.import_id for _, finding in tagged)
+            matched_asset_ids = {asset_id for import_id in matched_imports if (asset_id := import_asset_ids.get(import_id)) in assets}
+            if not matched_asset_ids:
+                continue
+            story_id = matches[0][0].news_item.story_id if matches else tagged[0][0].story_id
+            if matching_count >= offset and (not limit or len(page_assets) < limit):
+                page_assets[story_id] = [
+                    {"id": asset.id, "name": asset.name}
+                    for asset in sorted(
+                        (assets[asset_id] for asset_id in matched_asset_ids), key=lambda asset: (asset.name.casefold(), asset.id)
+                    )
+                ]
+            matching_count += 1
+            if include_counts:
+                count_batch.append(story_id)
+                if len(count_batch) == STORY_BATCH_SIZE:
+                    accumulate_counts()
+            elif limit and len(page_assets) == limit:
+                break
+    if count_batch:
+        accumulate_counts()
+    return page_assets, counts if include_counts else None
+
+
+def intelligence_overview(user: User, filters: IntelligenceFilters) -> dict:
+    catalog = accessible_assets(user)
     assets = {
         a.id: a
         for a in catalog

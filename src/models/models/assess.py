@@ -118,6 +118,7 @@ class AssessSearchFilters(TaranisBaseModel):
     important: bool | None = None
     relevant: bool | None = None
     in_report: bool | None = None
+    asset_match: bool = False
     cybersecurity: Literal["yes", "no", "mixed", "incomplete"] | None = None
     changed_by: Literal["me"] | None = None
     range: str | None = Field(default=None, pattern=r"^(shift|24h|day|week|month|last[1-9][0-9]*)$")
@@ -262,8 +263,14 @@ class MispAutoUpdatePayload(TaranisBaseModel):
     enabled: bool = False
 
 
+class MatchedAsset(TaranisBaseModel):
+    id: str
+    name: str
+
+
 class Story(TaranisBaseModel):
     can_edit: bool = False
+    matched_assets: list[MatchedAsset] = Field(default_factory=list)
     tlp_level: TLPLevel | None = None
 
     _core_endpoint = "/assess/stories"

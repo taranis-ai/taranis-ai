@@ -192,6 +192,8 @@ class Stories(MethodView):
                     raw_filters[key] = value
 
             filter_args: dict[str, Any] = AssessSearchFilters.model_validate(raw_filters).to_query_params()
+            if filter_args.get("asset_match") == "true" and "ASSETS_ACCESS" not in current_user.get_permissions():
+                return {"error": "Asset access is required to filter asset matches."}, 403
             filter_args.update({key: request.args[key] for key in ("no_count", "exclude_attr") if key in request.args})
 
             filter_args["limit"] = min(int(request.args.get("limit", 20)), 400)

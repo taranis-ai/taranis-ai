@@ -399,6 +399,38 @@ def test_intelligence_paginates_complete_stories(client, auth_header, api_header
     assert first["total_stories"] == second["total_stories"] == 21
     assert first["total_articles"] == second["total_articles"] == 22
 
+    if cve_only:
+        triggers = client.get(f"/api/assets/{asset_id}/triggers", headers=auth_header).json["items"]
+        client.post(
+            f"/api/assets/{asset_id}/triggers/selection",
+            headers=auth_header,
+            json={"trigger_ids": [trigger["id"] for trigger in triggers], "enabled": False},
+        )
+    unmatched = create_story(news_items=[build_news_item_payload(source.id, title="Unrelated local announcement")])
+    matched = Story.get(expected_ids[0])
+    matched.read, matched.important = True, True
+    db.session.commit()
+    assess_query = {"source": source.id, "sort": "date_asc", "limit": 400}
+    ordinary = client.get("/api/assess/stories", headers=auth_header, query_string=assess_query).json["items"]
+    expected_assess = [story["id"] for story in ordinary if story["id"] in expected_ids]
+    assert unmatched.id in {story["id"] for story in ordinary}
+    assert all("matched_assets" not in story for story in ordinary)
+    assess_query.update(asset_match="true", limit=5)
+    first = client.get("/api/assess/stories", headers=auth_header, query_string=assess_query).json
+    second = client.get("/api/assess/stories", headers=auth_header, query_string=assess_query | {"page": 1}).json
+    assert [story["id"] for story in first["items"]] == expected_assess[:5]
+    assert [story["id"] for story in second["items"]] == expected_assess[5:10]
+    assert first["counts"]["total_count"] == second["counts"]["total_count"] == 21
+    assert first["counts"]["read_count"] == first["counts"]["important_count"] == 1
+    assert all(story["matched_assets"] == [{"id": asset_id, "name": "Paged intelligence"}] for story in first["items"])
+    unread = client.get("/api/assess/stories", headers=auth_header, query_string=assess_query | {"read": "false"}).json
+    assert unread["counts"]["total_count"] == 20 and unread["counts"]["read_count"] == 0
+    no_count = client.get("/api/assess/stories", headers=auth_header, query_string=assess_query | {"no_count": "true", "page": 1}).json
+    assert "counts" not in no_count and [story["id"] for story in no_count["items"]] == expected_assess[5:10]
+    client.delete(f"/api/assets/{asset_id}", headers=auth_header)
+    empty = client.get("/api/assess/stories", headers=auth_header, query_string=assess_query).json
+    assert empty["items"] == [] and empty["counts"]["total_count"] == 0
+
 
 def test_historical_matching_batches_and_current_visibility(client, auth_header, auth_header_user_permissions, api_header, session):
     preview = upload(client, auth_header).json
@@ -435,13 +467,17 @@ def test_historical_matching_batches_and_current_visibility(client, auth_header,
     assert client.get(base + "/match-runs", headers=auth_header).json["run"]["id"] != scan.json["id"]
     visible_story = client.get(base + "/intelligence", headers=auth_header_user_permissions).json["items"][0]
     assert len(visible_story["articles"]) == 201 and visible_story["software_count"] == 1
+    assess_url = "/api/assess/stories?asset_match=true"
+    assert client.get(assess_url, headers=auth_header_user_permissions).json["counts"]["total_count"] == 1
     acl.item_id = "unavailable"
     db.session.commit()
     assert client.get(base + "/intelligence", headers=auth_header_user_permissions).json["items"] == []
+    assert client.get(assess_url, headers=auth_header_user_permissions).json["items"] == []
     acl.item_id = source.id
     story.upsert_attribute(NewsItemAttribute(key="TLP", value="red"))
     db.session.commit()
     assert client.get(base + "/intelligence", headers=auth_header_user_permissions).json["items"] == []
+    assert client.get(assess_url, headers=auth_header_user_permissions).json["items"] == []
     story.upsert_attribute(NewsItemAttribute(key="TLP", value="clear"))
     story.news_items[0].upsert_attribute(NewsItemAttribute(key="TLP", value="red"))
     db.session.commit()
@@ -456,6 +492,11 @@ def test_historical_matching_batches_and_current_visibility(client, auth_header,
     assert client.post(batch_url, headers=api_header, json={}).json["status"] == "FAILED"
     assert db.session.get(AssetMatchRun, scan.json["id"]).processed == 0
     assert client.get(base + "/intelligence", headers=auth_header_user_permissions).status_code == 403
+    role.permissions.append(Permission.get("ASSESS_ACCESS"))
+    role.permissions = [permission for permission in role.permissions if permission.code != "ASSETS_ACCESS"]
+    db.session.commit()
+    assert client.get(assess_url, headers=auth_header_user_permissions).status_code == 403
+    assert client.get("/api/assess/stories?asset_match=false", headers=auth_header_user_permissions).status_code == 200
 
 
 @pytest.fixture
@@ -508,6 +549,8 @@ def test_imported_findings_cti_and_live_tag_associations(
     assert len(results) == 1 and len(results[0]["articles"]) == 2
     assert results[0]["software_count"] == 2
     assert all(len(a["cve_matches"]) == 1 and not a["evidence"] for a in results[0]["articles"])
+    assess_url = "/api/assess/stories?asset_match=true"
+    assert client.get(assess_url, headers=auth_header).json["counts"]["total_count"] == 1
     run = client.get(base + "/match-runs", headers=auth_header).json["run"]
     assert client.post(f"/api/worker/asset-match-runs/{run['id']}/batch", headers=api_header, json={}).status_code == 200
     results = client.get(base + "/intelligence", headers=auth_header).json["items"]
@@ -525,6 +568,7 @@ def test_imported_findings_cti_and_live_tag_associations(
     assert client.put(toggle, headers=auth_header, json={"enabled": False}).status_code == 200
     assert client.get(base + "/intelligence", headers=auth_header).json["items"] == []
     assert client.get(filtered, headers=auth_header).json["items"] == []
+    assert client.get(assess_url, headers=auth_header).json["items"] == []
     disabled = client.get(base + "/cti?search=12345", headers=auth_header).json["iocs"][0]
     assert not disabled["findings"][0]["matching_enabled"] and not disabled["news_item_ids"]
     client.put(toggle, headers=auth_header, json={"enabled": True})
@@ -534,6 +578,7 @@ def test_imported_findings_cti_and_live_tag_associations(
     acl = grant_acl(role, ItemType.OSINT_SOURCE, source.id, read_only=True)
     db.session.commit()
     assert len(client.get(base + "/intelligence", headers=auth_header_user_permissions).json["items"]) == 1
+    assert client.get(assess_url, headers=auth_header_user_permissions).json["counts"]["total_count"] == 1
     story.news_items[0].upsert_attribute(NewsItemAttribute(key="TLP", value="red"))
     db.session.commit()
     visible = client.get(base + "/cti?search=12345", headers=auth_header_user_permissions).json["iocs"][0]
@@ -551,6 +596,7 @@ def test_imported_findings_cti_and_live_tag_associations(
     db.session.commit()
     assert client.get(base + "/intelligence", headers=auth_header).json["items"] == []
     assert client.get(filtered, headers=auth_header).json["items"] == []
+    assert client.get(assess_url, headers=auth_header).json["items"] == []
 
 
 def test_replacement_preserves_decisions_and_removes_obsolete_snapshot(client, auth_header, api_header, session, finding_document):
@@ -735,6 +781,10 @@ def test_intelligence_overview_filters_each_host_and_preserves_score_provenance(
     articles = {a["id"]: a for a in data["items"][0]["articles"]}
     assert set(articles) == {both.id, tagged.id, product.id}
     assert all(len(a["hosts"]) == 2 for a in articles.values())
+    assess_url = "/api/assess/stories?asset_match=true"
+    assessed = client.get(assess_url, headers=auth_header).json
+    assert assessed["counts"]["total_count"] == 1
+    assert assessed["items"][0]["matched_assets"] == [{"id": first.id, "name": "Host A"}, {"id": second.id, "name": "Host B"}]
     assert articles[both.id]["cve_count"] == articles[tagged.id]["cve_count"] == 1
     hosts = articles[both.id]["hosts"]
     assert [(h["asset_name"], h["max_cvss"], h["package_match"]) for h in hosts] == [("Host A", 9.1, True), ("Host B", None, True)]
@@ -864,6 +914,7 @@ def test_intelligence_overview_filters_each_host_and_preserves_score_provenance(
     assert second.id not in {a["id"] for a in data["assets"]}
     assert group.id not in {g["id"] for g in data["groups"]}
     assert "private-host" not in data["tags"]
+    assert client.get(assess_url, headers=auth_header).json["items"][0]["matched_assets"] == [{"id": first.id, "name": "Host A"}]
     assert "private-host" not in client.get("/api/assets/tags", headers=auth_header).json["tags"]
     assert client.get(endpoint, headers=auth_header, query_string={"asset_id": second.id}).json["items"] == []
     role = Role.filter_by_name("User")

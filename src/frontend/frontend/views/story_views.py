@@ -835,8 +835,10 @@ class StoryView(BaseView):
         request_params: dict[str, list[str]],
         selected_story_ids: list[str] | None = None,
     ):
+        asset_match_enabled = cls._normalize_assess_filter_payload(request_params).get("asset_match") == "true"
         try:
-            items = DataPersistenceLayer().get_objects(cls.model, paging_data=paging_data)
+            cache_options = {"use_cache": False} if asset_match_enabled else {}
+            items = DataPersistenceLayer().get_objects(cls.model, paging_data=paging_data, **cache_options)
         except HTTPException:
             raise
         except Exception:
@@ -855,6 +857,7 @@ class StoryView(BaseView):
         context["pagination"] = cls._build_pagination_context(items, paging_data, request_params)
         context["assess_selection_key"] = cls._build_assess_selection_key(request_params)
         context["selected_story_ids"] = selected_story_ids or []
+        context["asset_match_enabled"] = asset_match_enabled
 
         return render_template(cls.get_list_template(), **context), 200 if items is not None else 502
 
@@ -882,6 +885,18 @@ class StoryView(BaseView):
         if notification and status < 400:
             return make_response(notification + table, status)
         return make_response(table, status)
+
+    @classmethod
+    def _refresh_asset_filtered_assess(cls, notification: str) -> Response | None:
+        if cls._get_current_url_path() != url_for("assess.assess"):
+            return None
+        params = parse_qs(urlparse(request.headers.get("HX-Current-URL", "")).query)
+        if cls._normalize_assess_filter_payload(params).get("asset_match") != "true":
+            return None
+        response = cls.rerender_list(notification)
+        target = "#assess" if response.status_code < 400 else "#notification-bar"
+        response.headers.update({"HX-Retarget": target, "HX-Reselect": target, "HX-Reswap": "outerHTML"})
+        return response
 
     @classmethod
     def list_view(cls) -> ResponseReturnValue:
@@ -1486,6 +1501,8 @@ class StoryView(BaseView):
             try:
                 response = CoreApi().api_put("/assess/news-items/ungroup", json_data=news_item_ids)
                 notification_html = cls.get_notification_from_response(response)
+                if response.ok and (refreshed := cls._refresh_asset_filtered_assess(notification_html)) is not None:
+                    return refreshed
                 content = cls._get_action_response_content(story_id)
                 return make_response(notification_html + content, 200)
             except HTTPException:
@@ -1558,6 +1575,8 @@ class StoryView(BaseView):
 
         notification_html = cls.get_notification_from_response(response)
 
+        if response.ok and (refreshed := cls._refresh_asset_filtered_assess(notification_html)) is not None:
+            return refreshed
         content = cls._get_action_response_content(story_id)
         return make_response(notification_html + content, 200)
 

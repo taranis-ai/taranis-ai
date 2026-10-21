@@ -10,6 +10,7 @@ from cpe.cpe2_3_uri import CPE2_3_URI
 from models.asset_intelligence import IntelligenceFilters
 from packageurl import PackageURL
 from sqlalchemy.orm import selectinload
+from sqlalchemy.sql import Select
 
 from core.managers import queue_manager
 from core.managers.db_manager import db
@@ -325,9 +326,9 @@ def article_intelligence(
     }
 
 
-def matching_stories(asset_ids: list[str], user: User, filters: IntelligenceFilters):
+def matching_stories(asset_ids: list[str], user: User, filters: IntelligenceFilters, story_query: Select | None = None):
     """Read bounded story batches and yield only current, accessible evidence."""
-    visible = Story.visible_query(user).with_only_columns(Story.id)
+    visible = Story.visible_query(user, story_query).with_only_columns(Story.id).order_by(None)
     query = (
         db.select(AssetArticleMatch)
         .join(AssetTrigger)
@@ -361,15 +362,13 @@ def matching_stories(asset_ids: list[str], user: User, filters: IntelligenceFilt
     else:
         candidate_ids = candidate_ids.union(query.with_only_columns(NewsItem.story_id).order_by(None))
     candidates = candidate_ids.subquery()
-    cursor = None
-    # Page only after permission and current-evidence checks, reading bounded candidate batches.
-    while True:
-        batch_query = db.select(candidates.c.story_id).order_by(candidates.c.story_id.desc()).limit(STORY_BATCH_SIZE)
-        if cursor:
-            batch_query = batch_query.where(candidates.c.story_id < cursor)
-        ids = list(db.session.scalars(batch_query))
-        if not ids:
-            break
+    ordered_candidates = (
+        db.select(candidates.c.story_id).order_by(candidates.c.story_id.desc())
+        if story_query is None
+        else story_query.with_only_columns(Story.id).where(Story.id.in_(db.select(candidates.c.story_id)))
+    )
+    # Stream IDs in the caller's order; permission and evidence checks precede pagination.
+    for ids in db.session.scalars(ordered_candidates.execution_options(yield_per=STORY_BATCH_SIZE)).partitions(STORY_BATCH_SIZE):
         stories = {}
         article_fields = {}
         for match in db.session.scalars(query.where(NewsItem.story_id.in_(ids))):
@@ -390,4 +389,3 @@ def matching_stories(asset_ids: list[str], user: User, filters: IntelligenceFilt
         for story_id in ids:
             if story_id in stories or story_id in tagged_stories:
                 yield stories.get(story_id, []), tagged_stories.get(story_id, [])
-        cursor = ids[-1]
