@@ -85,7 +85,6 @@ class TestAdminApi(BaseTest):
             ("story_bot", "clustering"),
             ("nlp_bot", "ner"),
             ("sentiment_analysis_bot", "sentiment"),
-            ("cybersec_classifier_bot", "classification"),
         ],
     )
     def test_llm_endpoints_assignments_and_secrets(self, client, auth_header, app, monkeypatch, bot_type, feature):
@@ -213,6 +212,21 @@ class TestAdminApi(BaseTest):
         }
         endpoint_id = self.assert_post_ok(client, "llm-endpoints", endpoint, auth_header).json["id"]
         endpoint_url = self.concat_url(f"llm-endpoints/{endpoint_id}")
+        incompatible_id = self.assert_post_ok(
+            client, "llm-endpoints", {"name": "Other provider", "base_url": "https://provider.example/v1"}, auth_header
+        ).json["id"]
+        for incompatible_format in ("responses", "chat_completions"):
+            self.assert_post_ok(client, f"llm-endpoints/{incompatible_id}", {"api_format": incompatible_format}, auth_header)
+            response = client.patch(
+                self.concat_url("settings"), json={"settings": {"llm_classification_endpoint": incompatible_id}}, headers=auth_header
+            )
+            assert response.status_code == 400
+            response = client.post(
+                "/api/config/bots",
+                json={"name": "Invalid topics", "type": "cybersec_classifier_bot", "parameters": {"LLM_ENDPOINT": incompatible_id}},
+                headers=auth_header,
+            )
+            assert response.status_code == 400
         assert client.post(endpoint_url, json={"processing_mode": "openrouter_batch"}, headers=auth_header).status_code == 400
         assert client.post(endpoint_url, json={"api_format": "responses"}, headers=auth_header).status_code == 400
         for feature in ("default", "chat", "ner"):
@@ -221,6 +235,11 @@ class TestAdminApi(BaseTest):
             )
             assert response.status_code == 400
         self.assert_patch_ok(client, "settings", {"settings": {"llm_classification_endpoint": endpoint_id}}, auth_header)
+        for incompatible_format in ("responses", "chat_completions"):
+            response = client.post(
+                endpoint_url, json={"base_url": "https://provider.example/v1", "api_format": incompatible_format}, headers=auth_header
+            )
+            assert response.status_code == 400
         bot = client.post("/api/config/bots", json={"name": "Topics", "type": "cybersec_classifier_bot"}, headers=auth_header)
         assert bot.status_code == 201
         worker = client.get(f"/api/worker/bots/{bot.json['id']}", headers={"Authorization": "Bearer test_key"})
@@ -233,9 +252,19 @@ class TestAdminApi(BaseTest):
             "/api/config/bots", json={"name": "NER", "type": "nlp_bot", "parameters": {"LLM_ENDPOINT": endpoint_id}}, headers=auth_header
         )
         assert other.status_code == 400
+        bot_url = f"/api/config/bots/{bot.json['id']}"
+        assert client.patch(bot_url, json={"parameters": {"LLM_ENDPOINT": endpoint_id}}, headers=auth_header).status_code == 200
+        self.assert_patch_ok(client, "settings", {"settings": {"llm_classification_endpoint": ""}}, auth_header)
+        for incompatible_format in ("responses", "chat_completions"):
+            response = client.post(
+                endpoint_url, json={"base_url": "https://provider.example/v1", "api_format": incompatible_format}, headers=auth_header
+            )
+            assert response.status_code == 400
+            assert client.patch(bot_url, json={"parameters": {"LLM_ENDPOINT": incompatible_id}}, headers=auth_header).status_code == 400
         assert client.delete(f"/api/config/bots/{bot.json['id']}", headers=auth_header).status_code == 200
         self.assert_patch_ok(client, "settings", {"settings": {"llm_classification_endpoint": ""}}, auth_header)
         self.assert_post_ok(client, f"llm-endpoints/{endpoint_id}/delete", {}, auth_header)
+        self.assert_post_ok(client, f"llm-endpoints/{incompatible_id}/delete", {}, auth_header)
 
     def test_settings_rejects_negative_bot_lookback(self, client, auth_header):
         response = client.put(

@@ -55,6 +55,11 @@ def set_parameters(
         endpoint = Settings.with_defaults(entry.settings)["llm_endpoints"][endpoint_id]
         if endpoint.get("api_format") in {"systemone", "openai_decisions"} and LLM_BOT_FEATURES.get(worker_type.lower()) != "classification":
             raise ValueError("Decisions endpoints support only topic classification")
+        if LLM_BOT_FEATURES.get(worker_type.lower()) == "classification" and endpoint.get("api_format") not in {
+            "systemone",
+            "openai_decisions",
+        }:
+            raise ValueError("Topic classification requires a realtime Decisions endpoint")
     return normalized
 
 

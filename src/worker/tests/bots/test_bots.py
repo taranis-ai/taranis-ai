@@ -223,6 +223,10 @@ def test_classification_bot(stories, requests_mock):
     assert tuple(field.alias or name for name, field in ClassifyResponse.model_fields.items()) == CLASSIFICATION_CATEGORIES
     items = [dict(item, id=f"classified-{index}") for index, item in enumerate(stories[0]["news_items"][:1] * 4)]
     items[-1]["content"] = "  "
+    items[-1]["attributes"] = [
+        {"key": "classification", "value": "vulnerability"},
+        {"key": "classification_scores", "value": '{"vulnerability": 1.0}'},
+    ]
     selected = [{**stories[0], "news_items": items}]
     requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/stories", json=selected)
     endpoint = {
@@ -252,6 +256,10 @@ def test_classification_bot(stories, requests_mock):
         assert attributes["classification"] == "general news"
         assert json.loads(attributes["classification_scores"]) == scores
         assert "cybersecurity_bot" not in attributes
+    assert result["changes"]["item_attributes"][items[-1]["id"]] == [
+        {"key": "classification", "value": "none"},
+        {"key": "classification_scores", "value": "{}"},
+    ]
 
 
 @pytest.mark.parametrize("batch", [False, True])

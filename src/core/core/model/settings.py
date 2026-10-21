@@ -3,7 +3,7 @@ from copy import deepcopy
 from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from models.llm import LLM_FEATURES, LLMEndpoint
+from models.llm import LLM_BOT_FEATURES, LLM_FEATURES, LLMEndpoint
 from sqlalchemy import event
 from sqlalchemy.orm import Mapped, Session
 
@@ -141,6 +141,10 @@ class Settings(BaseModel):
             return {"error": "Chat requires a realtime LLM endpoint. Assign Chat explicitly before using a batch default."}, 400
         if cls._nonclassification_uses_decisions({**current_settings, **update_data}):
             return {"error": "Decisions endpoints support only topic classification. Use a Responses or Chat Completions default."}, 400
+        if (endpoint_id := update_data.get("llm_classification_endpoint")) and current_settings["llm_endpoints"][endpoint_id].get(
+            "api_format"
+        ) not in {"systemone", "openai_decisions"}:
+            return {"error": "Topic classification requires a realtime Decisions endpoint."}, 400
         if "chat_max_stories" in update_data:
             try:
                 value = cls._validate_non_negative_int(update_data["chat_max_stories"])
@@ -259,16 +263,17 @@ class Settings(BaseModel):
             return {"error": "Chat requires a realtime LLM endpoint. Reassign Chat before changing this endpoint to batch."}, 400
         if cls._nonclassification_uses_decisions(values):
             return {"error": "Decisions endpoints support only topic classification. Reassign other features first."}, 400
-        if endpoints.get(endpoint_id, {}).get("api_format") in {"systemone", "openai_decisions"}:
-            from models.llm import LLM_BOT_FEATURES
+        from core.model.bot import Bot
 
-            from core.model.bot import Bot
-
-            if any(
-                bot.parameters.get("LLM_ENDPOINT") == endpoint_id and LLM_BOT_FEATURES.get(bot.type.value) != "classification"
-                for bot in db.session.execute(db.select(Bot)).scalars()
+        is_decisions = endpoints.get(endpoint_id, {}).get("api_format") in {"systemone", "openai_decisions"}
+        if endpoint_id == values.get("llm_classification_endpoint") and not is_decisions:
+            return {"error": "Reassign topic classification before changing this endpoint's API format."}, 400
+        for bot in db.session.execute(db.select(Bot)).scalars():
+            if (
+                bot.parameters.get("LLM_ENDPOINT") == endpoint_id
+                and (LLM_BOT_FEATURES.get(bot.type.value) == "classification") != is_decisions
             ):
-                return {"error": "Reassign non-classification bots before changing this endpoint to Decisions."}, 400
+                return {"error": "Reassign incompatible bots before changing this endpoint's API format."}, 400
         entry.settings = values
         db.session.commit()
         from core.model.bot import Bot
