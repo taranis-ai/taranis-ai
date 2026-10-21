@@ -100,9 +100,7 @@
 
           <div class="flex items-center gap-1 {{ '' if compact_view else 'w-full' }}">
             <div class="flex flex-wrap items-center gap-2 gap-y-1 text-xs">
-              {% if story.read | default(false) %}
-                <span class="badge badge-success badge-outline badge-xs whitespace-nowrap">Read</span>
-              {% else %}
+              {% if not (story.read | default(false)) %}
                 <span class="badge badge-primary badge-xs whitespace-nowrap">Unread</span>
               {% endif %}
               {% if story.important | default(false) %}<span class="badge badge-warning badge-xs whitespace-nowrap">Important</span>{% endif %}
@@ -175,8 +173,10 @@
               <em>No summary available.</em>
             {% endif %}
           </div>
-          {{ story_tags(story, compact_view=compact_view, selected_tags=active_tag_filters | default([])) }}
+          {% if compact_view %}{{ story_tags(story, compact_view=true, selected_tags=active_tag_filters | default([])) }}{% endif %}
         </section>
+
+        {% if not compact_view %}{{ story_tags(story, compact_view=false, selected_tags=active_tag_filters | default([])) }}{% endif %}
 
         <footer class="story-card-actions grid grid-flow-col auto-cols-fr content-start text-xs {{ 'story-card-actions-compact gap-1 col-span-2 @min-[48rem]:col-span-1 @min-[48rem]:self-center' if compact_view else 'gap-2 col-span-2 @min-[80rem]:grid-flow-row @min-[80rem]:grid-cols-1 @min-[80rem]:auto-cols-auto @min-[80rem]:col-span-1 @min-[80rem]:col-start-3 @min-[80rem]:row-start-1' }}"
                 @click.stop>

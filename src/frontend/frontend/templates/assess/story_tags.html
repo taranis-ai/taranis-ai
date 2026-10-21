@@ -3,7 +3,7 @@
   {% set tags = (story.tags or []) | selectattr('name') | list %}
 
   {% if tags and (not compact_view or selected_tags) %}
-    <div class="flex flex-wrap gap-1 w-full max-w-full" x-data="{ tagsExpanded: false }" @click.stop>
+    <div class="col-span-2 flex flex-wrap gap-1 w-full max-w-full" x-data="{ tagsExpanded: false }" @click.stop>
       {% set ns = namespace(hidden_count=0) %}
       {% for tag in tags %}
         {% set matched = tag.name in selected_tags or tag.tag_type in selected_tags %}

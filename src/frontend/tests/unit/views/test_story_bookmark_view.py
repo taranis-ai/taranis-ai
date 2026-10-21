@@ -234,7 +234,6 @@ def test_bookmark_detail_renders_stories_and_remove_selected(
     ungroup_story = html.fromstring(actions.text).xpath('.//*[@data-testid="ungroup-story"]')[0]
     assert "bookmark_id=bookmark-1" in ungroup_story.get("hx-post")
     assert ungroup_story.get("hx-target") == "#bookmark-detail-container"
-    assert "Read" in story_card.text_content()
     assert "Important" in story_card.text_content()
     assert "In Reports" in story_card.text_content()
     assert tree.xpath('//*[@data-testid="assess-select-all-button"]')
