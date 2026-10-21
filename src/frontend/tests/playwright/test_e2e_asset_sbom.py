@@ -70,7 +70,7 @@ class TestAssetSbomWorkflow(BaseE2ETest):
 
     def confirm_asset(self, page: Page, asset: dict, created_sbom_assets: dict):
         self.highlight_element(page.get_by_label("Asset name", exact=True)).fill(asset["name"])
-        self.highlight_element(page.get_by_label("Tags", exact=True)).fill(asset["tag"].upper() + "\n" + asset["tag"])
+        self.highlight_element(page.get_by_label("Tags", exact=True)).fill(asset["tag"])
         self.highlight_element(page.get_by_label("Destination group")).select_option(label="Default")
         self.highlight_element(page.get_by_role("button", name="Create asset")).click()
         expect(page).to_have_url(re.compile(r"/assets/[^/]+/intelligence$"))

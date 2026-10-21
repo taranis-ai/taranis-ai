@@ -78,13 +78,12 @@ Chat uses the same highlight helper and instant form filling as the other segmen
 
 ### Record the SBOM PoC walkthrough
 
-`test_e2e_asset_sbom.py` exercises the same workflow in CI and in a recorded demonstration:
-import three fictional hosts, review grouped inventory and PHP installation paths, and see
-matching intelligence after the automatic historical scans. The production and staging portals
-share two source-reported PHP findings; the Python monitoring host gives a non-PHP comparison.
-Expand **Why this matches** for installed versions, CVE associations, and source ratings.
-The workflows refine a shared PHP rule, follow an article in Assess, review the two
-classification tags, disable CVE matching, and retire a legacy PHP installation through SBOM replacement.
+`test_e2e_asset_sbom.py` has two independent workflows. The first reviews software-name
+matching and narrows the PHP rule to `security` or `critical` context, excluding incidental
+mentions such as a meetup. The second creates a fresh three-host scenario and demonstrates
+imported CVEs, the `production`/`staging` tags, source details, CVE controls, and retiring a
+legacy PHP installation through SBOM replacement. Record the second workflow alone for a
+continuous showcase; its assets and articles are created and removed within that run.
 
 The walkthrough uses only repository fixtures in a fresh isolated Compose stack:
 
@@ -106,7 +105,7 @@ Generated pagination stress data remains in the core application tests.
 From `src/frontend`, record with readable pauses and highlighted controls:
 
 ```bash
-uv run pytest tests/playwright/test_e2e_asset_sbom.py \
+uv run pytest tests/playwright/test_e2e_asset_sbom.py -k findings_cti \
   --e2e-user-workflow --record-video --highlight-delay=1.5 --e2e-timeout=15000 -s
 ```
 
@@ -117,7 +116,8 @@ advisory is needed. The test removes its three assets and articles, and the harn
 
 Each workflow saves its 1920×1080 recording and screenshots under
 `tests/playwright/videos/sbom-showcase-<suffix>/`, with the video named `sbom-showcase.webm`.
-The tests print their separate recording paths. To record only findings and replacement, add `-k findings_cti`. Artifacts stay ignored by Git.
+The recording prints its path. Remove `-k findings_cti` to record both independent
+workflows as separate clips. Artifacts stay ignored by Git.
 
 To make an MP4 for manual sharing, run this inside the printed recording directory
 (requires FFmpeg):
