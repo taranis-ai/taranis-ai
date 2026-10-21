@@ -895,7 +895,6 @@ def test_assess_filters_support_htmx_and_native_form_submission(authenticated_cl
     tree = html.fromstring(response.text)
     filter_form = tree.xpath('//form[@id="assess-sidebar"]')[0]
     search_input = tree.xpath('//input[@id="story_search"]')[0]
-    clear_button = tree.xpath("//button[@title='Clear time filters']")[0]
     pagination = tree.xpath('//*[@id="story-pagination"]')[0]
     changed_by_select = filter_form.xpath('.//label[.//span[text()="Changed by"]]/select')[0]
     highlight_checkbox = tree.xpath('//input[@name="highlight"]')[0]
@@ -909,7 +908,6 @@ def test_assess_filters_support_htmx_and_native_form_submission(authenticated_cl
     )
     assert filter_form.get("hx-include") is None
     assert filter_form.get("hx-on:submit") == "event.preventDefault()"
-    assert clear_button.get("hx-include") == "#assess-sidebar"
     assert filter_form.get("hx-target:inherited") == "#assess"
     assert filter_form.get("hx-swap:inherited") == "outerHTML"
     notification_rule = "target:#notification-bar select:#notification-bar swap:outerHTML"
@@ -918,9 +916,6 @@ def test_assess_filters_support_htmx_and_native_form_submission(authenticated_cl
     assert len(buttons) >= 2
     assert all(button.get("hx-status:5xx") == notification_rule for button in buttons)
     assert filter_form.get("hx-push-url:inherited") == "true"
-    assert clear_button.get("hx-on::config:request") == (
-        "ctx.request.body.delete('timefrom'); ctx.request.body.delete('timeto'); ctx.request.body.delete('range')"
-    )
     assert pagination.get("hx-swap-oob") == "outerHTML:#story-pagination"
     assert [option.text for option in changed_by_select.xpath("./option")] == ["Any", "Me"]
     assert highlight_checkbox.get("hx-vals") == "js:{ highlight: this.checked }"

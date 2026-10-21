@@ -402,6 +402,21 @@ class TestEndToEndUser(BaseE2ETest):
 
         def access_story():
             target_title = pre_seed_stories[0]["title"]
+            page.goto(
+                url_for(
+                    "assess.assess",
+                    source=seeded_story["news_items"][0]["osint_source_id"],
+                    timefrom="2026-01-01T00:00",
+                    timeto="2026-02-01T00:00",
+                    _external=True,
+                )
+            )
+            with_htmx_wait(page, lambda: page.get_by_role("combobox", name="Time period", exact=True).select_option(label="Any time"))
+            remaining_filters = parse_qs(urlparse(page.url).query)
+            assert not {"range", "timefrom", "timeto"}.intersection(remaining_filters)
+            assert remaining_filters["source"] == [seeded_story["news_items"][0]["osint_source_id"]]
+            expect(page.get_by_role("textbox", name="From", exact=True)).to_have_value("")
+            expect(page.get_by_role("textbox", name="To", exact=True)).to_have_value("")
             search = page.get_by_placeholder("Search stories")
             with_htmx_wait(page, lambda: search.fill("no-matching-assess-story-7cc87"))
             expect(page.get_by_text("No stories found.", exact=True)).to_be_visible()

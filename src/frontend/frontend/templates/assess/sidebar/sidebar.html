@@ -95,6 +95,7 @@
 
     {# djlint: off #}
     <section class="space-y-3 mt-5"
+             @change="if (!$refs.timePreset.value) $refs.customPeriod.selected = !!($refs.timeFrom.value || $refs.timeTo.value)"
              x-data='{
                clearTimeFilters() {
                  const timeFrom = this.$refs.timeFrom;
@@ -111,26 +112,32 @@
                }
              }'>
     {# djlint:on #}
-    <div class="flex items-center justify-between gap-2">
+    <div class="flex items-center gap-2">
       <label for="assess-time-period" class="text-sm font-semibold">Time period</label>
-      <button type="button"
-              class="btn btn-ghost btn-xs"
-              title="Clear time filters"
-              hx-get="{{ base_url }}"
-              hx-on::config:request="ctx.request.body.delete('timefrom'); ctx.request.body.delete('timeto'); ctx.request.body.delete('range')"
-              hx-include="#assess-sidebar"
-              hx-target="#assess"
-              hx-swap="outerHTML"
-              aria-label="Clear time filters"
-              @click="clearTimeFilters()">{{ heroicon_mini('x-mark', class='h-4 w-4') }} Clear</button>
+      <div class="tooltip">
+        <div id="assess-time-help" class="tooltip-content w-52 whitespace-normal text-left" role="tooltip">
+          Calendar periods start at midnight UTC; weeks start on Monday.
+        </div>
+        <button type="button" class="btn btn-ghost btn-xs btn-circle" aria-label="About time periods" aria-describedby="assess-time-help">
+          {{ heroicon_outline('information-circle', class='h-4 w-4') }}
+        </button>
+      </div>
     </div>
-    <select id="assess-time-period" name="range" class="select select-bordered select-sm w-full" x-ref="timePreset">
-      <option value="" {% if not current_preset %}selected{% endif %}>Any time</option>
+    <select id="assess-time-period"
+            name="range"
+            class="select select-bordered select-sm w-full"
+            x-ref="timePreset"
+            @change="if (!$el.value) clearTimeFilters()">
+      <option value="" {% if not current_preset and not time_from and not time_to %}selected{% endif %}>Any time</option>
+      <option value=""
+              x-ref="customPeriod"
+              disabled
+              hidden
+              {% if not current_preset and (time_from or time_to) %}selected{% endif %}>Custom dates</option>
       {% for value, label in time_presets.items() %}
         <option value="{{ value }}" {% if current_preset == value %}selected{% endif %}>{{ label }}</option>
       {% endfor %}
     </select>
-    <p class="text-xs text-base-content/60">Calendar periods start at midnight UTC.</p>
     <details {% if time_from or time_to %}open{% endif %}>
       <summary class="cursor-pointer text-sm mb-2">Custom dates</summary>
       <p class="text-xs text-base-content/60 mb-2">Dates further narrow the selected period.</p>
