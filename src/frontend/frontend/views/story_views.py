@@ -6,7 +6,7 @@ from json import JSONDecodeError
 from typing import Any, cast
 from urllib.parse import parse_qs, quote, urlencode, urlparse
 
-from flask import Response, abort, flash, json, make_response, redirect, render_template, request, session, url_for
+from flask import Response, abort, after_this_request, flash, json, make_response, redirect, render_template, request, session, url_for
 from flask.typing import ResponseReturnValue
 from flask_jwt_extended import current_user
 from models.assess import (
@@ -29,7 +29,7 @@ from models.worker_parameters import SimpleWebCollectorParameters, normalize_par
 from pydantic import ValidationError
 from requests import RequestException
 from requests import Response as RequestsResponse
-from werkzeug.datastructures import FileStorage
+from werkzeug.datastructures import FileStorage, ImmutableMultiDict
 from werkzeug.exceptions import HTTPException
 
 from frontend.auth import auth_required, update_current_user_cache
@@ -885,6 +885,18 @@ class StoryView(BaseView):
 
     @classmethod
     def list_view(cls) -> ResponseReturnValue:
+        if any(value == "" for _, value in request.args.items(multi=True)):
+            clean_args = ImmutableMultiDict((key, value) for key, value in request.args.items(multi=True) if value != "")
+            clean_url = cls._build_assess_filters_url(clean_args.to_dict(flat=False))
+            if not is_htmx_request():
+                return redirect(clean_url)
+            request.args = clean_args
+
+            @after_this_request
+            def push_clean_url(response: Response) -> Response:
+                response.headers["HX-Push-Url"] = clean_url
+                return response
+
         raw_request_params = request.args.to_dict(flat=False)
         if not is_htmx_request():
             filtered_request_params = {
