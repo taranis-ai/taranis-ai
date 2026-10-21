@@ -60,11 +60,11 @@ def compare_import(record: AssetSbomImport, asset: Asset) -> SbomComparison:
 
 
 def _rule_key(trigger: AssetTrigger) -> str:
-    return trigger.suggestion or f"analyst:{trigger.phrase.casefold()}"
+    return trigger.rule.key
 
 
 def _rule_decision(trigger: AssetTrigger) -> tuple:
-    return trigger.phrase, tuple(trigger.context), trigger.enabled, tuple(trigger.sources), trigger.analyst_edited
+    return trigger.enabled, trigger.analyst_edited
 
 
 def preserve_rules(previous: AssetSbomImport, incoming: AssetSbomImport) -> None:
@@ -93,10 +93,7 @@ def preserve_rules(previous: AssetSbomImport, incoming: AssetSbomImport) -> None
             unanimous = len(candidates) == len(siblings) and len({_rule_decision(t) for t in candidates}) == 1
             inherited = AssetTrigger(
                 component.id,
-                original.phrase,
-                list(original.context),
-                list(original.sources),
-                suggestion=original.suggestion,
+                original.rule,
                 enabled=original.enabled if unanimous else False,
             )
             inherited.analyst_edited = original.analyst_edited or not unanimous
@@ -104,10 +101,6 @@ def preserve_rules(previous: AssetSbomImport, incoming: AssetSbomImport) -> None
             if not unanimous:
                 conflicts.append(key)
         component.inventory = {**component.inventory, "review_conflicts": conflicts}
-    old_decisions = {finding.cve_id: finding.matching_enabled for finding in previous.findings if finding.cve_id}
-    for finding in incoming.findings:
-        if finding.cve_id in old_decisions:
-            finding.matching_enabled = old_decisions[finding.cve_id]
     db.session.flush()
 
 
@@ -192,7 +185,12 @@ def _apply_import(
         if finding.cve_id:
             finding.matching_enabled = enable_cve_matching
     if previous:
-        preserve_rules(previous, record)
+        if previous.organization_id == record.organization_id:
+            preserve_rules(previous, record)
+        old_decisions = {finding.cve_id: finding.matching_enabled for finding in previous.findings if finding.cve_id}
+        for finding in record.findings:
+            if finding.cve_id in old_decisions:
+                finding.matching_enabled = old_decisions[finding.cve_id]
         previous.asset_id = None
         db.session.flush()
         db.session.delete(previous)

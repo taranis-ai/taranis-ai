@@ -10,9 +10,8 @@
     <li class="badge badge-outline h-auto" data-test-id="asset-matched-software">{{ software.name }} · {{ software.versions | length }} installed version{{ 's' if software.versions | length != 1 }} · {{ match_reason(software) }}</li>
   {% endfor %}
 </ul>
-<details :open='expandedArticles[{{ (asset_id ~ ':' ~ article.id) | tojson }}] || false'
-         @toggle='if ($el.isConnected) expandedArticles[{{ (asset_id ~ ':' ~ article.id) | tojson }}] = $el.open'>
-  <summary class="cursor-pointer">Why this matches</summary>
+<details open>
+  <summary class="cursor-pointer">Installed software and evidence</summary>
   <div class="space-y-3 pt-2">
     <ul class="space-y-2">
       {% for software in article.software %}
@@ -23,7 +22,7 @@
               <li>
                 <span class="badge badge-outline" data-test-id="component-match-reason">{{ match_reason(component) }}</span>
                 <a class="link"
-                   href="{{ url_for('assets.asset_triggers', asset_id=asset_id, component_id=component.id) }}">Software phrase rules for {{ component.name }} {{ component.version }}</a>
+                   href="{{ url_for('assets.asset_triggers', asset_id=asset_id, component_id=component.id, assess_url=assess_return_url) }}">Software phrase rules for {{ component.name }} {{ component.version }}</a>
                 {% if component.purl %}<span class="break-all">({{ component.purl }})</span>{% endif %}
               </li>
             {% endfor %}
@@ -34,7 +33,7 @@
     {% for match in article.cve_matches %}
       <p data-test-id="asset-cve-match">
         CVE tag: <a class="link"
-    href="{{ url_for('assets.asset_cti', asset_id=asset_id, search=match.cve_id) }}">{{ match.cve_id }}</a> · reported for
+    href="{{ url_for('assets.asset_cti', asset_id=asset_id, search=match.cve_id, assess_url=assess_return_url) }}">{{ match.cve_id }}</a> · reported for
         {% for software in article.software %}{% for component in software.components if component.id in match.component_ids %}<span>{{ component.name }} {{ component.version }}</span>{% if not loop.last %}, {% endif %}{% endfor %}{% endfor %}.
       </p>
       {% for rating in match.ratings | default([]) %}

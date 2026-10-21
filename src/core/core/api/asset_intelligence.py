@@ -1,34 +1,30 @@
-"""Asset trigger review and explainable intelligence for one or all accessible hosts."""
+"""Organization-shared software rules, installation choices and historical asset scans."""
 
 from flask import request
 from flask.views import MethodView
 from flask_jwt_extended import current_user
-from models.asset_intelligence import IntelligenceFilters, MatchRunInput, TriggerCreate, TriggerInput, TriggerSelection
+from models.asset_intelligence import MatchRunInput, TriggerCreate, TriggerInput, TriggerSelection
 from pydantic import ValidationError
 
 from core.managers.auth_manager import api_key_required, auth_required
 from core.managers.db_manager import db
 from core.model.asset import Asset
 from core.model.asset_intelligence import AssetArticleMatch, AssetMatchRun, AssetTrigger
-from core.model.asset_sbom import AssetSbomComponent
+from core.model.asset_sbom import AssetSbomComponent, AssetSbomImport
 from core.service.asset_intelligence import (
     accessible_asset,
+    add_shared_rule,
     asset_components,
     asset_triggers,
     generate_triggers,
     grouped_triggers,
-    product_identity,
+    lock_rule_catalog,
     scan_batch,
     start_match_run,
 )
-from core.service.asset_intelligence_overview import intelligence_overview
 
 
 TRIGGERS_PER_PAGE = 50
-INTELLIGENCE_FILTER_ERROR = (
-    "Choose Any, Yes or No for match filters, a positive page, 1–100 stories per page, a complete CVE ID, "
-    "CVSS scores from 0 to 10 with minimum ≤ maximum, and collection dates with start ≤ end."
-)
 
 
 def trigger_response(trigger: AssetTrigger, group: list[AssetTrigger] | None = None) -> dict:
@@ -36,6 +32,8 @@ def trigger_response(trigger: AssetTrigger, group: list[AssetTrigger] | None = N
     group = group or [trigger]
     return {
         "id": trigger.id,
+        "rule_id": trigger.rule_id,
+        "can_edit_rule": trigger.rule.organization_id == current_user.organization.id,
         "component_id": trigger.component_id,
         "component": component["name"],
         "version": component["version"],
@@ -43,20 +41,18 @@ def trigger_response(trigger: AssetTrigger, group: list[AssetTrigger] | None = N
         "component_ids": [t.component_id for t in group],
         "purl": component["purl"],
         "has_cpe": bool(component["cpes"]),
-        "phrase": trigger.phrase,
-        "context": trigger.context,
+        "phrase": trigger.rule.phrase,
+        "context": trigger.rule.context,
         "enabled": trigger.enabled,
-        "sources": trigger.sources,
+        "sources": trigger.rule.sources,
         "analyst_edited": trigger.analyst_edited,
-        "review_required": any(
-            (t.suggestion or f"analyst:{t.phrase.casefold()}") in t.component.inventory.get("review_conflicts", []) for t in group
-        ),
+        "review_required": any(t.rule.key in t.component.inventory.get("review_conflicts", []) for t in group),
     }
 
 
 def resolve_inheritance_review(trigger: AssetTrigger) -> None:
     component = trigger.component
-    key = trigger.suggestion or f"analyst:{trigger.phrase.casefold()}"
+    key = trigger.rule.key
     conflicts = component.inventory.get("review_conflicts", [])
     if key in conflicts:
         component.inventory = {**component.inventory, "review_conflicts": [value for value in conflicts if value != key]}
@@ -75,7 +71,7 @@ class AssetTriggers(MethodView):
         if component_id := request.args.get("component_id"):
             groups = [group for group in groups if any(t.component_id == component_id for t in group)]
         if search := request.args.get("search", "").strip():
-            groups = [group for group in groups if search.casefold() in group[0].phrase.casefold()]
+            groups = [group for group in groups if search.casefold() in group[0].rule.phrase.casefold()]
         if request.args.get("enabled") in ("true", "false"):
             groups = [group for group in groups if group[0].enabled == (request.args["enabled"] == "true")]
         total = len(groups)
@@ -95,14 +91,10 @@ class AssetTriggers(MethodView):
         component = db.session.scalar(asset_components(asset_id).where(AssetSbomComponent.id == data.component_id))
         if not component:
             return {"error": "Component not found in this asset."}, 404
-        product = product_identity(component.inventory)
-        triggers = []
-        for sibling in db.session.scalars(asset_components(asset_id)):
-            if product_identity(sibling.inventory) == product:
-                trigger = AssetTrigger(sibling.id, data.phrase, data.context, ["analyst"], enabled=data.enabled)
-                trigger.analyst_edited = True
-                db.session.add(trigger)
-                triggers.append(trigger)
+        record = db.session.get(AssetSbomImport, component.import_id)
+        if not record or record.organization_id != current_user.organization.id:
+            return {"error": "Only the importing organization can change shared software rules."}, 403
+        triggers = add_shared_rule(asset_id, component, data, current_user.organization.id)
         db.session.commit()
         return trigger_response(triggers[0], triggers), 201
 
@@ -119,11 +111,20 @@ class AssetTriggerEdit(MethodView):
             data = TriggerInput.model_validate(request.get_json(silent=True))
         except ValidationError:
             return {"error": "Provide a phrase up to 200 characters and at most 10 context phrases."}, 400
+        rule = group[0].rule
+        if rule.organization_id != current_user.organization.id:
+            return {"error": "Only the importing organization can change shared software rules."}, 403
+        lock_rule_catalog(rule.organization_id)
+        shared_changed = rule.phrase != data.phrase or rule.context != data.context
+        rule.phrase, rule.context = data.phrase, data.context
         for trigger in group:
             resolve_inheritance_review(trigger)
-            trigger.phrase, trigger.context, trigger.enabled = data.phrase, data.context, data.enabled
+            trigger.enabled = data.enabled
             trigger.analyst_edited = True
-        db.session.execute(db.delete(AssetArticleMatch).where(AssetArticleMatch.trigger_id.in_([t.id for t in group])))
+        affected_triggers = db.select(AssetTrigger.id).where(
+            AssetTrigger.rule_id == rule.id if shared_changed else AssetTrigger.id.in_([t.id for t in group])
+        )
+        db.session.execute(db.delete(AssetArticleMatch).where(AssetArticleMatch.trigger_id.in_(affected_triggers)))
         db.session.commit()
         return trigger_response(group[0], group), 200
 
@@ -160,36 +161,6 @@ class AssetTriggerSuggestions(MethodView):
         added = generate_triggers(asset_id)
         db.session.commit()
         return {"message": "Missing suggestions generated. Existing decisions preserved.", "added": added}, 200
-
-
-class AssetIntelligence(MethodView):
-    @auth_required("ASSETS_ACCESS")
-    def get(self, asset_id: str):
-        if "ASSESS_ACCESS" not in current_user.get_permissions():
-            return {"error": "Intelligence access is required."}, 403
-        if not (asset := accessible_asset(asset_id, current_user)):
-            return {"error": "Asset not found."}, 404
-        try:
-            filters = IntelligenceFilters.model_validate({**request.args.to_dict(), "asset_id": asset_id})
-        except ValidationError:
-            return {"error": INTELLIGENCE_FILTER_ERROR}, 400
-        data = intelligence_overview(current_user, filters)
-        # The individual-asset API exposes each article's evidence directly.
-        for story in data["items"]:
-            story["articles"] = [article["hosts"][0] for article in story["articles"]]
-        return {"asset_name": asset.name, **data}, 200
-
-
-class AssetsIntelligence(MethodView):
-    @auth_required("ASSETS_ACCESS")
-    def get(self):
-        if "ASSESS_ACCESS" not in current_user.get_permissions():
-            return {"error": "Intelligence access is required."}, 403
-        try:
-            filters = IntelligenceFilters.model_validate(request.args.to_dict())
-        except ValidationError:
-            return {"error": INTELLIGENCE_FILTER_ERROR}, 400
-        return intelligence_overview(current_user, filters), 200
 
 
 class AssetMatchRuns(MethodView):
@@ -247,13 +218,11 @@ class AssetMatchBatch(MethodView):
 
 
 def initialize(app, base_route: str):
-    app.add_url_rule(f"{base_route}/assets/intelligence", view_func=AssetsIntelligence.as_view("assets_intelligence"))
     routes = {
         "triggers": AssetTriggers,
         "triggers/<string:trigger_id>": AssetTriggerEdit,
         "triggers/selection": AssetTriggerSelection,
         "triggers/suggestions": AssetTriggerSuggestions,
-        "intelligence": AssetIntelligence,
         "match-runs": AssetMatchRuns,
     }
     for suffix, view in routes.items():

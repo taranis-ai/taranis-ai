@@ -11,6 +11,7 @@ from frontend.cache_models import PagingData
 from frontend.core_api import CoreApi
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.log import logger
+from frontend.utils.router_helpers import get_assess_return_url
 from frontend.views.asset_views import asset_display_name
 
 
@@ -60,7 +61,12 @@ def upload_sbom():
                 response = CoreApi().upload_sbom(upload, asset_id=target_id or None)
                 payload = response.json()
                 if response.ok:
-                    return redirect(url_for("assets.sbom_progress", upload_id=payload["id"], asset_id=target_id or None), code=303)
+                    return redirect(
+                        url_for(
+                            "assets.sbom_progress", upload_id=payload["id"], asset_id=target_id or None, assess_url=get_assess_return_url()
+                        ),
+                        code=303,
+                    )
                 error, status = payload.get("error", "Unable to preview this SBOM."), response.status_code
             except RequestException, ValueError:
                 logger.exception("SBOM upload failed")
@@ -82,7 +88,7 @@ def sbom_progress(upload_id: str):
             progress = SbomUploadStatus.model_validate(response.json())
             target_id = progress.target_asset_id
             if progress.status == "READY" and progress.import_id:
-                target = url_for("assets.sbom_preview", import_id=progress.import_id, asset_id=target_id)
+                target = url_for("assets.sbom_preview", import_id=progress.import_id, asset_id=target_id, assess_url=get_assess_return_url())
                 if request.headers.get("HX-Request"):
                     return "", 200, {"HX-Redirect": target}
                 return redirect(target, code=303)
@@ -105,7 +111,7 @@ def preview_sbom(import_id: str):
     target_id = request.args.get("asset_id", "")
     error = None
     status = 200
-    destination = "assets.asset_intelligence" if "ASSESS_ACCESS" in current_user.permissions else "assets.asset_sbom"
+    destination = "assess.assess" if "ASSESS_ACCESS" in current_user.permissions else "assets.asset_sbom"
     try:
         if request.method == "POST":
             if target_id:

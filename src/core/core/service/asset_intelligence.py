@@ -1,5 +1,7 @@
 """Current software mentions and CVE associations with collected intelligence."""
 
+import hashlib
+import json
 import re
 from datetime import timedelta
 from functools import lru_cache
@@ -7,17 +9,20 @@ from html.parser import HTMLParser
 
 from cpe.cpe2_3_fs import CPE2_3_FS
 from cpe.cpe2_3_uri import CPE2_3_URI
-from models.asset_intelligence import IntelligenceFilters
+from models.assess import AssessSearchFilters
 from packageurl import PackageURL
+from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from sqlalchemy.sql import Select
 
 from core.managers import queue_manager
 from core.managers.db_manager import db
 from core.model.asset import Asset, AssetGroup
-from core.model.asset_intelligence import AssetArticleMatch, AssetMatchRun, AssetTrigger
+from core.model.asset_intelligence import AssetArticleMatch, AssetMatchRun, AssetTrigger, SoftwareMatchRule
 from core.model.asset_sbom import AssetSbomComponent, AssetSbomFinding, AssetSbomImport
+from core.model.base_model import BaseModel
 from core.model.news_item import NewsItem
+from core.model.organization import Organization
 from core.model.story import Story
 from core.model.user import User
 from core.service.asset_findings import cve_tag_query
@@ -113,51 +118,98 @@ def product_identity(inventory: dict) -> tuple:
     return inventory["type"], inventory.get("group", ""), inventory["name"], tuple(inventory.get("suppliers", []))
 
 
-def trigger_group_key(trigger: AssetTrigger) -> tuple:
-    # Keep previously divergent analyst decisions visible as separate groups.
-    return (
-        product_identity(trigger.component.inventory),
-        trigger.suggestion,
-        trigger.phrase,
-        tuple(trigger.context),
-        trigger.enabled,
-    )
+def package_rule_key(inventory: dict) -> str:
+    return hashlib.sha256(json.dumps(product_identity(inventory), ensure_ascii=False).encode()).hexdigest()
 
 
 def grouped_triggers(asset_id: str, *, lock=False) -> list[list[AssetTrigger]]:
     groups: dict[tuple, list[AssetTrigger]] = {}
-    query = asset_triggers(asset_id).options(selectinload(AssetTrigger.component)).order_by(AssetTrigger.phrase, AssetTrigger.id)
+    query = (
+        asset_triggers(asset_id)
+        .join(SoftwareMatchRule)
+        .options(selectinload(AssetTrigger.component))
+        .order_by(SoftwareMatchRule.phrase, AssetTrigger.id)
+    )
     if lock:
         query = query.with_for_update(of=AssetTrigger)
     for trigger in db.session.scalars(query):
-        groups.setdefault(trigger_group_key(trigger), []).append(trigger)
+        groups.setdefault((trigger.rule_id, trigger.enabled), []).append(trigger)
     return list(groups.values())
 
 
+def lock_rule_catalog(organization_id: str) -> None:
+    # Serialize first imports/aliases as well as edits; SQLite ignores FOR UPDATE.
+    db.session.execute(db.update(Organization).where(Organization.id == organization_id).values(name=Organization.name))
+
+
 def generate_triggers(asset_id: str, *, enable_software_matching: bool = True) -> int:
-    # Serialize suggestion generation without rewriting an analyst's saved decisions.
-    record = db.session.scalar(db.select(AssetSbomImport).where(AssetSbomImport.asset_id == asset_id).with_for_update())
-    if not record:
+    record = db.session.scalar(db.select(AssetSbomImport).filter_by(asset_id=asset_id).with_for_update())
+    if record is None:
         return 0
-    known = {(t.component_id, t.suggestion) for t in db.session.scalars(asset_triggers(asset_id))}
+    lock_rule_catalog(record.organization_id)
+    rules = list(db.session.scalars(db.select(SoftwareMatchRule).filter_by(organization_id=record.organization_id)))
+    catalog: dict[str, dict[str, SoftwareMatchRule]] = {}
+    for rule in rules:
+        catalog.setdefault(rule.package_key, {})[rule.key] = rule
+    known = {(t.component_id, t.rule_id) for t in db.session.scalars(asset_triggers(asset_id))}
     added = 0
     for component in db.session.scalars(asset_components(asset_id)):
+        package_key = package_rule_key(component.inventory)
+        package_rules = catalog.setdefault(package_key, {})
         for suggestion in trigger_suggestions(component.inventory):
             key = suggestion["phrase"].casefold()
-            if (component.id, key) in known:
-                continue
-            db.session.add(
-                AssetTrigger(
-                    component.id,
-                    suggestion["phrase"],
-                    suggestion["context"],
-                    suggestion["sources"],
-                    suggestion=key,
-                    enabled=enable_software_matching and suggestion["enabled"],
+            if key not in package_rules:
+                rule = SoftwareMatchRule(
+                    organization_id=record.organization_id,
+                    package_key=package_key,
+                    key=key,
+                    phrase=suggestion["phrase"],
+                    context=suggestion["context"],
+                    sources=suggestion["sources"],
+                    default_enabled=suggestion["enabled"],
                 )
-            )
+                db.session.add(rule)
+                db.session.flush()
+                package_rules[key] = rule
+        # Include analyst aliases and reviewed phrases even when a new import has different suggestions.
+        for rule in package_rules.values():
+            if (component.id, rule.id) in known:
+                continue
+            db.session.add(AssetTrigger(component.id, rule, enabled=enable_software_matching and rule.default_enabled))
+            known.add((component.id, rule.id))
             added += 1
     return added
+
+
+def add_shared_rule(asset_id: str, component: AssetSbomComponent, data, organization_id: str) -> list[AssetTrigger]:
+    lock_rule_catalog(organization_id)
+    rule = SoftwareMatchRule(
+        organization_id=organization_id,
+        package_key=package_rule_key(component.inventory),
+        key=f"analyst:{BaseModel.uuid7_str()}",
+        phrase=data.phrase,
+        context=data.context,
+        sources=["analyst"],
+        default_enabled=True,
+    )
+    db.session.add(rule)
+    components = db.session.execute(
+        select(AssetSbomComponent, AssetSbomImport.asset_id)
+        .join(AssetSbomImport)
+        .where(AssetSbomImport.organization_id == organization_id, AssetSbomImport.asset_id.is_not(None))
+    ).all()
+    participating_components = set(db.session.scalars(db.select(AssetTrigger.component_id).where(AssetTrigger.enabled.is_(True))))
+    current = []
+    for installed, installed_asset_id in components:
+        if package_rule_key(installed.inventory) != rule.package_key:
+            continue
+        enabled = data.enabled if installed_asset_id == asset_id else installed.id in participating_components
+        trigger = AssetTrigger(installed.id, rule, enabled=enabled)
+        trigger.analyst_edited = installed_asset_id == asset_id
+        db.session.add(trigger)
+        if installed_asset_id == asset_id:
+            current.append(trigger)
+    return current
 
 
 def start_match_run(asset_id: str, user: User, days: int = 30) -> AssetMatchRun:
@@ -180,12 +232,12 @@ def start_match_run(asset_id: str, user: User, days: int = 30) -> AssetMatchRun:
 
 
 def match_evidence(trigger: AssetTrigger, fields: dict[str, str]) -> list[dict]:
-    context = [phrase for phrase in trigger.context if any(phrase_pattern(phrase).search(text) for text in fields.values())]
-    if trigger.context and not context:
+    context = [phrase for phrase in trigger.rule.context if any(phrase_pattern(phrase).search(text) for text in fields.values())]
+    if trigger.rule.context and not context:
         return []
     reasons = []
     for field, text in fields.items():
-        if match := phrase_pattern(trigger.phrase).search(text):
+        if match := phrase_pattern(trigger.rule.phrase).search(text):
             reasons.append(
                 {
                     "field": field,
@@ -276,10 +328,10 @@ def article_intelligence(
                 (reason["field"], reason["excerpt"]), {"field": reason["field"], "excerpt": reason["excerpt"], "matches": {}}
             )
             explanation = excerpt["matches"].setdefault(
-                (identity, trigger.phrase, reason["matched_text"], tuple(reason["context"])),
+                (identity, trigger.rule.phrase, reason["matched_text"], tuple(reason["context"])),
                 {
                     "software_id": package["id"],
-                    "phrase": trigger.phrase,
+                    "phrase": trigger.rule.phrase,
                     "matched_text": reason["matched_text"],
                     "context": reason["context"],
                     "triggers": [],
@@ -326,7 +378,7 @@ def article_intelligence(
     }
 
 
-def matching_stories(asset_ids: list[str], user: User, filters: IntelligenceFilters, story_query: Select | None = None):
+def matching_stories(asset_ids: list[str], user: User, filters: AssessSearchFilters, story_query: Select | None = None):
     """Read bounded story batches and yield only current, accessible evidence."""
     visible = Story.visible_query(user, story_query).with_only_columns(Story.id).order_by(None)
     query = (
@@ -343,19 +395,11 @@ def matching_stories(asset_ids: list[str], user: User, filters: IntelligenceFilt
         .order_by(NewsItem.story_id.desc(), NewsItem.id, AssetArticleMatch.trigger_id)
     )
     associations = cve_tag_query(asset_ids).where(NewsItem.story_id.in_(visible))
-    if filters.cve_id:
-        associations = associations.where(AssetSbomFinding.cve_id == filters.cve_id)
-    # Both evidence paths use the same UTC collection window, independent of scan lookback.
-    date_conditions = []
-    if filters.collected_from:
-        date_conditions.append(NewsItem.collected >= filters.collected_from.replace(tzinfo=None))
-    if filters.collected_to:
-        date_conditions.append(NewsItem.collected <= filters.collected_to.replace(tzinfo=None))
-    query = query.where(*date_conditions)
-    associations = associations.where(*date_conditions)
+    if filters.asset_cve_ids:
+        associations = associations.where(AssetSbomFinding.cve_id.in_(filters.asset_cve_ids))
     candidate_ids = associations.with_only_columns(NewsItem.story_id).distinct()
-    requires_cve = bool(filters.cve_id) or filters.cve_match == "yes" or filters.cvss_available == "yes"
-    requires_cve = requires_cve or filters.cvss_min is not None or filters.cvss_max is not None
+    requires_cve = bool(filters.asset_cve_ids) or filters.asset_cve_match == "yes"
+    requires_cve = requires_cve or filters.asset_cvss_min is not None or filters.asset_cvss_max is not None
     if requires_cve:
         # Retain product evidence only for articles with a current CVE association.
         query = query.where(NewsItem.id.in_(associations.with_only_columns(NewsItem.id)))

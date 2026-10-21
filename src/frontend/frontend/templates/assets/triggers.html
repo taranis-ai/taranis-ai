@@ -5,11 +5,28 @@
     {{ asset_navigation(asset_id, 'rules', data.asset_name if data else none) }}
     <h1 class="text-2xl font-bold">Matching rules{% if data %} · {{ data.asset_name }}{% endif %}</h1>
     {% if error %}<div role="alert" class="alert alert-error">{{ error }}</div>{% endif %}
+    {% if "ASSESS_ACCESS" in current_user.permissions %}
+      {% include "assets/scan_status.html" %}
+      {% if "ASSETS_CREATE" in current_user.permissions %}
+        <form method="post"
+              action="{{ url_for('assets.asset_scan', asset_id=asset_id, assess_url=get_assess_return_url()) }}"
+              class="flex flex-wrap gap-3 items-end">
+          <input type="hidden" name="csrf_token" value="{{ request.cookies.get(config['JWT_ACCESS_CSRF_COOKIE_NAME'], '') }}">
+          <label>
+            Collected in the last N days (0 = all history)
+            <input name="days" type="number" min="0" max="36500" value="30" required class="input input-bordered w-24">
+          </label>
+          <button class="btn btn-primary" type="submit">Scan existing articles</button>
+        </form>
+      {% endif %}
+    {% endif %}
     {% if data %}
       <p>Software-name phrases and optional context used to match collected articles. Import choices set defaults for new rules; you can enable, disable, or refine them here. Broad vendor, supplier, and ambiguous terms start disabled.</p>
-      <p>Each rule applies to the listed versions of the same package. Editing, enabling, or disabling it updates those versions together.</p>
+      <p>Matching phrases and context are shared across assets in the importing organization, including future imports of the same software. Enabled choices apply only to this asset’s listed versions.</p>
+      <p>Shared phrase edits remove old evidence on every participating asset. Scan existing articles on those assets to refresh historical results.</p>
       <p>Phrases match whole words, ignoring case. Optional context requires at least one context phrase in the same article. Installed versions are shown for reference and need not appear in the article.</p>
       <form method="get" class="flex flex-wrap gap-2 items-end">
+        {% if get_assess_return_url() %}<input type="hidden" name="assess_url" value="{{ get_assess_return_url() }}">{% endif %}
         {% if request.args.get("component_id") %}<input type="hidden" name="component_id" value="{{ request.args['component_id'] }}">{% endif %}
         <label>
           Phrase
@@ -24,7 +41,7 @@
           </select>
         </label>
         <button class="btn" type="submit">Filter rules</button>
-        <a class="link" href="{{ url_for('assets.asset_triggers', asset_id=asset_id) }}">Clear filters</a>
+        <a class="link" href="{{ url_for('assets.asset_triggers', asset_id=asset_id, assess_url=get_assess_return_url()) }}">Clear filters</a>
       </form>
       {% set can_edit = 'ASSETS_CREATE' in current_user.permissions %}
       {% if can_edit %}
@@ -75,7 +92,7 @@
             {% if trigger.review_required %}<p class="text-warning">Previous versions have conflicting decisions. Review this inherited rule before enabling it.</p>{% endif %}
             {% if not trigger.has_cpe %}<p class="text-warning">No valid CPE; review this component name carefully.</p>{% endif %}
             {% if trigger.context %}<p>Requires any context: {{ trigger.context | join(", ") }}</p>{% endif %}
-            {% if can_edit %}
+            {% if can_edit and trigger.can_edit_rule %}
               <details {% if error and request.form.get('trigger_id') == trigger.id %}open{% endif %}>
                 <summary class="cursor-pointer">Edit rule</summary>
                 <form method="post" class="space-y-2 max-w-xl">
@@ -105,7 +122,7 @@
                   <label class="flex gap-2"><input type="checkbox"
        name="enabled"
        class="checkbox"
-       {% if (retry and request.form.get('enabled') == 'on') or (not retry and trigger.enabled) %}checked{% endif %}>Enabled</label>
+       {% if (retry and request.form.get('enabled') == 'on') or (not retry and trigger.enabled) %}checked{% endif %}>Enabled on this asset</label>
                   <button class="btn btn-primary" type="submit">Save rule</button>
                 </form>
               </details>
@@ -138,7 +155,7 @@
                   <label class="flex gap-2"><input type="checkbox"
        name="enabled"
        class="checkbox"
-       {% if retry and request.form.get('enabled') == 'on' %}checked{% endif %}>Enabled</label>
+       {% if retry and request.form.get('enabled') == 'on' %}checked{% endif %}>Enabled on this asset</label>
                   <button class="btn" type="submit">Add alternative matching phrase</button>
                 </form>
               </details>
@@ -150,10 +167,10 @@
       </div>
       <nav aria-label="Rule pages" class="flex gap-4 items-center">
         {% if data.page > 1 %}<a class="btn btn-sm"
-   href="{{ url_for('assets.asset_triggers', asset_id=asset_id, page=data.page - 1, search=request.args.get('search', ''), enabled=request.args.get('enabled', ''), component_id=request.args.get('component_id', '')) }}">Previous</a>{% endif %}
+   href="{{ url_for('assets.asset_triggers', asset_id=asset_id, page=data.page - 1, search=request.args.get('search', ''), enabled=request.args.get('enabled', ''), component_id=request.args.get('component_id', ''), assess_url=get_assess_return_url()) }}">Previous</a>{% endif %}
         <span>{{ data.total }} rules · Page {{ data.page }} of {{ data.pages }}</span>
         {% if data.page < data.pages %}<a class="btn btn-sm"
-   href="{{ url_for('assets.asset_triggers', asset_id=asset_id, page=data.page + 1, search=request.args.get('search', ''), enabled=request.args.get('enabled', ''), component_id=request.args.get('component_id', '')) }}">Next</a>{% endif %}
+   href="{{ url_for('assets.asset_triggers', asset_id=asset_id, page=data.page + 1, search=request.args.get('search', ''), enabled=request.args.get('enabled', ''), component_id=request.args.get('component_id', ''), assess_url=get_assess_return_url()) }}">Next</a>{% endif %}
       </nav>
       {% if can_edit %}
         <form method="post">

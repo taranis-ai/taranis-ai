@@ -11,27 +11,52 @@ from core.model.base_model import UUID_STR_LENGTH, BaseModel
 from core.model.news_item import NewsItem
 
 
+class SoftwareMatchRule(BaseModel):
+    """Organization-owned phrases shared by every installation of one software package."""
+
+    __tablename__ = "software_match_rule"
+    id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), primary_key=True, default=BaseModel.uuid7_str)
+    organization_id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("organization.id", ondelete="CASCADE"), nullable=False)
+    package_key: Mapped[str] = db.Column(db.String(64), nullable=False)
+    key: Mapped[str] = db.Column(db.String(256), nullable=False)
+    phrase: Mapped[str] = db.Column(db.String(200), nullable=False)
+    context: Mapped[list[str]] = db.Column(db.JSON, nullable=False, default=list)
+    sources: Mapped[list[str]] = db.Column(db.JSON, nullable=False)
+    default_enabled: Mapped[bool] = db.Column(db.Boolean, nullable=False, default=False)
+    __table_args__ = (db.UniqueConstraint("organization_id", "package_key", "key"),)
+
+    def __init__(
+        self, organization_id: str, package_key: str, key: str, phrase: str, context: list[str], sources: list[str], default_enabled: bool
+    ):
+        self.organization_id = organization_id
+        self.package_key = package_key
+        self.key = key
+        self.phrase = phrase
+        self.context = context
+        self.sources = sources
+        self.default_enabled = default_enabled
+
+
 class AssetTrigger(BaseModel):
+    """An installation's independent participation in a shared matching rule."""
+
     __tablename__ = "asset_trigger"
     id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), primary_key=True, default=BaseModel.uuid7_str)
     component_id: Mapped[str] = db.Column(
         db.String(UUID_STR_LENGTH), db.ForeignKey("asset_sbom_component.id", ondelete="CASCADE"), nullable=False, index=True
     )
     component: Mapped[AssetSbomComponent] = relationship()
-    phrase: Mapped[str] = db.Column(db.String(200), nullable=False)
-    context: Mapped[list[str]] = db.Column(db.JSON, nullable=False, default=list)
-    sources: Mapped[list[str]] = db.Column(db.JSON, nullable=False)
-    suggestion: Mapped[str | None] = db.Column(db.String(200))
+    rule_id: Mapped[str] = db.Column(
+        db.String(UUID_STR_LENGTH), db.ForeignKey("software_match_rule.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    rule: Mapped[SoftwareMatchRule] = relationship(lazy="joined")
     enabled: Mapped[bool] = db.Column(db.Boolean, nullable=False, default=False, index=True)
     analyst_edited: Mapped[bool] = db.Column(db.Boolean, nullable=False, default=False)
-    __table_args__ = (db.UniqueConstraint("component_id", "suggestion"),)
+    __table_args__ = (db.UniqueConstraint("component_id", "rule_id"),)
 
-    def __init__(self, component_id: str, phrase: str, context: list[str], sources: list[str], suggestion: str | None = None, enabled=False):
+    def __init__(self, component_id: str, rule: SoftwareMatchRule, *, enabled=False):
         self.component_id = component_id
-        self.phrase = phrase
-        self.context = context
-        self.sources = sources
-        self.suggestion = suggestion
+        self.rule = rule
         self.enabled = enabled
 
 

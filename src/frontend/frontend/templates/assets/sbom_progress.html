@@ -4,7 +4,7 @@
   <section id="sbom-progress"
            class="p-4 space-y-4"
            data-test-id="sbom-progress"
-           {% if progress and progress.status in ('QUEUED', 'PROCESSING') %} hx-get="{{ url_for('assets.sbom_progress', upload_id=upload_id, asset_id=target_asset_id) }}" hx-trigger="every 2s" hx-target="this" hx-select="#sbom-progress" hx-swap="outerHTML" hx-status:4xx="target:this" hx-status:5xx="target:this" {% endif %}>
+           {% if progress and progress.status in ('QUEUED', 'PROCESSING') %} hx-get="{{ url_for('assets.sbom_progress', upload_id=upload_id, asset_id=target_asset_id, assess_url=get_assess_return_url()) }}" hx-trigger="every 2s" hx-target="this" hx-select="#sbom-progress" hx-swap="outerHTML" hx-status:4xx="target:this" hx-status:5xx="target:this" {% endif %}>
     {% if target_asset_id %}
       {{ asset_navigation(target_asset_id, 'update', asset_name) }}
     {% else %}
@@ -14,13 +14,14 @@
     {% if error %}
       <p role="alert" class="alert alert-error">{{ error }}</p>
       <a class="btn btn-outline"
-         href="{{ url_for('assets.sbom_progress', upload_id=upload_id, asset_id=target_asset_id) }}">Refresh status</a>
+         href="{{ url_for('assets.sbom_progress', upload_id=upload_id, asset_id=target_asset_id, assess_url=get_assess_return_url()) }}">Refresh status</a>
     {% endif %}
     {% if progress %}
       <p>{{ progress.filename }}</p>
       {% if progress.status == "FAILED" %}
         <p role="alert" class="alert alert-error">{{ progress.error }}</p>
-        <a class="btn btn-primary" href="{{ url_for('assets.sbom_upload', asset_id=progress.target_asset_id) }}">Upload again</a>
+        <a class="btn btn-primary"
+           href="{{ url_for('assets.sbom_upload', asset_id=progress.target_asset_id, assess_url=get_assess_return_url()) }}">Upload again</a>
       {% elif progress.status == "QUEUED" %}
         <p role="status">Queued for processing. The preview will open when it is ready.</p>
       {% else %}
@@ -32,7 +33,7 @@
       {% if progress.status in ("QUEUED", "PROCESSING") %}
         <p>You can leave this page and return to it later. Your asset has not been changed.</p>
         <a class="btn btn-outline"
-           href="{{ url_for('assets.sbom_progress', upload_id=upload_id, asset_id=target_asset_id) }}">Refresh status</a>
+           href="{{ url_for('assets.sbom_progress', upload_id=upload_id, asset_id=target_asset_id, assess_url=get_assess_return_url()) }}">Refresh status</a>
       {% endif %}
     {% endif %}
   </section>

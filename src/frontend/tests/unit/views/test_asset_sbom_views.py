@@ -72,4 +72,4 @@ def test_confirmation_preserves_matching_choices_after_error(
     responses_mock.replace(method, apply_url, json={"id": target_id or "created-1"}, status=200)
     retried = authenticated_client.post(route, query_string={"asset_id": target_id} if target_id else {}, data=form)
     assert retried.status_code == 303
-    assert retried.location.endswith(f"/assets/{target_id or 'created-1'}/intelligence")
+    assert retried.location.endswith(f"/assess?asset_id={target_id or 'created-1'}")

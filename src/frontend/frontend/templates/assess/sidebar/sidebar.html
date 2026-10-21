@@ -187,10 +187,7 @@ document.addEventListener('htmx:after:swap', function (event) {
     {% include "assess/sidebar/language_select.html" %}
 
     {% if "ASSETS_ACCESS" in current_user.permissions %}
-      <label class="label cursor-pointer justify-start gap-3">
-        <input type="checkbox" name="asset_match" value="true" class="checkbox checkbox-sm" {% if asset_match_enabled %}checked{% endif %}>
-        <span class="label-text">Asset matches only</span>
-      </label>
+      {% include "assess/sidebar/asset_filters.html" %}
     {% endif %}
 
     {% for item in tri_state_filters %}{{ tri_state_filter(item) }}{% endfor %}

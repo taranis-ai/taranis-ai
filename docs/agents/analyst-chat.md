@@ -38,3 +38,5 @@ The Chat form patches only submitted fields. Missing provider configuration retu
 - Frontend tests: `src/frontend/tests/unit/views/test_chat_view.py`, `src/frontend/tests/playwright/test_realtime_js.py`.
 - Landing-page recording and browser workflow: `test_e2e_workflow.py::TestUserWorkflow::test_chat` uses an internal scripted provider with real Core search/history, verifies an unread follow-up, clicks the Assess evidence link and opens a matching story's source content, and cleans up demo data. Pacing uses the shared highlight helper with no fixed typing/reading delays. It runs in CI and skips external instances; recording commands are in the Playwright README.
 - Validation/signoff: [Development Workflow](development-workflow.md).
+
+Advanced Assess asset fields are withheld from the Chat tool schema and rejected on provider submission until visible asset-reference validation is supported. Existing `asset_match` remains available; omnisearch syntax is unchanged.

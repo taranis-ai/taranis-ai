@@ -1,9 +1,0 @@
-<input type="hidden" name="limit" value="{{ filters.limit }}" form="intelligence-filters">
-{% set shown = namespace(articles=0) %}
-{% for story in data['items'] %}
-  {% set shown.articles = shown.articles + story.articles | length %}
-{% endfor %}
-<p role="status" data-test-id="intelligence-result-count">
-  {{ data.total_stories }} matching stor{{ 'y' if data.total_stories == 1 else 'ies' }} · {{ data.total_articles }} matching article{{ 's' if data.total_articles != 1 }}.
-  {% if data["items"] %}Showing stories {{ pagination.current_range }} · {{ shown.articles }} article{{ 's' if shown.articles != 1 }} on this page.{% endif %}
-</p>

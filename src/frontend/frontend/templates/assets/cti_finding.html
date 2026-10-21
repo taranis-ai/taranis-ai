@@ -1,10 +1,11 @@
 <section class="border border-base-300 rounded p-3 space-y-2" data-test-id="cti-imported-finding">
-  <p>Imported finding · <a class="link" href="{{ url_for('assets.asset_sbom', asset_id=finding.asset_id) }}">{{ finding.asset_name }}</a> · {{ finding.components | length }} installed component{{ 's' if finding.components | length != 1 }}</p>
+  <p>Imported finding · <a class="link" href="{{ url_for('assets.asset_sbom', asset_id=finding.asset_id, assess_url=get_assess_return_url()) }}">{{ finding.asset_name }}</a> · {{ finding.components | length }} installed component{{ 's' if finding.components | length != 1 }}</p>
   <p class="text-sm">Source-reported assessment from {{ finding.imported_at }}; this does not confirm exposure.</p>
   {% if ioc.ioc_type == "cve" %}
     <p>CVE matching: <span class="badge {{ 'badge-success' if finding.matching_enabled else 'badge-outline' }}">{{ 'Enabled' if finding.matching_enabled else 'Disabled' }}</span></p>
     {% if "ASSETS_CREATE" in current_user.permissions %}
-      <form method="post" action="{{ url_for('assets.asset_cve_matching', asset_id=finding.asset_id, cve_id=ioc.value) }}">
+      <form method="post"
+            action="{{ url_for('assets.asset_cve_matching', asset_id=finding.asset_id, cve_id=ioc.value, assess_url=get_assess_return_url()) }}">
         <input type="hidden" name="csrf_token" value="{{ request.cookies.get(config['JWT_ACCESS_CSRF_COOKIE_NAME'], '') }}">
         <input type="hidden" name="enabled" value="{{ 'false' if finding.matching_enabled else 'true' }}">
         <input type="hidden" name="overview" value="{{ 'true' if cti.item_id == 'all' else 'false' }}">
@@ -17,7 +18,8 @@
   <details data-test-id="cti-finding-details">
     <summary class="cursor-pointer">Finding details and installed components</summary>
     <ul class="my-2">
-      {% for component in finding.components %}<li><a class="link" href="{{ url_for('assets.asset_triggers', asset_id=finding.asset_id, component_id=component.id) }}">{{ component.name }} {{ component.version }}</a><span class="text-xs break-all"> {{ component.purl }}</span></li>{% endfor %}
+      {% for component in finding.components %}<li><a class="link"
+   href="{{ url_for('assets.asset_triggers', asset_id=finding.asset_id, component_id=component.id, assess_url=get_assess_return_url()) }}">{{ component.name }} {{ component.version }}</a><span class="text-xs break-all"> {{ component.purl }}</span></li>{% endfor %}
     </ul>
     {% if finding.unresolved_references %}<p class="text-warning">{{ finding.unresolved_references | length }} references could not be linked to imported software.</p>{% endif %}
     {% for record in finding.records %}

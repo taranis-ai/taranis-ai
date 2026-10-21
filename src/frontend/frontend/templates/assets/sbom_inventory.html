@@ -121,7 +121,7 @@
                 <ul>{% for suggestion in component.suggestions %}<li>{{ suggestion.phrase }} · {{ 'Eligible for automatic matching' if suggestion.enabled else 'Disabled by default' }} · {{ suggestion.sources | join(", ") }}{% if suggestion.context %} · context: {{ suggestion.context | join(", ") }}{% endif %}</li>{% endfor %}</ul>
               {% else %}
                 <a class="link"
-                   href="{{ url_for('assets.asset_triggers', asset_id=inventory.asset_id, component_id=component.id) }}">Review rules</a>
+                   href="{{ url_for('assets.asset_triggers', asset_id=inventory.asset_id, component_id=component.id, assess_url=get_assess_return_url()) }}">Review rules</a>
               {% endif %}
             </td>
             </tr>
@@ -131,14 +131,14 @@
     </div>
     <nav aria-label="Component pages" class="flex gap-4 items-center">
       {% if inventory.page > 1 %}<a class="btn btn-sm"
-   href="{{ url_for('assets.sbom_preview', import_id=inventory.id, page=inventory.page - 1, asset_id=target_id) if preview else url_for('assets.asset_sbom', asset_id=inventory.asset_id, page=inventory.page - 1) }}">Previous</a>{% endif %}
+   href="{{ url_for('assets.sbom_preview', import_id=inventory.id, page=inventory.page - 1, asset_id=target_id, assess_url=get_assess_return_url()) if preview else url_for('assets.asset_sbom', asset_id=inventory.asset_id, page=inventory.page - 1, assess_url=get_assess_return_url()) }}">Previous</a>{% endif %}
       <span>Page {{ inventory.page }} of {{ inventory.pages }}</span>
       {% if inventory.page < inventory.pages %}<a class="btn btn-sm"
-   href="{{ url_for('assets.sbom_preview', import_id=inventory.id, page=inventory.page + 1, asset_id=target_id) if preview else url_for('assets.asset_sbom', asset_id=inventory.asset_id, page=inventory.page + 1) }}">Next</a>{% endif %}
+   href="{{ url_for('assets.sbom_preview', import_id=inventory.id, page=inventory.page + 1, asset_id=target_id, assess_url=get_assess_return_url()) if preview else url_for('assets.asset_sbom', asset_id=inventory.asset_id, page=inventory.page + 1, assess_url=get_assess_return_url()) }}">Next</a>{% endif %}
     </nav>
     {% if preview %}
       <form method="post"
-            action="{{ url_for('assets.sbom_preview', import_id=inventory.id, page=inventory.page, asset_id=target_id) }}"
+            action="{{ url_for('assets.sbom_preview', import_id=inventory.id, page=inventory.page, asset_id=target_id, assess_url=get_assess_return_url()) }}"
             class="space-y-4 max-w-xl">
         <input type="hidden" name="csrf_token" value="{{ request.cookies.get(config['JWT_ACCESS_CSRF_COOKIE_NAME'], '') }}">
         <fieldset class="space-y-3">

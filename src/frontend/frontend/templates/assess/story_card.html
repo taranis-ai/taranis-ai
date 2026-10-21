@@ -169,12 +169,16 @@
 
       <!-- tags section -->
       {% if story.matched_assets %}
-        <div class="flex flex-wrap items-center gap-2 text-xs" data-test-id="story-matched-assets" @click.stop>
-          <span class="font-semibold text-base-content/60">Matched assets</span>
-          {% for asset in story.matched_assets %}
-            <a class="link link-primary max-w-full break-words"
-               href="{{ url_for('assets.asset_intelligence', asset_id=asset.id, assess_url=assess_return_url | default(None)) }}">{{ asset.name }}</a>
-          {% endfor %}
+        <div class="text-xs space-y-2" data-test-id="story-matched-assets" @click.stop>
+          <span>{{ story.matched_assets | length }} matched asset{{ 's' if story.matched_assets | length != 1 }}</span>
+          <a class="link link-primary ml-2"
+             href="{{ url_for('assess.asset_matches', story_id=story.id, assess_url=assess_return_url | default(None)) }}"
+             hx-get="{{ url_for('assess.asset_matches', story_id=story.id, assess_url=assess_return_url | default(None)) }}"
+             hx-target="#asset-matches-{{ story.id }}"
+             hx-swap="innerHTML"
+             hx-status:4xx="target:#asset-matches-{{ story.id }}"
+             hx-status:5xx="target:#asset-matches-{{ story.id }}">Why this matches</a>
+          <div id="asset-matches-{{ story.id }}"></div>
         </div>
       {% endif %}
       {{ story_tags(story, compact_view=compact_view, selected_tags=active_tag_filters | default([])) }}

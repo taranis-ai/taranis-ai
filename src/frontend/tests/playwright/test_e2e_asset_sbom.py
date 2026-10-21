@@ -3,6 +3,7 @@
 import json
 import re
 from pathlib import Path
+from urllib.parse import parse_qs, urlparse
 from uuid import uuid4
 
 import pytest
@@ -73,9 +74,8 @@ class TestAssetSbomWorkflow(BaseE2ETest):
         self.highlight_element(page.get_by_label("Tags", exact=True)).fill(asset["tag"])
         self.highlight_element(page.get_by_label("Destination group")).select_option(label="Default")
         self.highlight_element(page.get_by_role("button", name="Create asset")).click()
-        expect(page).to_have_url(re.compile(r"/assets/[^/]+/intelligence$"))
-        expect(page.get_by_role("heading", name=f"Relevant intelligence · {asset['name']}")).to_be_visible()
-        created_sbom_assets[asset["name"]] = page.url.split("/")[-2]
+        expect(page).to_have_url(re.compile(r"/assess\?asset_id="))
+        created_sbom_assets[asset["name"]] = parse_qs(urlparse(page.url).query)["asset_id"][0]
         expect(page.locator('[data-test-id="asset-scan-status"]')).to_contain_text("COMPLETED", timeout=45_000)
         return created_sbom_assets[asset["name"]]
 
@@ -115,14 +115,16 @@ class TestAssetSbomWorkflow(BaseE2ETest):
         self.import_asset(page, control, created_sbom_assets)
         assert len(created_sbom_assets) == 3
 
-        page.goto(url_for("assets.asset_intelligence", asset_id=prod_id, _external=True))
-        matched_stories = page.locator('[data-test-id="asset-matched-story"]')
+        page.goto(url_for("assess.assess", asset_id=prod_id, _external=True))
+        matched_stories = page.locator("article[data-story-id]")
         expect(matched_stories).to_have_count(6)
         advisory = matched_stories.filter(has=page.get_by_role("heading", name=sbom_news_items[1]["title"], exact=True))
         body_match = matched_stories.filter(has=page.get_by_role("heading", name=sbom_news_items[6]["title"], exact=True))
         cve_only = matched_stories.filter(has=page.get_by_role("heading", name=sbom_news_items[2]["title"], exact=True))
+        with_htmx_wait(page, lambda: advisory.get_by_role("link", name="Why this matches", exact=True).click())
         expect(advisory.locator('[data-test-id="asset-cve-match-count"]')).to_have_text("2 CVE matches")
         expect(advisory.locator('[data-test-id="asset-matched-software"]')).to_contain_text("2 installed versions")
+        with_htmx_wait(page, lambda: cve_only.get_by_role("link", name="Why this matches", exact=True).click())
         expect(cve_only.locator('[data-test-id="asset-cve-match-count"]')).to_have_text("1 CVE match")
         expect(cve_only.locator('[data-test-id="asset-match-evidence"]')).to_have_count(0)
         self.highlight_element(body_match.get_by_text("Why this matches", exact=True), scroll=True).click()
@@ -131,14 +133,14 @@ class TestAssetSbomWorkflow(BaseE2ETest):
         if sbom_recording:
             self.capture_screenshot(page, str(sbom_recording / "02-automatic-intelligence.png"))
 
-        article_link = advisory.get_by_role("link", name="Open article", exact=True)
+        article_link = advisory.locator('[data-test-id="asset-supporting-article"]')
         article_anchor = article_link.get_attribute("href").split("#")[-1]
         self.highlight_element(article_link, scroll=True).click()
         expect(page.locator(f"#{article_anchor}")).to_contain_text("CVE-2026-109618")
         page.go_back()
         expect(matched_stories).to_have_count(6)
 
-        self.highlight_element(page.get_by_role("link", name="Matching rules", exact=True)).click()
+        self.highlight_element(page.get_by_role("link", name="Matching rules and scans", exact=True)).click()
         selections = page.locator('input[name="trigger_ids"]')
         assert selections.count() > 1
         self.highlight_element(page.get_by_role("button", name="Select all on this page", exact=True)).click()
@@ -156,6 +158,9 @@ class TestAssetSbomWorkflow(BaseE2ETest):
         self.highlight_element(edit_form.get_by_label("Context phrases"), scroll=True).fill("security\ncritical")
         self.highlight_element(edit_form.get_by_role("button", name="Save rule"), scroll=True).click()
         expect(php_rule).to_contain_text("Requires any context: security, critical")
+        page.goto(url_for("assets.asset_triggers", asset_id=created_sbom_assets["portal-staging"], search="php", _external=True))
+        expect(php_rule).to_contain_text("Requires any context: security, critical")
+        page.goto(url_for("assets.asset_triggers", asset_id=prod_id, _external=True))
         page.get_by_role("textbox", name="Phrase", exact=True).fill("nginx")
         page.get_by_role("button", name="Filter rules").click()
         nginx_rule = page.locator('[data-test-id="asset-trigger"]').filter(has=page.get_by_role("heading", name="nginx", exact=True))
@@ -163,9 +168,9 @@ class TestAssetSbomWorkflow(BaseE2ETest):
         page.get_by_role("button", name="Select all on this page", exact=True).click()
         self.highlight_element(page.get_by_role("button", name="Disable selected", exact=True), scroll=True).click()
         expect(nginx_rule.locator("span.badge")).to_have_text("Disabled")
-        page.get_by_role("link", name="Relevant intelligence", exact=True).click()
         page.get_by_role("button", name="Scan existing articles").click()
         expect(page.locator('[data-test-id="asset-scan-status"]')).to_contain_text("COMPLETED", timeout=45_000)
+        page.get_by_role("link", name="Relevant intelligence", exact=True).click()
         expect(matched_stories).to_have_count(4)
         if sbom_recording:
             self.capture_screenshot(page, str(sbom_recording / "03-refined-intelligence.png"))
@@ -178,10 +183,11 @@ class TestAssetSbomWorkflow(BaseE2ETest):
         with_htmx_wait(page, lambda: page.get_by_role("link", name="Refresh results").click())
         expect(matched_stories).to_have_count(4)
 
-        stories = core_request_client.json_request("GET", f"/assets/{prod_id}/intelligence")["items"]
+        stories = core_request_client.json_request("GET", f"/assess/stories?asset_id={prod_id}")["items"]
         core_request_client.post("/assess/stories/group", json_data=[story["id"] for story in stories])
         with_htmx_wait(page, lambda: page.get_by_role("link", name="Refresh results").click())
         expect(matched_stories).to_have_count(1)
+        with_htmx_wait(page, lambda: matched_stories.get_by_role("link", name="Why this matches").click())
         expect(matched_stories.locator('[data-test-id="asset-matched-article"]')).to_have_count(4)
 
         page.goto(url_for("assets.assets", _external=True))
@@ -196,13 +202,14 @@ class TestAssetSbomWorkflow(BaseE2ETest):
         page.goto(url_for("assets.asset", asset_id=prod_id, _external=True))
         expect(page.get_by_label("Tags", exact=True)).to_have_value("production")
 
-        page.goto(url_for("assets.asset_intelligence", asset_id=prod_id, _external=True))
-        page.get_by_role("link", name="Matching rules", exact=True).click()
+        page.goto(url_for("assess.assess", asset_id=prod_id, _external=True))
+        page.get_by_role("link", name="Matching rules and scans", exact=True).click()
         page.get_by_role("textbox", name="Phrase", exact=True).fill("php")
         page.get_by_role("button", name="Filter rules").click()
         page.get_by_role("button", name="Select all on this page", exact=True).click()
         page.get_by_role("button", name="Disable selected", exact=True).click()
         page.get_by_role("link", name="Relevant intelligence", exact=True).click()
+        with_htmx_wait(page, lambda: matched_stories.get_by_role("link", name="Why this matches").click())
         expect(page.locator('[data-test-id="asset-matched-article"]')).to_have_count(2)
 
     def test_findings_cti_controls_and_sbom_replacement(
@@ -222,13 +229,13 @@ class TestAssetSbomWorkflow(BaseE2ETest):
         staging_id = created_sbom_assets["portal-staging"]
         control_id = created_sbom_assets["monitoring-prod"]
 
-        page.goto(url_for("assets.asset_intelligence", asset_id=prod_id, _external=True))
-        advisory = page.locator('[data-test-id="asset-matched-story"]').filter(has_text=sbom_news_items[1]["title"])
+        page.goto(url_for("assess.assess", asset_id=prod_id, _external=True))
+        advisory = page.locator("article[data-story-id]").filter(has_text=sbom_news_items[1]["title"])
+        with_htmx_wait(page, lambda: advisory.get_by_role("link", name="Why this matches", exact=True).click())
         expect(advisory.locator('[data-test-id="asset-cve-match-count"]')).to_have_text("2 CVE matches")
-        page.get_by_label("CVE match", exact=True).select_option("yes")
-        page.get_by_role("button", name="Filter matches").click()
-        expect(page.locator('[data-test-id="asset-matched-article"]')).to_have_count(2)
-        page.get_by_role("link", name="Findings & indicators", exact=True).click()
+        with_htmx_wait(page, lambda: page.get_by_label("CVE match", exact=True).select_option("yes"))
+        expect(page.locator("article[data-story-id]")).to_have_count(2)
+        page.goto(url_for("assets.asset_cti", asset_id=prod_id, _external=True))
         expect(page.locator('[data-testid="cti-ioc-row"]')).to_have_count(2)
         page.get_by_label("CVE or component").fill("PHP")
         page.get_by_role("button", name="Search findings & indicators").click()
@@ -246,12 +253,12 @@ class TestAssetSbomWorkflow(BaseE2ETest):
         self.highlight_element(finding.get_by_role("button", name="Disable CVE matching"), scroll=True).click()
         expect(page.get_by_role("button", name="Enable CVE matching")).to_be_visible()
         page.get_by_role("link", name="Relevant intelligence", exact=True).click()
-        page.get_by_label("CVE match", exact=True).select_option("yes")
-        page.get_by_role("button", name="Filter matches").click()
-        expect(page.locator('[data-test-id="asset-matched-article"]')).to_have_count(1)
+        with_htmx_wait(page, lambda: page.get_by_label("CVE match", exact=True).select_option("yes"))
+        expect(page.locator("article[data-story-id]")).to_have_count(1)
+        with_htmx_wait(page, lambda: advisory.get_by_role("link", name="Why this matches").click())
         expect(advisory.locator('[data-test-id="asset-cve-match-count"]')).to_have_text("1 CVE match")
 
-        page.get_by_role("link", name="Software inventory", exact=True).click()
+        page.goto(url_for("assets.asset_sbom", asset_id=prod_id, _external=True))
         page.get_by_role("link", name="Update SBOM", exact=True).click()
         document = json.loads((SHOWCASE_DIR / SHOWCASE_ASSETS[0]["file"]).read_text())
         document["version"] = 2
@@ -266,8 +273,8 @@ class TestAssetSbomWorkflow(BaseE2ETest):
         expect(comparison).to_be_visible(timeout=60_000)
         expect(comparison).to_contain_text("1 removed")
         self.highlight_element(page.get_by_role("button", name="Update asset"), scroll=True).click()
-        expect(page).to_have_url(re.compile(f"/assets/{prod_id}/intelligence$"))
-        page.get_by_role("link", name="Findings & indicators", exact=True).click()
+        expect(page).to_have_url(re.compile(f"/assess\\?asset_id={prod_id}"))
+        page.goto(url_for("assets.asset_cti", asset_id=prod_id, _external=True))
         expect(page.locator('[data-testid="cti-ioc-row"]')).to_have_count(2)
         expect(page.get_by_role("button", name="Enable CVE matching")).to_be_visible()
         page.goto(url_for("assets.asset", asset_id=prod_id, _external=True))
@@ -277,62 +284,52 @@ class TestAssetSbomWorkflow(BaseE2ETest):
         if sbom_recording:
             self.capture_screenshot(page, str(sbom_recording / "02-updated-inventory.png"))
 
-        page.goto(url_for("assets.assets_intelligence", _external=True))
-        expect(page.get_by_role("heading", name="Asset intelligence overview")).to_be_visible()
-        page.get_by_label("CVE match", exact=True).select_option("yes")
-        page.get_by_label("CVSS score available").select_option("yes")
-        page.get_by_label("Minimum CVSS").fill("9")
-        page.get_by_label("Maximum CVSS").fill("9.5")
-        page.get_by_role("button", name="Filter matches").click()
-        overview = page.locator('[data-test-id="asset-matched-story"]')
+        page.goto(url_for("assess.assess", asset_match="true", _external=True))
+        page.get_by_text("Advanced asset filters", exact=True).click()
+        with_htmx_wait(page, lambda: page.get_by_label("CVE match", exact=True).select_option("yes"))
+        with_htmx_wait(page, lambda: page.get_by_label("Minimum CVSS").fill("9"))
+        with_htmx_wait(page, lambda: page.get_by_label("Maximum CVSS").fill("9.5"))
+        with_htmx_wait(page, lambda: page.get_by_label("Maximum CVSS").blur())
+        overview = page.locator("article[data-story-id]")
         advisory = overview.filter(has_text=sbom_news_items[1]["title"])
+        expect(advisory.locator('[data-test-id="story-matched-assets"]')).to_contain_text("2 matched assets")
+        with_htmx_wait(page, lambda: advisory.get_by_role("link", name="Why this matches").click())
         expect(advisory.locator('[data-test-id="asset-matched-host"]')).to_have_count(2)
-        expect(advisory.locator('[data-test-id="asset-host-count"]')).to_have_text("2 hosts")
         expect(advisory.locator('[data-test-id="asset-highest-cvss"]')).to_have_text(["Highest reported CVSS 9.2"] * 2)
         expect(advisory).to_contain_text("portal-prod")
         expect(advisory).to_contain_text("portal-staging")
         expect(advisory).not_to_contain_text("monitoring-prod")
-        self.highlight_element(advisory.get_by_text("Why this matches", exact=True).first, scroll=True).click()
         expect(advisory).to_contain_text("PHP security team")
-        with_htmx_wait(page, lambda: page.get_by_role("link", name="Refresh results", exact=True).click())
         if sbom_recording:
-            self.capture_screenshot(page, str(sbom_recording / "03-intelligence-overview.png"))
+            self.capture_screenshot(page, str(sbom_recording / "03-assess-asset-matches.png"))
 
-        page.get_by_label("Package name or PURL").fill("nginx")
-        page.get_by_role("button", name="Filter matches").click()
-        expect(page.get_by_text("No matches for these filters.", exact=False)).to_be_visible()
-        page.get_by_role("link", name="Clear filters").click()
-        page.get_by_label("Package name or PURL").fill("nginx")
-        page.get_by_role("button", name="Filter matches").click()
+        with_htmx_wait(page, lambda: page.get_by_label("Asset matches only", exact=True).uncheck())
+        expect(page.get_by_label("Minimum CVSS")).to_have_value("")
+        expect(page.get_by_label("CVE match", exact=True)).to_have_value("any")
+        with_htmx_wait(page, lambda: page.get_by_label("Asset classification tag", exact=True).select_option("production"))
+        expect(page.get_by_label("Asset matches only", exact=True)).to_be_checked()
         nginx_story = overview.filter(has_text=sbom_news_items[5]["title"])
-        expect(nginx_story.locator('[data-test-id="asset-matched-host"]')).to_have_count(3)
-        page.get_by_label("Asset tag", exact=True).select_option("production")
-        page.get_by_role("button", name="Filter matches").click()
-        expect(nginx_story.locator('[data-test-id="asset-matched-host"]')).to_have_count(2)
-        page.get_by_label("Asset tag", exact=True).select_option("staging")
-        page.get_by_role("button", name="Filter matches").click()
-        expect(nginx_story.locator('[data-test-id="asset-matched-host"]')).to_have_count(1)
-        page.get_by_role("link", name="Clear filters").click()
-        page.get_by_label("CVE match", exact=True).select_option("yes")
-        page.get_by_role("button", name="Filter matches").click()
-        advisory = overview.filter(has_text=sbom_news_items[1]["title"])
+        expect(nginx_story.locator('[data-test-id="story-matched-assets"]')).to_contain_text("2 matched assets")
+        with_htmx_wait(page, lambda: page.get_by_label("Asset classification tag", exact=True).select_option("staging"))
+        expect(nginx_story.locator('[data-test-id="story-matched-assets"]')).to_contain_text("1 matched asset")
+        with_htmx_wait(page, lambda: page.get_by_label("CVE match", exact=True).select_option("yes"))
+        with_htmx_wait(page, lambda: advisory.get_by_role("link", name="Why this matches").click())
         self.highlight_element(advisory.get_by_role("link", name="portal-staging", exact=True), scroll=True).click()
-        expect(page).to_have_url(re.compile(f"/assets/{staging_id}/intelligence\\?"))
+        expect(page).to_have_url(re.compile(f"/assets/{staging_id}\\?"))
+        page.get_by_role("link", name="Software inventory", exact=True).click()
+        page.get_by_role("link", name="Back to Assess", exact=True).click()
         expect(page.get_by_label("CVE match", exact=True)).to_have_value("yes")
-        page.get_by_role("link", name="Intelligence overview", exact=True).click()
-        expect(page.get_by_label("Host", exact=True)).to_have_value(staging_id)
-        page.get_by_label("Host", exact=True).select_option("")
-        advisory = overview.filter(has_text=sbom_news_items[1]["title"])
+        expect(page.get_by_label("Asset classification tag", exact=True)).to_have_value("staging")
+        with_htmx_wait(page, lambda: advisory.get_by_role("link", name="Why this matches").click())
         supporting = advisory.locator('[data-test-id="asset-supporting-article"]').first
         article_url = supporting.get_attribute("href")
         self.highlight_element(supporting, scroll=True).click()
         expect(page).to_have_url(re.compile(re.escape(article_url) + "$"))
         expect(page.locator("main")).to_contain_text("CVE-2026-109618")
-        page.go_back()
+        page.get_by_role("link", name="Back to Assess", exact=True).click()
         expect(page.get_by_label("CVE match", exact=True)).to_have_value("yes")
 
-        page.goto(url_for("assets.asset_intelligence", asset_id=control_id, _external=True))
-        expect(page.locator('[data-test-id="asset-matched-story"]')).to_have_count(1)
-        page.get_by_label("CVE match", exact=True).select_option("yes")
-        page.get_by_role("button", name="Filter matches").click()
-        expect(page.get_by_text("No matches for these filters.", exact=False)).to_be_visible()
+        page.goto(url_for("assess.assess", asset_id=control_id, _external=True))
+        expect(page.locator("article[data-story-id]")).to_have_count(1)
+        with_htmx_wait(page, lambda: page.get_by_label("CVE match", exact=True).select_option("yes"))
+        expect(page.get_by_text("No stories found.", exact=True)).to_be_visible()

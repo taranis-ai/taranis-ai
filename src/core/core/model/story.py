@@ -418,6 +418,9 @@ class Story(BaseModel):
 
         if tags := filter_args.get("tags"):
             for tag in tags:
+                if filter_args.get("asset_match") == "true" and re.fullmatch(r"CVE-\d{4}-\d{4,}", tag.strip(), re.IGNORECASE):
+                    # Asset matching checks normalized CVE associations across visible articles.
+                    continue
                 matching_tags = (
                     db.select(NewsItem.id)
                     .join(NewsItemTag, NewsItem.id == NewsItemTag.news_item_id)
@@ -586,7 +589,7 @@ class Story(BaseModel):
         if str(filter_args.get("asset_match", "false")).lower() == "true":
             if not user or not {"ASSESS_ACCESS", "ASSETS_ACCESS"}.issubset(user.get_permissions()):
                 raise PermissionError("Asset access is required to filter asset matches.")
-            from core.service.asset_intelligence_overview import assess_match_page
+            from core.service.assess_asset_matches import assess_match_page
 
             matched_assets, matched_counts = assess_match_page(user, query, filter_args)
             query = base_query.where(cls.id.in_(matched_assets)).order_by(None)

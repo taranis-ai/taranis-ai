@@ -10,8 +10,8 @@
       <div class="grow-0">
         {% if current_user and "ASSESS_ACCESS" in current_user.permissions %}
           <a class="btn btn-outline"
-             href="{{ url_for('assets.assets_intelligence') }}"
-             data-test-id="assets-intelligence">Intelligence overview</a>
+             href="{{ url_for('assess.assess', asset_match='true') }}"
+             data-test-id="assets-intelligence">Matching stories in Assess</a>
         {% endif %}
         {% if current_user and "ASSETS_CREATE" in current_user.permissions %}
           <a class="btn btn-outline" href="{{ url_for('assets.sbom_upload') }}" data-test-id="import-sbom">Import SBOM</a>

@@ -13,7 +13,7 @@
       <p class="mb-4">Upload CycloneDX JSON 1.5, 1.6, or 1.7 containing at least one valid software CPE. Maximum request size: {{ config['MAX_CONTENT_LENGTH'] // (1024 * 1024) }} MiB, including the file and form data.</p>
       <p class="mb-4">{{ 'Replace the selected asset’s current inventory and imported findings.' if target_asset_id else 'Create one asset for the scanned application or system.' }} Software packages are grouped with their installation locations; individual files are excluded.</p>
       <form method="post"
-            action="{{ url_for('assets.sbom_upload', asset_id=target_asset_id or none) }}"
+            action="{{ url_for('assets.sbom_upload', asset_id=target_asset_id or none, assess_url=get_assess_return_url()) }}"
             enctype="multipart/form-data"
             class="space-y-4 max-w-3xl">
         <input type="hidden" name="csrf_token" value="{{ request.cookies.get(config['JWT_ACCESS_CSRF_COOKIE_NAME'], '') }}">

@@ -10,6 +10,7 @@ from flask import Response, abort, flash, json, make_response, redirect, render_
 from flask.typing import ResponseReturnValue
 from flask_jwt_extended import current_user
 from models.assess import (
+    ASSESS_ADVANCED_ASSET_FILTER_KEYS,
     ASSESS_FILTER_KEYS,
     ASSESS_FILTER_MULTI_KEYS,
     AssessSearchFilters,
@@ -41,6 +42,7 @@ from frontend.log import logger
 from frontend.utils.form_data_parser import parse_formdata
 from frontend.utils.router_helpers import get_assess_return_url, is_htmx_request, parse_paging_data
 from frontend.utils.validation_helpers import format_pydantic_errors
+from frontend.views.asset_intelligence_views import load_scan_status
 from frontend.views.base_view import BaseView
 
 
@@ -103,6 +105,19 @@ class StoryView(BaseView):
             base_context["assess_return_url"] = get_assess_return_url()
         base_context["bookmark_collections"] = cls._get_bookmark_bar_collections()
         base_context["assess_bookmark_bar_limit"] = ASSESS_BOOKMARK_BAR_LIMIT
+        base_context["asset_filters"] = AssessSearchFilters.model_validate(cls._normalize_assess_filter_payload(assess_request_args))
+        base_context["asset_filter_lists"] = {"assets": [], "groups": [], "tags": []}
+        if request.endpoint == "assess.assess" and "ASSETS_ACCESS" in current_user.permissions:
+            try:
+                api = CoreApi()
+                response = api.session.get(f"{api.api_url}/assess/asset-filter-lists", timeout=api.timeout)
+                if response.ok:
+                    base_context["asset_filter_lists"] = response.json()
+                else:
+                    base_context["asset_filter_error"] = "Unable to load asset filter choices."
+            except RequestException, ValueError:
+                logger.exception("Asset filter choices unavailable")
+                base_context["asset_filter_error"] = "Unable to load asset filter choices."
         base_context["source_filter_select"] = cls._build_source_filter_select(filter_lists, assess_request_args)
         base_context["language_filter_select"] = cls._build_language_filter_select(filter_lists, assess_request_args)
         if stories := base_context.get("stories"):
@@ -349,6 +364,9 @@ class StoryView(BaseView):
             key: [value for value in values if value not in (None, "")]
             for key, values in (request_params or request.args.to_dict(flat=False)).items()
         }
+        if params.pop("_asset_filters_form", None) and params.get("asset_match") != ["true"]:
+            for key in ASSESS_ADVANCED_ASSET_FILTER_KEYS:
+                params.pop(key, None)
         has_reset = "reset" in params
         params.pop("reset", None)
         if has_reset:
@@ -819,7 +837,12 @@ class StoryView(BaseView):
         request_params: dict[str, list[str]],
         selected_story_ids: list[str] | None = None,
     ):
-        asset_match_enabled = cls._normalize_assess_filter_payload(request_params).get("asset_match") == "true"
+        normalized_filters = cls._normalize_assess_filter_payload(request_params)
+        asset_match_enabled = normalized_filters.get("asset_match") == "true"
+        scan_run, scan_error = None, None
+        if asset_match_enabled and normalized_filters.get("asset_id") and "ASSETS_ACCESS" in current_user.permissions:
+            # Read status before the list so the last poll includes completed scan results.
+            scan_run, scan_error = load_scan_status(normalized_filters["asset_id"])
         try:
             cache_options = {"use_cache": False} if asset_match_enabled else {}
             items = DataPersistenceLayer().get_objects(cls.model, paging_data=paging_data, **cache_options)
@@ -842,6 +865,12 @@ class StoryView(BaseView):
         context["assess_selection_key"] = cls._build_assess_selection_key(request_params)
         context["selected_story_ids"] = selected_story_ids or []
         context["asset_match_enabled"] = asset_match_enabled
+        context["asset_filters"] = AssessSearchFilters.model_validate(normalized_filters)
+        context["assess_return_url"] = (
+            cls._build_assess_filters_url(request_params) if request_params else url_for("assess.assess", reset="true")
+        )
+        context["asset_scan_run"] = scan_run
+        context["asset_scan_error"] = scan_error
 
         return render_template(cls.get_list_template(), **context), 200 if items is not None else 502
 
@@ -881,6 +910,32 @@ class StoryView(BaseView):
         target = "#assess" if response.status_code < 400 else "#notification-bar"
         response.headers.update({"HX-Retarget": target, "HX-Reselect": target, "HX-Reswap": "outerHTML"})
         return response
+
+    @classmethod
+    @auth_required("ASSESS_ACCESS")
+    def asset_matches(cls, story_id: str):
+        assess_return_url = get_assess_return_url()
+        params = parse_qs(urlparse(assess_return_url or "").query)
+        params = {key: values for key, values in params.items() if key in ASSESS_FILTER_KEYS}
+        data, error, status = None, None, 200
+        try:
+            api = CoreApi()
+            response = api.session.get(f"{api.api_url}/assess/stories/{story_id}/asset-matches", params=params, timeout=api.timeout)
+            status = response.status_code
+            if response.ok:
+                data = response.json()
+            else:
+                error = "Unable to load asset matches."
+        except RequestException, ValueError:
+            logger.exception("Unable to load asset matches")
+            error, status = "Unable to load asset matches. Please try again.", 502
+        return render_template(
+            "assess/asset_matches.html" if is_htmx_request() else "assess/asset_matches_page.html",
+            data=data,
+            error=error,
+            story_id=story_id,
+            assess_return_url=assess_return_url,
+        ), status
 
     @classmethod
     def list_view(cls) -> ResponseReturnValue:

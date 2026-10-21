@@ -277,6 +277,7 @@
     {% if error %}<p role="alert" class="alert alert-error">{{ error }}</p>{% endif %}
     {% if cti.pagination %}
       <form method="get" action="{{ cti_url }}" class="flex gap-2 items-end">
+        {% if get_assess_return_url() %}<input type="hidden" name="assess_url" value="{{ get_assess_return_url() }}">{% endif %}
         <label>
           CVE or component<input class="input input-bordered" name="search" value="{{ cti.pagination.search }}">
         </label>
@@ -320,10 +321,10 @@
     {% if cti.pagination %}
       <nav aria-label="CTI pages" class="flex gap-4 items-center">
         {% if cti.pagination.page > 1 %}<a class="btn btn-sm"
-   href="{{ cti_url }}?{{ {'page': cti.pagination.page - 1, 'search': cti.pagination.search} | urlencode }}">Previous</a>{% endif %}
+   href="{{ cti_url }}?{{ {'page': cti.pagination.page - 1, 'search': cti.pagination.search, 'assess_url': get_assess_return_url() or ''} | urlencode }}">Previous</a>{% endif %}
         <span>Page {{ cti.pagination.page }} of {{ cti.pagination.pages }}</span>
         {% if cti.pagination.page < cti.pagination.pages %}<a class="btn btn-sm"
-   href="{{ cti_url }}?{{ {'page': cti.pagination.page + 1, 'search': cti.pagination.search} | urlencode }}">Next</a>{% endif %}
+   href="{{ cti_url }}?{{ {'page': cti.pagination.page + 1, 'search': cti.pagination.search, 'assess_url': get_assess_return_url() or ''} | urlencode }}">Next</a>{% endif %}
       </nav>
     {% endif %}
   </section>

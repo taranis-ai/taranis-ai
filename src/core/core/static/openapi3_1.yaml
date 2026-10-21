@@ -1387,6 +1387,39 @@ paths:
       description: get stories by filters
       operationId: assess.stories.get
       parameters:
+      - name: asset_match
+        in: query
+        description: Require current asset matches; requires ASSETS_ACCESS. Advanced asset filters enable this automatically.
+        schema: {type: boolean, default: false}
+      - name: asset_id
+        in: query
+        schema: {type: string, maxLength: 64}
+      - name: asset_group_id
+        in: query
+        schema: {type: string, maxLength: 64}
+      - name: asset_tag
+        in: query
+        description: Exact asset classification tag, trimmed and lowercased.
+        schema: {type: string}
+      - name: asset_cve_match
+        in: query
+        schema: {type: string, enum: [any, 'yes', 'no'], default: any}
+      - name: asset_software_match
+        in: query
+        schema: {type: string, enum: [any, 'yes', 'no'], default: any}
+      - name: asset_cvss_min
+        in: query
+        schema: {type: number, minimum: 0, maximum: 10}
+      - name: asset_cvss_max
+        in: query
+        description: Inclusive maximum of the highest matching imported CVSS score, at least asset_cvss_min. Missing scores fail active bounds.
+        schema: {type: number, minimum: 0, maximum: 10}
+      - name: tags
+        in: query
+        style: form
+        explode: true
+        description: Exact tags. In asset-match mode, specific CVEs must all match the same asset across qualifying articles in the story; scores use only selected CVEs.
+        schema: {type: array, items: {type: string}}
       - name: search
         in: query
         description: Filter search string
@@ -6656,6 +6689,84 @@ paths:
           $ref: '#/components/responses/404NotFound'
         '409':
           description: Item membership or order changed; reload before saving
+  /assess/asset-filter-lists:
+    get:
+      security:
+      - UserAuth: []
+      tags: [assess]
+      operationId: assess.asset_filter_lists.get
+      description: Current accessible asset, group and classification-tag choices. Requires ASSESS_ACCESS and ASSETS_ACCESS. Never cached.
+      responses:
+        '200':
+          description: Accessible choices, independent of active story filters.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssessAssetFilterLists'
+        '403':
+          description: Assess and Assets access required.
+  /assess/stories/{story_id}/asset-matches:
+    get:
+      security:
+      - UserAuth: []
+      tags: [assess]
+      operationId: assess.story_asset_matches.get
+      description: >-
+        Current article-by-asset evidence under canonical Assess filters. Requires ASSESS_ACCESS and ASSETS_ACCESS.
+        Rechecks organization/group access, source ACLs, story/article TLP and enabled matching decisions.
+        Match types and scores qualify each article/asset association; several CVE tags must all match one asset
+        across qualifying articles. Returns only qualifying associations, without pagination or caching.
+      parameters:
+      - name: story_id
+        in: path
+        required: true
+        schema: {type: string}
+      - name: asset_match
+        in: query
+        description: Require current asset matches; requires ASSETS_ACCESS. Advanced asset filters enable this automatically.
+        schema: {type: boolean, default: false}
+      - name: asset_id
+        in: query
+        schema: {type: string, maxLength: 64}
+      - name: asset_group_id
+        in: query
+        schema: {type: string, maxLength: 64}
+      - name: asset_tag
+        in: query
+        description: Exact asset classification tag, trimmed and lowercased.
+        schema: {type: string}
+      - name: asset_cve_match
+        in: query
+        schema: {type: string, enum: [any, 'yes', 'no'], default: any}
+      - name: asset_software_match
+        in: query
+        schema: {type: string, enum: [any, 'yes', 'no'], default: any}
+      - name: asset_cvss_min
+        in: query
+        schema: {type: number, minimum: 0, maximum: 10}
+      - name: asset_cvss_max
+        in: query
+        description: Inclusive maximum of the highest matching imported CVSS score, at least asset_cvss_min. Missing scores fail active bounds.
+        schema: {type: number, minimum: 0, maximum: 10}
+      - name: tags
+        in: query
+        style: form
+        explode: true
+        description: Exact tags. In asset-match mode, specific CVEs must all match the same asset across qualifying articles in the story; scores use only selected CVEs.
+        schema: {type: array, items: {type: string}}
+      responses:
+        '200':
+          description: Current matches; articles is empty when no associations qualify.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssessAssetEvidence'
+        '400':
+          description: Invalid filter values.
+        '403':
+          description: Assess and Assets access required.
+        '404':
+          description: Story unavailable.
   /assess/stories/{story_id}/cti:
     parameters:
     - name: story_id
@@ -7179,7 +7290,7 @@ paths:
       tags:
       - assets
       operationId: AssetTriggers.get
-      description: List matching rules grouped across versions of the same package, with provenance and review state. Each item includes versions and component_ids. Requires
+      description: List organization-shared software rules grouped across installed versions with the same local enabled state. Each item includes rule_id, can_edit_rule, versions, component_ids, phrase, context and provenance. Requires
         ASSETS_ACCESS and current asset-group access. Paginates 50 review groups.
       parameters:
       - name: asset_id
@@ -7226,8 +7337,9 @@ paths:
       tags:
       - assets
       operationId: AssetTriggers.post
-      description: Add an analyst phrase across all versions of a component package in this asset. Requires ASSETS_CREATE
-        and current asset-group access.
+      description: Add a shared analyst phrase across existing and future installations of a package in the importing organization.
+        Other assets enable the alias only for components already participating in matching. Requires ASSETS_CREATE, current asset-group access,
+        and membership in the importing organization.
       parameters:
       - name: asset_id
         in: path
@@ -7263,7 +7375,7 @@ paths:
       - assets
       operationId: AssetTriggerEdit.put
       description: Replace phrase, optional context (any phrase in the same article)
-        and activation state across the displayed package-version group. Removes existing evidence for those rules; scan history
+        across the importing organization’s installations of this package, and activation state only across the displayed asset/package-version group. Only the importing organization may edit shared wording. Shared wording changes remove evidence across all installations using the rule; scan history
         to refresh. Requires ASSETS_CREATE.
       parameters:
       - name: asset_id
@@ -7304,7 +7416,7 @@ paths:
       tags:
       - assets
       operationId: AssetTriggerSelection.post
-      description: Enable or disable up to 100 selected rules belonging to this asset.
+      description: Enable or disable up to 100 selected rules belonging to this asset, independently of other assets sharing their phrase/context.
         Disabling removes evidence. Requires ASSETS_CREATE.
       parameters:
       - name: asset_id
@@ -7355,176 +7467,6 @@ paths:
             application/json:
               schema:
                 type: object
-        '400':
-          description: Request rejected; JSON error contains a curated message.
-        '401':
-          description: Request rejected; JSON error contains a curated message.
-        '403':
-          description: Request rejected; JSON error contains a curated message.
-        '404':
-          description: Request rejected; JSON error contains a curated message.
-  /assets/intelligence:
-    get:
-      security:
-      - UserAuth: []
-      tags: [assets]
-      operationId: assets_intelligence.get
-      description: >-
-        Return intelligence across accessible hosts, grouped by story and news-item ID,
-        with one host association per article. Requires ASSETS_ACCESS and ASSESS_ACCESS.
-        Rechecks asset-group access, source ACLs, story/article TLP, enabled CVEs and
-        current product evidence. Filters combine within one article/host association
-        after package selection and before pagination (20 complete stories by default).
-        Totals count all visible filtered stories and distinct articles, deduplicated across hosts.
-        Requiring both match types applies to the article/host, not necessarily one component.
-        CVSS availability means at least one valid imported CVSS rating for a matching
-        CVE and selected installed component. The score range applies to the highest
-        such rating across sources and versions; missing scores never count as zero.
-        Scores retain their source and exact source-record component associations.
-      parameters:
-      - name: page
-        in: query
-        schema: {type: integer, minimum: 1, default: 1}
-      - name: limit
-        in: query
-        description: Complete stories per page.
-        schema: {type: integer, minimum: 1, maximum: 100, default: 20}
-      - name: asset_id
-        in: query
-        description: Restrict to one accessible host; omitted or empty selects all hosts.
-        schema: {type: string, maxLength: 64}
-      - name: group_id
-        in: query
-        description: Restrict to one accessible asset group.
-        schema: {type: string, maxLength: 64}
-      - name: tag
-        in: query
-        description: Exact asset classification tag, trimmed and lowercased; combined with other filters.
-        schema: {type: string}
-      - name: package
-        in: query
-        description: Case-insensitive literal substring of a matching component name or PURL.
-        schema: {type: string, maxLength: 200}
-      - name: cve_id
-        in: query
-        description: Exact CVE ID, trimmed and uppercased; requires a current enabled CVE association.
-        schema: {type: string, maxLength: 64, pattern: '^(CVE-\d{4}-\d{4,})?$'}
-      - name: collected_from
-        in: query
-        description: Inclusive article collection time. ISO timestamp, UTC if no offset is supplied.
-        schema: {type: string, format: date-time}
-      - name: collected_to
-        in: query
-        description: Inclusive article collection time, at or after collected_from. Independent of scan lookback.
-        schema: {type: string, format: date-time}
-      - name: cve_match
-        in: query
-        schema: {type: string, enum: [any, 'yes', 'no'], default: any}
-      - name: package_match
-        in: query
-        description: Whether current package-name trigger evidence exists for the selected packages.
-        schema: {type: string, enum: [any, 'yes', 'no'], default: any}
-      - name: cvss_available
-        in: query
-        schema: {type: string, enum: [any, 'yes', 'no'], default: any}
-      - name: cvss_min
-        in: query
-        description: Inclusive minimum of the highest matching CVSS score; empty means no bound.
-        schema: {type: number, minimum: 0, maximum: 10}
-      - name: cvss_max
-        in: query
-        description: Inclusive maximum of the highest matching CVSS score; must be at least cvss_min.
-        schema: {type: number, minimum: 0, maximum: 10}
-      responses:
-        '200':
-          description: Current matching articles, hosts and accessible filter choices.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AssetsIntelligencePage'
-        '400':
-          description: Invalid filter values; JSON error contains a curated message.
-        '401':
-          description: Authentication required.
-        '403':
-          description: Asset and intelligence access are required.
-  /assets/{asset_id}/intelligence:
-    get:
-      security:
-      - UserAuth: []
-      tags:
-      - assets
-      operationId: AssetIntelligence.get
-      description: Return currently visible stories with each matching article once.
-        Articles summarize distinct software packages across installed versions and
-        share identical excerpts while retaining rule and component attribution.
-        Requires both ASSETS_ACCESS and ASSESS_ACCESS. Rechecks asset-group, source
-        ACL, story/article TLP and current matching rules before grouping or counting.
-        Uses the same filters, scores and exact result totals as the cross-host overview,
-        with the path asset always selected. Paginates complete stories, 20 by default.
-        Collection timestamps use UTC or an explicit offset. Mentions do not establish vulnerability.
-      parameters:
-      - name: asset_id
-        in: path
-        required: true
-        schema:
-          type: string
-      - name: page
-        in: query
-        schema: {type: integer, minimum: 1, default: 1}
-      - name: limit
-        in: query
-        description: Complete stories per page.
-        schema: {type: integer, minimum: 1, maximum: 100, default: 20}
-      - name: group_id
-        in: query
-        description: Restrict to one accessible asset group.
-        schema: {type: string, maxLength: 64}
-      - name: tag
-        in: query
-        description: Exact asset classification tag, trimmed and lowercased; combined with other filters.
-        schema: {type: string}
-      - name: package
-        in: query
-        description: Case-insensitive literal substring of a matching component name or PURL.
-        schema: {type: string, maxLength: 200}
-      - name: cve_id
-        in: query
-        description: Exact CVE ID, trimmed and uppercased; requires a current enabled CVE association.
-        schema: {type: string, maxLength: 64, pattern: '^(CVE-\d{4}-\d{4,})?$'}
-      - name: collected_from
-        in: query
-        description: Inclusive article collection time. ISO timestamp, UTC if no offset is supplied.
-        schema: {type: string, format: date-time}
-      - name: collected_to
-        in: query
-        description: Inclusive article collection time, at or after collected_from. Independent of scan lookback.
-        schema: {type: string, format: date-time}
-      - name: cve_match
-        in: query
-        schema: {type: string, enum: [any, 'yes', 'no'], default: any}
-      - name: package_match
-        in: query
-        description: Whether current package-name trigger evidence exists for the selected packages.
-        schema: {type: string, enum: [any, 'yes', 'no'], default: any}
-      - name: cvss_available
-        in: query
-        schema: {type: string, enum: [any, 'yes', 'no'], default: any}
-      - name: cvss_min
-        in: query
-        description: Inclusive minimum of the highest matching CVSS score; empty means no bound.
-        schema: {type: number, minimum: 0, maximum: 10}
-      - name: cvss_max
-        in: query
-        description: Inclusive maximum of the highest matching CVSS score; must be at least cvss_min.
-        schema: {type: number, minimum: 0, maximum: 10}
-      responses:
-        '200':
-          description: Successful operation.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AssetIntelligencePage'
         '400':
           description: Request rejected; JSON error contains a curated message.
         '401':
@@ -11041,37 +10983,10 @@ paths:
           $ref: '#/components/responses/404NotFound'
 components:
   schemas:
-    AssetsIntelligencePage:
+    AssessAssetFilterLists:
       type: object
-      required: [items, page, has_more, page_size, total_stories, total_articles, filters, assets, groups, tags]
+      required: [assets, groups, tags]
       properties:
-        page:
-          type: integer
-        has_more:
-          type: boolean
-        page_size: {type: integer, minimum: 1, maximum: 100}
-        total_stories: {type: integer, minimum: 0}
-        total_articles:
-          type: integer
-          minimum: 0
-          description: Distinct accessible articles across all filtered stories and hosts, before pagination.
-        filters:
-          type: object
-          description: Normalized query values, excluding page. Unset score bounds are null.
-          properties:
-            limit: {type: integer, minimum: 1, maximum: 100}
-            cve_id: {type: string}
-            collected_from: {type: [string, 'null'], format: date-time}
-            collected_to: {type: [string, 'null'], format: date-time}
-            asset_id: {type: string}
-            group_id: {type: string}
-            tag: {type: string}
-            package: {type: string}
-            cve_match: {type: string, enum: [any, 'yes', 'no']}
-            package_match: {type: string, enum: [any, 'yes', 'no']}
-            cvss_available: {type: string, enum: [any, 'yes', 'no']}
-            cvss_min: {type: [number, 'null'], minimum: 0, maximum: 10}
-            cvss_max: {type: [number, 'null'], minimum: 0, maximum: 10}
         assets:
           type: array
           items:
@@ -11085,51 +11000,43 @@ components:
           type: array
           items:
             type: object
-            required: [id, name]
             properties:
               id: {type: string}
               name: {type: string}
         tags:
           type: array
-          description: Sorted tags on accessible assets, independent of the active filters.
           items: {type: string}
-        items:
+    AssessAssetEvidence:
+      type: object
+      required: [story_id, articles]
+      properties:
+        story_id: {type: string}
+        articles:
           type: array
           items:
             type: object
-            required: [id, title, articles]
+            required: [id, title, cve_count, hosts]
             properties:
               id: {type: string}
               title: {type: string}
-              articles:
+              cve_count: {type: integer}
+              hosts:
                 type: array
                 items:
-                  type: object
-                  required: [id, title, cve_count, hosts]
-                  properties:
-                    id: {type: string}
-                    title: {type: string}
-                    cve_count:
-                      type: integer
-                      description: Distinct matched CVE IDs across the retained hosts.
-                    hosts:
-                      type: array
-                      items:
-                        $ref: '#/components/schemas/AssetIntelligenceHost'
+                  $ref: '#/components/schemas/AssetIntelligenceHost'
     AssetIntelligenceHost:
       allOf:
       - $ref: '#/components/schemas/AssetIntelligenceArticle'
       - type: object
-        required: [asset_id, asset_name, group_id, group_name, package_match, max_cvss]
+        required: [asset_id, asset_name, group_name, software_match, max_cvss]
         properties:
           asset_id: {type: string}
           asset_name: {type: string}
-          group_id: {type: string}
           group_name: {type: string}
-          package_match: {type: boolean}
+          software_match: {type: boolean}
           max_cvss:
             type: [number, 'null']
-            description: Highest reported CVSS score for this article, host and selected packages.
+            description: Highest reported CVSS score for this article/asset association and selected CVEs.
     AssetIntelligenceRating:
       type: object
       required: [score, method, vector, source, component_ids]
@@ -11146,47 +11053,6 @@ components:
           type: array
           description: Selected installed components referenced by this rating's source record.
           items: {type: string}
-    AssetIntelligencePage:
-      type: object
-      required: [asset_name, items, page, has_more, page_size, total_stories, total_articles, filters]
-      properties:
-        asset_name:
-          type: string
-        page:
-          type: integer
-          minimum: 1
-        has_more:
-          type: boolean
-        page_size: {type: integer, minimum: 1, maximum: 100}
-        total_stories: {type: integer, minimum: 0}
-        total_articles: {type: integer, minimum: 0}
-        filters:
-          $ref: '#/components/schemas/AssetsIntelligencePage/properties/filters'
-        assets:
-          $ref: '#/components/schemas/AssetsIntelligencePage/properties/assets'
-        groups:
-          $ref: '#/components/schemas/AssetsIntelligencePage/properties/groups'
-        tags:
-          $ref: '#/components/schemas/AssetsIntelligencePage/properties/tags'
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/AssetIntelligenceStory'
-    AssetIntelligenceStory:
-      type: object
-      required: [id, title, software_count, articles]
-      properties:
-        id:
-          type: string
-        title:
-          type: string
-        software_count:
-          type: integer
-          description: Distinct package identities across the visible matching articles.
-        articles:
-          type: array
-          items:
-            $ref: '#/components/schemas/AssetIntelligenceHost'
     AssetIntelligenceArticle:
       type: object
       required: [id, title, software, evidence, cve_matches]
@@ -12983,6 +12849,15 @@ components:
     story:
       type: object
       properties:
+        matched_assets:
+          type: array
+          description: Deduplicated qualifying assets, present in asset-filtered responses. Detailed evidence is fetched separately.
+          items:
+            type: object
+            required: [id, name]
+            properties:
+              id: {type: string}
+              name: {type: string}
         tlp_level:
           type: string
           readOnly: true

@@ -10,6 +10,7 @@ from requests import RequestException
 from frontend.auth import auth_required
 from frontend.core_api import CoreApi
 from frontend.log import logger
+from frontend.utils.router_helpers import get_assess_return_url
 from frontend.views.base_view import BaseView
 
 
@@ -40,6 +41,10 @@ class AssetView(BaseView):
     _read_only = True
     _show_sidebar = False
     observable_types = ("cve", "email", "ip", "domain", "url", "hash")
+
+    @classmethod
+    def get_edit_route(cls, **kwargs) -> str:
+        return super().get_edit_route(**{**kwargs, "assess_url": get_assess_return_url()})
 
     @classmethod
     def _normalize_form_data(cls, form_data: dict[str, Any]) -> dict[str, Any]:
@@ -106,7 +111,9 @@ class AssetView(BaseView):
         if not response.ok:
             return _render_asset_cti(None if overview else asset_id, error="Unable to update CVE matching.", status=response.status_code)
         target = url_for("assets.assets_cti") if overview else url_for("assets.asset_cti", asset_id=asset_id)
-        query = urlencode({"page": request.form.get("page", "1"), "search": request.form.get("search", "")})
+        query = urlencode(
+            {"page": request.form.get("page", "1"), "search": request.form.get("search", ""), "assess_url": get_assess_return_url() or ""}
+        )
         return redirect(f"{target}?{query}", code=303)
 
 

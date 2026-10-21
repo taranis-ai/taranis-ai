@@ -99,7 +99,8 @@ The PHP findings record CVE-2026-109618 and CVE-2026-109619 as a 21 October 2026
 snapshot. PHP reported CVSS 4.0 scores of 9.2; its advance notice did not yet establish
 exact affected or fixed versions. The fictional assets illustrate source-reported potential
 exposure, not confirmed vulnerability. The second workflow checks exact component references,
-source details, tag/CVSS/package filters, CVE decisions, and replacement preservation.
+source details, Assess asset/tag/CVSS filters, on-demand evidence, shared software rules,
+CVE decisions, return navigation, and replacement preservation.
 Generated pagination stress data remains in the core application tests.
 
 From `src/frontend`, record with readable pauses and highlighted controls:

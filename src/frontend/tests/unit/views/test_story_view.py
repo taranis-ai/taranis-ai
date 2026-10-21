@@ -868,6 +868,18 @@ def test_assess_filters_support_htmx_and_native_form_submission(authenticated_cl
     assert not filter_form.xpath('.//select[@name="tags"]')
     assert not filter_form.xpath('.//select[@name="language"]')
 
+    response = authenticated_client.get(
+        url_for(
+            "assess.assess", _asset_filters_form="true", asset_tag="production", asset_cvss_min="7", search="incident", tags="CVE-2026-12345"
+        )
+    )
+    assert response.status_code == 200
+    story_calls = [call for call in responses_mock.calls if urlparse(call.request.url).path.endswith("/assess/stories")]
+    query = parse_qs(urlparse(story_calls[-1].request.url).query)
+    assert query["search"] == ["incident"]
+    assert query["tags"] == ["CVE-2026-12345"]
+    assert not any(key.startswith("asset_") for key in query)
+
 
 def test_story_read_action_replaces_story_card(app):
     story = SimpleNamespace(id="1", read=False, important=False, revision_count=0)
@@ -902,25 +914,27 @@ def test_asset_filtered_assess_refreshes_matches_after_story_actions(authenticat
     responses_mock.get(f"{Config.TARANIS_CORE_URL}/assess/bookmarks", json={"items": []})
     endpoint = f"{Config.TARANIS_CORE_URL}/assess/stories"
     responses_mock.get(endpoint, json={"items": [story], "counts": {"total_count": 21}})
-    assess_url = url_for("assess.assess", asset_match="true", limit=1)
+    assess_url = url_for("assess.assess", asset_match="true", asset_tag="production", asset_cvss_min="7", asset_cve_match="yes", limit=1)
     response = authenticated_client.get(assess_url)
     tree = html.fromstring(response.text)
     assert tree.xpath('//input[@name="asset_match" and @checked]')
     asset_url = tree.xpath('//*[@data-test-id="story-matched-assets"]//a/@href')[0]
-    assert urlparse(asset_url).path == url_for("assets.asset_intelligence", asset_id="asset-1")
+    assert urlparse(asset_url).path == url_for("assess.asset_matches", story_id="story-1")
     return_url = parse_qs(urlparse(asset_url).query)["assess_url"][0]
     assert parse_qs(urlparse(return_url).query) == parse_qs(urlparse(assess_url).query)
     next_url = tree.xpath('//*[@id="story-pagination"]//a[contains(@href, "page=1")]/@href')[0]
     assert parse_qs(urlparse(next_url).query)["asset_match"] == ["true"]
+    assert parse_qs(urlparse(next_url).query)["asset_cvss_min"] == ["7"]
 
-    story["matched_assets"] = [{"id": "asset-2", "name": "Replacement host"}]
+    story["matched_assets"].append({"id": "asset-2", "name": "Replacement host"})
     responses_mock.replace("GET", endpoint, json={"items": [story], "counts": {"total_count": 1}})
     responses_mock.patch(f"{endpoint}/{story['id']}", json={"message": "Story updated"})
     headers = {"HX-Request": "true", "HX-Current-URL": assess_url, "HX-Target": "story-story-1"}
     updated = authenticated_client.put(url_for("assess.story", story_id=story["id"]), data={"read": "true"}, headers=headers)
     assert updated.status_code == 200
     assert updated.headers["HX-Retarget"] == "#assess"
-    assert "Replacement host" in updated.text and "Current host" not in updated.text
+    assert "2 matched assets" in updated.text
+    assert "Replacement host" not in updated.text and "Current host" not in updated.text
     returned_url = html.fromstring(updated.text).xpath('//*[@id="assess"]/@data-assess-url')[0]
     assert parse_qs(urlparse(returned_url).query)["asset_match"] == ["true"]
 
@@ -1082,6 +1096,8 @@ def test_assess_redirects_default_saved_filter_into_browser_url(authenticated_cl
                 "language": ["en"],
                 "read": "true",
                 "asset_match": "true",
+                "asset_tag": "production",
+                "asset_cvss_min": "0.0",
                 "sort": "date_desc",
             },
             is_default=True,
@@ -1114,6 +1130,8 @@ def test_assess_redirects_default_saved_filter_into_browser_url(authenticated_cl
         "language": ["en"],
         "read": ["true"],
         "asset_match": ["true"],
+        "asset_tag": ["production"],
+        "asset_cvss_min": ["0.0"],
         "sort": ["date_desc"],
     }
 
@@ -1180,6 +1198,8 @@ def test_assess_save_saved_filter_posts_selected_filters_to_profile(authenticate
                 ("language", "de"),
                 ("read", "true"),
                 ("asset_match", "true"),
+                ("asset_tag", "production"),
+                ("asset_cvss_min", "0"),
                 ("important", "false"),
                 ("sort", "date_desc"),
                 ("range", "week"),
@@ -1209,6 +1229,8 @@ def test_assess_save_saved_filter_posts_selected_filters_to_profile(authenticate
             "language": ["en", "de"],
             "read": "true",
             "asset_match": "true",
+            "asset_tag": "production",
+            "asset_cvss_min": "0.0",
             "important": "false",
             "sort": "date_desc",
             "range": "week",

@@ -48,6 +48,9 @@ def init(app: Flask):
         endpoint="bookmark_remove_stories",
     )
     assess_bp.add_url_rule("/story/<string:story_id>", view_func=StoryView.story_view, methods=["GET"], endpoint="story")
+    assess_bp.add_url_rule(
+        "/story/<string:story_id>/asset-matches", view_func=StoryView.asset_matches, methods=["GET"], endpoint="asset_matches"
+    )
     assess_bp.add_url_rule("/story/<string:story_id>/cti", view_func=StoryView.story_cti_dialog, methods=["GET"], endpoint="story_cti")
     assess_bp.add_url_rule(
         "/story/<string:story_id>", view_func=StoryView.patch_story, methods=["POST", "PUT", "PATCH"], endpoint="story_update"

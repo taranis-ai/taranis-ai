@@ -1,0 +1,61 @@
+<div x-data="{}">
+  <input type="hidden" name="_asset_filters_form" value="true">
+  <label class="label cursor-pointer justify-start gap-3">
+    <input type="checkbox"
+           name="asset_match"
+           value="true"
+           class="checkbox checkbox-sm"
+           x-ref="assetMatch"
+           {% if asset_filters.asset_match %}checked{% endif %}
+           @change="if (!$el.checked) { $refs.advanced.querySelectorAll('input, select').forEach(input => { input.value = input.tagName === 'SELECT' && input.querySelector('option[value=any]') ? 'any' : ''; }); }">
+    <span class="label-text">Asset matches only</span>
+  </label>
+  <details x-ref="advanced" {% if asset_filters.advanced_asset_filters %}open{% endif %} @change="$refs.assetMatch.checked = true">
+    <summary class="cursor-pointer text-sm font-semibold py-2">Advanced asset filters</summary>
+    <div class="space-y-3 py-2">
+      {% if asset_filter_error %}<p role="alert" class="text-error">{{ asset_filter_error }}</p>{% endif %}
+      {% for key, label, choices in [('asset_id', 'Asset', asset_filter_lists.assets), ('asset_group_id', 'Asset group', asset_filter_lists.groups)] %}
+        <label class="form-control block">
+          <span class="label-text">{{ label }}</span>
+          <select name="{{ key }}" class="select select-bordered select-sm w-full">
+            <option value="">All</option>
+            {% if asset_filters[key] and asset_filters[key] not in choices | map(attribute="id") %}<option value="{{ asset_filters[key] }}" selected>Selected (unavailable)</option>{% endif %}
+            {% for choice in choices %}<option value="{{ choice.id }}"
+        {% if asset_filters[key] == choice.id %}selected{% endif %}>{{ choice.name }}</option>{% endfor %}
+          </select>
+        </label>
+      {% endfor %}
+      <label class="form-control block">
+        <span class="label-text">Asset classification tag</span>
+        <select name="asset_tag" class="select select-bordered select-sm w-full">
+          <option value="">All</option>
+          {% if asset_filters.asset_tag and asset_filters.asset_tag not in asset_filter_lists.tags %}<option value="{{ asset_filters.asset_tag }}" selected>Selected (unavailable)</option>{% endif %}
+          {% for tag in asset_filter_lists.tags %}<option value="{{ tag }}"
+        {% if asset_filters.asset_tag == tag %}selected{% endif %}>{{ tag }}</option>{% endfor %}
+        </select>
+      </label>
+      {% for key, label in [('asset_cve_match', 'CVE match'), ('asset_software_match', 'Software-name match')] %}
+        <label class="form-control block">
+          <span class="label-text">{{ label }}</span>
+          <select name="{{ key }}" class="select select-bordered select-sm w-full">
+            {% for value in ['any', 'yes', 'no'] %}<option value="{{ value }}"
+        {% if asset_filters[key] == value %}selected{% endif %}>{{ value | capitalize }}</option>{% endfor %}
+          </select>
+        </label>
+      {% endfor %}
+      {% for key, label in [('asset_cvss_min', 'Minimum CVSS'), ('asset_cvss_max', 'Maximum CVSS')] %}
+        <label class="form-control block">
+          <span class="label-text">{{ label }}</span>
+          <input name="{{ key }}"
+                 type="number"
+                 min="0"
+                 max="10"
+                 step="0.1"
+                 class="input input-bordered input-sm w-full"
+                 value="{{ asset_filters[key] if asset_filters[key] is not none else '' }}">
+        </label>
+      {% endfor %}
+      <p class="text-xs text-base-content/70">Scores use the highest reported CVSS for a matching article and asset. Missing scores are unknown. Selected CVE tags must match the same asset across the story.</p>
+    </div>
+  </details>
+</div>
