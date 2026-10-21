@@ -134,7 +134,7 @@
 
         <!-- main content column -->
         <section class="space-y-1 min-w-0">
-          <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1 min-w-0">
+          <div class="flex flex-col gap-1 min-w-0">
             <h2 class="text-lg font-semibold leading-tight text-base-content highlight max-w-full truncate" data-testid="story-title">
               {% if detail_view %}
                 {{ story.title }}
@@ -149,10 +149,11 @@
               <a href="{{ story.links[0] }}"
                  target="_blank"
                  rel="noopener"
-                 class="link link-primary text-xs inline-flex items-center gap-1 max-w-full truncate"
+                 title="{{ story.links[0] }}"
+                 class="link link-primary text-xs inline-flex items-center gap-1 self-start max-w-full min-w-0"
                  data-testid="story-link-{{ story_id }}">
-                {{ heroicon_mini("arrow-top-right-on-square") }}
-                <span class="truncate">{{ story.model_extra.source_domain | default(story.links[0]) }}</span>
+                {{ heroicon_mini("arrow-top-right-on-square", class="h-4 w-4 shrink-0") }}
+                <span class="truncate">{{ story.links[0] }}</span>
               </a>
             {% endif %}
           </div>
