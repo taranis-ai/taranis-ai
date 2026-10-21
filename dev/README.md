@@ -2,8 +2,6 @@
 
 Dependency updates use [Renovate](https://docs.renovatebot.com/) with [`.github/renovate.json`](../.github/renovate.json). Each Python component explicitly selects the established Ruff rule baseline so a Ruff upgrade does not silently enable new rules; rule-set migrations should be reviewed separately.
 
-Python components normally exclude packages released within the last week. Scoped `tool.uv.exclude-newer-package` cutoffs admit the certifi 2026.10.19 and Pillow 13.0.0 security fixes; remove those exceptions once the patched releases satisfy the normal age window. Regenerate affected lockfiles with `uv lock --upgrade-package certifi --upgrade-package pillow` (omit Pillow for frontend), then run the full signoff pipeline.
-
 ## Record the landing-page video
 
 Run `./dev/record_workflow_video.py` from the repository root to record the full analyst workflow, including scripted Chat, and export one `taranis-walkthrough-video.webm`.
