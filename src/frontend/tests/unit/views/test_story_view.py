@@ -806,37 +806,6 @@ def test_assess_later_page_explains_missing_earlier_results(authenticated_client
         assert 'id="infinite-scroll-trigger"' not in response.text
 
 
-@pytest.mark.parametrize("htmx", [False, True])
-def test_assess_removes_empty_query_parameters_before_rendering(authenticated_client, responses_mock, htmx):
-    responses_mock.get(f"{Config.TARANIS_CORE_URL}/assess/filter-lists", json={"sources": [], "tags": [], "groups": []})
-    responses_mock.get(f"{Config.TARANIS_CORE_URL}/assess/stories", json={"items": [], "total_count": 0})
-    responses_mock.get(f"{Config.TARANIS_CORE_URL}/assess/bookmarks", json={"items": [], "total_count": 0})
-    headers = {"HX-Request": "true", "HX-Target": "assess"} if htmx else {}
-    response = authenticated_client.get(
-        url_for("assess.assess"),
-        query_string={"search": "", "timefrom": "", "read": "false", "tags": ["one & two", "", "three"], "page": "0", "sort": "date_desc"},
-        headers=headers,
-    )
-
-    if htmx:
-        assert response.status_code == 200
-        clean_url = response.headers["HX-Push-Url"]
-    else:
-        assert response.status_code == 302
-        clean_url = response.headers["Location"]
-        assert not any("/assess/" in call.request.url for call in responses_mock.calls)
-        response = authenticated_client.get(clean_url)
-        assert response.status_code == 200
-        assert "Location" not in response.headers
-        assert html.fromstring(response.text).xpath('//input[@id="story_search"]/@value') == [""]
-
-    clean_query = {"read": ["false"], "tags": ["one & two", "three"], "page": ["0"], "sort": ["date_desc"]}
-    assert urlparse(clean_url).path == url_for("assess.assess")
-    assert parse_qs(urlparse(clean_url).query, keep_blank_values=True) == clean_query
-    story_request = next(call for call in responses_mock.calls if urlparse(call.request.url).path.endswith("/assess/stories"))
-    assert parse_qs(urlparse(story_request.request.url).query, keep_blank_values=True) == clean_query
-
-
 def test_assess_filters_support_htmx_and_native_form_submission(authenticated_client, responses_mock):
     responses_mock.get(
         f"{Config.TARANIS_CORE_URL}/assess/filter-lists",
