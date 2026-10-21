@@ -847,6 +847,21 @@ def test_assess_later_page_explains_missing_earlier_results(authenticated_client
         assert 'id="infinite-scroll-trigger"' not in response.text
 
 
+def test_pagination_fragments_keep_the_requested_return_page(authenticated_client, responses_mock):
+    responses_mock.get(f"{Config.TARANIS_CORE_URL}/assess/filter-lists", json={"tags": [], "sources": [], "groups": []})
+    responses_mock.get(f"{Config.TARANIS_CORE_URL}/assess/stories", json={"items": [story_with_news_item_tags()], "total_count": 60})
+    response = authenticated_client.get(
+        url_for("assess.assess", page=1),
+        headers={"HX-Request": "true", "HX-Target": "div#story-list", "HX-Current-URL": "http://localhost/assess"},
+    )
+    assert response.status_code == 200
+    tree = html.fromstring(response.text)
+    assert not tree.xpath('//*[@id="assess" or @id="assess-sidebar" or @id="assess-top-bar"]')
+    link = tree.xpath('//*[@data-testid="open-detail-view"]/@href')[0]
+    assert parse_qs(urlparse(link).query)["assess_url"] == [url_for("assess.assess", page=1)]
+    assert tree.xpath('//*[@id="story-pagination"]/@hx-swap-oob') == ["outerHTML:#story-pagination"]
+
+
 def test_assess_filters_support_htmx_and_native_form_submission(authenticated_client, responses_mock):
     responses_mock.get(
         f"{Config.TARANIS_CORE_URL}/assess/filter-lists",

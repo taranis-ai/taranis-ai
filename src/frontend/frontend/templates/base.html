@@ -41,7 +41,7 @@
 
           #sidebar ~ main {
             margin-left: 16rem;
-            max-width: calc(100vw - 16rem);
+            max-width: calc(100% - 16rem);
           }
         {% endif %}
         #assess-top-bar {
@@ -65,7 +65,7 @@
     </header>
 
     {# main content #}
-    <main x-bind:class="{ 'ml-64 max-w-[calc(100vw-16rem)]': sidebarOpen }"
+    <main x-bind:class="{ 'ml-64 max-w-[calc(100%_-_16rem)]': sidebarOpen }"
           class="transition-all w-full max-w-full min-w-0"
           style="padding-top: calc(var(--app-header-height) + var(--viewport-warning-height))">
       <div class="container mx-auto w-full max-w-full">

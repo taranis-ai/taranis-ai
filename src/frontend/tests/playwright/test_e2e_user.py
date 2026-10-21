@@ -606,12 +606,14 @@ class TestEndToEndUser(BaseE2ETest):
             for match in matches.all():
                 expect(match).to_be_visible()
 
-            page.get_by_text("View", exact=True).click()
             compact = page.get_by_role("checkbox", name="Compact view", exact=True)
+            if not compact.is_visible():
+                page.get_by_text("View", exact=True).click()
             with_htmx_wait(page, compact.check)
             for match in matches.all():
                 expect(match).to_be_visible()
-            page.get_by_text("View", exact=True).click()
+            if not compact.is_visible():
+                page.get_by_text("View", exact=True).click()
             with_htmx_wait(page, compact.uncheck)
             core_request_client.put(f"/assess/news-items/{news_item_id}/tags", json_data=seeded_story["news_items"][0]["tags"])
             page.goto(assess_url)
@@ -874,6 +876,7 @@ class TestEndToEndUser(BaseE2ETest):
         share_story = story.get_by_test_id("share-story")
         actions_menu.focus()
         expect(actions_menu).to_be_focused()
+        with_htmx_wait(page, lambda: actions_menu.press("Enter"))
         expect(share_story).to_be_visible()
         with_htmx_wait(page, share_story.click)
 

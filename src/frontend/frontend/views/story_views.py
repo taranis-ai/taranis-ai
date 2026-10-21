@@ -100,8 +100,11 @@ class StoryView(BaseView):
         if request.endpoint == "assess.assess" or cls._get_current_url_path() == url_for("assess.assess"):
             assess_request_args = cls._get_assess_request_params(tag_request_args)
             base_context["assess_request_args"] = assess_request_args
-            base_context["assess_return_url"] = cls._get_assess_return_url() or (
+            filters_url = (
                 cls._build_assess_filters_url(assess_request_args) if assess_request_args else url_for("assess.assess", reset="true")
+            )
+            base_context["assess_return_url"] = (
+                filters_url if request.endpoint == "assess.assess" else cls._get_assess_return_url() or filters_url
             )
         else:
             base_context["assess_return_url"] = cls._get_assess_return_url()

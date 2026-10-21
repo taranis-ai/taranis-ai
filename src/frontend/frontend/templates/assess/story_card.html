@@ -99,40 +99,38 @@
             </div>
           {% endif %}
 
-          {% if not compact_view or bookmark_id %}
-            <div class="flex items-center gap-1 mb-2">
-              <div class="flex flex-wrap items-center gap-2 gap-y-1 text-xs">
-                {% if story.read | default(false) %}
-                  <span class="badge badge-success badge-outline badge-xs whitespace-nowrap">Read</span>
+          <div class="flex items-center gap-1 mb-2">
+            <div class="flex flex-wrap items-center gap-2 gap-y-1 text-xs">
+              {% if story.read | default(false) %}
+                <span class="badge badge-success badge-outline badge-xs whitespace-nowrap">Read</span>
+              {% else %}
+                <span class="badge badge-primary badge-xs whitespace-nowrap">Unread</span>
+              {% endif %}
+              {% if story.important | default(false) %}<span class="badge badge-warning badge-xs whitespace-nowrap">Important</span>{% endif %}
+              {% if story.misp_auto_update and story.misp_auto_update.enabled %}
+                <span class="badge badge-success badge-outline badge-xs whitespace-nowrap">MISP auto-update</span>
+              {% endif %}
+              {% if story.relevance %}
+                <span class="badge badge-outline badge-xs whitespace-nowrap">Relevance {{ story.relevance }}</span>
+              {% endif %}
+              {% if news_count > 1 %}
+                <span class="badge badge-outline badge-xs whitespace-nowrap">News Items {{ story.news_items | length }}</span>
+              {% endif %}
+            </div>
+          </div>
+
+          {% if story.in_reports_count %}
+            {% set report_count = story.in_reports_count | int %}
+            <div class="flex items-center gap-1 mb-1">
+              <span class="font-semibold uppercase tracking-wide text-xs text-base-content/60">In Reports</span>
+              <div class="tooltip gap-1 text-warning" data-tip="Story in {{ report_count }} Reports">
+                {% if report_count < 2 %}
+                  {{ heroicon_mini("arrow-up-on-square", class="h-4 w-4") }}
                 {% else %}
-                  <span class="badge badge-primary badge-xs whitespace-nowrap">Unread</span>
-                {% endif %}
-                {% if story.important | default(false) %}<span class="badge badge-warning badge-xs whitespace-nowrap">Important</span>{% endif %}
-                {% if story.misp_auto_update and story.misp_auto_update.enabled %}
-                  <span class="badge badge-success badge-outline badge-xs whitespace-nowrap">MISP auto-update</span>
-                {% endif %}
-                {% if story.relevance %}
-                  <span class="badge badge-outline badge-xs whitespace-nowrap">Relevance {{ story.relevance }}</span>
-                {% endif %}
-                {% if news_count > 1 %}
-                  <span class="badge badge-outline badge-xs whitespace-nowrap">News Items {{ story.news_items | length }}</span>
+                  {{ heroicon_mini("arrow-up-on-square-stack", class="h-4 w-4") }}
                 {% endif %}
               </div>
             </div>
-
-            {% if story.in_reports_count %}
-              {% set report_count = story.in_reports_count | int %}
-              <div class="flex items-center gap-1 mb-1">
-                <span class="font-semibold uppercase tracking-wide text-xs text-base-content/60">In Reports</span>
-                <div class="tooltip gap-1 text-warning" data-tip="Story in {{ report_count }} Reports">
-                  {% if report_count < 2 %}
-                    {{ heroicon_mini("arrow-up-on-square", class="h-4 w-4") }}
-                  {% else %}
-                    {{ heroicon_mini("arrow-up-on-square-stack", class="h-4 w-4") }}
-                  {% endif %}
-                </div>
-              </div>
-            {% endif %}
           {% endif %}
         </section>
 
