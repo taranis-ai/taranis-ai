@@ -54,6 +54,14 @@ _quote_via = cast(Any, quote)
 ASSESS_SAVED_FILTER_SESSION_KEY = "assess_saved_filter_active"
 ASSESS_SAVED_FILTER_NAME_MAX_LENGTH = 80
 ASSESS_BOOKMARK_BAR_LIMIT = 6
+ASSESS_TIME_PRESETS = {
+    "shift": "Today (shift)",
+    "week": "This week",
+    "month": "This month",
+    "24h": "Last 24 hours",
+    "last7": "Last 7 days",
+    "last30": "Last 30 days",
+}
 
 
 class StoryView(BaseView):
@@ -113,6 +121,14 @@ class StoryView(BaseView):
         base_context["assess_bookmark_bar_limit"] = ASSESS_BOOKMARK_BAR_LIMIT
         base_context["source_filter_select"] = cls._build_source_filter_select(filter_lists, assess_request_args)
         base_context["language_filter_select"] = cls._build_language_filter_select(filter_lists, assess_request_args)
+        time_presets = dict(ASSESS_TIME_PRESETS)
+        current_range = next(iter(assess_request_args.get("range", [])), "")
+        if current_range == "day":
+            time_presets["day"] = "Since yesterday"
+        elif current_range.startswith("last") and current_range[4:].isdigit():
+            days = int(current_range[4:])
+            time_presets[current_range] = f"Last {days} {'day' if days == 1 else 'days'}"
+        base_context["time_presets"] = time_presets
         chips = []
         labels = {
             "search": "Search",
@@ -132,7 +148,7 @@ class StoryView(BaseView):
         }
         names = {source.id: source.name for source in filter_lists.sources}
         names.update({cls._get_group_field(group, "id"): cls._get_group_field(group, "name") for group in filter_lists.groups})
-        choices = {"true": "Yes", "false": "No", "shift": "Shift", "week": "This week", "24h": "Last 24 hours", "me": "Me"}
+        choices = {"true": "Yes", "false": "No", "me": "Me", **time_presets}
         for key, values in assess_request_args.items():
             if key not in labels:
                 continue

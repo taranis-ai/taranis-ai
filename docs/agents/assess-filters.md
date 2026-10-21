@@ -42,6 +42,8 @@ Assess sidebar/search/default filters, `/assess`, `/api/assess/filter-lists`, om
 
 Relative date windows and explicit `timefrom` use the publication-derived story `created` date. Collection changes mark stories unread but do not force old stories into the current Shift window. See [Collection Updates](fuzzy-deduplication.md).
 
+The Time period dropdown preserves canonical range values and unlisted saved `last<N>` ranges. `shift` starts today at 00:00 UTC, `week` starts Monday at 00:00 UTC, and `month` starts on the first at 00:00 UTC. `24h` and `last<N>` count back from the current UTC time, not midnight. Legacy `day` starts yesterday at 00:00 UTC. Custom bounds remain additive (`timefrom` on story creation date, `timeto` on last update); Clear removes the preset and both bounds without dropping other criteria. Boundary coverage is in `test_time_period_boundaries`.
+
 ## Entry Points
 
 - Core: `src/core/core/api/assess.py`, `src/core/core/model/filter_data.py`, `src/core/core/service/cache_invalidation.py`

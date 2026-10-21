@@ -435,13 +435,14 @@ class Story(BaseModel):
                 query = query.filter(cls.last_change == changed_by)
 
         if filter_range := filter_args.get("range", "").lower():
-            date_limit = cls.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+            now = cls.utcnow()
+            date_limit = now.replace(hour=0, minute=0, second=0, microsecond=0)
             if filter_range in ["day", "week", "month", "24h"]:
                 if filter_range == "day":
                     date_limit -= timedelta(days=1)
 
                 elif filter_range == "24h":
-                    date_limit -= timedelta(hours=24)
+                    date_limit = now - timedelta(hours=24)
 
                 elif filter_range == "week":
                     date_limit -= timedelta(days=date_limit.weekday())
@@ -451,7 +452,7 @@ class Story(BaseModel):
 
             elif filter_range.startswith("last") and filter_range[4:].isdigit():
                 days = int(filter_range[4:])
-                date_limit -= timedelta(days=days)
+                date_limit = now - timedelta(days=days)
 
             query = query.filter(cls.created >= date_limit)
 

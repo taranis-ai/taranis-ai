@@ -1,5 +1,5 @@
 {% if active_filters %}
-  <nav aria-label="Active filters" class="flex flex-wrap gap-2 mb-3">
+  <nav aria-label="Active filters" class="flex flex-1 flex-wrap gap-2 min-w-0">
     {% for filter in active_filters %}
       <a href="{{ filter.url }}"
          class="badge badge-outline gap-2 h-auto py-1 max-w-full"

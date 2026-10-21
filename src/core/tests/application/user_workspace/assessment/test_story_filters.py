@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import pytest
 
@@ -145,6 +145,31 @@ class TestStoryFilters(BaseTest):
     @pytest.mark.parametrize(("filters", "expected_story_keys"), FILTER_CASES)
     def test_story_filters(self, client, auth_header, story_filter_data, filters, expected_story_keys):
         self._assert_filtered_story_ids(client, auth_header, story_filter_data, filters, expected_story_keys)
+
+    @pytest.mark.parametrize(
+        "preset, cutoff",
+        [
+            ("24h", datetime(2026, 3, 1, 15, 30)),
+            ("last7", datetime(2026, 2, 23, 15, 30)),
+            ("week", datetime(2026, 3, 2)),
+            ("month", datetime(2026, 3, 1)),
+        ],
+    )
+    def test_time_period_boundaries(self, app, client, auth_header, story_filter_data, monkeypatch, preset, cutoff):
+        from core.managers.db_manager import db
+        from core.model.story import Story
+
+        now = datetime(2026, 3, 2, 15, 30)
+        monkeypatch.setattr(Story, "utcnow", staticmethod(lambda: now))
+        story_keys = list(story_filter_data["stories"])
+        dates = [cutoff - timedelta(seconds=1), cutoff, cutoff + timedelta(seconds=1), now]
+        with app.app_context():
+            for key, created in zip(story_keys, dates, strict=True):
+                story = Story.get(story_filter_data["stories"][key])
+                story.created = created
+            db.session.commit()
+
+        self._assert_filtered_story_ids(client, auth_header, story_filter_data, {"range": preset}, set(story_keys[1:]))
 
     @pytest.mark.parametrize("sort", ["date_desc", "date_asc", "relevance", "updated_desc", "updated_asc"])
     def test_paging_preserves_counts_and_breaks_sort_ties_by_id(self, app, client, auth_header, story_filter_data, sort):

@@ -26,11 +26,6 @@
   {'label': 'Updated: newest first', 'value': 'updated_desc'},
   {'label': 'Updated: oldest first', 'value': 'updated_asc'}
 ]) %}
-{% set quick_ranges = quick_ranges | default([
-  {'label': 'Shift', 'value': 'shift'},
-  {'label': 'Week', 'value': 'week'},
-  {'label': '24h', 'value': '24h'}
-]) %}
 {% set tri_state_filters = [
   {'name': 'read', 'label': 'Read', 'value': read_filter},
   {'name': 'important', 'label': 'Important', 'value': important_filter},
@@ -98,9 +93,8 @@
       {% include "assess/sidebar/tags_select.html" %}
     </section>
 
-    <div class="divider text-xs">Filter</div>
     {# djlint: off #}
-    <section class="space-y-4"
+    <section class="space-y-3 mt-5"
              x-data='{
                clearTimeFilters() {
                  const timeFrom = this.$refs.timeFrom;
@@ -113,40 +107,33 @@
                    timeTo.value = "";
                    timeTo.removeAttribute("name");
                  }
-                 if (this.$refs.rangeRadios) {
-                   this.$refs.rangeRadios.querySelectorAll("input").forEach((radio) => {
-                     radio.checked = false;
-                   });
-                 }
+                 this.$refs.timePreset.value = "";
                }
              }'>
     {# djlint:on #}
-    <button type="button"
-            class="btn btn-outline btn-xs mb-1 w-full"
-            title="Clear time filters"
-            hx-get="{{ base_url }}"
-            hx-on::config:request="ctx.request.body.delete('timefrom'); ctx.request.body.delete('timeto'); ctx.request.body.delete('range')"
-            hx-include="#assess-sidebar"
-            hx-target="#assess"
-            hx-swap="outerHTML"
-            @click="clearTimeFilters()">{{ heroicon_mini('x-mark', class='h-4 w-4') }} Clear time filters</button>
-    <div class="mt-2 flex w-full flex-wrap gap-2" role="radiogroup" aria-label="Time presets" x-ref="rangeRadios">
-      {% for preset in quick_ranges %}
-        {% set input_id = 'quick-range-' ~ preset.value %}
-        <label class="cursor-pointer">
-          <span class="label-text text-sm">{{ preset.label }}</span>
-          <input id="{{ input_id }}"
-                 type="radio"
-                 name="range"
-                 value="{{ preset.value }}"
-                 class="radio"
-                 hx-trigger="change"
-                 {% if current_preset == preset.value %}checked{% endif %}>
-        </label>
-      {% endfor %}
+    <div class="flex items-center justify-between gap-2">
+      <label for="assess-time-period" class="text-sm font-semibold">Time period</label>
+      <button type="button"
+              class="btn btn-ghost btn-xs"
+              title="Clear time filters"
+              hx-get="{{ base_url }}"
+              hx-on::config:request="ctx.request.body.delete('timefrom'); ctx.request.body.delete('timeto'); ctx.request.body.delete('range')"
+              hx-include="#assess-sidebar"
+              hx-target="#assess"
+              hx-swap="outerHTML"
+              aria-label="Clear time filters"
+              @click="clearTimeFilters()">{{ heroicon_mini('x-mark', class='h-4 w-4') }} Clear</button>
     </div>
+    <select id="assess-time-period" name="range" class="select select-bordered select-sm w-full" x-ref="timePreset">
+      <option value="" {% if not current_preset %}selected{% endif %}>Any time</option>
+      {% for value, label in time_presets.items() %}
+        <option value="{{ value }}" {% if current_preset == value %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    <p class="text-xs text-base-content/60">Calendar periods start at midnight UTC.</p>
     <details {% if time_from or time_to %}open{% endif %}>
       <summary class="cursor-pointer text-sm mb-2">Custom dates</summary>
+      <p class="text-xs text-base-content/60 mb-2">Dates further narrow the selected period.</p>
       <div class="grid grid-cols-1 gap-3">
         <label class="input w-full p-1">
           <span class="label text-xs font-medium text-base-content/70 pr-1 mr-1">From</span>
@@ -172,7 +159,8 @@
     </details>
   </section>
 
-  <section class="space-y-3 mt-2">
+  <div class="divider text-xs">Filters</div>
+  <section class="space-y-3">
     {% include "assess/sidebar/source_select.html" %}
     {% include "assess/sidebar/language_select.html" %}
 
