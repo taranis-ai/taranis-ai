@@ -213,6 +213,7 @@ class Stories(MethodView):
             "story_id",
             "story_ids",
             "cybersecurity",
+            "classification",
         ]
         filter_args: dict[str, str | int | list] = {k: v for k, v in request.args.items() if k in filter_keys}
         filter_list_keys = ["source", "group", "story_ids"]
@@ -260,6 +261,7 @@ class BotPipelineStories(MethodView):
             "story_id",
             "story_ids",
             "cybersecurity",
+            "classification",
             "group",
         }
         selected: dict[str, list[str]] = {}

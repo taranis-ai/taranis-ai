@@ -1,7 +1,7 @@
 from typing import Literal
 from urllib.parse import urlparse
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 LLM_FEATURES = {
@@ -10,7 +10,7 @@ LLM_FEATURES = {
     "summarization": "Summarization and titles",
     "ner": "Named-entity recognition",
     "sentiment": "Sentiment analysis",
-    "classification": "Cybersecurity classification",
+    "classification": "Topic classification",
 }
 
 
@@ -30,10 +30,22 @@ class LLMEndpoint(BaseModel):
     base_url: str = Field(min_length=1)
     enabled: bool = True
     model: str = ""
-    api_format: Literal["responses", "chat_completions"] = "responses"
+    api_format: Literal["responses", "chat_completions", "systemone", "openai_decisions"] = "responses"
     processing_mode: Literal["realtime", "openrouter_batch"] = "realtime"
     api_key: str = Field(default="", repr=False)
     timeout: int = Field(default=120, gt=0)
+
+    @property
+    def is_decisions(self) -> bool:
+        return self.api_format in {"systemone", "openai_decisions"}
+
+    @model_validator(mode="after")
+    def validate_transport(self):
+        if self.is_decisions and self.processing_mode != "realtime":
+            raise ValueError("Decisions endpoints require realtime processing")
+        if not self.is_decisions and urlparse(self.base_url).path.endswith(("/decisions", "/systemone")):
+            raise ValueError("Select a Decisions API format for this endpoint")
+        return self
 
     @field_validator("base_url")
     @classmethod

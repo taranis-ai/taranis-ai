@@ -8,7 +8,7 @@
 <section id="llm-endpoints" class="rounded-box border border-base-300 bg-base-100 p-6 shadow-sm" data-test-id="llm-settings">
   <h2 class="text-lg font-semibold">LLM Endpoints</h2>
   <p class="text-sm text-base-content/70 mt-2 mb-6">
-    Configure providers and models for Chat, NER, sentiment, cybersecurity classification, clustering, and summarization. Set a default, then override individual functions if needed.
+    Configure providers and models for Chat, NER, sentiment, topic classification, clustering, and summarization. Set a default, then override individual functions if needed.
     Changes apply to the next message or bot run. Prompts and selected story content are sent to the assigned provider.
     Disabled endpoints pause health checks, Chat, and bot scheduling.
   </p>
@@ -45,13 +45,13 @@
             {{ form_select('Endpoint state', 'enabled', 'true' if endpoint.enabled | default(not config['DEBUG']) else 'false', options=[{'id': 'true', 'name': 'Enabled'}, {'id': 'false', 'name': 'Disabled'}], input_id='llm-' ~ endpoint_id ~ '-enabled') }}
             {{ form_input('Name', 'name', endpoint.name | default(''), preserve=False, floating=False, required=True, input_id='llm-' ~ endpoint_id ~ '-name') }}
             {{ form_input('Provider base URL', 'base_url', endpoint.base_url | default(''), type='url', preserve=False, floating=False, required=True, placeholder='https://provider.example/v1', input_id='llm-' ~ endpoint_id ~ '-base_url') }}
-            <p class="text-sm text-base-content/70 mb-4">Enter the base URL without /responses, /chat/completions, or /batches.</p>
+            <p class="text-sm text-base-content/70 mb-4">For Responses and Chat Completions, enter the base URL without /responses, /chat/completions, or /batches. For Decisions, enter the full endpoint URL, such as https://openrouter.ai/api/alpha/decisions or http://provider/v1/systemone.</p>
             {{ form_input('Model', 'model', endpoint.model | default(''), preserve=False, floating=False, required=False, placeholder='Provider model ID', input_id='llm-' ~ endpoint_id ~ '-model') }}
             <p class="text-sm text-base-content/70 mb-4">Use the provider's exact model ID. Leave blank only if the provider supplies a default model.</p>
-            {{ form_select('API format', 'api_format', endpoint.api_format | default('responses'), options=[{'id': 'responses', 'name': 'Responses'}, {'id': 'chat_completions', 'name': 'Chat Completions'}], input_id='llm-' ~ endpoint_id ~ '-api_format') }}
+            {{ form_select('API format', 'api_format', endpoint.api_format | default('responses'), options=[{'id': 'responses', 'name': 'Responses'}, {'id': 'chat_completions', 'name': 'Chat Completions'}, {'id': 'systemone', 'name': 'Decisions (System One / OpenRouter)'}, {'id': 'openai_decisions', 'name': 'Decisions (OpenAI)'}], input_id='llm-' ~ endpoint_id ~ '-api_format') }}
             {{ form_select('Processing mode', 'processing_mode', endpoint.processing_mode | default('realtime'), options=[{'id': 'realtime', 'name': 'Realtime'}, {'id': 'openrouter_batch', 'name': 'OpenRouter batch'}], input_id='llm-' ~ endpoint_id ~ '-processing_mode') }}
             <p class="text-sm text-base-content/70 mb-4">
-              OpenRouter batch uses /batches for background bots and can take up to 24 hours. Use https://openrouter.ai/api/v1 and a model that supports batch processing. Chat requires a realtime endpoint.
+              OpenRouter batch uses /batches for background bots and can take up to 24 hours. Use https://openrouter.ai/api/v1 and a model that supports batch processing. Chat requires a realtime endpoint. Topic classification requires a realtime Decisions endpoint; assign it separately from the default.
             </p>
             {{ form_input('API key', 'api_key', '', type='password', required=False, preserve=False, floating=False, placeholder='Leave blank to keep the saved key' if endpoint_id else 'Enter provider API key', input_id='llm-' ~ endpoint_id ~ '-api_key') }}
             <p class="text-sm text-base-content/70 mb-4">{{ 'An API key is saved.' if endpoint.api_key_configured else 'No API key saved. Optional for providers without authentication.' }}</p>

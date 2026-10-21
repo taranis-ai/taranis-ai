@@ -8,6 +8,7 @@ from urllib.parse import urlencode
 from flask import url_for
 from models.assess import FilterLists, Story
 from models.base import TaranisBaseModel
+from models.classification import CLASSIFICATION_CATEGORIES
 from models.product import Product
 from models.report import ReportItem
 from werkzeug.exceptions import HTTPException
@@ -18,7 +19,7 @@ from frontend.log import logger
 
 
 OmniSearchScope = Literal["story", "report", "product"]
-AssessOmniSearchValueType = Literal["boolean", "changed_by", "cybersecurity", "datetime", "group", "range", "sort", "source", "tag"]
+AssessOmniSearchValueType = Literal["boolean", "changed_by", "classification", "datetime", "group", "range", "sort", "source", "tag"]
 
 
 @dataclass(frozen=True)
@@ -194,11 +195,11 @@ ASSESS_OMNISEARCH_KEYWORDS: tuple[AssessOmniSearchKeyword, ...] = (
     AssessOmniSearchKeyword("relevant", ("relevant",), "relevant", "boolean", static_values=("true", "false")),
     AssessOmniSearchKeyword("in-report", ("in-report", "report"), "in_report", "boolean", static_values=("true", "false")),
     AssessOmniSearchKeyword(
-        "cybersecurity",
-        ("cybersecurity", "cyber"),
-        "cybersecurity",
-        "cybersecurity",
-        static_values=("yes", "no", "mixed", "incomplete"),
+        "classification",
+        ("classification", "topic"),
+        "classification",
+        "classification",
+        static_values=CLASSIFICATION_CATEGORIES,
     ),
     AssessOmniSearchKeyword("changed-by", ("changed-by",), "changed_by", "changed_by", static_values=("me",)),
     AssessOmniSearchKeyword("range", ("range",), "range", "range", static_values=("shift", "24h", "week", "day", "month", "last7")),
@@ -696,7 +697,7 @@ def _normalize_keyword_value(keyword: AssessOmniSearchKeyword, value: str, filte
             return _resolve_filter_list_object(value, filter_lists.groups, "group")
         case "tag":
             return value, None
-        case "boolean" | "changed_by" | "cybersecurity" | "sort":
+        case "boolean" | "changed_by" | "classification" | "sort":
             return _normalize_static_value(keyword, value)
         case "range":
             lowered_value = value.casefold()
@@ -796,7 +797,7 @@ def _iter_value_candidates(keyword: AssessOmniSearchKeyword, filter_lists: Filte
             return [_filter_list_candidate(group) for group in filter_lists.groups]
         case "tag":
             return [(tag, tag, "tags") for tag in filter_lists.tags]
-        case "boolean" | "changed_by" | "cybersecurity" | "range" | "sort":
+        case "boolean" | "changed_by" | "classification" | "range" | "sort":
             return [(value, value, keyword.query_param) for value in keyword.static_values]
         case "datetime":
             return []

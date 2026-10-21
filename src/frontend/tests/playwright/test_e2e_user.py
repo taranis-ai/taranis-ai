@@ -498,14 +498,14 @@ class TestEndToEndUser(BaseE2ETest):
             expect(bot_attribute).to_have_value("preserved bot marker")
             expect(back_to_assess).to_have_attribute("href", return_url)
             expect(page.get_by_role("complementary")).to_contain_text("Story status")
-            page.get_by_text("Cybersecurity · Not Classified").click()
-            expect(page.get_by_role("complementary")).to_contain_text("Cybersecurity · Not Classified")
+            page.get_by_text("Classification · Not Classified").click()
+            expect(page.get_by_role("complementary")).to_contain_text("Classification · Not Classified")
             expect(page.get_by_role("complementary")).to_contain_text("AI assisted actions")
             expect(page.get_by_role("complementary")).to_contain_text("Generate summary & title")
             expect(page.get_by_role("complementary")).to_contain_text("Run sentiment analysis")
-            expect(page.get_by_role("complementary")).to_contain_text("Cybersecurity classification")
+            expect(page.get_by_role("complementary")).to_contain_text("Topic classification")
             page.get_by_role("textbox", name="Analyst comments").fill("Unsaved analyst comment")
-            for action in ("Generate summary & title", "Generate Tags", "Run sentiment analysis", "Cybersecurity classification"):
+            for action in ("Generate summary & title", "Generate Tags", "Run sentiment analysis", "Topic classification"):
                 with_htmx_wait(page, page.get_by_role("button", name=action, exact=True).click)
                 expect(page.locator("#notification-bar")).to_have_count(1)
                 expect(page.locator("#notification-message")).to_contain_text(

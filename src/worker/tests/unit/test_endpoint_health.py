@@ -65,6 +65,27 @@ def test_batch_endpoint_check_waits_for_inference(requests_mock, monkeypatch, ap
             "http://model.test/v1/chat/completions",
             {"choices": [{"message": {"role": "assistant", "content": "OK"}, "finish_reason": "stop"}]},
         ),
+        (
+            "llm",
+            {"base_url": "http://model.test/v1/systemone", "api_format": "systemone", "timeout": 10},
+            "http://model.test/v1/systemone",
+            {"answers": {"probe": {"type": "choice", "choice": "OK", "probabilities": {"OK": 1.0, "other": 0.0}}}},
+        ),
+        (
+            "llm",
+            {"base_url": "http://model.test/v1/decisions", "api_format": "openai_decisions", "timeout": 10},
+            "http://model.test/v1/decisions",
+            {
+                "answers": [
+                    {
+                        "type": "choice",
+                        "name": "probe",
+                        "choice": "OK",
+                        "probabilities": [{"value": "OK", "probability": 1.0}, {"value": "other", "probability": 0.0}],
+                    }
+                ]
+            },
+        ),
     ],
 )
 def test_endpoint_check_failure_and_recovery(requests_mock, kind, config, url, result):

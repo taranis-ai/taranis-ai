@@ -1,12 +1,14 @@
 """Small synthetic requests exercise the same endpoints used by bot jobs."""
 
+from llm_bot.client import UpstreamLLMError
+from llm_bot.decisions_client import ChoiceQuestion
 from llm_bot.tasks.llm_utils import LLMTask
 from niquests.exceptions import RequestException
 from rq import Retry, get_current_job
 
 from worker.core_api import CoreApi
 from worker.http_client import http_request, http_session_scope
-from worker.llm import get_llm_client, run_llm_tasks
+from worker.llm import LLMTaskError, get_decisions_client, get_llm_client, run_llm_tasks
 from worker.llm_batch import BatchExecutionError
 from worker.log import logger
 from worker.telemetry import instrument_job
@@ -51,6 +53,20 @@ def probe(kind: str, config: dict, batch_state: dict | None = None, save_batch_s
     if kind != "llm":
         return False
     try:
+        if config["api_format"] in {"systemone", "openai_decisions"}:
+            client = get_decisions_client({"llm_endpoint": {"name": "Probe", **config}})
+            questions = {"probe": ChoiceQuestion("Choose OK.", {"OK": "The requested answer", "other": "Any other answer"})}
+            response = http_request(
+                "POST",
+                client.url,
+                json=client.build_request(text, questions),
+                headers={"Authorization": f"Bearer {client.api_key}"} if client.api_key else {},
+                timeout=min(client.timeout, 120),
+                verify=True,
+            )
+            response.raise_for_status()
+            client.parse_response(response.json(), questions)
+            return True
         chat = config["api_format"] == "chat_completions"
         if config.get("processing_mode") == "openrouter_batch":
             parameters = {"llm_endpoint": config, "_llm_batch_state": batch_state, "_save_llm_batch_state": save_batch_state}
@@ -85,7 +101,7 @@ def probe(kind: str, config: dict, batch_state: dict | None = None, save_batch_s
                 for choice in result.get("choices", [])
             )
         return _valid_responses_result(result)
-    except (RequestException, ValueError, TypeError, KeyError, BatchExecutionError):
+    except (RequestException, ValueError, TypeError, KeyError, BatchExecutionError, LLMTaskError, UpstreamLLMError):
         logger.exception(f"Endpoint probe failed for {kind}")
         return False
 

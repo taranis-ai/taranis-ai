@@ -10,6 +10,7 @@ from unittest.mock import patch
 import pytest
 from fakeredis import FakeRedis
 from llm_bot.client import LLMClient, UpstreamLLMError
+from llm_bot.decisions_client import DecisionsClient
 from models.task import TaskResult
 from niquests.exceptions import RequestException, Timeout
 from rq import Queue, Retry, SimpleWorker
@@ -92,7 +93,13 @@ class TestBotTask:
             json={
                 "type": bot_type,
                 "parameters": {},
-                "llm_endpoint": None if failure == "unconfigured" else {"name": "Test", "base_url": "https://llm.test/v1"},
+                "llm_endpoint": None
+                if failure == "unconfigured"
+                else {
+                    "name": "Test",
+                    "base_url": "https://llm.test/v1",
+                    "api_format": "systemone" if bot_type == "cybersec_classifier_bot" else "responses",
+                },
             },
         )
         requests_mock.get(
@@ -100,8 +107,13 @@ class TestBotTask:
             json=[{"id": "story-1", "tags": {}, "news_items": [{"id": "item-1", "title": "Story", "content": "Content"}]}],
         )
         saved = requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
-        with patch.object(LLMClient, "create_response", autospec=True, side_effect=failure) as provider:
-            provider.return_value = {"output_text": "private invalid provider output"}
+        client, method = (DecisionsClient, "create_decision") if bot_type == "cybersec_classifier_bot" else (LLMClient, "create_response")
+        with patch.object(client, method, autospec=True, side_effect=failure) as provider:
+            provider.return_value = (
+                {"category": {"invalid": "private invalid provider output"}}
+                if bot_type == "cybersec_classifier_bot"
+                else {"output_text": "private invalid provider output"}
+            )
             with pytest.raises(RuntimeError) as exc_info:
                 bot_task("bot-456")
 

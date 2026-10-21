@@ -307,7 +307,7 @@
           <div class="card-body space-y-4">
             <h3 class="card-title text-lg">Story status</h3>
             <div class="flex flex-wrap gap-3 text-sm">
-              <span class="{{ cyber_chip_class }}">Cybersecurity · {{ story_cyber_status }}</span>
+              <span class="badge badge-outline badge-lg">Classification · {{ story_classification }}</span>
               <span class="{{ sentiment_chip_class }}">Sentiment · {{ story_sentiment_status }}</span>
             </div>
           </div>
@@ -367,7 +367,7 @@
               <input type="hidden" name="bot_id" value="cybersec_classifier_bot">
               <button type="submit"
                       class="btn btn-outline btn-accent h-auto min-h-10 whitespace-normal py-2"
-                      {% if not story.can_edit %}disabled{% endif %}>Cybersecurity classification</button>
+                      {% if not story.can_edit %}disabled{% endif %}>Topic classification</button>
             </form>
 
           </div>

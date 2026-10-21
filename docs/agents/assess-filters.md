@@ -6,6 +6,8 @@ Assess sidebar/search/default filters, `/assess`, `/api/assess/filter-lists`, om
 
 ## Contracts
 
+- Topic `classification` uses the eight categories in `models/classification.py`, matching llm-bot. Sidebar, `classification:`/`topic:` omnisearch (quote values containing spaces), saved filters, and Chat share the contract. Historical `cybersecurity` saved filters remain readable against old attributes but are absent from new controls and Chat’s schema; rerun classification and replace those filters to use topics.
+
 - Assess removes empty GET parameter values before rendering. Native navigation redirects to the clean Assess URL; HTMX normalizes request arguments in place and returns `HX-Push-Url` so filters stay asynchronous. Preserve repeated non-empty values and explicit values such as `false` and `0`.
 - Without JavaScript, search and the native sidebar filters submit through one GET form, and the form exposes an explicit Apply filters button. Source, language, group, and tag filters are hidden because their token-selection workflows require JavaScript.
 - Filter lists contain at most 1,000 current user-visible options per list, ordered by name (normalized value for languages). Core applies the limit in SQL after visibility filtering. Tags start from distinct non-report names in `NewsItemTagCluster`, then probe indexed tag occurrences for a non-report tag on an ACL/TLP-visible story. Deduplicate candidates before these checks; `OFFSET 0` keeps PostgreSQL from expanding the probes into a full tag-table join. Core builds lists on request; frontend caches per user. Writes affecting those options must invalidate the relevant frontend scope. Chat's reference catalog omits options beyond this cap; direct Assess filters still accept them.

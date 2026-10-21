@@ -50,7 +50,7 @@ Core registers internal inference on every startup and selects it when no shared
 
 Set `LLM_INFERENCE_API_KEY` in the private `.env`; Core and inference share it. Restart both after rotation. Blank disables authentication and clears the stored internal key.
 
-Configure providers in **Admin Settings > LLM Endpoints** for Chat, clustering, summarization/titles, NER, sentiment, and cybersecurity classification. Bot selection overrides its feature assignment, then the shared default. Workers must reach the selected providers.
+Configure providers in **Admin Settings > LLM Endpoints** for Chat, clustering, summarization/titles, NER, sentiment, and topic classification. Topic classification requires a separate realtime Decisions endpoint; see the [upgrade instructions](../deploy/README.md#topic-classification-upgrade). Bot selection overrides its feature assignment, then the shared default. Workers must reach the selected providers.
 
 Endpoint checks contact every saved provider, including unassigned ones. HTTP sends credentials and request content without encryption; use HTTPS across untrusted networks. Keys are stored in the database, so protect access and backups.
 

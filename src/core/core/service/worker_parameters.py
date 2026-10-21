@@ -2,6 +2,7 @@
 
 from typing import Any
 
+from models.llm import LLM_BOT_FEATURES
 from models.worker_parameters import (
     SECRET_MASK,
     configured_parameter_values,
@@ -51,6 +52,9 @@ def set_parameters(
         entry = Settings.get_first(db.select(Settings).with_for_update().execution_options(populate_existing=True))
         if entry is None or endpoint_id not in Settings.with_defaults(entry.settings)["llm_endpoints"]:
             raise ValueError("Select a configured LLM endpoint")
+        endpoint = Settings.with_defaults(entry.settings)["llm_endpoints"][endpoint_id]
+        if endpoint.get("api_format") in {"systemone", "openai_decisions"} and LLM_BOT_FEATURES.get(worker_type.lower()) != "classification":
+            raise ValueError("Decisions endpoints support only topic classification")
     return normalized
 
 

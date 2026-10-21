@@ -627,7 +627,7 @@ def test_story_edit_renders_news_item_tag_editor(app, authenticated_client, resp
 def test_story_edit_advanced_view_renders_sentiment_status_chip(authenticated_client, responses_mock):
     story_payload = story_with_news_item_tags()
     story_payload["attributes"] = [
-        {"key": "cybersecurity", "value": "yes"},
+        {"key": "classification", "value": "vulnerability"},
         {"key": "sentiment", "value": "negative"},
     ]
     mock_story_for_edit(responses_mock, story_payload)
@@ -636,7 +636,7 @@ def test_story_edit_advanced_view_renders_sentiment_status_chip(authenticated_cl
 
     assert response.status_code == 200
     assert "Story status" in response.text
-    assert "Cybersecurity · Yes" in response.text
+    assert "Classification · Vulnerability" in response.text
     assert "Sentiment · Negative" in response.text
 
 

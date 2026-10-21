@@ -202,6 +202,41 @@ class TestAdminApi(BaseTest):
         assert client.delete(bot_url, headers=auth_header).status_code == 200
         self.assert_post_ok(client, f"llm-endpoints/{endpoint_id}/delete", {}, auth_header)
 
+    @pytest.mark.parametrize("api_format", ["systemone", "openai_decisions"])
+    def test_decisions_endpoint_assignment(self, client, auth_header, api_format):
+        endpoint = {
+            "name": "Topics",
+            "base_url": "https://provider.example/v1/decisions",
+            "api_format": api_format,
+            "enabled": True,
+            "api_key": "private-decisions-key",
+        }
+        endpoint_id = self.assert_post_ok(client, "llm-endpoints", endpoint, auth_header).json["id"]
+        endpoint_url = self.concat_url(f"llm-endpoints/{endpoint_id}")
+        assert client.post(endpoint_url, json={"processing_mode": "openrouter_batch"}, headers=auth_header).status_code == 400
+        assert client.post(endpoint_url, json={"api_format": "responses"}, headers=auth_header).status_code == 400
+        for feature in ("default", "chat", "ner"):
+            response = client.patch(
+                self.concat_url("settings"), json={"settings": {f"llm_{feature}_endpoint": endpoint_id}}, headers=auth_header
+            )
+            assert response.status_code == 400
+        self.assert_patch_ok(client, "settings", {"settings": {"llm_classification_endpoint": endpoint_id}}, auth_header)
+        bot = client.post("/api/config/bots", json={"name": "Topics", "type": "cybersec_classifier_bot"}, headers=auth_header)
+        assert bot.status_code == 201
+        worker = client.get(f"/api/worker/bots/{bot.json['id']}", headers={"Authorization": "Bearer test_key"})
+        assert worker.json["llm_endpoint"]["api_format"] == api_format
+        assert worker.json["llm_endpoint"]["api_key"] == endpoint["api_key"]
+        assert worker.headers["Cache-Control"] == "no-store"
+        public = client.get(self.concat_url("settings"), headers=auth_header)
+        assert "private-decisions-key" not in public.text
+        other = client.post(
+            "/api/config/bots", json={"name": "NER", "type": "nlp_bot", "parameters": {"LLM_ENDPOINT": endpoint_id}}, headers=auth_header
+        )
+        assert other.status_code == 400
+        assert client.delete(f"/api/config/bots/{bot.json['id']}", headers=auth_header).status_code == 200
+        self.assert_patch_ok(client, "settings", {"settings": {"llm_classification_endpoint": ""}}, auth_header)
+        self.assert_post_ok(client, f"llm-endpoints/{endpoint_id}/delete", {}, auth_header)
+
     def test_settings_rejects_negative_bot_lookback(self, client, auth_header):
         response = client.put(
             self.concat_url("settings"),

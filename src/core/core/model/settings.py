@@ -139,6 +139,8 @@ class Settings(BaseModel):
                 return {"error": "Select an existing LLM endpoint"}, 400
         if cls._chat_uses_batch({**current_settings, **update_data}):
             return {"error": "Chat requires a realtime LLM endpoint. Assign Chat explicitly before using a batch default."}, 400
+        if cls._nonclassification_uses_decisions({**current_settings, **update_data}):
+            return {"error": "Decisions endpoints support only topic classification. Use a Responses or Chat Completions default."}, 400
         if "chat_max_stories" in update_data:
             try:
                 value = cls._validate_non_negative_int(update_data["chat_max_stories"])
@@ -177,6 +179,8 @@ class Settings(BaseModel):
         values["llm_endpoints"] = endpoints
         if cls._chat_uses_batch(values):
             raise ValueError("Chat requires a realtime LLM endpoint")
+        if cls._nonclassification_uses_decisions(values):
+            raise ValueError("Decisions endpoints support only topic classification")
         values["chat_max_stories"] = cls._validate_non_negative_int(values["chat_max_stories"])
         if not 1 <= values["chat_max_stories"] <= 20:
             raise ValueError("Maximum stories must be between 1 and 20")
@@ -186,6 +190,15 @@ class Settings(BaseModel):
         endpoint_id = values.get("llm_chat_endpoint") or values.get("llm_default_endpoint")
         endpoint = values.get("llm_endpoints", {}).get(endpoint_id)
         return bool(endpoint and endpoint.get("processing_mode") == "openrouter_batch")
+
+    @classmethod
+    def _nonclassification_uses_decisions(cls, values: dict) -> bool:
+        for feature in LLM_FEATURES.keys() - {"classification"}:
+            endpoint_id = values.get(f"llm_{feature}_endpoint") or values.get("llm_default_endpoint")
+            endpoint = values.get("llm_endpoints", {}).get(endpoint_id, {})
+            if endpoint.get("api_format") in {"systemone", "openai_decisions"}:
+                return True
+        return False
 
     @classmethod
     def get_llm_endpoint(cls, feature: str, settings: dict | None = None) -> dict | None:
@@ -244,6 +257,18 @@ class Settings(BaseModel):
         values["llm_endpoints"] = endpoints
         if cls._chat_uses_batch(values):
             return {"error": "Chat requires a realtime LLM endpoint. Reassign Chat before changing this endpoint to batch."}, 400
+        if cls._nonclassification_uses_decisions(values):
+            return {"error": "Decisions endpoints support only topic classification. Reassign other features first."}, 400
+        if endpoints.get(endpoint_id, {}).get("api_format") in {"systemone", "openai_decisions"}:
+            from models.llm import LLM_BOT_FEATURES
+
+            from core.model.bot import Bot
+
+            if any(
+                bot.parameters.get("LLM_ENDPOINT") == endpoint_id and LLM_BOT_FEATURES.get(bot.type.value) != "classification"
+                for bot in db.session.execute(db.select(Bot)).scalars()
+            ):
+                return {"error": "Reassign non-classification bots before changing this endpoint to Decisions."}, 400
         entry.settings = values
         db.session.commit()
         from core.model.bot import Bot

@@ -34,6 +34,12 @@ After applying the raw manifests, remove the retired bot Deployments and Service
 
 Keep a database backup and previous images/configuration for rollback: startup removes obsolete bot connection parameters. Restore previous services and settings if reverting, without overwriting newer content. No database schema migration is required.
 
+## Topic classification upgrade
+
+Deploy matching Core, frontend, and worker images for `taranis-llm-bot==0.1.6`. Before running classification, add a realtime Decisions endpoint in **Admin Settings > LLM Endpoints** and assign it to **Topic classification** (or to the individual classifier bot). Use the full provider URL: `https://openrouter.ai/api/alpha/decisions` with **Decisions (System One / OpenRouter)**, a compatible local `/v1/systemone`, or `/v1/decisions` with **Decisions (OpenAI)**. Select a model that supports that provider's Decisions API and store its key through the settings form. Existing Responses/Chat Completions endpoints and OpenRouter batch jobs cannot run general classification; keep the shared default for the other LLM features.
+
+Let pending classification jobs and pipelines finish before upgrading; old binary-classification checkpoints cannot be reused for the topic task. After restarting, verify the Decisions endpoint health check and run classification on a selected story. Existing bot IDs, schedules, and completion markers are retained, so previously processed stories need a manual rerun to receive topic results. Binary cybersecurity attributes are retained as historical data; saved filters using them remain readable but are no longer updated. Replace those filters with topic classifications after rerunning the bot. The old threshold is ignored. Keep previous images and endpoint settings for rollback; remove Decisions endpoints and restore old classification assignments before starting older Core images, which do not recognize the new API formats.
+
 ## Initial settings
 
 Before the first startup, set `PRE_SEED_SETTINGS` in `kubernetes/00-config.yaml`, or `config.preSeedSettings` in Helm values. Both default to `"{}"`. For example:
