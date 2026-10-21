@@ -173,7 +173,7 @@
           <span class="font-semibold text-base-content/60">Matched assets</span>
           {% for asset in story.matched_assets %}
             <a class="link link-primary max-w-full break-words"
-               href="{{ url_for('assets.asset_intelligence', asset_id=asset.id) }}">{{ asset.name }}</a>
+               href="{{ url_for('assets.asset_intelligence', asset_id=asset.id, assess_url=assess_return_url | default(None)) }}">{{ asset.name }}</a>
           {% endfor %}
         </div>
       {% endif %}

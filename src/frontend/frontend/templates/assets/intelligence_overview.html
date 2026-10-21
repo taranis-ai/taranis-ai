@@ -2,6 +2,9 @@
 {% from "macros/table.html" import table_controls %}
 {% block content %}
   <div class="p-4 space-y-4" x-data="{ expandedArticles: {} }">
+    {% if assess_return_url %}
+      {% include "assess/back_link.html" %}
+    {% endif %}
     <nav class="flex gap-4">
       <a class="link" href="{{ url_for('assets.assets') }}">Assets</a>
       <a class="link" href="{{ url_for('assets.assets_cti') }}">CTI information</a>

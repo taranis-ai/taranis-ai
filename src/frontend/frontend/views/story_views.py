@@ -39,7 +39,7 @@ from frontend.core_api import CoreApi
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.log import logger
 from frontend.utils.form_data_parser import parse_formdata
-from frontend.utils.router_helpers import is_htmx_request, parse_paging_data
+from frontend.utils.router_helpers import get_assess_return_url, is_htmx_request, parse_paging_data
 from frontend.utils.validation_helpers import format_pydantic_errors
 from frontend.views.base_view import BaseView
 
@@ -100,7 +100,7 @@ class StoryView(BaseView):
                 cls._build_assess_filters_url(assess_request_args) if assess_request_args else url_for("assess.assess", reset="true")
             )
         else:
-            base_context["assess_return_url"] = cls._get_assess_return_url()
+            base_context["assess_return_url"] = get_assess_return_url()
         base_context["bookmark_collections"] = cls._get_bookmark_bar_collections()
         base_context["assess_bookmark_bar_limit"] = ASSESS_BOOKMARK_BAR_LIMIT
         base_context["source_filter_select"] = cls._build_source_filter_select(filter_lists, assess_request_args)
@@ -110,22 +110,6 @@ class StoryView(BaseView):
             base_context["story_ids"] = [story.id for story in enhanced_stories if getattr(story, "id", None)]
             base_context["stories"] = enhanced_stories
         return base_context
-
-    @staticmethod
-    def _get_assess_return_url() -> str | None:
-        assess_path = url_for("assess.assess")
-        try:
-            current_url = urlparse(request.headers.get("HX-Current-URL", ""))
-            candidate = request.args.get("assess_url", "") or parse_qs(current_url.query).get("assess_url", [""])[0]
-            if not candidate and current_url.path == assess_path:
-                candidate = f"{assess_path}?{current_url.query}"
-            parsed = urlparse(candidate)
-        except ValueError:
-            return None
-        if candidate.startswith("/") and not parsed.scheme and not parsed.netloc and parsed.path == assess_path:
-            query = urlencode(parse_qs(parsed.query), doseq=True)
-            return f"{assess_path}?{query}" if query else assess_path
-        return None
 
     @classmethod
     def model_plural_name(cls) -> str:
@@ -1519,7 +1503,7 @@ class StoryView(BaseView):
                         notification=cls.get_notification_from_response(core_response),
                     )
                 cls.add_flash_notification(core_response)
-                return cls.redirect_htmx(cls._get_assess_return_url() or url_for("assess.assess"))
+                return cls.redirect_htmx(get_assess_return_url() or url_for("assess.assess"))
             except HTTPException:
                 raise
             except Exception:
@@ -1571,7 +1555,7 @@ class StoryView(BaseView):
             cls.add_flash_notification(response)
             if bookmark_id:
                 return cls.redirect_htmx(url_for("assess.bookmark", bookmark_id=bookmark_id))
-            return cls.redirect_htmx(url_for("assess.story", story_id=story_id, assess_url=cls._get_assess_return_url()))
+            return cls.redirect_htmx(url_for("assess.story", story_id=story_id, assess_url=get_assess_return_url()))
 
         notification_html = cls.get_notification_from_response(response)
 

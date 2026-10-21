@@ -27,7 +27,7 @@ Assess sidebar/search/default filters, `/assess`, `/api/assess/filter-lists`, om
 - Dashboard shortcuts reuse saved-filter normalization, delete routes, and Assess URLs. Show the first three by default, with the rest behind Show more.
 - Omnisearch fetches filter lists lazily, only for value resolution/suggestions.
 - Paged navigation replaces `#story-list` and out-of-band `#story-pagination`, scrolls to the top, and keeps the sticky top bar mounted. Errors notify without replacing/appending stories. Stable search-input IDs preserve focus.
-- Story Open/Edit and the selection shortcut carry a relative `assess_url` through editor layouts, saves, and card replacements. Explicit return URLs take precedence over `HX-Current-URL`, which stays on the initial page during infinite scroll. Back to Assess restores filters and pagination with a native link; only the application's Assess path is accepted. Direct story links fall back to ordinary Assess, and bookmark returns keep their existing destination.
+- Story Open/Edit, matched-asset links, and the selection shortcut carry a relative `assess_url`. Editors preserve it through layouts, saves, and card replacements; asset intelligence preserves it through filtering, refreshes, and scan redirects. Explicit return URLs take precedence over `HX-Current-URL`, which stays on the initial page during infinite scroll. Back to Assess restores filters and pagination with a native link; only the application's Assess path is accepted. Direct story links fall back to ordinary Assess, and bookmark returns keep their existing destination.
 - Assess remembers the latest search in user- and application-path-scoped localStorage. Opening bare Assess offers Restore last search or Dismiss; explicit filters, saved defaults, and reset links take precedence. Pagination updates the stored URL. Storage failures do not affect native return navigation.
 - Infinite-scroll searches opened past the first page explain their starting result and offer Start from beginning with the same filters. Counts label the stories actually loaded; the footer range includes all appended batches and End of results does not imply earlier results were loaded.
 - `Shift+Space` prevents native page-up on keydown and performs read/unread on keyup only with a selection. Bookmark detail shares this behavior and the [global shortcut/selection rules](frontend-development.md).
@@ -47,7 +47,7 @@ Relative date windows and explicit `timefrom` use the publication-derived story 
 - Contract: `src/models/models/assess.py`
 - Frontend: `src/frontend/frontend/views/story_views.py` (`get_filter_lists`), `src/frontend/frontend/views/dashboard_views.py`, `src/frontend/frontend/omnisearch.py`
 - Templates: `src/frontend/frontend/templates/assess/sidebar/`, `src/frontend/frontend/templates/assess/saved_filter_cards.html`
-- Return navigation and browser search storage: `StoryView._get_assess_return_url`, `src/frontend/frontend/static/js/assess-navigation.js`, `src/frontend/frontend/templates/assess/back_link.html`
+- Return navigation and browser search storage: `frontend/utils/router_helpers.py::get_assess_return_url`, `src/frontend/frontend/static/js/assess-navigation.js`, `src/frontend/frontend/templates/assess/back_link.html`
 - Chat: `src/core/core/service/chat.py`, `src/frontend/frontend/views/chat_views.py`
 
 ## Coverage

@@ -3,6 +3,7 @@
 import json
 import re
 from pathlib import Path
+from urllib.parse import parse_qs, urlparse
 from uuid import uuid4
 
 import pytest
@@ -476,10 +477,16 @@ class TestAssetSbomWorkflow(BaseE2ETest):
             with_htmx_wait(page, cards.first.get_by_test_id("toggle-read").click)
             expect(asset_names).to_have_count(2)
             expect(page.get_by_label("Asset matches only")).to_be_checked()
+            assess_filters = parse_qs(urlparse(page.url).query)
             asset_names.first.get_by_role("link", name="SBOM Secondary Host", exact=True).click()
-            expect(page).to_have_url(re.compile(f"/assets/{overview_asset_id}/intelligence$"))
-            page.go_back()
+            expect(page).to_have_url(re.compile(f"/assets/{overview_asset_id}/intelligence\\?"))
+            page.get_by_label("CVE match", exact=True).select_option("yes")
+            page.get_by_role("button", name="Filter matches", exact=True).click()
+            page.get_by_role("link", name="Clear filters", exact=True).click()
+            page.locator('[data-test-id="back-to-assess"]').click()
+            assert parse_qs(urlparse(page.url).query) == assess_filters
             expect(page.get_by_label("Asset matches only")).to_be_checked()
+            expect(cards).to_have_count(2)
             compact = page.get_by_label("Compact view", exact=True)
             was_compact = compact.is_checked()
             with_htmx_wait(page, lambda: compact.set_checked(not was_compact))

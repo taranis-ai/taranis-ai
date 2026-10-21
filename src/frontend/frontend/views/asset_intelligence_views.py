@@ -13,6 +13,7 @@ from frontend.cache_models import CacheObject
 from frontend.core_api import CoreApi
 from frontend.i18n import select_timezone
 from frontend.log import logger
+from frontend.utils.router_helpers import get_assess_return_url
 
 
 def save_trigger_form(api: CoreApi, asset_id: str):
@@ -79,6 +80,7 @@ def asset_triggers(asset_id: str):
 def intelligence_api_params() -> dict:
     """Translate whole calendar days in the display timezone to Core's UTC bounds."""
     params = request.args.to_dict()
+    params.pop("assess_url", None)
     timezone = ZoneInfo(select_timezone())
     for key, boundary in (("collected_from", time.min), ("collected_to", time.max)):
         if value := params.get(key):
@@ -99,6 +101,9 @@ def intelligence_context(data: dict | None, asset_id: str | None = None) -> dict
     if asset_id:
         filters["asset_id"] = asset_id
     query = {key: value for key, value in filters.items() if value is not None and value not in ("", "any")}
+    assess_return_url = get_assess_return_url()
+    if assess_return_url:
+        query["assess_url"] = assess_return_url
     pagination = None
     if data:
         pagination = CacheObject(
@@ -107,7 +112,7 @@ def intelligence_context(data: dict | None, asset_id: str | None = None) -> dict
             limit=data["page_size"],
             total_count=data["total_stories"],
         )
-    return {"filters": filters, "query": query, "pagination": pagination}
+    return {"filters": filters, "query": query, "pagination": pagination, "assess_return_url": assess_return_url}
 
 
 @auth_required("ASSETS_ACCESS")

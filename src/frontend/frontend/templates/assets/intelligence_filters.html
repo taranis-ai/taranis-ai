@@ -1,4 +1,5 @@
 <form id="intelligence-filters" method="get" class="space-y-3">
+  {% if assess_return_url %}<input type="hidden" name="assess_url" value="{{ assess_return_url }}">{% endif %}
   <div class="flex flex-wrap gap-3 items-end">
     {% if not asset_id %}
       <div>
@@ -89,7 +90,7 @@
     </label>
     <button class="btn btn-primary" type="submit">Filter matches</button>
     <a class="link"
-       href="{{ url_for('assets.asset_intelligence', asset_id=asset_id) if asset_id else url_for('assets.assets_intelligence') }}">Clear filters</a>
+       href="{{ url_for('assets.asset_intelligence', asset_id=asset_id, assess_url=assess_return_url) if asset_id else url_for('assets.assets_intelligence', assess_url=assess_return_url) }}">Clear filters</a>
   </div>
   <p class="text-sm">Filters combine for the same article and host, within the selected packages. Requiring both match types can match different components on that host. The score range applies to their highest reported CVSS score. Missing scores are unknown, not zero.</p>
 </form>

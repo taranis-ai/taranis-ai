@@ -906,7 +906,10 @@ def test_asset_filtered_assess_refreshes_matches_after_story_actions(authenticat
     response = authenticated_client.get(assess_url)
     tree = html.fromstring(response.text)
     assert tree.xpath('//input[@name="asset_match" and @checked]')
-    assert tree.xpath('//*[@data-test-id="story-matched-assets"]//a/@href') == [url_for("assets.asset_intelligence", asset_id="asset-1")]
+    asset_url = tree.xpath('//*[@data-test-id="story-matched-assets"]//a/@href')[0]
+    assert urlparse(asset_url).path == url_for("assets.asset_intelligence", asset_id="asset-1")
+    return_url = parse_qs(urlparse(asset_url).query)["assess_url"][0]
+    assert parse_qs(urlparse(return_url).query) == parse_qs(urlparse(assess_url).query)
     next_url = tree.xpath('//*[@id="story-pagination"]//a[contains(@href, "page=1")]/@href')[0]
     assert parse_qs(urlparse(next_url).query)["asset_match"] == ["true"]
 
