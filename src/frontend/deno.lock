@@ -4,9 +4,9 @@
     "npm:@codemirror/commands@^6.11.1": "6.11.1",
     "npm:@codemirror/language@^6.13.1": "6.13.1",
     "npm:@codemirror/legacy-modes@^6.5.5": "6.5.5",
-    "npm:@codemirror/merge@^6.12.2": "6.12.2",
+    "npm:@codemirror/merge@^6.12.3": "6.12.3",
     "npm:@codemirror/state@^6.7.6": "6.7.6",
-    "npm:@codemirror/view@^6.43.14": "6.43.14",
+    "npm:@codemirror/view@^6.43.15": "6.43.15",
     "npm:@tailwindcss/cli@4.3.0": "4.3.0",
     "npm:alpinejs@*": "3.17.4",
     "npm:alpinejs@^3.17.4": "3.17.4",
@@ -14,8 +14,8 @@
     "npm:choices.js@^11.2.4": "11.2.4",
     "npm:codemirror@^6.0.2": "6.0.2",
     "npm:daisyui@^5.7.50": "5.7.50",
-    "npm:driver.js@*": "1.10.1",
-    "npm:driver.js@^1.10.1": "1.10.1",
+    "npm:driver.js@*": "1.10.2",
+    "npm:driver.js@^1.10.2": "1.10.2",
     "npm:fuse.js@*": "7.5.0",
     "npm:fuse.js@^7.5.0": "7.5.0",
     "npm:highlight-search-term@*": "1.0.3",
@@ -73,8 +73,8 @@
         "crelt"
       ]
     },
-    "@codemirror/merge@6.12.2": {
-      "integrity": "sha512-V8JvyAPjHbPupqP7BeMcsdsYCbyPij74jxIbaIJDORI+VZzW44zFmon8bF+oxGWvOKhcRmkiUMXd8MxHr3YA2w==",
+    "@codemirror/merge@6.12.3": {
+      "integrity": "sha512-Wq9wXrp41cW/nIpi1CQPyNwD+36kg8KIX676ym0Hyfn3Dpr+XQHNAIsZYVNlaivuVB4SAASbreG3V0VXinbqZA==",
       "dependencies": [
         "@codemirror/language",
         "@codemirror/state",
@@ -100,8 +100,8 @@
     "@codemirror/streamparser@6.0.0": {
       "integrity": "sha512-JTFPF6xrfjt0mnfGPgzcLiMwYmvIyNaoizp8BYzv8FE8KrT6GBGDZ190rtt+O7Wke3gG/MFHyiY9YGNeimof4w=="
     },
-    "@codemirror/view@6.43.14": {
-      "integrity": "sha512-hC45YnmJNR1rz42OF57BLoQNFMV12/13drnvibDsR2quNDmldcb4WvYVV81hFQg56i9lcqQMEDqilhX2QDcGQQ==",
+    "@codemirror/view@6.43.15": {
+      "integrity": "sha512-HHsfpqFeHyXLs983pSRe38Xajs0vFWZQ2BuX0m7Ki8w3jZ5iD8cuR3lBz2/5/X53Dhf32SBHKh6rtSTB6tKeGw==",
       "dependencies": [
         "@codemirror/state",
         "crelt",
@@ -381,8 +381,8 @@
     "detect-libc@2.1.2": {
       "integrity": "sha512-Btj2BOOO83o3WyH59e8MgXsxEQVcarkUOpEYrubB0urwnN10yQ364rsiByU11nZlqWYZm05i/of7io4mzihBtQ=="
     },
-    "driver.js@1.10.1": {
-      "integrity": "sha512-mpcJ15eIRWnGMykeIWjr0CdQF00/JzImFOEXy/VponYgMbP/y46t24MPBDO3PV/rH6CjdSe3T7WQ9cP3GvEPdQ=="
+    "driver.js@1.10.2": {
+      "integrity": "sha512-L/EMTriJPAmg+5kIFmrjzt3TI+1NblhHOV/UZkfpgU/uxhSflGheynMBxk5oImDSy6seAEkIl6MzNOc0zdoKtg=="
     },
     "enhanced-resolve@5.24.5": {
       "integrity": "sha512-L1l8TNvomm6UVW5B253AGxQagSQr+vGwhMlrrfRS2qmhx46AMpMVJKQYLvWYbysTMY8VoicOvzHzoHMbyzB+4A==",
@@ -536,15 +536,15 @@
       "npm:@codemirror/commands@^6.11.1",
       "npm:@codemirror/language@^6.13.1",
       "npm:@codemirror/legacy-modes@^6.5.5",
-      "npm:@codemirror/merge@^6.12.2",
+      "npm:@codemirror/merge@^6.12.3",
       "npm:@codemirror/state@^6.7.6",
-      "npm:@codemirror/view@^6.43.14",
+      "npm:@codemirror/view@^6.43.15",
       "npm:@tailwindcss/cli@4.3.0",
       "npm:alpinejs@^3.17.4",
       "npm:choices.js@^11.2.4",
       "npm:codemirror@^6.0.2",
       "npm:daisyui@^5.7.50",
-      "npm:driver.js@^1.10.1",
+      "npm:driver.js@^1.10.2",
       "npm:fuse.js@^7.5.0",
       "npm:highlight-search-term@^1.0.3",
       "npm:htmx.org@4",

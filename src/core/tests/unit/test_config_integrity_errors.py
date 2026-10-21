@@ -15,7 +15,18 @@ from core.model.organization import Organization
 @pytest.mark.parametrize(
     ("driver_error", "status", "message"),
     [
-        (UniqueViolation("private detail", info={110: b"user_username_key"}), 400, "A record with this field: 'username' already exists."),
+        (
+            UniqueViolation("private detail", info={110: b"user_username_key"}),
+            400,
+            "A unique username is required. A record with this username already exists.",
+        ),
+        (
+            UniqueViolation("private detail", info={110: b"role_name_key"}),
+            400,
+            "A unique name is required. A record with this name already exists.",
+        ),
+        (UniqueViolation("private detail", info={110: b"unknown_private_detail_key"}), 400, "A record with these values already exists."),
+        (UniqueViolation("private detail", info={110: b"role_pkey"}), 400, "A record with these values already exists."),
         (UniqueViolation("private detail"), 400, "A record with these values already exists."),
         (
             NotNullViolation("private detail", info={99: b"product_type_id", 116: b"product"}),
@@ -24,6 +35,7 @@ from core.model.organization import Organization
         ),
         (NotNullViolation("private detail", info={99: b"name"}), 400, "A value for name is required."),
         (NotNullViolation("private detail"), 400, "A required value is missing."),
+        (None, 400, "A required value is missing."),
         (ForeignKeyViolation("private detail"), 500, "Database integrity error."),
     ],
 )
@@ -40,6 +52,8 @@ def test_config_integrity_boundary(blueprint_name, driver_error, status, message
             db.session.commit()
         except IntegrityError as error:
             assert not db.session.is_active
+            if driver_error is None:
+                raise
             raise IntegrityError(error.statement, error.params, driver_error) from error
         pytest.fail("Expected a database constraint failure")
 
