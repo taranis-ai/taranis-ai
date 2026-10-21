@@ -20,8 +20,15 @@ Run component commands from that component's directory; CI definitions are in `.
 - For branch-wide validation or CI regressions: `uv run pytest` in core and frontend, then `uv run pytest tests/playwright --e2e-ci` in frontend. Narrow targets are for isolating failures after reproduction; they do not replace signoff.
 - Lint changed components with `uv run ruff check`; use `--fix` and `uv run ruff format` as appropriate. After Python edits, run `./dev/check_pyrefly.sh` from the repository root.
 - Models has no unit tests. Worker browser-scraping tests require Playwright browsers.
-- Core tests use in-process Redis fakes to avoid affecting running instances. Do not uncomment disabled E2E admin tests on `master` without proving they pass.
+- Core tests use a per-session temporary SQLite database and in-process Redis fakes to avoid affecting concurrent test runs or running instances. Do not uncomment disabled E2E admin tests on `master` without proving they pass.
 - Project Codex configuration filters inherited `DEBUG` values so the extension's `DEBUG=release` cannot override component boolean settings.
+- `jactionlint` reads `.github/jactionlint.yaml`. It allows version-tagged actions and the release action while keeping other workflow checks enabled.
+- Workflows with `run` steps set `defaults.run.shell: bash` so a failing pipeline command fails the step. Keep exceptions explicit at the step level.
+- The model package workflow disables uv caching because pushed tags publish package artifacts.
+- The Copilot setup workflow validates matching changes on pull requests and on pushes to `master`; Copilot also runs its setup steps when an agent starts.
+- CI checkout steps use `persist-credentials: false`; give later Git write steps credentials explicitly if a workflow needs them.
+- CI job timeouts use twice the longest successful GitHub Actions job duration, rounded up to five minutes with a ten-minute minimum. Refresh them from `gh` job history when workloads change.
+- CI concurrency is scoped by workflow: newer `master` image builds replace older ones, while pull request checks replace only older runs for that same PR. Manual checks can run independently. Model package tags run per tag; releases queue because they share the `stable` image tags, and only the highest numeric release tag updates `stable`.
 
 ### Feature Signoff Loop
 
@@ -35,8 +42,7 @@ It requires a clean worktree, runs the full lint/unit/E2E pipeline, then pushes 
 
 ## Development Conventions
 
-- Before preparing or updating a PR, follow [Contributing](../../CONTRIBUTING.md) and use the [PR template](../../.github/pull_request_template.md).
-- When writing a PR description it is mandatory to add a Human review-time estimation.
+- Before preparing or updating a PR, read [Contributing](../../CONTRIBUTING.md). Its contributor process, mandatory [PR template](../../.github/pull_request_template.md) use, prompt disclosure, human confirmations, and human review-time estimates apply only to outside collaborators. Core members of the [taranis-ai/ait team](https://github.com/orgs/taranis-ai/teams/ait) are exempt and may omit those template sections. Agents must not request them from core members; follow [AGENTS.md](../../AGENTS.md#pull-requests) to determine the human contributor's status. Shared code, security, testing, licensing, commit attribution, and review and branch-protection rules still apply to everyone.
 - Root `README.md` is curated product documentation; edit it only when explicitly requested. Use scoped documentation for development and deployment changes. `.github/CODEOWNERS` assigns root `README.md` and the ownership file to `@b3n4kh`. On `master`, enable **Require review from Code Owners** and **Dismiss stale pull request approvals when new commits are pushed**; ownership rules take effect after the file reaches the PR's base branch. Stale approval dismissal applies to all PRs. GitHub requests Ben's review on ready-for-review PRs from other authors. His existing review bypass remains available to him, but agents must never use it for these files. GitHub cannot accept self-approval on PRs authored by his account, so those require his explicit manual decision.
 - Keep changes simple and focused. Prefer flat settings JSON and direct values; avoid forced DRY abstractions, unnecessary metadata, and compatibility aliases or migrations for unreleased branch-only behavior.
 - Use `fix/`, `feature/`, or `chore/` branch prefixes. Never use `git add -A`; stage intended files only.

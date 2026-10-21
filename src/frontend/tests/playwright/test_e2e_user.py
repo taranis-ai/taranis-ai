@@ -1,7 +1,9 @@
 import json
 import re
 import uuid
+from base64 import b64encode
 from pathlib import Path
+from urllib.parse import parse_qs, urlparse
 
 import pytest
 from base_e2e_test import BaseE2ETest
@@ -14,6 +16,22 @@ from tests.playwright.notification_helpers import dismiss_notifications
 
 
 ASSESS_STORY_PAGE_SIZE = 20
+
+
+@pytest.fixture
+def enabled_default_llm_endpoint(core_request_client):
+    allow_requests_passthru()
+    settings = core_request_client.json_request("GET", "/settings/settings")["items"][0]["settings"]
+    endpoint_id = settings["llm_default_endpoint"]
+    if not endpoint_id:
+        yield
+        return
+    enabled = settings["llm_endpoints"][endpoint_id]["enabled"]
+    core_request_client.post(f"/settings/llm-endpoints/{endpoint_id}", json_data={"enabled": True})
+    try:
+        yield
+    finally:
+        core_request_client.post(f"/settings/llm-endpoints/{endpoint_id}", json_data={"enabled": enabled})
 
 
 @pytest.mark.e2e_user
@@ -299,6 +317,13 @@ class TestEndToEndUser(BaseE2ETest):
             expect(page.get_by_test_id("assess_story_count")).to_be_visible()
             expect(page.locator("#story-pagination")).to_contain_text("Page 2 of")
             page.wait_for_function("() => window.scrollY === 0")
+            second_page_url = page.url
+            page.get_by_test_id("open-detail-view").first.click()
+            back_url = page.locator('[data-test-id="back-to-assess"]').get_attribute("href")
+            assert back_url
+            assert parse_qs(urlparse(back_url).query) == parse_qs(urlparse(second_page_url).query)
+            page.go_back()
+            expect(page.locator("#story-pagination")).to_contain_text("Page 2 of")
 
             with_htmx_wait(page, page.go_back)
             expect(page.locator("#story-pagination")).to_contain_text("Page 1 of")
@@ -354,7 +379,12 @@ class TestEndToEndUser(BaseE2ETest):
         change_password_back()
 
     def test_user_assess(
-        self, non_admin_logged_in_page: Page, forward_console_and_page_errors_non_admin, pre_seed_stories, core_request_client
+        self,
+        non_admin_logged_in_page: Page,
+        forward_console_and_page_errors_non_admin,
+        pre_seed_stories,
+        core_request_client,
+        enabled_default_llm_endpoint,
     ):
         page = non_admin_logged_in_page
         allow_requests_passthru()
@@ -385,6 +415,21 @@ class TestEndToEndUser(BaseE2ETest):
             def story_card():
                 return page.locator(f'article[data-story-id="{story_id}"]')
 
+            source_icon = story_card().locator('[data-test-id="story-source-icons"] [tabindex="0"]').first
+            expect(source_icon).to_be_visible()
+            page.mouse.move(0, 0)
+            source_icon.focus()
+            page.keyboard.press("Shift+Tab")
+            page.wait_for_function(
+                "icon => getComputedStyle(icon.parentElement, '::before').opacity === '0'", arg=source_icon.element_handle()
+            )
+            page.keyboard.press("Tab")
+            expect(source_icon).to_be_focused()
+            page.wait_for_function(
+                "icon => getComputedStyle(icon.parentElement, '::before').opacity === '1'", arg=source_icon.element_handle()
+            )
+            page.keyboard.press("Tab")
+
             menu = story_card().get_by_test_id("story-actions-menu")
             expect(menu).to_be_attached()
             expect(menu).to_be_visible()
@@ -407,7 +452,16 @@ class TestEndToEndUser(BaseE2ETest):
             dialog.get_by_role("button", name="✕").click()
             story_card().get_by_test_id("open-detail-view").click()
             expect(page.get_by_test_id("story-title")).to_contain_text(title)
+            back_to_assess = page.locator('[data-test-id="back-to-assess"]')
+            return_url = back_to_assess.get_attribute("href")
+            assert return_url
+            assert parse_qs(urlparse(return_url).query) == parse_qs(urlparse(assess_url).query)
+            page.go_back()
+            expect(page.get_by_placeholder("Search stories")).to_have_value(target_title)
+            story_card().get_by_test_id("open-detail-view").click()
+            expect(back_to_assess).to_have_attribute("href", return_url)
             page.get_by_test_id("edit-story").click()
+            expect(back_to_assess).to_have_attribute("href", return_url)
             page.get_by_role("textbox", name="Title").fill(edited_title)
             page.get_by_role("textbox", name="Summary").fill("Test summary")
             page.get_by_role("textbox", name="Analyst comments").fill("Test analyst comment")
@@ -425,11 +479,24 @@ class TestEndToEndUser(BaseE2ETest):
             for reserved_key in ("TLP", "tlp_override"):
                 attribute_key.fill(reserved_key)
                 assert attribute_key.evaluate("element => element.validity.patternMismatch")
-            attribute_key.fill("attr")
+            attribute_key.fill("CUSTOM_")
+            attribute_key.press_sequentially("BOT_NOTE")
+            expect(attribute_key).to_have_value("CUSTOM_BOT_NOTE")
             assert attribute_key.evaluate("element => element.checkValidity()")
             page.get_by_test_id("attribute-value-input").nth(1).fill("value attr")
+            page.get_by_role("button", name="Add attribute").click()
+            page.get_by_test_id("attribute-key-input").last.fill("UI_TEST_BOT")
+            bot_attribute = page.get_by_test_id("attribute-value-input").last
+            bot_attribute.fill("preserved bot marker")
+            page.get_by_role("heading", name="Attributes", exact=True).click()
+            expect(bot_attribute).not_to_be_visible()
             page.get_by_role("button", name="Save changes").click()
             page.get_by_role("link", name="Advanced").click()
+            bot_attribute = page.get_by_test_id("attribute-value-input").last
+            expect(bot_attribute).not_to_be_visible()
+            page.get_by_role("checkbox", name="Show bot attributes").check()
+            expect(bot_attribute).to_have_value("preserved bot marker")
+            expect(back_to_assess).to_have_attribute("href", return_url)
             expect(page.get_by_role("complementary")).to_contain_text("Story status")
             page.get_by_text("Cybersecurity · Not Classified").click()
             expect(page.get_by_role("complementary")).to_contain_text("Cybersecurity · Not Classified")
@@ -438,17 +505,126 @@ class TestEndToEndUser(BaseE2ETest):
             expect(page.get_by_role("complementary")).to_contain_text("Run sentiment analysis")
             expect(page.get_by_role("complementary")).to_contain_text("Cybersecurity classification")
             page.get_by_role("textbox", name="Analyst comments").fill("Unsaved analyst comment")
-            for action in ("Generate summary & title", "Run sentiment analysis", "Cybersecurity classification"):
+            for action in ("Generate summary & title", "Generate Tags", "Run sentiment analysis", "Cybersecurity classification"):
                 with_htmx_wait(page, page.get_by_role("button", name=action, exact=True).click)
                 expect(page.locator("#notification-bar")).to_have_count(1)
-                expect(page.locator("#notification-message")).to_contain_text("Executing Bot scheduled")
+                expect(page.locator("#notification-message")).to_contain_text(
+                    "Tag generation scheduled" if action == "Generate Tags" else "Executing Bot scheduled"
+                )
                 expect(page.get_by_role("textbox", name="Title", exact=True)).to_have_value(edited_title)
                 expect(page.get_by_role("textbox", name="Analyst comments")).to_have_value("Unsaved analyst comment")
             page.get_by_role("link", name="Return to story").click()
             expect(page.get_by_test_id("story-title")).to_contain_text(edited_title)
+            back_to_assess.click()
+            expect(page.get_by_placeholder("Search stories")).to_have_value(target_title)
+            expect(story_card()).to_be_visible()
+            page.get_by_role("link", name="Dashboard", exact=True).click()
+            page.locator("#navbar").get_by_role("link", name="Assess", exact=True).click()
+            restore = page.locator('[data-test-id="restore-assess-search"]')
+            expect(restore).to_be_visible()
+            restore.get_by_role("link", name="Restore last search").click()
+            expect(page.get_by_placeholder("Search stories")).to_have_value(target_title)
+            expect(story_card()).to_be_visible()
+            expect(restore).not_to_be_visible()
+            page.get_by_role("link", name="Dashboard", exact=True).click()
+            page.locator("#navbar").get_by_role("link", name="Assess", exact=True).click()
+            restore.get_by_role("button", name="Dismiss").click()
+            page.reload()
+            expect(restore).not_to_be_visible()
+
+        def check_story_tags():
+            story_id = seeded_story["id"]
+            news_item_id = seeded_story["news_items"][0]["id"]
+            tags = [{"name": f"assess-tag-{index:02}", "tag_type": "misc"} for index in range(24)]
+            tags[0]["name"] = "https://example.invalid/assess-long-tag-" + "url-" * 45
+            tags[1]["name"] = "assess-long-tag-" + "long " * 40
+            tags[-1]["tag_type"] = "actor"
+            response = core_request_client.put(f"/assess/news-items/{news_item_id}/tags", json_data=tags)
+            assert response.ok
+            page.goto(assess_url)
+            tag_search = page.get_by_role("searchbox", name="Search tags", exact=True)
+            tag_search.fill("assess-long-tag")
+            tag_search.press("ArrowRight")
+            suggestions = page.locator("#tag-filter-suggestion-list button")
+            expect(suggestions).to_have_count(2)
+            for button in suggestions.all():
+                expect(button.locator('[data-test-id="tag-suggestion-count"]')).to_have_text("1")
+                label = button.locator('[data-test-id="tag-suggestion-name"]')
+                assert button.get_attribute("title") == label.inner_text()
+                assert label.evaluate("el => el.scrollWidth > el.clientWidth && getComputedStyle(el).textOverflow === 'ellipsis'")
+                assert button.evaluate("el => el.scrollWidth <= el.clientWidth")
+            first_box, second_box = [button.bounding_box() for button in suggestions.all()]
+            assert first_box and second_box and second_box["y"] >= first_box["y"] + first_box["height"]
+            tag_search.fill(tags[-2]["name"].upper())
+            tag_search.press("ArrowRight")
+            suggestion = page.locator("#tag-filter-suggestion-list button").first
+            expect(suggestion.locator('[data-test-id="tag-suggestion-name"]')).to_have_text(tags[-2]["name"])
+            expect(suggestion.locator('[data-test-id="tag-suggestion-count"]')).to_have_text("1")
+            with_htmx_wait(page, suggestion.click)
+            expect(page.locator('#selected-tags input[name="tags"]')).to_have_value(tags[-2]["name"])
+            page.goto(url_for("assess.assess", tags=[tags[-2]["name"], "actor"], _external=True))
+            card = page.locator(f'article[data-story-id="{story_id}"]')
+            matches = card.locator("a.badge-primary")
+            expect(matches).to_have_text([tags[-2]["name"], tags[-1]["name"]])
+            for match in matches.all():
+                expect(match).to_be_visible()
+            hidden_tag = card.locator("a.badge").filter(has_text=tags[20]["name"])
+            expect(hidden_tag).not_to_be_visible()
+            toggle_tags = card.get_by_test_id("toggle-story-tags")
+            expect(toggle_tags).to_have_text("+17")
+            selection_count = self._get_assess_selection_count(page)
+            toggle_tags.click()
+            expect(hidden_tag).to_be_visible()
+            expect(toggle_tags).to_have_attribute("aria-expanded", "true")
+            expect(card.get_by_test_id("toggle-summary")).to_have_attribute("aria-expanded", "false")
+            assert self._get_assess_selection_count(page) == selection_count
+            toggle_tags.click()
+            expect(hidden_tag).not_to_be_visible()
+            card.get_by_test_id("toggle-summary").click()
+            expect(hidden_tag).to_be_visible()
+            expect(toggle_tags).not_to_be_visible()
+            card.get_by_test_id("toggle-summary").click()
+            expect(hidden_tag).not_to_be_visible()
+            for match in matches.all():
+                expect(match).to_be_visible()
+
+            card.get_by_test_id("story-actions-menu").click()
+            with_htmx_wait(page, card.get_by_test_id("toggle-important").click)
+            expect(matches).to_have_count(2)
+            for match in matches.all():
+                expect(match).to_be_visible()
+
+            compact = page.get_by_role("checkbox", name="Compact view", exact=True)
+            with page.expect_navigation(wait_until="load"):
+                compact.check()
+            for match in matches.all():
+                expect(match).to_be_visible()
+            with page.expect_navigation(wait_until="load"):
+                compact.uncheck()
+            core_request_client.put(f"/assess/news-items/{news_item_id}/tags", json_data=seeded_story["news_items"][0]["tags"])
+            page.goto(assess_url)
 
         def infinite_scroll_all_items(expected_total: int):
-            page.goto(assess_url)
+            assert expected_total > ASSESS_STORY_PAGE_SIZE
+            last_page = (expected_total - 1) // ASSESS_STORY_PAGE_SIZE
+            page.goto(url_for("assess.assess", source=seeded_story["news_items"][0]["osint_source_id"], page=last_page, _external=True))
+            page.get_by_role("link", name="Dashboard", exact=True).click()
+            page.locator("#navbar").get_by_role("link", name="Assess", exact=True).click()
+            page.get_by_role("link", name="Restore last search", exact=True).click()
+
+            notice = page.locator('[data-test-id="assess-resume-position"]')
+            expect(notice).to_contain_text(f"Starting at result {last_page * ASSESS_STORY_PAGE_SIZE + 1} of {expected_total}.")
+            expect(notice).to_contain_text("Earlier results are not loaded.")
+            resumed_count, resumed_total = self._get_assess_story_counts(page)
+            assert resumed_count == expected_total - last_page * ASSESS_STORY_PAGE_SIZE
+            assert resumed_total == expected_total
+            expect(page.get_by_test_id("assess_story_count")).to_contain_text("Stories loaded")
+            expect(page.get_by_text("End of results.", exact=True)).to_be_visible()
+            expect(page.locator("#infinite-scroll-trigger")).to_have_count(0)
+
+            notice.get_by_role("link", name="Start from beginning", exact=True).click()
+            expect(notice).to_have_count(0)
+            assert parse_qs(urlparse(page.url).query) == parse_qs(urlparse(assess_url).query)
 
             expect(page.get_by_test_id("assess")).to_be_visible()
             initial_visible_count, initial_total = self._get_assess_story_counts(page)
@@ -476,12 +652,24 @@ class TestEndToEndUser(BaseE2ETest):
             assert final_total == expected_total
             assert final_visible_count >= expected_total
 
-            caught_up_message = page.get_by_text("You're all caught up.")
-            if caught_up_message.count():
-                expect(caught_up_message).to_be_visible()
+            expect(page.get_by_text("End of results.", exact=True)).to_be_visible()
+            expect(page.locator("#story-pagination")).to_contain_text(re.compile(rf"Showing\s+1\s*-\s*{expected_total}\s+of"))
+
+            last_card = page.locator("#story-list article[data-story-id]").last
+            detail_url = last_card.get_by_test_id("open-detail-view").get_attribute("href")
+            assert detail_url
+            return_url = parse_qs(urlparse(detail_url).query)["assess_url"][0]
+            assert parse_qs(urlparse(return_url).query)["page"] == [str(last_page)]
+            for action in ("toggle-read", "toggle-important"):
+                last_card.get_by_test_id("story-actions-menu").click()
+                with_htmx_wait(page, last_card.get_by_test_id(action).click)
+                for link in ("open-detail-view", "edit-story"):
+                    link_url = last_card.get_by_test_id(link).get_attribute("href")
+                    assert link_url
+                    assert parse_qs(urlparse(link_url).query)["assess_url"] == [return_url]
 
             expect(page.get_by_test_id("assess_story_selection_count")).to_be_hidden()
-            page.get_by_role("button", name="Select all").click()
+            page.get_by_role("button", name="Select loaded stories").click()
             expect(page.get_by_test_id("assess_story_selection_count")).to_contain_text("stories selected")
             selected_count = self._get_assess_selection_count(page)
             assert expected_total <= selected_count <= final_visible_count
@@ -489,6 +677,7 @@ class TestEndToEndUser(BaseE2ETest):
             expect(page.get_by_test_id("assess_story_selection_count")).to_be_hidden()
 
         total_count = go_to_assess()
+        check_story_tags()
         access_story()
         infinite_scroll_all_items(total_count)
 
@@ -497,9 +686,14 @@ class TestEndToEndUser(BaseE2ETest):
         primary_id, second_id, third_id = [cards.nth(i).get_attribute("data-story-id") for i in range(3)]
         page.get_by_test_id(f"story-card-{primary_id}").click()
         for secondary_id in (second_id, third_id):
+            if secondary_id == third_id:
+                page.get_by_test_id(f"story-card-{primary_id}").click()
             page.get_by_test_id(f"story-card-{secondary_id}").click()
+            if secondary_id == third_id:
+                page.get_by_test_id(f"story-card-{primary_id}").click()
             page.get_by_role("button", name="Cluster").click()
             expect(page.get_by_test_id("story-to-merge")).to_have_count(2)
+            expect(page.get_by_test_id("story-to-merge").first).to_have_attribute("data-story-id", primary_id)
             page.get_by_test_id("dialog-story-cluster-submit").click()
             expect(page.get_by_test_id("story-to-merge")).to_have_count(0)
             expect(page.get_by_test_id("assess_story_selection_count")).to_have_text("1 stories selected")
@@ -803,11 +997,20 @@ class TestEndToEndUser(BaseE2ETest):
             page.get_by_role("textbox", name="Title").fill("Unsaved report from Assess")
             selected_stories = page.locator('#report_form input[name="stories[]"]')
             story_ids = selected_stories.evaluate_all("inputs => inputs.map(input => input.value)")
-            assert story_ids
+            assert set(story_ids) == {report_story_one["id"], report_story_two["id"]}
             check_report_type_required()
             expect(page.get_by_role("textbox", name="Title")).to_have_value("Unsaved report from Assess")
             assert selected_stories.evaluate_all("inputs => inputs.map(input => input.value)") == story_ids
+            page.get_by_test_id("report-type-select").select_option(label=self.CERT_REPORT_TYPE_LABEL)
+            page.get_by_role("button", name="Stacked view").click()
+            assert selected_stories.evaluate_all("inputs => inputs.map(input => input.value)") == story_ids
+            page.get_by_test_id("save-report").click()
+            expect(page.get_by_role("button", name="Completed")).to_be_visible()
+            page.reload()
+            assert set(selected_stories.evaluate_all("inputs => inputs.map(input => input.value)")) == set(story_ids)
             page.get_by_role("link", name="Analyze", exact=True).click()
+            item_id = self.get_table_row_id_by_link_text(page, "report-table", "Unsaved report from Assess")
+            self.delete_table_row(page, f"action-delete-{item_id}")
             new_report_button = page.get_by_role("link", name="New Report")
             expect(new_report_button).to_be_visible()
             new_report_button.click()
@@ -921,7 +1124,7 @@ class TestEndToEndUser(BaseE2ETest):
             popup = page.get_by_label("Add Stories to report")
             popup.click()
             popup.get_by_text("Test report").click()
-            page.locator("#share_story_to_report_dialog").get_by_role("button", name="Share").click()
+            page.locator("#share_story_to_report_dialog").get_by_role("button", name="Add to report").click()
             expect(page.get_by_text("In Reports").nth(1)).to_be_visible()
             expect(page.get_by_text("In Reports").nth(2)).to_be_visible()
 
@@ -1044,7 +1247,7 @@ class TestEndToEndUser(BaseE2ETest):
                 popup = page.get_by_label("Add Stories to report")
                 popup.click()
                 popup.get_by_text("all attr report").click()
-                page.locator("#share_story_to_report_dialog").get_by_role("button", name="Share").click()
+                page.locator("#share_story_to_report_dialog").get_by_role("button", name="Add to report").click()
 
             def set_report_fields():
                 boolean_attribute = page.get_by_test_id("report-boolean-attribute-checkbox")
@@ -1188,7 +1391,7 @@ class TestEndToEndUser(BaseE2ETest):
                 popup = page.get_by_label("Add Stories to report")
                 popup.click()
                 popup.get_by_text("all attr report REQUIRED").click()
-                page.locator("#share_story_to_report_dialog").get_by_role("button", name="Share").click()
+                page.locator("#share_story_to_report_dialog").get_by_role("button", name="Add to report").click()
 
             def set_report_fields_required():
                 boolean_attribute = page.get_by_test_id("report-boolean-attribute-checkbox")
@@ -1343,7 +1546,14 @@ class TestEndToEndUser(BaseE2ETest):
         page.goto(url_for("analyze.report", report_id=report_id, _external=True))
         expect(page.get_by_text("403 - Access denied")).to_be_visible()
 
-    def test_publish(self, non_admin_logged_in_page: Page, forward_console_and_page_errors_non_admin, stories_session_wrapper):
+    def test_publish(
+        self,
+        non_admin_logged_in_page: Page,
+        forward_console_and_page_errors_non_admin,
+        stories_session_wrapper,
+        core_request_client,
+        api_header,
+    ):
         page = non_admin_logged_in_page
         product_title = f"test_product_{str(uuid.uuid4())[:8]}"
 
@@ -1356,13 +1566,7 @@ class TestEndToEndUser(BaseE2ETest):
             self.highlight_element(page.get_by_test_id("new-product-button")).click()
             expect(page.get_by_test_id("product-form")).to_be_visible()
             product_type_select = page.get_by_label("Product Type * Select an item")
-            product_type_options = product_type_select.locator("option").evaluate_all(
-                """options => options
-                .filter(option => option.value)
-                .map(option => ({ value: option.value, label: option.textContent?.trim() ?? "" }))"""
-            )
-            assert product_type_options, "No product type options available for product creation"
-            self.highlight_element(product_type_select).select_option(product_type_options[0]["value"])
+            self.highlight_element(product_type_select).select_option(label="Default html tailwindcss Presenter")
 
             self.highlight_element(page.get_by_placeholder("Title")).fill(product_title)
             page.get_by_placeholder("Description").fill("This is a test product.")
@@ -1371,8 +1575,79 @@ class TestEndToEndUser(BaseE2ETest):
         load_product_list()
         add_product()
         expect(page.get_by_test_id("copy-product")).to_be_visible()
+        expect(page.locator("[data-product-report-items-enhanced]")).to_be_visible()
         source_url = page.url
         product_type = page.locator("#product_type_id").input_value()
+
+        product_id = source_url.rstrip("/").rsplit("/", 1)[-1]
+        rendered_html = b64encode(b"<p>Product preview content</p>").decode()
+
+        def complete_render():
+            render_data = core_request_client.json_request("GET", f"/worker/products/{product_id}", headers=api_header, authenticated=False)
+            core_request_client.post(
+                "/tasks",
+                headers=api_header,
+                authenticated=False,
+                json_data={
+                    "id": f"preview-{uuid.uuid4()}",
+                    "task": "presenter_task",
+                    "status": "SUCCESS",
+                    "result": {
+                        "message": "ok",
+                        "retryable": False,
+                        "data": {
+                            "product_id": product_id,
+                            "render_result": rendered_html,
+                            "render_revision": render_data["render_revision"],
+                        },
+                    },
+                },
+            )
+
+        complete_render()
+        page.reload()
+        preview = page.get_by_test_id("html-render")
+        expect(page.get_by_test_id("load-product-preview")).to_be_visible()
+        expect(preview).to_have_count(0)
+        page.get_by_test_id("load-product-preview").click()
+        expect(preview).to_be_visible()
+        expect(preview).to_have_attribute("sandbox", "")
+        expect(preview).to_have_attribute("src", re.compile(r"^data:text/html;charset=utf-8;base64,"))
+        expect(page.frame_locator('[data-testid="html-render"]').locator("body")).not_to_be_empty()
+
+        render_requests = []
+        page.on("request", lambda request: render_requests.append(request.url) if request.method == "POST" else None)
+        page.get_by_placeholder("Description").fill("Updated before rendering")
+        page.locator("#render_button").click()
+        dirty_dialog = page.locator("#dirty_dialog")
+        expect(dirty_dialog).to_be_visible()
+        with_htmx_wait(page, lambda: dirty_dialog.get_by_role("button", name="Save and Continue").click())
+        expect(dirty_dialog).not_to_be_visible()
+        expect(page.get_by_placeholder("Description")).to_have_value("Updated before rendering")
+        assert not any(url.endswith("/render") for url in render_requests)
+        expect(preview).to_have_count(0)
+
+        complete_render()
+        page.reload()
+        page.get_by_test_id("load-product-preview").click()
+        expect(preview).to_have_count(1)
+        expect(preview).to_have_attribute("sandbox", "")
+
+        page.get_by_placeholder("Description").fill("This is a test product.")
+        page.get_by_role("button", name="Publish (manually)").click()
+        dirty_dialog.get_by_role("button", name="Close", exact=True).click()
+        expect(page.locator("#publish_dialog")).not_to_be_visible()
+        page.get_by_role("button", name="Publish (manually)").click()
+        with_htmx_wait(page, lambda: dirty_dialog.get_by_role("button", name="Save and Continue").click())
+        publish_dialog = page.locator("#publish_dialog")
+        expect(publish_dialog).to_be_visible()
+        expect(page.get_by_placeholder("Description")).to_have_value("This is a test product.")
+        page.locator("#publisher_select").select_option(index=1)
+        complete_render()
+        with_htmx_wait(page, lambda: publish_dialog.get_by_role("button", name="Publish", exact=True).click())
+        expect(page.locator("#notification-bar")).to_contain_text("Publishing Product scheduled")
+        assert not any(url.endswith("/render") for url in render_requests)
+        publish_dialog.get_by_role("button", name="Close", exact=True).click()
 
         page.get_by_test_id("copy-product").click()
         expect(page.get_by_role("heading", name="Create Product")).to_be_visible()

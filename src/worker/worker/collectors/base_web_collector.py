@@ -1,6 +1,7 @@
+import asyncio
 import datetime
 from typing import Any, Literal
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urldefrag, urljoin, urlparse
 
 import dateutil.parser as dateparser
 import lxml.html
@@ -11,6 +12,7 @@ from trafilatura import extract, extract_metadata
 
 from worker.collectors.base_collector import BaseCollector, NoChangeError
 from worker.collectors.playwright_manager import PlaywrightManager
+from worker.config import Config
 from worker.core_api import IconFile
 from worker.http_client import http_request
 from worker.log import logger
@@ -142,22 +144,101 @@ class BaseWebCollector(BaseCollector):
             return parse_datetime(last_attempted)
         return None
 
-    def _fetch_icon(self, icon_url: str) -> requests.Response:
-        return http_request("GET", icon_url, external=True, headers=self._request_headers(icon_url), proxies=self.proxies, timeout=5)
+    async def _fetch_icon(self, icon_url: str, *, source_url: str | None = None) -> requests.Response:
+        source_origin = urlparse(source_url or icon_url)[:2]
 
-    def update_favicon(self, web_url: str, osint_source_id: str):
-        # TODO: Try getting apple-touch-icon first
-        icon_url = f"{urlparse(web_url).scheme}://{urlparse(web_url).netloc}/favicon.ico"
-        r = self._fetch_icon(icon_url)
-        if not r.ok or not (content := r.content):
-            return
+        def strip_source_headers(request: requests.PreparedRequest | requests.Response) -> None:
+            if request.headers is not None and urlparse(request.url or "")[:2] != source_origin:
+                for name in self.headers:
+                    if name.lower() not in {"user-agent", "accept", "accept-language"}:
+                        request.headers.pop(name, None)
 
-        filename = r.headers.get("content-disposition")
-        if not isinstance(filename, str):
-            filename = "file"
-        icon_content: IconFile = {"file": (filename, content)}
-        self.core_api.update_osint_source_icon(osint_source_id, icon_content)
-        return
+        async with requests.AsyncSession(retries=0, disable_http3=Config.DISABLE_HTTP3) as session:
+            session.max_redirects = 5
+            return await session.get(
+                icon_url, headers=self.headers, proxies=self.proxies, timeout=5, hooks={"pre_request": [strip_source_headers]}
+            )
+
+    def update_favicon(self, web_url: str, osint_source_id: str, *, icon_urls: list[str] | None = None):
+        for icon_content in asyncio.run(self._discover_icons(web_url, icon_urls or [])):
+            if self.core_api.update_osint_source_icon(osint_source_id, icon_content) is not None:
+                return
+
+    async def _discover_icons(self, web_url: str, icon_urls: list[str]) -> list[IconFile]:
+        source_url = (self.http_validators or {}).get("url") or web_url
+        attempted: set[str] = set()
+        icons: dict[str, IconFile] = {}
+        supplied_icons: list[str] = []
+        page_icons: list[str] = []
+        defaults: list[str] = []
+        default_paths = ("/apple-touch-icon.png", "/apple-touch-icon-precomposed.png", "/favicon.ico")
+        slots = asyncio.Semaphore(4)
+
+        async def download_icon(icon_url: str) -> None:
+            try:
+                async with slots:
+                    response = await self._fetch_icon(icon_url, source_url=source_url)
+                if response.status_code != 200 or not response.content:
+                    return
+                content_type = response.headers.get("Content-Type", "").split(";", 1)[0].strip().lower()
+                if content_type == "image/svg+xml" or (
+                    content_type and not content_type.startswith("image/") and content_type != "application/octet-stream"
+                ):
+                    return
+                filename = urlparse(icon_url).path.rsplit("/", 1)[-1] or "favicon.ico"
+                icons[icon_url] = {"file": (filename, response.content)}
+            except (ValueError, requests.exceptions.RequestException):
+                logger.exception("Could not gather source icon")
+
+        def schedule_icons(urls: list[str]) -> list[str]:
+            candidates = []
+            for url in urls:
+                try:
+                    icon_url = urldefrag(url)[0]
+                    candidates.append(icon_url)
+                    if icon_url not in attempted:
+                        attempted.add(icon_url)
+                        tasks.create_task(download_icon(icon_url))
+                except ValueError:
+                    logger.warning("Ignoring invalid source icon URL")
+            return candidates
+
+        async def discover_page() -> None:
+            apple_icons: list[str] = []
+            other_icons: list[str] = []
+            page_url = web_url
+            try:
+                async with slots:
+                    response = await self._fetch_icon(web_url, source_url=source_url)
+                if response.status_code == 200 and (content := response.content):
+                    page_url = response.url or web_url
+                    soup = BeautifulSoup(content, "html.parser")
+                    base = soup.find("base", href=True)
+                    base_url = urljoin(page_url, str(base.get("href"))) if isinstance(base, Tag) else page_url
+                    for link in soup.find_all("link", href=True):
+                        rels = {rel.lower() for rel in link.get_attribute_list("rel")}
+                        try:
+                            icon_url = urljoin(base_url, str(link.get("href")))
+                        except ValueError:
+                            continue
+                        if rels & {"apple-touch-icon", "apple-touch-icon-precomposed"}:
+                            apple_icons.append(icon_url)
+                        elif "icon" in rels:
+                            other_icons.append(icon_url)
+            except (ValueError, requests.exceptions.RequestException):
+                logger.exception("Could not discover source icons from web page")
+
+            page_icons.extend(schedule_icons((apple_icons + other_icons)[:8] + [urljoin(page_url, path) for path in default_paths]))
+
+        try:
+            async with asyncio.timeout(5):
+                async with asyncio.TaskGroup() as tasks:
+                    supplied_icons.extend(schedule_icons(icon_urls[:3]))
+                    tasks.create_task(discover_page())
+                    defaults.extend(schedule_icons([urljoin(web_url, path) for path in default_paths]))
+        except TimeoutError:
+            logger.info("Source icon discovery reached its time budget")
+        return [icons[url] for url in dict.fromkeys(supplied_icons + page_icons + defaults) if url in icons]
 
     def fetch_article_content(self, web_url: str, xpath: str = "") -> tuple[str, datetime.datetime | None] | tuple[Literal[""], None]:
         if self.browser_mode and self.playwright_manager:

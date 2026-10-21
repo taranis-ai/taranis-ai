@@ -1,5 +1,13 @@
 name: build models
 
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref == 'refs/heads/master' }}
+
 on:
   push:
     paths:
@@ -15,6 +23,7 @@ permissions:
 
 jobs:
   build_wheel:
+    timeout-minutes: 10
     name: build wheel
     runs-on: ubuntu-latest
     permissions:
@@ -26,13 +35,13 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
+          persist-credentials: false
           fetch-depth: 0
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v8.2.0
+        uses: astral-sh/setup-uv@v10.3.0
         with:
-          enable-cache: true
-          prune-cache: false
+          enable-cache: false
 
       - name: Set up Python
         run: uv python install

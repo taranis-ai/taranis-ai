@@ -2,11 +2,12 @@ from typing import Any
 
 from flask import abort, render_template, request, url_for
 from flask.typing import ResponseReturnValue
-from models.product import Product, ProductType, PublisherPreset
+from models.product import Product, ProductMetadata, ProductTypeChoice, PublisherPreset
 from models.report import ReportItem
 from werkzeug.exceptions import HTTPException
 
 from frontend.auth import auth_required
+from frontend.cache_models import PagingData
 from frontend.core_api import CoreApi
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.filters import render_count, render_datetime, render_item_type
@@ -28,6 +29,11 @@ class ProductView(BaseView):
     @classmethod
     def get_form_action(cls, object_id: str = "0") -> str:
         return cls.get_edit_route(product_id=object_id)
+
+    @classmethod
+    def _normalize_form_data(cls, form_data: dict[str, Any]) -> dict[str, Any]:
+        form_data.pop("_continue_action", None)
+        return form_data
 
     @classmethod
     def get_default_actions(cls) -> list[dict[str, Any]]:
@@ -60,51 +66,69 @@ class ProductView(BaseView):
 
     @classmethod
     def get_extra_context(cls, base_context: dict[str, Any]) -> dict[str, Any]:
+        if cls.model_name() not in base_context:
+            return base_context
         dpl = DataPersistenceLayer()
-        product_types = dpl.get_objects(ProductType)
-        publishers = dpl.get_objects(PublisherPreset)
-        base_context["publishers"] = [{"id": p.id, "name": p.name} for p in publishers]
+        base_context["publishers"] = []
 
-        if cls.model_name() in base_context:
-            product: Product = base_context[cls.model_name()]
-            if request.method == "GET" and cls.is_create_object_id(product.id) and (copy_from := request.args.get("copy_from")):
-                source = dpl.get_object(Product, copy_from)
-                if source is None:
-                    abort(404)
-                product = Product(
-                    id="0",
-                    product_type_id=source.product_type_id,
-                    title=f"{source.title} Copy",
-                    description=source.description,
-                    report_items=list(source.report_items),
-                )
-                base_context[cls.model_name()] = product
-                base_context["supported_reports"] = list(getattr(source, "supported_reports", None) or [])
-            is_edit = product.id not in {None, "0"}
-            if is_edit:
-                base_context["submit_text"] = f"Update {cls.pretty_name()} - {product.title}"
-            base_context["is_edit"] = is_edit
+        product: Product = base_context[cls.model_name()]
+        if request.method == "GET" and cls.is_create_object_id(product.id) and (copy_from := request.args.get("copy_from")):
+            source = dpl.get_object(ProductMetadata, copy_from)
+            if source is None:
+                abort(404)
+            if warning := getattr(source, "report_access_warning", None):
+                abort(403, description=warning)
+            product = Product(
+                id="0",
+                product_type_id=source.product_type_id,
+                title=f"{source.title} Copy",
+                description=source.description,
+                report_items=list(source.report_items),
+            )
+            base_context[cls.model_name()] = product
+            base_context["supported_reports"] = list(getattr(source, "supported_reports", None) or [])
+        is_edit = product.id not in {None, "0"}
+        if is_edit:
+            base_context["submit_text"] = f"Update {cls.pretty_name()} - {product.title}"
+            base_context["publishers"] = [{"id": p.id, "name": p.name} for p in dpl.get_objects(PublisherPreset)]
+        base_context["is_edit"] = is_edit
 
-            selected_report_items = [str(report_item_id) for report_item_id in product.report_items if report_item_id]
-            supported_reports = base_context.get("supported_reports", list(getattr(product, "supported_reports", None) or []))
+        selected_report_items = [str(report_item_id) for report_item_id in product.report_items if report_item_id]
+        supported_reports = base_context.get("supported_reports", list(getattr(product, "supported_reports", None) or []))
 
-            if (report_id := request.args.get("report_id")) and (report := dpl.get_object(ReportItem, report_id)):
-                if report_id not in selected_report_items:
-                    selected_report_items.append(report_id)
+        report_access_warning = getattr(product, "report_access_warning", None)
+        base_context["report_access_warning"] = report_access_warning
+        resume_action = request.form.get("_continue_action")
+        if (
+            request.method in {"POST", "PUT"}
+            and is_edit
+            and not report_access_warning
+            and not base_context.get("error")
+            and not base_context.get("form_error")
+            and resume_action in {"render", "publish"}
+        ):
+            base_context["resume_action"] = resume_action
+        if not report_access_warning and (report_id := request.args.get("report_id")) and (report := dpl.get_object(ReportItem, report_id)):
+            if report_id not in selected_report_items:
+                selected_report_items.append(report_id)
 
-                if all(str(item["id"]) != report_id for item in supported_reports):
-                    supported_reports.append(report.model_dump(mode="json"))
+            if all(str(item["id"]) != report_id for item in supported_reports):
+                supported_reports.append(report.model_dump(mode="json"))
 
-            base_context["selected_report_items"] = selected_report_items
-            base_context["supported_reports"] = supported_reports
+        base_context["selected_report_items"] = selected_report_items
+        base_context["supported_reports"] = supported_reports
 
-            if selected_report_type_ids := {
-                str(item["report_item_type_id"])
-                for item in supported_reports
-                if str(item["id"]) in selected_report_items and item.get("report_item_type_id")
-            }:
-                product_types = [pt for pt in product_types if selected_report_type_ids.issubset(set(pt.report_types))]
-
+        report_ids = [] if report_access_warning else sorted(set(selected_report_items))
+        product_types: list[ProductTypeChoice] = []
+        # Bound URLs while requiring each choice to support the entire selection.
+        for offset in range(0, max(1, len(report_ids)), 50):
+            paging_data = PagingData(query_params={"report_ids": report_ids[offset : offset + 50]}).set_fetch_all()
+            choices = list(dpl.get_objects(ProductTypeChoice, paging_data))
+            if offset == 0:
+                product_types = choices
+            else:
+                compatible_ids = {pt.id for pt in choices}
+                product_types = [pt for pt in product_types if pt.id in compatible_ids]
         base_context["product_types"] = [{"id": pt.id, "name": pt.title} for pt in product_types]
 
         return base_context

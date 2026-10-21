@@ -2,7 +2,9 @@
 <div class="ml-4 mt-6 flex flex-col gap-4 flex-row items-center justify-between">
   <div class="text-sm text-base-content/70">
     Showing
-    <span class="font-medium text-base-content">{{ pagination.page_start }} - {{ pagination.page_end }}</span>
+    <span class="font-medium text-base-content" x-text="firstStoryIndex">{{ pagination.page_start }}</span> -
+    <span class="font-medium text-base-content"
+          x-text="Math.min(firstStoryIndex + storyIds.length - 1, {{ pagination.total_count }})">{{ pagination.page_end }}</span>
     of
     <span class="font-medium text-base-content">{{ pagination.total_count }}</span>
   </div>
@@ -27,7 +29,7 @@
         <span>Load more stories</span>
       </a>
     {% else %}
-      <span class="text-sm text-base-content/60">You're all caught up.</span>
+      <span class="text-sm text-base-content/60">End of results.</span>
     {% endif %}
   </div>
 </div>

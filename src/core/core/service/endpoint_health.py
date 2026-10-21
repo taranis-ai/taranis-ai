@@ -25,6 +25,7 @@ MESSAGES = {
     "up": "Endpoint check succeeded.",
     "down": "Endpoint check failed. Check the URL, credentials, model, and service availability. Save to test again.",
     "n/a": "Endpoint checks require an enabled worker queue.",
+    "disabled": "Endpoint disabled. Health checks and bot scheduling are paused.",
 }
 
 
@@ -56,6 +57,8 @@ def read_state(kind: str, endpoint_id: str) -> dict:
 
 
 def get_status(kind: str, endpoint_id: str, config: dict) -> dict:
+    if not config.get("enabled", True):
+        return {"status": "disabled", "message": MESSAGES["disabled"], "checked_at": None}
     state = read_state(kind, endpoint_id)
     status = state.get("status", "pending") if state.get("fingerprint") == fingerprint(config) else "pending"
     if not Config.QUEUE_ENABLED:
@@ -84,7 +87,7 @@ def schedule_check(kind: str, endpoint_id: str) -> None:
     config = endpoint_config(kind, endpoint_id)
     invalidate_frontend_cache_on_success(200, models=("settings", "bot", "core_health", "dashboard", "admin_menu_badges"))
     try:
-        if config is None:
+        if config is None or not config.get("enabled", True):
             qm.redis.delete(state_key(kind, endpoint_id))
             return
         check_id = uuid4().hex
@@ -117,7 +120,7 @@ def record_result(kind: str, endpoint_id: str, check_id: str, healthy: bool) -> 
     if not Config.QUEUE_ENABLED or not qm or not qm.redis:
         return False
     config = endpoint_config(kind, endpoint_id)
-    if config is None:
+    if config is None or not config.get("enabled", True):
         return False
     key = state_key(kind, endpoint_id)
     connection = qm.redis
@@ -140,7 +143,9 @@ def record_result(kind: str, endpoint_id: str, check_id: str, healthy: bool) -> 
 def aggregate_status() -> Literal["up", "down", "n/a"]:
     from core.model.settings import Settings
 
-    statuses = [get_status("llm", key, config) for key, config in Settings.get_settings()["llm_endpoints"].items()]
+    statuses = [
+        get_status("llm", key, config) for key, config in Settings.get_settings()["llm_endpoints"].items() if config.get("enabled", True)
+    ]
     if any(item["status"] in {"down", "pending"} for item in statuses):
         return "down"
     return "up" if statuses else "n/a"

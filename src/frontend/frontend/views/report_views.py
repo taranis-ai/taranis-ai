@@ -1,15 +1,18 @@
+from itertools import batched
 from typing import Any
 
 from flask import Response, abort, make_response, render_template, request, url_for
 from flask.typing import ResponseReturnValue
+from flask_jwt_extended import current_user
 from models.assess import Story
 from models.cti import CTIResponse
-from models.product import Product, ProductType
-from models.report import ReportItem, ReportTypes
+from models.product import ProductChoice
+from models.report import ReportEditor, ReportItem, ReportTypes
 from models.revision_diff import build_report_revision_diff_payload
 from werkzeug.exceptions import Forbidden, HTTPException
 
 from frontend.auth import auth_required
+from frontend.cache_models import PagingData
 from frontend.core_api import CoreApi
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.filters import render_count, render_datetime
@@ -28,6 +31,10 @@ class ReportItemView(BaseView):
 
     base_route = "analyze.analyze"
     edit_route = "analyze.report"
+
+    @classmethod
+    def get_object_by_id(cls, object_id: str) -> ReportEditor | None:
+        return DataPersistenceLayer().get_object(ReportEditor, object_id)
 
     @classmethod
     def get_form_action(cls, object_id: str = "0") -> str:
@@ -137,8 +144,21 @@ class ReportItemView(BaseView):
 
     @classmethod
     def _apply_story_ids_to_report(cls, report: ReportItem, story_ids: Any) -> None:
-        normalized_story_ids = set(cls._normalize_story_ids(story_ids))
-        report.stories = [story for story in DataPersistenceLayer().get_objects(Story) if str(story.id) in normalized_story_ids]
+        dpl = DataPersistenceLayer()
+        stories: list[Story | str] = []
+        # Keep ID queries below proxy URL limits and Core's collection page limit.
+        for batch in batched(dict.fromkeys(cls._normalize_story_ids(story_ids)), 50):
+            paging_data = PagingData(query_params={"story_ids": list(batch), "limit": str(len(batch)), "no_count": "true"})
+            try:
+                selected_stories = dpl.get_objects(Story, paging_data)
+            except ValueError:
+                logger.exception("Failed to load selected stories for report")
+                abort(502, description="Unable to load selected stories.")
+            stories_by_id = {story.id: story for story in selected_stories}
+            if any(story_id not in stories_by_id for story_id in batch):
+                abort(404, description="Selected story not found.")
+            stories.extend(stories_by_id[story_id] for story_id in batch)
+        report.stories = stories
 
     @classmethod
     def get_extra_context(cls, base_context: dict[str, Any]) -> dict[str, Any]:
@@ -153,17 +173,15 @@ class ReportItemView(BaseView):
 
             report = base_context.get("report")
             if report:
-                if cls.is_create_object_id(report.id):
+                if cls.is_create_object_id(report.id) or "PUBLISH_ACCESS" not in (current_user.permissions or []):
                     base_context["existing_products"] = []
                 else:
-                    product_types = {product_type.id: product_type.title for product_type in dpl.get_objects(ProductType)}
-                    products = dpl.get_objects(Product)
                     base_context["existing_products"] = [
                         {
                             "id": product.id,
-                            "name": f"{product.title} ({product_types.get(product.product_type_id, 'Unknown')})",
+                            "name": f"{product.title} ({product.product_type_title})",
                         }
-                        for product in products
+                        for product in dpl.get_objects(ProductChoice)
                         if product.id
                     ]
                 submitted_data = cls._get_normalized_request_values()

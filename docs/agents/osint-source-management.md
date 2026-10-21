@@ -11,10 +11,12 @@ Source administration, bulk creation/deletion, curated lists, source groups, `/a
 - Bulk deletion validates all IDs before mutation and commits atomically. `force` accepts only `true`/`false`; it also removes related news and emptied stories. Queue/scheduler/MISP cleanup runs after commit.
 - Native row deletion redirects to the source list with a success/error flash; successful deletes invalidate the same caches as HTMX deletion.
 - Curated sources/groups use unique stable names as external identities. Loading overlaps/reloads adds missing records/memberships without overwriting fields or removing anything. Renaming catalog entries creates new records on reload.
+- Source-group dropdowns use `GET /config/osint-source-groups/options`: source and collector-includelist IDs/names only, ordered by name, excluding manual sources. Require group, source, and word-list permissions. Select columns directly to avoid status/icon/entry loads; admin mutations retain full cache invalidation.
 - A same-name source with a different collector type (even disabled/manual) rejects the entire curated load with 409 and a rename instruction. Ordinary creation may use catalog names.
 - Curated loading commits reconciliation, then schedules every selected enabled source when queues are enabled. With `QUEUE_ENABLED=false`, loading succeeds without scheduling. Scheduling failure returns 503 without undoing data; repeat loads retry existing sources too. Successful loads invalidate source/group caches.
 - Bulk input errors return 400, core failures retain their status, and transport failures return 502 with the form notification.
 - Detail Collect preserves unsaved edits with a notification-only response. Row/Collect All refresh the table; Collect All retains query parameters. Apply the [shared swap/error rules](frontend-development.md).
+- Manual-source and status filters apply on change with JavaScript; native GET submission remains available through Apply buttons only when JavaScript is disabled. The existing OSINT browser workflow checks that the buttons stay hidden before and after filtering.
 
 - Source details show rolling collection counts for the trailing 24 hours, 7 days, or 30 days, defaulting to week, alongside the lifetime news-item count. Use `NewsItem.collected`, never `NewsItem.published`.
 

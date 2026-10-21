@@ -1,6 +1,6 @@
 from typing import Any
 
-from models.admin import OSINTSource, OSINTSourceGroup, WordList
+from models.admin import OSINTSourceGroup, OSINTSourceGroupOptions
 from werkzeug.exceptions import HTTPException
 
 from frontend.data_persistence import DataPersistenceLayer
@@ -16,28 +16,16 @@ class SourceGroupView(AdminBaseView):
 
     @classmethod
     def get_extra_context(cls, base_context: dict) -> dict[str, Any]:
-        dpl = DataPersistenceLayer()
-        word_lists = []
-        osint_sources = []
-
+        options = OSINTSourceGroupOptions()
         try:
-            word_lists = [
-                w.model_dump(include={"id", "name"}, mode="json") for w in dpl.get_objects(WordList) if "COLLECTOR_INCLUDELIST" in w.usage
-            ]
+            options = DataPersistenceLayer().get_object(OSINTSourceGroupOptions) or options
         except HTTPException:
             raise
         except Exception:
-            logger.exception("Error retrieving word lists for source group form")
+            logger.exception("Error retrieving source group options")
 
-        try:
-            osint_sources = [p.model_dump(include={"id", "name"}, mode="json") for p in dpl.get_objects(OSINTSource)]
-        except HTTPException:
-            raise
-        except Exception:
-            logger.exception("Error retrieving OSINT sources for source group form")
-
-        base_context["osint_sources"] = osint_sources
-        base_context["word_lists"] = word_lists
+        base_context["osint_sources"] = options.osint_sources
+        base_context["word_lists"] = options.word_lists
         return base_context
 
     @classmethod

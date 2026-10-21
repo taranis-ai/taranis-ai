@@ -4,7 +4,7 @@ from typing import Any, ClassVar, Literal
 
 from flask import redirect, render_template, request, url_for
 from flask.typing import ResponseReturnValue
-from models.admin import AdminMenuBadges, OSINTSource, OSINTSourceGroup
+from models.admin import OSINTSource, OSINTSourceGroup
 from models.task import Task
 from models.types import COLLECTOR_TYPES
 from pydantic import ValidationError
@@ -66,18 +66,7 @@ class SourceView(AdminBaseView):
 
     @classmethod
     def get_admin_menu_badge(cls) -> int:
-        try:
-            badges = DataPersistenceLayer().get_object(AdminMenuBadges)
-            if not badges:
-                return 0
-
-            return int(getattr(badges, "osint_source", 0) or 0)
-        except HTTPException:
-            raise
-        except Exception:
-            logger.exception("Error retrieving source admin menu badge")
-
-        return 0
+        return cls.get_admin_menu_badges().osint_source
 
     @classmethod
     def get_admin_menu_badge_route(cls) -> str:

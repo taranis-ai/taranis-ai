@@ -91,6 +91,8 @@ class SettingsView(AdminBaseView):
                     for key in ("name", "base_url", "model", "api_format", "processing_mode", "timeout")
                     if key in request.form
                 }
+                if "enabled" in request.form:
+                    g.llm_form["enabled"] = request.form["enabled"].lower() == "true"
             view, _ = cls.static_view()
             return notification + view, response.status_code
 

@@ -1,4 +1,5 @@
 import json
+from io import BytesIO
 from types import SimpleNamespace
 from typing import Any
 from urllib.parse import parse_qs, urlparse
@@ -13,13 +14,32 @@ from requests import RequestException
 from werkzeug.datastructures import MultiDict
 from werkzeug.exceptions import Forbidden
 
-from frontend.cache import add_user_to_cache
+from frontend.cache import add_user_to_cache, cache
 from frontend.config import Config
 from frontend.views.story_views import ASSESS_SAVED_FILTER_SESSION_KEY, StoryView
 
 
 def expected_search_trigger(input_id: str) -> str:
     return f"input changed delay:500ms from:#{input_id}, search from:#{input_id}"
+
+
+def test_tag_suggestions_preserve_search_query_and_upstream_order(authenticated_client, responses_mock):
+    query = "USA & 50%_#"
+    suggestions = [{"name": query, "story_count": 9}, {"name": "USA & 50%_# partial", "story_count": 1}]
+    responses_mock.get(f"{Config.TARANIS_CORE_URL}/assess/taglist", json=suggestions)
+
+    response = authenticated_client.get(url_for("assess.get_tags"), query_string={"q": query})
+
+    assert response.status_code == 200
+    buttons = html.fromstring(response.text).xpath("//button")
+    assert [button.get("title") for button in buttons] == [tag["name"] for tag in suggestions]
+    assert [button.xpath('.//span[@data-test-id="tag-suggestion-name"]/text()')[0] for button in buttons] == [
+        tag["name"] for tag in suggestions
+    ]
+    counts = [button.xpath('.//span[@data-test-id="tag-suggestion-count"]')[0] for button in buttons]
+    assert [count.text for count in counts] == ["9", "1"]
+    assert [count.get("aria-label") for count in counts] == ["9 matching stories", "1 matching story"]
+    assert parse_qs(urlparse(responses_mock.calls[-1].request.url).query) == {"search": [query]}
 
 
 def test_news_item_order_returns_local_safe_error_when_core_is_unavailable(authenticated_client_basic, responses_mock, htmx_header):
@@ -47,6 +67,99 @@ def mock_story_for_edit(responses_mock, story_payload: dict):
         f"{Config.TARANIS_CORE_URL}/assess/stories/{story_payload['id']}",
         json=story_payload,
     )
+
+
+def test_story_details_share_filter_lists_only_within_each_request(authenticated_client, auth_user, responses_mock, monkeypatch):
+    monkeypatch.setattr(cache, "client", None)
+    responses_mock.get(f"{Config.TARANIS_CORE_URL}/users", json=auth_user.model_dump(mode="json"))
+    story_payload = story_with_news_item_tags()
+    mock_story_for_edit(responses_mock, story_payload)
+    responses_mock.get(f"{Config.TARANIS_CORE_URL}/assess/bookmarks", json={"items": [], "total_count": 0})
+    filter_url = f"{Config.TARANIS_CORE_URL}/assess/filter-lists"
+
+    responses_mock.replace("GET", filter_url, json={"sources": [{"id": "manual", "name": "First source"}], "tags": [], "groups": []})
+    first = authenticated_client.get(url_for("assess.story", story_id=story_payload["id"]))
+    assert first.status_code == 200
+    assert "First source" in first.text
+    assert len([call for call in responses_mock.calls if call.request.url == filter_url]) == 1
+
+    responses_mock.replace("GET", filter_url, json={"sources": [{"id": "manual", "name": "Updated source"}], "tags": [], "groups": []})
+    second = authenticated_client.get(url_for("assess.story", story_id=story_payload["id"]))
+    assert second.status_code == 200
+    assert "Updated source" in second.text
+    assert len([call for call in responses_mock.calls if call.request.url == filter_url]) == 2
+
+
+@pytest.mark.parametrize("htmx", [True, False])
+def test_assess_upstream_failure_returns_safe_error_page(authenticated_client, responses_mock, htmx_header, htmx):
+    responses_mock.get(f"{Config.TARANIS_CORE_URL}/assess/stories", body=RequestException("private upstream details"))
+    responses_mock.get(f"{Config.TARANIS_CORE_URL}/assess/filter-lists", json={"sources": [], "tags": [], "groups": []})
+    responses_mock.get(f"{Config.TARANIS_CORE_URL}/assess/bookmarks", json={"items": [], "total_count": 0})
+    response = authenticated_client.get(url_for("assess.assess"), headers=htmx_header if htmx else {})
+    assert response.status_code == 502
+    assert "Unable to load stories. Please try again." in response.text
+    assert "private upstream details" not in response.text
+    if htmx:
+        tree = html.fromstring(response.text)
+        assert tree.tag == "section" and tree.get("id") == "notification-bar"
+        assert tree.get("hx-swap-oob") is None
+
+        responses_mock.post(f"{Config.TARANIS_CORE_URL}/assess/stories/bulk_action", json={"message": "Stories updated"})
+        response = authenticated_client.post(
+            url_for("assess.bulk_action"), headers=htmx_header, data={"action": "read", "value": "true", "story_ids": ["story-1"]}
+        )
+        assert response.status_code == 502
+        tree = html.fromstring(response.text)
+        assert tree.tag == "section" and tree.get("id") == "notification-bar"
+        assert tree.get("hx-swap-oob") is None
+        assert "Unable to load stories. Please try again." in tree.text_content()
+        assert "Stories updated" not in tree.text_content()
+        assert "private upstream details" not in tree.text_content()
+
+
+@pytest.mark.parametrize(
+    ("return_url", "expected_return"),
+    [
+        (None, "/assess"),
+        ("/assess?search=example&tags=one&tags=two&page=2&read=", "/assess?search=example&tags=one&tags=two&page=2"),
+        ("https://example.com/assess", "/assess"),
+        ("//example.com/assess", "/assess"),
+        ("//[invalid", "/assess"),
+        ("/publish", "/assess"),
+    ],
+)
+def test_story_assess_return_navigation(authenticated_client, responses_mock, return_url, expected_return):
+    mock_story_for_edit(responses_mock, story_with_news_item_tags())
+    responses_mock.get(f"{Config.TARANIS_CORE_URL}/assess/bookmarks", json={"items": [], "total_count": 0})
+    responses_mock.patch(f"{Config.TARANIS_CORE_URL}/assess/stories/story-1", json={"message": "Story updated"})
+
+    response = authenticated_client.get(url_for("assess.story", story_id="story-1", assess_url=return_url))
+    assert {"HX-Request", "HX-Target"} <= set(response.vary)
+    tree = html.fromstring(response.text)
+    assert tree.xpath('//*[@data-test-id="back-to-assess"]/@href') == [expected_return]
+    edit_url = tree.xpath('//*[@data-testid="edit-story"]/@href')[0]
+    response = authenticated_client.get(edit_url)
+    tree = html.fromstring(response.text)
+    assert tree.xpath('//*[@data-test-id="back-to-assess"]/@href') == [expected_return]
+
+    advanced_url = tree.xpath('//a[normalize-space()="Advanced"]/@href')[0]
+    response = authenticated_client.get(advanced_url)
+    tree = html.fromstring(response.text)
+    form_action = tree.xpath('//form[@id="story-edit-form"]/@action')[0]
+    response = authenticated_client.post(
+        form_action,
+        data={"title": "Updated title"},
+        headers={"HX-Request": "true", "HX-Current-URL": f"http://localhost{advanced_url}"},
+    )
+    assert response.status_code == 200
+    tree = html.fromstring(response.text)
+    assert tree.xpath('//*[@data-test-id="back-to-assess"]/@href') == [expected_return]
+
+    response = authenticated_client.post(form_action, data={"title": "Updated title"})
+    assert response.status_code == 302
+    response = authenticated_client.get(response.headers["Location"])
+    tree = html.fromstring(response.text)
+    assert tree.xpath('//*[@data-test-id="back-to-assess"]/@href') == [expected_return]
 
 
 @pytest.mark.parametrize(
@@ -99,6 +212,56 @@ def story_with_news_item_tags() -> dict:
             }
         ],
     }
+
+
+@pytest.mark.parametrize(
+    "source_ids, expected_sources",
+    [
+        ([], []),
+        (["a"], ["a"]),
+        (["b", "a", "b", "a", "a"], ["b", "a"]),
+        (["a", "b", "c", "d", "e"], ["a", "b", "c", "d", "e"]),
+        (["b", "a", "b", "a", "a", "a"], ["a", "b"]),
+        (["a", "b", "c", "d", "e", "f", "f", "e", "f"], ["f", "e", "a", "b", "c"]),
+        (["missing", "missing", "a", "b", "c", "d", "e", "f"], ["a", "b", "c", "d", "e"]),
+        (["missing"], []),
+    ],
+)
+def test_story_card_shows_distinct_top_source_icons(authenticated_client, responses_mock, source_ids, expected_sources):
+    story_payload = story_with_news_item_tags()
+    story_payload["news_items"] = [
+        {"id": f"news-{index}", "story_id": story_payload["id"], "osint_source_id": source_id, "content": "News content"}
+        for index, source_id in enumerate(source_ids)
+    ]
+    mock_story_for_edit(responses_mock, story_payload)
+    responses_mock.get(f"{Config.TARANIS_CORE_URL}/assess/bookmarks", json={"items": [], "total_count": 0})
+    responses_mock.replace(
+        "GET",
+        f"{Config.TARANIS_CORE_URL}/assess/filter-lists",
+        json={
+            "tags": [],
+            "groups": [],
+            "sources": [
+                {"id": source_id, "name": f"Source {source_id}", "icon": "aWNvbg==" if source_id == "a" else None} for source_id in "abcdef"
+            ],
+        },
+    )
+
+    response = authenticated_client.get(url_for("assess.story", story_id=story_payload["id"]))
+
+    assert response.status_code == 200
+    tree = html.fromstring(response.text)
+    source_icons = tree.xpath('//*[@data-test-id="story-source-icons"]')
+    if not expected_sources:
+        assert not source_icons
+        return
+    icons = source_icons[0]
+    assert icons.xpath("./*/@data-tip") == [f"Source {source_id}" for source_id in expected_sources]
+    assert icons.xpath("./*/img/@tabindex | ./*/span/@tabindex") == ["0"] * len(expected_sources)
+    assert "Source" not in icons.text_content()
+    assert icons.xpath("./*/img/@alt | ./*/span/@aria-label") == [f"Source {source_id}" for source_id in expected_sources]
+    if "a" in expected_sources:
+        assert icons.xpath('./*/img[@alt="Source a"]/@src') == ["data:image/png;base64,aWNvbg=="]
 
 
 def _bookmark_collection_payload(bookmark_id: str, name: str, story_count: int, position: int = 0) -> dict:
@@ -396,38 +559,19 @@ def test_news_item_card_hides_author_when_missing_or_empty(app):
         assert "Author ·" not in tree.text_content()
 
 
-def test_manual_news_item_form_routes_htmx_errors_to_notification_bar(authenticated_client):
+def test_news_item_creation_forms_route_htmx_errors_to_notification_bar(authenticated_client):
     response = authenticated_client.get(url_for("assess.get_news_item", news_item_id="0"))
 
     assert response.status_code == 200
 
     tree = html.fromstring(response.text)
-    form = tree.xpath('//form[@id="news-item-form"]')
-    file_form = tree.xpath('//form[@hx-encoding="multipart/form-data"]')
-    url_form = tree.xpath('//form[@id="news-item-create-from-url-form"]')
-    url_parameters_dialog = tree.xpath('//dialog[@id="create_from_url_parameters_dialog"]')
+    for selector in ('@id="news-item-form"', '@hx-encoding="multipart/form-data"', '@id="news-item-create-from-url-form"'):
+        forms = tree.xpath(f"//form[{selector}]")
+        assert len(forms) == 1
+        for status in ("400", "4xx", "5xx"):
+            assert forms[0].get(f"hx-status:{status}") == "target:#notification-bar"
 
-    assert len(form) == 1
-    assert form[0].get("hx-status:400") == "target:#notification-bar"
-    assert form[0].get("hx-status:4xx") == "target:#notification-bar"
-    assert form[0].get("hx-status:5xx") == "target:#notification-bar"
-    assert len(file_form) == 1
-    assert file_form[0].get("hx-status:400") == "target:#notification-bar"
-    assert file_form[0].get("hx-status:4xx") == "target:#notification-bar"
-    assert file_form[0].get("hx-status:5xx") == "target:#notification-bar"
-    assert len(url_form) == 1
-    assert url_form[0].get("hx-status:400") == "target:#notification-bar"
-    assert url_form[0].get("hx-status:4xx") == "target:#notification-bar"
-    assert url_form[0].get("hx-status:5xx") == "target:#notification-bar"
-    assert url_form[0].xpath('.//input[@name="fetch_url"]')
-    assert len(url_parameters_dialog) == 1
-    assert url_parameters_dialog[0].xpath('.//*[@name="parameters[XPATH]"]')
-    assert url_parameters_dialog[0].xpath('.//*[@name="parameters[BROWSER_MODE]"]')
-    additional_headers_input = url_parameters_dialog[0].xpath('.//input[@name="parameters[ADDITIONAL_HEADERS]"]')
-    assert len(additional_headers_input) == 1
-    assert not url_parameters_dialog[0].xpath('.//textarea[@name="parameters[ADDITIONAL_HEADERS]"]')
-
-    source_input = form[0].xpath('.//input[@name="source"]')
+    source_input = tree.xpath('//form[@id="news-item-form"]//input[@name="source"]')
     assert len(source_input) == 1
     assert source_input[0].get("required") is None
 
@@ -633,6 +777,35 @@ def test_update_news_item_tags_propagates_core_error_and_does_not_rerender_card(
     assert 'id="news-item-card-news-1"' not in response.text
 
 
+@pytest.mark.parametrize("infinite_scroll", [True, False])
+def test_assess_later_page_explains_missing_earlier_results(authenticated_client, auth_user, responses_mock, infinite_scroll):
+    user = auth_user.model_copy(deep=True)
+    user.profile.infinite_scroll = infinite_scroll
+    add_user_to_cache(user.model_dump(mode="json"))
+    responses_mock.get(f"{Config.TARANIS_CORE_URL}/assess/filter-lists", json={"tags": [], "sources": [], "groups": []})
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/assess/stories",
+        json={"items": [{**story_with_news_item_tags(), "id": f"story-{index}"} for index in range(15)], "total_count": 55},
+    )
+
+    response = authenticated_client.get(url_for("assess.assess", search="web", tags=["one", "two"], sort="date_desc", page=2))
+
+    assert response.status_code == 200
+    tree = html.fromstring(response.text)
+    notice = tree.xpath('//*[@data-test-id="assess-resume-position"]')
+    assert bool(notice) is infinite_scroll
+    count = tree.xpath('//*[@data-testid="assess_story_count"]')[0]
+    assert ("Stories loaded" in count.text_content()) is infinite_scroll
+    if infinite_scroll:
+        assert "Starting at result 41 of 55." in " ".join(notice[0].text_content().split())
+        assert "Earlier results are not loaded." in notice[0].text_content()
+        restart = notice[0].xpath(".//a")[0]
+        assert urlparse(restart.get("href")).path == url_for("assess.assess")
+        assert parse_qs(urlparse(restart.get("href")).query) == {"search": ["web"], "tags": ["one", "two"], "sort": ["date_desc"]}
+        assert "End of results." in response.text
+        assert 'id="infinite-scroll-trigger"' not in response.text
+
+
 def test_assess_filters_support_htmx_and_native_form_submission(authenticated_client, responses_mock):
     responses_mock.get(
         f"{Config.TARANIS_CORE_URL}/assess/filter-lists",
@@ -672,6 +845,11 @@ def test_assess_filters_support_htmx_and_native_form_submission(authenticated_cl
     assert clear_button.get("hx-include") == "#assess-sidebar"
     assert filter_form.get("hx-target:inherited") == "#assess"
     assert filter_form.get("hx-swap:inherited") == "outerHTML"
+    notification_rule = "target:#notification-bar select:#notification-bar swap:outerHTML"
+    assert filter_form.get("hx-status:5xx:inherited") == notification_rule
+    buttons = tree.xpath('//button[@data-testid="bulk-toggle-read" or @data-testid="bulk-toggle-important" or @data-testid="delete-story"]')
+    assert len(buttons) >= 3
+    assert all(button.get("hx-status:5xx") == notification_rule for button in buttons)
     assert filter_form.get("hx-push-url:inherited") == "true"
     assert clear_button.get("hx-on::config:request") == (
         "ctx.request.body.delete('timefrom'); ctx.request.body.delete('timeto'); ctx.request.body.delete('range')"
@@ -716,6 +894,78 @@ def test_story_read_action_replaces_story_card(app):
     assert toggle_read.get("hx-target") == "#story-1"
     assert toggle_read.get("hx-select") == "#story-1"
     assert toggle_read.get("hx-swap") == "outerHTML"
+
+
+@pytest.mark.parametrize("method", ["GET", "POST", "PUT"])
+def test_assess_tag_filters_highlight_matches_beyond_collapsed_limit(authenticated_client, responses_mock, method):
+    story_payload = story_with_news_item_tags()
+    story_payload["tags"] = [{"name": f"tag-{index}", "tag_type": "misc"} for index in range(24)]
+    story_payload["tags"][-1]["tag_type"] = "actor"
+    mock_story_for_edit(responses_mock, story_payload)
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/assess/stories",
+        json={"items": [story_payload], "total_count": 1},
+    )
+    assess_url = url_for("assess.assess", tags=["tag-22", "actor"])
+    return_url = url_for("assess.assess", tags=["tag-22", "actor"], page=2)
+    if method != "GET":
+        responses_mock.patch(f"{Config.TARANIS_CORE_URL}/assess/stories/story-1", json={"message": "Story updated"})
+        response = authenticated_client.open(
+            url_for("assess.story", story_id="story-1", assess_url=return_url),
+            method=method,
+            data={"read": "true"},
+            headers={"HX-Request": "true", "HX-Current-URL": f"http://localhost{assess_url}"},
+        )
+    else:
+        response = authenticated_client.get(assess_url)
+
+    assert response.status_code == 200
+    tree = html.fromstring(response.text)
+    card = tree.xpath('//*[@data-story-id="story-1"]')[0]
+    matched = card.xpath('.//a[contains(@class, "badge-primary")]')
+    assert [tag.text_content().strip() for tag in matched] == ["tag-22", "tag-23"]
+    assert all(tag.get("x-show").endswith("true") and tag.get("x-cloak") is None for tag in matched)
+    assert card.xpath('.//*[@data-testid="toggle-story-tags"]/text()') == ["+17"]
+    if method != "GET":
+        for action in ("open-detail-view", "edit-story"):
+            action_url = card.xpath(f'.//*[@data-testid="{action}"]/@href')[0]
+            assert parse_qs(urlparse(action_url).query)["assess_url"] == [return_url]
+
+
+@pytest.mark.parametrize("has_remaining_story", [True, False])
+def test_delete_story_preserves_assess_filters(authenticated_client, responses_mock, has_remaining_story):
+    story_payload = story_with_news_item_tags()
+    filters = {
+        "search": "incident",
+        "source": ["source-1", "source-2"],
+        "language": ["en", "de"],
+        "tags": ["actor", "item-tag"],
+        "read": "false",
+        "sort": "date_desc",
+    }
+    responses_mock.delete(f"{Config.TARANIS_CORE_URL}/assess/story/deleted-story", json={"message": "Story deleted"})
+    responses_mock.get(f"{Config.TARANIS_CORE_URL}/assess/filter-lists", json={"tags": [], "sources": [], "groups": []})
+    responses_mock.get(f"{Config.TARANIS_CORE_URL}/assess/bookmarks", json={"items": [], "total_count": 0})
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/assess/stories",
+        json={"items": [story_payload] if has_remaining_story else [], "total_count": int(has_remaining_story)},
+    )
+
+    response = authenticated_client.delete(
+        url_for("assess.story_delete", story_id="deleted-story"),
+        headers={"HX-Request": "true", "HX-Current-URL": url_for("assess.assess", **filters, _external=True)},
+    )
+
+    assert response.status_code == 200
+    assert "Story deleted" in response.text
+    story_request = next(call for call in responses_mock.calls if urlparse(call.request.url).path.endswith("/assess/stories"))
+    assert parse_qs(urlparse(story_request.request.url).query) == {
+        key: value if isinstance(value, list) else [value] for key, value in filters.items()
+    }
+    tree = html.fromstring(response.text)
+    assert len(tree.xpath('//*[@data-story-id="story-1"]')) == int(has_remaining_story)
+    if not has_remaining_story:
+        assert "No stories found." in response.text
 
 
 def test_assess_bookmarks_bar_renders_first_six_ordered_collections(authenticated_client, responses_mock):
@@ -1061,7 +1311,7 @@ def test_assess_saved_filter_update_button_reuses_save_endpoint(authenticated_cl
 
     response = authenticated_client.get(url_for("assess.saved_filters", search="incident"))
     tree = html.fromstring(response.text)
-    update_button = tree.xpath('//button[normalize-space()="Update"]')[0]
+    update_button = tree.xpath('//button[normalize-space()="Replace with current filters"]')[0]
     update_values = update_button.get("hx-vals")
 
     assert update_button.get("hx-post") == url_for("assess.save_saved_filter")
@@ -1085,6 +1335,32 @@ def test_table_search_bar_uses_form_level_search_trigger(app):
     assert form.get("action") == "/frontend/admin/osint-sources"
     assert form.get("hx-on:submit") is None
     assert search_input.get("hx-trigger") is None
+
+
+@pytest.mark.parametrize(
+    "content, status",
+    [
+        (b'{"content": "Imported news"}', 204),
+        (b"\xff\xfe\x00", 400),
+    ],
+)
+def test_create_news_item_from_file_validates_json_content(authenticated_client, responses_mock, htmx_header, content, status):
+    if status == 204:
+        responses_mock.post(f"{Config.TARANIS_CORE_URL}/assess/import", json={"message": "Imported"})
+
+    response = authenticated_client.post(
+        url_for("assess.create_news_item"),
+        data={"file": (BytesIO(content), "news.json", "application/octet-stream")},
+        headers=htmx_header,
+    )
+
+    assert response.status_code == status
+    if status == 204:
+        assert response.headers["HX-Redirect"] == url_for("assess.assess")
+        assert json.loads(responses_mock.calls[0].request.body) == {"content": "Imported news"}
+    else:
+        assert "Invalid JSON file." in response.text
+        assert not responses_mock.calls
 
 
 def test_create_news_item_from_url_posts_simple_web_collector_payload(authenticated_client, responses_mock):
@@ -1116,11 +1392,26 @@ def test_create_news_item_from_url_posts_simple_web_collector_payload(authentica
             "WEB_URL": "https://example.com/story",
             "XPATH": "//article",
             "TLP_LEVEL": "green",
-            "BROWSER_MODE": "true",
-            "DIGEST_SPLITTING": "false",
-            "DIGEST_SPLITTING_LIMIT": "30",
+            "BROWSER_MODE": True,
+            "DIGEST_SPLITTING": False,
+            "DIGEST_SPLITTING_LIMIT": 30,
         },
     }
+
+
+@pytest.mark.parametrize(
+    "parameters, message",
+    [
+        ({"parameters[ADDITIONAL_HEADERS]": "invalid"}, "Additional headers"),
+        ({"parameters[DIGEST_SPLITTING]": "true"}, "XPath selecting article links is required"),
+        ({"parameters[DIGEST_SPLITTING_LIMIT]": "0"}, "Digest splitting limit"),
+    ],
+)
+def test_url_collection_rejects_invalid_settings_without_contacting_core(authenticated_client, responses_mock, parameters, message):
+    response = authenticated_client.post(url_for("assess.create_news_item"), data={"fetch_url": "https://example.com/story", **parameters})
+    assert response.status_code == 400
+    assert message in html.fromstring(response.text).text_content()
+    assert not responses_mock.calls
 
 
 def test_story_share_page_loads_connectors_from_assess_endpoint(authenticated_client_basic, responses_mock):

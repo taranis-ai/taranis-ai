@@ -13,6 +13,7 @@ def main() -> None:
             "DEBUG": True,
             "SERVER_NAME": os.environ["TARANIS_E2E_SERVER_NAME"],
             "TESTING": True,
+            "CHAT_ENABLED": True,
         }
     )
     server = make_server("127.0.0.1", 0, app, threaded=True, fd=socket_fd)

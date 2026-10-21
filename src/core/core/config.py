@@ -162,7 +162,7 @@ class Settings(BaseSettings):
     QUEUE_ENABLED: bool = True
     REDIS_URL: str = "redis://localhost:6379"
     REDIS_PASSWORD: SecretStr | None = None
-    RQ_DEFAULT_JOB_TIMEOUT: int = 180
+    RQ_DEFAULT_JOB_TIMEOUT: int = 1800
     TASK_HISTORY_RETENTION_DAYS: Annotated[int, Field(gt=0)] = 30
     CACHE_ENABLED: bool = CACHE_ENABLED_DEFAULT
     CACHE_DEFAULT_TIMEOUT: int = CACHE_DEFAULT_TIMEOUT_DEFAULT

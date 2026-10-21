@@ -26,12 +26,15 @@ Taranis uses HTMX 4:
 
 Shared table navigation retains native links/GET forms and `restoreSearchAfterSwap`; `hx-preserve` does not replace request-derived search restoration. Page-size events stay local to the form. Import controls retain the list URL for refresh after success. Assess token filters still require JavaScript.
 
+HTML responses vary on `HX-Request` and `HX-Target`, including in DEBUG, so HTTP caches select the matching response instead of serving an HTMX fragment for a full-page request. Production dynamic responses also retain `Cache-Control: no-store`.
+
 Preserve selected IDs and retry context on validation errors. Report/clustering dialogs close only on success. Non-HTMX forms retain CSRF protection and safe result/retry redirects.
 
 ## Specific Integration Traps
 
 - Analyze Clone Report and row/bulk delete return `analyze/report_table.html` including `#report`; replace that wrapper with outerHTML.
 - Analyze New Report and Assess Add to Report share `analyze/report.html`. Report Type is required in both UI and core; the existing `test_user_analyze` workflow covers both entry paths.
+- New Reports from Assess resolve selected Stories through `DataPersistenceLayer.get_objects` with explicit `story_ids`, `limit`, and `no_count` parameters in batches of 50, keeping queries within proxy URL and Core page limits. Deduplicate IDs and restore selection order after fetching; layout switches preserve the unsaved selection. The Assess collection ignores `fetch_all` and defaults to 20 Stories; never use its unfiltered first page to resolve a selection. Missing or invisible Stories fail the preview with 404; collection access denial remains 403 and fetch failures return a static 502 rather than opening a partial form. Request-level coverage in `test_report_view.py` exercises selections across multiple batches; `test_user_analyze` verifies both selected Stories persist after creation and reload.
 
 ## Entry Points and Verification
 

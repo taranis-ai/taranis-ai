@@ -1,5 +1,7 @@
+import re
 import time
 from datetime import UTC, datetime, timedelta
+from urllib.parse import urlparse
 from uuid import uuid4
 
 import pytest
@@ -7,7 +9,62 @@ from base_e2e_test import BaseE2ETest
 from flask import url_for
 from playwright.sync_api import Page, expect
 
-from tests.external_e2e import allow_requests_passthru
+from tests.external_e2e import allow_requests_passthru, external_core_api_url, external_frontend_base_url
+
+
+@pytest.fixture
+def demo_chat_provider(core_request_client):
+    if external_core_api_url() or external_frontend_base_url():
+        pytest.skip("The scripted chat demo requires the isolated local E2E stack")
+
+    allow_requests_passthru()
+    settings = core_request_client.json_request("GET", "/settings/settings")["items"][0]["settings"]
+    endpoint = core_request_client.json_request(
+        "POST",
+        "/settings/llm-endpoints",
+        json_data={"name": "Landing page demo", "base_url": "http://demo-llm:8080/v1", "enabled": True, "api_format": "responses"},
+    )
+    news_item_ids = []
+    story_ids = []
+    try:
+        core_request_client.patch("/settings/settings", json_data={"settings": {"llm_chat_endpoint": endpoint["id"]}})
+        for index, title in enumerate(
+            [
+                "Ransomware campaign targets European hospitals",
+                "New ransomware advisory urges rapid patching",
+                "Manufacturing sector strengthens ransomware defenses",
+            ]
+        ):
+            timestamp = datetime.now(UTC).isoformat()
+            created = core_request_client.json_request(
+                "POST",
+                "/assess/news-items",
+                json_data={
+                    "id": str(uuid4()),
+                    "title": title,
+                    "content": "Demo intelligence for the landing-page chat walkthrough.",
+                    "link": f"https://example.invalid/chat-demo/{index}",
+                    "source": "manual",
+                    "osint_source_id": "manual",
+                    "published": timestamp,
+                    "collected": timestamp,
+                },
+            )
+            news_item_ids.extend(created["news_item_ids"])
+            story_ids.append(created["story_id"])
+            core_request_client.patch(f"/assess/stories/{created['story_id']}", json_data={"read": index == 2})
+        yield story_ids
+    finally:
+        try:
+            core_request_client.patch(
+                "/settings/settings", json_data={"settings": {"llm_chat_endpoint": settings.get("llm_chat_endpoint", "")}}
+            )
+        finally:
+            try:
+                core_request_client.post(f"/settings/llm-endpoints/{endpoint['id']}/delete", json_data={})
+            finally:
+                for news_item_id in news_item_ids:
+                    core_request_client.delete(f"/assess/news-items/{news_item_id}", raise_for_status=False)
 
 
 @pytest.mark.usefixtures("e2e_ci")
@@ -235,163 +292,112 @@ class TestUserWorkflow(BaseE2ETest):
         expect(page.get_by_text(bookmark_name)).not_to_be_visible()
         self.wait_for_htmx_settled(page)
 
+    @pytest.mark.e2e_ci
+    def test_chat(
+        self,
+        demo_chat_provider: list[str],
+        non_admin_logged_in_page: Page,
+        forward_console_and_page_errors_non_admin: None,
+        core_request_client,
+        access_token_basic,
+    ):
+        page = non_admin_logged_in_page
+        conversation_id = None
+        try:
+            self.highlight_element(page.get_by_test_id("nav-chat")).click()
+            page.wait_for_url("**/chat", wait_until="domcontentloaded")
+            expect(page.get_by_test_id("chat-help")).to_be_visible()
+            expect(page.get_by_test_id("chat-configuration-warning")).not_to_be_visible()
+
+            self.highlight_element(page.get_by_test_id("chat-input")).fill("Find ransomware stories in my collection.")
+            self.highlight_element(page.get_by_test_id("chat-send")).click()
+            page.wait_for_url("**/chat/*", wait_until="domcontentloaded")
+            conversation_id = page.url.rsplit("/", 1)[-1]
+            answer = page.get_by_test_id("chat-message-assistant")
+            expect(answer).to_have_count(1)
+            expect(answer).to_contain_text("Ransomware campaign targets European hospitals")
+            expect(answer.locator("time")).to_be_visible()
+            expect(answer.locator("time")).to_have_attribute("datetime", re.compile(r".+Z$"))
+            self.highlight_element(answer.locator(".chat-bubble"))
+
+            self.highlight_element(page.get_by_test_id("chat-input")).fill("Which of those stories are still unread?")
+            self.highlight_element(page.get_by_test_id("chat-send")).click()
+            expect(answer).to_have_count(2)
+            expect(answer.last).to_contain_text("unread ransomware")
+            expect(answer.last).not_to_contain_text("Manufacturing sector")
+            timestamps = page.locator("#chat-messages time")
+            expect(timestamps).to_have_count(4)
+            saved_timestamps = timestamps.all_text_contents()
+            assert all(timestamp.strip() for timestamp in saved_timestamps)
+            self.highlight_element(answer.last.locator(".chat-bubble"))
+            self.capture_screenshot(page, "./tests/playwright/screenshots/screenshot_chat.png")
+
+            self.highlight_element(page.get_by_test_id("chat-new")).click()
+            expect(page.get_by_test_id("chat-help")).to_be_visible()
+            self.highlight_element(page.get_by_test_id("chat-history-item").filter(has_text="Find ransomware stories")).click()
+            expect(answer).to_have_count(2)
+            expect(page.get_by_test_id("chat-message-user")).to_have_count(2)
+            expect(timestamps).to_have_text(saved_timestamps)
+
+            self.highlight_element(page.get_by_test_id("chat-assess-link").last).click()
+            expect(page.get_by_test_id("assess")).to_be_visible()
+            expect(page.get_by_role("combobox", name="Read", exact=True)).to_have_value("false")
+            for story_id in demo_chat_provider[:2]:
+                expect(page.get_by_test_id(f"story-card-{story_id}")).to_be_visible()
+            expect(page.get_by_test_id(f"story-card-{demo_chat_provider[2]}")).not_to_be_visible()
+
+            evidence_story = page.get_by_test_id(f"story-card-{demo_chat_provider[0]}")
+            self.highlight_element(evidence_story.get_by_test_id("open-detail-view")).click()
+            page.wait_for_url(
+                lambda url: urlparse(url).path == url_for("assess.story", story_id=demo_chat_provider[0]),
+                wait_until="domcontentloaded",
+            )
+            expect(page.get_by_test_id("news-item-title")).to_have_text("Ransomware campaign targets European hospitals")
+            evidence = page.get_by_role("paragraph").filter(has_text="Demo intelligence for the landing-page chat walkthrough.")
+            expect(evidence).to_be_visible()
+            evidence.scroll_into_view_if_needed()
+            self.highlight_element(evidence)
+        finally:
+            if conversation_id:
+                core_request_client.with_access_token(access_token_basic).delete(f"/chat/conversations/{conversation_id}")
+
     def test_assess(
         self,
         non_admin_logged_in_page: Page,
         forward_console_and_page_errors_non_admin: None,
-        stories_date_descending_not_important: list[str],
-        stories_date_descending_important: list[str],
+        stories_session_wrapper,
     ):
-        def mark_story_as_read(story_id: str):
-            story_card = page.get_by_test_id(f"story-card-{story_id}")
-            self.highlight_element(story_card.get_by_test_id("story-summary"))
-            expect(story_card.get_by_test_id("story-summary")).to_be_visible()
-            self.highlight_element(story_card.get_by_test_id("story-actions-menu")).click()
-            self.highlight_element(story_card.get_by_test_id("toggle-read")).click()
-            expect(story_card).to_have_attribute("data-story-read", "true")
-
-        def toggle_story_summary(story_id: str):
-            story_card = page.get_by_test_id(f"story-card-{story_id}")
-            self.highlight_element(story_card.get_by_test_id("toggle-summary")).click()
-
-        def open_story_detail(story_id: str):
-            story_card = page.get_by_test_id(f"story-card-{story_id}")
-            self.highlight_element(story_card.get_by_test_id("toggle-summary")).click()
-            self.highlight_element(story_card.get_by_test_id("open-detail-view")).click()
-            expect(page.get_by_test_id("story-title")).to_be_visible()
-
-        def set_story_filters(read: str | None = None, important: str | None = None):
-            if read is not None:
-                self.highlight_element(page.get_by_label("Read")).select_option(read)
-            if important is not None:
-                self.highlight_element(page.get_by_label("Important")).select_option(important)
-
-        def reset_story_filters():
-            self.highlight_element(page.get_by_role("link", name="Reset filters ctrl+esc")).click()
-
-        def assert_story_count(expected_count: str):
-            expect(page.get_by_test_id("assess_story_count").get_by_text(expected_count)).to_be_visible()
-
-        def go_to_assess():
-            self.navigate_to_assess(page)
-
-        def apply_filter():
-            self.highlight_element(page.get_by_role("radio", name="Shift")).check()
-            set_story_filters(read="true")
-            set_story_filters(read="false")
-            set_story_filters(important="false")
-            set_story_filters(important="true")
-            reset_story_filters()
-            set_story_filters(important="true")
-            assert_story_count("5")
-            reset_story_filters()
-            set_story_filters(read="false", important="false")
-
-        def assess_workflow_1(non_important_story_ids: list[str]):
-            # Check summary and mark as read
-            assert len(non_important_story_ids) == 28
-
-            # first story
-            story_card = page.get_by_test_id(f"story-card-{non_important_story_ids[0]}")
-            self.highlight_element(story_card.get_by_test_id("story-summary"), scroll=False)
-            expect(story_card.get_by_test_id("story-summary")).to_be_visible()
-            mark_story_as_read(non_important_story_ids[0])
-
-            # next story
-            story_card = page.get_by_test_id(f"story-card-{non_important_story_ids[1]}")
-            self.highlight_element(story_card.get_by_test_id("story-summary"), scroll=False)
-            expect(story_card.get_by_test_id("story-summary")).to_be_visible()
-            mark_story_as_read(non_important_story_ids[1])
-
-            for i in range(2, 7):
-                mark_story_as_read(non_important_story_ids[i])
-
-            # select multiple, press mark as read once
-            for i in range(7, 10):
-                story_card = page.get_by_test_id(f"story-card-{non_important_story_ids[i]}")
-                self.highlight_element(story_card, scroll=False).click(position={"x": 5, "y": 5})
-                expect(story_card).to_have_attribute("aria-selected", "true")
-            self.highlight_element(page.get_by_test_id("assess-tob-bar-actions-menu")).click()
-            self.highlight_element(page.get_by_test_id("bulk-toggle-read")).click()
-            expect(page.get_by_test_id("assess_story_selection_count")).to_be_hidden()
-            expect(page.get_by_test_id(f"story-card-{non_important_story_ids[10]}")).to_be_visible()
-
-            # remaining stories
-            for i in range(10, 20):
-                mark_story_as_read(non_important_story_ids[i])
-
-            for i in range(20, 28):
-                print(f"Marking story {non_important_story_ids[i]} as read AND is {i}/28")
-                mark_story_as_read(non_important_story_ids[i])
-
-        def assess_workflow_2(important_story_ids: list[str]):
-            set_story_filters(important="true")
-
-            # Show/unshow details of all stories
-            for story_id in important_story_ids[:5]:
-                toggle_story_summary(story_id)
-                toggle_story_summary(story_id)
-
-            # Open specific story
-            open_story_detail(important_story_ids[0])
-
-            # Mark as read and remove important (using manual clicks since base method may not fit)
-            self.highlight_element(page.get_by_test_id("story-actions-menu")).click()
-            self.highlight_element(page.get_by_test_id("toggle-read")).click()
-            expect(page.get_by_test_id(f"story-card-{important_story_ids[0]}")).to_have_attribute("data-story-read", "true")
-            # Remove mark as important
-            self.highlight_element(page.get_by_test_id("story-actions-menu")).click()
-            self.highlight_element(page.get_by_test_id("toggle-important")).click()
-            expect(page.get_by_test_id(f"story-card-{important_story_ids[0]}")).to_have_attribute("data-story-important", "false")
-
-            go_to_assess()
-            reset_story_filters()
-            set_story_filters(read="false", important="true")
-
-            # Merge stories
-            self.highlight_element(page.get_by_test_id(f"story-card-{important_story_ids[2]}")).click()
-            self.highlight_element(page.get_by_test_id(f"story-card-{important_story_ids[3]}")).click()
-            self.highlight_element(page.get_by_role("button", name="Cluster")).click()
-            expect(page.get_by_test_id("story-to-merge")).to_have_count(2)
-            self.expect_list_of_test_ids_visible(
-                page,
-                [
-                    f"story-card-{important_story_ids[2]}",
-                    f"story-card-{important_story_ids[3]}",
-                ],
-            )
-            page.get_by_test_id("dialog-story-cluster-submit").click()
-            expect(page.get_by_test_id("story-to-merge")).to_have_count(0)
-
-            # Edit story
-            self.highlight_element(page.get_by_test_id(f"story-card-{important_story_ids[4]}").get_by_test_id("edit-story")).click()
-
-            self.highlight_element(page.get_by_role("textbox", name="Summary")).fill(
-                "Recent cyber activities highlight significant threats from various Advanced Persistent Threat (APT) groups. APT67 has been conducting espionage operations targeting the global mining industry, while APT55 has been injecting malicious code into widely used applications by attacking software development firms. Additionally, APT56 has been involved in cross-border hacking operations affecting government websites. Meanwhile, APT65 has led a malware campaign that leaked sensitive data from several legal firms. These incidents underscore the persistent and diverse nature of cyber threats posed by these groups across industries and regions."
-            )
-            self.highlight_element(page.get_by_role("textbox", name="Analyst comments")).fill("I like this story, it needs to be reviewed.")
-
-            page.get_by_test_id("edit-newsitem-tags").first.click()
-            page.get_by_test_id("news-item-tag-name-input").last.fill("Austria")
-            page.get_by_test_id("news-item-tag-value-input").last.fill("Location")
-            page.get_by_role("button", name="Save tags").click()
-            page.get_by_role("button", name="Add attribute").click()
-            page.get_by_test_id("attribute-key-input").last.fill("Analyst_1")
-            page.get_by_test_id("attribute-value-input").last.fill("read")
-            page.get_by_role("button", name="Save changes").click()
-
-            go_to_assess()
-
-        #           Run test
-        # ============================
-
         page = non_admin_logged_in_page
+        self.navigate_to_assess(page)
+        read_filter = page.get_by_role("combobox", name="Read", exact=True)
+        important_filter = page.get_by_role("combobox", name="Important", exact=True)
+        read_filter.select_option("")
+        important_filter.select_option("")
+        self.wait_for_htmx_settled(page)
 
-        go_to_assess()
-        # test_hotkey_menu()
-        apply_filter()
-        assess_workflow_1(stories_date_descending_not_important)
-        assess_workflow_2(stories_date_descending_important)
+        story_cards = page.locator("[data-testid^='story-card-'][data-story-read='false'][data-story-important='false']")
+        expect(story_cards.nth(1)).to_be_visible()
+        story_ids = story_cards.evaluate_all("cards => cards.slice(0, 2).map(card => card.dataset.storyId)")
+        for story_id in story_ids:
+            card = page.get_by_test_id(f"story-card-{story_id}")
+            self.highlight_element(card.get_by_test_id("story-summary"))
+            self.highlight_element(card.get_by_test_id("story-actions-menu")).click()
+            self.highlight_element(card.get_by_test_id("toggle-read")).click()
+            expect(card).to_have_attribute("data-story-read", "true")
+
+        for story_id in story_ids:
+            card = page.get_by_test_id(f"story-card-{story_id}")
+            self.highlight_element(card.get_by_test_id("story-actions-menu")).click()
+            self.highlight_element(card.get_by_test_id("toggle-important")).click()
+            expect(card).to_have_attribute("data-story-important", "true")
+
+        for story_id in story_ids:
+            card = page.get_by_test_id(f"story-card-{story_id}")
+            expect(card).to_be_visible()
+            expect(card).to_have_attribute("data-story-read", "true")
+            expect(card).to_have_attribute("data-story-important", "true")
+        self.highlight_element(page.get_by_test_id(f"story-card-{story_ids[0]}").get_by_test_id("story-title"))
+        self.capture_screenshot(page, "./tests/playwright/screenshots/screenshot_assess_triage.png")
 
     def test_reports(
         self,

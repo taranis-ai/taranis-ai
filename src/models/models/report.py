@@ -59,3 +59,8 @@ class ReportItem(TaranisBaseModel):
     grouped_attributes: list[ReportItemAttributeGroup] | None = None
     attributes: list[ReportItemAttribute] | dict[str, str] = Field(default_factory=list)
     report_item_cpes: list[ReportItemCpe] | None = None
+
+
+class ReportEditor(ReportItem):
+    _core_endpoint: ClassVar[str] = "/analyze/report-editors"
+    _model_name: ClassVar[str] = "report_editor"

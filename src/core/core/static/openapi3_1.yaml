@@ -444,6 +444,34 @@ paths:
           $ref: '#/components/responses/401Unauthorized'
         '404':
           $ref: '#/components/responses/404NotFound'
+  /analyze/report-editors/{report_item_id}:
+    parameters:
+    - name: report_item_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    get:
+      security:
+      - UserAuth: []
+      tags:
+      - analyze
+      operationId: analyze.report_editor.get
+      description: Read the report form with linked Story summaries. Requires ANALYZE_ACCESS and report ACL/TLP access. Full Story content remains available from the report-items detail endpoint.
+      responses:
+        '200':
+          description: Report form fields, grouped_attributes, used_story_ids, revision_count, and stories containing only id, title, summary, important, and links.
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: Report access denied
+        '404':
+          $ref: '#/components/responses/404NotFound'
   /analyze/report-items:
     get:
       security:
@@ -2454,6 +2482,31 @@ paths:
           description: forbidden
         '404':
           $ref: '#/components/responses/404NotFound'
+  /worker/bot-pipeline/stories:
+    post:
+      security:
+      - APIKey: []
+      description: Select the union of stories for a bot pipeline in one worker response
+      operationId: worker.bot_pipeline_stories_worker.post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [filters]
+              properties:
+                filters:
+                  type: object
+                  additionalProperties:
+                    type: object
+      responses:
+        '200':
+          description: Selected stories, per-bot story IDs, and story revisions
+        '400':
+          description: Invalid filters
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
   /worker/tags:
     get:
       security:
@@ -2471,6 +2524,13 @@ paths:
       tags: [bots]
       description: update tags keyed by news item id
       operationId: worker.tags_worker.put
+      parameters:
+      - name: replace
+        in: query
+        description: Set false to add tags while preserving existing tags
+        schema:
+          type: boolean
+          default: true
       requestBody:
         content:
           application/json:
@@ -2548,6 +2608,8 @@ paths:
                 $ref: '#/components/schemas/task'
         '400':
           description: invalid payload
+        '409':
+          description: Story revisions changed before a bot run could commit
         '401':
           $ref: '#/components/responses/401Unauthorized'
     get:
@@ -2684,6 +2746,68 @@ paths:
           $ref: '#/components/responses/401Unauthorized'
         '404':
           $ref: '#/components/responses/404NotFound'
+  /tasks/runs:
+    get:
+      tags:
+      - tasks
+      operationId: tasks.completed_runs.get
+      description: List completed jobs and committed pipeline steps across users and background runs. Requires CONFIG_OSINT_SOURCE_ACCESS. Private result data is omitted and failure messages are curated.
+      security:
+      - APIKey: []
+      - UserAuth: []
+      parameters:
+      - name: search
+        in: query
+        required: false
+        description: searches task identifiers, worker identifiers and types, task names, and statuses
+        schema:
+          type: string
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+      - name: limit
+        in: query
+        required: false
+        description: Page size, capped at 100. Invalid or non-positive values use the default.
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      - name: order
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - worker_type_asc
+          - worker_type_desc
+          - status_asc
+          - status_desc
+          - last_run_asc
+          - last_run_desc
+          default: last_run_desc
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+          enum: [SUCCESS, FAILURE, WARNING, NOT_MODIFIED, PREVIEW]
+      responses:
+        '200':
+          description: completed task results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/user_task_list'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: forbidden
   /tasks/user:
     get:
       tags:
@@ -4917,6 +5041,46 @@ paths:
           description: forbidden
         '404':
           $ref: '#/components/responses/404NotFound'
+  /config/osint-source-groups/options:
+    get:
+      tags: [config]
+      description: >-
+        Get IDs and names for source-group form options. Excludes manual sources
+        and includes only word lists with collector-includelist usage. Requires
+        CONFIG_OSINT_SOURCE_GROUP_ACCESS, CONFIG_OSINT_SOURCE_ACCESS, and
+        CONFIG_WORD_LIST_ACCESS.
+      operationId: config.config_osint_source_group_options.get
+      security:
+      - UserAuth: []
+      responses:
+        '200':
+          description: options ordered by name, without source details or word-list entries
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [osint_sources, word_lists]
+                properties:
+                  osint_sources:
+                    type: array
+                    items:
+                      type: object
+                      required: [id, name]
+                      properties:
+                        id: {type: string}
+                        name: {type: string}
+                  word_lists:
+                    type: array
+                    items:
+                      type: object
+                      required: [id, name]
+                      properties:
+                        id: {type: string}
+                        name: {type: string}
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: forbidden
   /config/osint-source-groups/{group_id}:
     parameters:
     - name: group_id
@@ -5450,6 +5614,20 @@ paths:
         in: query
         schema:
           type: string
+      - name: order
+        in: query
+        description: Sort before pagination with a stable Product ID tie breaker. Defaults to created_desc.
+        schema:
+          type: string
+          enum: [title_asc, title_desc, created_asc, created_desc, type_asc, type_desc, report_items_asc, report_items_desc]
+      - name: page
+        in: query
+        schema:
+          type: integer
+      - name: fetch_all
+        in: query
+        schema:
+          type: boolean
       - name: offset
         in: query
         schema:
@@ -5621,7 +5799,7 @@ paths:
       tags:
       - publish
       operationId: publish.publish_product.post
-      description: generate a specific product at a specific publisher
+      description: Publish the current rendered product using a publisher. After saving, wait for rendering to finish before publishing.
       security:
       - UserAuth: []
       responses:
@@ -5631,6 +5809,8 @@ paths:
           $ref: '#/components/responses/401Unauthorized'
         '404':
           $ref: '#/components/responses/404NotFound'
+        '409':
+          description: No current render is available; wait for rendering to finish and retry.
   /publish/publisher-presets:
     get:
       tags:
@@ -6629,7 +6809,12 @@ paths:
       - UserAuth: []
       tags:
       - assess
-      description: get tag list
+      description: >-
+        Get unique non-report tag names from stories visible to the current user.
+        Search matches literal substrings case-insensitively. Exact names rank
+        first, followed by distinct story count descending and name ascending.
+        Each result includes its visible story count. Pagination is applied
+        after ranking (20 results by default).
       operationId: assess.taglist.get
       responses:
         '200':
@@ -6639,7 +6824,14 @@ paths:
               schema:
                 type: array
                 items:
-                  type: string
+                  type: object
+                  required: [name, story_count]
+                  properties:
+                    name:
+                      type: string
+                    story_count:
+                      type: integer
+                      minimum: 1
         '401':
           $ref: '#/components/responses/401Unauthorized'
         '403':
@@ -9571,6 +9763,107 @@ paths:
           description: forbidden
         '404':
           $ref: '#/components/responses/404NotFound'
+  /publish/product-choices:
+    get:
+      security:
+      - UserAuth: []
+      tags:
+      - publish
+      operationId: publish.product_choices.get
+      description: All ACL-visible Product choices ordered by title and ID. Requires PUBLISH_ACCESS. Does not load rendered output or presenter parameters.
+      responses:
+        '200':
+          description: Product choice catalog
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      required: [id, title, product_type_title]
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        title:
+                          type: string
+                        product_type_title:
+                          type: string
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: Publishing access denied
+  /publish/product-metadata/{product_id}:
+    parameters:
+    - name: product_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    get:
+      security:
+      - UserAuth: []
+      tags: [publish]
+      operationId: publish.product_metadata.get
+      description: Product fields and compatible report metadata without fetching or returning the render. Requires PUBLISH_ACCESS and Product Type read access; compatible reports obey ACL/TLP visibility.
+      responses:
+        '200':
+          description: Product metadata without render_result
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: Product access denied
+        '404':
+          $ref: '#/components/responses/404NotFound'
+  /publish/product-type-choices:
+    get:
+      security:
+      - UserAuth: []
+      tags: [publish]
+      operationId: publish.product_type_choices.get
+      description: ACL-visible Product Type IDs/titles, ordered by title/ID. With report_ids, only types supporting every selected typed report are returned; untyped reports impose no restriction. Requires PUBLISH_ACCESS. Presenter parameters are omitted.
+      parameters:
+      - name: report_ids
+        in: query
+        description: Selected Report IDs, repeated for multiple reports. Omit for all visible types. All selected reports must exist and pass Report Type ACL and TLP checks.
+        schema:
+          type: array
+          items:
+            type: string
+        style: form
+        explode: true
+      responses:
+        '200':
+          description: Product Type catalog
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      required: [id, title]
+                      properties:
+                        id:
+                          type: string
+                        title:
+                          type: string
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: Publishing access denied
+        '404':
+          description: One or more selected reports do not exist or are not accessible. No partial catalog is returned.
   /publish/product-types:
     get:
       security:
@@ -9835,8 +10128,10 @@ paths:
       - config
       description: >-
         Create an LLM endpoint (ADMIN_OPERATIONS required). Fields are name,
-        base_url, model, api_format (responses or chat_completions), api_key,
+        base_url, enabled, model, api_format (responses or chat_completions), api_key,
         and timeout (positive seconds, default 120). Name and base_url are required.
+        Enabled defaults to false in development (DEBUG=true), true otherwise.
+        Disabled endpoints skip probes, Chat, and bot scheduling.
         API keys are never included in the response or human settings reads.
       operationId: settings.llm_endpoints.post
       requestBody:
@@ -9871,6 +10166,8 @@ paths:
         Update submitted endpoint fields. Omitted fields are preserved.
         An omitted or blank api_key preserves the stored key; api_key_clear=true
         removes it. Settings changes take effect on the next chat turn or bot run.
+        enabled=false removes associated bot cron registrations and blocks new bot
+        dispatch; enabling restores eligible registrations and schedules a probe.
       operationId: settings.llm_endpoint.post
       requestBody:
         required: true
@@ -9932,7 +10229,7 @@ paths:
       - APIKey: []
       tags: [bots]
       operationId: worker.endpoint_health_worker.get
-      description: Returns current probe configuration with credentials, or skip for an obsolete check. Responses are not cacheable.
+      description: Returns current probe configuration with credentials, or skip for a disabled endpoint or obsolete check. Responses are not cacheable.
       parameters:
       - name: check_id
         in: query
@@ -10464,7 +10761,7 @@ paths:
     put:
       security:
       - APIKey: []
-      description: update post collection bots
+      description: Run post-collection bots only for the supplied new or changed stories. An empty list schedules no work.
       operationId: worker.post_collection_bots_worker.put
       requestBody:
         required: true
@@ -10472,6 +10769,19 @@ paths:
           application/json:
             schema:
               type: object
+              required:
+              - source_id
+              - story_ids
+              properties:
+                source_id:
+                  type: string
+                story_ids:
+                  type: array
+                  items:
+                    type: string
+                    minLength: 1
+                user_id:
+                  type: string
       responses:
         '200':
           description: success
@@ -12960,6 +13270,14 @@ components:
     product_base:
       type: object
       properties:
+        report_access_warning:
+          type: [string, 'null']
+          readOnly: true
+          description: >-
+            Present when linked reports are restricted by Report Type ACL or TLP.
+            Only title and description may be changed; report links, type, and publishing
+            settings are preserved. Copying, rendering, and publishing are unavailable.
+            Metadata saves do not queue rendering or change the existing render/publication.
         id:
           type: string
         title:

@@ -121,12 +121,12 @@ class NewsItem(BaseModel):
         self.review = payload.review or ""
         self.content = payload.content or ""
         self.fuzzy_hash = self.get_fuzzy_hash(self.content)
-        if osint_source := OSINTSource.get(payload.osint_source_id):
-            with db.session.no_autoflush:
+        with db.session.no_autoflush:
+            if osint_source := OSINTSource.get(payload.osint_source_id):
                 self.osint_source = osint_source
-        else:
-            logger.warning(f"OSINT Source {payload.osint_source_id} not found. Setting osint_source_id to manual.")
-            self.osint_source = OSINTSource.get_manual()
+            else:
+                logger.warning(f"OSINT Source {payload.osint_source_id} not found. Setting osint_source_id to manual.")
+                self.osint_source = OSINTSource.get_manual()
         self.source = payload.source or ""
         self.link = payload.link or ""
         self.author = payload.author or ""
@@ -161,8 +161,9 @@ class NewsItem(BaseModel):
     def get_hash(cls, title: str = "", link: str = "", content: str = "") -> str:
         if not title and not link and not content:
             raise ValueError("At least one of the following parameters must be provided: title, link, content")
-        combined_str = f"{title}{link}"
-        return hashlib.sha256(combined_str.encode()).hexdigest()
+        combined_str = f"{title}{link}" or content
+        digest = hashlib.sha256(combined_str.encode()).hexdigest()
+        return digest if title or link else f"content:{digest}"
 
     @classmethod
     def identical(cls, hash) -> bool:
@@ -222,9 +223,10 @@ class NewsItem(BaseModel):
     @classmethod
     def get_by_payload_identity(cls, payload: AssessNewsItem) -> "NewsItem | None":
         # Collection hashes are source/URL scoped; explicit imports retain title/URL identity.
-        return cls.get_by_hash(payload.hash) or cls.get_first(
-            db.select(cls).where(cls.title == (payload.title or ""), cls.link == (payload.link or ""))
-        )
+        query = db.select(cls).where(cls.title == (payload.title or ""), cls.link == (payload.link or ""))
+        if not payload.title and not payload.link:
+            query = query.where(cls.content == (payload.content or ""))
+        return cls.get_by_hash(payload.hash) or cls.get_first(query)
 
     @classmethod
     def get_source_distribution(cls, total: int, user: User | None = None) -> list[dict[str, Any]]:

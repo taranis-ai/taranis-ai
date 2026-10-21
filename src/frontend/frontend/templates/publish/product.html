@@ -9,28 +9,29 @@
 {% set selected_report_items = selected_report_items | default(product.report_items | default([])) %}
 {% set rendered_product = product.render_result %}
 {% set rendered_mime_type = product.mime_type %}
+{% set report_access_warning = report_access_warning | default(product.report_access_warning | default(none)) %}
 
 {% set columns = [{'title': 'id', 'field': 'id', 'sortable': True, 'searchable': True}, {'title': 'title', 'field': 'title', 'sortable': True, 'searchable': True}, {'title': 'created', 'field': 'created', 'sortable': True, 'searchable': False}, {'title': 'completed', 'field': 'completed', 'sortable': True, 'searchable': False}] %}
 
 {# djlint:off #}
 <div class="p-4"
      id="product"
+     {% if resume_action == 'publish' %}x-init="$nextTick(() =&gt; triggerAction('publish'))"{% endif %}
      x-data="
      {
-        dirty: false,
+        dirty: {{ 'true' if error or form_error else 'false' }},
+        pendingAction: '',
         triggerAction(action) {
           if (this.dirty) {
-            dirty_dialog.showModal();
+            this.pendingAction = action;
+            this.$refs.dirtyDialog.showModal();
             return;
           }
           if (action === 'render') {
-            render_button.click();
+            htmx.trigger(this.$refs.renderButton, 'product:render');
           } else if (action === 'publish') {
-            publish_dialog.showModal();
+            this.$refs.publishDialog.showModal();
           }
-        },
-        saveAndContinue() {
-          product_form.requestSubmit();
         }
      }
      ">
@@ -41,10 +42,14 @@
       <h2 class="card-title">{{ submit_text }}</h2>
       <div class="flex-1"></div>
       {% if is_edit %}
-        <a class="btn btn-outline"
-           href="{{ url_for('publish.product', product_id='0', copy_from=product.id) }}"
-           @click="if (dirty && !confirm('Discard unsaved changes and create a copy of the saved product?')) $event.preventDefault()"
-           data-testid="copy-product">Create copy</a>
+        {% if report_access_warning %}
+          <button type="button" class="btn btn-outline" disabled aria-describedby="product-report-access-warning">Create copy</button>
+        {% else %}
+          <a class="btn btn-outline"
+             href="{{ url_for('publish.product', product_id='0', copy_from=product.id) }}"
+             @click="if (dirty && !confirm('Discard unsaved changes and create a copy of the saved product?')) $event.preventDefault()"
+             data-testid="copy-product">Create copy</a>
+        {% endif %}
         {% if rendered_product %}
           <a id="download-button"
              class="btn btn-outline"
@@ -55,8 +60,12 @@
              download>Download</a>
         {% endif %}
         <button id="render_button"
+                x-ref="renderButton"
                 type="button"
                 class="btn btn-outline"
+                {% if report_access_warning %}disabled aria-describedby="product-report-access-warning"{% endif %}
+                @click="triggerAction('render')"
+                hx-trigger="product:render"
                 hx-target="#notification-bar"
                 hx-post="{{ url_for('publish.product_render', product_id=product.id) }}">Render</button>
       {% endif %}
@@ -66,13 +75,29 @@
       </button>
     </div>
 
+    {% if report_access_warning %}
+      <div class="alert alert-warning flex gap-2" role="note" id="product-report-access-warning" data-test-id="product-report-access-warning">
+        <p>{{ report_access_warning }}</p>
+        <div class="tooltip tooltip-left">
+          <div class="tooltip-content w-80 whitespace-normal text-left" role="tooltip" id="product-report-access-help">
+            Report Type permissions or TLP clearance block report links, type changes, publishing settings, copying, rendering,
+            and publishing; saves preserve report links and existing output, and an administrator can review your access.
+          </div>
+          <button type="button"
+                  class="btn btn-ghost btn-xs btn-circle"
+                  aria-label="Why editing is limited"
+                  aria-describedby="product-report-access-help">{{ heroicon_outline("information-circle", class="size-4") }}</button>
+        </div>
+      </div>
+    {% endif %}
+
     <div class="grid grid-cols-12 gap-4">
       <div class="col-span-12 {% if is_edit %}lg:col-span-6{% else %}lg:col-span-12{% endif %} px-2">
         <form id="product_form"
               method="post"
               action="{{ form_action }}"
               {% if is_edit %}hx-put="{{ form_action }}"{% else %}hx-post="{{ form_action }}"{% endif %}
-              hx-swap="innerHTML"
+              hx-swap="outerHTML"
               hx-target="#product"
               hx-status:400="target:#product"
               hx-status:4xx="target:#product"
@@ -83,23 +108,32 @@
           {% include "partials/admin_form_error.html" %}
           <div class="grid grid-cols-12 gap-4">
             <div class="col-span-12 md:col-span-6">
-              {{ form_select('Product Type', 'product_type_id', product.product_type_id, product_types, required=true, width='w-full', data_testid='product-type-select') }}
+              <fieldset {% if report_access_warning %}disabled aria-describedby="product-report-access-warning"{% endif %}>
+                {{ form_select('Product Type', 'product_type_id', product.product_type_id, product_types, required=true, width='w-full', data_testid='product-type-select') }}
+              </fieldset>
+              {% if report_access_warning %}<input type="hidden" name="product_type_id" value="{{ product.product_type_id }}">{% endif %}
             </div>
             <div class="col-span-12 md:col-span-6">{{ form_input('Title', 'title', product.title, form_error.title) }}</div>
             <div class="col-span-12">{{ form_textarea('Description', 'description', product.description, form_error.description, required=false) }}</div>
           </div>
 
-          {% if product.product_type_id or selected_report_items %}
+          {% if report_access_warning %}
+            <section class="mt-2" aria-describedby="product-report-access-warning">
+              <h4 class="font-semibold">Report Items (locked)</h4>
+              <p>Restricted reports are hidden. All existing report links will be kept when you save.</p>
+              <ul class="list-disc ml-5">
+                {% for item in supported_report_items %}
+                  {% if item.id | string in selected_report_items %}<li>{{ item.title }}</li>{% endif %}
+                {% endfor %}
+              </ul>
+              {% for report_id in selected_report_items %}<input type="hidden" name="report_items[]" value="{{ report_id }}">{% endfor %}
+            </section>
+          {% elif product.product_type_id or selected_report_items %}
             <div class="mt-2">
-              <div data-product-report-items-enhanced>
+              <div data-product-report-items-enhanced x-cloak>
                 {{ datatable('Report Items', supported_reports, columns, selected_items=selected_report_items, input_name='report_items[]', headline='Report Items') }}
               </div>
               <noscript>
-                <style>
-                  [data-product-report-items-enhanced] {
-                    display: none;
-                  }
-                </style>
                 <section data-testid="report-items-native">
                   <h4 class="text-l font-bold mb-1 mt-5">Report Items</h4>
                   <table class="table table-sm" id="report-items-native-table">
@@ -155,40 +189,46 @@
           {% endif %}
 
           {% if is_edit %}
-            {% if rendered_product %}
-              <div class="mt-4 flex flex-wrap items-center gap-4">
-                <button type="button" class="btn btn-accent flex-1" @click="triggerAction('publish')">Publish (manually)</button>
+            <fieldset {% if report_access_warning %}disabled aria-describedby="product-report-access-warning"{% endif %}>
+              {% if rendered_product or report_access_warning %}
+                <div class="mt-4 flex flex-wrap items-center gap-4">
+                  <button type="button" class="btn btn-accent flex-1" @click="triggerAction('publish')">Publish (manually)</button>
 
-                <label class="form-control flex-1 min-w-[12rem]">
-                  <div class="label pb-1">
-                    <span class="label-text text-sm font-semibold">Default Publisher</span>
-                  </div>
-                  <select id="default_publisher" name="default_publisher" class="select select-bordered appearance-none w-full">
-                    <option value="">—</option>
-                    {% for p in publishers %}
-                      <option value="{{ p.id }}" {% if p.id == product.default_publisher %}selected{% endif %}>{{ p.name }}</option>
-                    {% endfor %}
-                  </select>
-                  <div class="label pt-1">
-                    <span class="label-text-alt text-xs text-base-content/70">Required only when Autopublish is enabled.</span>
-                  </div>
-                </label>
+                  <label class="form-control flex-1 min-w-[12rem]">
+                    <div class="label pb-1">
+                      <span class="label-text text-sm font-semibold">Default Publisher</span>
+                    </div>
+                    <select id="default_publisher" name="default_publisher" class="select select-bordered appearance-none w-full">
+                      <option value="">—</option>
+                      {% for p in publishers %}
+                        <option value="{{ p.id }}" {% if p.id == product.default_publisher %}selected{% endif %}>{{ p.name }}</option>
+                      {% endfor %}
+                    </select>
+                    <div class="label pt-1">
+                      <span class="label-text-alt text-xs text-base-content/70">Required only when Autopublish is enabled.</span>
+                    </div>
+                  </label>
 
-                <div class="flex items-center gap-2">
-                  {{ form_switch(label='',
-                    name='auto_publish',
-                    value=product.auto_publish and 'Yes' or 'No',
-                    yes_val='Yes',
-                    no_val='No',
-                    required=False,
-                    width='',
-                    input_id='autopublish-switch') }}
-                  <span class="text-sm">Autopublish</span>
+                  <div class="flex items-center gap-2">
+                    {{ form_switch(label='',
+                      name='auto_publish',
+                      value=product.auto_publish and 'Yes' or 'No',
+                      yes_val='Yes',
+                      no_val='No',
+                      required=False,
+                      width='',
+                      input_id='autopublish-switch') }}
+                    <span class="text-sm">Autopublish</span>
+                  </div>
                 </div>
-              </div>
 
-            {% else %}
-              <div class="alert alert-info">Render Product first, to enable publishing</div>
+              {% else %}
+                <div class="alert alert-info">Render Product first, to enable publishing</div>
+              {% endif %}
+            </fieldset>
+            {% if report_access_warning %}
+              <input type="hidden" name="auto_publish" value="{{ 'true' if product.auto_publish else 'false' }}">
+              {% if product.default_publisher %}<input type="hidden" name="default_publisher" value="{{ product.default_publisher }}">{% endif %}
             {% endif %}
           {% endif %}
           <input type="submit"
@@ -203,11 +243,25 @@
           <div class="border rounded-md p-3 bg-base-50 min-h-40" id="preview" data-testid="product-render">
             {% if rendered_product %}
               {% if rendered_mime_type in ["text/html", "application/json", "text/plain"] %}
-                <iframe class="w-full h-[80vh]"
-                        data-testid="html-render"
-                        sandbox
-                        src="data:{{ rendered_mime_type }};charset=utf-8;base64,{{ product.render_result }}">
-                </iframe>
+                <div x-data="{ previewOpen: false }">
+                  <button type="button"
+                          class="btn btn-outline"
+                          x-cloak
+                          x-show="!previewOpen"
+                          @click="previewOpen = true"
+                          data-testid="load-product-preview">{{ _("Load preview") }}</button>
+                  <template x-if="previewOpen">
+                    <iframe class="w-full h-[80vh]"
+                            title="{{ _('Product preview') }}"
+                            data-testid="html-render"
+                            sandbox
+                            src="data:{{ rendered_mime_type }};charset=utf-8;base64,{{ rendered_product }}"></iframe>
+                  </template>
+                  <noscript>
+                    <a class="btn btn-outline"
+                       href="{{ url_for('publish.product_download', product_id=product.id) }}">{{ _("Download rendered product") }}</a>
+                  </noscript>
+                </div>
               {% elif rendered_mime_type == "application/pdf" %}
                 <iframe class="w-full h-[80vh]"
                         title="{{ _('PDF preview') }}"
@@ -220,13 +274,17 @@
               <div class="text-center">
                 <h2 class="text-xl mb-2">Failed to render Product</h2>
                 <pre class="bg-base-200 p-2 rounded">{{ render_error }}</pre>
-                <button class="btn btn-outline mt-4" @click="triggerAction('render')">Render</button>
+                <button class="btn btn-outline mt-4"
+                        {% if report_access_warning %}disabled aria-describedby="product-report-access-warning"{% endif %}
+                        @click="triggerAction('render')">Render</button>
               </div>
             {% else %}
               <div class="text-center">
                 {% if selected_report_items %}
                   <h2 class="text-xl mb-2">No rendered Product Found</h2>
-                  <button class="btn btn-outline mt-2" @click="triggerAction('render')">Render</button>
+                  <button class="btn btn-outline mt-2"
+                          {% if report_access_warning %}disabled aria-describedby="product-report-access-warning"{% endif %}
+                          @click="triggerAction('render')">Render</button>
                 {% else %}
                   <h2 class="text-xl mb-2">No Report selected</h2>
                   <p class="mb-2">Please select at least one Report Item to render the Product.</p>
@@ -237,7 +295,7 @@
         </div>
 
         <!-- Dirty Dialog -->
-        <dialog id="dirty_dialog" class="modal">
+        <dialog id="dirty_dialog" class="modal" x-ref="dirtyDialog" @close="pendingAction = ''">
           <div class="modal-box">
             <h3 class="font-bold text-lg">Unsaved Changes</h3>
             <p class="py-4">You have unsaved changes. Do you want to save before continuing?</p>
@@ -245,37 +303,45 @@
               <form method="dialog">
                 <button class="btn">Close</button>
               </form>
-              <button class="btn btn-primary" @click="saveAndContinue()">Save and Continue</button>
+              <button type="submit"
+                      form="product_form"
+                      name="_continue_action"
+                      :value="pendingAction"
+                      class="btn btn-primary">Save and Continue</button>
             </div>
           </div>
         </dialog>
 
         <!-- Publish Dialog -->
-        <dialog id="publish_dialog" class="modal">
-          <div class="modal-box min-w-[28rem]">
-            <h3 class="font-bold text-lg mb-2">Publish Product</h3>
-            {% if has_incomplete_reports | default(false) %}
-              <div class="alert alert-warning mb-4">This Product contains incomplete Reports</div>
-            {% endif %}
-            <label class="select w-full">
-              <span class="label">Publisher</span>
-              <select id="publisher_select" name="publisher" class="select w-full">
-                <option value="" selected disabled>Select a publisher</option>
-                {% for p in publishers %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}
-              </select>
-            </label>
-            <div class="mt-4 flex justify-start gap-2">
-              <button class="btn btn-primary"
-                      hx-post="{{ url_for('publish.product_publish', product_id=product.id) }}"
-                      hx-target="#notification-bar"
-                      hx-include="#publisher_select"
-                      hx-swap="outerHTML">Publish</button>
-              <form method="dialog">
-                <button class="btn">Close</button>
-              </form>
+        {% if not report_access_warning %}
+          <dialog id="publish_dialog" class="modal" x-ref="publishDialog">
+            <div class="modal-box min-w-[28rem]">
+              <h3 class="font-bold text-lg mb-2">Publish Product</h3>
+              {% if has_incomplete_reports | default(false) %}
+                <div class="alert alert-warning mb-4">This Product contains incomplete Reports</div>
+              {% endif %}
+              <label class="select w-full">
+                <span class="label">Publisher</span>
+                <select id="publisher_select" name="publisher" class="select w-full">
+                  <option value="" selected disabled>Select a publisher</option>
+                  {% for p in publishers %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}
+                </select>
+              </label>
+              <div class="mt-4 flex justify-start gap-2">
+                <button class="btn btn-primary"
+                        hx-post="{{ url_for('publish.product_publish', product_id=product.id) }}"
+                        hx-target="#notification-bar"
+                        hx-status:4xx="target:#notification-bar"
+                        hx-status:5xx="target:#notification-bar"
+                        hx-include="#publisher_select"
+                        hx-swap="outerHTML">Publish</button>
+                <form method="dialog">
+                  <button class="btn">Close</button>
+                </form>
+              </div>
             </div>
-          </div>
-        </dialog>
+          </dialog>
+        {% endif %}
 
       {% endif %}
     </div>

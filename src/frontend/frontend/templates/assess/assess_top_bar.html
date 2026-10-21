@@ -4,6 +4,7 @@
           hx-trigger="click"
           @keyup.window="canUseAssessShortcut($event) && $event.shiftKey && $event.code === 'Space' && selectedItems.length > 0 && $el.click()"
           hx-post="{{ url_for('assess.bulk_action') }}"
+          hx-status:5xx="target:#notification-bar select:#notification-bar swap:outerHTML"
           {% if bookmark_mode %}hx-include="#bookmark-selection-form"{% else %}hx-on::before:request="window.assessSelectionState = { ...(window.assessSelectionState || {}), pruneToVisibleOnNextInit: true }"{% endif %}
           :hx-vals='action_vals("read", !selectedItemsAreRead())'
           :data-tip="selectedItemsAreRead() ? 'Mark as unread' : 'Mark as read'"
@@ -19,6 +20,7 @@
           class="btn btn-outline btn-sm tooltip {{ 'w-full join-item' if in_dropdown else '' }}"
           hx-trigger="click, keyup[shiftKey && key == 'I' && canUseAssessShortcut(event)] from:body"
           hx-post="{{ url_for('assess.bulk_action') }}"
+          hx-status:5xx="target:#notification-bar select:#notification-bar swap:outerHTML"
           {% if bookmark_mode %}hx-include="#bookmark-selection-form"{% else %}hx-on::before:request="window.assessSelectionState = { ...(window.assessSelectionState || {}), pruneToVisibleOnNextInit: true }"{% endif %}
           :hx-vals='action_vals("important", !selectedItemsAreImportant())'
           :data-tip="selectedItemsAreImportant() ? 'Mark as unimportant' : 'Mark as important'"
@@ -38,9 +40,9 @@
      @keydown.window="preventAssessShortcutDefault($event, 'Space')"
      @keydown.shift.window="showHints = true"
      @keyup.shift.window="showHints = false">
-  <div class="flex p-2 flex-row justify-between min-h-[3rem] bg-base-100 border border-base-300 shadow-lg rounded-box">
-    <div class="flex flex-col gap-2 flex-row items-center text-sm">
-      <div class="flex items-center gap-3"
+  <div class="flex flex-wrap p-2 flex-row gap-2 min-h-[3rem] bg-base-100 border border-base-300 shadow-lg rounded-box">
+    <div class="flex flex-1 flex-wrap gap-2 items-center text-sm">
+      <div class="flex shrink-0 items-center gap-3"
            x-show="selectedItems.length"
            x-transition.opacity
            x-cloak
@@ -48,55 +50,59 @@
         <span class="badge badge-primary badge-lg" x-text="selectedItems.length"></span>
         <span class="font-medium">stories selected</span>
       </div>
-      <div class="flex flex-wrap items-center">
+      <div class="flex shrink-0 items-center">
         <div class="flex items-center gap-1" data-testid="assess_story_count">
           <span class="badge badge-ghost badge-lg"><span x-text="storyIds.length"></span> / {{ stories.total_count | default(0) }}</span>
-          <span class="font-medium text-base-content">Stories</span>
+          <span class="font-medium text-base-content">
+            {{ 'Stories loaded' if not bookmark_mode and pagination is defined and pagination.infinite_scroll else 'Stories' }}
+          </span>
         </div>
       </div>
-      <span class="inline-block min-w-[9rem] text-base-content/60 text-xs"
-            x-show="!showHints && selectedItems.length === 1"
-            x-show="showHints"
-            :class="{ 'invisible': selectedItems.length !== 1 }"
-            :aria-hidden="(selectedItems.length !== 1).toString()">Select one more to cluster</span>
+      <div class="@container flex-1 min-w-0">
+        <span class="hidden @min-[10rem]:block whitespace-nowrap text-base-content/60 text-xs"
+              x-show="!showHints && selectedItems.length === 1"
+              data-test-id="assess-cluster-hint">Select one more to cluster</span>
+      </div>
     </div>
-    <div class="flex flex-wrap items-center gap-2">
+    <div class="flex min-w-0 flex-wrap items-center gap-2">
       <div class="flex flex-wrap items-center gap-2"
            x-show="selectedItems.length"
            x-transition.opacity
            hx-target:inherited="{{ '#bookmark-detail-container' if bookmark_mode else '#assess' }}"
            hx-swap:inherited="outerHTML">
-        <button type="button"
-                class="btn btn-outline btn-sm tooltip"
-                x-show="selectedItems.length === 1"
-                data-tip="{{ _('Edit') }}"
-                @click="openStoryEdit()"
-                @keyup.window="canUseAssessShortcut($event, 'e') && selectedItems.length === 1 && openStoryEdit()">
-          {{ heroicon_mini("pencil") }}
-          <span class="text-sm sr-only 2xl:not-sr-only">Edit</span>
-          <span class="text-xs opacity-80" x-show="showHints">
-            <kbd class="kbd kbd-xs text-base-content">Shift+E</kbd>
-          </span>
-        </button>
+        <div class="grid">
+          <button type="button"
+                  class="btn btn-outline btn-sm tooltip col-start-1 row-start-1"
+                  :class="{ 'invisible': selectedItems.length !== 1 }"
+                  data-tip="{{ _('Edit') }}"
+                  @click="openStoryEdit()"
+                  @keyup.window="canUseAssessShortcut($event, 'e') && selectedItems.length === 1 && openStoryEdit()">
+            {{ heroicon_mini("pencil") }}
+            <span class="text-sm sr-only 2xl:not-sr-only">Edit</span>
+            <span class="text-xs opacity-80" x-show="showHints">
+              <kbd class="kbd kbd-xs text-base-content">Shift+E</kbd>
+            </span>
+          </button>
 
-        <button type="button"
-                x-ref="clusterButton"
-                class="btn btn-outline btn-sm tooltip"
-                x-show="selectedItems.length >= 2"
-                data-tip="{{ _('Cluster') }}"
-                hx-trigger="click"
-                @keyup.window="canUseAssessShortcut($event, 'g') && selectedItems.length >= 2 && $refs.clusterButton.click()"
-                hx-get="{{ url_for('assess.cluster_story') }}"
-                hx-target="body"
-                hx-swap="beforeend"
-                {% if bookmark_mode %}hx-include="#bookmark-selection-form"{% endif %}
-                :hx-vals='action_vals()'>
-          {{ heroicon_mini("rectangle-group") }}
-          <span class="text-sm sr-only 2xl:not-sr-only">Cluster</span>
-          <span class="text-xs opacity-80" x-show="showHints">
-            <kbd class="kbd kbd-xs">Shift+G</kbd>
-          </span>
-        </button>
+          <button type="button"
+                  x-ref="clusterButton"
+                  class="btn btn-outline btn-sm tooltip col-start-1 row-start-1"
+                  :class="{ 'invisible': selectedItems.length < 2 }"
+                  data-tip="{{ _('Cluster') }}"
+                  hx-trigger="click"
+                  @keyup.window="canUseAssessShortcut($event, 'g') && selectedItems.length >= 2 && $refs.clusterButton.click()"
+                  hx-get="{{ url_for('assess.cluster_story') }}"
+                  hx-target="body"
+                  hx-swap="beforeend"
+                  {% if bookmark_mode %}hx-include="#bookmark-selection-form"{% endif %}
+                  :hx-vals='action_vals()'>
+            {{ heroicon_mini("rectangle-group") }}
+            <span class="text-sm sr-only 2xl:not-sr-only">Cluster</span>
+            <span class="text-xs opacity-80" x-show="showHints">
+              <kbd class="kbd kbd-xs">Shift+G</kbd>
+            </span>
+          </button>
+        </div>
 
         <button type="button"
                 class="btn btn-outline btn-sm tooltip"
@@ -167,12 +173,12 @@
         {% if story_ids %}
           <button type="button"
                   class="btn btn-outline tooltip"
-                  data-tip="{{ _('Select all') }}"
+                  data-tip="{{ _('Select loaded stories') }}"
                   @keyup.window="canUseAssessShortcut($event, 'a') && selectAll()"
                   @click="selectAll() "
                   data-testid="assess-select-all-button">
             {{ heroicon_mini("check-circle") }}
-            <span class="text-sm sr-only 2xl:not-sr-only">Select all</span>
+            <span class="text-sm sr-only 2xl:not-sr-only">Select loaded stories</span>
             <span class="text-xs opacity-80" x-show="showHints">
               <kbd class="kbd kbd-xs">Shift+A</kbd>
             </span>
@@ -180,7 +186,7 @@
         {% endif %}
       </div>
     </div>
-    <div class="flex flex-wrap gap-2" x-show="selectedItems.length">
+    <div class="flex shrink-0 gap-2" x-show="selectedItems.length">
       <button type="button" class="btn btn-outline tooltip" data-tip="{{ _('Clear selection') }}" @click="clearSelection()">
         <span class="text-sm sr-only 2xl:not-sr-only">Clear selection</span>
         <span class="text-xs opacity-80">

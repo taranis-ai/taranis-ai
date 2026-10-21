@@ -7,6 +7,7 @@ from typing import Any, ClassVar, Literal, cast
 import ioc_fanger
 from models.cti import CanonicalIOCType, normalize_ioc_type, normalize_ioc_value
 from pyintelowl import IntelOwl
+from rq.timeouts import JobTimeoutException
 
 from worker.log import logger
 
@@ -215,6 +216,8 @@ class IntelOwlBot(BaseBot):
                 observable_classification=self.intelowl_classification[observable_type],
                 tags_labels=["taranis-ai"],
             )
+        except JobTimeoutException:
+            raise
         except Exception as exc:
             return {
                 "ioc_type": observable_type,
@@ -264,6 +267,8 @@ class IntelOwlBot(BaseBot):
     ) -> tuple[ObservablePayload, bool]:
         try:
             job = client.get_job_by_id(job_id)
+        except JobTimeoutException:
+            raise
         except Exception as exc:
             message = self._sanitize_error(str(exc), api_key)
             return {

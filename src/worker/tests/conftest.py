@@ -22,6 +22,7 @@ sys.modules["requests.exceptions"] = niquests.exceptions
 sys.modules["requests.packages.urllib3"] = urllib3
 
 requests_mock_mocker.requests = niquests
+requests_mock_mocker._original_send = niquests.Session.send
 requests_mock_adapter.BaseAdapter = niquests.adapters.BaseAdapter
 requests_mock_adapter.requote_uri = niquests.utils.requote_uri
 requests_mock_request.requests = niquests
@@ -58,6 +59,17 @@ class FakeQueue:
             }
         )
         return object()
+
+
+@pytest.fixture
+def requests_mock(requests_mock, monkeypatch):
+    async def async_request(self, method, url, **kwargs):
+        with niquests.Session() as session:
+            session.max_redirects = self.max_redirects
+            return session.request(method, url, **kwargs)
+
+    monkeypatch.setattr(niquests.AsyncSession, "request", async_request)
+    return requests_mock
 
 
 @pytest.fixture(scope="session")

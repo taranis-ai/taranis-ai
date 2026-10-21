@@ -33,6 +33,7 @@ class IOCBot(BaseBot):
                 news_item_content = _news_item_content_for_tagging(news_item)
                 iocs = self.extract_ioc(news_item_content)
                 extracted_keywords[news_item["id"]] = iocs
+                self.save_tags(news_item["id"], news_item.get("story_id", story["id"]), iocs)
         logger.info({"message": f"Extracted {len(extracted_keywords)} IOCs"})
         return extracted_keywords
 

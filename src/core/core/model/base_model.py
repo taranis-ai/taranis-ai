@@ -67,11 +67,11 @@ class BaseModel(db.Model):
     def serialize_datetime(cls, value: datetime) -> str:
         return cls.as_utc_aware(value).isoformat()
 
-    def to_dict(self) -> dict[str, Any]:
+    def to_dict(self, *, exclude: set[str] | frozenset[str] = frozenset()) -> dict[str, Any]:
         table = getattr(self, "__table__", None)
         if table is None:
             return {}
-        data = {c.name: getattr(self, c.name) for c in table.columns}
+        data = {c.name: getattr(self, c.name) for c in table.columns if c.name not in exclude}
         for key, value in data.items():
             if isinstance(value, datetime):
                 data[key] = self.serialize_datetime(value)

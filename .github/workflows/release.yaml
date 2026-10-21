@@ -1,5 +1,14 @@
 name: Release on pushed tags
 
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  group: ${{ github.workflow }}-stable
+  cancel-in-progress: false
+  queue: max
+
 on:
   push:
     tags:
@@ -10,6 +19,7 @@ permissions:
 
 jobs:
   release:
+    timeout-minutes: 45
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -21,9 +31,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - name: Get tag name
-        run: echo "TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+        run: echo "TAG=${GITHUB_REF#refs/tags/}" >> "$GITHUB_ENV"
 
       - name: Update env.sample
         run: |
@@ -33,15 +45,17 @@ jobs:
       - name: Get Tag Message
         run: |
           git fetch --depth=1 origin +refs/tags/*:refs/tags/*
-          echo "### ${{ env.TAG }}" >> $GITHUB_STEP_SUMMARY
-          git tag -l --format='%(contents)' ${{ env.TAG }} >> $GITHUB_STEP_SUMMARY
-          git tag -l --format='%(contents)' ${{ env.TAG }} >> ${{ runner.temp }}/release_body.md
+          echo "### $TAG" >> "$GITHUB_STEP_SUMMARY"
+          git tag -l --format='%(contents)' "$TAG" >> "$GITHUB_STEP_SUMMARY"
+          git tag -l --format='%(contents)' "$TAG" >> "${{ runner.temp }}/release_body.md"
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v4
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
+        with:
+          cache-binary: false
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v4
@@ -59,8 +73,21 @@ jobs:
           short_sha=$(printf '%.7s' "${GITHUB_SHA}")
           git_info=$(printf '{"branch":"master","HEAD":"%s","tag":"%s"}' "${short_sha}" "${TAG}")
           build_date=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          tags=$(git tag --list --sort=-version:refname)
+          latest_release_tag=
+          while IFS= read -r candidate; do
+            if [[ "$candidate" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              latest_release_tag=$candidate
+              break
+            fi
+          done <<< "$tags"
+          [[ -n "$latest_release_tag" ]]
 
           for image in "${images[@]}"; do
+            stable_tag=()
+            if [[ "$TAG" == "$latest_release_tag" ]]; then
+              stable_tag=(--tag "ghcr.io/${REPOSITORY_OWNER}/${image}:stable")
+            fi
             case "${image}" in
               taranis-core)
                 file="docker/Containerfile.core"
@@ -98,7 +125,7 @@ jobs:
               "${build_args[@]}" \
               --platform linux/amd64,linux/arm64 \
               --tag "ghcr.io/${REPOSITORY_OWNER}/${image}:${TAG}" \
-              --tag "ghcr.io/${REPOSITORY_OWNER}/${image}:stable" \
+              "${stable_tag[@]}" \
               --metadata-file "${{ runner.temp }}/${image}-meta.json" \
               --sbom=true \
               --cache-from "type=registry,ref=ghcr.io/${REPOSITORY_OWNER}/${image}-cache-amd64:latest" \
@@ -115,7 +142,7 @@ jobs:
           images=("taranis-core" "taranis-worker" "taranis-ingress" "taranis-frontend")
           for image in "${images[@]}"; do
             digest=$(jq -r '."containerimage.digest"' "${{ runner.temp }}/${image}-meta.json")
-            echo "DIGEST_${image//-/_}=$digest" >> $GITHUB_ENV
+            echo "DIGEST_${image//-/_}=$digest" >> "$GITHUB_ENV"
           done
 
       - name: Attest taranis-core
@@ -147,10 +174,9 @@ jobs:
           push-to-registry: true
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v8.2.0
+        uses: astral-sh/setup-uv@v10.3.0
         with:
-          enable-cache: true
-          prune-cache: false
+          enable-cache: false
 
       - name: Set up Python
         run: uv python install

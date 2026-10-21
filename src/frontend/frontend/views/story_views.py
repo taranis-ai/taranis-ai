@@ -1,5 +1,6 @@
 import datetime
 import uuid
+from collections import Counter
 from collections.abc import Callable
 from json import JSONDecodeError
 from typing import Any, cast
@@ -24,6 +25,7 @@ from models.assess import (
 from models.cti import CTIResponse
 from models.report import ReportItem
 from models.revision_diff import build_story_revision_diff_payload
+from models.worker_parameters import SimpleWebCollectorParameters, normalize_parameter_values
 from pydantic import ValidationError
 from requests import RequestException
 from requests import Response as RequestsResponse
@@ -86,10 +88,19 @@ class StoryView(BaseView):
     def get_extra_context(cls, base_context: dict[str, Any]) -> dict[str, Any]:
         filter_lists = cls.get_filter_lists()
         base_context["filter_lists"] = filter_lists
+        tag_request_args = request.args.to_dict(flat=False)
+        if request.method != "GET" and cls._get_current_url_path() == url_for("assess.assess"):
+            tag_request_args = parse_qs(urlparse(request.headers["HX-Current-URL"]).query)
+        base_context["active_tag_filters"] = tag_request_args.get("tags", [])
         assess_request_args: dict[str, list[str]] = {}
         if request.endpoint == "assess.assess":
             assess_request_args = cls._get_assess_request_params()
             base_context["assess_request_args"] = assess_request_args
+            base_context["assess_return_url"] = (
+                cls._build_assess_filters_url(assess_request_args) if assess_request_args else url_for("assess.assess", reset="true")
+            )
+        else:
+            base_context["assess_return_url"] = cls._get_assess_return_url()
         base_context["bookmark_collections"] = cls._get_bookmark_bar_collections()
         base_context["assess_bookmark_bar_limit"] = ASSESS_BOOKMARK_BAR_LIMIT
         base_context["source_filter_select"] = cls._build_source_filter_select(filter_lists, assess_request_args)
@@ -99,6 +110,22 @@ class StoryView(BaseView):
             base_context["story_ids"] = [story.id for story in enhanced_stories if getattr(story, "id", None)]
             base_context["stories"] = enhanced_stories
         return base_context
+
+    @staticmethod
+    def _get_assess_return_url() -> str | None:
+        assess_path = url_for("assess.assess")
+        try:
+            current_url = urlparse(request.headers.get("HX-Current-URL", ""))
+            candidate = request.args.get("assess_url", "") or parse_qs(current_url.query).get("assess_url", [""])[0]
+            if not candidate and current_url.path == assess_path:
+                candidate = f"{assess_path}?{current_url.query}"
+            parsed = urlparse(candidate)
+        except ValueError:
+            return None
+        if candidate.startswith("/") and not parsed.scheme and not parsed.netloc and parsed.path == assess_path:
+            query = urlencode(parse_qs(parsed.query), doseq=True)
+            return f"{assess_path}?{query}" if query else assess_path
+        return None
 
     @classmethod
     def model_plural_name(cls) -> str:
@@ -120,23 +147,31 @@ class StoryView(BaseView):
     def _enhance_story_with_details(story: Story, sources: dict[str, Any]) -> Story:
         if not story.news_items:
             return story
-        if first_news_item := story.news_items[0]:
-            if source := sources.get(first_news_item.osint_source_id):
-                # Add the source as an pydantic extra field to the story for easier access in the template
-                story.source_info = source  # type: ignore
-            story.summary_content = story.summary or first_news_item.content  # type: ignore
+        source_ids = [item.osint_source_id for item in story.news_items if item.osint_source_id in sources]
+        if len(story.news_items) > 5:
+            source_ids = [source_id for source_id, _ in Counter(source_ids).most_common(5)]
+        else:
+            source_ids = list(dict.fromkeys(source_ids))
+        story.source_infos = [sources[source_id] for source_id in source_ids]  # type: ignore
+        story.summary_content = story.summary or story.news_items[0].content  # type: ignore
         return story
 
     @staticmethod
     def get_filter_lists() -> FilterLists:
         username = getattr(current_user, "username", getattr(current_user, "id", "anonymous"))
+        request_lists = request.environ.setdefault("taranis.assess_filter_lists", {})
+        if username in request_lists:
+            return request_lists[username]
         if filter_lists := get_model_from_cache(FilterLists._model_name, "", username):
-            return FilterLists(**filter_lists)
-        if filter_lists_content := CoreApi().get_filter_lists():
+            result = FilterLists(**filter_lists)
+        elif filter_lists_content := CoreApi().get_filter_lists():
             filter_lists = FilterLists(**filter_lists_content)
             add_model_to_cache(filter_lists, "", username)
-            return filter_lists
-        return FilterLists(tags=[], sources=[], groups=[])
+            result = filter_lists
+        else:
+            result = FilterLists(tags=[], sources=[], groups=[])
+        request_lists[username] = result
+        return result
 
     @staticmethod
     def _filter_token_item(value: str, label: str, name: str, group: str | None = None) -> dict[str, str]:
@@ -534,6 +569,7 @@ class StoryView(BaseView):
         bookmark_id = cls._get_bookmark_id()
         logger.debug(f"Opening cluster dialog for stories {story_ids}")
         stories = [DataPersistenceLayer().get_object(Story, s) for s in story_ids]
+        stories.sort(key=lambda story: len(story.news_items or []) if story else 0, reverse=True)
         target = cls._get_story_action_target(story_ids)
         return render_template("assess/story_grouping_dialog.html", stories=stories, target=target, bookmark_id=bookmark_id), 200
 
@@ -777,12 +813,14 @@ class StoryView(BaseView):
             page_start = 0
             page_end = 0
 
+        first_url = build_url(0)
         return {
             "infinite_scroll": current_user.profile.infinite_scroll,
             "current_page": clamped_index + 1,
             "total_pages": total_pages,
             "has_previous": clamped_index > 0,
             "has_next": (clamped_index + 1) < total_pages,
+            "first_url": first_url if first_url != cls.get_base_route() else url_for("assess.assess", reset="true"),
             "previous_url": build_url(clamped_index - 1) if clamped_index > 0 else "",
             "next_url": build_url(clamped_index + 1) if (clamped_index + 1) < total_pages else "",
             "page_start": page_start,
@@ -799,24 +837,26 @@ class StoryView(BaseView):
     ):
         try:
             items = DataPersistenceLayer().get_objects(cls.model, paging_data=paging_data)
-            error = None if items else f"No {cls.model_name()} items found"
-        except ValidationError as exc:
-            logger.exception(format_pydantic_errors(exc, cls.model))
-            items, error = None, format_pydantic_errors(exc, cls.model)
         except HTTPException:
             raise
-        except Exception as exc:
+        except Exception:
             logger.exception(f"Error retrieving {cls.model_name()} items")
-            items, error = None, str(exc)
+            items = None
+
+        error = None if items else f"No {cls.model_name()} items found"
+        if items is None:
+            error = "Unable to load stories. Please try again."
+            if is_htmx_request():
+                return render_template("notification/index.html", notification={"message": error, "error": True}, oob=False), 502
+            flash(error, "error")
 
         context = cls.get_view_context(items, error)
-        if items is not None:
-            context[cls.model_plural_name()] = items
+        context[cls.model_plural_name()] = items if items is not None else CacheObject([])
         context["pagination"] = cls._build_pagination_context(items, paging_data, request_params)
         context["assess_selection_key"] = cls._build_assess_selection_key(request_params)
         context["selected_story_ids"] = selected_story_ids or []
 
-        return render_template(cls.get_list_template(), **context), 200
+        return render_template(cls.get_list_template(), **context), 200 if items is not None else 502
 
     @classmethod
     def rerender_list(cls, notification: str | None = None):
@@ -829,7 +869,7 @@ class StoryView(BaseView):
 
         request_params = request.args.to_dict(flat=False)
 
-        if request.method == "POST" and "HX-Current-URL" in request.headers:
+        if request.method != "GET" and "HX-Current-URL" in request.headers:
             url = request.headers.get("HX-Current-URL", "")
 
             parsed_url = urlparse(url)
@@ -839,7 +879,7 @@ class StoryView(BaseView):
         paging_data = parse_paging_data(request_params)
         selected_story_ids = request.form.getlist("story_ids") if request.method == "POST" else []
         table, status = cls._render_story_list(paging_data, request_params, selected_story_ids=selected_story_ids)
-        if notification:
+        if notification and status < 400:
             return make_response(notification + table, status)
         return make_response(table, status)
 
@@ -868,7 +908,7 @@ class StoryView(BaseView):
         context["_show_sidebar"] = False
         bookmark_id = cls._get_bookmark_id()
         context["bookmark_id"] = bookmark_id
-        form_url = url_for("assess.story_edit", story_id=object_id)
+        form_url = url_for("assess.story_edit", story_id=object_id, assess_url=context["assess_return_url"])
         if bookmark_id:
             form_url = url_for("assess.story_edit", story_id=object_id, bookmark_id=bookmark_id, return_to_bookmark="1")
         context["form_action"] = form_url
@@ -1054,7 +1094,7 @@ class StoryView(BaseView):
         query = request.args.get("q", "")
         api = CoreApi()
         try:
-            tags = api.api_get(f"/assess/taglist?search={query}")
+            tags = api.api_get("/assess/taglist", params={"search": query})
         except HTTPException:
             raise
         except Exception:
@@ -1225,28 +1265,22 @@ class StoryView(BaseView):
     @classmethod
     def _create_news_item_from_file(cls, file: FileStorage):
         if file.filename == "":
-            flash("No file selected for upload", "error")
-            return cls.redirect_htmx(url_for("assess.get_news_item", news_item_id="0"))
-        if file.mimetype not in ["text/plain", "application/json"]:
-            flash("Unsupported file type. Please upload a .txt or .json file.", "error")
-            return cls.redirect_htmx(url_for("assess.get_news_item", news_item_id="0"))
-
+            return make_response(cls.render_response_notification({"error": "No file selected for upload."}), 400)
         try:
-            data = file.read()
-            json_data = json.loads(data)
+            json_data = json.loads(file.read())
             core_response = CoreApi().api_post("/assess/import", json_data=json_data)
-            if core_response.ok:
-                flash("File imported successfully", "success")
-            else:
-                cls.add_flash_notification(core_response)
-            return cls.redirect_htmx(url_for("assess.assess") if core_response.ok else url_for("assess.get_news_item", news_item_id="0"))
+        except JSONDecodeError, UnicodeDecodeError:
+            return make_response(cls.render_response_notification({"error": "Invalid JSON file."}), 400)
         except HTTPException:
             raise
         except Exception:
             logger.exception("Failed to create news item from file.")
-            flash("Failed to create news item from file", "error")
+            return make_response(cls.render_response_notification({"error": "Failed to create news item from file."}), 500)
 
-        return cls.redirect_htmx(url_for("assess.get_news_item", news_item_id="0"))
+        if not core_response.ok:
+            return make_response(cls.get_notification_from_response(core_response), core_response.status_code)
+        flash("File imported successfully", "success")
+        return cls.redirect_htmx(url_for("assess.assess"))
 
     @classmethod
     @auth_required()
@@ -1291,6 +1325,7 @@ class StoryView(BaseView):
     def _build_simple_web_collector_payload(url: str, parameters: dict[str, Any] | None = None) -> dict[str, Any]:
         collector_parameters = {key: value for key, value in (parameters or {}).items() if value not in ("", None) and key != "WEB_URL"}
         collector_parameters["WEB_URL"] = url.strip()
+        collector_parameters = normalize_parameter_values("simple_web_collector", collector_parameters)
         return {
             "id": "manual",
             "type": "simple_web_collector",
@@ -1301,13 +1336,27 @@ class StoryView(BaseView):
     def _create_news_item_from_url(cls, url: str, parameters: dict[str, Any] | None = None):
         try:
             payload = cls._build_simple_web_collector_payload(url, parameters)
+            collector_parameters = payload["parameters"]
+            if collector_parameters.get("DIGEST_SPLITTING") and not collector_parameters.get("XPATH", "").strip():
+                return make_response(
+                    cls.render_response_notification({"error": "An XPath selecting article links is required for linked articles."}), 400
+                )
             core_response = CoreApi().api_post("/assess/news-items/fetch", json_data=payload)
             return cls.news_item_edit_view(core_response)
+        except ValidationError as exc:
+            logger.exception("Invalid URL collection settings")
+            fields = {
+                SimpleWebCollectorParameters.model_fields[name].title or name
+                for error in exc.errors()
+                if error["loc"] and (name := error["loc"][0]) in SimpleWebCollectorParameters.model_fields
+            }
+            message = "Invalid collection settings." + (f" Check: {', '.join(sorted(fields))}." if fields else "")
+            return make_response(cls.render_response_notification({"error": message}), 400)
         except HTTPException:
             raise
         except Exception:
             logger.exception("Failed to create news item from URL.")
-            return cls.render_response_notification({"error": "Failed to create news item from URL."})
+            return make_response(cls.render_response_notification({"error": "Failed to create news item from URL."}), 500)
 
     @classmethod
     @auth_required()
@@ -1505,7 +1554,7 @@ class StoryView(BaseView):
             cls.add_flash_notification(response)
             if bookmark_id:
                 return cls.redirect_htmx(url_for("assess.bookmark", bookmark_id=bookmark_id))
-            return cls.redirect_htmx(url_for("assess.story", story_id=story_id))
+            return cls.redirect_htmx(url_for("assess.story", story_id=story_id, assess_url=cls._get_assess_return_url()))
 
         notification_html = cls.get_notification_from_response(response)
 

@@ -1,12 +1,17 @@
+import json
 from unittest.mock import call, patch
+from urllib.parse import parse_qs, urlsplit
+from uuid import uuid4
 
 import pytest
 from flask import render_template, render_template_string, url_for
-from models.product import Product, ProductType, PublisherPreset
+from lxml import html
+from models.product import Product, ProductMetadata, ProductTypeChoice, PublisherPreset
 from models.report import ReportItem
-from models.types import PRESENTER_TYPES, PUBLISHER_TYPES
 from pydantic import ValidationError
+from responses import matchers
 
+from frontend.cache_models import PagingData
 from frontend.config import Config
 from frontend.views.product_views import ProductView
 
@@ -101,39 +106,16 @@ def test_product_download_streams_core_response(authenticated_client, responses_
     assert responses_mock.calls[0].response.raw.closed
 
 
-def test_product_view_uses_publish_product_types_endpoint():
-    product_types = [
-        ProductType(
-            id="product-type-1",
-            title="CERT Daily Report",
-            description="cert.at Daily Report HTML",
-            type=PRESENTER_TYPES.HTML_PRESENTER,
-        )
-    ]
-    publishers = [
-        PublisherPreset(
-            id="publisher-1",
-            name="FTP Publisher",
-            description="Primary FTP publisher",
-            type=PUBLISHER_TYPES.FTP_PUBLISHER,
-        )
-    ]
-
+def test_product_list_does_not_load_editor_catalogs():
     with patch("frontend.views.product_views.DataPersistenceLayer") as persistence_cls:
-        persistence = persistence_cls.return_value
-        persistence.get_objects.side_effect = [product_types, publishers]
+        context = ProductView.get_extra_context({"products": []})
 
-        context = ProductView.get_extra_context({})
-
-    assert persistence.get_objects.call_args_list == [call(ProductType), call(PublisherPreset)]
-    assert context["product_types"] == [{"id": "product-type-1", "name": "CERT Daily Report"}]
-    assert context["publishers"] == [{"id": "publisher-1", "name": "FTP Publisher"}]
+    assert context == {"products": []}
+    persistence_cls.assert_not_called()
 
 
 def test_product_view_preselects_report_from_query(app):
-    product_type = ProductType.model_construct(
-        id="product-type-1", title="CERT Daily Report", description="cert.at Daily Report HTML", type="HTML_PRESENTER"
-    )
+    product_type = ProductTypeChoice(id="product-type-1", title="CERT Daily Report")
     report = ReportItem.model_construct(id="report-1", title="Selected report", report_item_type_id="report-type-1")
     product_instance = Product.model_construct(
         id="product-1",
@@ -147,44 +129,103 @@ def test_product_view_preselects_report_from_query(app):
     with patch("frontend.views.product_views.DataPersistenceLayer") as persistence_cls:
         persistence = persistence_cls.return_value
         persistence.get_objects.side_effect = [
-            [product_type],
             [
                 PublisherPreset.model_construct(
                     id="publisher-1", name="FTP Publisher", description="Primary FTP publisher", type="FTP_PUBLISHER"
                 )
             ],
+            [product_type],
         ]
         persistence.get_object.return_value = report
 
         with app.test_request_context("/publish/product-1?report_id=report-1"):
             context = ProductView.get_extra_context({"product": product_instance})
 
-    assert persistence.get_objects.call_args_list == [call(ProductType), call(PublisherPreset)]
+    assert persistence.get_objects.call_args_list == [
+        call(PublisherPreset),
+        call(ProductTypeChoice, PagingData(query_params={"report_ids": ["report-1", "report-2"]}).set_fetch_all()),
+    ]
     assert context["selected_report_items"] == ["report-2", "report-1"]
     assert context["supported_reports"] == [{"id": "report-2", "title": "Already selected"}, report.model_dump(mode="json")]
 
 
-def test_product_view_only_offers_product_types_compatible_with_selected_reports(app):
-    product_types = [
-        ProductType.model_construct(id="compatible", title="Compatible", report_types=["report-type-1"]),
-        ProductType.model_construct(id="incompatible", title="Incompatible", report_types=["report-type-2"]),
-    ]
-    product = Product.model_construct(
-        id="product-1",
-        title="Existing product",
-        product_type_id="compatible",
-        report_items=["report-1"],
-        supported_reports=[{"id": "report-1", "report_item_type_id": "report-type-1"}],
+def test_product_view_uses_core_choices_cached_by_report_selection(app, responses_mock, test_cache_backend):
+    report_ids = sorted(str(uuid4()) for _ in range(201))
+
+    def choices(request):
+        assert len(request.path_url.encode()) < 4096
+        selected = parse_qs(urlsplit(request.url).query)["report_ids"]
+        items = [{"id": "common", "title": "Common"}]
+        if report_ids[-1] not in selected:
+            items.append({"id": "partial", "title": "Supports only part of the selection"})
+        return 200, {}, json.dumps({"items": items})
+
+    responses_mock.add_callback("GET", f"{Config.TARANIS_CORE_URL}/publish/product-type-choices", callback=choices)
+    product = Product(title="Large product", product_type_id="common", id="0", report_items=[*report_ids, report_ids[0]])
+    with app.test_request_context("/publish/0"):
+        context = ProductView.get_extra_context({"product": product})
+    assert context["product_types"] == [{"id": "common", "name": "Common"}]
+    assert context["selected_report_items"] == product.report_items
+    request_count = len(responses_mock.calls)
+    assert request_count > 1
+
+    with app.test_request_context("/publish/0"):
+        cached = ProductView.get_extra_context({"product": product})
+    assert cached["product_types"] == context["product_types"]
+    assert len(responses_mock.calls) == request_count
+
+
+def test_product_with_restricted_reports_opens_saves_and_explains_locked_actions(authenticated_client, responses_mock):
+    warning = "Some linked reports are restricted; only title and description can be edited."
+    product = {
+        "id": "product-1",
+        "title": "Limited product",
+        "description": "Existing description",
+        "product_type_id": "type-1",
+        "report_items": ["visible-report", "restricted-report"],
+        "report_access_warning": warning,
+        "supported_reports": [{"id": "visible-report", "title": "Visible report"}],
+        "auto_publish": True,
+        "default_publisher": "publisher-1",
+    }
+    responses_mock.get(f"{Config.TARANIS_CORE_URL}/publish/products/product-1", json=product)
+    responses_mock.get(f"{Config.TARANIS_CORE_URL}/publish/product-metadata/product-1", json=product)
+    responses_mock.get(f"{Config.TARANIS_CORE_URL}/publish/publisher-presets", json={"items": []})
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/publish/product-type-choices",
+        match=[matchers.query_param_matcher({"fetch_all": "true"})],
+        json={"items": [{"id": "type-1", "title": "Current product type"}]},
     )
+    opened = authenticated_client.get("/publish/product-1?report_id=ignored-report")
+    assert opened.status_code == 200
+    tree = html.fromstring(opened.data)
+    assert warning in tree.get_element_by_id("product-report-access-warning").text_content()
+    assert "Report Type permissions or TLP clearance" in tree.get_element_by_id("product-report-access-help").text_content()
+    assert tree.xpath('//button[@aria-label="Why editing is limited"][@aria-describedby="product-report-access-help"]')
+    assert tree.xpath('//fieldset[@disabled]//select[@name="product_type_id"]')
+    assert tree.xpath('//fieldset[@disabled]//button[contains(., "Publish")]')
+    assert tree.xpath('//button[@id="render_button"][@disabled]')
+    assert tree.xpath('//button[@disabled][contains(., "Create copy")]')
+    assert not tree.xpath("//*[@data-product-report-items-enhanced]")
+    assert tree.xpath('//section//li[text()="Visible report"]')
+    assert tree.xpath('//input[@name="report_items[]"]/@value') == product["report_items"]
 
-    with patch("frontend.views.product_views.DataPersistenceLayer") as persistence_cls:
-        persistence = persistence_cls.return_value
-        persistence.get_objects.side_effect = [product_types, []]
-
-        with app.test_request_context("/publish/product-1"):
-            context = ProductView.get_extra_context({"product": product})
-
-    assert context["product_types"] == [{"id": "compatible", "name": "Compatible"}]
+    saved_product = {**product, "title": "Updated title", "description": "Updated description"}
+    saved = responses_mock.put(
+        f"{Config.TARANIS_CORE_URL}/publish/products/product-1",
+        json={"id": "product-1", "product": saved_product, "message": "Details updated"},
+    )
+    submitted = {
+        item.name: item.value for item in tree.xpath('//form[@id="product_form"]//input[@type="hidden"]') if item.name != "report_items[]"
+    }
+    submitted.update({"title": "Updated title", "description": "Updated description", "report_items[]": product["report_items"]})
+    response = authenticated_client.put("/publish/product-1", data=submitted, headers={"HX-Request": "true"})
+    assert response.status_code == 200
+    assert warning in html.fromstring(response.data).get_element_by_id("product-report-access-warning").text_content()
+    saved_payload = json.loads(saved.calls[0].request.body)
+    assert saved_payload["report_items"] == product["report_items"]
+    assert saved_payload["auto_publish"] is True
+    assert authenticated_client.get("/publish/0?copy_from=product-1").status_code == 403
 
 
 @pytest.mark.parametrize("report_items", [[], ["report-1", "report-2"]])
@@ -206,7 +247,7 @@ def test_product_copy_prefills_only_creation_fields(app, report_items):
         persistence = persistence_cls.return_value
         persistence.get_object.return_value = source
         persistence.get_objects.side_effect = [
-            [ProductType.model_construct(id="product-type-1", title="Daily", report_types=[])],
+            [ProductTypeChoice(id="product-type-1", title="Daily")],
             [],
         ]
         with app.test_request_context("/publish/0?copy_from=source-product"):
@@ -230,6 +271,7 @@ def test_product_copy_prefills_only_creation_fields(app, report_items):
     assert "cmVuZGVyZWQ=" not in markup
     assert "/reports/source-product" not in markup
     assert source.title == "Daily report"
+    persistence.get_object.assert_called_once_with(ProductMetadata, "source-product")
     persistence.store_object.assert_not_called()
 
 

@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import Index, func, literal_column, select, tuple_
+from sqlalchemy import Index, func, literal_column, or_, select, tuple_
 from sqlalchemy.orm import Mapped, relationship
 
 from core.log import logger
@@ -39,38 +39,40 @@ class NewsItemTag(BaseModel):
         self.tag_type = tag_type
 
     @classmethod
-    def get_filtered_tags(cls, filter_args: dict) -> dict[str, str]:
+    def get_list(cls, filter_args: dict, user=None) -> list[dict[str, Any]]:
         from core.model.news_item import NewsItem
+        from core.model.story import Story
 
         story_count = func.count(func.distinct(NewsItem.story_id))
-        query = select(cls.name, cls.tag_type, story_count.label("story_count")).join(NewsItem)
+        query = (
+            select(cls.name, story_count.label("story_count"))
+            .join(NewsItem)
+            .where(cls.name != "", or_(cls.tag_type.is_(None), cls.tag_type == "", cls.tag_type.not_ilike(r"report\_%", escape="\\")))
+        )
+        if user:
+            query = query.where(Story.visible_query(user).where(Story.id == NewsItem.story_id).exists())
 
-        if search := filter_args.get("search"):
-            query = query.filter(cls.name.ilike(f"%{search}%"))
+        if search := filter_args.get("search", "").strip():
+            query = query.where(cls.name.icontains(search, autoescape=True))
+            query = query.order_by((func.lower(cls.name) == search.lower()).desc())
 
         if tag_type := filter_args.get("tag_type"):
             query = query.filter(cls.tag_type == tag_type)
 
-        query = query.group_by(cls.name, cls.tag_type)
+        query = query.group_by(cls.name)
         if min_size := filter_args.get("min_size"):
             # returns only tags where the name appears at least min_size times in the database
             query = query.having(story_count >= min_size)
-            query = query.order_by(story_count.desc())
+        query = query.order_by(story_count.desc(), func.lower(cls.name), cls.name)
 
         offset = filter_args.get("offset", 0)
         limit = filter_args.get("limit", 20)
         query = query.offset(offset).limit(limit)
-        result = db.session.execute(query)
-        return {name: tag_type for name, tag_type, _ in result}
+        return [dict(row) for row in db.session.execute(query).mappings()]
 
     @classmethod
     def get_all_for_collector(cls):
         return cls.get_filtered(db.select(cls))
-
-    @classmethod
-    def get_list(cls, filter_args: dict) -> list[str]:
-        tags = cls.get_filtered_tags(filter_args)
-        return list(tags.keys())
 
     @classmethod
     def remove_by_story(cls, story):

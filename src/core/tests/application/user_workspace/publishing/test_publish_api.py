@@ -56,6 +56,102 @@ def product_type_change_resources(app):
 class TestPublishApi(BaseTest):
     base_uri = "/api/publish"
 
+    @pytest.mark.parametrize("column", ["title", "created", "type", "report_items"])
+    @pytest.mark.parametrize("direction", ["asc", "desc"])
+    def test_product_search_and_sorts_apply_before_pagination(self, client, session, auth_header, column, direction):
+        from core.model.product import Product
+        from core.model.product_type import ProductType
+        from core.model.report_item import ReportItem
+
+        prefix = uuid4().hex
+        originals = [ProductType.filter_by_title("Default PDF Presenter"), ProductType.filter_by_title("CERT Daily Report")]
+        types = [
+            ProductType(f"{prefix} Type {index}", original.type, parameters=original.parameters) for index, original in enumerate(originals)
+        ]
+        session.add_all(types)
+        session.flush()
+        reports = [ReportItem(f"{prefix} Report {index}", None) for index in range(2)]
+        session.add_all(reports)
+        session.flush()
+        products = [Product(f"{prefix} {title}", types[index % 2].id, description=prefix) for index, title in enumerate(["z", "a", "a", "m"])]
+        for product, count in zip(products, [0, 2, 1, 0], strict=True):
+            product.report_items = reports[:count]
+            product.created = datetime(2026, 1, 1)
+        session.add_all(products)
+        session.flush()
+        sort_key = {
+            "title": lambda item: item.title,
+            "created": lambda item: item.created,
+            "type": lambda item: item.product_type.type,
+            "report_items": lambda item: len(item.report_items),
+        }[column]
+        expected = sorted(products, key=lambda item: (sort_key(item), item.id), reverse=direction == "desc")
+        data = self.assert_get_ok(client, f"products?search={prefix}&order={column}_{direction}&limit=2&page=2", auth_header).get_json()
+        assert data["total_count"] == 4
+        assert [item["id"] for item in data["items"]] == [item.id for item in expected[2:]]
+        data = self.assert_get_ok(client, f"products?search={quote(types[0].title)}", auth_header).get_json()
+        assert data["total_count"] == 2
+        assert {item["id"] for item in data["items"]} == {item.id for item in products if item.product_type_id == types[0].id}
+
+    def test_product_copy_metadata_omits_render_and_preserves_reports(self, client, auth_header, product_type_change_resources):
+        product_id = product_type_change_resources["product_id"]
+        full = self.assert_get_ok(client, f"products/{product_id}", auth_header).get_json()
+        metadata = self.assert_get_ok(client, f"product-metadata/{product_id}", auth_header).get_json()
+        assert full.pop("render_result") == base64.b64encode(b"Old product render").decode()
+        assert metadata == full
+
+    def test_product_type_choices_filter_by_all_selected_reports(self, client, session, auth_header):
+        from core.model.product import Product
+        from core.model.product_type import ProductType
+        from core.model.report_item import ReportItem
+        from core.model.report_item_type import ReportItemType
+
+        prefix = uuid4().hex
+        report_types = [ReportItemType(f"{prefix} {index}") for index in range(2)]
+        session.add_all(report_types)
+        session.flush()
+        reports = [ReportItem(f"{prefix} {index}", report_type.id) for index, report_type in enumerate(report_types)]
+        untyped = ReportItem(f"{prefix} untyped", None)
+        session.add_all([*reports, untyped])
+        original = ProductType.filter_by_title("Default TEXT Presenter")
+        types = [ProductType(f"{prefix} {index}", original.type, parameters=original.parameters) for index in range(4)]
+        for item, supported in zip(types, [report_types[:1], report_types[1:], report_types, []], strict=True):
+            item.report_types = supported
+        session.add_all(types)
+        session.flush()
+
+        choices = self.assert_get_ok(client, "product-type-choices", auth_header).get_json()["items"]
+        full = self.assert_get_ok(client, "product-types", auth_header).get_json()["items"]
+        assert choices == sorted([{"id": item["id"], "title": item["title"]} for item in full], key=lambda item: (item["title"], item["id"]))
+        type_ids = {item.id for item in types}
+        response = client.get(
+            self.concat_url("product-type-choices"),
+            headers=auth_header,
+            query_string={"report_ids": [reports[0].id, reports[1].id, reports[0].id, untyped.id]},
+        )
+        assert response.status_code == 200
+        assert {item["id"] for item in response.json["items"]} & type_ids == {types[2].id}
+
+        response = client.get(
+            self.concat_url("product-type-choices"), headers=auth_header, query_string={"report_ids": [reports[0].id, str(uuid4())]}
+        )
+        assert response.status_code == 404
+        assert response.json == {"error": "Selected reports not found or not accessible"}
+
+        creation_id = str(uuid4())
+        payload = {"id": creation_id, "title": "Selected reports product", "report_items": [reports[0].id, untyped.id]}
+        missing = client.post(self.concat_url("products"), headers=auth_header, json={**payload, "product_type_id": str(uuid4())})
+        assert missing.status_code == 404
+        assert missing.json == {"error": "Product type not found"}
+        incompatible = client.post(self.concat_url("products"), headers=auth_header, json={**payload, "product_type_id": types[1].id})
+        assert incompatible.status_code == 400
+        assert incompatible.json == {"error": "Selected product type does not support the selected reports"}
+        assert Product.get(creation_id) is None
+
+        created = self.assert_post_ok(client, "products", auth_header=auth_header, json_data={**payload, "product_type_id": types[2].id})
+        assert created.json["id"] == creation_id
+        assert set(created.json["product"]["report_items"]) == set(payload["report_items"])
+
     def test_post_Product(self, client, auth_header, cleanup_product):
         """
         This test queries the /api/publish/products endpoint with a POST request.
@@ -64,7 +160,7 @@ class TestPublishApi(BaseTest):
         response = self.assert_post_ok(client, "products", auth_header=auth_header, json_data=cleanup_product)
         assert response.get_json()["id"] == cleanup_product["id"]
 
-    def test_get_Products(self, client, auth_header, cleanup_product):
+    def test_get_Products(self, client, auth_header, cleanup_product, app):
         """
         This test queries the /api/publish/products endpoint.
         It expects a valid data and a valid status-code
@@ -73,7 +169,22 @@ class TestPublishApi(BaseTest):
         assert response.get_json()["total_count"] == 1
         assert response.get_json()["items"][0]["title"] == cleanup_product["title"]
 
-    def test_product_type_change_respects_selected_report_types(self, client, auth_header, product_type_change_resources):
+        from sqlalchemy import inspect
+
+        from core.managers.db_manager import db
+        from core.model.product import Product
+
+        with app.app_context():
+            db.session.remove()
+            product = Product.get(cleanup_product["id"])
+            assert "render_result" in inspect(product).unloaded
+            assert "render_result" not in product.to_dict()
+            assert "render_result" in inspect(product).unloaded
+            assert "render_result" in product.to_detail_dict()
+
+    def test_product_type_change_respects_selected_report_types(
+        self, client, auth_header, product_type_change_resources, publish_publisher_preset
+    ):
         update_payload = {
             "title": product_type_change_resources["product_title"],
             "product_type_id": product_type_change_resources["compatible_type_id"],
@@ -84,6 +195,20 @@ class TestPublishApi(BaseTest):
         }
 
         product_url = self.concat_url(f"products/{product_type_change_resources['product_id']}")
+        same_type_response = client.put(
+            product_url,
+            headers=auth_header,
+            json={**update_payload, "product_type_id": product_type_change_resources["initial_type_id"]},
+        )
+        assert same_type_response.status_code == 200
+        saved_product = same_type_response.get_json()["product"]
+        assert saved_product["render_result"] is None
+        assert saved_product["last_rendered"] is None
+        assert saved_product["last_published_url"] == f"/reports/{product_type_change_resources['product_id']}"
+        premature_publish = client.post(f"{product_url}/publishers/{publish_publisher_preset['id']}", headers=auth_header)
+        assert premature_publish.status_code == 409
+        assert premature_publish.json == {"error": "Product has no current render. Wait for rendering to finish, then try publishing again."}
+
         compatible_response = client.put(product_url, headers=auth_header, json=update_payload)
         assert compatible_response.status_code == 200
         compatible_product = compatible_response.get_json()["product"]
@@ -107,8 +232,11 @@ class TestPublishApi(BaseTest):
         from core.model.product import Product
         from core.model.role import Role
         from core.model.role_based_access import ItemType, RoleBasedAccess
+        from tests.application.support.rbac import grant_acl
 
         with app.app_context():
+            current_type_acl = grant_acl(Role.filter_by_name("User"), ItemType.PRODUCT_TYPE, product_type_change_resources["initial_type_id"])
+            current_type_acl_id = current_type_acl.id
             admin_role = Role.filter_by_name("Admin")
             assert admin_role is not None
             acl = RoleBasedAccess(
@@ -125,6 +253,22 @@ class TestPublishApi(BaseTest):
             acl_id = acl.id
 
         try:
+            creation_id = str(uuid4())
+            created = client.post(
+                self.concat_url("products"),
+                headers=auth_header_user_permissions,
+                json={
+                    "id": creation_id,
+                    "title": "Forbidden product",
+                    "product_type_id": product_type_change_resources["compatible_type_id"],
+                    "report_items": [],
+                },
+            )
+            assert created.status_code == 403
+            assert created.json == {"error": "User does not have access to this product type"}
+            with app.app_context():
+                assert Product.get(creation_id) is None
+
             response = client.put(
                 self.concat_url(f"products/{product_type_change_resources['product_id']}"),
                 headers=auth_header_user_permissions,
@@ -143,6 +287,7 @@ class TestPublishApi(BaseTest):
                 assert product.product_type_id == product_type_change_resources["initial_type_id"]
         finally:
             with app.app_context():
+                RoleBasedAccess.delete(current_type_acl_id)
                 if RoleBasedAccess.get(acl_id):
                     RoleBasedAccess.delete(acl_id)
 

@@ -37,12 +37,12 @@
         <a class="btn btn-outline btn-sm"
            href="{{ url_for('analyze.report_cti', report_id=report.id) }}"
            data-testid="report-cti-button">CTI information</a>
-        {% if not analyst_review_run %}
+        {% if not analyst_review_run and "PUBLISH_ACCESS" in current_user.permissions %}
           <div data-testid="report-new-product" class="inline-flex">
             <button type="button"
                     class="btn btn-outline btn-sm"
                     onclick="document.getElementById('report_publish_dialog').showModal()"
-                    data-testid="report-publish-button">Publish</button>
+                    data-testid="report-publish-button">Choose product…</button>
           </div>
         {% endif %}
         <div class="join">
@@ -179,7 +179,7 @@
       </div>
     </form>
 
-    {% if not analyst_review_run %}
+    {% if not analyst_review_run and "PUBLISH_ACCESS" in current_user.permissions %}
       {% include "analyze/report_publish_dialog.html" %}
     {% endif %}
   </div>

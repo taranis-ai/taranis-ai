@@ -1,7 +1,13 @@
 {% for tag in suggested_tags %}
-  <li role="option" class="w-full">
-    <button type="button" class="btn btn-ghost btn-sm justify-start w-full text-left" @click='addRemoteItem({{ tag | tojson }})'>
-      {{ tag }}
+  <li role="option" class="w-full min-w-0">
+    <button type="button"
+            class="btn btn-ghost btn-sm flex flex-nowrap justify-between w-full min-w-0 gap-2 text-left"
+            title="{{ tag.name }}"
+            @click='addRemoteItem({{ tag.name | tojson }})'>
+      <span class="min-w-0 flex-1 truncate" data-test-id="tag-suggestion-name">{{ tag.name }}</span>
+      <span class="badge badge-ghost badge-xs shrink-0"
+            data-test-id="tag-suggestion-count"
+            aria-label="{{ tag.story_count }} matching {{ 'story' if tag.story_count == 1 else 'stories' }}">{{ tag.story_count }}</span>
     </button>
   </li>
 {% else %}

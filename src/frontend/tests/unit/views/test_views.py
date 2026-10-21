@@ -2,7 +2,6 @@ import base64
 import json
 from datetime import datetime
 from io import BytesIO
-from types import SimpleNamespace
 from typing import Any, cast
 from unittest.mock import patch
 from urllib.parse import parse_qs, urlparse
@@ -128,7 +127,7 @@ def test_dashboard_limits_recent_tags_and_shows_saved_filters(authenticated_clie
     saved_filter_url = urlparse(saved_filter_cards[0].xpath('./a[text()="Shift queue"]')[0].get("href"))
     delete_button = saved_filter_row.xpath('.//button[normalize-space()="Delete"]')[0]
 
-    assert not saved_filter_row.xpath('.//button[normalize-space()="Update"]')
+    assert not saved_filter_row.xpath('.//button[normalize-space()="Replace with current filters"]')
     assert not saved_filter_row.xpath('.//button[normalize-space()="Set default"]')
     assert delete_button.get("hx-delete") == url_for("assess.delete_saved_filter", filter_id="filter-1")
     assert delete_button.get("hx-target") == "closest [data-testid='dashboard-saved-filter-card']"
@@ -352,6 +351,27 @@ class TestCRUDViews:
 
 
 class TestSourceView:
+    def test_sidebar_badges_are_shared_only_within_each_request(
+        self, authenticated_client, auth_user, responses_mock, mock_core_get_endpoints, monkeypatch
+    ):
+        monkeypatch.setattr(cache, "client", None)
+        responses_mock.replace("GET", f"{Config.TARANIS_CORE_URL}/users", json=auth_user.model_dump(mode="json"))
+        badge_url = f"{Config.TARANIS_CORE_URL}/config/admin-menu-badges"
+        responses_mock.replace("GET", badge_url, json={"osint_source": 4, "bot": 7})
+
+        first = authenticated_client.get(SourceView.get_base_route())
+        assert first.status_code == 200
+        tree = html.fromstring(first.text)
+        assert tree.xpath('//a[contains(@href, "state=failure")]/span[1]/text()') == ["4", "7"]
+        assert len([call for call in responses_mock.calls if call.request.url == badge_url]) == 1
+
+        responses_mock.replace("GET", badge_url, json={"osint_source": 5, "bot": 8})
+        second = authenticated_client.get(SourceView.get_base_route())
+        assert second.status_code == 200
+        tree = html.fromstring(second.text)
+        assert tree.xpath('//a[contains(@href, "state=failure")]/span[1]/text()') == ["5", "8"]
+        assert len([call for call in responses_mock.calls if call.request.url == badge_url]) == 2
+
     @pytest.mark.parametrize("status", [200, 409])
     def test_native_delete_redirects_with_notification(self, authenticated_client, responses_mock, status):
         core_url = f"{Config.TARANIS_CORE_URL}/config/osint-sources/source-1"
@@ -365,15 +385,6 @@ class TestSourceView:
         assert len([call for call in responses_mock.calls if call.request.method == "DELETE" and call.request.url == core_url]) == 1
         with authenticated_client.session_transaction() as session:
             assert ("success" if status == 200 else "error", message) in session["_flashes"]
-
-    def test_source_menu_badge_uses_task_failure_count(self, monkeypatch):
-        fake_badges = SimpleNamespace(osint_source=4)
-        monkeypatch.setattr(
-            "frontend.views.admin_views.source_views.DataPersistenceLayer",
-            lambda: SimpleNamespace(get_object=lambda model: fake_badges),
-        )
-
-        assert SourceView.get_admin_menu_badge() == 4
 
     def test_bulk_delete_renders_related_news_items_error(self, authenticated_client, responses_mock, htmx_header):
         core_url = f"{Config.TARANIS_CORE_URL}/config/osint-sources"

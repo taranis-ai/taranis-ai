@@ -185,12 +185,12 @@
                  hx-push-url="false"
                  hx-swap="innerHTML"
                  :hx-vals="JSON.stringify({ q: query })"
-                 hx-on::before:request="if (!hasQuery()) event.preventDefault()"
+                 hx-on::before:request="if (!this.value.trim()) event.preventDefault()"
                {% endif %}>
       </label>
       <ul id="{{ suggestion_list_id }}"
           x-ref="suggestionsList"
-          class="dropdown-content menu menu-compact w-full max-h-60 bg-base-200 text-sm rounded-box p-2 shadow flex-nowrap overflow-y-auto z-30"
+          class="dropdown-content menu menu-compact w-full max-h-60 bg-base-200 text-sm rounded-box p-2 shadow flex-nowrap overflow-x-hidden overflow-y-auto z-30"
           role="listbox"
           x-show="shouldShowOptions()"
           @mousedown.prevent>

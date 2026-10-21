@@ -17,6 +17,24 @@ class ProductTypes(MethodView):
         return product_type.ProductType.get_all_for_api(None, with_count=False, user=current_user)
 
 
+class ProductChoices(MethodView):
+    @auth_required("PUBLISH_ACCESS")
+    def get(self):
+        return product.Product.get_choices_for_api(current_user)
+
+
+class ProductTypeChoices(MethodView):
+    @auth_required("PUBLISH_ACCESS")
+    def get(self):
+        return product_type.ProductType.get_choices_for_api(current_user, request.args.getlist("report_ids"))
+
+
+class ProductMetadata(MethodView):
+    @auth_required("PUBLISH_ACCESS")
+    def get(self, product_id: str):
+        return product.Product.get_for_api(product_id, current_user, include_render=False)
+
+
 class PublisherPresets(MethodView):
     @auth_required("PUBLISH_ACCESS")
     @extract_args("search", "page", "limit", "sort", "order", "fetch_all")
@@ -30,18 +48,32 @@ class Products(MethodView):
     @auth_required("PUBLISH_ACCESS")
     def get(self, product_id: str | None = None):
         if product_id:
-            return product.Product.get_for_api(product_id)
+            return product.Product.get_for_api(product_id, current_user)
 
-        filter_keys = ["search", "range", "sort", "page", "limit", "offset"]
+        filter_keys = ["search", "range", "sort", "order", "page", "limit", "offset", "fetch_all"]
         filter_args: dict[str, str | int | list] = {k: v for k, v in request.args.items() if k in filter_keys}
 
         return product.Product.get_all_for_api(filter_args=filter_args, with_count=True, user=current_user)
 
     @auth_required("PUBLISH_CREATE")
     def post(self):
-        new_product = product.Product.add(request.json, user_id=current_user.id)
+        data = request.json or {}
+        selected_type = product_type.ProductType.get(data.get("product_type_id"))
+        if selected_type is None:
+            return {"error": "Product type not found"}, 404
+        if not selected_type.allowed_with_acl(current_user, require_write_access=False):
+            return {"error": "User does not have access to this product type"}, 403
+        if report_ids := data.get("report_items"):
+            response, status = product_type.ProductType.get_choices_for_api(current_user, report_ids)
+            if status != 200:
+                return response, status
+            if selected_type.id not in {item["id"] for item in response["items"]}:
+                return {"error": "Selected product type does not support the selected reports"}, 400
+        new_product = product.Product.add(data, user_id=current_user.id)
         invalidate_frontend_cache_on_success(201, scopes=(SCOPE_PUBLISH_VIEWS,))
-        return jsonify({"message": "New Product created", "id": new_product.id, "product": new_product.to_detail_dict()}), 201
+        return jsonify(
+            {"message": "New Product created", "id": new_product.id, "product": new_product.to_detail_dict(user=current_user)}
+        ), 201
 
     @auth_required("PUBLISH_UPDATE")
     def put(self, product_id: str | None = None):
@@ -82,6 +114,11 @@ class ProductsRender(MethodView):
 
     @auth_required("PUBLISH_ACCESS")
     def get(self, product_id: str):
+        selected_product = product.Product.get(product_id)
+        if selected_product is None:
+            return {"error": "Product not found"}, 404
+        if not selected_product.product_type or not selected_product.product_type.allowed_with_acl(current_user, require_write_access=False):
+            return {"error": "User is not allowed to read product"}, 403
         return ProductService.get_render(product_id)
 
 
@@ -109,6 +146,9 @@ def initialize(app: Flask):
     publish_bp.add_url_rule("/products", view_func=Products.as_view("products"), methods=["GET", "POST"])
     publish_bp.add_url_rule("/products/<string:product_id>", view_func=Products.as_view("product"), methods=["GET", "PUT", "DELETE"])
     publish_bp.add_url_rule("/product-types", view_func=ProductTypes.as_view("product_types"))
+    publish_bp.add_url_rule("/product-choices", view_func=ProductChoices.as_view("product_choices"))
+    publish_bp.add_url_rule("/product-type-choices", view_func=ProductTypeChoices.as_view("product_type_choices"))
+    publish_bp.add_url_rule("/product-metadata/<string:product_id>", view_func=ProductMetadata.as_view("product_metadata"))
     publish_bp.add_url_rule("/publisher-presets", view_func=PublisherPresets.as_view("publisher_presets"))
     publish_bp.add_url_rule("/publisher-presets/<string:preset_id>", view_func=PublisherPresets.as_view("publisher_preset"))
     publish_bp.add_url_rule("/products/auto-render/<string:report_item_id>", view_func=AutoRenderProducts.as_view("auto_render_products"))

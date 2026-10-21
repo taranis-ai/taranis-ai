@@ -25,12 +25,60 @@ class TestAssessApi(BaseTest):
             json={"story_id": story.id, "bot_id": bot_type if use_type else bot.id},
         )
         assert response.status_code == 200, response.json
-        job = app.extensions["rq"].get_queue("bots").fetch_job(f"bot_{bot.id}")
-        assert job is not None
+        jobs = [job for job in app.extensions["rq"].get_queue("bots").get_jobs() if job.kwargs.get("bot_id") == bot.id]
+        assert len(jobs) == 1
+        job = jobs[0]
         assert job.kwargs["bot_id"] == bot.id
         assert job.kwargs["filter"] == {"story_id": story.id}
         assert job.meta["user_id"] == User.find_by_name("admin").id
 
+    @pytest.mark.parametrize("unavailable", [None, "missing_bot", "disabled_bot", "disabled_endpoint", "queue_disabled"])
+    def test_generate_tags_queues_one_scoped_pipeline(self, app, client, auth_header, session, redis_client, monkeypatch, unavailable):
+        from core.config import Config
+        from core.managers.db_manager import db
+        from core.model.bot import Bot
+        from core.model.settings import Settings
+        from core.model.user import User
+        from tests.application.support.builders import build_news_item_payload, create_story
+
+        story = create_story(news_items=[build_news_item_payload()])
+        bots = [Bot.filter_by_type(kind) for kind in ("wordlist_bot", "ioc_bot", "nlp_bot")]
+        assert all(bots)
+        if unavailable == "missing_bot":
+            db.session.delete(bots[-1])
+            db.session.commit()
+        elif unavailable == "disabled_bot":
+            bots[-1].enabled = False
+            db.session.commit()
+        elif unavailable == "disabled_endpoint":
+            endpoint, status = Settings.save_llm_endpoint(
+                {"name": "Disabled tagging endpoint", "base_url": "https://llm.example/v1", "enabled": False}
+            )
+            assert status == 200
+            bots[-1].parameters = {**bots[-1].parameters, "LLM_ENDPOINT": endpoint["id"]}
+            db.session.commit()
+        elif unavailable == "queue_disabled":
+            monkeypatch.setattr(Config, "QUEUE_ENABLED", False)
+
+        response = client.post(
+            "/api/assess/stories/botactions",
+            headers=auth_header,
+            json={"story_id": story.id, "bot_id": "generate_tags"},
+        )
+        jobs = app.extensions["rq"].get_queue("bots").get_jobs()
+        if unavailable:
+            assert response.status_code == (503 if unavailable == "queue_disabled" else 400), response.json
+            assert not jobs
+            return
+        assert response.status_code == 200, response.json
+        assert len(jobs) == 1
+        job = jobs[0]
+        assert job.func_name == "worker.bots.bot_tasks.bot_pipeline_task"
+        assert job.args == ([bot.id for bot in bots],)
+        assert job.kwargs["filter"] == {"story_id": story.id}
+        assert job.meta["user_id"] == User.find_by_name("admin").id
+
+    @pytest.mark.filterwarnings("error:Object of type <NewsItem> not in session:sqlalchemy.exc.SAWarning")
     def test_order_saves_without_changing_content_and_rejects_stale_or_invalid_requests(self, client, auth_header, session):
         from core.managers.db_manager import db
         from tests.application.support.builders import build_news_item_payload, create_story
@@ -637,15 +685,23 @@ class TestAssessStories(BaseTest):
         assert "revision_count" in items[stories[0]]
         assert items[stories[0]]["revision_count"] > 0
 
-    def test_bulk_story_update_returns_404_for_unknown_story(self, client, stories, auth_header):
+    @pytest.mark.parametrize(
+        ("story_ids", "status", "error"),
+        [
+            (["missing-story"], 404, "Story not found"),
+            ([[None, None]], 400, "Story ids must be strings"),
+            ([{}], 400, "Story ids must be strings"),
+        ],
+    )
+    def test_bulk_story_update_rejects_invalid_or_unknown_story_ids(self, client, stories, auth_header, story_ids, status, error):
         response = client.post(
             "/api/assess/stories/bulk_action",
-            json={"story_ids": ["missing-story", stories[0]], "payload": {"read": True}},
+            json={"story_ids": [*story_ids, stories[0]], "payload": {"read": True}},
             headers=auth_header,
         )
 
-        assert response.status_code == 404
-        assert response.get_json() == {"error": "Story not found"}
+        assert response.status_code == status
+        assert response.get_json() == {"error": error}
 
     def test_delete_story(self, client, stories, auth_header):
         response = self.assert_delete_ok(client, f"story/{stories[0]}", auth_header)

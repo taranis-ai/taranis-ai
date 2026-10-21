@@ -6,14 +6,15 @@ from typing import Any
 
 from models.assess import NewsItem as AssessNewsItem
 from models.assess import Story as StoryPayload
+from models.types import BOT_TYPES
 from pydantic import ValidationError
-from sqlalchemy import func, inspect, or_
+from sqlalchemy import func, inspect, or_, select
 from sqlalchemy.dialects.postgresql import TSVECTOR
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import Mapped, aliased, relationship
 from sqlalchemy.sql import Select
-from sqlalchemy.sql.expression import false, null, true
+from sqlalchemy.sql.expression import false, true
 
 from core.log import logger
 from core.managers.db_manager import db
@@ -323,43 +324,42 @@ class Story(BaseModel):
 
     @classmethod
     def get_additional_counts(cls, filter_query):
-        subquery = filter_query.subquery()
-        total_count_subquery = db.select(func.count()).select_from(subquery).scalar_subquery()
-        read_count_subquery = db.select(func.count()).select_from(subquery).where(subquery.c.read == true()).scalar_subquery()
-        important_count_subquery = db.select(func.count()).select_from(subquery).where(subquery.c.important == true()).scalar_subquery()
-        in_reports_count_subquery = (
-            db.select(func.count())
-            .select_from(subquery)
-            .join(ReportItemStory, ReportItemStory.story_id == subquery.c.id)
-            .distinct()
-            .scalar_subquery()
-        )
-
-        count_query = db.select(
-            read_count_subquery.label("read_count"),
-            important_count_subquery.label("important_count"),
-            total_count_subquery.label("total_count"),
-            in_reports_count_subquery.label("in_reports_count"),
-        )
+        filtered = filter_query.with_only_columns(cls.id, cls.read, cls.important).order_by(None).limit(None).offset(None).subquery()
+        report_counts = select(ReportItemStory.story_id, func.count().label("count")).group_by(ReportItemStory.story_id).subquery()
+        count_query = select(
+            func.count().filter(filtered.c.read.is_(True)).label("read_count"),
+            func.count().filter(filtered.c.important.is_(True)).label("important_count"),
+            func.count().label("total_count"),
+            db.cast(func.coalesce(func.sum(report_counts.c.count), 0), db.BigInteger).label("in_reports_count"),
+        ).select_from(filtered.outerjoin(report_counts, report_counts.c.story_id == filtered.c.id))
 
         return db.session.execute(count_query).one()
 
     @classmethod
     def get_filter_query(cls, filter_args: dict) -> Select:
-        query = db.select(cls).group_by(cls.id).join(NewsItem, NewsItem.story_id == cls.id)
-        query = query.join(OSINTSource, NewsItem.osint_source_id == OSINTSource.id)
+        matching_items = (
+            db.select(NewsItem.id).join(OSINTSource, NewsItem.osint_source_id == OSINTSource.id).where(NewsItem.story_id == cls.id)
+        )
+        query = db.select(cls)
 
         if item_id := filter_args.get("story_id"):
-            return query.filter(cls.id == item_id)
+            return query.where(matching_items.exists(), cls.id == item_id)
 
         if item_ids := filter_args.get("story_ids"):
-            return query.filter(cls.id.in_(item_ids))
+            query = query.where(matching_items.exists(), cls.id.in_(item_ids))
+            if exclude_attr := filter_args.get("exclude_attr"):
+                query = cls._add_attribute_filter_to_query(query, exclude_attr, exclude=True)
+            return query
 
         source_group_filters = []
 
         if filter_args.get("group"):
-            query = query.outerjoin(OSINTSourceGroupOSINTSource, OSINTSource.id == OSINTSourceGroupOSINTSource.osint_source_id)
-            query = query.outerjoin(OSINTSourceGroup, OSINTSourceGroupOSINTSource.osint_source_group_id == OSINTSourceGroup.id)
+            matching_items = matching_items.outerjoin(
+                OSINTSourceGroupOSINTSource, OSINTSource.id == OSINTSourceGroupOSINTSource.osint_source_id
+            )
+            matching_items = matching_items.outerjoin(
+                OSINTSourceGroup, OSINTSourceGroupOSINTSource.osint_source_group_id == OSINTSourceGroup.id
+            )
 
         if group := filter_args.get("group"):
             source_group_filters.append(OSINTSourceGroup.id.in_(group))
@@ -368,15 +368,17 @@ class Story(BaseModel):
             source_group_filters.append(OSINTSource.id.in_(source))
 
         if source_group_filters:
-            query = query.filter(or_(*source_group_filters))
+            matching_items = matching_items.where(or_(*source_group_filters))
 
         if language := filter_args.get("language"):
             languages = language if isinstance(language, list) else [language]
             languages = [str(lang).strip().lower() for lang in languages if lang is not None and str(lang).strip()]
             if languages:
-                query = query.filter(func.lower(NewsItem.language).in_(languages))
+                matching_items = matching_items.where(func.lower(NewsItem.language).in_(languages))
             else:
-                query = query.filter(false())
+                matching_items = matching_items.where(false())
+
+        query = query.where(matching_items.exists())
 
         if search := filter_args.get("search"):
             sort: bool = "relevance" in filter_args.get("sort", "").lower()
@@ -410,26 +412,18 @@ class Story(BaseModel):
             query = query.filter(Story.relevance <= 0)
 
         in_report = filter_args.get("in_report", "").lower()
-        if in_report == "true":
-            query = query.join(
-                ReportItemStory,
-                Story.id == ReportItemStory.story_id,
-            )
-        if in_report == "false":
-            query = query.outerjoin(
-                ReportItemStory,
-                Story.id == ReportItemStory.story_id,
-            ).filter(ReportItemStory.story_id == null())
+        if in_report in {"true", "false"}:
+            in_reports = db.select(ReportItemStory.story_id).where(ReportItemStory.story_id == cls.id).exists()
+            query = query.where(in_reports if in_report == "true" else ~in_reports)
 
         if tags := filter_args.get("tags"):
             for tag in tags:
-                item_alias = aliased(NewsItem)
-                tag_alias = aliased(NewsItemTag)
-                query = (
-                    query.join(item_alias, item_alias.story_id == Story.id)
-                    .join(tag_alias, item_alias.id == tag_alias.news_item_id)
-                    .filter(or_(tag_alias.name == tag, tag_alias.tag_type == tag))
+                matching_tags = (
+                    db.select(NewsItem.id)
+                    .join(NewsItemTag, NewsItem.id == NewsItemTag.news_item_id)
+                    .where(NewsItem.story_id == cls.id, or_(NewsItemTag.name == tag, NewsItemTag.tag_type == tag))
                 )
+                query = query.where(matching_tags.exists())
 
         if changed_by := filter_args.get("changed_by"):
             if changed_by == "me" and (user := filter_args.get("_user")):
@@ -514,19 +508,19 @@ class Story(BaseModel):
     def _add_sorting_to_query(cls, filter_args: dict[str, str], query: Select) -> Select:
         if sort := filter_args.get("sort", "date_desc").lower():
             if sort == "date_desc":
-                query = query.order_by(db.desc(cls.created), db.desc(cls.title))
+                query = query.order_by(db.desc(cls.created), db.desc(cls.title), db.desc(cls.id))
 
             elif sort == "date_asc":
-                query = query.order_by(db.asc(cls.created), db.asc(cls.title))
+                query = query.order_by(db.asc(cls.created), db.asc(cls.title), db.asc(cls.id))
 
             elif sort == "relevance":
-                query = query.order_by(db.desc(cls.relevance), db.desc(cls.created))
+                query = query.order_by(db.desc(cls.relevance), db.desc(cls.created), db.desc(cls.id))
 
             elif sort == "updated_desc":
-                query = query.order_by(db.desc(cls.updated), db.desc(cls.title))
+                query = query.order_by(db.desc(cls.updated), db.desc(cls.title), db.desc(cls.id))
 
             elif sort == "updated_asc":
-                query = query.order_by(db.asc(cls.updated), db.asc(cls.title))
+                query = query.order_by(db.asc(cls.updated), db.asc(cls.title), db.asc(cls.id))
 
         return query
 
@@ -545,18 +539,8 @@ class Story(BaseModel):
 
     @classmethod
     def _add_attribute_filter_to_query(cls, query: Select, filter_key: str, exclude: bool = False) -> Select:
-        nia2 = aliased(NewsItemAttribute)
-        snia2 = aliased(StoryNewsItemAttribute)
-
-        subquery = db.select(snia2.story_id).join(nia2, nia2.id == snia2.news_item_attribute_id).filter(nia2.key == filter_key).distinct()
-
-        query = query.outerjoin(StoryNewsItemAttribute, StoryNewsItemAttribute.story_id == Story.id).outerjoin(
-            NewsItemAttribute, NewsItemAttribute.id == StoryNewsItemAttribute.news_item_attribute_id
-        )
-
-        if exclude:
-            return query.filter(Story.id.notin_(subquery))
-        return query.filter(Story.id.in_(subquery))
+        matching_attribute = cls.attributes.any(NewsItemAttribute.key == filter_key)
+        return query.where(~matching_attribute if exclude else matching_attribute)
 
     @classmethod
     def _add_paging_to_query(cls, filter_args: dict[str, Any], query: Select) -> Select:
@@ -601,6 +585,12 @@ class Story(BaseModel):
 
         if filter_args.get("worker", False) or not user:
             return [s.to_worker_dict() for s in cls.get_filtered(query) or []], None
+
+        if filter_args.get("limit"):
+            story_ids = list(db.session.scalars(query.with_only_columns(cls.id)))
+            query = base_query.where(cls.id.in_(story_ids)).order_by(None)
+            if story_ids:
+                query = query.order_by(db.case({story_id: position for position, story_id in enumerate(story_ids)}, value=cls.id))
 
         if filter_args.get("no_count", False):
             stories = []
@@ -796,7 +786,7 @@ class Story(BaseModel):
         StoryConflict.enforce_quota()
         NewsItemConflict.enforce_quota()
         if results:
-            return {"error": "Some stories could not be added", "details": {"errors": results}}, status
+            return {"error": "Some stories could not be added", "details": {"errors": results, "story_ids": story_ids}}, status
         return {"message": "Stories added or updated successfully", "details": {"story_ids": story_ids}}, 200
 
     @classmethod
@@ -1056,6 +1046,9 @@ class Story(BaseModel):
                 db.session.delete(attr)
         self.refresh_tlp()
 
+    def clear_bot_execution_attributes(self) -> None:
+        self.remove_attributes([bot_type.name for bot_type in BOT_TYPES])
+
     def upsert_attribute(self, attribute: NewsItemAttribute) -> None:
         if existing_attribute := self.find_attribute_by_key(attribute.key):
             existing_attribute.value = attribute.value
@@ -1196,6 +1189,8 @@ class Story(BaseModel):
         story_ids: Sequence[str],
         user: User | None = None,
         actor: str | None = None,
+        *,
+        commit: bool = True,
     ):
         actor = cls.resolve_actor(user=user, actor=actor)
         try:
@@ -1226,7 +1221,8 @@ class Story(BaseModel):
             for story in processed_stories:
                 story.record_revision(user, note="group_stories")
             cls.refresh_tag_summaries_for_stories(processed_stories)
-            db.session.commit()
+            if commit:
+                db.session.commit()
             return {"message": "Clustering Stories successful", "id": first_story.id}, 200
         except Exception:
             logger.exception("Grouping Stories Failed")

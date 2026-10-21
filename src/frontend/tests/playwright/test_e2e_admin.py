@@ -141,7 +141,7 @@ class TestEndToEndAdmin(BaseE2ETest):
         expect(page.locator(".driver-popover")).not_to_be_visible()
 
     @pytest.mark.e2e_full_stack
-    def test_admin_dashboard(self, logged_in_page: Page, forward_console_and_page_errors, core_request_client):
+    def test_admin_dashboard(self, logged_in_page: Page, forward_console_and_page_errors, core_request_client, api_header):
         page = logged_in_page
 
         page.goto(url_for("admin.dashboard", _external=True))
@@ -185,6 +185,35 @@ class TestEndToEndAdmin(BaseE2ETest):
         expect(page.locator("#active-jobs-table-search")).to_have_value("")
         expect(page.locator("#active-jobs-table")).to_contain_text("No jobs currently running")
 
+        run_prefix = f"scheduler-run-{uuid.uuid4().hex}"
+        for outcome in ("SUCCESS", "FAILURE"):
+            core_request_client.post(
+                "/tasks",
+                headers=api_header,
+                authenticated=False,
+                json_data={
+                    "id": f"{run_prefix}-{outcome}",
+                    "task": "scheduler_test",
+                    "worker_type": "Scheduler Test",
+                    "status": outcome,
+                    "result": {"message": "Scheduler test completed", "reason": "job_timeout" if outcome == "FAILURE" else None},
+                },
+            )
+        with_htmx_wait(page, lambda: page.locator('.tab[data-tab="completed"]').click())
+        expect(page.get_by_test_id("completed-runs")).to_be_visible()
+        search = page.locator("#completed-runs-table-search")
+        with page.expect_response(lambda response: "/scheduler/completed?" in response.url and f"search={run_prefix}" in response.url):
+            search.fill(run_prefix)
+        expect(page.get_by_test_id("completed-run-row")).to_have_count(2)
+        page.get_by_test_id("completed-run-status").select_option("SUCCESS")
+        with_htmx_wait(page, lambda: page.locator("#completed-runs-table").get_by_role("button", name="Apply", exact=True).first.click())
+        expect(page.get_by_test_id("completed-run-row")).to_have_count(1)
+        expect(page.get_by_test_id("completed-run-row")).to_contain_text("Success")
+        expect(page.locator("#completed-runs-table-search")).to_have_value(run_prefix)
+        page.reload()
+        expect(page.get_by_test_id("completed-run-status")).to_have_value("SUCCESS")
+        expect(page.get_by_test_id("completed-run-row")).to_have_count(1)
+
         with_htmx_wait(page, lambda: page.locator('.tab[data-tab="history"]').click())
         expect(page.locator("#execution-history-table")).to_be_visible()
         expect(page.locator("#history-tab .stats")).to_have_count(1)
@@ -192,14 +221,27 @@ class TestEndToEndAdmin(BaseE2ETest):
         with_htmx_wait(page, lambda: page.locator('.tab[data-tab="history"]').click())
         expect(page.locator("#history-tab .stats")).to_have_count(1)
 
-    def test_manual_news_item_invalid_language_shows_notification(self, logged_in_page: Page):
+    def test_news_item_creation_methods(self, logged_in_page: Page, core_request_client):
         page = logged_in_page
 
         page.goto(url_for("assess.get_news_item", news_item_id="0", _external=True))
-        expect(page.get_by_role("heading", name="Create manual news item")).to_be_visible()
+        expect(page.get_by_role("heading", name="Create news item", exact=True)).to_be_visible()
+        expect(page.locator("#news-item-form")).not_to_be_visible()
+        page.get_by_role("button", name="Manually", exact=True).press("Enter")
         create_news_item_url = url_for("assess.create_news_item", _external=True)
 
-        page.get_by_role("textbox", name="Title *").fill("Invalid language test")
+        title_input = page.get_by_role("textbox", name="Title", exact=True)
+        title_input.fill("Invalid language test")
+        expect(page.locator('input[name="published"]')).to_have_value("")
+        page.get_by_role("button", name="Change creation method").click()
+        page.get_by_role("button", name="From URL", exact=True).press("Enter")
+        expect(page.locator("#news-item-form")).not_to_be_visible()
+        expect(page.get_by_role("button", name="Create from file", exact=True)).not_to_be_visible()
+        page.locator("#create-from-url").fill("https://example.com/article")
+        page.locator('input[name="parameters[XPATH]"]').fill("//article")
+        page.get_by_role("button", name="Change creation method").click()
+        page.get_by_role("button", name="Manually", exact=True).click()
+        expect(title_input).to_have_value("Invalid language test")
         page.get_by_role(
             "textbox",
             name="Link Providing a URL helps others trace the original source.",
@@ -218,7 +260,49 @@ class TestEndToEndAdmin(BaseE2ETest):
         assert response_info.value.status == 400, f"Expected 400 status, but got {response_info.value.status}"
         expect(page.locator("#notification-bar")).to_contain_text("Invalid BCP 47 language tag")
         expect(page.locator("#news-item-form")).to_be_visible()
+        expect(title_input).to_have_value("Invalid language test")
         dismiss_notifications(page)
+        page.get_by_role("button", name="Change creation method").click()
+        page.get_by_role("button", name="From URL", exact=True).click()
+        expect(page.locator("#create-from-url")).to_have_value("https://example.com/article")
+        expect(page.locator('input[name="parameters[XPATH]"]')).to_have_value("//article")
+        page.get_by_role("button", name="Change creation method").click()
+        page.get_by_role("button", name="From file", exact=True).click()
+        file_input = page.locator('input[type="file"]')
+        file_input.set_input_files({"name": "invalid.json", "mimeType": "application/json", "buffer": b"invalid JSON"})
+        with page.expect_response(create_news_item_url) as response_info:
+            page.get_by_role("button", name="Create from file", exact=True).click()
+        assert response_info.value.status == 400
+        expect(page.locator("#notification-bar")).to_contain_text("Invalid JSON file.")
+        expect(file_input).to_be_visible()
+        assert file_input.evaluate("input => input.files[0].name") == "invalid.json"
+        page.get_by_role("button", name="Change creation method").click()
+        page.get_by_role("button", name="From file", exact=True).click()
+        assert file_input.evaluate("input => input.files[0].name") == "invalid.json"
+        dismiss_notifications(page)
+        page.get_by_role("button", name="Change creation method").click()
+        page.get_by_role("button", name="Manually", exact=True).click()
+        title_input.fill("")
+        page.locator('input[name="language"]').fill("")
+        page.locator('textarea[name="content"]').fill("A content-only manual news item")
+        page.locator('input[name="link"]').fill("")
+        with page.expect_response(create_news_item_url) as response_info:
+            page.get_by_role("button", name="Create news item", exact=True).click()
+        assert response_info.value.ok
+        page.wait_for_url("**/story/*/edit")
+        story_id = page.url.split("/story/")[1].split("/")[0]
+        allow_requests_passthru()
+        try:
+            story = core_request_client.json_request("GET", f"/assess/stories/{story_id}")
+            news_item = story["news_items"][0]
+            assert news_item["content"] == "A content-only manual news item"
+            assert news_item["published"]
+            page.goto(url_for("assess.get_news_item", news_item_id=news_item["id"], _external=True))
+            expect(page.locator("#news-item-form")).to_be_visible()
+            expect(page.get_by_role("button", name="Manually", exact=True)).to_have_count(0)
+            expect(page.get_by_role("button", name="Change creation method")).to_have_count(0)
+        finally:
+            core_request_client.delete(f"/assess/stories/{story_id}", raise_for_status=False)
 
     def test_admin_organizations(self, logged_in_page: Page, forward_console_and_page_errors):
         page = logged_in_page
@@ -390,8 +474,11 @@ class TestEndToEndAdmin(BaseE2ETest):
         def load_osint_sources():
             page.goto(url_for("admin.osint_sources", _external=True))
             expect(page.get_by_role("button", name="Curated sources")).to_be_visible()
+            filter_forms = page.locator("form").filter(has=page.get_by_role("radiogroup"))
+            expect(filter_forms.get_by_role("button", name="Apply", exact=True)).to_have_count(0)
             self.capture_screenshot(page, "./tests/playwright/screenshots/docs_osint_sources.png")
             with_htmx_wait(page, lambda: page.get_by_role("radio", name="Show", exact=True).check())
+            expect(filter_forms.get_by_role("button", name="Apply", exact=True)).to_have_count(0)
             with_htmx_wait(page, lambda: page.get_by_role("button", name="Collect All", exact=True).click())
             expect(page.locator("#osint_source-table-container")).to_have_count(1)
             expect(page.get_by_test_id("osint_source-table").locator("tbody tr")).to_have_count(1)
@@ -1268,9 +1355,9 @@ class TestEndToEndAdmin(BaseE2ETest):
             if not optional.evaluate("el => el.open"):
                 optional.locator("summary").click()
             timeout_input = page.locator('input[name="parameters[NETWORK_TIMEOUT]"]')
-            timeout_input.fill("91")
+            timeout_input.fill("901")
             page.get_by_role("button", name="Create Publisher Preset").click()
-            expect(page.locator("#notification-bar")).to_contain_text("Network timeout must not exceed 90 seconds")
+            expect(page.locator("#notification-bar")).to_contain_text("Network timeout must not exceed 900 seconds")
             dismiss_notifications(page)
             optional = page.get_by_test_id("optional-worker-parameters")
             if not optional.evaluate("el => el.open"):
@@ -1345,6 +1432,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             core_request_client.delete(f"/assess/stories/{story_id}")
             if destination == "create":
                 page.goto(url_for("assess.get_news_item", news_item_id="0", _external=True))
+                page.get_by_role("button", name="From file", exact=True).click()
                 form = page.locator("form").filter(has=page.get_by_role("button", name="Create from file", exact=True))
                 submit_url = url_for("assess.create_news_item", _external=True)
             else:
@@ -1653,6 +1741,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             if not new_endpoint.evaluate("element => element.open"):
                 new_endpoint.locator("summary").click()
             form = new_endpoint.locator("form")
+            expect(form.get_by_label("Endpoint state")).to_have_value("false")
             expect(form.get_by_text("Model", exact=True)).to_be_visible()
             expect(form.get_by_text("API key", exact=True)).to_be_visible()
             form.get_by_label("Name", exact=False).fill("E2E shared model")
@@ -1672,16 +1761,20 @@ class TestEndToEndAdmin(BaseE2ETest):
             endpoint = section.locator("details").filter(has=page.locator("summary", has_text="E2E shared model"))
             expect(endpoint).to_have_count(1)
             expect(endpoint.locator('[data-test-id="endpoint-health"]')).to_contain_text("Endpoint")
+            expect(endpoint.locator('[data-test-id="endpoint-health"]')).to_have_text("Endpoint disabled")
             assignments = section.locator('[data-test-id="llm-assignments"]')
             assignments.get_by_label("Default endpoint").select_option(label="E2E shared model")
             with_htmx_wait(page, lambda: assignments.get_by_role("button", name="Save Assignments").click())
             page.reload()
             expect(assignments.get_by_label("Default endpoint").locator("option:checked")).to_have_text("E2E shared model")
             endpoint.locator("summary").click()
+            expect(endpoint.get_by_label("Endpoint state")).to_have_value("false")
             expect(endpoint.locator('input[name="api_key"]')).to_have_value("")
             expect(endpoint).to_contain_text("An API key is saved.")
+            endpoint.get_by_label("Endpoint state").select_option("true")
             with_htmx_wait(page, lambda: endpoint.get_by_role("button", name="Save Endpoint", exact=True).click())
             endpoint.locator("summary").click()
+            expect(endpoint.get_by_label("Endpoint state")).to_have_value("true")
             expect(endpoint).to_contain_text("An API key is saved.")
             with page.expect_response(
                 lambda response: response.request.method == "POST" and response.url.endswith("/delete")

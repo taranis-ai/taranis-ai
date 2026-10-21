@@ -266,8 +266,6 @@ def collector_task(osint_source_id: str, manual: bool = False):
     # Run post-collection bots
     if collector_impl.affected_story_ids:
         core_api.run_post_collection_bots(osint_source_id, story_ids=sorted(collector_impl.affected_story_ids))
-    else:
-        core_api.run_post_collection_bots(osint_source_id)
 
     reason = None
     if isinstance(collector_impl, RSSCollector) and (warning := collector_impl.entry_limit_warning):
@@ -379,19 +377,23 @@ def fetch_single_news_item(parameters: dict[str, Any]):
     web_url = collector_parameters.get("WEB_URL")
     worker_id = str(web_url or (job.id if job else "preview"))
     formatter = TaranisLogFormatter(logger.module, custom_prefix=f"{collector.name} {job.id if job else 'preview'}")
-    task_description = f"Fetching news item with {parameters=} and {job.id if job else 'preview'}"
+    task_description = f"Fetching news item from {web_url} ({job.id if job else 'preview'})"
     logger.info(f"Starting collector task: {task_description}")
     core_api = CoreApi()
     result_message = None
     with collector_log_fmt(logger, formatter):
         try:
+            parameters = {**parameters, "parameters": effective_parameter_values(worker_type, collector_parameters)}
             preview_result = collector.preview_collector(parameters)
+            if tlp := parameters["parameters"].get("TLP_LEVEL"):
+                for item in preview_result:
+                    item["attributes"] = (item.get("attributes") or []) + [{"key": "TLP", "value": tlp}]
         except NoChangeError as e:
             logger.info(f"No changes detected: {e}")
-            result_message = f"No changes: {e}"
+            result_message = "No changes detected."
             if job:
                 job.meta["status"] = "NOT_MODIFIED"
-                job.meta["message"] = str(e)
+                job.meta["message"] = result_message
                 job.save_meta()
 
             # Save task result to database
@@ -410,7 +412,9 @@ def fetch_single_news_item(parameters: dict[str, Any]):
                 )
 
             return result_message
-        except Exception as e:
+        except Exception:
+            logger.exception("Failed to fetch news items from URL")
+            message = "Failed to fetch news items. Check the URL and collection settings, or see worker logs for details."
             if job:
                 core_api.save_task_result(
                     job.id,
@@ -419,12 +423,12 @@ def fetch_single_news_item(parameters: dict[str, Any]):
                     worker_id=worker_id,
                     worker_type=worker_type,
                     result=build_failure_task_result(
-                        str(e),
+                        message,
                         reason="collection_failed",
                         data={"source_id": worker_id},
                     ),
                 )
-            raise RuntimeError(e) from e
+            raise RuntimeError(message) from None
     if job:
         core_api.save_task_result(
             job.id,

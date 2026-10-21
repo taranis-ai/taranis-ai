@@ -1,15 +1,66 @@
-from flask import render_template_string, url_for
-from lxml import html
-from models.report import ReportItem, ReportTypes
+import json
+from urllib.parse import parse_qs, urlsplit
 
+import pytest
+from flask import g, render_template_string, url_for
+from lxml import html
+from models.product import ProductChoice
+from models.report import ReportEditor, ReportItem, ReportTypes
+
+from frontend.cache import add_user_to_cache, cache
 from frontend.config import Config
 from frontend.views.report_views import ReportItemView
+
+
+@pytest.mark.parametrize(("layout_switch", "unavailable_status"), [(False, None), (True, None), (False, 403), (False, 404), (False, 503)])
+def test_report_create_preserves_selected_stories_outside_first_page(
+    app, authenticated_client_basic, responses_mock, test_cache_backend, layout_switch, unavailable_status
+):
+    story_ids = [f"00000000-0000-0000-0000-{index:012d}" for index in range(123, 0, -1)]
+    requested_batches = []
+    responses_mock.get(f"{Config.TARANIS_CORE_URL}/analyze/report-types", json={"items": []})
+
+    def selected_stories_response(core_request):
+        params = parse_qs(urlsplit(core_request.url).query)
+        batch = params["story_ids"]
+        assert 1 <= len(batch) <= 50
+        assert params["limit"] == [str(len(batch))]
+        assert params["no_count"] == ["true"]
+        requested_batches.append(batch)
+        if story_ids[-1] in batch and unavailable_status in (403, 503):
+            return unavailable_status, {}, json.dumps({"error": "Stories unavailable"})
+        items = [
+            {"id": story_id, "title": story_id}
+            for story_id in reversed(batch)
+            if not (unavailable_status == 404 and story_id == story_ids[-1])
+        ]
+        return 200, {}, json.dumps({"items": items})
+
+    responses_mock.add_callback("GET", f"{Config.TARANIS_CORE_URL}/assess/stories", callback=selected_stories_response)
+
+    with app.test_request_context():
+        target = url_for("analyze.report", report_id="0")
+        if layout_switch:
+            response = authenticated_client_basic.post(
+                target,
+                data={"stories[]": [*story_ids, story_ids[0]], "layout_switch": "stacked", "title": "Unsaved selection"},
+            )
+        else:
+            response = authenticated_client_basic.get(target, query_string={"story_ids": [*story_ids, story_ids[0]]})
+
+    assert response.status_code == (502 if unavailable_status == 503 else unavailable_status or 200)
+    assert len(requested_batches) == 3
+    assert [story_id for batch in requested_batches for story_id in batch] == story_ids
+    if unavailable_status:
+        return
+    tree = html.fromstring(response.get_data(as_text=True))
+    assert tree.xpath('//form[@id="report_form"]//input[@name="stories[]"]/@value') == story_ids
 
 
 def test_report_view_renders_access_denied_page_when_core_returns_403(app, authenticated_client_basic, responses_mock):
     report_id = "12676a74-0850-4eef-971b-a4efd9d526e6"
     responses_mock.get(
-        f"{Config.TARANIS_CORE_URL}/analyze/report-items/{report_id}",
+        f"{Config.TARANIS_CORE_URL}/analyze/report-editors/{report_id}",
         json={"error": f"User 2 is not allowed to read Report {report_id}"},
         status=403,
         content_type="application/json",
@@ -21,6 +72,55 @@ def test_report_view_renders_access_denied_page_when_core_returns_403(app, authe
     assert response.status_code == 403
     html = response.get_data(as_text=True)
     assert "403 - Access denied" in html
+
+
+def test_report_editor_renders_summary_and_product_choices(app, authenticated_client_basic, auth_user_basic, responses_mock):
+    report_id = "8124ae6f-3c85-49b4-93a1-9f3dc6516310"
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/analyze/report-editors/{report_id}",
+        json={
+            "id": report_id,
+            "title": "Summary report",
+            "report_item_type_id": "type-1",
+            "grouped_attributes": [],
+            "stories": [{"id": "story-1", "title": "Linked story", "summary": "Story summary", "links": ["https://example.org/story"]}],
+        },
+    )
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/analyze/report-types",
+        json={"items": [{"id": "type-1", "title": "Report type"}]},
+    )
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/publish/product-choices",
+        json={"items": [{"id": "product-1", "title": "Existing product", "product_type_title": "Product type"}]},
+    )
+
+    with app.test_request_context():
+        response = authenticated_client_basic.get(url_for("analyze.report", report_id=report_id))
+
+    assert response.status_code == 200
+    markup = response.get_data(as_text=True)
+    assert "Summary report" in markup
+    assert "Linked story" in markup
+    assert "Story summary" in markup
+    assert "Existing product (Product type)" in markup
+    assert len(responses_mock.calls) == 3
+
+    reader = auth_user_basic.model_copy(deep=True)
+    reader.permissions = ["ANALYZE_ACCESS"]
+    cache.clear()
+    add_user_to_cache(reader.model_dump(mode="json"))
+    choices_url = f"{Config.TARANIS_CORE_URL}/publish/product-choices"
+    responses_mock.replace("GET", choices_url, json={"error": "Forbidden"}, status=403)
+    with app.test_request_context():
+        g.pop("jwt_user_lookup_user", None)
+        response = authenticated_client_basic.get(url_for("analyze.report", report_id=report_id))
+    assert response.status_code == 200
+    assert "Summary report" in response.text
+    assert "Linked story" in response.text
+    tree = html.fromstring(response.text)
+    assert not tree.xpath('//*[@data-testid="report-publish-button" or @data-testid="report-publish-dialog"]')
+    assert len([call for call in responses_mock.calls if call.request.url.split("?")[0] == choices_url]) == 1
 
 
 def test_report_diff_view_renders_compare_payload(app, authenticated_client_basic, responses_mock):
@@ -170,17 +270,17 @@ def test_report_update_response_fetches_saved_report_when_core_response_only_con
     saved_report = ReportItem.model_construct(id=saved_report_id, title="test title", report_item_type_id="report-type-1")
 
     def mock_get_object(_self, model, object_id):
-        assert model is ReportItem
+        assert model is ReportEditor
         assert object_id == saved_report_id
         return saved_report
 
     def mock_get_objects(_self, model, *args, **kwargs):
+        if model is ProductChoice:
+            return []
         assert model is ReportTypes
         return [ReportTypes.model_construct(id="report-type-1", title="CERT Report")]
 
-    monkeypatch.setattr(
-        "frontend.views.base_view.BaseView.get_object_by_id", classmethod(lambda cls, object_id: mock_get_object(None, cls.model, object_id))
-    )
+    monkeypatch.setattr("frontend.views.report_views.DataPersistenceLayer.get_object", mock_get_object)
     monkeypatch.setattr("frontend.views.report_views.DataPersistenceLayer.get_objects", mock_get_objects)
 
     with app.test_request_context("/report/0?layout=split"):
@@ -214,17 +314,17 @@ def test_report_create_post_renders_saved_report_when_core_response_only_contain
     )
 
     def mock_get_object(_self, model, object_id):
-        assert model is ReportItem
+        assert model is ReportEditor
         assert object_id == saved_report_id
         return saved_report
 
     def mock_get_objects(_self, model, *args, **kwargs):
+        if model is ProductChoice:
+            return []
         assert model is ReportTypes
         return [ReportTypes.model_construct(id="report-type-1", title="CERT Report")]
 
-    monkeypatch.setattr(
-        "frontend.views.base_view.BaseView.get_object_by_id", classmethod(lambda cls, object_id: mock_get_object(None, cls.model, object_id))
-    )
+    monkeypatch.setattr("frontend.views.report_views.DataPersistenceLayer.get_object", mock_get_object)
     monkeypatch.setattr("frontend.views.report_views.DataPersistenceLayer.get_objects", mock_get_objects)
 
     with app.test_request_context():

@@ -214,6 +214,8 @@ class Stories(MethodView):
         payload = data_json.get("payload")
         if not isinstance(story_ids, list) or not story_ids:
             return {"error": "No story ids provided"}, 400
+        if any(not isinstance(story_id, str) for story_id in story_ids):
+            return {"error": "Story ids must be strings"}, 400
         if payload is not None and not isinstance(payload, dict):
             return {"error": "Invalid payload provided"}, 400
 
@@ -292,7 +294,7 @@ class StoryTagList(MethodView):
             limit = min(int(request.args.get("limit", 20)), 200)
             offset = min(int(request.args.get("offset", 0)), (2**31) - 1)
             filter_args = {"limit": limit, "offset": offset, "search": search}
-            return news_item_tag.NewsItemTag.get_list(filter_args)
+            return news_item_tag.NewsItemTag.get_list(filter_args, user=current_user)
         except Exception:
             logger.exception()
             return {"error": "Failed to get Tags"}, 400
@@ -444,9 +446,12 @@ class BotActions(MethodView):
         if report_ids:
             filter_data["report_ids"] = report_ids
 
-        if selected_bot := bot.Bot.filter_by_type(bot_id):
-            bot_id = selected_bot.id
-        response, code = queue_manager.queue_manager.execute_bot_task(bot_id=bot_id, filter=filter_data, user_id=current_user.id)
+        if bot_id == "generate_tags":
+            response, code = queue_manager.queue_manager.execute_tagging_tasks(filter=filter_data, user_id=current_user.id)
+        else:
+            if selected_bot := bot.Bot.filter_by_type(bot_id):
+                bot_id = selected_bot.id
+            response, code = queue_manager.queue_manager.execute_bot_task(bot_id=bot_id, filter=filter_data, user_id=current_user.id)
         if code == 200:
             realtime_publisher.assess_changed()
         invalidate_frontend_cache_on_success(code, models=("story", "report_item"))

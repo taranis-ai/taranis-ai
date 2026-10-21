@@ -306,10 +306,11 @@ def browser_context_args(browser_context_args, browser_type_launch_args, request
     context_args = {**browser_context_args, "no_viewport": True}
     if request.config.getoption("--record-video"):
         browser_type_launch_args["args"] = ["--window-size=1964,1211"]
-        print("Screenshots in --record-video mode are not of optimal resolution")
         return {
             **context_args,
-            "record_video_dir": "tests/playwright/videos",
+            "no_viewport": False,
+            "viewport": {"width": 1920, "height": 1080},
+            "record_video_dir": os.getenv("TARANIS_E2E_VIDEO_DIR", "tests/playwright/videos"),
             "record_video_size": {"width": 1920, "height": 1080},
         }
     return context_args
@@ -358,6 +359,9 @@ def taranis_browser_context(
     timeout = int(request.config.getoption("--e2e-timeout"))
     expect.set_options(timeout=timeout)
     context = browser.new_context(**browser_context_args)
+    videos = []
+    if recording_dir := os.getenv("TARANIS_E2E_VIDEO_DIR"):
+        context.on("page", lambda page: videos.append(page.video))
     install_htmx_support(context)
     context.set_default_timeout(timeout)
     tracing = _trace_enabled(request)
@@ -370,6 +374,11 @@ def taranis_browser_context(
         if tracing:
             context.tracing.stop(path=_trace_path(request.node.nodeid))
         context.close()
+        if recording_dir:
+            with (Path(recording_dir) / "clips.jsonl").open("a", encoding="utf-8") as manifest:
+                for video in videos:
+                    if video is not None:
+                        manifest.write(json.dumps(str(video.path())) + "\n")
 
 
 @pytest.fixture(scope="function")
@@ -524,8 +533,7 @@ def ensure_basic_user_permissions(non_admin_logged_in_page):
     page.goto(url_for("base.dashboard", _external=True))
     assert page.get_by_role("link", name="Administration").count() == 0, "Basic user unexpectedly sees Administration menu"
 
-    page.goto(url_for("admin.attributes", _external=True))
-    expect(page.get_by_text("403 - Access denied")).to_be_visible()
+    assert page.request.get(url_for("admin.attributes", _external=True)).status == 403
 
 
 def _forward_console_and_page_errors(request, page: Page, extra_allow_patterns: list[str] | None = None):

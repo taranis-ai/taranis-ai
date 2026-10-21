@@ -1,5 +1,9 @@
 name: Release gate tests
 
+defaults:
+  run:
+    shell: bash
+
 on:
   workflow_dispatch: {}
 
@@ -8,12 +12,14 @@ permissions:
 
 jobs:
   release_gate:
+    timeout-minutes: 10
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
+          persist-credentials: false
           ref: master
 
       - name: Run release gate tests

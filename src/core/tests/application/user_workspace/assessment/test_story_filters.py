@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
+from datetime import datetime
 
 import pytest
 
@@ -39,12 +40,55 @@ FILTER_CASES = [
     pytest.param({"language": ("english",)}, {"grouped_flagged", "manual_important"}, id="language-english"),
     pytest.param({"language": ("german", "french")}, {"grouped_plain", "source_only"}, id="language-multiple"),
     pytest.param({"language": ("spanish",)}, set(), id="language-unknown"),
+    pytest.param({"source": ("grouped",), "language": ("french",)}, set(), id="source-and-language"),
+    pytest.param({"group": ("primary",), "language": ("german",)}, {"grouped_plain"}, id="group-and-language"),
     pytest.param({"language": ("",)}, set(), id="language-empty"),
     pytest.param({"story_ids": ("grouped_flagged", "manual_important")}, {"grouped_flagged", "manual_important"}, id="story-ids"),
     pytest.param({"search": "Story Filter Extra Source Story"}, {"source_only"}, id="search-extra-title"),
     pytest.param({"search": "Anonymous News Item"}, {"manual_important"}, id="search-anonymous-title"),
     pytest.param({"changed_by": "me"}, {"grouped_flagged"}, id="changed-by-me"),
 ]
+
+
+def test_tag_suggestions_rank_exact_matches_then_distinct_story_counts(client, auth_header, session):
+    from core.model.news_item_tag import NewsItemTag
+    from tests.application.support.builders import build_news_item_payload, create_story
+
+    stories = [create_story(news_items=[build_news_item_payload()]) for _ in range(2)]
+    item = stories[0].news_items[0]
+    item.tags.extend(
+        [
+            NewsItemTag("USA", "reporting"),
+            NewsItemTag("Cusa", ""),
+            NewsItemTag("50%_& #"),
+            NewsItemTag("50xx"),
+            NewsItemTag("report-usa", "REPORT_label"),
+        ]
+        + [NewsItemTag("Ausa", tag_type) for tag_type in ("misc", "actor", "location")]
+        + [NewsItemTag(f"zusa-{index:02}") for index in range(25)]
+    )
+    for story in stories:
+        story.news_items[0].tags.append(NewsItemTag("Busa"))
+    session.commit()
+
+    response = client.get("/api/assess/taglist", headers=auth_header, query_string={"search": " usa "})
+    assert response.status_code == 200
+    tags = response.get_json()
+    names = ["USA", "Busa", "Ausa", "Cusa"] + [f"zusa-{index:02}" for index in range(16)]
+    assert tags == [{"name": name, "story_count": 2 if name == "Busa" else 1} for name in names]
+
+    response = client.get("/api/assess/taglist", headers=auth_header, query_string={"search": "USA", "limit": 1})
+    assert response.status_code == 200
+    assert response.get_json() == [{"name": "USA", "story_count": 1}]
+    response = client.get("/api/assess/taglist", headers=auth_header, query_string={"search": "usa", "limit": 2, "offset": 1})
+    assert response.status_code == 200
+    assert response.get_json() == [{"name": "Busa", "story_count": 2}, {"name": "Ausa", "story_count": 1}]
+    response = client.get("/api/assess/taglist", headers=auth_header, query_string={"search": "50%_"})
+    assert response.status_code == 200
+    assert response.get_json() == [{"name": "50%_& #", "story_count": 1}]
+    response = client.get("/api/assess/taglist", headers=auth_header, query_string={"search": "missing-suggestion"})
+    assert response.status_code == 200
+    assert response.get_json() == []
 
 
 class TestStoryFilters(BaseTest):
@@ -94,10 +138,36 @@ class TestStoryFilters(BaseTest):
 
         assert payload["counts"]["total_count"] == len(expected_ids)
         assert actual_ids == expected_ids
+        assert payload["counts"]["read_count"] == sum(bool(item["read"]) for item in payload["items"])
+        assert payload["counts"]["important_count"] == sum(bool(item["important"]) for item in payload["items"])
+        assert payload["counts"]["in_reports_count"] == sum(item["in_reports_count"] for item in payload["items"])
 
     @pytest.mark.parametrize(("filters", "expected_story_keys"), FILTER_CASES)
     def test_story_filters(self, client, auth_header, story_filter_data, filters, expected_story_keys):
         self._assert_filtered_story_ids(client, auth_header, story_filter_data, filters, expected_story_keys)
+
+    @pytest.mark.parametrize("sort", ["date_desc", "date_asc", "relevance", "updated_desc", "updated_asc"])
+    def test_paging_preserves_counts_and_breaks_sort_ties_by_id(self, app, client, auth_header, story_filter_data, sort):
+        from core.managers.db_manager import db
+        from core.model.story import Story
+
+        story_ids = list(story_filter_data["stories"].values())
+        with app.app_context():
+            for story_id in story_ids:
+                story = Story.get(story_id)
+                story.title = "Same sort values"
+                story.created = story.updated = datetime(2025, 1, 1)
+                story.relevance = 0
+            db.session.commit()
+
+        expected = sorted(story_ids, reverse=not sort.endswith("_asc"))
+        response = client.get(self.concat_url("stories"), headers=auth_header, query_string={"sort": sort, "limit": 2, "page": 1})
+        payload = self.assert_json_ok(response).get_json()
+        assert [item["id"] for item in payload["items"]] == expected[2:]
+        assert payload["counts"]["total_count"] == 4
+        assert payload["counts"]["read_count"] == 2
+        assert payload["counts"]["important_count"] == 2
+        assert payload["counts"]["in_reports_count"] == 1
 
     def test_filter_lists_include_news_item_languages(self, client, auth_header, story_filter_data):
         response = client.get(self.concat_url("filter-lists"), headers=auth_header)

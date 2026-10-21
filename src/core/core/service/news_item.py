@@ -87,8 +87,10 @@ class NewsItemService:
         tags: list | dict,
         user: User | None = None,
         actor: str | None = None,
+        *,
+        replace: bool = True,
     ) -> tuple[dict, int]:
-        response, status = news_item.set_tags(tags, user=user, actor=actor)
+        response, status = news_item.set_tags(tags, user=user, actor=actor, replace=replace)
         if status == 200:
             refresh_misp_auto_update_jobs([news_item.story_id])
         return response, status

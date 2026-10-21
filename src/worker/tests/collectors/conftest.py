@@ -98,7 +98,10 @@ def rss_collector_mock(requests_mock, collectors_mock):
     requests_mock.get(rss_collector_targets[0], json={})
     requests_mock.get(rss_collector_targets[1], json={})
     requests_mock.get(rss_collector_targets[2], json={})
-    requests_mock.get(rss_collector_fav_icon_url, json={})
+    requests_mock.get("https://cert.at/", text=f'<link rel="icon" href="{rss_collector_fav_icon_url}">')
+    for path in ("apple-touch-icon.png", "apple-touch-icon-precomposed.png", "favicon.ico"):
+        requests_mock.get(f"https://cert.at/{path}", status_code=404)
+    requests_mock.get(rss_collector_fav_icon_url, content=b"icon", headers={"Content-Type": "image/png"})
     requests_mock.get(rss_collector_url, text=file_loader("test_rss_feed.xml"))
     requests_mock.get(rss_collector_url_not_modified, text="", status_code=304, headers={"Last-Modified": "Sat, 01 Jan 2022 00:00:00 GMT"})
     requests_mock.get(
@@ -114,6 +117,8 @@ def simple_web_collector_mock(requests_mock, collectors_mock, web_collector_url_
     from tests.testdata import web_collector_fav_icon_url
 
     requests_mock.get(web_collector_fav_icon_url, json={})
+    for path in ("apple-touch-icon.png", "apple-touch-icon-precomposed.png"):
+        requests_mock.get(f"https://raw.example.com/{path}", status_code=404)
 
 
 @pytest.fixture
@@ -161,7 +166,9 @@ def rt_mock(requests_mock, collectors_mock):
     requests_mock.get(rt_testdata.rt_attachment_1_url, json=rt_testdata.rt_ticket_attachment_1)
     requests_mock.get(rt_testdata.worker_stories_url, json={})
     requests_mock.get(rt_testdata.favicon_url, json={})
-    requests_mock.post(f"{Config.TARANIS_CORE_URL}/worker/stories", json={})
+    for path in ("", "apple-touch-icon.png", "apple-touch-icon-precomposed.png", "favicon.ico"):
+        requests_mock.get(f"http://rt.taranis.ai/{path}", status_code=404)
+    requests_mock.post(f"{Config.TARANIS_CORE_URL}/worker/stories", json={"story_id": "rt-story-1"})
 
 
 @pytest.fixture
@@ -176,7 +183,7 @@ def misp_collector_mock(requests_mock):
     requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/stories?story_id=320d4589-cd71-4722-aa28-ea5530e99830", json={})
     requests_mock.put(f"{Config.TARANIS_CORE_URL}/worker/osint-sources/b583f4ae-7ec3-492a-a36d-ed9cfc0b4a28", json={})
     requests_mock.post(f"{Config.TARANIS_CORE_URL}/worker/stories", json={})
-    requests_mock.post(f"{Config.TARANIS_CORE_URL}/worker/misp/stories", json={})
+    requests_mock.post(f"{Config.TARANIS_CORE_URL}/worker/misp/stories", json={"details": {"story_ids": ["misp-story-1"]}})
 
     requests_mock.get(
         "https://test.misp.test/users/view/me",
