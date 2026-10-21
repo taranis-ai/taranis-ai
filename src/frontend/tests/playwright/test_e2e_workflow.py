@@ -254,7 +254,7 @@ class TestUserWorkflow(BaseE2ETest):
         for story_id in selected_story_ids:
             self.highlight_element(page.get_by_test_id(f"story-card-{story_id}"), scroll=False).click()
 
-        self.highlight_element(page.get_by_role("button", name="Bookmark")).click()
+        self.highlight_element(page.locator("#assess-top-bar").get_by_role("button", name="Bookmark")).click()
         expect(page.get_by_test_id("story-bookmark-dialog")).to_be_visible()
         self.highlight_element(page.get_by_test_id("new-bookmark-name")).fill(bookmark_name)
         self.highlight_element(page.get_by_test_id("submit-bookmark-story")).click()
@@ -277,7 +277,7 @@ class TestUserWorkflow(BaseE2ETest):
         expect(picker).not_to_be_visible()
 
         # Bulk saves preserve mixed memberships, including rows hidden by search.
-        page.get_by_role("button", name="Bookmark", exact=True).click()
+        page.locator("#assess-top-bar").get_by_role("button", name="Bookmark").click()
         picker = page.get_by_test_id("story-bookmark-dialog")
         partial = picker.locator("label").filter(has_text=extra_name).locator('input[name="bookmark_ids"]')
         expect(partial).to_have_js_property("indeterminate", True)
@@ -286,8 +286,19 @@ class TestUserWorkflow(BaseE2ETest):
         picker.get_by_test_id("submit-bookmark-story").click()
         expect(picker).not_to_be_visible()
 
-        # A failed inline create retains the current membership and entered name.
+        # Toggling a mixed membership on and off explicitly removes it from the selection.
+        page.locator("#assess-top-bar").get_by_role("button", name="Bookmark").click()
+        partial = picker.locator("label").filter(has_text=extra_name).locator('input[name="bookmark_ids"]')
+        partial.check()
+        partial.uncheck()
+        picker.get_by_test_id("submit-bookmark-story").click()
+        expect(picker).not_to_be_visible()
+
+        # A failed inline create retains the changed membership and entered name.
         first_card.get_by_test_id("bookmark-story").click()
+        extra_choice = picker.locator("label").filter(has_text=extra_name).locator('input[name="bookmark_ids"]')
+        expect(extra_choice).not_to_be_checked()
+        extra_choice.check()
         picker.get_by_test_id("new-bookmark-name").fill(bookmark_name)
         picker.get_by_test_id("submit-bookmark-story").click()
         expect(page.locator("#notification-bar")).to_contain_text("already exists")

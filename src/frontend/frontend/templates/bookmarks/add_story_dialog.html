@@ -17,93 +17,98 @@
     <p class="mb-4 text-sm text-base-content/70">{{ story_ids | length }} stories selected. Choose their collections.</p>
     {% if error %}<div class="alert alert-error mb-3">{{ error }}</div>{% endif %}
 
+    {# djlint:off #}
     <form id="story-bookmark-form"
           method="post"
           action="{{ url_for('assess.submit_bookmark_story') }}"
           class="space-y-4"
-          {% if not standalone | default(False) %} hx-post="{{ url_for('assess.submit_bookmark_story') }}" hx-target="#notification-bar" hx-swap="outerHTML" hx-status:400="target:#notification-bar" hx-status:4xx="target:#notification-bar" hx-status:5xx="target:#notification-bar" hx-on::after:request="if (ctx.response.raw.ok) document.getElementById('story_bookmark_dialog')?.close()" {% endif %}>
-      <input type="hidden" name="csrf_token" value="{{ request.cookies.get(config['JWT_ACCESS_CSRF_COOKIE_NAME'], '') }}">
-      {% for story_id in story_ids %}<input type="hidden" name="story_ids" value="{{ story_id }}">{% endfor %}
-      {% if bookmarks %}
-        <label class="input w-full">
-          {{ heroicon_mini("magnifying-glass") }}
-          <input type="search" x-model="search" placeholder="Find a collection" aria-label="Find a collection" data-test-id="bookmark-search">
-        </label>
-        <p class="text-xs text-base-content/70">Choose one default for quick-save. Reordering collections keeps this choice.</p>
-        <div class="max-h-64 space-y-1 overflow-y-auto" data-test-id="bookmark-choices">
-          {% for bookmark in bookmarks %}
-            {% set count = memberships.get(bookmark.id, 0) %}
-            {% set all_saved = count == story_ids | length %}
-            {% set partial = count > 0 and not all_saved %}
-            {% if all_saved %}<input type="hidden" name="original_bookmark_ids" value="{{ bookmark.id }}">{% endif %}
-            <div class="flex items-center gap-3 rounded-box border border-base-300 p-3"
-                 data-name="{{ bookmark.name | lower }}"
-                 x-show="$el.dataset.name.includes(search.toLowerCase())"
-                 x-data="{ changed: false }">
-              <label class="flex min-w-0 flex-1 items-center gap-3">
-                <input type="checkbox"
-                       class="checkbox checkbox-sm"
-                       name="bookmark_ids"
-                       value="{{ bookmark.id }}"
-                       x-ref="membership"
-                       {% if (submitted_bookmark_ids is defined and bookmark.id in submitted_bookmark_ids) or (submitted_bookmark_ids is not defined and all_saved) %}checked{% endif %}
-                       {% if partial %}x-init="$el.indeterminate = true"{% endif %}
-                       @change="changed = true"
-                       data-test-id="bookmark-choice-{{ bookmark.id }}">
-                <span class="min-w-0">
-                  <span class="block truncate" title="{{ bookmark.name }}">{{ bookmark.name }}</span>
-                  <span class="block text-xs text-base-content/60">
-                    {{ bookmark.story_count }} stories{% if partial %} · Saved for {{ count }} of {{ story_ids | length }} selected{% endif %}
-                  </span>
+          {% if not standalone | default(False) %}
+          hx-post="{{ url_for('assess.submit_bookmark_story') }}"
+          hx-target="#notification-bar"
+          hx-swap="outerHTML"
+          hx-status:400="target:#notification-bar"
+          hx-status:4xx="target:#notification-bar"
+          hx-status:5xx="target:#notification-bar"
+          hx-on::after:request="if (ctx.response.raw.ok) document.getElementById('story_bookmark_dialog')?.close()"
+          {% endif %}>
+    {# djlint:on #}
+    <input type="hidden" name="csrf_token" value="{{ request.cookies.get(config['JWT_ACCESS_CSRF_COOKIE_NAME'], '') }}">
+    {% for story_id in story_ids %}<input type="hidden" name="story_ids" value="{{ story_id }}">{% endfor %}
+    {% if bookmarks %}
+      <label class="input w-full">
+        {{ heroicon_mini("magnifying-glass") }}
+        <input type="search" x-model="search" placeholder="Find a collection" aria-label="Find a collection" data-test-id="bookmark-search">
+      </label>
+      <p class="text-xs text-base-content/70">Choose one default for quick-save. Reordering collections keeps this choice.</p>
+      <div class="max-h-64 space-y-1 overflow-y-auto" data-test-id="bookmark-choices">
+        {% for bookmark in bookmarks %}
+          {% set count = memberships.get(bookmark.id, 0) %}
+          {% set all_saved = count == story_ids | length %}
+          {% set partial = count > 0 and not all_saved %}
+          {% if all_saved %}<input type="hidden" name="original_bookmark_ids" value="{{ bookmark.id }}">{% endif %}
+          <div class="flex items-center gap-3 rounded-box border border-base-300 p-3"
+               data-name="{{ bookmark.name | lower }}"
+               x-show="$el.dataset.name.includes(search.toLowerCase())"
+               x-data="{}">
+            <label class="flex min-w-0 flex-1 items-center gap-3">
+              <input type="checkbox"
+                     class="checkbox checkbox-sm"
+                     name="bookmark_ids"
+                     value="{{ bookmark.id }}"
+                     {% if (submitted_bookmark_ids is defined and bookmark.id in submitted_bookmark_ids) or (submitted_bookmark_ids is not defined and all_saved) %}checked{% endif %}
+                     {% if partial %}x-init="$el.indeterminate = true"{% endif %}
+                     {% if partial %}@change="$refs.removal.disabled = $el.checked"{% endif %}
+                     data-test-id="bookmark-choice-{{ bookmark.id }}">
+              <span class="min-w-0">
+                <span class="block truncate" title="{{ bookmark.name }}">{{ bookmark.name }}</span>
+                <span class="block text-xs text-base-content/60">
+                  {{ bookmark.story_count }} stories{% if partial %} · Saved for {{ count }} of {{ story_ids | length }} selected{% endif %}
                 </span>
-              </label>
-              {% if partial %}
-                <input type="hidden"
-                       name="remove_bookmark_ids"
-                       value="{{ bookmark.id }}"
-                       disabled
-                       :disabled="!changed || $refs.membership.checked">
-              {% endif %}
-              <label class="flex shrink-0 items-center gap-2 text-xs">
-                <input type="radio"
-                       class="radio radio-xs"
-                       name="default_bookmark_id"
-                       value="{{ bookmark.id }}"
-                       {% if (selected_default_id is defined and selected_default_id == bookmark.id) or (selected_default_id is not defined and bookmark.is_default) %}checked{% endif %}
-                       aria-label="Use {{ bookmark.name }} for quick-save">
-                Default
-              </label>
-            </div>
-          {% endfor %}
-        </div>
-      {% else %}
-        <p class="text-sm text-base-content/70">No collections yet. Create your first one below.</p>
-      {% endif %}
-      <fieldset class="space-y-2 border-t border-base-300 pt-3">
-        <legend class="text-sm font-medium">Create a collection and add selected stories</legend>
-        <label class="input w-full">
-          {{ heroicon_mini("plus") }}
-          <input type="text"
-                 name="name"
-                 value="{{ new_collection_name | default('') }}"
-                 maxlength="120"
-                 placeholder="New collection name"
-                 aria-label="New collection name"
-                 data-testid="new-bookmark-name">
-        </label>
-      </fieldset>
-      <div class="flex justify-end gap-2">
-        {% if standalone | default(False) %}
-          <a href="{{ url_for('assess.assess') }}" class="btn btn-outline">Back to Assess</a>
-        {% else %}
-          <button type="button" class="btn btn-outline" onclick="document.getElementById('story_bookmark_dialog').close()">Cancel</button>
-        {% endif %}
-        <button type="submit" class="btn btn-primary" data-testid="submit-bookmark-story">Save collections</button>
+              </span>
+            </label>
+            {% if partial %}
+              <input type="hidden" name="remove_bookmark_ids" value="{{ bookmark.id }}" disabled x-ref="removal">
+            {% endif %}
+            <label class="flex shrink-0 items-center gap-2 text-xs">
+              <input type="radio"
+                     class="radio radio-xs"
+                     name="default_bookmark_id"
+                     value="{{ bookmark.id }}"
+                     {% if (selected_default_id is defined and selected_default_id == bookmark.id) or (selected_default_id is not defined and bookmark.is_default) %}checked{% endif %}
+                     aria-label="Use {{ bookmark.name }} for quick-save">
+              Default
+            </label>
+          </div>
+        {% endfor %}
       </div>
-    </form>
-  </div>
-  {% if standalone | default(False) %}
+    {% else %}
+      <p class="text-sm text-base-content/70">No collections yet. Create your first one below.</p>
+    {% endif %}
+    <fieldset class="space-y-2 border-t border-base-300 pt-3">
+      <legend class="text-sm font-medium">Create a collection and add selected stories</legend>
+      <label class="input w-full">
+        {{ heroicon_mini("plus") }}
+        <input type="text"
+               name="name"
+               value="{{ new_collection_name | default('') }}"
+               maxlength="120"
+               placeholder="New collection name"
+               aria-label="New collection name"
+               data-testid="new-bookmark-name">
+      </label>
+    </fieldset>
+    <div class="flex justify-end gap-2">
+      {% if standalone | default(False) %}
+        <a href="{{ url_for('assess.assess') }}" class="btn btn-outline">Back to Assess</a>
+      {% else %}
+        <button type="button" class="btn btn-outline" onclick="document.getElementById('story_bookmark_dialog').close()">Cancel</button>
+      {% endif %}
+      <button type="submit" class="btn btn-primary" data-testid="submit-bookmark-story">Save collections</button>
     </div>
-  {% else %}
-    </dialog>
-  {% endif %}
+  </form>
+</div>
+{% if standalone | default(False) %}
+  </div>
+{% else %}
+  </dialog>
+{% endif %}

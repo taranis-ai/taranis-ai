@@ -520,13 +520,15 @@ class StoryBookmark(MethodView):
             return _validation_error_response(exc)
 
         response, status = story.StoryBookmark.update_for_api(bookmark_id, payload.model_dump(mode="json"), current_user)
-        invalidate_frontend_cache_on_success(status, models=("story_bookmark", "story"))
+        invalidate_frontend_cache_on_success(status, models=("story_bookmark", "story"), user_profiles=(current_user.username,))
         return response, status
 
     @auth_required("ASSESS_ACCESS")
     def delete(self, bookmark_id: str):
         response, status = story.StoryBookmark.delete_for_api(bookmark_id, current_user)
-        invalidate_frontend_cache_on_success(status, models=("story_bookmark", "story"), object_ids={"story_bookmark": bookmark_id})
+        invalidate_frontend_cache_on_success(
+            status, models=("story_bookmark", "story"), object_ids={"story_bookmark": bookmark_id}, user_profiles=(current_user.username,)
+        )
         return response, status
 
 
@@ -553,7 +555,7 @@ class StoryBookmarkQuickSave(MethodView):
         except ValidationError as exc:
             return _validation_error_response(exc)
         response, status = story.StoryBookmark.quick_save(payload.story_ids, current_user)
-        invalidate_frontend_cache_on_success(status, models=("story_bookmark", "story"))
+        invalidate_frontend_cache_on_success(status, models=("story_bookmark", "story"), user_profiles=(current_user.username,))
         return response, status
 
 
@@ -566,7 +568,7 @@ class StoryBookmarkMemberships(MethodView):
         except ValidationError as exc:
             return _validation_error_response(exc)
         response, status = story.StoryBookmark.update_memberships(payload.model_dump(mode="json"), current_user)
-        invalidate_frontend_cache_on_success(status, models=("story_bookmark", "story"))
+        invalidate_frontend_cache_on_success(status, models=("story_bookmark", "story"), user_profiles=(current_user.username,))
         return response, status
 
 

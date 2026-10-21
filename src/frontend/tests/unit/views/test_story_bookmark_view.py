@@ -244,11 +244,17 @@ def test_bookmark_detail_renders_stories_and_remove_selected(
     assert selection_form.xpath('./input[@name="bookmark_id" and @value="bookmark-1"]')
     assert tree.xpath('//input[@type="checkbox" and @form="bookmark-selection-form" and @name="story_ids" and @value="story-1"]')
     for action in ("bulk-toggle-read", "bulk-toggle-important"):
-        assert tree.xpath(f'//*[@data-testid="{action}"]')[0].get("hx-include") == "#bookmark-selection-form"
+        assert (
+            tree.xpath(f'//*[@data-testid="{action}"]')[0].get("hx-include")
+            == "#bookmark-selection-form, #bookmark-selection-root input[name=story_ids]:checked"
+        )
     for action_url in (url_for("assess.cluster_story"), url_for("assess.report_story")):
-        assert tree.xpath(f'//*[@hx-get="{action_url}"]')[0].get("hx-include") == "#bookmark-selection-form"
+        assert (
+            tree.xpath(f'//*[@hx-get="{action_url}"]')[0].get("hx-include")
+            == "#bookmark-selection-form, #bookmark-selection-root input[name=story_ids]:checked"
+        )
     remove_selected = tree.xpath('.//button[@type="button" and @data-testid="bookmark-remove-selected"]')[0]
-    assert remove_selected.get("hx-include") == "#bookmark-selection-form"
+    assert remove_selected.get("hx-include") == "#bookmark-selection-form, #bookmark-selection-root input[name=story_ids]:checked"
     assert remove_selected.get("hx-confirm") == "Remove selected stories from this bookmark collection?"
     assert not tree.xpath('//*[@data-testid="bookmark-story"]')
     story_request = next(call for call in responses_mock.calls if urlparse(_request_url(call)).path.endswith("/assess/stories"))
