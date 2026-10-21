@@ -1,6 +1,5 @@
 {% from "assess/sidebar/tri_state_filter.html" import tri_state_filter %}
 {% from "assess/sidebar/filter_token_select.html" import filter_token_select_assets %}
-{% from "macros/htmx.html" import search_trigger %}
 {% set base_url = routes.base_route %}
 {% set request_args = assess_request_args | default({}) %}
 {% set selected_tags = request_args.get('tags', []) %}
@@ -37,6 +36,8 @@
 
 <div class="p-4">
   <form id="assess-sidebar"
+        x-data="assessTimeFilters"
+        @htmx:after:request="if ($event.detail.ctx.response.status >= 400) restoreTimeFilters(); else timeClearPending = false"
         action="{{ base_url }}"
         method="get"
         data-tour-target="assess-filters"
@@ -95,22 +96,7 @@
 
     {# djlint: off #}
     <section class="space-y-3 mt-5"
-             @change="if (!$refs.timePreset.value) $refs.customPeriod.selected = !!($refs.timeFrom.value || $refs.timeTo.value)"
-             x-data='{
-               clearTimeFilters() {
-                 const timeFrom = this.$refs.timeFrom;
-                 const timeTo = this.$refs.timeTo;
-                 if (timeFrom) {
-                   timeFrom.value = "";
-                   timeFrom.removeAttribute("name");
-                 }
-                 if (timeTo) {
-                   timeTo.value = "";
-                   timeTo.removeAttribute("name");
-                 }
-                 this.$refs.timePreset.value = "";
-               }
-             }'>
+             @change="if (!$refs.timePreset.value) $refs.customPeriod.selected = !!($refs.timeFrom.value || $refs.timeTo.value)">
     {# djlint:on #}
     <div class="flex items-center gap-2">
       <label for="assess-time-period" class="text-sm font-semibold">Time period</label>

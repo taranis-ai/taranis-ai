@@ -613,10 +613,13 @@ def forward_console_and_page_errors_non_admin(request, non_admin_logged_in_page)
         r"(?i)\[console\.error\].*/story/[^/]+/news-item-order.*Failed to load resource: the server responded with a status of 409 \(conflict\)",
         r"\[console\.error\].*htmx:oobErrorNoTarget, #notification-bar",
     ]
-    if request.node.name == "test_user_assess":
-        # This workflow deliberately rejects a display save and verifies its recovery.
-        allow_patterns.append(
-            r"(?i)\[console\.error\].*/assess/display:0:0 :: Failed to load resource: the server responded with a status of 400 \(bad request\)$"
+    if request.node.originalname == "test_user_assess":
+        # This workflow deliberately rejects display saves and filter loads to verify recovery.
+        allow_patterns.extend(
+            [
+                r"(?i)\[console\.error\].*/assess/display:0:0 :: Failed to load resource: the server responded with a status of 400 \(bad request\)$",
+                r"(?i)\[console\.error\].*/assess\?.*:0:0 :: Failed to load resource: the server responded with a status of 503 \(service unavailable\)$",
+            ]
         )
     yield from _forward_console_and_page_errors(request, non_admin_logged_in_page, extra_allow_patterns=allow_patterns)
 

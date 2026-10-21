@@ -230,9 +230,16 @@ def story_with_news_item_tags() -> dict:
 def test_story_card_shows_distinct_top_source_icons(authenticated_client, responses_mock, source_ids, expected_sources):
     story_payload = story_with_news_item_tags()
     story_payload["news_items"] = [
-        {"id": f"news-{index}", "story_id": story_payload["id"], "osint_source_id": source_id, "content": "News content"}
+        {
+            "id": f"news-{index}",
+            "story_id": story_payload["id"],
+            "osint_source_id": source_id,
+            "source": f"Original source {source_id}",
+            "content": "News content",
+        }
         for index, source_id in enumerate(source_ids)
     ]
+    story_payload["links"] = ["https://[malformed"]
     mock_story_for_edit(responses_mock, story_payload)
     responses_mock.get(f"{Config.TARANIS_CORE_URL}/assess/bookmarks", json={"items": [], "total_count": 0})
     responses_mock.replace(
@@ -251,7 +258,9 @@ def test_story_card_shows_distinct_top_source_icons(authenticated_client, respon
 
     assert response.status_code == 200
     tree = html.fromstring(response.text)
-    expected_item_sources = [f"Source · Source {source_id}" for source_id in source_ids if source_id in "abcdef"]
+    expected_item_sources = [
+        f"Source · Source {source_id}" if source_id in "abcdef" else f"Source · Original source {source_id}" for source_id in source_ids
+    ]
     assert [badge.text_content().strip() for badge in tree.xpath('//*[@data-test-id="news-item-source"]')] == expected_item_sources
 
     details = authenticated_client.get(url_for("assess.story_details", story_id=story_payload["id"]))
@@ -311,6 +320,13 @@ def test_display_preferences_preserve_filters_and_render_saved_profile(authentic
     else:
         assert 'id="assess"' not in response.text
         assert "Unable to save display preferences" in response.text
+
+    calls_before_validation = len(responses_mock.calls)
+    invalid_response = authenticated_client.post(url_for("assess.display_preferences"), data={"compact_view": "invalid"})
+    assert invalid_response.status_code == 400
+    assert invalid_response.headers["HX-Retarget"] == "#notification-bar"
+    assert 'id="assess"' not in invalid_response.text
+    assert len(responses_mock.calls) == calls_before_validation
 
 
 def _bookmark_collection_payload(bookmark_id: str, name: str, story_count: int, position: int = 0) -> dict:
@@ -567,6 +583,7 @@ def test_news_item_card_shows_author_when_present(app):
                     "story_id": "story-1",
                     "osint_source_id": "manual",
                     "title": "News with author",
+                    "source": "Analyst interview",
                     "author": "James Bond",
                 }
             ],
@@ -580,6 +597,7 @@ def test_news_item_card_shows_author_when_present(app):
     author_badge = tree.xpath('//*[@data-test-id="news-item-author"]')
     assert len(author_badge) == 1
     assert author_badge[0].text_content().strip() == "Author · James Bond"
+    assert "Manually added" in tree.text_content()
 
 
 def test_news_item_card_hides_author_when_missing_or_empty(app):
@@ -1031,6 +1049,15 @@ def test_delete_story_preserves_assess_filters(authenticated_client, responses_m
     assert len(tree.xpath('//*[@data-story-id="story-1"]')) == int(has_remaining_story)
     if not has_remaining_story:
         assert "No stories found." in response.text
+
+    responses_mock.replace("DELETE", f"{Config.TARANIS_CORE_URL}/assess/story/deleted-story", json={"error": "Deletion denied"}, status=403)
+    rejected = authenticated_client.delete(
+        url_for("assess.story_delete", story_id="deleted-story"),
+        headers={"HX-Request": "true", "HX-Current-URL": url_for("assess.assess", **filters, _external=True)},
+    )
+    assert rejected.status_code == 403
+    assert "Deletion denied" in rejected.text
+    assert 'id="assess"' not in rejected.text
 
 
 def test_assess_bookmarks_bar_renders_first_six_ordered_collections(authenticated_client, responses_mock):

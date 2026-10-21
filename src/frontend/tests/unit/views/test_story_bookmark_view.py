@@ -411,9 +411,9 @@ def test_bookmark_ungroup_error_stays_in_bookmark(
         headers=htmx_header,
     )
 
-    assert response.status_code == 200
+    assert response.status_code == 400
     assert "Story is assigned to a report" in response.text
-    assert 'data-testid="bookmark-detail"' in response.text
+    assert 'data-testid="bookmark-detail"' not in response.text
     assert "HX-Redirect" not in response.headers
     assert _request_json(responses_mock.calls[0]) == ["story-1"]
 

@@ -1,3 +1,30 @@
+function assessTimeFilters() {
+  return {
+    timeClearPending: false,
+    clearTimeFilters() {
+      this.timeClearPending = true;
+      for (const input of [this.$refs.timeFrom, this.$refs.timeTo]) {
+        input.value = "";
+        input.removeAttribute("name");
+      }
+      this.$refs.timePreset.value = "";
+    },
+    restoreTimeFilters() {
+      if (!this.timeClearPending) return;
+      const params = new URL(window.location.href).searchParams;
+      for (const [ref, name] of [["timeFrom", "timefrom"], ["timeTo", "timeto"]]) {
+        const input = this.$refs[ref];
+        input.value = params.get(name) || "";
+        input.name = input.value ? name : "";
+      }
+      this.$refs.timePreset.value = params.get("range") || "";
+      this.$refs.customPeriod.selected = !this.$refs.timePreset.value &&
+        !!(this.$refs.timeFrom.value || this.$refs.timeTo.value);
+      this.timeClearPending = false;
+    },
+  };
+}
+
 function assessSearchState() {
   let root;
   return {

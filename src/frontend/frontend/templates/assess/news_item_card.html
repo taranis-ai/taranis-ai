@@ -1,5 +1,5 @@
 {% macro news_item_metadata(news_item, story) %}
-  {% set source_name = (story.model_extra.source_names | default({})).get(news_item.osint_source_id) %}
+  {% set source_name = (story.model_extra.source_names | default({})).get(news_item.osint_source_id) or news_item.source %}
   <div class="flex flex-wrap gap-2 text-xs text-base-content/60">
     {% if source_name %}
       <span class="badge badge-sm badge-outline h-auto max-w-full whitespace-normal break-words text-left" data-test-id="news-item-source">
@@ -17,7 +17,7 @@
         Author · {{ news_item.author }}
       </span>
     {% endif %}
-    {% if news_item.source == "manual" %}<span class="badge badge-info badge-sm self-start">Manually added</span>{% endif %}
+    {% if news_item.osint_source_id == "manual" %}<span class="badge badge-info badge-sm self-start">Manually added</span>{% endif %}
     {% if news_item.tlp_level %}<span class="badge badge-sm badge-outline">TLP:{{ news_item.tlp_level | upper }}</span>{% endif %}
   </div>
 {% endmacro %}

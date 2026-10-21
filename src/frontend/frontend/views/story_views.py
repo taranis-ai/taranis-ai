@@ -219,7 +219,10 @@ class StoryView(BaseView):
         else:
             source_ids = list(dict.fromkeys(source_ids))
         story.source_infos = [sources[source_id] for source_id in source_ids]  # type: ignore
-        story.source_domain = urlparse(story.links[0]).hostname if story.links else ""  # type: ignore
+        try:
+            story.source_domain = urlparse(story.links[0]).hostname if story.links else ""  # type: ignore
+        except ValueError:
+            story.source_domain = ""  # type: ignore
         story.summary_content = story.summary or story.news_items[0].content  # type: ignore
         return story
 
@@ -1172,6 +1175,8 @@ class StoryView(BaseView):
             updated_user = update_current_user_cache()
             if updated_user is not None:
                 current_user.profile = updated_user.profile
+        except ValidationError as exc:
+            return cls._validation_error_notification(exc, ProfileSettings)
         except HTTPException:
             raise
         except Exception:
@@ -1533,7 +1538,13 @@ class StoryView(BaseView):
         except HTTPException:
             raise
         except Exception:
-            return cls.render_response_notification({"error": "Failed to delete story"})
+            logger.exception("Failed to delete story")
+            return render_template(
+                "notification/index.html", notification={"message": "Failed to delete story", "error": True}, oob=False
+            ), 502
+
+        if not core_response.ok:
+            return cls.get_notification_from_response(core_response, oob=False), core_response.status_code
 
         if bookmark_id := cls._get_bookmark_id():
             notification_html = cls.get_notification_from_response(core_response)
@@ -1620,6 +1631,8 @@ class StoryView(BaseView):
         if news_item_ids := request.form.getlist("news_item_ids[]"):
             try:
                 response = CoreApi().api_put("/assess/news-items/ungroup", json_data=news_item_ids)
+                if not response.ok:
+                    return cls.get_notification_from_response(response, oob=False), response.status_code
                 notification_html = cls.get_notification_from_response(response)
                 content = cls._get_action_response_content(story_id)
                 return make_response(notification_html + content, 200)
@@ -1631,6 +1644,8 @@ class StoryView(BaseView):
         else:
             try:
                 core_response = CoreApi().api_put("/assess/stories/ungroup", json_data=[story_id])
+                if not core_response.ok:
+                    return cls.get_notification_from_response(core_response, oob=False), core_response.status_code
                 if bookmark_id := cls._get_bookmark_id():
                     return cls._render_bookmark_after_story_change(
                         bookmark_id,

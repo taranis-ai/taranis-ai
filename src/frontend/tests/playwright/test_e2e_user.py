@@ -411,6 +411,25 @@ class TestEndToEndUser(BaseE2ETest):
                     _external=True,
                 )
             )
+            filtered_url = page.url
+            page.route(
+                "**/assess?*",
+                lambda route: route.fulfill(
+                    status=503,
+                    content_type="text/html",
+                    body='<section id="notification-bar"><div role="alert">Unable to load stories.</div></section>',
+                ),
+                times=1,
+            )
+            with page.expect_response(lambda response: urlparse(response.url).path.endswith("/assess") and response.status == 503):
+                page.get_by_role("combobox", name="Time period", exact=True).select_option(label="Any time")
+            with pytest.raises(AssertionError, match=r"HTMX response error .* for GET .*/assess.* returned 503"):
+                wait_for_htmx_settled(page)
+            reset_htmx_state(page)
+            expect(page.get_by_role("alert")).to_contain_text("Unable to load stories.")
+            assert page.url == filtered_url
+            expect(page.get_by_role("textbox", name="From", exact=True)).to_have_value("2026-01-01T00:00")
+            expect(page.get_by_role("textbox", name="To", exact=True)).to_have_value("2026-02-01T00:00")
             with_htmx_wait(page, lambda: page.get_by_role("combobox", name="Time period", exact=True).select_option(label="Any time"))
             remaining_filters = parse_qs(urlparse(page.url).query)
             assert not {"range", "timefrom", "timeto"}.intersection(remaining_filters)

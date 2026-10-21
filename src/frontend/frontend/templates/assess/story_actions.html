@@ -106,6 +106,9 @@
     <button type="button"
             class="btn btn-outline btn-{{ size }} w-full join-item justify-start gap-2"
             hx-post="{{ story_ungroup_url }}"
+            hx-status:400="target:#notification-bar select:#notification-bar swap:outerHTML"
+            hx-status:4xx="target:#notification-bar select:#notification-bar swap:outerHTML"
+            hx-status:5xx="target:#notification-bar select:#notification-bar swap:outerHTML"
             {% if bookmark_id %}hx-target="#bookmark-detail-container" hx-swap="outerHTML"{% endif %}
             hx-confirm="Are you sure you want to ungroup this story? Ungrouping will create separate stories for each news item."
             data-testid="ungroup-story">
@@ -124,6 +127,8 @@
     <button type="button"
             class="btn btn-outline btn-{{ size }} w-full join-item justify-start gap-2"
             hx-delete="{{ story_delete_url }}"
+            hx-status:400="target:#notification-bar select:#notification-bar swap:outerHTML"
+            hx-status:4xx="target:#notification-bar select:#notification-bar swap:outerHTML"
             hx-status:5xx="target:#notification-bar select:#notification-bar swap:outerHTML"
             {% if delete_target %}hx-target="{{ delete_target }}"{% endif %}
             {% if delete_swap %}hx-swap="{{ delete_swap }}"{% endif %}
