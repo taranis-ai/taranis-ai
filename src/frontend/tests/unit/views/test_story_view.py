@@ -929,7 +929,7 @@ def test_assess_filters_support_htmx_and_native_form_submission(authenticated_cl
     assert filter_form.get("hx-target:inherited") == "#assess"
     assert filter_form.get("hx-swap:inherited") == "outerHTML"
     notification_rule = "target:#notification-bar select:#notification-bar swap:outerHTML"
-    assert filter_form.get("hx-status:5xx:inherited") == notification_rule
+    assert filter_form.get("hx-status:5xx:inherited") == notification_rule + " push:false"
     buttons = tree.xpath('//button[@data-testid="bulk-toggle-read" or @data-testid="bulk-toggle-important" or @data-testid="delete-story"]')
     assert len(buttons) >= 2
     assert all(button.get("hx-status:5xx") == notification_rule for button in buttons)
