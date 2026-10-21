@@ -189,12 +189,17 @@
 }
 
 .story-card-actions .story-card-action {
-  width: 9.75rem;
-  height: 1.5rem;
+  width: 100%;
+  min-height: 1.5rem;
+  height: 100%;
   flex-shrink: 0;
   justify-content: flex-start;
   border-radius: var(--radius-field);
-  white-space: nowrap;
+  white-space: normal;
+}
+
+.story-card-actions form {
+  width: 100%;
 }
 
 [x-cloak] {

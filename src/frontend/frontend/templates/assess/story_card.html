@@ -48,7 +48,7 @@
       <div class="grid grid-cols-[min(16rem,32%)_minmax(0,1fr)] gap-2 gap-x-4 @min-[80rem]:grid-cols-[16rem_minmax(0,1fr)_20rem] w-full max-w-full">
 
         <!-- status and metadata column -->
-        <section class="flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-base-content/70 min-w-0 content-start row-span-2 @min-[80rem]:row-span-1">
+        <section class="flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-base-content/70 min-w-0 content-start">
           {% if not detail_view %}
             <input type="checkbox" name="story_ids" value="{{ story_id }}" class="checkbox checkbox-sm" aria-label="Select {{ story.title }}" @click.stop {% if bookmark_id %}form="bookmark-selection-form" {% if is_selected %}checked{% endif %}{% else %}x-model="selectedItems"{% endif %}>
           {% endif %}
@@ -170,7 +170,7 @@
           {{ story_tags(story, compact_view=compact_view, selected_tags=active_tag_filters | default([])) }}
         </section>
 
-        <footer class="story-card-actions flex flex-wrap items-start content-start gap-2 text-xs col-start-2 @min-[80rem]:col-start-3 @min-[80rem]:row-start-1"
+        <footer class="story-card-actions grid grid-flow-col auto-cols-fr content-start gap-2 text-xs col-span-2 @min-[80rem]:grid-flow-row @min-[80rem]:grid-cols-1 @min-[80rem]:auto-cols-auto @min-[80rem]:col-span-1 @min-[80rem]:col-start-3 @min-[80rem]:row-start-1"
                 @click.stop>
           {{ story_card_actions(story, compact_view=compact_view, detail_view=detail_view, show_bookmark=show_bookmark, bookmark_id=bookmark_id) }}
         </footer>

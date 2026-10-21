@@ -127,10 +127,10 @@
 
 {% macro story_card_actions(story, compact_view=False, detail_view=False, show_bookmark=True, bookmark_id=None) %}
   {% set story_id = story.id %}
-  <div class="flex flex-wrap items-center gap-2 @min-[80rem]:grid @min-[80rem]:grid-cols-2 @min-[80rem]:w-full">
+  <div class="contents @min-[80rem]:grid @min-[80rem]:grid-cols-2 @min-[80rem]:gap-2">
     {{ story_actions(story, size='xs', show_bookmark=show_bookmark, bookmark_id=bookmark_id, primary_only=True) }}
   </div>
-  <div class="flex flex-wrap items-center gap-2">
+  <div class="contents @min-[80rem]:grid @min-[80rem]:grid-cols-2 @min-[80rem]:gap-2">
     <button type="button"
             class="btn btn-outline btn-xs gap-2 story-card-action"
             x-bind:class="isOpen ? 'btn-active' : ''"
