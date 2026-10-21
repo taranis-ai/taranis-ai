@@ -101,8 +101,9 @@
                               class="textarea textarea-bordered w-full">{{ request.form.get('context') if retry else trigger.context | join('\n') }}</textarea>
                   </label>
                   <p id="context-help-{{ trigger.id }}" class="text-sm text-base-content/70">
-                    An article must contain the matching phrase <strong>AND at least one context phrase</strong> in its title or content.
-                    Multiple context phrases are alternatives (<strong>OR</strong>). Leave this empty to require only the matching phrase.
+                    Leave this empty to require only the matching phrase in an article's title or content.
+                    If you add context phrases, the same article must also contain <strong>at least one</strong> of them in its title or content.
+                    Multiple context phrases are alternatives (<strong>OR</strong>).
                   </p>
                   <label class="flex gap-2"><input type="checkbox"
        name="enabled"
@@ -133,8 +134,9 @@
                               class="textarea textarea-bordered w-full">{{ request.form.get('context', '') if retry else '' }}</textarea>
                   </label>
                   <p id="alternative-context-help-{{ trigger.id }}" class="text-sm text-base-content/70">
-                    An article must contain the matching phrase <strong>AND at least one context phrase</strong> in its title or content.
-                    Multiple context phrases are alternatives (<strong>OR</strong>). Leave this empty to require only the matching phrase.
+                    Leave this empty to require only the matching phrase in an article's title or content.
+                    If you add context phrases, the same article must also contain <strong>at least one</strong> of them in its title or content.
+                    Multiple context phrases are alternatives (<strong>OR</strong>).
                   </p>
                   <label class="flex gap-2"><input type="checkbox"
        name="enabled"
