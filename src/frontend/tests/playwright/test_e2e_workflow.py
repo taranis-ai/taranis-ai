@@ -255,10 +255,56 @@ class TestUserWorkflow(BaseE2ETest):
 
         self.highlight_element(page.get_by_role("button", name="Bookmark")).click()
         expect(page.get_by_test_id("story-bookmark-dialog")).to_be_visible()
-        self.highlight_element(page.get_by_test_id("bookmark-mode-new")).click()
         self.highlight_element(page.get_by_test_id("new-bookmark-name")).fill(bookmark_name)
         self.highlight_element(page.get_by_test_id("submit-bookmark-story")).click()
-        expect(page.locator("#notification-bar")).to_contain_text("stories bookmarked")
+        expect(page.locator("#notification-bar")).to_contain_text("Bookmark collections updated")
+
+        for story_id in selected_story_ids:
+            card = page.get_by_test_id(f"story-card-{story_id}")
+            expect(card.get_by_test_id("bookmark-story")).to_have_text("Saved")
+            expect(card).to_have_attribute("aria-selected", "true")
+
+        first_card = page.get_by_test_id(f"story-card-{selected_story_ids[0]}")
+        first_card.get_by_test_id("bookmark-story").click()
+        picker = page.get_by_test_id("story-bookmark-dialog")
+        first_choice = picker.locator("label").filter(has_text=bookmark_name).locator('input[name="bookmark_ids"]')
+        expect(first_choice).to_be_checked()
+        picker.get_by_role("radio", name=f"Use {bookmark_name} for quick-save", exact=True).check()
+        extra_name = f"Extra {uuid4()}"
+        picker.get_by_test_id("new-bookmark-name").fill(extra_name)
+        picker.get_by_test_id("submit-bookmark-story").click()
+        expect(picker).not_to_be_visible()
+
+        # Bulk saves preserve mixed memberships, including rows hidden by search.
+        page.get_by_role("button", name="Bookmark", exact=True).click()
+        picker = page.get_by_test_id("story-bookmark-dialog")
+        partial = picker.locator("label").filter(has_text=extra_name).locator('input[name="bookmark_ids"]')
+        expect(partial).to_have_js_property("indeterminate", True)
+        picker.get_by_role("searchbox", name="Find a collection").fill(bookmark_name)
+        expect(partial).not_to_be_visible()
+        picker.get_by_test_id("submit-bookmark-story").click()
+        expect(picker).not_to_be_visible()
+
+        # A failed inline create retains the current membership and entered name.
+        first_card.get_by_test_id("bookmark-story").click()
+        picker.get_by_test_id("new-bookmark-name").fill(bookmark_name)
+        picker.get_by_test_id("submit-bookmark-story").click()
+        expect(page.locator("#notification-bar")).to_contain_text("already exists")
+        expect(picker).to_be_visible()
+        expect(picker.get_by_test_id("new-bookmark-name")).to_have_value(bookmark_name)
+        expect(picker.locator("label").filter(has_text=extra_name).locator('input[name="bookmark_ids"]')).to_be_checked()
+        picker.get_by_role("button", name="Cancel", exact=True).click()
+
+        # Quick-save and undo update cards without dropping the current selection.
+        third_card = page.get_by_test_id(f"story-card-{stories_date_descending[2]}")
+        third_card.get_by_test_id("bookmark-story").click()
+        expect(page.locator("#notification-bar")).to_contain_text(f"Saved to {bookmark_name}")
+        expect(third_card.get_by_test_id("bookmark-story")).to_have_text("Saved")
+        page.locator('[data-test-id="bookmark-undo"]').click()
+        expect(third_card.get_by_test_id("bookmark-story")).to_have_text("Bookmark")
+        expect(first_card).to_have_attribute("aria-selected", "true")
+        page.reload(wait_until="domcontentloaded")
+        expect(first_card.get_by_test_id("bookmark-story")).to_have_text("Saved")
 
         self.highlight_element(page.get_by_role("link", name="Bookmarks")).click()
         page.wait_for_url("**/bookmarks", wait_until="domcontentloaded")

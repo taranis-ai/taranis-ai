@@ -612,10 +612,11 @@ class Story(BaseModel):
             )
         )
 
+        bookmarked_ids = StoryBookmark.bookmarked_story_ids(story_ids, user)
         if filter_args.get("no_count", False):
             stories = []
             for story in cls.get_filtered(query) or []:
-                story_data = story.to_dict(user=user, writable_sources=writable_sources)
+                story_data = story.to_dict(user=user, writable_sources=writable_sources, bookmarked=story.id in bookmarked_ids)
                 story_data["revision_count"] = story.get_revision_count()
                 stories.append(story_data)
             return stories, None
@@ -626,7 +627,7 @@ class Story(BaseModel):
         query = cls.enhance_with_report_count(query)
 
         for story, user_vote, report_count in db.session.execute(query):
-            story_data = story.to_dict(user=user, writable_sources=writable_sources)
+            story_data = story.to_dict(user=user, writable_sources=writable_sources, bookmarked=story.id in bookmarked_ids)
             story_data["revision_count"] = story.get_revision_count()
             story_data["user_vote"] = user_vote
             story_data["in_reports_count"] = report_count
@@ -1507,10 +1508,13 @@ class Story(BaseModel):
         ordered = [items.pop(item_id) for item_id in self.news_item_order or [] if item_id in items]
         return ordered + [items[item_id] for item_id in sorted(items)]
 
-    def to_dict(self, user: User | None = None, writable_sources: set[str | None] | None = None) -> dict[str, Any]:
+    def to_dict(
+        self, user: User | None = None, writable_sources: set[str | None] | None = None, bookmarked: bool | None = None
+    ) -> dict[str, Any]:
         data = super().to_dict()
         if user is not None:
             data["can_edit"] = self.allowed_to_update(user, writable_sources=writable_sources)
+            data["bookmarked"] = bookmarked if bookmarked is not None else self.id in StoryBookmark.bookmarked_story_ids([self.id], user)
         data.pop("news_item_order", None)
         data["tlp_level"] = self.tlp_level.value
         data["attributes"] = [attribute.to_small_dict() for attribute in self.attributes]
@@ -1726,10 +1730,26 @@ class StoryBookmark(BaseModel):
         return int(max_position if max_position is not None else -1) + 1
 
     @classmethod
-    def get_for_user(cls, bookmark_id: str, user: User | None) -> "StoryBookmark | None":
-        if user is None:
+    def get_for_user(cls, bookmark_id: str | None, user: User | None) -> "StoryBookmark | None":
+        if user is None or not bookmark_id:
             return None
         return cls.get_first(db.select(cls).where(cls.id == bookmark_id, cls.user_id == user.id))
+
+    @classmethod
+    def bookmarked_story_ids(cls, story_ids: list[str], user: User) -> set[str]:
+        if not story_ids:
+            return set()
+        return set(
+            db.session.scalars(
+                db.select(StoryBookmarkStory.story_id)
+                .join(cls, cls.id == StoryBookmarkStory.bookmark_id)
+                .where(cls.user_id == user.id, StoryBookmarkStory.story_id.in_(story_ids))
+            )
+        )
+
+    @staticmethod
+    def set_default(user: User, bookmark_id: str | None) -> None:
+        user.profile = {**(user.profile or {}), "default_bookmark_id": bookmark_id}
 
     @classmethod
     def get_filter_query(cls, filter_args: dict[str, Any], user: User | None = None) -> Select:
@@ -1786,10 +1806,13 @@ class StoryBookmark(BaseModel):
     @classmethod
     def update_for_api(cls, bookmark_id: str, data: dict[str, Any], user: User | None) -> tuple[dict[str, Any], int]:
         bookmark = cls.get_for_user(bookmark_id, user)
-        if bookmark is None:
+        if bookmark is None or user is None:
             return {"error": "Bookmark collection not found"}, 404
         try:
-            bookmark.name = cls._clean_name(data.get("name"))
+            if data.get("name") is not None:
+                bookmark.name = cls._clean_name(data["name"])
+            if data.get("is_default"):
+                cls.set_default(user, bookmark.id)
             bookmark.touch()
             db.session.commit()
             return {"message": "Bookmark collection updated", "id": bookmark.id, "bookmark": bookmark.to_detail_dict()}, 200
@@ -1830,8 +1853,10 @@ class StoryBookmark(BaseModel):
     @classmethod
     def delete_for_api(cls, bookmark_id: str, user: User | None) -> tuple[dict[str, Any], int]:
         bookmark = cls.get_for_user(bookmark_id, user)
-        if bookmark is None:
+        if bookmark is None or user is None:
             return {"error": "Bookmark collection not found"}, 404
+        if user.profile.get("default_bookmark_id") == bookmark.id:
+            cls.set_default(user, None)
         db.session.delete(bookmark)
         db.session.commit()
         return {"message": "Bookmark collection deleted"}, 200
@@ -1889,6 +1914,75 @@ class StoryBookmark(BaseModel):
         return {"message": f"{added} stories bookmarked", "added": added, "story_count": len(bookmark.stories)}, 200
 
     @classmethod
+    def quick_save(cls, story_ids: list[str], user: User) -> tuple[dict[str, Any], int]:
+        stories = cls._get_accessible_stories(cls._dedupe_ids(story_ids), user)
+        if not stories:
+            return {"error": "One of the provided stories was not found"}, 404
+        try:
+            # Serialize automatic default creation across this user's concurrent quick saves.
+            db.session.execute(
+                db.select(User).where(User.id == user.id).with_for_update().execution_options(populate_existing=True)
+            ).scalar_one()
+            bookmark = cls.get_for_user(user.profile.get("default_bookmark_id"), user)
+            if bookmark is None:
+                bookmark = cls.get_first(db.select(cls).where(cls.user_id == user.id, cls.name == "Bookmarks"))
+                if bookmark is None:
+                    bookmark = cls(name="Bookmarks", user_id=user.id, position=cls._next_position(user.id))
+                    db.session.add(bookmark)
+                cls.set_default(user, bookmark.id)
+            existing_ids = {item.id for item in bookmark.stories}
+            added_ids = [item.id for item in stories if item.id not in existing_ids]
+            bookmark.stories.extend(item for item in stories if item.id not in existing_ids)
+            bookmark.touch()
+            db.session.commit()
+            return {"message": "Story bookmarked", "bookmark": bookmark.to_dict(), "added_story_ids": added_ids}, 200
+        except SQLAlchemyError:
+            db.session.rollback()
+            logger.exception("Failed to quick-save stories")
+            return {"error": "Unable to save bookmark. Please try again."}, 500
+
+    @classmethod
+    def update_memberships(cls, data: dict[str, Any], user: User) -> tuple[dict[str, Any], int]:
+        story_ids = cls._dedupe_ids(data["story_ids"])
+        stories = cls._get_accessible_stories(story_ids, user)
+        if not stories:
+            return {"error": "One of the provided stories was not found"}, 404
+        add_ids = set(data["bookmark_ids"])
+        remove_ids = set(data["remove_bookmark_ids"])
+        default_id = data.get("default_bookmark_id")
+        if add_ids & remove_ids:
+            return {"error": "A collection cannot be added and removed together"}, 400
+        requested_ids = add_ids | remove_ids | ({default_id} if default_id else set())
+        bookmarks = list(db.session.scalars(db.select(cls).where(cls.user_id == user.id, cls.id.in_(requested_ids))))
+        if requested_ids - {item.id for item in bookmarks}:
+            return {"error": "Bookmark collection not found"}, 404
+        try:
+            if name := data["new_collection_name"].strip():
+                bookmark = cls(name=name, user_id=user.id, position=cls._next_position(user.id))
+                db.session.add(bookmark)
+                bookmarks.append(bookmark)
+                add_ids.add(bookmark.id)
+            for bookmark in bookmarks:
+                if bookmark.id in add_ids:
+                    existing_ids = {item.id for item in bookmark.stories}
+                    bookmark.stories.extend(item for item in stories if item.id not in existing_ids)
+                    bookmark.touch()
+                elif bookmark.id in remove_ids:
+                    bookmark.stories = [item for item in bookmark.stories if item.id not in story_ids]
+                    bookmark.touch()
+            if default_id:
+                cls.set_default(user, default_id)
+            db.session.commit()
+            return {"message": "Bookmark collections updated"}, 200
+        except IntegrityError:
+            db.session.rollback()
+            return {"error": "A bookmark collection with this name already exists"}, 409
+        except SQLAlchemyError:
+            db.session.rollback()
+            logger.exception("Failed to update bookmark memberships")
+            return {"error": "Unable to update bookmarks. Please try again."}, 500
+
+    @classmethod
     def remove_stories(cls, bookmark_id: str, story_ids: list[str], user: User | None) -> tuple[dict[str, Any], int]:
         if user is None:
             return {"error": "User not found"}, 403
@@ -1923,6 +2017,7 @@ class StoryBookmark(BaseModel):
         stories = self.stories if stories is None else stories
         data["story_count"] = len(stories)
         data["story_ids"] = [story.id for story in stories if story and story.id]
+        data["is_default"] = (self.user.profile or {}).get("default_bookmark_id") == self.id
         return data
 
     def to_detail_dict(self, stories: list[Story] | None = None, user: User | None = None) -> dict[str, Any]:

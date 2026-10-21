@@ -1,6 +1,8 @@
 {% set bookmark_collections = bookmark_collections | default([]) %}
 {% set assess_bookmark_bar_limit = assess_bookmark_bar_limit | default(bookmark_collections | length) %}
-<nav class="mb-3 flex min-h-10 items-center justify-between gap-3 rounded-box border border-base-300 bg-base-100 px-2 py-2 shadow-sm"
+<nav id="assess-bookmarks-bar"
+     {% if bookmark_bar_oob | default(False) %} hx-swap-oob="outerHTML"{% endif %}
+     class="mb-3 flex min-h-10 items-center justify-between gap-3 rounded-box border border-base-300 bg-base-100 px-2 py-2 shadow-sm"
      aria-label="Story bookmarks"
      data-testid="assess-bookmarks-bar">
   <div class="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto">

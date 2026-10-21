@@ -60,6 +60,7 @@ class ProfileSettings(TaranisBaseModel):
     end_of_shift: str | None = None
     highlight: bool = False
     assess_saved_filters: list[AssessSavedFilter] = Field(default_factory=list)
+    default_bookmark_id: str | None = None
     onboarding_enabled: bool = True
     onboarding_tasks: dict[str, str] = Field(default_factory=dict)
     dashboard: ProfileSettingsDashboard = Field(default_factory=ProfileSettingsDashboard)

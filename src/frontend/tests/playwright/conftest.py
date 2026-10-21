@@ -613,6 +613,11 @@ def forward_console_and_page_errors_non_admin(request, non_admin_logged_in_page)
         r"(?i)\[console\.error\].*/story/[^/]+/news-item-order.*Failed to load resource: the server responded with a status of 409 \(conflict\)",
         r"\[console\.error\].*htmx:oobErrorNoTarget, #notification-bar",
     ]
+    if request.node.name == "test_story_bookmarks":
+        # The picker deliberately creates a duplicate collection to verify retry behavior.
+        allow_patterns.append(
+            r"(?i)\[console\.error\].*/story/bookmark:0:0 :: Failed to load resource: the server responded with a status of 409 \(conflict\)$"
+        )
     if request.node.name == "test_user_assess":
         # This workflow deliberately rejects display saves and filter loads to verify recovery.
         allow_patterns.extend(

@@ -19,6 +19,8 @@
           {{ heroicon_outline(icon) }}
           <span id="notification-message">{{ message }}</span>
         </div>
+        {% block notification_actions %}
+        {% endblock notification_actions %}
         {% if not persistent %}
           <div class="w-full h-2 bg-black/20 rounded overflow-hidden">
             <div class="h-full bg-black {{ animation_class }}" @animationend="show = false"></div>

@@ -18,9 +18,6 @@ from frontend.views.base_view import BaseView
 from frontend.views.story_views import StoryView
 
 
-DEFAULT_BOOKMARK_COLLECTION_NAME = "Bookmarks"
-
-
 class StoryBookmarkView(BaseView):
     model = StoryBookmark
     icon = "bookmark"
@@ -40,10 +37,11 @@ class StoryBookmarkView(BaseView):
     def _invalidate_bookmark_cache(cls, bookmark_id: str | None = None) -> None:
         try:
             DataPersistenceLayer().invalidate_model_cache_locally(StoryBookmark, bookmark_id)
+            DataPersistenceLayer().invalidate_model_cache_locally(Story)
         except HTTPException:
             raise
-        except ValueError as exc:
-            logger.exception(f"Failed to invalidate local story bookmark cache: {exc}")
+        except ValueError:
+            logger.exception("Failed to invalidate local story bookmark cache")
         except Exception:
             logger.exception("Failed to invalidate local story bookmark cache")
             return
@@ -58,24 +56,9 @@ class StoryBookmarkView(BaseView):
             return None, format_pydantic_errors(exc, cls.model)
         except HTTPException:
             raise
-        except ValueError as exc:
+        except ValueError:
             logger.exception("Error retrieving story bookmarks")
-            return None, str(exc)
-
-    @classmethod
-    def _load_first_bookmark(cls) -> tuple[StoryBookmark | None, str | None]:
-        try:
-            paging_data = PagingData(limit=1, order="position_asc", query_params={"limit": "1", "order": "position_asc"})
-            bookmarks = DataPersistenceLayer().get_objects(StoryBookmark, paging_data)
-            return (bookmarks[0] if bookmarks else None), None
-        except ValidationError as exc:
-            logger.exception(format_pydantic_errors(exc, cls.model))
-            return None, format_pydantic_errors(exc, cls.model)
-        except HTTPException:
-            raise
-        except ValueError as exc:
-            logger.exception("Error retrieving first story bookmark")
-            return None, str(exc)
+            return None, "Unable to load bookmark collections. Please try again."
 
     @staticmethod
     def _response_json(response: Any) -> dict[str, Any]:
@@ -84,33 +67,6 @@ class StoryBookmarkView(BaseView):
         except AttributeError, ValueError:
             return {}
         return payload if isinstance(payload, dict) else {}
-
-    @classmethod
-    def _get_or_create_first_bookmark_id(cls) -> tuple[str | None, str | None]:
-        bookmark, error = cls._load_first_bookmark()
-        if error:
-            return None, error
-        if bookmark and bookmark.id:
-            return bookmark.id, None
-
-        create_response = CoreApi().api_post("/assess/bookmarks", json_data={"name": DEFAULT_BOOKMARK_COLLECTION_NAME})
-        cls._invalidate_bookmark_cache()
-        payload = cls._response_json(create_response)
-        if getattr(create_response, "ok", False):
-            bookmark_payload = payload.get("bookmark")
-            bookmark_id = payload.get("id") or (bookmark_payload.get("id") if isinstance(bookmark_payload, dict) else None)
-            if bookmark_id:
-                return str(bookmark_id), None
-            return None, "Default bookmark collection was created without an id"
-
-        if cls._response_status(create_response) == 409:
-            bookmark, error = cls._load_first_bookmark()
-            if error:
-                return None, error
-            if bookmark and bookmark.id:
-                return bookmark.id, None
-
-        return None, str(payload.get("error") or "Failed to create default bookmark collection")
 
     @classmethod
     def _list_context(cls, error: str | None = None) -> dict[str, Any]:
@@ -177,55 +133,98 @@ class StoryBookmarkView(BaseView):
         return render_template("bookmarks/detail.html", **cls._bookmark_story_context(bookmark)), 200
 
     @classmethod
+    def _membership_updates(cls, story_ids: list[str]) -> str:
+        bookmarks, error = cls._load_bookmarks(fetch_all=True)
+        if error:
+            return ""
+        saved_ids = {story_id for bookmark in bookmarks or [] for story_id in bookmark.story_ids}
+        return render_template(
+            "bookmarks/updates.html",
+            story_ids=list(dict.fromkeys(story_ids)),
+            saved_ids=saved_ids,
+            bookmark_collections=bookmarks or [],
+            assess_bookmark_bar_limit=6,
+            include_bookmark_bar=StoryView._get_current_url_path() == url_for("assess.assess"),
+        )
+
+    @classmethod
     @auth_required("ASSESS_ACCESS")
     def get_add_dialog(cls) -> ResponseReturnValue:
         story_ids = request.args.getlist("story_ids")
         if not story_ids and (story_id := request.args.get("story_id", "")):
             story_ids = [story_id]
+        story_ids = list(dict.fromkeys(story_ids))
         if not story_ids:
             return cls.render_response_notification({"error": "No stories selected for bookmarking."}), 400
-
         bookmarks, error = cls._load_bookmarks(fetch_all=True)
         if error:
-            return cls.render_response_notification({"error": error}), 500
-        return render_template("bookmarks/add_story_dialog.html", bookmarks=bookmarks or [], story_ids=story_ids), 200
+            return cls.render_response_notification({"error": error}), 502
+        selected_ids = set(story_ids)
+        memberships = {bookmark.id: len(selected_ids.intersection(bookmark.story_ids)) for bookmark in bookmarks or []}
+        template = "bookmarks/add_story_dialog.html" if is_htmx_request() else "bookmarks/picker.html"
+        return render_template(template, bookmarks=bookmarks or [], story_ids=story_ids, memberships=memberships), 200
 
     @classmethod
     @auth_required("ASSESS_ACCESS")
     def submit_add_dialog(cls) -> ResponseReturnValue:
         story_ids = request.form.getlist("story_ids")
         if not story_ids:
-            return make_response(cls.render_response_notification({"error": "No stories selected for bookmarking."}), 400)
-
-        bookmark_id = request.form.get("bookmark_id", "")
-        if request.form.get("mode") == "new":
-            create_response = CoreApi().api_post("/assess/bookmarks", json_data={"name": request.form.get("name", "")})
-            if not getattr(create_response, "ok", False):
-                return make_response(cls.get_notification_from_response(create_response), cls._response_status(create_response))
+            return cls.render_response_notification({"error": "No stories selected for bookmarking."}), 400
+        payload = {
+            "story_ids": story_ids,
+            "bookmark_ids": request.form.getlist("bookmark_ids"),
+            "remove_bookmark_ids": list(
+                set(request.form.getlist("remove_bookmark_ids"))
+                | (set(request.form.getlist("original_bookmark_ids")) - set(request.form.getlist("bookmark_ids")))
+            ),
+            "new_collection_name": request.form.get("name", ""),
+            "default_bookmark_id": request.form.get("default_bookmark_id") or None,
+        }
+        response = CoreApi().api_post("/assess/bookmarks/memberships", json_data=payload)
+        if response.ok:
             cls._invalidate_bookmark_cache()
-            bookmark_id = create_response.json().get("id", "")
-
-        if not bookmark_id:
-            return make_response(cls.render_response_notification({"error": "No bookmark collection selected."}), 400)
-
-        response = CoreApi().api_post(f"/assess/bookmarks/{bookmark_id}/stories", json_data={"story_ids": story_ids})
-        cls._invalidate_bookmark_cache(bookmark_id)
-        return make_response(cls.get_notification_from_response(response), cls._response_status(response))
+        if not is_htmx_request():
+            if not response.ok:
+                bookmarks, error = cls._load_bookmarks(fetch_all=True)
+                memberships = {bookmark.id: len(set(story_ids).intersection(bookmark.story_ids)) for bookmark in bookmarks or []}
+                return render_template(
+                    "bookmarks/picker.html",
+                    bookmarks=bookmarks or [],
+                    story_ids=story_ids,
+                    memberships=memberships,
+                    submitted_bookmark_ids=payload["bookmark_ids"],
+                    selected_default_id=payload["default_bookmark_id"],
+                    new_collection_name=payload["new_collection_name"],
+                    error=error or cls._response_json(response).get("error") or "Unable to update bookmarks. Please try again.",
+                ), cls._response_status(response)
+            cls.add_flash_notification(response)
+            return cls.redirect_htmx(url_for("assess.bookmark_story", story_ids=story_ids))
+        body = cls.get_notification_from_response(response)
+        if response.ok:
+            body += cls._membership_updates(story_ids)
+        return make_response(body, cls._response_status(response))
 
     @classmethod
     @auth_required("ASSESS_ACCESS")
     def instant_bookmark_story(cls, story_id: str) -> ResponseReturnValue:
-        bookmark_id, error = cls._get_or_create_first_bookmark_id()
-        if error or not bookmark_id:
-            return make_response(cls.render_response_notification({"error": error or "No bookmark collection available."}), 500)
-
-        response = CoreApi().api_post(f"/assess/bookmarks/{bookmark_id}/stories", json_data={"story_ids": [story_id]})
-        cls._invalidate_bookmark_cache(bookmark_id)
+        response = CoreApi().api_post("/assess/bookmarks/quick-save", json_data={"story_ids": [story_id]})
+        if response.ok:
+            cls._invalidate_bookmark_cache()
         if not is_htmx_request():
             cls.add_flash_notification(response)
             return cls.redirect_htmx(url_for("assess.story", story_id=story_id))
-
-        return make_response(cls.get_notification_from_response(response), cls._response_status(response))
+        if not response.ok:
+            return make_response(cls.get_notification_from_response(response), cls._response_status(response))
+        payload = cls._response_json(response)
+        bookmark = payload["bookmark"]
+        body = render_template(
+            "bookmarks/save_notification.html",
+            notification={"message": f"Saved to {bookmark['name']}", "class": "alert-success"},
+            bookmark=bookmark,
+            story_id=story_id,
+            can_undo=story_id in payload.get("added_story_ids", []),
+        )
+        return make_response(body + cls._membership_updates([story_id]), 200)
 
     @classmethod
     @auth_required("ASSESS_ACCESS")
@@ -237,7 +236,10 @@ class StoryBookmarkView(BaseView):
     @classmethod
     @auth_required("ASSESS_ACCESS")
     def update_bookmark(cls, bookmark_id: str) -> ResponseReturnValue:
-        response = CoreApi().api_patch(f"/assess/bookmarks/{bookmark_id}", json_data={"name": request.form.get("name", "")})
+        response = CoreApi().api_patch(
+            f"/assess/bookmarks/{bookmark_id}",
+            json_data={"is_default": True} if request.form.get("is_default") else {"name": request.form.get("name", "")},
+        )
         cls._invalidate_bookmark_cache(bookmark_id)
         notification = cls.get_notification_from_response(response)
         if request.form.get("return_to") == "detail":

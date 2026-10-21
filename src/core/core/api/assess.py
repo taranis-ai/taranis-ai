@@ -10,6 +10,7 @@ from models.assess import (
     AnalystReviewActionPayload,
     AssessSearchFilters,
     StoryBookmarkCreatePayload,
+    StoryBookmarkMembershipPayload,
     StoryBookmarkOrderPayload,
     StoryBookmarkStoryPayload,
     StoryBookmarkUpdatePayload,
@@ -501,7 +502,7 @@ class StoryBookmarks(MethodView):
             return _validation_error_response(exc)
 
         response, status = story.StoryBookmark.add(payload.model_dump(mode="json"), current_user)
-        invalidate_frontend_cache_on_success(status, models=("story_bookmark",))
+        invalidate_frontend_cache_on_success(status, models=("story_bookmark", "story"))
         return response, status
 
 
@@ -519,13 +520,13 @@ class StoryBookmark(MethodView):
             return _validation_error_response(exc)
 
         response, status = story.StoryBookmark.update_for_api(bookmark_id, payload.model_dump(mode="json"), current_user)
-        invalidate_frontend_cache_on_success(status, models=("story_bookmark",), object_ids={"story_bookmark": bookmark_id})
+        invalidate_frontend_cache_on_success(status, models=("story_bookmark", "story"), object_ids={"story_bookmark": bookmark_id})
         return response, status
 
     @auth_required("ASSESS_ACCESS")
     def delete(self, bookmark_id: str):
         response, status = story.StoryBookmark.delete_for_api(bookmark_id, current_user)
-        invalidate_frontend_cache_on_success(status, models=("story_bookmark",), object_ids={"story_bookmark": bookmark_id})
+        invalidate_frontend_cache_on_success(status, models=("story_bookmark", "story"), object_ids={"story_bookmark": bookmark_id})
         return response, status
 
 
@@ -539,7 +540,33 @@ class StoryBookmarkOrder(MethodView):
             return _validation_error_response(exc)
 
         response, status = story.StoryBookmark.reorder_for_api(payload.bookmark_ids, current_user)
-        invalidate_frontend_cache_on_success(status, models=("story_bookmark",))
+        invalidate_frontend_cache_on_success(status, models=("story_bookmark", "story"))
+        return response, status
+
+
+class StoryBookmarkQuickSave(MethodView):
+    @auth_required("ASSESS_ACCESS")
+    @validate_json
+    def post(self):
+        try:
+            payload = StoryBookmarkStoryPayload.model_validate(request.json or {})
+        except ValidationError as exc:
+            return _validation_error_response(exc)
+        response, status = story.StoryBookmark.quick_save(payload.story_ids, current_user)
+        invalidate_frontend_cache_on_success(status, models=("story_bookmark", "story"))
+        return response, status
+
+
+class StoryBookmarkMemberships(MethodView):
+    @auth_required("ASSESS_ACCESS")
+    @validate_json
+    def post(self):
+        try:
+            payload = StoryBookmarkMembershipPayload.model_validate(request.json or {})
+        except ValidationError as exc:
+            return _validation_error_response(exc)
+        response, status = story.StoryBookmark.update_memberships(payload.model_dump(mode="json"), current_user)
+        invalidate_frontend_cache_on_success(status, models=("story_bookmark", "story"))
         return response, status
 
 
@@ -553,7 +580,7 @@ class StoryBookmarkStories(MethodView):
             return _validation_error_response(exc)
 
         response, status = story.StoryBookmark.add_stories(bookmark_id, payload.story_ids, current_user)
-        invalidate_frontend_cache_on_success(status, models=("story_bookmark",), object_ids={"story_bookmark": bookmark_id})
+        invalidate_frontend_cache_on_success(status, models=("story_bookmark", "story"), object_ids={"story_bookmark": bookmark_id})
         return response, status
 
 
@@ -567,7 +594,7 @@ class StoryBookmarkStoryRemoval(MethodView):
             return _validation_error_response(exc)
 
         response, status = story.StoryBookmark.remove_stories(bookmark_id, payload.story_ids, current_user)
-        invalidate_frontend_cache_on_success(status, models=("story_bookmark",), object_ids={"story_bookmark": bookmark_id})
+        invalidate_frontend_cache_on_success(status, models=("story_bookmark", "story"), object_ids={"story_bookmark": bookmark_id})
         return response, status
 
 
@@ -610,6 +637,8 @@ def initialize(app: Flask):
     assess_bp.add_url_rule("/analyst-review/actions", view_func=AnalystReviewAction.as_view("analyst_review_action"))
     assess_bp.add_url_rule("/bookmarks", view_func=StoryBookmarks.as_view("bookmarks"))
     assess_bp.add_url_rule("/bookmarks/order", view_func=StoryBookmarkOrder.as_view("bookmark_order"))
+    assess_bp.add_url_rule("/bookmarks/quick-save", view_func=StoryBookmarkQuickSave.as_view("bookmark_quick_save"))
+    assess_bp.add_url_rule("/bookmarks/memberships", view_func=StoryBookmarkMemberships.as_view("bookmark_memberships"))
     assess_bp.add_url_rule("/bookmarks/<string:bookmark_id>", view_func=StoryBookmark.as_view("bookmark"))
     assess_bp.add_url_rule("/bookmarks/<string:bookmark_id>/stories", view_func=StoryBookmarkStories.as_view("bookmark_stories"))
     assess_bp.add_url_rule(

@@ -9,10 +9,19 @@
       <h1 class="truncate text-2xl font-semibold text-base-content">{{ bookmark.name }}</h1>
       <div class="mt-1 flex flex-wrap items-center gap-2 text-sm text-base-content/70">
         <span class="badge badge-outline">{{ bookmark.story_count }} stories</span>
+        {% if bookmark.is_default %}<span class="badge badge-primary">Quick-save default</span>{% endif %}
         {% if bookmark.updated %}<span>Updated {{ bookmark.updated | format_datetime }}</span>{% endif %}
       </div>
     </div>
     <div class="flex flex-col gap-2 sm:flex-row">
+      {% if not bookmark.is_default %}
+        <button type="button"
+                class="btn btn-outline btn-sm"
+                hx-patch="{{ url_for('assess.bookmark_update', bookmark_id=bookmark.id) }}"
+                hx-vals='{"is_default": true, "return_to": "detail"}'
+                hx-target="#bookmark-detail-container"
+                hx-swap="outerHTML">Use for quick-save</button>
+      {% endif %}
       <form class="flex gap-2"
             hx-patch="{{ url_for('assess.bookmark_update', bookmark_id=bookmark.id) }}"
             hx-target="#bookmark-detail-container"
