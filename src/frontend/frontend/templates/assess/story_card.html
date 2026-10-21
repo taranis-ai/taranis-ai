@@ -45,10 +45,10 @@
            {% if not detail_view %}x-init="$dispatch('story-card-updated')" @click="toggleSelection('{{ story_id }}')"{% endif %}
            aria-selected="{{ 'true' if is_selected else 'false' }}">
     <div class="p-2 space-y-2 w-full max-w-full" id="story-card-content-{{ story_id }}">
-      <div class="grid grid-cols-1 gap-2 @min-[56rem]:grid-cols-[16rem_minmax(0,1fr)] @min-[80rem]:grid-cols-[16rem_minmax(0,1fr)_20rem] @min-[56rem]:gap-x-4 w-full max-w-full">
+      <div class="grid grid-cols-[min(16rem,32%)_minmax(0,1fr)] gap-2 gap-x-4 @min-[80rem]:grid-cols-[16rem_minmax(0,1fr)_20rem] w-full max-w-full">
 
         <!-- status and metadata column -->
-        <section class="flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-base-content/70 min-w-0 content-start @min-[56rem]:row-span-2 @min-[80rem]:row-span-1">
+        <section class="flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-base-content/70 min-w-0 content-start row-span-2 @min-[80rem]:row-span-1">
           {% if not detail_view %}
             <input type="checkbox" name="story_ids" value="{{ story_id }}" class="checkbox checkbox-sm" aria-label="Select {{ story.title }}" @click.stop {% if bookmark_id %}form="bookmark-selection-form" {% if is_selected %}checked{% endif %}{% else %}x-model="selectedItems"{% endif %}>
           {% endif %}
@@ -67,7 +67,7 @@
           </div>
 
           {% if story.model_extra.source_infos %}
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-2 w-full">
               <span class="font-semibold uppercase tracking-wide text-xs text-base-content/60">Sources</span>
               <div class="flex items-center gap-1" data-test-id="story-source-icons">
                 {% for source in story.model_extra.source_infos %}
@@ -97,7 +97,7 @@
             </div>
           {% endif %}
 
-          <div class="flex items-center gap-1">
+          <div class="flex items-center gap-1 w-full">
             <div class="flex flex-wrap items-center gap-2 gap-y-1 text-xs">
               {% if story.read | default(false) %}
                 <span class="badge badge-success badge-outline badge-xs whitespace-nowrap">Read</span>
@@ -170,7 +170,7 @@
           {{ story_tags(story, compact_view=compact_view, selected_tags=active_tag_filters | default([])) }}
         </section>
 
-        <footer class="story-card-actions flex flex-wrap items-start content-start gap-2 text-xs @min-[56rem]:col-start-2 @min-[80rem]:col-start-3 @min-[80rem]:row-start-1"
+        <footer class="story-card-actions flex flex-wrap items-start content-start gap-2 text-xs col-start-2 @min-[80rem]:col-start-3 @min-[80rem]:row-start-1"
                 @click.stop>
           {{ story_card_actions(story, compact_view=compact_view, detail_view=detail_view, show_bookmark=show_bookmark, bookmark_id=bookmark_id) }}
         </footer>
