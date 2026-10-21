@@ -41,7 +41,6 @@
               <h3 class="font-semibold text-base text-base-content highlight break-all" data-testid="news-item-title-{{ item.id }}">
                 {{ item.title or 'Untitled news item' }}
               </h3>
-              {% if item.language %}<span class="badge badge-ghost badge-sm uppercase">{{ item.language }}</span>{% endif %}
             </div>
             {% if item.link %}
               <a href="{{ item.link }}"
@@ -52,7 +51,7 @@
                 <span class="break-all">{{ item.link }}</span>
               </a>
             {% endif %}
-            {{ news_item_metadata(item) }}
+            {{ news_item_metadata(item, story) }}
             {% if not loop.last %}<div class="divider"></div>{% endif %}
           {% endfor %}
         {% endif %}

@@ -197,6 +197,7 @@ class StoryView(BaseView):
         if not story.news_items:
             return story
         source_ids = [item.osint_source_id for item in story.news_items if item.osint_source_id in sources]
+        story.source_names = {source_id: sources[source_id].name for source_id in source_ids}  # type: ignore
         if len(story.news_items) > 5:
             source_ids = [source_id for source_id, _ in Counter(source_ids).most_common(5)]
         else:
@@ -1111,6 +1112,8 @@ class StoryView(BaseView):
     def story_fragment(cls, story_id: str, fragment: str):
         try:
             story = DataPersistenceLayer().get_object(Story, story_id)
+            if story is not None and fragment == "details":
+                cls._enhance_story_with_details(story, {source.id: source for source in cls.get_filter_lists().sources if source.id})
         except HTTPException:
             raise
         except Exception:
@@ -1374,6 +1377,8 @@ class StoryView(BaseView):
             logger.warning(f"News item {news_item_id} not found on story {story_id}")
             return render_template("partials/404.html")
 
+        sources = {source.id: source for source in StoryView.get_filter_lists().sources if source.id}
+        StoryView._enhance_story_with_details(story, sources)
         return render_template("assess/news_item_card_fragment.html", news_item=news_item, story=story, edit_tags=True)
 
     @classmethod

@@ -1,5 +1,11 @@
-{% macro news_item_metadata(news_item) %}
+{% macro news_item_metadata(news_item, story) %}
+  {% set source_name = (story.model_extra.source_names | default({})).get(news_item.osint_source_id) %}
   <div class="flex flex-wrap gap-2 text-xs text-base-content/60">
+    {% if source_name %}
+      <span class="badge badge-sm badge-outline h-auto max-w-full whitespace-normal break-words text-left" data-test-id="news-item-source">
+        Source · {{ source_name }}
+      </span>
+    {% endif %}
     {% if news_item.published %}
       <span class="badge badge-sm badge-outline">Published · {{ news_item.published | format_datetime }}</span>
     {% endif %}
@@ -129,7 +135,7 @@
         </form>
         {# djlint:on #}
       {% endif %}
-      {{ news_item_metadata(news_item) }}
+      {{ news_item_metadata(news_item, story) }}
     </div>
   </article>
 {% endmacro %}

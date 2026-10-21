@@ -251,6 +251,14 @@ def test_story_card_shows_distinct_top_source_icons(authenticated_client, respon
 
     assert response.status_code == 200
     tree = html.fromstring(response.text)
+    expected_item_sources = [f"Source · Source {source_id}" for source_id in source_ids if source_id in "abcdef"]
+    assert [badge.text_content().strip() for badge in tree.xpath('//*[@data-test-id="news-item-source"]')] == expected_item_sources
+
+    details = authenticated_client.get(url_for("assess.story_details", story_id=story_payload["id"]))
+    assert details.status_code == 200
+    detail_sources = html.fromstring(details.text).xpath('//*[@data-test-id="news-item-source"]')
+    assert [badge.text_content().strip() for badge in detail_sources] == expected_item_sources
+
     source_icons = tree.xpath('//*[@data-test-id="story-source-icons"]')
     if not expected_sources:
         assert not source_icons
