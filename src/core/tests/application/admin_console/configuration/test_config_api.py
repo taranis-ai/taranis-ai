@@ -42,6 +42,42 @@ _VALID_WIDE_PNG_ICON_BASE64 = _make_icon_base64((Config.OSINT_SOURCE_ICON_PIXELS
 _VALID_GIF_ICON_BYTES = _make_icon_bytes((8, 8), "GIF", mode="P", color=1)
 
 
+@pytest.mark.parametrize("namespace", ["config", "admin"])
+@pytest.mark.parametrize(
+    ("resource", "unique_field", "extra_fields"),
+    [("roles", "name", {}), ("users", "username", {"name": "Duplicate user", "organization": None, "roles": []})],
+)
+def test_admin_duplicate_values_allow_retry(client, auth_header, namespace, resource, unique_field, extra_fields):
+    url = f"/api/{namespace}/{resource}"
+    original_value = f"duplicate-{uuid.uuid4().hex}"
+    editable_value = f"editable-{uuid.uuid4().hex}"
+    created_ids = []
+    try:
+        for value in (original_value, editable_value):
+            response = client.post(url, json={**extra_fields, unique_field: value}, headers=auth_header)
+            assert response.status_code == 201
+            created_ids.append(response.json["id"])
+
+        duplicate = {**extra_fields, unique_field: original_value}
+        response = client.post(url, json=duplicate, headers=auth_header)
+        assert response.status_code == 400
+        assert response.json == {"error": "A record with these values already exists."}
+
+        edit_url = f"{url}/{created_ids[1]}"
+        response = client.put(edit_url, json=duplicate, headers=auth_header)
+        assert response.status_code == 400
+        assert response.json == {"error": "A record with these values already exists."}
+        assert client.get(edit_url, headers=auth_header).json[unique_field] == editable_value
+
+        retry_value = f"retry-{uuid.uuid4().hex}"
+        response = client.put(edit_url, json={**extra_fields, unique_field: retry_value}, headers=auth_header)
+        assert response.status_code in {200, 201}
+        assert client.get(edit_url, headers=auth_header).json[unique_field] == retry_value
+    finally:
+        for object_id in reversed(created_ids):
+            client.delete(f"{url}/{object_id}", headers=auth_header)
+
+
 class TestSourcesConfigApi(BaseTest):
     base_uri = "/api/config"
 

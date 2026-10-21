@@ -1,6 +1,7 @@
 import base64
 import binascii
 import io
+from sqlite3 import IntegrityError as SQLiteIntegrityError
 from typing import Any, ClassVar
 
 from flask import Blueprint, Flask, jsonify, make_response, request, send_file
@@ -52,9 +53,11 @@ def handle_integrity_error(error: IntegrityError):
     orig = error.orig
     if isinstance(orig, UniqueViolation):
         constraint = orig.diag.constraint_name
-        field = constraint.rsplit("_", 2)[-2] if constraint and "_" in constraint else None
-        if field:
-            return {"error": f"A record with this field: '{field}' already exists."}, 400
+        for table in db.metadata.tables.values():
+            for column in table.columns:
+                if column.unique and constraint == f"{table.name}_{column.name}_key":
+                    field = column.name.replace("_", " ")
+                    return {"error": f"A unique {field} is required. A record with this {field} already exists."}, 400
         return {"error": "A record with these values already exists."}, 400
     if isinstance(orig, NotNullViolation):
         column = getattr(orig.diag, "column_name", None)
@@ -67,6 +70,11 @@ def handle_integrity_error(error: IntegrityError):
             pretty_column = column.replace("_", " ")
             return {"error": f"A value for {pretty_column} is required."}, 400
         return {"error": "A required value is missing."}, 400
+    if isinstance(orig, SQLiteIntegrityError):
+        if orig.sqlite_errorname in {"SQLITE_CONSTRAINT_UNIQUE", "SQLITE_CONSTRAINT_PRIMARYKEY"}:
+            return {"error": "A record with these values already exists."}, 400
+        if orig.sqlite_errorname == "SQLITE_CONSTRAINT_NOTNULL":
+            return {"error": "A required value is missing."}, 400
     logger.error("Unexpected database integrity failure in config API", exc_info=error)
     return {"error": "Database integrity error."}, 500
 
