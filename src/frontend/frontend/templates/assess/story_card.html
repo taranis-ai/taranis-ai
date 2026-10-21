@@ -169,7 +169,7 @@
           {{ story_tags(story, compact_view=compact_view, selected_tags=active_tag_filters | default([])) }}
         </section>
 
-        <footer class="flex flex-wrap items-start content-start gap-2 text-xs @min-[56rem]:col-start-2 @min-[80rem]:col-start-3 @min-[80rem]:row-start-1"
+        <footer class="story-card-actions flex flex-wrap items-start content-start gap-2 text-xs @min-[56rem]:col-start-2 @min-[80rem]:col-start-3 @min-[80rem]:row-start-1"
                 @click.stop>
           {{ story_card_actions(story, compact_view=compact_view, detail_view=detail_view, show_bookmark=show_bookmark, bookmark_id=bookmark_id) }}
         </footer>

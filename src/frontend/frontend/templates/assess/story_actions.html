@@ -11,7 +11,7 @@
       <input type="hidden" name="csrf_token" value="{{ request.cookies.get(config['JWT_ACCESS_CSRF_COOKIE_NAME'], '') }}">
       <input type="hidden" name="read" value="{{ toggled_read }}">
       <button type="submit"
-              class="btn btn-outline btn-{{ size }} w-full join-item justify-start gap-2"
+              class="btn btn-outline btn-{{ size }} {{ 'story-card-action' if primary_only else 'w-full join-item' }} justify-start gap-2"
               hx-put="{{ story_update_url }}"
               hx-vals='{"read": {{ toggled_read }} }'
               hx-target="#story-{{ story_id }}"
@@ -39,7 +39,7 @@
       <input type="hidden" name="csrf_token" value="{{ request.cookies.get(config['JWT_ACCESS_CSRF_COOKIE_NAME'], '') }}">
       <input type="hidden" name="important" value="{{ toggled_important }}">
       <button type="submit"
-              class="btn btn-outline btn-{{ size }} w-full join-item justify-start gap-2"
+              class="btn btn-outline btn-{{ size }} {{ 'story-card-action' if primary_only else 'w-full join-item' }} justify-start gap-2"
               hx-put="{{ story_update_url }}"
               hx-vals='{"important": {{ toggled_important }} }'
               hx-target="#story-{{ story_id }}"
@@ -63,7 +63,7 @@
     </form>
     {% if primary_only %}
       <a href="{{ url_for('assess.report_story', story_ids=story_id, bookmark_id=bookmark_id or None) }}"
-         class="btn btn-outline btn-{{ size }}"
+         class="btn btn-outline btn-{{ size }} story-card-action"
          hx-get="{{ url_for('assess.report_story', story_ids=story_id, bookmark_id=bookmark_id or None) }}"
          hx-target="body"
          hx-swap="beforeend"
@@ -132,7 +132,7 @@
   </div>
   <div class="flex flex-wrap items-center gap-2">
     <button type="button"
-            class="btn btn-ghost btn-xs gap-2"
+            class="btn btn-outline btn-xs gap-2 story-card-action"
             x-bind:class="isOpen ? 'btn-active' : ''"
             x-on:click="isOpen = !isOpen; if (isOpen && !detailsLoaded) $nextTick(() => htmx.trigger($refs.details, 'load-story-details'))"
             data-testid="toggle-summary"
@@ -145,7 +145,7 @@
     {% if detail_view and story.can_edit %}
       <a type="button"
          href="{{ url_for('assess.story_edit', story_id=story_id, bookmark_id=bookmark_id or None, assess_url=assess_return_url | default(None)) }}"
-         class="btn btn-outline btn-xs gap-2"
+         class="btn btn-outline btn-xs gap-2 story-card-action"
          data-testid="edit-story">
         {{ heroicon_mini("pencil-square") }}
         <span>Edit story</span>
@@ -153,7 +153,7 @@
     {% endif %}
 
     <details class="dropdown dropdown-end">
-      <summary class="btn btn-ghost btn-xs"
+      <summary class="btn btn-outline btn-xs gap-2 story-card-action"
                data-testid="story-actions-menu"
                aria-label="Additional Story actions"
                hx-get="{{ url_for('assess.story_actions', story_id=story_id, bookmark_id=bookmark_id or None, assess_url=assess_return_url | default(None), include_edit='true' if not detail_view else None) }}"

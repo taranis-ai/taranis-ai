@@ -188,6 +188,15 @@
   }
 }
 
+.story-card-actions .story-card-action {
+  width: 9.75rem;
+  height: 1.5rem;
+  flex-shrink: 0;
+  justify-content: flex-start;
+  border-radius: var(--radius-field);
+  white-space: nowrap;
+}
+
 [x-cloak] {
   display: none !important;
 }
