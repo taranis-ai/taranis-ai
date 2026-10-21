@@ -276,7 +276,7 @@ def test_source_icons_are_user_scoped_and_revalidated(authenticated_client, resp
     assert authenticated_client.get(url_for("assess.source_icon", source_id="hidden")).status_code == 404
 
 
-@pytest.mark.parametrize("status", [200, 503])
+@pytest.mark.parametrize("status", [200, 400, 503])
 def test_display_preferences_preserve_filters_and_render_saved_profile(authenticated_client, responses_mock, auth_user, status):
     from models.user import ProfileSettings
 

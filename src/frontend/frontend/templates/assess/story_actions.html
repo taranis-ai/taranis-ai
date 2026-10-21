@@ -15,6 +15,9 @@
               hx-vals='{"read": {{ toggled_read }} }'
               hx-target="#story-{{ story_id }}"
               hx-select="#story-{{ story_id }}"
+              hx-status:400="target:#notification-bar select:#notification-bar swap:outerHTML"
+              hx-status:4xx="target:#notification-bar select:#notification-bar swap:outerHTML"
+              hx-status:5xx="target:#notification-bar select:#notification-bar swap:outerHTML"
               hx-push-url="false"
               hx-swap="outerHTML"
               data-testid="toggle-read"
@@ -56,6 +59,9 @@
               hx-vals='{"important": {{ toggled_important }} }'
               hx-target="#story-{{ story_id }}"
               hx-select="#story-{{ story_id }}"
+              hx-status:400="target:#notification-bar select:#notification-bar swap:outerHTML"
+              hx-status:4xx="target:#notification-bar select:#notification-bar swap:outerHTML"
+              hx-status:5xx="target:#notification-bar select:#notification-bar swap:outerHTML"
               hx-push-url="false"
               hx-swap="outerHTML"
               data-testid="toggle-important"
@@ -163,6 +169,7 @@
              hx-sync="this:drop"
              hx-on::before:request="if (this.dataset.loaded === 'true') event.preventDefault()"
              hx-on::after:request="if (ctx.response.status < 400) this.dataset.loaded = 'true'"
+             hx-status:400="target:#notification-bar select:#notification-bar swap:outerHTML"
              hx-status:4xx="target:#notification-bar select:#notification-bar swap:outerHTML"
              hx-status:5xx="target:#notification-bar select:#notification-bar swap:outerHTML">
       {{ heroicon_mini("ellipsis-horizontal") }} More

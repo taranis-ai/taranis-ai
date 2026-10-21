@@ -15,6 +15,7 @@
                    hx-trigger="change"
                    hx-target="#assess"
                    hx-swap="outerHTML"
+                   hx-status:400="target:#notification-bar select:#notification-bar swap:outerHTML"
                    hx-status:4xx="target:#notification-bar select:#notification-bar swap:outerHTML"
                    hx-status:5xx="target:#notification-bar select:#notification-bar swap:outerHTML"
                    hx-on::after:request="if (ctx.response.status >= 400) this.checked = !this.checked">

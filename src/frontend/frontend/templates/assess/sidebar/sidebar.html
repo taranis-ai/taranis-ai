@@ -48,6 +48,8 @@
         hx-get="{{ base_url }}"
         hx-target:inherited="#assess"
         hx-swap:inherited="outerHTML"
+        hx-status:400:inherited="target:#notification-bar select:#notification-bar swap:outerHTML"
+        hx-status:4xx:inherited="target:#notification-bar select:#notification-bar swap:outerHTML"
         hx-status:5xx:inherited="target:#notification-bar select:#notification-bar swap:outerHTML"
         hx-push-url:inherited="true"
         hx-sync:inherited="#assess-sidebar:replace"

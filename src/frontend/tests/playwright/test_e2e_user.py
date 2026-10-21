@@ -605,6 +605,31 @@ class TestEndToEndUser(BaseE2ETest):
             compact = page.get_by_role("checkbox", name="Compact view", exact=True)
             if not compact.is_visible():
                 page.get_by_text("View", exact=True).click()
+            card.locator('input[name="story_ids"]').check()
+            display_url = url_for("assess.display_preferences", _external=True)
+
+            def reject_display(route):
+                route.fulfill(
+                    status=400,
+                    content_type="text/html",
+                    body='<section id="notification-bar"><div class="alert alert-error" role="alert">Unable to save display preferences.</div></section>',
+                )
+
+            page.route(display_url, reject_display)
+            original_compact = compact.is_checked()
+            try:
+                with page.expect_response(lambda response: response.url == display_url and response.status == 400):
+                    compact.set_checked(not original_compact)
+                with pytest.raises(AssertionError, match=r"HTMX response error .* for POST .*/assess/display returned 400"):
+                    wait_for_htmx_settled(page)
+                reset_htmx_state(page)
+                expect(card).to_be_visible()
+                expect(card.locator('input[name="story_ids"]')).to_be_checked()
+                assert compact.is_checked() == original_compact
+                assert self._get_assess_selection_count(page) == 1
+            finally:
+                page.unroute(display_url, reject_display)
+            card.locator('input[name="story_ids"]').uncheck()
             with_htmx_wait(page, compact.check)
             for match in matches.all():
                 expect(match).to_be_visible()

@@ -182,7 +182,7 @@
            class="border-t border-base-200 pt-2 space-y-1 w-full max-w-full"
            x-show="isOpen"
            x-cloak
-           {% if not detail_view %} hx-get="{{ url_for('assess.story_details', story_id=story_id) }}" hx-trigger="load-story-details" hx-sync="this:drop" hx-target="this" hx-swap="innerHTML" hx-status:4xx="target:#notification-bar select:#notification-bar swap:outerHTML" hx-status:5xx="target:#notification-bar select:#notification-bar swap:outerHTML" {% endif %}>
+           {% if not detail_view %} hx-get="{{ url_for('assess.story_details', story_id=story_id) }}" hx-trigger="load-story-details" hx-sync="this:drop" hx-target="this" hx-swap="innerHTML" hx-status:400="target:#notification-bar select:#notification-bar swap:outerHTML" hx-status:4xx="target:#notification-bar select:#notification-bar swap:outerHTML" hx-status:5xx="target:#notification-bar select:#notification-bar swap:outerHTML" {% endif %}>
         {% if detail_view %}
           {% include "assess/story_card_details.html" %}
         {% else %}

@@ -10,6 +10,7 @@
          hx-swap="outerHTML"
          hx-push-url="true"
          hx-sync="#assess-sidebar:replace"
+         hx-status:400="target:#notification-bar select:#notification-bar swap:outerHTML"
          hx-status:4xx="target:#notification-bar select:#notification-bar swap:outerHTML"
          hx-status:5xx="target:#notification-bar select:#notification-bar swap:outerHTML">
         <span class="truncate">{{ filter.label }}</span>{{ heroicon_mini('x-mark', class='h-3 w-3 shrink-0') }}
