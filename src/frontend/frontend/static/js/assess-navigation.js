@@ -88,6 +88,7 @@ function assessSearchState() {
 }
 
 function assessSelection() {
+  let root;
   return {
     selectedItems: [],
     storyIds: [],
@@ -97,6 +98,7 @@ function assessSelection() {
     pruneToVisibleOnNextInit: false,
     showHints: false,
     init() {
+      root = this.$el;
       this.firstStoryIndex = Number(this.$el.dataset.pageStart || 0);
       this.restoreSelection();
       this.refreshStoryMeta();
@@ -222,7 +224,7 @@ function assessSelection() {
     openStoryEdit() {
       if (this.selectedItems.length !== 1) return;
       const storyId = this.selectedItems[0];
-      const storyEditTemplate = this.$el.dataset.editUrl;
+      const storyEditTemplate = root.dataset.editUrl;
       const url = new URL(
         storyEditTemplate.replace("__ID__", storyId),
         window.location.origin,

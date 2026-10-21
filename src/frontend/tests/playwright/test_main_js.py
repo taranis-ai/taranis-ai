@@ -228,31 +228,6 @@ def test_assess_shift_space_prevents_scroll_and_requires_selection(page: Page):
     assert requests[0].post_data_json == {"action": "read"}
 
 
-def test_assess_shift_e_shortcut_uses_selected_story(page: Page):
-    html = quote("""
-        <div x-data="{
-          selectedItems: ['story-1'],
-          openStoryEdit() { document.querySelector('#opened').textContent = this.selectedItems[0]; }
-        }">
-          <button @keyup.window="canUseAssessShortcut($event, 'e') && selectedItems.length === 1 && openStoryEdit()">Edit</button>
-          <output id="opened"></output>
-        </div>
-    """)
-    page.goto(f"data:text/html,{html}")
-    page.add_script_tag(path=str(VENDOR_JS_PATH))
-    page.add_script_tag(path=str(MAIN_JS_PATH))
-    page.wait_for_function("() => window.Alpine")
-
-    page.keyboard.press("e")
-    page.keyboard.press("Shift+R")
-
-    expect(page.locator("#opened")).to_have_text("")
-
-    page.keyboard.press("Shift+E")
-
-    expect(page.locator("#opened")).to_have_text("story-1")
-
-
 def test_assess_htmx_shortcut_filter_ignores_dialog_typing(page: Page):
     requests = []
 

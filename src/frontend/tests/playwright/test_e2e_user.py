@@ -501,6 +501,21 @@ class TestEndToEndUser(BaseE2ETest):
             assert parse_qs(urlparse(return_url).query) == parse_qs(urlparse(assess_url).query)
             page.go_back()
             expect(page.get_by_placeholder("Search stories")).to_have_value(target_title)
+            for use_shortcut in (True, False):
+                story_card().locator('input[name="story_ids"]').check()
+                expect(page.get_by_test_id("assess_story_selection_count")).to_have_text("1 stories selected")
+                if use_shortcut:
+                    story_card().locator('input[name="story_ids"]').blur()
+                    page.keyboard.press("e")
+                    expect(page).to_have_url(assess_url)
+                    page.keyboard.press("Shift+E")
+                else:
+                    page.locator("#assess-top-bar").get_by_role("button", name="Edit").click()
+                expect(page).to_have_url(re.compile(rf"/story/{story_id}/edit\?"))
+                expect(page.get_by_role("textbox", name="Title", exact=True)).to_have_value(title)
+                expect(back_to_assess).to_have_attribute("href", return_url)
+                back_to_assess.click()
+                expect(page.get_by_placeholder("Search stories")).to_have_value(target_title)
             story_card().get_by_test_id("open-detail-view").click()
             expect(back_to_assess).to_have_attribute("href", return_url)
             page.get_by_test_id("edit-story").click()
