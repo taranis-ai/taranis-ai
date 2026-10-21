@@ -142,7 +142,7 @@ reportIncompatibleMethodOverride = "none"
 [tool.uv]
 config-settings = { editable_mode = "compat" }
 exclude-newer = "1 week"
-exclude-newer-package = { fuzzbite = "2026-09-15T00:00:00Z" }
+exclude-newer-package = { fuzzbite = "2026-09-15T00:00:00Z", certifi = "2026-10-21T00:00:00Z", pillow = "2026-10-21T00:00:00Z" }
 
 required-environments = [
   "sys_platform == 'linux' and platform_machine == 'x86_64'",
