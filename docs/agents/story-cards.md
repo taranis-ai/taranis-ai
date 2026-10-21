@@ -6,6 +6,8 @@ Assess or bookmark story-card metadata, source icons, or frontend story enrichme
 
 ## Contracts
 
+- Source icons are served by an authenticated, user-catalog-scoped route with private ETag revalidation; icons are not repeated as base64 in every card. Missing/invisible sources return 404.
+- Collapsed list cards fetch their detail area and secondary actions only when opened; failures keep the card and allow retry. Detail pages retain server-rendered content. Common triage actions remain visible; Edit and secondary operations live under More on list cards.
 - Story cards show up to five distinct sources as icons, with each name in the shared styled tooltip and accessible label. Each icon is a Tab stop inside its tooltip wrapper, activating the shared tooltip's descendant-focus styling. Sources without an image use a newspaper icon with the same tooltip; sources absent from the user-visible filter catalog are omitted.
 - With at most five news items, sources retain their first appearance order without frequency ranking. With more than five items, rank by news-item count and keep the first five sources; ties retain first appearance order.
 - Enrichment uses the already-loaded source catalog for both lists and detail views. `source_infos` is frontend-only story metadata; summary fallback remains the first news item's content.

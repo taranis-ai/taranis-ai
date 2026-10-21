@@ -328,8 +328,8 @@ class TestEndToEndUser(BaseE2ETest):
             with_htmx_wait(page, page.go_back)
             expect(page.locator("#story-pagination")).to_contain_text("Page 1 of")
 
-            with page.expect_navigation(wait_until="load"):
-                page.get_by_role("checkbox", name="Compact view").uncheck()
+            page.get_by_text("View", exact=True).click()
+            with_htmx_wait(page, page.get_by_role("checkbox", name="Compact view", exact=True).uncheck)
             expect(page.get_by_test_id("assess")).to_be_visible()
             expect(page.get_by_test_id("user-menu-button")).to_have_count(1)
 
@@ -403,9 +403,21 @@ class TestEndToEndUser(BaseE2ETest):
         def access_story():
             target_title = pre_seed_stories[0]["title"]
             search = page.get_by_placeholder("Search stories")
-            search.fill(target_title)
+            with_htmx_wait(page, lambda: search.fill("no-matching-assess-story-7cc87"))
+            expect(page.get_by_text("No stories found.", exact=True)).to_be_visible()
+            requests = []
+
+            def record_assess_request(request):
+                if urlparse(request.url).path.endswith("/assess"):
+                    requests.append(request.url)
+
+            page.on("request", record_assess_request)
+            with_htmx_wait(page, lambda: search.fill(target_title))
+            search.blur()
+            assert len(requests) == 1
+            page.remove_listener("request", record_assess_request)
             expect(page.locator("#story-list article[data-story-id]")).to_have_count(1)
-            with_htmx_wait(page, search.blur)
+            search.blur()
 
             story = page.locator("article", has=page.get_by_test_id("story-title").filter(has_text=target_title)).first
             expect(story).to_be_visible()
@@ -594,13 +606,13 @@ class TestEndToEndUser(BaseE2ETest):
             for match in matches.all():
                 expect(match).to_be_visible()
 
+            page.get_by_text("View", exact=True).click()
             compact = page.get_by_role("checkbox", name="Compact view", exact=True)
-            with page.expect_navigation(wait_until="load"):
-                compact.check()
+            with_htmx_wait(page, compact.check)
             for match in matches.all():
                 expect(match).to_be_visible()
-            with page.expect_navigation(wait_until="load"):
-                compact.uncheck()
+            page.get_by_text("View", exact=True).click()
+            with_htmx_wait(page, compact.uncheck)
             core_request_client.put(f"/assess/news-items/{news_item_id}/tags", json_data=seeded_story["news_items"][0]["tags"])
             page.goto(assess_url)
 

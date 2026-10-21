@@ -169,6 +169,30 @@ class TestStoryFilters(BaseTest):
         assert payload["counts"]["important_count"] == 2
         assert payload["counts"]["in_reports_count"] == 1
 
+    def test_paged_lists_batch_related_data_and_edit_permissions(self, client, auth_header, story_filter_data):
+        from sqlalchemy import event
+
+        from core.managers.db_manager import db
+
+        query_counts = []
+        for limit in (1, 4):
+            db.session.expire_all()
+            statements = []
+
+            def collect(_conn, _cursor, statement, _params, _context, _many, collected=statements):
+                if statement.lstrip().upper().startswith("SELECT"):
+                    collected.append(statement)
+
+            event.listen(db.engine, "before_cursor_execute", collect)
+            try:
+                response = client.get(self.concat_url("stories"), headers=auth_header, query_string={"limit": limit})
+                assert response.status_code == 200
+                assert len(response.json["items"]) == limit
+                query_counts.append(len(statements))
+            finally:
+                event.remove(db.engine, "before_cursor_execute", collect)
+        assert query_counts[1] <= query_counts[0] + 1, query_counts
+
     def test_filter_lists_include_news_item_languages(self, client, auth_header, story_filter_data):
         response = client.get(self.concat_url("filter-lists"), headers=auth_header)
         payload = self.assert_json_ok(response).get_json()

@@ -1,4 +1,7 @@
+import base64
+import binascii
 import datetime
+import hashlib
 import uuid
 from collections import Counter
 from collections.abc import Callable
@@ -25,6 +28,7 @@ from models.assess import (
 from models.cti import CTIResponse
 from models.report import ReportItem
 from models.revision_diff import build_story_revision_diff_payload
+from models.user import ProfileSettings
 from models.worker_parameters import SimpleWebCollectorParameters, normalize_parameter_values
 from pydantic import ValidationError
 from requests import RequestException
@@ -93,18 +97,60 @@ class StoryView(BaseView):
             tag_request_args = parse_qs(urlparse(request.headers["HX-Current-URL"]).query)
         base_context["active_tag_filters"] = tag_request_args.get("tags", [])
         assess_request_args: dict[str, list[str]] = {}
-        if request.endpoint == "assess.assess":
-            assess_request_args = cls._get_assess_request_params()
+        if request.endpoint == "assess.assess" or cls._get_current_url_path() == url_for("assess.assess"):
+            assess_request_args = cls._get_assess_request_params(tag_request_args)
             base_context["assess_request_args"] = assess_request_args
-            base_context["assess_return_url"] = (
+            base_context["assess_return_url"] = cls._get_assess_return_url() or (
                 cls._build_assess_filters_url(assess_request_args) if assess_request_args else url_for("assess.assess", reset="true")
             )
         else:
             base_context["assess_return_url"] = cls._get_assess_return_url()
-        base_context["bookmark_collections"] = cls._get_bookmark_bar_collections()
+        if request.headers.get("HX-Target", "").split("#")[-1] != "story-list":
+            base_context["bookmark_collections"] = cls._get_bookmark_bar_collections()
         base_context["assess_bookmark_bar_limit"] = ASSESS_BOOKMARK_BAR_LIMIT
         base_context["source_filter_select"] = cls._build_source_filter_select(filter_lists, assess_request_args)
         base_context["language_filter_select"] = cls._build_language_filter_select(filter_lists, assess_request_args)
+        chips = []
+        labels = {
+            "search": "Search",
+            "range": "Time",
+            "timefrom": "From",
+            "timeto": "To",
+            "read": "Read",
+            "important": "Important",
+            "in_report": "In reports",
+            "relevant": "Relevant",
+            "changed_by": "Changed by",
+            "cybersecurity": "Cybersecurity",
+            "tags": "Tag",
+            "source": "Source",
+            "group": "Group",
+            "language": "Language",
+        }
+        names = {source.id: source.name for source in filter_lists.sources}
+        names.update({cls._get_group_field(group, "id"): cls._get_group_field(group, "name") for group in filter_lists.groups})
+        choices = {"true": "Yes", "false": "No", "shift": "Shift", "week": "This week", "24h": "Last 24 hours", "me": "Me"}
+        for key, values in assess_request_args.items():
+            if key not in labels:
+                continue
+            for value in values:
+                if not value:
+                    continue
+                remaining = {name: list(items) for name, items in assess_request_args.items() if name not in {"page", "offset"}}
+                remaining[key] = [item for item in values if item != value]
+                remaining = {name: items for name, items in remaining.items() if items}
+                label = (
+                    choices.get(value, value)
+                    if key in {"read", "important", "in_report", "relevant", "range", "changed_by"}
+                    else names.get(value, value)
+                )
+                chips.append(
+                    {
+                        "label": f"{labels[key]}: {label}",
+                        "url": cls._build_assess_filters_url(remaining) if remaining else url_for("assess.assess", reset="true"),
+                    }
+                )
+        base_context["active_filters"] = chips
         if stories := base_context.get("stories"):
             enhanced_stories = cls._get_enhanced_stories(stories, list(base_context["filter_lists"].sources))
             base_context["story_ids"] = [story.id for story in enhanced_stories if getattr(story, "id", None)]
@@ -153,6 +199,7 @@ class StoryView(BaseView):
         else:
             source_ids = list(dict.fromkeys(source_ids))
         story.source_infos = [sources[source_id] for source_id in source_ids]  # type: ignore
+        story.source_domain = urlparse(story.links[0]).hostname if story.links else ""  # type: ignore
         story.summary_content = story.summary or story.news_items[0].content  # type: ignore
         return story
 
@@ -776,6 +823,8 @@ class StoryView(BaseView):
             logger.debug("No story IDs supplied for bulk update. Returning current story list.")
             return cls.rerender_list(notification=cls.render_response_notification({"error": "No stories selected for bulk action."}))
         response = CoreApi().api_post("/assess/stories/bulk_action", json_data=bulk_action.model_dump(mode="json"))
+        if not response.ok:
+            return cls.get_notification_from_response(response, oob=False), response.status_code
         return cls.rerender_list(notification=cls.get_notification_from_response(response))
 
     @classmethod
@@ -856,7 +905,13 @@ class StoryView(BaseView):
         context["assess_selection_key"] = cls._build_assess_selection_key(request_params)
         context["selected_story_ids"] = selected_story_ids or []
 
-        return render_template(cls.get_list_template(), **context), 200 if items is not None else 502
+        template = cls.get_list_template()
+        if is_htmx_request() and request.headers.get("HX-Target", "").split("#")[-1] == "story-list":
+            template = "assess/story_list.html"
+        content = render_template(template, **context)
+        if request.headers.get("HX-Refresh-Sidebar") == "true":
+            content += render_template("assess/sidebar/refresh.html", **context)
+        return content, 200 if items is not None else 502
 
     @classmethod
     def rerender_list(cls, notification: str | None = None):
@@ -1047,6 +1102,62 @@ class StoryView(BaseView):
     @auth_required()
     def story_view(cls, story_id: str):
         return render_template("assess/story_view.html", **cls.get_item_context(story_id)), 200
+
+    @classmethod
+    @auth_required("ASSESS_ACCESS")
+    def story_fragment(cls, story_id: str, fragment: str):
+        try:
+            story = DataPersistenceLayer().get_object(Story, story_id)
+        except HTTPException:
+            raise
+        except Exception:
+            logger.exception("Unable to load story fragment")
+            return render_template(
+                "notification/index.html", notification={"message": "Unable to load story. Please try again.", "error": True}, oob=False
+            ), 502
+        if story is None:
+            abort(404)
+        template = {"details": "assess/story_card_details.html", "actions": "assess/story_more_actions.html"}[fragment]
+        return render_template(template, story=story, bookmark_id=cls._get_bookmark_id(), assess_return_url=cls._get_assess_return_url()), 200
+
+    @classmethod
+    @auth_required("ASSESS_ACCESS")
+    def source_icon(cls, source_id: str):
+        source = next((source for source in cls.get_filter_lists().sources if source.id == source_id), None)
+        if not source or not source.icon:
+            abort(404)
+        try:
+            icon = base64.b64decode(source.icon, validate=True)
+        except ValueError, binascii.Error:
+            abort(404)
+        response = make_response(icon)
+        response.mimetype = "image/png"
+        response.headers["Cache-Control"] = "private, no-cache"
+        response.set_etag(hashlib.sha256(icon).hexdigest())
+        return response.make_conditional(request)
+
+    @classmethod
+    @auth_required("ASSESS_ACCESS")
+    def display_preferences(cls):
+        updates = {key: request.form[key] for key in ("highlight", "compact_view") if key in request.form}
+        try:
+            payload = ProfileSettings.model_validate(updates).model_dump(mode="json", include=set(updates))
+            response = CoreApi().api_post(ProfileSettings._core_endpoint, json_data=payload)
+            if not response.ok:
+                return render_template(
+                    "notification/index.html", notification={"message": "Unable to save display preferences.", "error": True}, oob=False
+                ), response.status_code
+            updated_user = update_current_user_cache()
+            if updated_user is not None:
+                current_user.profile = updated_user.profile
+        except HTTPException:
+            raise
+        except Exception:
+            logger.exception("Unable to save Assess display preferences")
+            return render_template(
+                "notification/index.html", notification={"message": "Unable to save display preferences.", "error": True}, oob=False
+            ), 502
+        return cls.rerender_list()
 
     @classmethod
     @auth_required()

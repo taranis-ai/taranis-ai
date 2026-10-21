@@ -285,7 +285,11 @@ def test_bookmark_detail_renders_stories_and_remove_selected(
     assert story_card.get("data-story-important") == "true"
     assert "bookmark_id=bookmark-1" in story_card.xpath('.//*[@data-testid="toggle-read"]')[0].get("hx-put")
     assert "bookmark_id=bookmark-1" in story_card.xpath('.//*[@data-testid="toggle-important"]')[0].get("hx-put")
-    ungroup_story = story_card.xpath('.//*[@data-testid="ungroup-story"]')[0]
+    menu = story_card.xpath('.//*[@data-testid="story-actions-menu"]')[0]
+    assert "bookmark_id=bookmark-1" in menu.get("hx-get")
+    responses_mock.get(f"{Config.TARANIS_CORE_URL}/assess/stories/story-1", json=_story_payload())
+    actions = authenticated_client_basic.get(menu.get("hx-get"))
+    ungroup_story = html.fromstring(actions.text).xpath('.//*[@data-testid="ungroup-story"]')[0]
     assert "bookmark_id=bookmark-1" in ungroup_story.get("hx-post")
     assert ungroup_story.get("hx-target") == "#bookmark-detail-container"
     assert "Read" in story_card.text_content()
@@ -296,12 +300,12 @@ def test_bookmark_detail_renders_stories_and_remove_selected(
     assert "Shift+B" not in response.text
     selection_form = tree.xpath('//form[@id="bookmark-selection-form"]')[0]
     assert selection_form.xpath('./input[@name="bookmark_id" and @value="bookmark-1"]')
-    assert selection_form.xpath('.//input[@type="checkbox" and @name="story_ids" and @value="story-1"]')
+    assert tree.xpath('//input[@type="checkbox" and @form="bookmark-selection-form" and @name="story_ids" and @value="story-1"]')
     for action in ("bulk-toggle-read", "bulk-toggle-important"):
         assert tree.xpath(f'//*[@data-testid="{action}"]')[0].get("hx-include") == "#bookmark-selection-form"
     for action_url in (url_for("assess.cluster_story"), url_for("assess.report_story")):
         assert tree.xpath(f'//*[@hx-get="{action_url}"]')[0].get("hx-include") == "#bookmark-selection-form"
-    remove_selected = selection_form.xpath('.//button[@type="button" and @data-testid="bookmark-remove-selected"]')[0]
+    remove_selected = tree.xpath('.//button[@type="button" and @data-testid="bookmark-remove-selected"]')[0]
     assert remove_selected.get("hx-include") == "#bookmark-selection-form"
     assert remove_selected.get("hx-confirm") == "Remove selected stories from this bookmark collection?"
     assert not tree.xpath('//*[@data-testid="bookmark-story"]')

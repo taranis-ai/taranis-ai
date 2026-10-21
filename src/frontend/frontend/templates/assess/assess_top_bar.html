@@ -4,6 +4,7 @@
           hx-trigger="click"
           @keyup.window="canUseAssessShortcut($event) && $event.shiftKey && $event.code === 'Space' && selectedItems.length > 0 && $el.click()"
           hx-post="{{ url_for('assess.bulk_action') }}"
+          hx-status:4xx="target:#notification-bar select:#notification-bar swap:outerHTML"
           hx-status:5xx="target:#notification-bar select:#notification-bar swap:outerHTML"
           {% if bookmark_mode %}hx-include="#bookmark-selection-form"{% else %}hx-on::before:request="window.assessSelectionState = { ...(window.assessSelectionState || {}), pruneToVisibleOnNextInit: true }"{% endif %}
           :hx-vals='action_vals("read", !selectedItemsAreRead())'
@@ -20,6 +21,7 @@
           class="btn btn-outline btn-sm tooltip {{ 'w-full join-item' if in_dropdown else '' }}"
           hx-trigger="click, keyup[shiftKey && key == 'I' && canUseAssessShortcut(event)] from:body"
           hx-post="{{ url_for('assess.bulk_action') }}"
+          hx-status:4xx="target:#notification-bar select:#notification-bar swap:outerHTML"
           hx-status:5xx="target:#notification-bar select:#notification-bar swap:outerHTML"
           {% if bookmark_mode %}hx-include="#bookmark-selection-form"{% else %}hx-on::before:request="window.assessSelectionState = { ...(window.assessSelectionState || {}), pruneToVisibleOnNextInit: true }"{% endif %}
           :hx-vals='action_vals("important", !selectedItemsAreImportant())'
@@ -150,22 +152,7 @@
             </span>
           </button>
 
-          <div class="dropdown dropdown-end">
-            <button type="button"
-                    class="btn btn-outline btn-sm tooltip"
-                    role="button"
-                    aria-haspopup="true"
-                    aria-label="Additional Story actions"
-                    tabindex="0"
-                    data-tip="{{ _('Actions') }}"
-                    data-testid="assess-tob-bar-actions-menu">
-              {{ heroicon_mini("ellipsis-horizontal") }}
-              <span class="sr-only 2xl:not-sr-only">Actions</span>
-            </button>
-            <div class="dropdown-content mt-2 w-48 rounded-box bg-base-100 p-2 shadow" tabindex="0">
-              <div class="join join-vertical w-full">{{ story_status_actions(in_dropdown=True) }}</div>
-            </div>
-          </div>
+          {{ story_status_actions() }}
         {% endif %}
 
       </div>

@@ -603,10 +603,14 @@ class TestRBACAclBehavior:
         original_title = story.title
         detail_url = f"/api/assess/stories/{story.id}"
         assert client.get(detail_url, headers=auth_header_user_permissions).json["can_edit"] is False
+        listed = client.get("/api/assess/stories", headers=auth_header_user_permissions, query_string={"story_ids": [story.id]}).json["items"]
+        assert len(listed) == 1 and listed[0]["can_edit"] is False
         assert send(endpoint, headers=auth_header_user_permissions, json=payload).status_code == 403
         db.session.refresh(story)
         assert story.title == original_title
         assert [item.id for item in story.ordered_news_items] == ids
+        attributes_url = f"/api/assess/news-items/{story.news_items[0].id}/attributes"
+        assert client.put(attributes_url, headers=auth_header_user_permissions, json=[{"key": "test", "value": "blocked"}]).status_code == 403
         other_acl.read_only = False
         db.session.commit()
         permissions = list(user_role.permissions)
@@ -616,6 +620,8 @@ class TestRBACAclBehavior:
         user_role.permissions = permissions
         db.session.commit()
         assert client.get(detail_url, headers=auth_header_user_permissions).json["can_edit"] is True
+        listed = client.get("/api/assess/stories", headers=auth_header_user_permissions, query_string={"story_ids": [story.id]}).json["items"]
+        assert len(listed) == 1 and listed[0]["can_edit"] is True
         assert send(endpoint, headers=auth_header_user_permissions, json=payload).status_code == 200
 
         from core.model.news_item_attribute import NewsItemAttribute
@@ -627,6 +633,7 @@ class TestRBACAclBehavior:
         item_url = f"/api/assess/news-items/{story.news_items[0].id}"
         assert client.put(item_url, headers=auth_header_user_permissions, json={"title": "Blocked"}).status_code == 403
         assert client.put(f"{item_url}/tags", headers=auth_header_user_permissions, json=[]).status_code == 403
+        assert client.put(f"{item_url}/attributes", headers=auth_header_user_permissions, json=[]).status_code == 403
 
         restricted = create_story(news_items=[build_news_item_payload(source.id)], attributes=[{"key": "TLP", "value": "red"}])
         from core.model.news_item_attribute import NewsItemAttribute
@@ -643,6 +650,14 @@ class TestRBACAclBehavior:
             json=restricted_payload,
         )
         assert response.status_code == 403
+        assert (
+            client.put(
+                f"/api/assess/news-items/{restricted_ids[0]}/attributes",
+                headers=auth_header_user_permissions,
+                json=[{"key": "test", "value": "blocked"}],
+            ).status_code
+            == 403
+        )
 
     @pytest.mark.parametrize("rt_managed", [False, True])
     def test_story_bot_action_rejects_read_only_source_access(self, client, session, auth_header_user_permissions, monkeypatch, rt_managed):

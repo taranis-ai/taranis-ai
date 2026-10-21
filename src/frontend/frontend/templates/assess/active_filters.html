@@ -1,0 +1,19 @@
+{% if active_filters %}
+  <nav aria-label="Active filters" class="flex flex-wrap gap-2 mb-3">
+    {% for filter in active_filters %}
+      <a href="{{ filter.url }}"
+         class="badge badge-outline gap-2 h-auto py-1 max-w-full"
+         aria-label="Remove {{ filter.label }}"
+         hx-get="{{ filter.url }}"
+         hx-headers='{"HX-Refresh-Sidebar":"true"}'
+         hx-target="#assess"
+         hx-swap="outerHTML"
+         hx-push-url="true"
+         hx-sync="#assess-sidebar:replace"
+         hx-status:4xx="target:#notification-bar select:#notification-bar swap:outerHTML"
+         hx-status:5xx="target:#notification-bar select:#notification-bar swap:outerHTML">
+        <span class="truncate">{{ filter.label }}</span>{{ heroicon_mini('x-mark', class='h-3 w-3 shrink-0') }}
+      </a>
+    {% endfor %}
+  </nav>
+{% endif %}

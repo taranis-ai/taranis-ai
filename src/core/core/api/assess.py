@@ -149,9 +149,10 @@ class NewsItemCTI(MethodView):
 
 class UpdateNewsItemAttributes(MethodView):
     @auth_required("ASSESS_UPDATE")
+    @validate_json
     def put(self, news_item_id: str):
         actor = story.Story.last_change_for_user(current_user)
-        response, status = NewsItemService.update_attributes(news_item_id, request.json, actor=actor)
+        response, status = NewsItemService.update_attributes(news_item_id, request.json, actor=actor, user=current_user)
         invalidate_frontend_cache_on_success(status, scopes=(SCOPE_ASSESS_VIEWS,), object_ids={"news_item": news_item_id})
         return response, status
 
@@ -208,7 +209,8 @@ class Stories(MethodView):
 
     @auth_required("ASSESS_UPDATE")
     def post(self):
-        if not (data_json := request.json):
+        data_json = request.get_json(silent=True)
+        if not isinstance(data_json, dict) or not data_json:
             return {"error": "No story ids provided"}, 400
         story_ids = data_json.get("story_ids")
         payload = data_json.get("payload")
@@ -227,23 +229,11 @@ class Stories(MethodView):
         else:
             payload = {}
 
-        result_dict: dict[str, Any] = {"message": "Bulk action completed", "updated": 0, "success": [], "errors": []}
-        for story_id in story_ids:
-            if not story_id:
-                continue
-            s = story.Story.get(story_id)
-            if s is None:
-                return {"error": "Story not found"}, 404
-            response, code = StoryService.update(s.id, payload, current_user)
-            if code != 200:
-                result_dict["errors"].append({"story_id": s.id, "response": response})
-            else:
-                result_dict["success"].append({"story_id": s.id, "response": response})
-                result_dict["updated"] += 1
-
-        result_dict["message"] = f"Bulk action completed. {result_dict['updated']} stories updated."
-        invalidate_frontend_cache_on_success(200, models=("story",))
-        return result_dict, 200
+        result, status = StoryService.update_many(story_ids, payload, current_user)
+        if status == 200:
+            invalidate_frontend_cache_on_success(status, scopes=(SCOPE_ASSESS_VIEWS, SCOPE_STORY_REPORT_VIEWS))
+            realtime_publisher.assess_changed()
+        return result, status
 
 
 class StoryExport(MethodView):

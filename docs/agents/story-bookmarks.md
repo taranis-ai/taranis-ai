@@ -9,6 +9,7 @@ Bookmark collections, `/bookmarks`, Assess bookmark bar/dialog, story bookmarkin
 - Collections are private per user, with unique names and user-defined positions. Reordering posts `bookmark_ids` to `/assess/bookmarks/order`; core scopes IDs to the current user.
 - Modal bookmarking chooses/creates a collection for selected stories. Instant bookmarking uses the earliest collection or creates the literal default name `Bookmarks`. UI labels remain translatable; that stored default name is a contract.
 - Assess shows at most six collections ordered by position and links to all bookmarks. Every mutation, including reorder and story membership changes, invalidates the bookmark cache.
+- Bookmark selection uses visible card checkboxes associated with a separate native form, keeping per-card mutation forms unnested.
 - Detail pages reuse Assess cards and selection controls but omit Bookmark/`Shift+B`, keep Read/Important alongside Remove selected, and show Read/Important/In Reports even with compact cards. Follow [shared selection and form rules](frontend-development.md).
 - Bulk actions, report/clustering dialogs, Ungroup, and editor replacements/saves carry `bookmark_id` to preserve the current collection, return link, and visible selection on success or failure. `Cluster and Open` deliberately navigates to the primary story.
 - Instant bookmark and editor Save work as normal POST forms as well as HTMX actions; bookmark saves retain their return target.

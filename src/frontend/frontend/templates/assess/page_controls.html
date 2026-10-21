@@ -1,0 +1,30 @@
+<div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+  <h1 class="text-xl font-semibold">Assess</h1>
+  <div class="flex items-center gap-2">
+    <details class="dropdown dropdown-end">
+      <summary class="btn btn-outline btn-sm">View</summary>
+      <div class="dropdown-content z-20 bg-base-100 rounded-box shadow p-3 w-56">
+        {% for name, label in [('compact_view', 'Compact view'), ('highlight', 'Highlight search terms')] %}
+          <label class="label cursor-pointer justify-start gap-3">
+            <input type="checkbox"
+                   name="{{ name }}"
+                   class="checkbox checkbox-sm"
+                   {% if current_user.profile[name] %}checked{% endif %}
+                   hx-post="{{ url_for('assess.display_preferences') }}"
+                   hx-vals="js:{ {{ name }}: this.checked }"
+                   hx-trigger="change"
+                   hx-target="#assess"
+                   hx-swap="outerHTML"
+                   hx-status:4xx="target:#notification-bar select:#notification-bar swap:outerHTML"
+                   hx-status:5xx="target:#notification-bar select:#notification-bar swap:outerHTML"
+                   hx-on::after:request="if (ctx.response.status >= 400) this.checked = !this.checked">
+            <span>{{ label }}</span>
+          </label>
+        {% endfor %}
+      </div>
+    </details>
+    <a class="btn btn-primary btn-sm" href="{{ url_for('assess.get_news_item', news_item_id='0') }}">
+      {{ heroicon_outline('plus', class='h-4 w-4') }} Create item
+    </a>
+  </div>
+</div>

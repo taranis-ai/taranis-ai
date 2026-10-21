@@ -12,7 +12,7 @@ from sqlalchemy import func, inspect, or_, select
 from sqlalchemy.dialects.postgresql import TSVECTOR
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.orm import Mapped, aliased, relationship
+from sqlalchemy.orm import Mapped, aliased, relationship, selectinload
 from sqlalchemy.sql import Select
 from sqlalchemy.sql.expression import false, true
 
@@ -26,9 +26,10 @@ from core.model.news_item_tag import NewsItemTag
 from core.model.osint_source import OSINTSource, OSINTSourceGroup, OSINTSourceGroupOSINTSource
 from core.model.revision import StoryRevision
 from core.model.role import TLPLevel
+from core.model.role_based_access import ItemType
 from core.model.story_conflict import StoryConflict
 from core.model.user import User
-from core.service.role_based_access import RoleBasedAccessService
+from core.service.role_based_access import RBACQuery, RoleBasedAccessService
 from core.service.story_operations import StoryOperationsService
 
 
@@ -586,16 +587,34 @@ class Story(BaseModel):
         if filter_args.get("worker", False) or not user:
             return [s.to_worker_dict() for s in cls.get_filtered(query) or []], None
 
+        story_ids = list(db.session.scalars(query.with_only_columns(cls.id)))
         if filter_args.get("limit"):
-            story_ids = list(db.session.scalars(query.with_only_columns(cls.id)))
             query = base_query.where(cls.id.in_(story_ids)).order_by(None)
             if story_ids:
                 query = query.order_by(db.case({story_id: position for position, story_id in enumerate(story_ids)}, value=cls.id))
 
+        query = query.options(
+            selectinload(cls.attributes),
+            selectinload(cls.misp_auto_update),
+            selectinload(cls.news_items).selectinload(NewsItem.attributes),
+            selectinload(cls.news_items).selectinload(NewsItem.tags),
+            selectinload(cls.news_items).selectinload(NewsItem.osint_source),
+        )
+        writable_sources = set(
+            db.session.scalars(
+                RoleBasedAccessService.filter_query_with_acl(
+                    db.select(NewsItem.osint_source_id)
+                    .outerjoin(OSINTSource, OSINTSource.id == NewsItem.osint_source_id)
+                    .where(NewsItem.story_id.in_(story_ids)),
+                    RBACQuery(user, ItemType.OSINT_SOURCE, require_write_access=True),
+                )
+            )
+        )
+
         if filter_args.get("no_count", False):
             stories = []
             for story in cls.get_filtered(query) or []:
-                story_data = story.to_dict(user=user)
+                story_data = story.to_dict(user=user, writable_sources=writable_sources)
                 story_data["revision_count"] = story.get_revision_count()
                 stories.append(story_data)
             return stories, None
@@ -606,7 +625,7 @@ class Story(BaseModel):
         query = cls.enhance_with_report_count(query)
 
         for story, user_vote, report_count in db.session.execute(query):
-            story_data = story.to_dict(user=user)
+            story_data = story.to_dict(user=user, writable_sources=writable_sources)
             story_data["revision_count"] = story.get_revision_count()
             story_data["user_vote"] = user_vote
             story_data["in_reports_count"] = report_count
@@ -864,13 +883,18 @@ class Story(BaseModel):
     def allowed_to_read(self, user: User) -> bool:
         return db.session.execute(self.visible_query(user).where(Story.id == self.id)).scalar() is not None
 
-    def allowed_to_update(self, user: User) -> bool:
+    def allowed_to_update(self, user: User, writable_sources: set[str | None] | None = None) -> bool:
         accessible_tlps = user.get_highest_tlp().get_accessible_levels()
         return (
             "ASSESS_UPDATE" in user.get_permissions()
             and not any(attribute.key == "rt_id" for attribute in self.attributes)
             and self.tlp_level.value in accessible_tlps
-            and all(item.allowed_with_acl(user, require_write_access=True) for item in self.news_items)
+            and all(
+                item.osint_source_id in writable_sources
+                if writable_sources is not None
+                else item.allowed_with_acl(user, require_write_access=True)
+                for item in self.news_items
+            )
         )
 
     @classmethod
@@ -887,6 +911,22 @@ class Story(BaseModel):
         if not story:
             return {"error": "Story not found"}, 404
 
+        response, status = cls.apply_update(story, data, user=user, external=external, actor=actor)
+        if status != 200:
+            return response, status
+        db.session.commit()
+        return {**response, "story": story.to_detail_dict()}, 200
+
+    @classmethod
+    def apply_update(
+        cls,
+        story: "Story",
+        data: dict[str, Any],
+        user: User | None = None,
+        external: bool = False,
+        actor: str | None = None,
+    ) -> tuple[dict, int]:
+        """Apply an update in the caller's transaction, without committing or publishing side effects."""
         if user is not None and not story.allowed_to_update(user):
             return {"error": "User is not allowed to update story"}, 403
 
@@ -938,8 +978,7 @@ class Story(BaseModel):
         story.update_timestamps()
         story.recompute_relevance()
         story.record_revision(user, note="update")
-        db.session.commit()
-        return {"message": "Story updated successfully", "id": story.id, "story": story.to_detail_dict()}, 200
+        return {"message": "Story updated successfully", "id": story.id}, 200
 
     @classmethod
     def update_with_conflicts(cls, story_id: str, upstream_data: dict[str, Any]) -> tuple[dict[str, Any], int]:
@@ -1467,10 +1506,10 @@ class Story(BaseModel):
         ordered = [items.pop(item_id) for item_id in self.news_item_order or [] if item_id in items]
         return ordered + [items[item_id] for item_id in sorted(items)]
 
-    def to_dict(self, user: User | None = None) -> dict[str, Any]:
+    def to_dict(self, user: User | None = None, writable_sources: set[str | None] | None = None) -> dict[str, Any]:
         data = super().to_dict()
         if user is not None:
-            data["can_edit"] = self.allowed_to_update(user)
+            data["can_edit"] = self.allowed_to_update(user, writable_sources=writable_sources)
         data.pop("news_item_order", None)
         data["tlp_level"] = self.tlp_level.value
         data["attributes"] = [attribute.to_small_dict() for attribute in self.attributes]

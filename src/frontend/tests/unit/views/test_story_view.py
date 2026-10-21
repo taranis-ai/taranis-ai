@@ -261,7 +261,48 @@ def test_story_card_shows_distinct_top_source_icons(authenticated_client, respon
     assert "Source" not in icons.text_content()
     assert icons.xpath("./*/img/@alt | ./*/span/@aria-label") == [f"Source {source_id}" for source_id in expected_sources]
     if "a" in expected_sources:
-        assert icons.xpath('./*/img[@alt="Source a"]/@src') == ["data:image/png;base64,aWNvbg=="]
+        assert icons.xpath('./*/img[@alt="Source a"]/@src') == [url_for("assess.source_icon", source_id="a")]
+
+
+def test_source_icons_are_user_scoped_and_revalidated(authenticated_client, responses_mock):
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/assess/filter-lists", json={"sources": [{"id": "visible", "name": "Visible", "icon": "aWNvbg=="}]}
+    )
+    response = authenticated_client.get(url_for("assess.source_icon", source_id="visible"))
+    assert response.status_code == 200 and response.data == b"icon"
+    assert response.headers["Cache-Control"] == "private, no-cache"
+    cached = authenticated_client.get(url_for("assess.source_icon", source_id="visible"), headers={"If-None-Match": response.headers["ETag"]})
+    assert cached.status_code == 304 and cached.data == b""
+    assert authenticated_client.get(url_for("assess.source_icon", source_id="hidden")).status_code == 404
+
+
+@pytest.mark.parametrize("status", [200, 503])
+def test_display_preferences_preserve_filters_and_render_saved_profile(authenticated_client, responses_mock, auth_user, status):
+    from models.user import ProfileSettings
+
+    saved = auth_user.model_copy(deep=True)
+    saved.profile.compact_view = True
+    responses_mock.post(f"{Config.TARANIS_CORE_URL}{ProfileSettings._core_endpoint}", json={"message": "Saved"}, status=status)
+    responses_mock.get(f"{Config.TARANIS_CORE_URL}/users", json=saved.model_dump(mode="json"))
+    mock_story_for_edit(responses_mock, story_with_news_item_tags())
+    responses_mock.get(f"{Config.TARANIS_CORE_URL}/assess/stories", json={"items": [story_with_news_item_tags()], "total_count": 1})
+    responses_mock.get(f"{Config.TARANIS_CORE_URL}/assess/bookmarks", json={"items": []})
+    response = authenticated_client.post(
+        url_for("assess.display_preferences"),
+        data={"compact_view": "true"},
+        headers={"HX-Request": "true", "HX-Current-URL": "http://localhost/assess?search=incident"},
+    )
+    assert response.status_code == status
+    if status == 200:
+        tree = html.fromstring(response.text)
+        assert tree.xpath('//*[@id="assess"]/@data-search') == ["incident"]
+        assert tree.xpath('//input[@name="compact_view"]/@checked')
+        assert "line-clamp-1" in response.text
+        requests = [call for call in responses_mock.calls if urlparse(call.request.url).path.endswith("/assess/stories")]
+        assert parse_qs(urlparse(requests[-1].request.url).query)["search"] == ["incident"]
+    else:
+        assert 'id="assess"' not in response.text
+        assert "Unable to save display preferences" in response.text
 
 
 def _bookmark_collection_payload(bookmark_id: str, name: str, story_count: int, position: int = 0) -> dict:
@@ -839,7 +880,10 @@ def test_assess_filters_support_htmx_and_native_form_submission(authenticated_cl
 
     assert filter_form.get("method") == "get"
     assert filter_form.get("action") == url_for("assess.assess")
-    assert filter_form.get("hx-trigger") == f"{expected_search_trigger('story_search')}, change"
+    assert (
+        filter_form.get("hx-trigger")
+        == "input changed delay:300ms from:#story_search, search from:#story_search, change[event.target.id !== 'story_search']"
+    )
     assert filter_form.get("hx-include") is None
     assert filter_form.get("hx-on:submit") == "event.preventDefault()"
     assert clear_button.get("hx-include") == "#assess-sidebar"
@@ -848,7 +892,7 @@ def test_assess_filters_support_htmx_and_native_form_submission(authenticated_cl
     notification_rule = "target:#notification-bar select:#notification-bar swap:outerHTML"
     assert filter_form.get("hx-status:5xx:inherited") == notification_rule
     buttons = tree.xpath('//button[@data-testid="bulk-toggle-read" or @data-testid="bulk-toggle-important" or @data-testid="delete-story"]')
-    assert len(buttons) >= 3
+    assert len(buttons) >= 2
     assert all(button.get("hx-status:5xx") == notification_rule for button in buttons)
     assert filter_form.get("hx-push-url:inherited") == "true"
     assert clear_button.get("hx-on::config:request") == (
@@ -856,8 +900,8 @@ def test_assess_filters_support_htmx_and_native_form_submission(authenticated_cl
     )
     assert pagination.get("hx-swap-oob") == "outerHTML:#story-pagination"
     assert [option.text for option in changed_by_select.xpath("./option")] == ["Any", "Me"]
-    assert highlight_checkbox.get("hx-vals") == "js:{highlight: this.checked}"
-    assert compact_checkbox.get("hx-vals") == "js:{compact_view: this.checked}"
+    assert highlight_checkbox.get("hx-vals") == "js:{ highlight: this.checked }"
+    assert compact_checkbox.get("hx-vals") == "js:{ compact_view: this.checked }"
     assert search_input.get("name") == "search"
     assert search_input.get("hx-get") is None
     assert search_input.get("hx-include") is None
@@ -927,9 +971,12 @@ def test_assess_tag_filters_highlight_matches_beyond_collapsed_limit(authenticat
     assert all(tag.get("x-show").endswith("true") and tag.get("x-cloak") is None for tag in matched)
     assert card.xpath('.//*[@data-testid="toggle-story-tags"]/text()') == ["+17"]
     if method != "GET":
-        for action in ("open-detail-view", "edit-story"):
-            action_url = card.xpath(f'.//*[@data-testid="{action}"]/@href')[0]
-            assert parse_qs(urlparse(action_url).query)["assess_url"] == [return_url]
+        action_url = card.xpath('.//*[@data-testid="open-detail-view"]/@href')[0]
+        assert parse_qs(urlparse(action_url).query)["assess_url"] == [return_url]
+        menu_url = card.xpath('.//*[@data-testid="story-actions-menu"]/@hx-get')[0]
+        actions = authenticated_client.get(menu_url)
+        edit_url = html.fromstring(actions.text).xpath('.//*[@data-testid="edit-story"]/@href')[0]
+        assert parse_qs(urlparse(edit_url).query)["assess_url"] == [return_url]
 
 
 @pytest.mark.parametrize("has_remaining_story", [True, False])
