@@ -10,7 +10,7 @@
   {% set selected_story_ids = selected_story_ids | default([]) %}
   {% set is_selected = (not detail_view) and story_id in selected_story_ids %}
 
-  {% set card_classes = ["card", "card-bordered", "bg-base-100", "border-l-4", "hover:shadow-lg", "relative", "w-full", "max-w-full"] %}
+  {% set card_classes = ["card", "card-bordered", "bg-base-100", "border-l-4", "hover:shadow-lg", "relative", "w-full", "max-w-full", "@container"] %}
   {% if is_selected or not (story.read | default(false)) %}
     {% set card_classes = card_classes + ['border-primary'] %}
   {% else %}
@@ -45,10 +45,10 @@
            {% if not detail_view %}x-init="$dispatch('story-card-updated')" @click="toggleSelection('{{ story_id }}')"{% endif %}
            aria-selected="{{ 'true' if is_selected else 'false' }}">
     <div class="p-2 space-y-2 w-full max-w-full" id="story-card-content-{{ story_id }}">
-      <div class="flex flex-col gap-2 w-full max-w-full">
+      <div class="grid grid-cols-1 gap-2 @min-[56rem]:grid-cols-[16rem_minmax(0,1fr)] @min-[80rem]:grid-cols-[16rem_minmax(0,1fr)_20rem] @min-[56rem]:gap-x-4 w-full max-w-full">
 
         <!-- status and metadata column -->
-        <section class="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-base-content/70 min-w-0">
+        <section class="flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-base-content/70 min-w-0 content-start @min-[56rem]:row-span-2 @min-[80rem]:row-span-1">
           {% if not detail_view %}
             <input type="checkbox" name="story_ids" value="{{ story_id }}" class="checkbox checkbox-sm" aria-label="Select {{ story.title }}" @click.stop {% if bookmark_id %}form="bookmark-selection-form" {% if is_selected %}checked{% endif %}{% else %}x-model="selectedItems"{% endif %}>
           {% endif %}
@@ -67,7 +67,7 @@
           </div>
 
           {% if story.model_extra.source_infos %}
-            <div class="flex gap-3 mb-2">
+            <div class="flex items-center gap-2">
               <span class="font-semibold uppercase tracking-wide text-xs text-base-content/60">Sources</span>
               <div class="flex items-center gap-1" data-test-id="story-source-icons">
                 {% for source in story.model_extra.source_infos %}
@@ -89,7 +89,7 @@
 
           {% set languages = news_items | map(attribute='language') | select('string') | select | unique | list %}
           {% if languages and detail_view %}
-            <div class="flex gap-3 mb-2">
+            <div class="flex items-center gap-2">
               <span class="font-semibold uppercase tracking-wide text-xs text-base-content/60">Language</span>
               <div class="flex gap-1">
                 {% for lang in languages %}<span class="badge badge-ghost badge-xs uppercase">{{ lang }}</span>{% endfor %}
@@ -97,7 +97,7 @@
             </div>
           {% endif %}
 
-          <div class="flex items-center gap-1 mb-2">
+          <div class="flex items-center gap-1">
             <div class="flex flex-wrap items-center gap-2 gap-y-1 text-xs">
               {% if story.read | default(false) %}
                 <span class="badge badge-success badge-outline badge-xs whitespace-nowrap">Read</span>
@@ -119,7 +119,7 @@
 
           {% if story.in_reports_count %}
             {% set report_count = story.in_reports_count | int %}
-            <div class="flex items-center gap-1 mb-1">
+            <div class="flex items-center gap-1">
               <span class="font-semibold uppercase tracking-wide text-xs text-base-content/60">In Reports</span>
               <div class="tooltip gap-1 text-warning" data-tip="Story in {{ report_count }} Reports">
                 {% if report_count < 2 %}
@@ -133,9 +133,9 @@
         </section>
 
         <!-- main content column -->
-        <section class="space-y-3 lg:flex-1 min-w-0">
-          <div class="flex flex-col gap-2 min-w-0">
-            <h2 class="text-lg font-semibold leading-tight text-base-content highlight truncate" data-testid="story-title">
+        <section class="space-y-1 min-w-0">
+          <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1 min-w-0">
+            <h2 class="text-lg font-semibold leading-tight text-base-content highlight max-w-full truncate" data-testid="story-title">
               {% if detail_view %}
                 {{ story.title }}
               {% else %}
@@ -149,7 +149,7 @@
               <a href="{{ story.links[0] }}"
                  target="_blank"
                  rel="noopener"
-                 class="link link-primary text-xs inline-flex items-center gap-1 self-start max-w-full truncate"
+                 class="link link-primary text-xs inline-flex items-center gap-1 max-w-full truncate"
                  data-testid="story-link-{{ story_id }}">
                 {{ heroicon_mini("arrow-top-right-on-square") }}
                 <span class="truncate">{{ story.model_extra.source_domain | default(story.links[0]) }}</span>
@@ -166,15 +166,14 @@
               <em>No summary available.</em>
             {% endif %}
           </div>
+          {{ story_tags(story, compact_view=compact_view, selected_tags=active_tag_filters | default([])) }}
         </section>
+
+        <footer class="flex flex-wrap items-start content-start gap-2 text-xs @min-[56rem]:col-start-2 @min-[80rem]:col-start-3 @min-[80rem]:row-start-1"
+                @click.stop>
+          {{ story_card_actions(story, compact_view=compact_view, detail_view=detail_view, show_bookmark=show_bookmark, bookmark_id=bookmark_id) }}
+        </footer>
       </div>
-
-      <!-- tags section -->
-      {{ story_tags(story, compact_view=compact_view, selected_tags=active_tag_filters | default([])) }}
-
-      <footer class="flex flex-wrap items-center justify-between gap-2 border-t border-base-200 pt-2 text-xs" @click.stop>
-        {{ story_card_actions(story, compact_view=compact_view, detail_view=detail_view, show_bookmark=show_bookmark, bookmark_id=bookmark_id) }}
-      </footer>
 
       <div id="story-details-{{ story_id }}"
            x-ref="details"
