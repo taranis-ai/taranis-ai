@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from models.llm import LLM_BOT_FEATURES
+from models.llm import LLM_BOT_FEATURES, LLMProvider
 from models.worker_parameters import (
     SECRET_MASK,
     configured_parameter_values,
@@ -53,13 +53,9 @@ def set_parameters(
         if entry is None or endpoint_id not in Settings.with_defaults(entry.settings)["llm_endpoints"]:
             raise ValueError("Select a configured LLM endpoint")
         endpoint = Settings.with_defaults(entry.settings)["llm_endpoints"][endpoint_id]
-        if endpoint.get("api_format") in {"systemone", "openai_decisions"} and LLM_BOT_FEATURES.get(worker_type.lower()) != "classification":
-            raise ValueError("Decisions endpoints support only topic classification")
-        if LLM_BOT_FEATURES.get(worker_type.lower()) == "classification" and endpoint.get("api_format") not in {
-            "systemone",
-            "openai_decisions",
-        }:
-            raise ValueError("Topic classification requires a realtime Decisions endpoint")
+        feature = LLM_BOT_FEATURES.get(worker_type.lower(), "")
+        if not LLMProvider.model_validate(endpoint).supports(feature):
+            raise ValueError("Select an endpoint with a compatible API format for this bot")
     return normalized
 
 

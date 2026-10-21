@@ -1742,7 +1742,7 @@ class TestEndToEndAdmin(BaseE2ETest):
                 new_endpoint.locator("summary").click()
             form = new_endpoint.locator("form")
             expect(form.get_by_label("Endpoint state")).to_have_value("false")
-            expect(form.get_by_text("Model", exact=True)).to_be_visible()
+            expect(form.get_by_text("Responses model", exact=True)).to_be_visible()
             expect(form.get_by_text("API key", exact=True)).to_be_visible()
             form.get_by_label("Name", exact=False).fill("E2E shared model")
             form.get_by_label("Provider base URL").fill("https://provider.example/v1/responses")
@@ -1822,16 +1822,36 @@ class TestEndToEndAdmin(BaseE2ETest):
             with_htmx_wait(page, lambda: assignments.get_by_role("button", name="Save Assignments").click())
             endpoint.locator("summary").click()
             endpoint.get_by_label("Endpoint state").select_option("false")
-            endpoint.get_by_label("Provider base URL").fill("https://provider.example/v1/systemone")
-            endpoint.get_by_label("API format").select_option("systemone")
+            endpoint.get_by_label("Responses model", exact=True).fill("response-model")
+            endpoint.get_by_label("Enable Decisions (System One / OpenRouter)", exact=True).check()
+            endpoint.get_by_label("Decisions (System One / OpenRouter) model", exact=True).fill("topic-model")
+            endpoint.get_by_label("Decisions (System One / OpenRouter) URL override", exact=True).fill(
+                "https://provider.example/alpha/decisions"
+            )
             with_htmx_wait(page, lambda: endpoint.get_by_role("button", name="Save Endpoint", exact=True).click())
+            assignments.get_by_label("Default endpoint").select_option(label="E2E shared model")
             assignments.get_by_label("Topic classification").select_option(label="E2E shared model")
             with_htmx_wait(page, lambda: assignments.get_by_role("button", name="Save Assignments").click())
             page.reload()
             expect(assignments.get_by_label("Topic classification").locator("option:checked")).to_have_text("E2E shared model")
             endpoint.locator("summary").click()
-            expect(endpoint.get_by_label("API format")).to_have_value("systemone")
-            expect(endpoint.get_by_label("Provider base URL")).to_have_value("https://provider.example/v1/systemone")
+            expect(endpoint.get_by_label("Enable Responses", exact=True)).to_be_checked()
+            expect(endpoint.get_by_label("Enable Decisions (System One / OpenRouter)", exact=True)).to_be_checked()
+            expect(endpoint.get_by_label("Responses model", exact=True)).to_have_value("response-model")
+            expect(endpoint.get_by_label("Decisions (System One / OpenRouter) model", exact=True)).to_have_value("topic-model")
+            expect(endpoint.get_by_label("Decisions (System One / OpenRouter) URL override", exact=True)).to_have_value(
+                "https://provider.example/alpha/decisions"
+            )
+            endpoint.get_by_label("Enable Decisions (System One / OpenRouter)", exact=True).uncheck()
+            with page.expect_response(
+                lambda response: response.request.method == "POST" and "/llm-endpoints/" in response.url
+            ) as invalid_format:
+                endpoint.get_by_role("button", name="Save Endpoint", exact=True).click()
+            assert invalid_format.value.status == 400
+            expect(endpoint.get_by_label("Decisions (System One / OpenRouter) model", exact=True)).to_have_value("topic-model")
+            reset_htmx_state(page)
+            endpoint.get_by_label("Enable Decisions (System One / OpenRouter)", exact=True).check()
+            assignments.get_by_label("Default endpoint").select_option("")
             assignments.get_by_label("Topic classification").select_option("")
             with_htmx_wait(page, lambda: assignments.get_by_role("button", name="Save Assignments").click())
             endpoint.locator("summary").click()

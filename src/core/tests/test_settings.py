@@ -382,7 +382,7 @@ def test_deployment_llm_default_initialization(session, monkeypatch, debug):
     assert len(saved["llm_endpoints"]) == 1
     endpoint = saved["llm_endpoints"][saved["llm_default_endpoint"]]
     assert endpoint["base_url"] == "http://llm-inference:8000/v1"
-    assert endpoint["model"] == ""
+    assert endpoint["api_formats"] == {"chat_completions": {"model": "", "base_url": ""}}
     assert endpoint["enabled"] is not debug
     if debug:
         assert PersistentSettings.get_llm_endpoint("chat") is None

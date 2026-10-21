@@ -19,6 +19,14 @@ def test_batch_endpoint_check_waits_for_inference(requests_mock, monkeypatch, ap
         "api_key": "probe-key",
         "timeout": 10,
     }
+    config["api_formats"] = {
+        api_format: {"model": config["model"]},
+        "systemone": {"model": "topic-model", "base_url": "https://batch.test/alpha/decisions"},
+    }
+    decisions = requests_mock.post(
+        "https://batch.test/alpha/decisions",
+        json={"answers": {"probe": {"type": "choice", "choice": "OK", "probabilities": {"OK": 1.0, "other": 0.0}}}},
+    )
     route = f"{Config.TARANIS_CORE_URL}/worker/endpoint-health/llm/test-id"
     requests_mock.get(route, json={"config": config})
     saved = requests_mock.post(route, json={"accepted": True})
@@ -47,6 +55,8 @@ def test_batch_endpoint_check_waits_for_inference(requests_mock, monkeypatch, ap
     check_endpoint("llm", "test-id", "current-check")
     assert saved.last_request.json() == {"check_id": "current-check", "healthy": True}
     assert submitted.call_count == 1
+    assert decisions.call_count == 1
+    assert decisions.last_request.json()["model"] == "topic-model"
     assert "llm_batch_probe" not in job.meta
 
 
@@ -118,3 +128,26 @@ def test_endpoint_check_failure_and_recovery(requests_mock, kind, config, url, r
     requests_mock.get(route, json={"skip": True})
     check_endpoint(kind, "test-id", "old-check")
     assert upstream.call_count == 4
+    extra_format = "responses" if config["api_format"] in {"systemone", "openai_decisions"} else "systemone"
+    extra_url = "https://other-path.test/v1"
+    extra_result = (
+        {"output": [{"type": "message", "content": [{"type": "output_text", "text": "OK"}]}]}
+        if extra_format == "responses"
+        else {"answers": {"probe": {"type": "choice", "choice": "OK", "probabilities": {"OK": 1.0, "other": 0.0}}}}
+    )
+    extra = requests_mock.post(extra_url + ("/responses" if extra_format == "responses" else "/systemone"), json=extra_result)
+    combined = {
+        **config,
+        "api_formats": {
+            config["api_format"]: {"model": config.get("model", "")},
+            extra_format: {"model": "other-model", "base_url": extra_url},
+        },
+    }
+    requests_mock.get(route, json={"config": combined})
+    check_endpoint(kind, "test-id", "combined-check")
+    assert saved.last_request.json()["healthy"] is True
+    assert extra.last_request.json()["model"] == "other-model"
+    requests_mock.post(extra.last_request.url, status_code=503)
+    with pytest.raises(RuntimeError, match="^Endpoint check failed$"):
+        check_endpoint(kind, "test-id", "combined-check")
+    assert saved.last_request.json()["healthy"] is False

@@ -202,7 +202,7 @@ class TestAdminApi(BaseTest):
         self.assert_post_ok(client, f"llm-endpoints/{endpoint_id}/delete", {}, auth_header)
 
     @pytest.mark.parametrize("api_format", ["systemone", "openai_decisions"])
-    def test_decisions_endpoint_assignment(self, client, auth_header, api_format):
+    def test_decisions_endpoint_assignment(self, client, auth_header, api_format, app):
         endpoint = {
             "name": "Topics",
             "base_url": "https://provider.example/v1/decisions",
@@ -261,6 +261,39 @@ class TestAdminApi(BaseTest):
             )
             assert response.status_code == 400
             assert client.patch(bot_url, json={"parameters": {"LLM_ENDPOINT": incompatible_id}}, headers=auth_header).status_code == 400
+        formats = {
+            "responses": {"model": "conversation-model"},
+            api_format: {"model": "topic-model", "base_url": "https://provider.example/alpha/decisions"},
+        }
+        self.assert_post_ok(
+            client, f"llm-endpoints/{endpoint_id}", {"base_url": "https://provider.example/v1", "api_formats": formats}, auth_header
+        )
+        self.assert_patch_ok(client, "settings", {"settings": {"llm_default_endpoint": endpoint_id}}, auth_header)
+        with app.app_context():
+            from core.service.chat import ChatClient
+
+            chat = ChatClient()
+            assert (chat.api_format, chat.model, chat.base_url) == ("responses", "conversation-model", "https://provider.example/v1")
+        worker = client.get(f"/api/worker/bots/{bot.json['id']}", headers={"Authorization": "Bearer test_key"})
+        assert worker.json["llm_endpoint"]["model"] == "topic-model"
+        assert worker.json["llm_endpoint"]["base_url"] == "https://provider.example/alpha/decisions"
+        other = client.post(
+            "/api/config/bots",
+            json={"name": "Shared NER", "type": "nlp_bot", "parameters": {"LLM_ENDPOINT": endpoint_id}},
+            headers=auth_header,
+        )
+        assert other.status_code == 201
+        ner = client.get(f"/api/worker/bots/{other.json['id']}", headers={"Authorization": "Bearer test_key"})
+        assert ner.json["llm_endpoint"]["model"] == "conversation-model"
+        for removed_format in formats:
+            response = client.post(
+                endpoint_url,
+                json={"api_formats": {key: value for key, value in formats.items() if key != removed_format}},
+                headers=auth_header,
+            )
+            assert response.status_code == 400
+        assert client.delete(f"/api/config/bots/{other.json['id']}", headers=auth_header).status_code == 200
+        self.assert_patch_ok(client, "settings", {"settings": {"llm_default_endpoint": ""}}, auth_header)
         assert client.delete(f"/api/config/bots/{bot.json['id']}", headers=auth_header).status_code == 200
         self.assert_patch_ok(client, "settings", {"settings": {"llm_classification_endpoint": ""}}, auth_header)
         self.assert_post_ok(client, f"llm-endpoints/{endpoint_id}/delete", {}, auth_header)

@@ -3,6 +3,7 @@
 from llm_bot.client import UpstreamLLMError
 from llm_bot.decisions_client import ChoiceQuestion
 from llm_bot.tasks.llm_utils import LLMTask
+from models.llm import LLMProvider
 from niquests.exceptions import RequestException
 from rq import Retry, get_current_job
 
@@ -53,6 +54,16 @@ def probe(kind: str, config: dict, batch_state: dict | None = None, save_batch_s
     if kind != "llm":
         return False
     try:
+        if "api_formats" in config:
+            provider = LLMProvider.model_validate({"name": "Probe", **config})
+            healthy = True
+            for api_format in provider.api_formats:
+                state = batch_state.setdefault(api_format, {}) if batch_state is not None else None
+                result = probe(kind, provider.for_format(api_format), state, save_batch_state)
+                if isinstance(result, Retry):
+                    return result
+                healthy = healthy and result
+            return healthy
         if config["api_format"] in {"systemone", "openai_decisions"}:
             client = get_decisions_client({"llm_endpoint": {"name": "Probe", **config}})
             questions = {"probe": ChoiceQuestion("Choose OK.", {"OK": "The requested answer", "other": "Any other answer"})}
