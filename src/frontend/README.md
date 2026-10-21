@@ -44,6 +44,8 @@ Story headlines open the story; checkboxes select stories for bulk actions. Read
 
 Story cards always show and highlight tags matching an active tag-name or tag-type filter, including in compact view. The `+N` button expands just the tags; Show fewer tags collapses them again. Opening story details also shows all tags.
 
+Expanded stories show each news item's Published and Collected dates, author, and TLP label when available, alongside its language and original link. Manually added items are identified explicitly. The same metadata row appears on full news-item cards; missing values are omitted.
+
 Story details and editing include Back to Assess, preserving the search filters and page you opened the story from, including after saving or switching editor layouts. Marking an infinite-scroll story read or important preserves that card's loaded page for its Open/Edit return links. Assess also remembers the last search in this browser per user and offers to restore it when opening Assess without filters. Dismiss clears that remembered search; explicit filters, saved defaults, and Reset filters take precedence. Return links work without JavaScript or browser storage.
 
 Restoring an infinite-scroll search partway through the results shows its starting position and explains that earlier results are not loaded. Start from beginning keeps the same filters and lets you browse all matching stories. The counter reports stories loaded, and the footer shows the loaded result range and End of results when there are no later matches.

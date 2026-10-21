@@ -1,4 +1,4 @@
-{% from "assess/news_item_card.html" import news_item_card %}
+{% from "assess/news_item_card.html" import news_item_card, news_item_metadata %}
 {% set news_items = story.news_items | default([]) %}
 {% set news_count = news_items | length %}
 <div x-init="detailsLoaded = true">
@@ -43,10 +43,16 @@
               </h3>
               {% if item.language %}<span class="badge badge-ghost badge-sm uppercase">{{ item.language }}</span>{% endif %}
             </div>
-            <a href="{{ item.link }}" target="_blank" rel="noopener" class="link link-primary text-xs inline-flex items-center gap-1">
-              {{ heroicon_mini("arrow-top-right-on-square") }}
-              <span>{{ item.link }}</span>
-            </a>
+            {% if item.link %}
+              <a href="{{ item.link }}"
+                 target="_blank"
+                 rel="noopener"
+                 class="link link-primary text-xs inline-flex items-center gap-1 max-w-full">
+                {{ heroicon_mini("arrow-top-right-on-square", class="h-4 w-4 shrink-0") }}
+                <span class="break-all">{{ item.link }}</span>
+              </a>
+            {% endif %}
+            {{ news_item_metadata(item) }}
             {% if not loop.last %}<div class="divider"></div>{% endif %}
           {% endfor %}
         {% endif %}

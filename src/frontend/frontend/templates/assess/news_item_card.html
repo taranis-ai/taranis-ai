@@ -1,3 +1,21 @@
+{% macro news_item_metadata(news_item) %}
+  <div class="flex flex-wrap gap-2 text-xs text-base-content/60">
+    {% if news_item.published %}
+      <span class="badge badge-sm badge-outline">Published · {{ news_item.published | format_datetime }}</span>
+    {% endif %}
+    {% if news_item.collected %}
+      <span class="badge badge-sm badge-outline">Collected · {{ news_item.collected | format_datetime }}</span>
+    {% endif %}
+    {% if news_item.author %}
+      <span class="badge badge-sm badge-outline h-auto max-w-full whitespace-normal break-words text-left" data-test-id="news-item-author">
+        Author · {{ news_item.author }}
+      </span>
+    {% endif %}
+    {% if news_item.source == "manual" %}<span class="badge badge-info badge-sm self-start">Manually added</span>{% endif %}
+    {% if news_item.tlp_level %}<span class="badge badge-sm badge-outline">TLP:{{ news_item.tlp_level | upper }}</span>{% endif %}
+  </div>
+{% endmacro %}
+
 {% macro news_item_card(news_item, story, edit_tags=false) %}
   {% set news_item_tags = (news_item.tags.values() if news_item.tags is mapping else (news_item.tags or [])) | list %}
   <article id="news-item-card-{{ news_item.id }}"
@@ -111,20 +129,7 @@
         </form>
         {# djlint:on #}
       {% endif %}
-      <footer class="flex flex-wrap gap-2 text-xs text-base-content/60">
-        {% if news_item.source == "manual" %}<span class="badge badge-info badge-sm self-start">Manually added</span>{% endif %}
-        {% if news_item.author %}
-          <span class="badge badge-sm badge-outline h-auto max-w-full whitespace-normal text-left" data-test-id="news-item-author">
-            Author · {{ news_item.author }}
-          </span>
-        {% endif %}
-        {% if news_item.collected %}
-          <span class="badge badge-sm badge-outline">Collected · {{ news_item.collected | format_datetime }}</span>
-        {% endif %}
-        {% if news_item.published %}
-          <span class="badge badge-sm badge-outline">Published · {{ news_item.published | format_datetime }}</span>
-        {% endif %}
-      </footer>
+      {{ news_item_metadata(news_item) }}
     </div>
   </article>
 {% endmacro %}
