@@ -489,9 +489,11 @@ class TestAssetSbomWorkflow(BaseE2ETest):
             expect(cards).to_have_count(2)
             compact = page.get_by_label("Compact view", exact=True)
             was_compact = compact.is_checked()
-            with_htmx_wait(page, lambda: compact.set_checked(not was_compact))
+            with page.expect_navigation():
+                compact.set_checked(not was_compact)
             expect(asset_names.first).to_be_visible()
-            with_htmx_wait(page, lambda: compact.set_checked(was_compact))
+            with page.expect_navigation():
+                compact.set_checked(was_compact)
             with_htmx_wait(page, page.get_by_label("Asset matches only").uncheck)
             expect(cards).to_have_count(3)
             expect(asset_names).to_have_count(0)
