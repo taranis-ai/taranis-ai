@@ -1,0 +1,17 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.7",
+  "serialNumber": "urn:uuid:9ec7a462-e6ac-44ad-b620-c75ab897194c",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2026-10-21T10:00:00Z",
+    "component": {"type": "file", "name": "Demo / monitoring-prod", "bom-ref": "root", "description": "Fictional Python monitoring host used as a non-PHP comparison."},
+    "tools": [{"vendor": "Taranis", "name": "SBOM showcase", "version": "1"}]
+  },
+  "components": [
+    {"type": "application", "name": "Python", "version": "3.12.7", "bom-ref": "python", "purl": "pkg:generic/python@3.12.7", "cpe": "cpe:2.3:a:python:python:3.12.7:*:*:*:*:*:*:*", "properties": [{"name": "syft:location:0:path", "value": "usr/bin/python3.12"}]},
+    {"type": "application", "name": "nginx", "version": "1.26.2", "bom-ref": "nginx", "purl": "pkg:generic/nginx@1.26.2", "cpe": "cpe:2.3:a:nginx:nginx:1.26.2:*:*:*:*:*:*:*", "properties": [{"name": "syft:location:0:path", "value": "usr/sbin/nginx"}]},
+    {"type": "application", "name": "curl", "version": "8.5.0", "bom-ref": "curl", "purl": "pkg:generic/curl@8.5.0", "cpe": "cpe:2.3:a:haxx:curl:8.5.0:*:*:*:*:*:*:*", "properties": [{"name": "syft:location:0:path", "value": "usr/bin/curl"}]}
+  ],
+  "vulnerabilities": []
+}

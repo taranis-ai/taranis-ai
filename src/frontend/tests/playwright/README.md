@@ -79,32 +79,29 @@ Chat uses the same highlight helper and instant form filling as the other segmen
 ### Record the SBOM PoC walkthrough
 
 `test_e2e_asset_sbom.py` exercises the same workflow in CI and in a recorded demonstration:
-import a host SBOM, review grouped inventory and installation paths, and immediately see
-matching intelligence after the automatic historical scan. Each article appears once with a
-compact software summary; expand **Why this matches** to see both installed versions and
-their shared evidence. Follow supporting articles in Assess,
-then optionally refine matching across both BuildKit versions with one rule. It also checks that collection updates refresh evidence and disabling
-triggers removes matches. Refreshing the results keeps open explanations expanded while
-replacing their content with current evidence.
+import three fictional hosts, review grouped inventory and PHP installation paths, and see
+matching intelligence after the automatic historical scans. The production and staging portals
+share two source-reported PHP findings; the Python monitoring host gives a non-PHP comparison.
+Expand **Why this matches** for installed versions, CVE associations, and source ratings.
+The workflows refine a shared PHP rule, follow an article in Assess, review the two
+classification tags, disable CVE matching, and retire a legacy PHP installation through SBOM replacement.
 
 The walkthrough uses only repository fixtures in a fresh isolated Compose stack:
 
-- `src/core/tests/test_data/sbom/test-sbom-import.cdx.json`: a small CycloneDX inventory
-  retaining representative BuildKit versions and installation paths from the external host
-  sample. Five software records group into four components; one individual file is excluded.
-  It includes duplicate installations, two BuildKit versions, curl, and a component without CPEs.
-- `tests/playwright/testdata/sbom-news-items.json`: two synthetic security articles (one
-  matching the title, one the body), an unrelated partial product name, a community article,
-  and a curl advisory. Four stories match immediately after import. Optional context and
-  activation changes narrow the results to the two security articles. The test ingests the
-  fixtures before creating the asset, so the automatic historical scan is necessary.
+- `tests/playwright/testdata/sbom/scenario.json`: the three SBOM filenames, asset names,
+  and `production`/`staging` classification tags. Each CycloneDX 1.7 document stands alone;
+  the production portal includes duplicate PHP 8.4.26 installations, legacy PHP 8.3.35,
+  valid CPEs, a private CPE-free component, and one excluded file record.
+- `tests/playwright/testdata/sbom-news-items.json`: dated PHP and CERT-EU advisory summaries,
+  a clearly fictional CVE-only follow-up, and software-only, community, and partial-name
+  examples. News is ingested before import so the automatic historical scan is exercised.
 
-The second workflow demonstrates imported findings, SBOM replacement and the cross-host intelligence overview. It imports a second host without scores, then filters by CVE and package-name matching, score availability, CVSS range, host and package. It verifies that each article appears once, source-specific package scores stay associated, and expanded details survive refresh. It uses
-`test-sbom-findings.cdx.json` with illustrative CVEs, multiple sources and ratings,
-exact component references and a supplied analysis. It adds small generated findings to
-exercise the 50-ID CTI pages, searches for BuildKit, expands source details, disables CVE
-matching independently, and updates the asset while preserving that decision. Its article
-fixture supplies the existing CVE tag; IOC extraction remains the responsibility of IOC Bot.
+The PHP findings record CVE-2026-109618 and CVE-2026-109619 as a 21 October 2026
+snapshot. PHP reported CVSS 4.0 scores of 9.2; its advance notice did not yet establish
+exact affected or fixed versions. The fictional assets illustrate source-reported potential
+exposure, not confirmed vulnerability. The second workflow checks exact component references,
+source details, tag/CVSS/package filters, CVE decisions, and replacement preservation.
+Generated pagination stress data remains in the core application tests.
 
 From `src/frontend`, record with readable pauses and highlighted controls:
 
@@ -116,7 +113,7 @@ uv run pytest tests/playwright/test_e2e_asset_sbom.py \
 This opens Chromium. On Linux without a display, prefix `uv run` with
 `xvfb-run -a -s '-screen 0 1920x1080x24'`. Leave `TARANIS_E2E_EXTERNAL_*` variables unset
 so the harness uses its isolated services. No local database, external SBOM, or collected
-advisory is needed. The test removes its asset and articles, and the harness removes the stack.
+advisory is needed. The test removes its three assets and articles, and the harness removes the stack.
 
 Each workflow saves its 1920×1080 recording and screenshots under
 `tests/playwright/videos/sbom-showcase-<suffix>/`, with the video named `sbom-showcase.webm`.

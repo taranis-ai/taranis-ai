@@ -1,27 +1,39 @@
 [
   {
-    "title": "BuildKit security advisory (test fixture)",
-    "content": "This synthetic advisory describes a vulnerability in the container build engine. Review the upstream patch before rebuilding images. This is fictional test data, not a real finding.",
-    "link": "https://example.invalid/sbom/buildkit-advisory"
+    "title": "PHP emergency security release announced",
+    "content": "The PHP security team announced two critical issues rated CVSS 4.0 9.2 and scheduled an emergency release for 21 October 2026 at 14:00 UTC. Exact affected and fixed versions were pending at this snapshot.",
+    "link": "https://www.php.net/archive/2026.php#2026-10-20-1"
   },
   {
-    "title": "Container builder patch available (test fixture)",
-    "content": "BuildKit users should review this synthetic security update before their next deployment. The package name appears only in this article's body. This is fictional test data, not a real finding.",
-    "link": "https://example.invalid/sbom/container-patch"
+    "title": "Critical vulnerabilities in PHP",
+    "content": "CERT-EU identified CVE-2026-109618 and CVE-2026-109619 in its 21 October advisory. Technical details and exact affected versions had not yet been published.",
+    "link": "https://cert.europa.eu/publications/security-advisories/2026-018/",
+    "tags": {"CVE-2026-109618": "CVE", "CVE-2026-109619": "CVE"}
   },
   {
-    "title": "BuildKitten security advisory (test fixture)",
-    "content": "A vulnerability in the unrelated BuildKitten application requires a patch. A partial product name must not match an installed component.",
-    "link": "https://example.invalid/sbom/product-name-boundary"
+    "title": "CVE-2026-109618 response note (demo)",
+    "content": "Fictional internal analyst note for the named identifier. This tests CVE tagging without a product-name mention and is not an independent security advisory.",
+    "link": "https://example.invalid/sbom/cve-only-demo",
+    "tags": {"CVE-2026-109618": "CVE"}
   },
   {
-    "title": "BuildKit community meetup (test fixture)",
-    "content": "The container tooling community announces its next developer meetup. This article has the product name but none of the required advisory context.",
-    "link": "https://example.invalid/sbom/missing-context"
+    "title": "PHP developer meetup (demo)",
+    "content": "Fictional community calendar entry about a PHP meetup. It supplies a product-name mention without an advisory.",
+    "link": "https://example.invalid/sbom/php-community-demo"
   },
   {
-    "title": "curl security advisory (test fixture)",
-    "content": "A synthetic vulnerability in curl needs analyst review. The package is installed and matches automatically. An analyst can disable its rule later.",
-    "link": "https://example.invalid/sbom/curl-advisory"
+    "title": "PHPStan developer meetup (demo)",
+    "content": "Fictional community calendar entry about PHPStan. A partial product name must not match the runtime.",
+    "link": "https://example.invalid/sbom/phpstan-boundary-demo"
+  },
+  {
+    "title": "nginx maintenance update (demo)",
+    "content": "Fictional routine maintenance notice for nginx, installed on all three demo hosts. This is a software-only match.",
+    "link": "https://example.invalid/sbom/nginx-maintenance-demo"
+  },
+  {
+    "title": "Runtime security briefing (demo)",
+    "content": "Fictional security briefing: PHP teams should review the upstream update. The product name appears only in this article body.",
+    "link": "https://example.invalid/sbom/php-body-match-demo"
   }
 ]

@@ -1,0 +1,5 @@
+[
+  {"file": "portal-prod.cdx.json", "name": "portal-prod", "tag": "production"},
+  {"file": "portal-staging.cdx.json", "name": "portal-staging", "tag": "staging"},
+  {"file": "monitoring-prod.cdx.json", "name": "monitoring-prod", "tag": "production"}
+]
