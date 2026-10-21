@@ -131,10 +131,6 @@
 
 {% macro story_card_actions(story, compact_view=False, detail_view=False, show_bookmark=True, bookmark_id=None) %}
   {% set story_id = story.id %}
-  {% set card_id = 'story-' ~ story_id %}
-  {% set news_count = story.news_items | length %}
-  {% set news_count_text = '[' ~ news_count ~ ']' if news_count > 1 else '' %}
-  {% set delete_target = '#bookmark-detail-container' if bookmark_id else '#assess' %}
   {{ story_actions(story, size='xs', show_bookmark=show_bookmark, bookmark_id=bookmark_id, primary_only=True) }}
   <button type="button"
           class="btn btn-outline btn-xs gap-2"

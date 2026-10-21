@@ -6445,7 +6445,7 @@ paths:
       - UserAuth: []
       tags:
       - assess
-      description: handle stories bulk action
+      description: Update selected stories in one transaction. Missing, forbidden, or failed stories roll back every update and revision. Cache invalidation, scheduling, and realtime publication occur only after commit.
       operationId: assess.bulk_action.post
       requestBody:
         required: true

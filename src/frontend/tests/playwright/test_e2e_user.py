@@ -413,11 +413,10 @@ class TestEndToEndUser(BaseE2ETest):
 
             page.on("request", record_assess_request)
             with_htmx_wait(page, lambda: search.fill(target_title))
+            expect(page.locator("#story-list article[data-story-id]")).to_have_count(1)
             search.blur()
             assert len(requests) == 1
             page.remove_listener("request", record_assess_request)
-            expect(page.locator("#story-list article[data-story-id]")).to_have_count(1)
-            search.blur()
 
             story = page.locator("article", has=page.get_by_test_id("story-title").filter(has_text=target_title)).first
             expect(story).to_be_visible()

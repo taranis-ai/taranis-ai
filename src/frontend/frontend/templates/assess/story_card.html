@@ -1,8 +1,6 @@
 {% macro story_card(story, detail_view=False, show_bookmark=True, bookmark_id=None) %}
   {% from "assess/story_actions.html" import story_card_actions with context %}
   {% from "assess/story_tags.html" import story_tags %}
-  {% from "assess/news_item_card.html" import news_item_card %}
-  {% from "macros/query_params.html" import update_query_params %}
   {% set story_id = story.id %}
   {% set news_items = (story.news_items | default([])) | list %}
   {% set news_count = news_items | length %}
