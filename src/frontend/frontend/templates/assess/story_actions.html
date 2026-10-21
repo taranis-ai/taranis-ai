@@ -137,60 +137,64 @@
 
 {% macro story_card_actions(story, compact_view=False, detail_view=False, show_bookmark=True, bookmark_id=None) %}
   {% set story_id = story.id %}
-  {{ story_actions(story, size='xs', show_bookmark=show_bookmark, bookmark_id=bookmark_id, primary_only=True) }}
-  <button type="button"
-          class="btn btn-outline btn-xs gap-2"
-          x-bind:class="isOpen ? 'btn-active' : ''"
-          x-on:click="isOpen = !isOpen; if (isOpen && !detailsLoaded) $nextTick(() => htmx.trigger($refs.details, 'load-story-details'))"
-          data-testid="toggle-summary"
-          x-bind:aria-expanded="isOpen.toString()"
-          aria-label="Show story details">
-    <div x-bind:class="isOpen ? 'rotate-180' : ''" class="transition-transform">{{ heroicon_mini("chevron-down") }}</div>
-    {% if not compact_view %}<span x-text="isOpen ? 'Hide details' : 'Show details'"></span>{% endif %}
-  </button>
+  <div class="flex flex-wrap items-center gap-2">
+    {{ story_actions(story, size='xs', show_bookmark=show_bookmark, bookmark_id=bookmark_id, primary_only=True) }}
+  </div>
+  <div class="flex flex-wrap items-center gap-2">
+    <button type="button"
+            class="btn btn-ghost btn-xs gap-2"
+            x-bind:class="isOpen ? 'btn-active' : ''"
+            x-on:click="isOpen = !isOpen; if (isOpen && !detailsLoaded) $nextTick(() => htmx.trigger($refs.details, 'load-story-details'))"
+            data-testid="toggle-summary"
+            x-bind:aria-expanded="isOpen.toString()"
+            aria-label="Show story details">
+      <div x-bind:class="isOpen ? 'rotate-180' : ''" class="transition-transform">{{ heroicon_mini("chevron-down") }}</div>
+      {% if not compact_view %}<span x-text="isOpen ? 'Hide details' : 'Show details'"></span>{% endif %}
+    </button>
 
-  {% if detail_view and story.can_edit %}
-    <a type="button"
-       href="{{ url_for('assess.story_edit', story_id=story_id, bookmark_id=bookmark_id or None, assess_url=assess_return_url | default(None)) }}"
-       class="btn btn-outline btn-xs gap-2"
-       data-testid="edit-story">
-      {{ heroicon_mini("pencil-square") }}
-      <span>Edit story</span>
-    </a>
-  {% endif %}
+    {% if detail_view and story.can_edit %}
+      <a type="button"
+         href="{{ url_for('assess.story_edit', story_id=story_id, bookmark_id=bookmark_id or None, assess_url=assess_return_url | default(None)) }}"
+         class="btn btn-outline btn-xs gap-2"
+         data-testid="edit-story">
+        {{ heroicon_mini("pencil-square") }}
+        <span>Edit story</span>
+      </a>
+    {% endif %}
 
-  <details class="dropdown dropdown-end">
-    <summary class="btn btn-outline btn-xs"
-             data-testid="story-actions-menu"
-             aria-label="Additional Story actions"
-             hx-get="{{ url_for('assess.story_actions', story_id=story_id, bookmark_id=bookmark_id or None, assess_url=assess_return_url | default(None), include_edit='true' if not detail_view else None) }}"
-             hx-target="#story-more-{{ story_id }}"
-             hx-swap="innerHTML"
-             hx-sync="this:drop"
-             hx-on::before:request="if (this.dataset.loaded === 'true') event.preventDefault()"
-             hx-on::after:request="if (ctx.response.status < 400) this.dataset.loaded = 'true'"
-             hx-status:400="target:#notification-bar select:#notification-bar swap:outerHTML"
-             hx-status:4xx="target:#notification-bar select:#notification-bar swap:outerHTML"
-             hx-status:5xx="target:#notification-bar select:#notification-bar swap:outerHTML">
-      {{ heroicon_mini("ellipsis-horizontal") }} More
-    </summary>
-    <div id="story-more-{{ story_id }}" class="dropdown-content z-20 mt-2 w-48 rounded-box bg-base-100 p-2 shadow">
-      <span class="loading loading-spinner loading-sm" aria-label="Loading actions" data-assess-js-only></span>
-      <noscript>
-        <a href="{{ url_for('assess.share_story', story_id=story_id) }}"
-           class="btn btn-outline btn-xs w-full"
-           data-testid="share-story">Share</a>
-        {% if story.can_edit %}
-          <a href="{{ url_for('assess.story_edit', story_id=story_id, bookmark_id=bookmark_id or None, assess_url=assess_return_url | default(None)) }}"
-             class="btn btn-outline btn-xs w-full">Edit story</a>
-        {% endif %}
-        <a href="{{ url_for('assess.story_cti', story_id=story_id) }}" class="btn btn-outline btn-xs w-full">CTI information</a>
-        {% if story.revision_count %}
-          <a href="{{ url_for('assess.story_versions', story_id=story_id) }}" class="btn btn-outline btn-xs w-full">Version history</a>
-        {% endif %}
-      </noscript>
-    </div>
-  </details>
+    <details class="dropdown dropdown-end">
+      <summary class="btn btn-ghost btn-xs"
+               data-testid="story-actions-menu"
+               aria-label="Additional Story actions"
+               hx-get="{{ url_for('assess.story_actions', story_id=story_id, bookmark_id=bookmark_id or None, assess_url=assess_return_url | default(None), include_edit='true' if not detail_view else None) }}"
+               hx-target="#story-more-{{ story_id }}"
+               hx-swap="innerHTML"
+               hx-sync="this:drop"
+               hx-on::before:request="if (this.dataset.loaded === 'true') event.preventDefault()"
+               hx-on::after:request="if (ctx.response.status < 400) this.dataset.loaded = 'true'"
+               hx-status:400="target:#notification-bar select:#notification-bar swap:outerHTML"
+               hx-status:4xx="target:#notification-bar select:#notification-bar swap:outerHTML"
+               hx-status:5xx="target:#notification-bar select:#notification-bar swap:outerHTML">
+        {{ heroicon_mini("ellipsis-horizontal") }} More
+      </summary>
+      <div id="story-more-{{ story_id }}" class="dropdown-content z-20 mt-2 w-48 rounded-box bg-base-100 p-2 shadow">
+        <span class="loading loading-spinner loading-sm" aria-label="Loading actions" data-assess-js-only></span>
+        <noscript>
+          <a href="{{ url_for('assess.share_story', story_id=story_id) }}"
+             class="btn btn-outline btn-xs w-full"
+             data-testid="share-story">Share</a>
+          {% if story.can_edit %}
+            <a href="{{ url_for('assess.story_edit', story_id=story_id, bookmark_id=bookmark_id or None, assess_url=assess_return_url | default(None)) }}"
+               class="btn btn-outline btn-xs w-full">Edit story</a>
+          {% endif %}
+          <a href="{{ url_for('assess.story_cti', story_id=story_id) }}" class="btn btn-outline btn-xs w-full">CTI information</a>
+          {% if story.revision_count %}
+            <a href="{{ url_for('assess.story_versions', story_id=story_id) }}" class="btn btn-outline btn-xs w-full">Version history</a>
+          {% endif %}
+        </noscript>
+      </div>
+    </details>
+  </div>
 
 {% endmacro %}
 

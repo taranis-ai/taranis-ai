@@ -167,15 +167,14 @@
             {% endif %}
           </div>
         </section>
-
-        <!-- actions column -->
-        <section class="flex flex-wrap items-center gap-2 text-xs" @click.stop>
-          {{ story_card_actions(story, compact_view=compact_view, detail_view=detail_view, show_bookmark=show_bookmark, bookmark_id=bookmark_id) }}
-        </section>
       </div>
 
       <!-- tags section -->
       {{ story_tags(story, compact_view=compact_view, selected_tags=active_tag_filters | default([])) }}
+
+      <footer class="flex flex-wrap items-center justify-between gap-2 border-t border-base-200 pt-2 text-xs" @click.stop>
+        {{ story_card_actions(story, compact_view=compact_view, detail_view=detail_view, show_bookmark=show_bookmark, bookmark_id=bookmark_id) }}
+      </footer>
 
       <div id="story-details-{{ story_id }}"
            x-ref="details"

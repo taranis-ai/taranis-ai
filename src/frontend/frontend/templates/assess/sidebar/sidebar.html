@@ -20,11 +20,11 @@
 {% set cybersecurity_filter = request_args.get('cybersecurity', ['']) | first %}
 {% set changed_by_filter = request_args.get('changed_by', ['']) | first %}
 {% set sort_choices = sort_choices | default([
-  {'label': 'Newest first', 'value': 'date_desc'},
-  {'label': 'Oldest first', 'value': 'date_asc'},
-  {'label': 'Most relevant', 'value': 'relevance'},
-  {'label': 'Most recent updated', 'value': 'updated_desc'},
-  {'label': 'Least recent updated', 'value': 'updated_asc'}
+  {'label': 'Story date: newest first', 'value': 'date_desc'},
+  {'label': 'Story date: oldest first', 'value': 'date_asc'},
+  {'label': 'Relevance: highest first', 'value': 'relevance'},
+  {'label': 'Updated: newest first', 'value': 'updated_desc'},
+  {'label': 'Updated: oldest first', 'value': 'updated_asc'}
 ]) %}
 {% set quick_ranges = quick_ranges | default([
   {'label': 'Shift', 'value': 'shift'},
@@ -93,7 +93,7 @@
               hx-target="body"
               hx-swap="beforeend"
               hx-on::before:request="document.getElementById('assess_saved_filters_dialog')?.remove()">
-        {{ heroicon_outline('bookmark-square', class='h-4 w-4') }} Saved searches
+        {{ heroicon_outline('bookmark-square', class='h-4 w-4') }} Save &amp; manage searches
       </button>
       {% include "assess/sidebar/tags_select.html" %}
     </section>
@@ -207,16 +207,29 @@
     </details>
   </section>
 
-  <div class="divider text-xs">Sort</div>
+  <div class="divider text-xs">
+    <label for="assess-sort">Sort</label>
+    <div class="tooltip">
+      <div id="assess-sort-help" class="tooltip-content w-52 whitespace-normal text-left" role="tooltip">
+        Story date uses the story's creation date, normally the earliest publication date among its news items, not when it was collected.
+        Updated uses the story's last update time. Relevance puts higher story scores first; full-text searches prioritize matching results by search rank.
+      </div>
+      <button type="button" class="btn btn-ghost btn-xs btn-circle" aria-label="About story sorting" aria-describedby="assess-sort-help">
+        {{ heroicon_outline('information-circle', class='h-4 w-4') }}
+      </button>
+    </div>
+  </div>
   <section>
-    <label class="select w-full">
-      <span class="label">Sort</span>
-      <select name="sort" onchange="this.name = this.value ? 'sort' : ''" class="select select-bordered select-sm" hx-trigger="change">
-        {% for option in sort_choices %}
-          <option value="{{ option.value }}" {% if option.value == current_sort %}selected{% endif %}>{{ option.label }}</option>
-        {% endfor %}
-      </select>
-    </label>
+    <select id="assess-sort"
+            name="sort"
+            onchange="this.name = this.value ? 'sort' : ''"
+            class="select select-bordered select-sm w-full"
+            hx-trigger="change"
+            aria-describedby="assess-sort-help">
+      {% for option in sort_choices %}
+        <option value="{{ option.value }}" {% if option.value == current_sort %}selected{% endif %}>{{ option.label }}</option>
+      {% endfor %}
+    </select>
   </section>
   <noscript>
     <button type="submit" class="btn btn-primary btn-sm mt-4 w-full" data-testid="assess-apply-filters">Apply filters</button>
