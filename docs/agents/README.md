@@ -13,7 +13,7 @@ Read matching memories before planning or editing related features, routes, mode
 
 ## Feature Memories
 
-- [Asset SBOM Import](asset-sbom-import.md): CycloneDX inventory and findings, private previews, asset replacement, CVE-tag matching, the cross-host intelligence overview and CVSS filters, component triggers, asset CTI, and the future Dependency-Track contract.
+- [Asset SBOM Import](asset-sbom-import.md): CycloneDX inventory and findings, private previews, asset replacement, Assess matching and CVSS filters, shared software rules, asset CTI, and the future Dependency-Track contract.
 
 - [Redis Runtime State](redis-runtime-state.md): disposable Redis/RQ state, persistence settings, and restart recovery.
 - [Story Export](story-export.md): Settings and Assess downloads, metadata, import contracts, dates, and access checks.
