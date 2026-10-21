@@ -520,7 +520,7 @@ class StoryBookmark(MethodView):
             return _validation_error_response(exc)
 
         response, status = story.StoryBookmark.update_for_api(bookmark_id, payload.model_dump(mode="json"), current_user)
-        invalidate_frontend_cache_on_success(status, models=("story_bookmark", "story"), object_ids={"story_bookmark": bookmark_id})
+        invalidate_frontend_cache_on_success(status, models=("story_bookmark", "story"))
         return response, status
 
     @auth_required("ASSESS_ACCESS")

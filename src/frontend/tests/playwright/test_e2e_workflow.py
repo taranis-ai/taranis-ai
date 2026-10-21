@@ -239,6 +239,7 @@ class TestUserWorkflow(BaseE2ETest):
         tag_searchbox.fill("tag")
         expect(tag_suggestion_list).to_be_visible()
 
+    @pytest.mark.e2e_ci
     def test_story_bookmarks(
         self,
         non_admin_logged_in_page: Page,
