@@ -159,7 +159,7 @@
       <div class="flex flex-wrap items-center gap-2" x-show="!selectedItems.length" x-cloak>
         {% if story_ids %}
           <button type="button"
-                  class="btn btn-outline tooltip"
+                  class="btn btn-outline tooltip tooltip-left"
                   data-tip="{{ _('Select loaded stories') }}"
                   @keyup.window="canUseAssessShortcut($event, 'a') && selectAll()"
                   @click="selectAll() "

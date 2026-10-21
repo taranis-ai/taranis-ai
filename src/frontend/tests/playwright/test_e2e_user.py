@@ -449,9 +449,7 @@ class TestEndToEndUser(BaseE2ETest):
             edited_title = f"{title} edited title"
 
             story_card().get_by_test_id("toggle-summary").click()
-            story_card().get_by_test_id("story-actions-menu").click()
             with_htmx_wait(page, story_card().get_by_test_id("toggle-read").click)
-            story_card().get_by_test_id("story-actions-menu").click()
             with_htmx_wait(page, story_card().get_by_test_id("toggle-important").click)
             story_card().get_by_test_id("story-actions-menu").click()
             share_story = story_card().get_by_test_id("share-story")
@@ -599,7 +597,6 @@ class TestEndToEndUser(BaseE2ETest):
             for match in matches.all():
                 expect(match).to_be_visible()
 
-            card.get_by_test_id("story-actions-menu").click()
             with_htmx_wait(page, card.get_by_test_id("toggle-important").click)
             expect(matches).to_have_count(2)
             for match in matches.all():
@@ -674,8 +671,8 @@ class TestEndToEndUser(BaseE2ETest):
             return_url = parse_qs(urlparse(detail_url).query)["assess_url"][0]
             assert parse_qs(urlparse(return_url).query)["page"] == [str(last_page)]
             for action in ("toggle-read", "toggle-important"):
-                last_card.get_by_test_id("story-actions-menu").click()
                 with_htmx_wait(page, last_card.get_by_test_id(action).click)
+                with_htmx_wait(page, last_card.get_by_test_id("story-actions-menu").click)
                 for link in ("open-detail-view", "edit-story"):
                     link_url = last_card.get_by_test_id(link).get_attribute("href")
                     assert link_url
