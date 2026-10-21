@@ -1519,7 +1519,7 @@ class StoryView(BaseView):
                         notification=cls.get_notification_from_response(core_response),
                     )
                 cls.add_flash_notification(core_response)
-                return cls.redirect_htmx(url_for("assess.assess"))
+                return cls.redirect_htmx(cls._get_assess_return_url() or url_for("assess.assess"))
             except HTTPException:
                 raise
             except Exception:

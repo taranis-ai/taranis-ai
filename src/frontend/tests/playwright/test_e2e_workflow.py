@@ -260,7 +260,7 @@ class TestUserWorkflow(BaseE2ETest):
         self.highlight_element(page.get_by_test_id("submit-bookmark-story")).click()
         expect(page.locator("#notification-bar")).to_contain_text("stories bookmarked")
 
-        self.highlight_element(page.get_by_role("link", name="Bookmarks")).click()
+        self.highlight_element(page.get_by_test_id("assess-all-bookmarks")).click()
         page.wait_for_url("**/bookmarks", wait_until="domcontentloaded")
         expect(page.get_by_test_id("bookmarks-page")).to_be_visible()
         target_card = page.locator("[data-testid^='bookmark-card-']").filter(has_text=bookmark_name)
