@@ -608,15 +608,17 @@ def forward_console_and_page_errors_publisher_validation(request, logged_in_page
 
 @pytest.fixture
 def forward_console_and_page_errors_non_admin(request, non_admin_logged_in_page):
-    yield from _forward_console_and_page_errors(
-        request,
-        non_admin_logged_in_page,
-        extra_allow_patterns=[
-            r"(?i)\[console\.error\].*/admin/attributes.*Failed to load resource: the server responded with a status of 403 \(forbidden\)",
-            r"(?i)\[console\.error\].*/story/[^/]+/news-item-order.*Failed to load resource: the server responded with a status of 409 \(conflict\)",
-            r"\[console\.error\].*htmx:oobErrorNoTarget, #notification-bar",
-        ],
-    )
+    allow_patterns = [
+        r"(?i)\[console\.error\].*/admin/attributes.*Failed to load resource: the server responded with a status of 403 \(forbidden\)",
+        r"(?i)\[console\.error\].*/story/[^/]+/news-item-order.*Failed to load resource: the server responded with a status of 409 \(conflict\)",
+        r"\[console\.error\].*htmx:oobErrorNoTarget, #notification-bar",
+    ]
+    if request.node.name == "test_user_assess":
+        # This workflow deliberately rejects a display save and verifies its recovery.
+        allow_patterns.append(
+            r"(?i)\[console\.error\].*/assess/display:0:0 :: Failed to load resource: the server responded with a status of 400 \(bad request\)$"
+        )
+    yield from _forward_console_and_page_errors(request, non_admin_logged_in_page, extra_allow_patterns=allow_patterns)
 
 
 @pytest.fixture
