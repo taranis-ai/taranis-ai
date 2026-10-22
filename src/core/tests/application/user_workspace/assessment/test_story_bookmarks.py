@@ -1,5 +1,8 @@
 from uuid import uuid4
 
+from sqlalchemy import event
+
+from core.managers.db_manager import db
 from tests.application.support.api_test_base import BaseTest
 from tests.application.support.builders import build_news_item_payload, create_story
 
@@ -70,12 +73,24 @@ class TestStoryBookmarks(BaseTest):
         assert duplicate_response.get_json()["added"] == 0
         assert duplicate_response.get_json()["story_count"] == 2
 
-        detail_response = client.get(self.concat_url(f"bookmarks/{bookmark_id}"), headers=auth_header)
+        membership_queries = []
+
+        def collect(_conn, _cursor, statement, _params, _context, _many):
+            if "FROM story_bookmark_story JOIN story_bookmark ON" in statement:
+                membership_queries.append(statement)
+
+        event.listen(db.engine, "before_cursor_execute", collect)
+        try:
+            detail_response = client.get(self.concat_url(f"bookmarks/{bookmark_id}"), headers=auth_header)
+        finally:
+            event.remove(db.engine, "before_cursor_execute", collect)
         assert detail_response.status_code == 200
         detail = detail_response.get_json()
         assert detail["story_count"] == 2
         assert set(detail["story_ids"]) == set(stories[:2])
         assert {item["id"] for item in detail["stories"]} == set(stories[:2])
+        assert all(item["bookmarked"] for item in detail["stories"])
+        assert len(membership_queries) == 1
 
         remove_response = client.post(
             self.concat_url(f"bookmarks/{bookmark_id}/stories/remove"), headers=auth_header, json={"story_ids": [stories[0]]}

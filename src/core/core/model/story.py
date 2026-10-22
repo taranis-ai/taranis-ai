@@ -2023,7 +2023,8 @@ class StoryBookmark(BaseModel):
     def to_detail_dict(self, stories: list[Story] | None = None, user: User | None = None) -> dict[str, Any]:
         stories = stories if stories is not None else self.stories
         data = self.to_dict(stories=stories)
-        data["stories"] = [story.to_dict(user=user) for story in stories if story]
+        bookmarked_ids = self.bookmarked_story_ids([story.id for story in stories if story and story.id], user) if user else set()
+        data["stories"] = [story.to_dict(user=user, bookmarked=story.id in bookmarked_ids) for story in stories if story]
         return data
 
 
