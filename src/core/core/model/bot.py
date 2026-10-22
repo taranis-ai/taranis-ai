@@ -480,13 +480,13 @@ class Bot(BaseModel):
         if not bot:
             return {"error": "Bot not found"}, 404
 
+        db.session.delete(bot)
+        db.session.commit()
         bot.unschedule_bot()
         queue_manager.queue_manager.purge_job_artifacts(
             exact_ids={bot.task_id},
             prefixes=[bot.cron_run_prefix],
         )
-        db.session.delete(bot)
-        db.session.commit()
         return {"message": "Bot deleted"}, 200
 
     def get_schedule(self) -> str:

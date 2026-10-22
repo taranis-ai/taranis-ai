@@ -109,7 +109,7 @@ This starts local Redis without authentication and a pinned Centrifugo instance.
 Centrifugo uses host port `8001` to leave `8000` available for local LLM inference. If you override `TARANIS_CENTRIFUGO_PORT`, update the realtime upstream in your installed Nginx configuration too. Existing setups must recopy `dev/nginx.conf`, validate with `nginx -t`, and reload Nginx after updating the Compose service.
 Queue state is not persisted across local Redis restarts in this dev setup.
 Browsers connect through the local NGINX ingress at `http://local.taranis.ai/sse`.
-Centrifugo reaches Core through Podman's `host.containers.internal` address; set `TARANIS_CORE_PORT` when Core does not use port `5001`.
+Centrifugo reaches Core through `host.containers.internal`, explicitly mapped to the host gateway for Docker and Podman; set `TARANIS_CORE_PORT` when Core does not use port `5001`.
 When `/sse` is unavailable, the browser retries eight times with exponential backoff and then requires a page reload; an internal connect-proxy error does not display a data-change notice.
 
 To start the optional Grafana LGTM telemetry stack as well:

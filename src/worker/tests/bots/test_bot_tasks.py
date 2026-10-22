@@ -614,6 +614,7 @@ def test_timeout_retries_stop_when_no_progress_is_made(current_job, requests_moc
 
 
 def test_rq_worker_immediately_resumes_pipeline_after_actual_deadline(requests_mock):
+    requests_mock.post(f"{Config.TARANIS_CORE_URL}/worker/tasks/changed", status_code=503)
     requests_mock.get(
         f"{Config.TARANIS_CORE_URL}/worker/bots/ner",
         json={"id": "ner", "type": "nlp_bot", "parameters": {}, "llm_endpoint": {"name": "NER", "base_url": "https://llm.test/v1"}},

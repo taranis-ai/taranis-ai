@@ -60,6 +60,7 @@ from sqlalchemy import select
 from core.config import Config
 from core.log import logger
 from core.service.simple_web_collector import get_simple_web_collector_url
+from core.service.task_events import notify_task_change
 
 
 CRON_DEFS_KEY = "rq:cron:def"
@@ -307,14 +308,18 @@ class QueueManager:
         if not exact_ids and not prefixes:
             return 0, 0
 
-        return self._purge_rq_jobs(exact_ids=exact_ids, prefixes=prefixes), self._purge_task_rows(
+        removed_jobs, job_owners = self._purge_rq_jobs(exact_ids=exact_ids, prefixes=prefixes)
+        removed_tasks, task_owners = self._purge_task_rows(
             exact_ids=exact_ids,
             prefixes=prefixes,
         )
+        if removed_jobs or removed_tasks:
+            notify_task_change(*(job_owners | task_owners))
+        return removed_jobs, removed_tasks
 
-    def _purge_rq_jobs(self, *, exact_ids: set[str], prefixes: list[str]) -> int:
+    def _purge_rq_jobs(self, *, exact_ids: set[str], prefixes: list[str]) -> tuple[int, set[str]]:
         if self.error or not self._redis:
-            return 0
+            return 0, set()
 
         import rq.registry as rq_registry
 
@@ -322,6 +327,7 @@ class QueueManager:
             return job_id in exact_ids or any(job_id.startswith(prefix) for prefix in prefixes)
 
         removed_ids: set[str] = set()
+        owners: set[str] = set()
 
         for queue in self._queues.values():
             queued_ids: list[str] = []
@@ -345,6 +351,8 @@ class QueueManager:
                     job.cancel()
                     job.delete()
                     removed_ids.add(job_id)
+                    if user_id := job.meta.get("user_id"):
+                        owners.add(user_id)
 
             registry_classes = [rq_registry.FailedJobRegistry, rq_registry.ScheduledJobRegistry]
             deferred_registry = getattr(rq_registry, "DeferredJobRegistry", None)
@@ -357,6 +365,10 @@ class QueueManager:
                     for job_id in list(registry.get_job_ids()):
                         if not matches(job_id) or job_id in removed_ids:
                             continue
+                        with contextlib.suppress(NoSuchJobError):
+                            job = Job.fetch(job_id, connection=self._redis)
+                            if user_id := job.meta.get("user_id"):
+                                owners.add(user_id)
                         try:
                             registry.remove(job_id, delete_job=True)
                         except TypeError:
@@ -365,27 +377,28 @@ class QueueManager:
                                 Job.fetch(job_id, connection=self._redis).delete()
                         removed_ids.add(job_id)
 
-        return len(removed_ids)
+        return len(removed_ids), owners
 
-    def _purge_task_rows(self, *, exact_ids: set[str], prefixes: list[str]) -> int:
+    def _purge_task_rows(self, *, exact_ids: set[str], prefixes: list[str]) -> tuple[int, set[str]]:
         from sqlalchemy import or_
 
         from core.managers.db_manager import db
         from core.model.task import Task as TaskModel
 
-        conditions = [TaskModel.id.in_(exact_ids)] if exact_ids else []
-        conditions.extend(TaskModel.id.like(f"{prefix}%") for prefix in prefixes)
+        conditions = [TaskModel.job_id.in_(exact_ids)] if exact_ids else []
+        conditions.extend(TaskModel.job_id.like(f"{prefix}%") for prefix in prefixes)
         if not conditions:
-            return 0
+            return 0, set()
 
         tasks = list(db.session.execute(db.select(TaskModel).where(or_(*conditions))).scalars())
         if not tasks:
-            return 0
+            return 0, set()
 
+        owners = {task.user_id for task in tasks if task.user_id}
         for task in tasks:
             db.session.delete(task)
         db.session.commit()
-        return len(tasks)
+        return len(tasks), owners
 
     def clear_queues(self):
         """Clear all queues on startup"""
@@ -555,7 +568,9 @@ class QueueManager:
             inject(kwargs["meta"])
 
             user_triggered = self._prepare_user_priority(meta, kwargs)
-            return queue.enqueue(task_func, *args, job_id=job_id, at_front=user_triggered, **kwargs)
+            job = queue.enqueue(task_func, *args, job_id=job_id, at_front=user_triggered, **kwargs)
+            notify_task_change((meta or {}).get("user_id"))
+            return job
         except Exception as e:
             logger.error(f"Failed to enqueue task {task_name}: {e}")
             return False
@@ -607,6 +622,7 @@ class QueueManager:
             logger.info(f"enqueue_at: queue={queue_name}, func={task_func}, scheduled_time={scheduled_time}, job_id={job_id}")
             job = queue.enqueue_at(scheduled_time, task_func, *args, job_id=job_id, at_front=user_triggered, **kwargs)
             logger.info(f"enqueue_at: created job {job.id} scheduled for {scheduled_time}")
+            notify_task_change((meta or {}).get("user_id"))
             return job
         except Exception as e:
             logger.exception(f"Failed to schedule task {task_name}: {e}")
@@ -635,6 +651,7 @@ class QueueManager:
             job = Job.fetch(job_id, connection=self._redis)
             job.cancel()
             job.delete()
+            notify_task_change(job.meta.get("user_id"))
             logger.info(f"Cancelled and deleted job instance {job_id}")
             cancelled = True
         except Exception as e:
@@ -1509,6 +1526,7 @@ class QueueManager:
                     p.zadd(CRON_NEXT_KEY, {spec.job_id: next_ts})
                 p.xadd(CRON_EVENTS_KEY, {"op": "upsert", "job_id": spec.job_id})
                 p.execute()
+                notify_task_change()
                 return True
         except Exception as e:
             logger.error(f"Failed to register cron job {spec.job_id}: {e}")
@@ -1525,6 +1543,7 @@ class QueueManager:
                 p.zrem(CRON_NEXT_KEY, job_id)
                 p.xadd(CRON_EVENTS_KEY, {"op": "delete", "job_id": job_id})
                 p.execute()
+                notify_task_change()
                 return True
         except Exception as e:
             logger.error(f"Failed to unregister cron job {job_id}: {e}")

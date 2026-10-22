@@ -554,16 +554,18 @@ class OSINTSource(BaseModel):
                 logger.warning("Cannot enable OSINT source %s because its parameters are invalid", osint_source.id, exc_info=True)
                 return {"error": "Invalid OSINT Source payload"}, 400
             osint_source.enabled = True
-            osint_source.schedule_osint_source()
         elif state == "disabled":
             logger.debug(f"Disabling OSINT Source: {osint_source.name}")
             osint_source.enabled = False
-            osint_source.unschedule_osint_source()
         else:
             logger.warning(f"Unknown state {state} for OSINT Source: {osint_source.name}")
             return {"error": "Invalid state"}, 400
 
         db.session.commit()
+        if osint_source.enabled:
+            osint_source.schedule_osint_source()
+        else:
+            osint_source.unschedule_osint_source()
         return {"message": "OSINT Source state updated", "id": osint_source.id}, 200
 
     @classmethod

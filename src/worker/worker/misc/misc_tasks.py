@@ -12,6 +12,7 @@ from worker.core_api import CoreApi, build_failure_task_result, build_success_ta
 from worker.http_client import http_session_scope
 from worker.log import logger
 from worker.misc.wordlist_update import update_wordlist
+from worker.task_events import task_started
 from worker.telemetry import instrument_job
 
 
@@ -19,6 +20,7 @@ TOKEN_CLEANUP_TASK_ID = "cleanup_token_blacklist"
 TASK_HISTORY_CLEANUP_TASK_ID = "cleanup_task_history"
 
 
+@task_started
 @instrument_job
 @http_session_scope()
 def cleanup_token_blacklist(*_args: object, reschedule: bool = False, **_kwargs: object):
@@ -96,6 +98,7 @@ def _reschedule_cleanup():
         logger.error(f"Failed to reschedule token cleanup: {e}")
 
 
+@task_started
 @instrument_job
 @http_session_scope()
 def gather_word_list(word_list_id: str):
@@ -132,6 +135,7 @@ def gather_word_list(word_list_id: str):
     return result
 
 
+@task_started
 @instrument_job
 @http_session_scope()
 def cleanup_task_history():

@@ -1,35 +1,72 @@
 {% extends "base.html" %}
 {% set current_tab = initial_tab if initial_tab in ["scheduled", "active", "completed", "failed", "history"] else "scheduled" %}
 {% from "schedule/table.html" import refreshable_table_placeholder %}
+{% from "macros/live_table.html" import live_table_refresh %}
 {% block content %}
-  <div class="p-4" id="scheduler-dashboard">
-    <div class="flex justify-between items-center mb-6">
+  <div class="p-4"
+       id="scheduler-dashboard"
+       {{ live_table_refresh('realtime:scheduler.changed', 'scheduler:refresh', url_for('admin.scheduler_jobs_table'), initial_tab=current_tab, independent_source_id='queue-cards') }}>
+    <div class="flex flex-wrap justify-between items-center gap-3 mb-6">
       <h1 class="text-3xl font-bold">Scheduler Dashboard</h1>
-      <button id="scheduler-auto-refresh"
-              type="button"
-              class="badge badge-lg badge-outline cursor-pointer"
-              aria-pressed="false"
-              title="Enable auto-refresh">Auto-refresh: 10s</button>
+      <div data-realtime-fallback class="flex flex-wrap items-center gap-3">
+        <p class="text-sm text-base-content/70">Live updates are unavailable. Refresh to load the latest status.</p>
+        <button id="scheduler-refresh" type="button" class="btn btn-sm" @click="$dispatch('scheduler:refresh')">Refresh</button>
+      </div>
     </div>
 
     <!-- Queue Status Cards -->
-    <div id="queue-cards" hx-get="{{ url_for('admin.scheduler_queue_cards') }}" hx-trigger="scheduler:refresh" hx-swap="innerHTML">
-      {% include "schedule/queue_cards.html" %}
-    </div>
+    <div id="queue-cards"
+         hx-get="{{ url_for('admin.scheduler_queue_cards') }}"
+         hx-trigger="realtime:scheduler.changed from:document delay:300ms, realtime:resync from:document delay:300ms, realtime:connected from:document delay:300ms, scheduler:refresh from:#scheduler-dashboard"
+         hx-sync="this:queue last"
+         hx-swap="innerHTML">{% include "schedule/queue_cards.html" %}</div>
 
     <!-- Tabs for different views -->
     <div class="tabs tabs-border tabs-boxed mt-6 mb-4">
-      <a class="tab {% if current_tab == 'scheduled' %}tab-active{% endif %}" data-tab="scheduled">Scheduled Jobs</a>
-      <a class="tab {% if current_tab == 'active' %}tab-active{% endif %}" data-tab="active">Active Jobs</a>
-      <a class="tab {% if current_tab == 'completed' %}tab-active{% endif %}" data-tab="completed">Completed Runs</a>
-      <a class="tab {% if current_tab == 'failed' %}tab-active{% endif %}" data-tab="failed">Queue Failures</a>
-      <a class="tab {% if current_tab == 'history' %}tab-active{% endif %}" data-tab="history">Worker Summary</a>
+      <a class="tab"
+         :class="{ 'tab-active': activeTab === 'scheduled' }"
+         data-tab="scheduled"
+         href="{{ url_for('admin.scheduler_jobs_table', tab='scheduled') }}"
+         hx-boost="select:#scheduled-jobs-table target:#scheduled-jobs-table swap:outerHTML"
+         hx-sync="#scheduler-dashboard:replace"
+         @click="activeTab = 'scheduled'">Scheduled Jobs</a>
+      <a class="tab"
+         :class="{ 'tab-active': activeTab === 'active' }"
+         data-tab="active"
+         href="{{ url_for('admin.scheduler_active_jobs', tab='active') }}"
+         hx-boost="select:#active-jobs-table target:#active-jobs-table swap:outerHTML"
+         hx-sync="#scheduler-dashboard:replace"
+         @click="activeTab = 'active'">Active Jobs</a>
+      <a class="tab"
+         :class="{ 'tab-active': activeTab === 'completed' }"
+         data-tab="completed"
+         href="{{ url_for('admin.scheduler_completed_runs', tab='completed') }}"
+         hx-boost="select:#completed-runs-table target:#completed-runs-table swap:outerHTML"
+         hx-sync="#scheduler-dashboard:replace"
+         @click="activeTab = 'completed'">Completed Runs</a>
+      <a class="tab"
+         :class="{ 'tab-active': activeTab === 'failed' }"
+         data-tab="failed"
+         href="{{ url_for('admin.scheduler_failed_jobs', tab='failed') }}"
+         hx-boost="select:#failed-jobs-table target:#failed-jobs-table swap:outerHTML"
+         hx-sync="#scheduler-dashboard:replace"
+         @click="activeTab = 'failed'">Queue Failures</a>
+      <a class="tab"
+         :class="{ 'tab-active': activeTab === 'history' }"
+         data-tab="history"
+         href="{{ url_for('admin.scheduler_history', tab='history') }}"
+         hx-boost="select:#execution-history target:#execution-history swap:outerHTML"
+         hx-sync="#scheduler-dashboard:replace"
+         @click="activeTab = 'history'">Worker Summary</a>
     </div>
 
     <!-- Tab Content -->
     <div id="tab-content">
       <!-- Scheduled Jobs Tab -->
-      <div id="scheduled-tab" class="tab-panel {% if current_tab != 'scheduled' %}hidden{% endif %}">
+      <div id="scheduled-tab"
+           class="tab-panel"
+           x-show="activeTab === 'scheduled'"
+           {% if current_tab != 'scheduled' %}style="display: none;"{% endif %}>
         <div class="card bg-base-200 shadow-lg">
           <div class="card-body">
             <h2 class="card-title">
@@ -53,7 +90,10 @@
       </div>
 
       <!-- Active Jobs Tab -->
-      <div id="active-tab" class="tab-panel {% if current_tab != 'active' %}hidden{% endif %}">
+      <div id="active-tab"
+           class="tab-panel"
+           x-show="activeTab === 'active'"
+           {% if current_tab != 'active' %}style="display: none;"{% endif %}>
         <div class="card bg-base-200 shadow-lg">
           <div class="card-body">
             <h2 class="card-title">
@@ -76,7 +116,10 @@
         </div>
       </div>
 
-      <div id="completed-tab" class="tab-panel {% if current_tab != 'completed' %}hidden{% endif %}">
+      <div id="completed-tab"
+           class="tab-panel"
+           x-show="activeTab === 'completed'"
+           {% if current_tab != 'completed' %}style="display: none;"{% endif %}>
         <div class="card bg-base-200 shadow-lg">
           <div class="card-body">
             <h2 class="card-title">Completed Runs</h2>
@@ -91,7 +134,10 @@
       </div>
 
       <!-- Failed Jobs Tab -->
-      <div id="failed-tab" class="tab-panel {% if current_tab != 'failed' %}hidden{% endif %}">
+      <div id="failed-tab"
+           class="tab-panel"
+           x-show="activeTab === 'failed'"
+           {% if current_tab != 'failed' %}style="display: none;"{% endif %}>
         <div class="card bg-base-200 shadow-lg">
           <div class="card-body">
             <h2 class="card-title">
@@ -116,7 +162,10 @@
       </div>
 
       <!-- Execution History Tab -->
-      <div id="history-tab" class="tab-panel {% if current_tab != 'history' %}hidden{% endif %}">
+      <div id="history-tab"
+           class="tab-panel"
+           x-show="activeTab === 'history'"
+           {% if current_tab != 'history' %}style="display: none;"{% endif %}>
         <div class="card bg-base-200 shadow-lg">
           <div class="card-body">
             <h2 class="card-title">
@@ -165,108 +214,6 @@
   </dialog>
 
   <script>
-    // Tab switching logic
-    const schedulerRefreshTargets = {
-      scheduled: { id: 'scheduled-jobs-table', intervalMs: 10000 },
-      active: { id: 'active-jobs-table', intervalMs: 10000 },
-      failed: { id: 'failed-jobs-table', intervalMs: 10000 },
-      completed: { id: 'completed-runs-table', intervalMs: 10000 },
-      history: { id: 'execution-history', intervalMs: null },
-    };
-    let activeRefreshTimer = null;
-    let autoRefreshEnabled = false;
-
-    const updateTabInUrl = (tabName) => {
-      try {
-        const url = new URL(window.location.href);
-        url.searchParams.set('tab', tabName);
-        ['search', 'page', 'limit', 'order', 'status'].forEach(param => url.searchParams.delete(param));
-        history.replaceState(null, '', `${url.pathname}?${url.searchParams.toString()}${url.hash}`);
-      } catch (err) {
-        console.debug('Failed to update tab query param', err);
-      }
-    };
-
-    const stopTabRefreshLoop = () => {
-      if (activeRefreshTimer !== null) {
-        window.clearInterval(activeRefreshTimer);
-        activeRefreshTimer = null;
-      }
-    };
-
-    const triggerSchedulerRefresh = (tabName, resetQuery = false) => {
-      const config = schedulerRefreshTargets[tabName];
-      if (!config || !window.htmx) {
-        return;
-      }
-
-      const target = document.getElementById(config.id);
-      if (target) {
-        if (resetQuery && target.dataset.baseUrl) {
-          target.setAttribute('hx-get', target.dataset.baseUrl);
-        }
-        window.htmx.trigger(target, 'scheduler:refresh');
-      }
-    };
-
-    const triggerQueueCardsRefresh = () => {
-      const queueCards = document.getElementById('queue-cards');
-      if (queueCards && window.htmx) {
-        window.htmx.trigger(queueCards, 'scheduler:refresh');
-      }
-    };
-
-    const startTabRefreshLoop = (tabName) => {
-      stopTabRefreshLoop();
-
-      const config = schedulerRefreshTargets[tabName];
-      if (!config || !autoRefreshEnabled) {
-        return;
-      }
-
-      activeRefreshTimer = window.setInterval(() => {
-        triggerQueueCardsRefresh();
-        if (config.intervalMs !== null) {
-          triggerSchedulerRefresh(tabName);
-        }
-      }, 10000);
-    };
-
-    const autoRefreshButton = document.getElementById('scheduler-auto-refresh');
-    autoRefreshButton?.addEventListener('click', () => {
-      autoRefreshEnabled = !autoRefreshEnabled;
-      autoRefreshButton.setAttribute('aria-pressed', String(autoRefreshEnabled));
-      autoRefreshButton.title = autoRefreshEnabled ? 'Disable auto-refresh' : 'Enable auto-refresh';
-      autoRefreshButton.classList.toggle('badge-primary', autoRefreshEnabled);
-      autoRefreshButton.classList.toggle('badge-outline', !autoRefreshEnabled);
-
-      const activeTab = document.querySelector('.tab.tab-active')?.dataset.tab || 'scheduled';
-      if (autoRefreshEnabled) {
-        startTabRefreshLoop(activeTab);
-      } else {
-        stopTabRefreshLoop();
-      }
-    });
-
-    document.querySelectorAll('.tab').forEach(tab => {
-      tab.addEventListener('click', () => {
-        const tabName = tab.dataset.tab;
-
-        document.querySelectorAll('.tab').forEach(t => t.classList.remove('tab-active'));
-        tab.classList.add('tab-active');
-
-        document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.add('hidden'));
-        document.getElementById(`${tabName}-tab`).classList.remove('hidden');
-
-        updateTabInUrl(tabName);
-        startTabRefreshLoop(tabName);
-        triggerSchedulerRefresh(tabName, true);
-      });
-    });
-
-    const initialTab = document.querySelector('.tab.tab-active')?.dataset.tab || 'scheduled';
-    startTabRefreshLoop(initialTab);
-
     window.showJobErrorModal = function(job) {
       const dialog = document.getElementById('job-error-modal');
       if (!dialog) {

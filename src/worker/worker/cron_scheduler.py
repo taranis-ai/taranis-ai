@@ -147,6 +147,7 @@ def _enqueue_due_job(
         pipeline.rpush(_enqueue_key(job_id), rq_job_id)
         pipeline.expire(_enqueue_key(job_id), ENQUEUE_KEY_TTL_SECONDS)
         pipeline.execute()
+    CoreApi().notify_task_change((job_options.get("meta") or {}).get("user_id"))
     return rq_job_id
 
 

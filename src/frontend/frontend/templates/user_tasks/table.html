@@ -30,14 +30,19 @@
 ] %}
 <div id="{{ container_id }}"
      class="table-container space-y-4"
-     hx-get="{{ base_url }}{{ request.query_string.decode() and '?' ~ request.query_string.decode() }}"
-     hx-trigger="{% if not live_tasks_available or tasks | selectattr('status', 'in', ['QUEUED', 'RUNNING']) | list %}every 5s{% else %}refresh{% endif %}"
-     hx-sync="this:drop"
-     hx-select="#{{ container_id }}"
-     hx-swap="outerHTML">
-  {{ table_search_bar(container_id, base_url, sync_target='#' ~ container_id) }}
+     data-refresh-url="{{ base_url }}{{ request.query_string.decode() and '?' ~ request.query_string.decode() }}"
+     hx-sync:inherited="#my-tasks-page:replace">
+  <div {% if live_tasks_available %}data-realtime-fallback{% endif %} class="flex flex-wrap items-center gap-3">
+    {% if live_tasks_available %}
+      <p class="text-sm text-base-content/70">Live updates are unavailable. Refresh to load the latest status.</p>
+    {% else %}
+      <p class="text-sm text-warning" role="status">Live task status is unavailable. Refresh to try again.</p>
+    {% endif %}
+    <button id="user-tasks-refresh" type="button" class="btn btn-sm" @click="$dispatch('tasks:refresh')">Refresh</button>
+  </div>
+  {{ table_search_bar(container_id, base_url, preserve_params=['limit', 'order'], sync_target='#my-tasks-page') }}
   <div class="overflow-x-auto">
-    <table class="table shadow table-zebra table-sm" id="user-tasks" data-testid="user-tasks" hx-sync:inherited="#{{ container_id }}:replace">
+    <table class="table shadow table-zebra table-sm" id="user-tasks" data-testid="user-tasks">
       <thead>
         <tr>{% for column in columns %}{{ table_header(column, container_id, base_url) }}{% endfor %}</tr>
       </thead>

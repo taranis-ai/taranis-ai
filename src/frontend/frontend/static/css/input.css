@@ -217,3 +217,7 @@
 [x-cloak] {
   display: none !important;
 }
+
+html[data-realtime-connected="true"] [data-realtime-fallback] {
+  display: none;
+}

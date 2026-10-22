@@ -15,11 +15,12 @@ import sys
 
 import redis
 from redis.maint_notifications import MaintNotificationsConfig
-from rq import Queue, SpawnWorker, Worker
+from rq import Queue, Worker
 
 from worker.config import WORKER_TYPE_PRIORITIES, Config
 from worker.log import logger
 from worker.rq_failure_bridge import rq_failure_exception_handler, rq_work_horse_killed_handler
+from worker.task_events import TaskEventForkWorker, TaskEventSpawnWorker
 
 
 def get_redis_connection(redis_url: str, redis_password: str | None, *, decode_responses: bool = False):
@@ -52,15 +53,15 @@ def resolve_worker_class() -> type[Worker]:
     worker_class = Config.RQ_WORKER_CLASS
 
     if worker_class == "spawn":
-        return SpawnWorker
+        return TaskEventSpawnWorker
 
     if worker_class == "fork":
-        return Worker
+        return TaskEventForkWorker
 
     if sys.platform == "darwin":
-        return SpawnWorker
+        return TaskEventSpawnWorker
 
-    return Worker
+    return TaskEventForkWorker
 
 
 def start_worker():

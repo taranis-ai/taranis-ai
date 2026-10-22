@@ -14,9 +14,11 @@ from worker.http_client import http_session_scope
 from worker.log import logger
 from worker.publishers.base_publisher import BasePublisher
 from worker.publishers.network import PublisherNetworkTimeout
+from worker.task_events import task_started
 from worker.telemetry import instrument_job
 
 
+@task_started
 @instrument_job
 @http_session_scope()
 def publisher_task(product_id: str, publisher_id: str):

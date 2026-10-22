@@ -153,8 +153,17 @@ def test_decode_rejects_awaitable_values():
         coroutine.close()
 
 
-def test_enqueue_due_job_updates_next_run_and_notifies_wait_key():
+def test_enqueue_due_job_updates_next_run_and_notifies_wait_key(requests_mock):
     redis_conn = fakeredis.FakeRedis(decode_responses=False)
+    notices = []
+
+    def observe_change(request, _context):
+        assert Queue("collectors", connection=redis_conn).job_ids == ["cron_osint_source_source-1_1000"]
+        assert redis_conn.zscore(NEXT_KEY, "osint_source_source-1") > 1000
+        notices.append(request.json())
+        return {"message": "Task views invalidated"}
+
+    requests_mock.post(f"{Config.TARANIS_CORE_URL}/worker/tasks/changed", json=observe_change)
 
     rq_job_id = _enqueue_due_job(
         redis_conn,
@@ -183,6 +192,7 @@ def test_enqueue_due_job_updates_next_run_and_notifies_wait_key():
     wait_key_result = redis_conn.blpop(_enqueue_key("osint_source_source-1"), timeout=1)
     assert wait_key_result is not None
     assert wait_key_result[1] == b"cron_osint_source_source-1_1000"  # type: ignore[comparison-with-callable]
+    assert notices == [{"user_ids": []}]
 
 
 def test_enqueue_due_job_skips_missing_func_path_without_crashing(monkeypatch: pytest.MonkeyPatch, fake_queue: Any):

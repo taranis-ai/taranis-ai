@@ -70,6 +70,12 @@ class RealtimePublisher:
     def assess_changed(self) -> bool:
         return self.publish("global:events", "assess.changed", "invalidated")
 
+    def scheduler_changed(self) -> bool:
+        return self.publish("global:events", "scheduler.changed", "invalidated")
+
+    def task_changed(self, user_id: str) -> bool:
+        return self.publish(f"user:#{user_id}", "task.changed", "invalidated")
+
     def broadcast_notification(self, message: str) -> bool:
         return self.publish(
             "global:events",

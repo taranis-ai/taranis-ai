@@ -1,5 +1,6 @@
 import uuid
 from datetime import UTC, datetime, timedelta
+from unittest.mock import Mock, call
 
 import pytest
 from redis.exceptions import RedisError
@@ -13,12 +14,15 @@ def test_story_task_lifecycle_is_visible_only_to_its_owner(
 ):
     from rq.job import Job
 
+    from core.managers.realtime_publisher import realtime_publisher
     from core.model.user import User
     from tests.application.support.builders import build_news_item_payload, create_story
 
     story = create_story(news_items=[build_news_item_payload()])
     story_id = story.id
     user_id = User.find_by_name("user").id
+    publication = Mock(return_value=True)
+    monkeypatch.setattr(realtime_publisher, "publish", publication)
     manager = app.extensions["rq"]
     queue = manager.get_queue("bots")
     history_id = f"previous-{story_id}"
@@ -28,6 +32,12 @@ def test_story_task_lifecycle_is_visible_only_to_its_owner(
         "/api/assess/stories/botactions", json={"story_id": story_id, "bot_id": action}, headers=auth_header_user_permissions
     )
     assert response.status_code == 200
+    publication.assert_has_calls(
+        [
+            call("global:events", "scheduler.changed", "invalidated"),
+            call(f"user:#{user_id}", "task.changed", "invalidated"),
+        ]
+    )
     job = queue.get_jobs()[0]
     # Private queue configuration must never enter either public task projection.
     job.meta["checkpoint"] = {"secret": "private-provider-configuration"}
@@ -88,7 +98,15 @@ def test_story_task_lifecycle_is_visible_only_to_its_owner(
 
     payload = _task_payload(job.id, user_id=user_id, status=outcome)
     payload.update(name=job.meta["name"], task=job.meta["task"], worker_id=job.meta["worker_id"], worker_type=job.meta["worker_type"])
+    publication.reset_mock()
     assert client.post("/api/tasks", json=payload, headers=api_header).status_code == 200
+    publication.assert_has_calls(
+        [
+            call("global:events", "scheduler.changed", "invalidated"),
+            call(f"user:#{user_id}", "task.changed", "invalidated"),
+        ]
+    )
+    assert "private-provider-configuration" not in str(publication.call_args_list)
     completed = client.get("/api/tasks/user", query_string={"search": story_id}, headers=auth_header_user_permissions).json["items"]
     assert [item["status"] for item in completed if item["job_id"] == job.id] == [outcome]
     assert next(item for item in completed if item["job_id"] == job.id)["name"] == live["name"]

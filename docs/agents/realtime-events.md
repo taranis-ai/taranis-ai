@@ -8,17 +8,27 @@ Load for: Centrifugo/SSE, `/sse`, connect proxy, `REALTIME_ENABLED`, reconnects,
 - Public same-origin `${TARANIS_BASE_PATH}sse` proxies only to `/connection/uni_sse`, forwarding cookie/origin with buffering/cache disabled. Client transport stays deployment-internal; API/health/metrics use a separate internal port. Never proxy admin/debug/Swagger/WebSocket or management endpoints publicly.
 - Exact space-separated origin allowlists are enforced by Centrifugo before the core connect proxy. `POST ${TARANIS_BASE_PATH}api/realtime/connect` requires its dedicated secret plus a valid access cookie (type, expiry, revocation, current user) and returns global/organization/user channels. Authentication failure is terminal.
 - EventSource cannot add custom headers. Keep proxy authentication separate from browser CSRF and use distinct API, JWT, Centrifugo API, and proxy secrets. Never put credentials in SSE URLs.
-- Development-only exception: client/authenticated admin UI uses host port `8001` (leaving `8000` for inference) and binds `0.0.0.0`, API/health stays loopback; proxy reaches host Core via `host.containers.internal`/`TARANIS_CORE_PORT`. Preserve `admin.external` behavior in `dev/compose.yml`.
+- Development-only exception: client/authenticated admin UI uses host port `8001` (leaving `8000` for inference) and binds `0.0.0.0`, API/health stays loopback; proxy reaches host Core via `host.containers.internal`/`TARANIS_CORE_PORT`. Docker requires the explicit `host.containers.internal:host-gateway` mapping in `dev/compose.yml`. Preserve `admin.external` behavior.
 
 ## Delivery and Recovery
 
 Core publishes small UUIDv7/versioned envelopes after domain commits through fixed global/organization/user methods and internal `/api/broadcast`. Domain invalidations use IDs/status, not domain payloads; Analyst Chat is the sole content-bearing user event. The pooled HTTP client uses 200 ms connect/300 ms read timeouts and no retries. Network, HTTP, malformed, and top-level/per-channel Centrifugo errors (even HTTP 200) return false without changing domain success.
 
-One frontend module owns one EventSource per authenticated tab, validates version/type, and emits `realtime:<event-type>`. Terminal disconnects stop; temporary failures retry eight times with jittered exponential backoff capped at 60 seconds and show one degraded notice after 15 seconds. Successful connection resets the budget; logout/teardown closes it.
+One frontend module owns one EventSource per authenticated tab, validates version/type, and emits `realtime:<event-type>`. Terminal disconnects stop; temporary failures retry eight times with jittered exponential backoff capped at 60 seconds and show one degraded notice after 15 seconds. Successful connection resets the budget; logout/teardown closes it. The shared transport sets `html[data-realtime-connected]` only after Centrifugo acknowledges the connection and clears it on disconnect/error/close. CSS hides `[data-realtime-fallback]` controls while connected; the document-root flag survives HTMX body restoration without page-specific listeners or requests.
 
 Reconnect recovery coalesces authoritative-state refresh into `realtime:resync` after 300 ms. Control/heartbeat frames do not imply data changes. No broker history or Last-Event-ID replay is assumed. Assess/Analyze/Publish show a refresh notice; Assess refetches the filtered `#assess` fragment or navigates normally and retains its top bar/counter on empty results.
 
 Terminal user source previews publish source ID/status only. Matching waiting fragments refetch HTML; retain reconnect and the 20-second fallback because delivery is best-effort. This is an explicit exception to the [general event-driven UI rule](frontend-development.md).
+
+## Task Views
+
+Scheduler state changes publish payload-free `scheduler.changed` on `global:events`; owned task changes additionally publish payload-free `task.changed` on the owner's `user:#<user_id>` channel. Scheduler fragments still enforce their existing permissions. Never include task identity, names, results, checkpoints, or exception text in these hints.
+
+Core invalidates scheduler/task caches before publication after enqueues, cancellation, cron changes, committed results (including pipeline stages), and history removal. Purges match RQ identities against `Task.job_id` and retain affected owners before deleting records. Source toggles and bot deletion commit before changing cron registrations so notifications observe committed configuration.
+
+Worker task entry decorators notify after RQ records `STARTED` on both fork and spawn platforms. Parent workers notify after execution settles (including retries and killed workhorses), and on worker birth/death. Cron enqueues and RQ delayed-job promotion notify after Redis commits through API-key-only `/api/worker/tasks/changed`. RQ lacks a scheduler-class option: `worker/task_events.py` retains its start/lock and enqueue semantics while publishing from the same promoted-job snapshot. Preserve this boundary when upgrading RQ. Worker notices have bounded timeouts, no retries, and preserve RQ deadline exceptions.
+
+The views coalesce these events and `realtime:resync` into authoritative HTMX fragment reads, preserving active queries, without timed polling or full-page reloads. Initial connection also resynchronizes. Realtime delivery remains best-effort; disabled/failed connections use explicit refresh and reconnect recovery.
 
 ## Story Editor AI Results
 

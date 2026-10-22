@@ -158,6 +158,23 @@ class CoreApi:
         response = http_request("DELETE", url=url, headers=self.get_request_headers(), verify=self.verify, timeout=self.timeout)
         return self.check_response(response, url)
 
+    def notify_task_change(self, *user_ids: str | None) -> bool:
+        """Send a bounded, best-effort invalidation without changing task outcomes."""
+        try:
+            response = http_request(
+                "POST",
+                url=f"{self.api_url}/worker/tasks/changed",
+                headers=self.get_request_headers(),
+                verify=self.verify,
+                json={"user_ids": list(dict.fromkeys(user_id for user_id in user_ids if user_id))},
+                timeout=1,
+            )
+            response.raise_for_status()
+            return True
+        except (requests.exceptions.RequestException, TypeError, ValueError) as exc:
+            logger.warning(f"Could not notify Core that task views changed: {type(exc).__name__}")
+            return False
+
     def submit_task_result(self, submission: TaskSubmission) -> dict | None:
         try:
             payload = submission.model_dump(mode="json", by_alias=True)

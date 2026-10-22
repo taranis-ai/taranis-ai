@@ -6,6 +6,7 @@ from models.task import Task as TaskResponseModel
 
 from core.config import Config
 from core.log import logger
+from core.managers.db_manager import db
 from core.managers.realtime_publisher import realtime_publisher
 from core.model.osint_source import CollectorHTTPState
 from core.model.product import Product
@@ -16,6 +17,7 @@ from core.service import cache_invalidation as cache_invalidation_module
 from core.service.misp_auto_update import refresh_misp_auto_update_jobs
 from core.service.misp_story_sync import handle_misp_connector_result
 from core.service.news_item_tag import NewsItemTagService
+from core.service.task_events import notify_task_change
 
 
 TAGGING_BOTS = {"WORDLIST_BOT", "IOC_BOT", "NLP_BOT", "TAGGING_BOT"}
@@ -92,8 +94,10 @@ class TaskService:
         task = TaskModel.get(task_id)
         task_kind = TaskService._resolve_task_kind(task.job_id, task.task) if task else None
         worker_id = task.worker_id if task else None
+        user_id = task.user_id if task else None
         result, status = TaskModel.delete(task_id)
         if status == 200:
+            notify_task_change(user_id)
             cache_invalidation_module.cache_invalidation_service.invalidate_model("admin_menu_badges")
             if task_kind == "collector_task":
                 cache_invalidation_module.cache_invalidation_service.invalidate_model("osint_source", worker_id)
@@ -105,7 +109,14 @@ class TaskService:
     def cleanup_history() -> tuple[dict[str, Any], int]:
         retention_days = Config.TASK_HISTORY_RETENTION_DAYS
         cutoff = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=retention_days)
+        user_ids = list(
+            db.session.execute(
+                db.select(TaskModel.user_id).where((TaskModel.last_run < cutoff) | TaskModel.last_run.is_(None)).distinct()
+            ).scalars()
+        )
         deleted = TaskModel.delete_older_than_last_run(cutoff)
+        if deleted:
+            notify_task_change(*user_ids)
         return {
             "message": "Task history cleanup completed",
             "deleted": deleted,
@@ -122,6 +133,7 @@ class TaskService:
 
             result, status, applied = BotPipelineService.submit(submission)
             if applied:
+                notify_task_change(submission.user_id)
                 try:
                     cls._handle_success_result(submission)
                     if submission.user_id:
@@ -162,6 +174,8 @@ class TaskService:
             payload["worker_type"] = submission.worker_type
 
         result, _ = TaskModel.add_or_update(payload)
+        owner_id = result.get("user_id")
+        notify_task_change(owner_id if isinstance(owner_id, str) else None)
         if task_kind == "collector_task" and submission.worker_id:
             CollectorHTTPState.update_from_task_result(submission.worker_id, result_payload.get("data"))
         if (

@@ -111,6 +111,7 @@ def test_realtime_disabled_creates_no_event_source(page: Page):
     _load_realtime(page, enabled=False)
 
     assert page.evaluate("() => EventSource.instances.length") == 0
+    expect(page.locator("html")).to_have_attribute("data-realtime-connected", "false")
 
 
 def test_realtime_owns_one_event_source_and_dispatches_valid_domain_event(page: Page):
@@ -153,6 +154,18 @@ def test_realtime_owns_one_event_source_and_dispatches_valid_domain_event(page: 
         }
     """)
     assert page.evaluate("() => window.receivedRealtimeEvents[1].data.stories['story-1']") == ["SUMMARY_BOT"]
+    page.evaluate("""
+        () => {
+          for (const type of ['task.changed', 'scheduler.changed']) {
+            document.addEventListener(`realtime:${type}`, event => window.receivedRealtimeEvents.push(event.detail));
+            EventSource.instances[0].emit('message', JSON.stringify({pub: {data: {
+              v: 1, type, change: 'updated', data: {}
+            }}}));
+          }
+        }
+    """)
+    assert page.evaluate("() => window.receivedRealtimeEvents.slice(2).map(event => event.type)") == ["task.changed", "scheduler.changed"]
+    assert page.evaluate("() => EventSource.instances.length") == 1
 
 
 def test_chat_stream_shows_optimistic_message_and_applies_newest_matching_snapshot(page: Page):
@@ -290,20 +303,27 @@ def test_reconnect_emits_one_debounced_resynchronization(page: Page):
     page.evaluate("""
         () => {
           window.resyncReasons = [];
+          window.initialConnections = 0;
+          document.addEventListener("realtime:connected", () => window.initialConnections++);
           document.addEventListener(
             "realtime:resync",
             event => window.resyncReasons.push(event.detail.reason),
           );
           const source = EventSource.instances[0];
           source.emit("open");
+          source.emit("message", JSON.stringify({ connect: { client: "client-1" } }));
           source.emit("error");
         }
     """)
     page.wait_for_function("() => EventSource.instances.length === 2")
     page.evaluate("() => EventSource.instances[1].emit('open')")
+    expect(page.locator("html")).to_have_attribute("data-realtime-connected", "false")
+    page.evaluate("() => EventSource.instances[1].emit('message', JSON.stringify({ connect: { client: 'client-2' } }))")
     page.wait_for_timeout(350)
 
+    expect(page.locator("html")).to_have_attribute("data-realtime-connected", "true")
     assert page.evaluate("() => window.resyncReasons") == ["reconnected"]
+    assert page.evaluate("() => window.initialConnections") == 1
     assert "hidden" not in page.locator("#realtime-data-notification").get_attribute("class").split()
 
 
@@ -318,6 +338,7 @@ def test_internal_disconnect_does_not_resync_after_recovery(page: Page):
           );
           const source = EventSource.instances[0];
           source.emit("open");
+          source.emit("message", JSON.stringify({ connect: { client: "client-1" } }));
           source.emit("message", JSON.stringify({
             disconnect: { code: 3004, reason: "internal server error" },
           }));
@@ -329,11 +350,14 @@ def test_internal_disconnect_does_not_resync_after_recovery(page: Page):
     page.wait_for_timeout(350)
 
     assert page.evaluate("() => window.resyncReasons") == []
+    expect(page.locator("html")).to_have_attribute("data-realtime-connected", "false")
     assert "hidden" in page.locator("#realtime-data-notification").get_attribute("class").split()
 
 
 def test_protocol_control_and_heartbeat_frames_do_not_resync(page: Page):
     _load_realtime(page, page_target="assess")
+    page.evaluate("() => EventSource.instances[0].emit('open')")
+    expect(page.locator("html")).to_have_attribute("data-realtime-connected", "false")
     page.evaluate("""
         () => {
           window.resyncReasons = [];
@@ -349,6 +373,7 @@ def test_protocol_control_and_heartbeat_frames_do_not_resync(page: Page):
     page.wait_for_timeout(350)
 
     assert page.evaluate("() => window.resyncReasons") == []
+    expect(page.locator("html")).to_have_attribute("data-realtime-connected", "true")
     assert "hidden" in page.locator("#realtime-data-notification").get_attribute("class").split()
 
 
@@ -357,6 +382,7 @@ def test_terminal_disconnect_closes_without_reconnecting(page: Page):
     page.evaluate("""
         () => {
           const source = EventSource.instances[0];
+          source.emit("message", JSON.stringify({ connect: { client: "client-1" } }));
           source.emit("message", JSON.stringify({ disconnect: { code: 4501, reason: "unauthorized" } }));
           source.emit("error");
         }
@@ -365,6 +391,7 @@ def test_terminal_disconnect_closes_without_reconnecting(page: Page):
 
     assert page.evaluate("() => EventSource.instances[0].closed") is True
     assert page.evaluate("() => EventSource.instances.length") == 1
+    expect(page.locator("html")).to_have_attribute("data-realtime-connected", "false")
 
 
 def test_htmx_refresh_in_assess(page: Page):
@@ -536,10 +563,12 @@ def test_page_restore_reopens_the_connection(page: Page):
 
 def test_logout_closes_event_source(page: Page):
     _load_realtime(page)
+    page.evaluate("() => EventSource.instances[0].emit('message', JSON.stringify({ connect: { client: 'client-1' } }))")
 
     page.locator("[data-realtime-close-on-logout]").click(no_wait_after=True)
 
     assert page.evaluate("() => EventSource.instances[0].closed") is True
+    expect(page.locator("html")).to_have_attribute("data-realtime-connected", "false")
 
 
 def test_story_bot_refresh_fetches_once_and_preserves_drafts(app, page: Page):

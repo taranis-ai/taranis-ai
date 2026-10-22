@@ -19,6 +19,7 @@ from worker.http_client import http_session_scope
 from worker.llm import LLMConfigurationError, LLMTaskError
 from worker.llm_batch import BatchExecutionError
 from worker.log import logger
+from worker.task_events import task_started
 from worker.telemetry import instrument_job
 
 
@@ -47,6 +48,7 @@ def _retry_timeout(job: Job) -> Retry | None:
     return Retry(max=(job.number_of_retries or 0) + 1, interval=0)
 
 
+@task_started
 @instrument_job
 @http_session_scope()
 def bot_task(bot_id: str, filter: dict | None = None, trigger_dependents: bool = True):
@@ -289,6 +291,7 @@ def _apply_context(stories: dict[str, dict], aliases: dict[str, str], bot_type: 
             }
 
 
+@task_started
 @instrument_job
 @http_session_scope()
 def bot_pipeline_task(bot_ids: list[str], filter: dict | None = None):

@@ -11,6 +11,7 @@ from frontend.auth import auth_required
 from frontend.cache_models import CacheObject
 from frontend.config import Config
 from frontend.data_persistence import DataPersistenceLayer
+from frontend.log import logger
 from frontend.utils.router_helpers import is_htmx_request, parse_paging_data
 from frontend.views.admin_views.admin_base_view import AdminBaseView
 from frontend.views.base_view import BaseView
@@ -68,7 +69,7 @@ def _completed_runs_page() -> CacheObject:
             "query_params": {**{key: str(value) for key, value in filters.model_dump(exclude_none=True).items()}, "tab": "completed"},
         }
     )
-    return DataPersistenceLayer().get_objects(TaskRun, paging)
+    return DataPersistenceLayer().get_objects(TaskRun, paging, use_cache=False)
 
 
 class SchedulerView(AdminBaseView):
@@ -92,27 +93,27 @@ class SchedulerView(AdminBaseView):
                 return "scheduled"
 
     def get(self, initial_tab: str | None = None, **kwargs: Any) -> ResponseReturnValue:
-        """Render the main scheduler dashboard"""
+        """Read current scheduler state without waiting for list-cache expiry."""
         try:
             selected_tab = self._resolve_tab(initial_tab)
             persistence = DataPersistenceLayer()
-            queues = persistence.get_objects(QueueStatus)
-            worker_stats = persistence.get_object(WorkerStats)
+            queues = persistence.get_objects(QueueStatus, use_cache=False)
+            worker_stats = persistence.get_object(WorkerStats, use_cache=False)
             jobs = active_jobs = failed_jobs = task_stats = completed_runs = None
             total_successes = total_warnings = total_failures = overall_success_rate = 0
 
             paging_data = parse_paging_data()
             match selected_tab:
                 case "scheduled":
-                    jobs = persistence.get_objects(Job, paging_data)
+                    jobs = persistence.get_objects(Job, paging_data, use_cache=False)
                 case "active":
-                    active_jobs = persistence.get_objects(ActiveJob, paging_data)
+                    active_jobs = persistence.get_objects(ActiveJob, paging_data, use_cache=False)
                 case "completed":
                     completed_runs = _completed_runs_page()
                 case "failed":
-                    failed_jobs = persistence.get_objects(FailedJob, paging_data)
+                    failed_jobs = persistence.get_objects(FailedJob, paging_data, use_cache=False)
                 case "history":
-                    history = persistence.get_object(TaskHistoryResponse)
+                    history = persistence.get_object(TaskHistoryResponse, use_cache=False)
                     if history is None:
                         raise ValueError("Failed to load scheduler execution history")
                     task_stats = _task_stats_page(history)
@@ -143,11 +144,9 @@ class SchedulerView(AdminBaseView):
 
         except HTTPException:
             raise
-        except Exception as e:
-            from frontend.log import logger
-
-            logger.exception(f"Failed to load scheduler dashboard: {e}")
-            return render_template("errors/500.html", error=str(e)), 500
+        except Exception:
+            logger.exception("Failed to load scheduler dashboard")
+            return render_template("errors/500.html", error="Failed to load scheduler dashboard."), 500
 
 
 class ScheduleJobsAPI(MethodView):
@@ -158,12 +157,13 @@ class ScheduleJobsAPI(MethodView):
         if not is_htmx_request():
             return SchedulerView().get(initial_tab="scheduled")
         try:
-            jobs = DataPersistenceLayer().get_objects(Job, parse_paging_data())
+            jobs = DataPersistenceLayer().get_objects(Job, parse_paging_data(), use_cache=False)
             return render_template("schedule/jobs_table.html", jobs=jobs)
         except HTTPException:
             raise
-        except Exception as exc:  # pragma: no cover - defensive rendering path
-            return BaseView.render_response_notification({"error": f"Failed to load jobs: {exc}"}), 500
+        except Exception:  # pragma: no cover - defensive rendering path
+            logger.exception("Failed to load jobs")
+            return BaseView.render_response_notification({"error": "Failed to load jobs."}), 500
 
 
 class ScheduleQueuesAPI(MethodView):
@@ -175,13 +175,14 @@ class ScheduleQueuesAPI(MethodView):
             return SchedulerView().get(initial_tab="scheduled")
         try:
             persistence = DataPersistenceLayer()
-            queues = persistence.get_objects(QueueStatus)
-            worker_stats = persistence.get_object(WorkerStats)
+            queues = persistence.get_objects(QueueStatus, use_cache=False)
+            worker_stats = persistence.get_object(WorkerStats, use_cache=False)
             return render_template("schedule/queue_cards.html", queues=queues, worker_stats=worker_stats)
         except HTTPException:
             raise
-        except Exception as exc:  # pragma: no cover - defensive rendering path
-            return BaseView.render_response_notification({"error": f"Failed to load queues: {exc}"}), 500
+        except Exception:  # pragma: no cover - defensive rendering path
+            logger.exception("Failed to load queues")
+            return BaseView.render_response_notification({"error": "Failed to load queues."}), 500
 
 
 class ScheduleActiveJobsAPI(MethodView):
@@ -192,12 +193,13 @@ class ScheduleActiveJobsAPI(MethodView):
         if not is_htmx_request():
             return SchedulerView().get(initial_tab="active")
         try:
-            active_jobs = DataPersistenceLayer().get_objects(ActiveJob, parse_paging_data())
+            active_jobs = DataPersistenceLayer().get_objects(ActiveJob, parse_paging_data(), use_cache=False)
             return render_template("schedule/active_jobs.html", active_jobs=active_jobs)
         except HTTPException:
             raise
-        except Exception as exc:  # pragma: no cover - defensive rendering path
-            return BaseView.render_response_notification({"error": f"Failed to load active jobs: {exc}"}), 500
+        except Exception:  # pragma: no cover - defensive rendering path
+            logger.exception("Failed to load active jobs")
+            return BaseView.render_response_notification({"error": "Failed to load active jobs."}), 500
 
 
 class ScheduleFailedJobsAPI(MethodView):
@@ -208,12 +210,13 @@ class ScheduleFailedJobsAPI(MethodView):
         if not is_htmx_request():
             return SchedulerView().get(initial_tab="failed")
         try:
-            failed_jobs = DataPersistenceLayer().get_objects(FailedJob, parse_paging_data())
+            failed_jobs = DataPersistenceLayer().get_objects(FailedJob, parse_paging_data(), use_cache=False)
             return render_template("schedule/failed_jobs.html", failed_jobs=failed_jobs)
         except HTTPException:
             raise
-        except Exception as exc:  # pragma: no cover - defensive rendering path
-            return BaseView.render_response_notification({"error": f"Failed to load failed jobs: {exc}"}), 500
+        except Exception:  # pragma: no cover - defensive rendering path
+            logger.exception("Failed to load failed jobs")
+            return BaseView.render_response_notification({"error": "Failed to load failed jobs."}), 500
 
 
 class ScheduleCompletedRunsAPI(MethodView):
@@ -232,7 +235,7 @@ class ScheduleHistoryAPI(MethodView):
         if not is_htmx_request():
             return SchedulerView().get(initial_tab="history")
         try:
-            task_history = DataPersistenceLayer().get_object(TaskHistoryResponse)
+            task_history = DataPersistenceLayer().get_object(TaskHistoryResponse, use_cache=False)
             if task_history is None:
                 raise ValueError("Failed to load task history")
 
@@ -246,8 +249,9 @@ class ScheduleHistoryAPI(MethodView):
             )
         except HTTPException:
             raise
-        except Exception as exc:  # pragma: no cover - defensive rendering path
-            return BaseView.render_response_notification({"error": f"Failed to load history: {exc}"}), 500
+        except Exception:  # pragma: no cover - defensive rendering path
+            logger.exception("Failed to load history")
+            return BaseView.render_response_notification({"error": "Failed to load history."}), 500
 
 
 class ScheduleJobDetailsAPI(MethodView):

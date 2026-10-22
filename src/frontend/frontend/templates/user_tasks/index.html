@@ -1,9 +1,13 @@
 {% extends "base.html" %}
+{% from "macros/live_table.html" import live_table_refresh %}
 {% block content %}
-  <div class="p-8 space-y-6" data-testid="my-tasks-page">
+  <div class="p-8 space-y-6"
+       id="my-tasks-page"
+       data-testid="my-tasks-page"
+       {{ live_table_refresh('realtime:task.changed', 'tasks:refresh', url_for('user.tasks')) }}>
     <div>
       <h1 class="text-2xl font-semibold text-base-content">{{ _("My Tasks") }}</h1>
-      <p class="text-sm text-base-content/70">Queued, running, and completed tasks you triggered. Active tasks refresh every 5 seconds.</p>
+      <p class="text-sm text-base-content/70">Queued, running, and completed tasks you triggered.</p>
     </div>
     {% include "user_tasks/table.html" %}
   </div>

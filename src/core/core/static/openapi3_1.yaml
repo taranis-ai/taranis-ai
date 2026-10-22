@@ -9747,6 +9747,44 @@ paths:
           description: forbidden
         '404':
           $ref: '#/components/responses/404NotFound'
+  /worker/tasks/changed:
+    post:
+      security:
+      - APIKey: []
+      description: invalidate scheduler and owner task views after RQ state changes
+      operationId: worker.task_changes_worker.post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                user_ids:
+                  type: array
+                  maxItems: 100
+                  items:
+                    type: string
+                    minLength: 1
+                    maxLength: 36
+      responses:
+        '200':
+          description: task views invalidated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '400':
+          description: invalid task change notice
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
   /worker/tasks/history/cleanup:
     post:
       security:

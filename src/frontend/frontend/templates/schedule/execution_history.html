@@ -1,10 +1,6 @@
 {% from "schedule/table.html" import refreshable_table %}
 <div id="execution-history"
-     data-base-url="{{ url_for('admin.scheduler_history') }}"
-     hx-get="{{ url_for('admin.scheduler_history') }}"
-     hx-trigger="scheduler:refresh"
-     hx-select="#execution-history"
-     hx-swap="outerHTML">
+     data-refresh-url="{{ url_for('admin.scheduler_history') }}{{ request.query_string.decode() and '?' ~ request.query_string.decode() }}">
   {% set columns = [
     {
       "title": "Task",
@@ -38,7 +34,8 @@
     task_stats,
     columns,
     url_for('admin.scheduler_history'),
-    'No execution history available'
+    'No execution history available',
+    swap_target_id='execution-history'
   ) %}
     <tr class="hover:bg-info">
       <td>

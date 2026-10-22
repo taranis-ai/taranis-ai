@@ -1,6 +1,7 @@
 import json
 import uuid
 from datetime import UTC, datetime
+from urllib.parse import parse_qs, urlparse
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -169,6 +170,7 @@ class TestEndToEndAdmin(BaseE2ETest):
     @pytest.mark.e2e_full_stack
     def test_admin_dashboard(self, logged_in_page: Page, forward_console_and_page_errors, core_request_client, api_header):
         page = logged_in_page
+        page.clock.install()
 
         page.goto(url_for("admin.dashboard", _external=True))
         expect(page.locator("#dashboard")).to_be_visible()
@@ -207,18 +209,18 @@ class TestEndToEndAdmin(BaseE2ETest):
             )
         )
         with_htmx_wait(page, lambda: page.locator('.tab[data-tab="active"]').click())
-        expect(page).to_have_url(url_for("admin.scheduler", tab="active", _external=True))
+        expect(page).to_have_url(url_for("admin.scheduler_active_jobs", tab="active", _external=True))
         expect(page.locator("#active-jobs-table-search")).to_have_value("")
         expect(page.locator("#active-jobs-table")).to_contain_text("No jobs currently running")
 
         run_prefix = f"scheduler-run-{uuid.uuid4().hex}"
-        for outcome in ("SUCCESS", "FAILURE"):
+        for index, outcome in enumerate(("SUCCESS", "SUCCESS", "FAILURE")):
             core_request_client.post(
                 "/tasks",
                 headers=api_header,
                 authenticated=False,
                 json_data={
-                    "id": f"{run_prefix}-{outcome}",
+                    "id": f"{run_prefix}-{index}",
                     "task": "scheduler_test",
                     "worker_type": "Scheduler Test",
                     "status": outcome,
@@ -230,15 +232,59 @@ class TestEndToEndAdmin(BaseE2ETest):
         search = page.locator("#completed-runs-table-search")
         with page.expect_response(lambda response: "/scheduler/completed?" in response.url and f"search={run_prefix}" in response.url):
             search.fill(run_prefix)
-        expect(page.get_by_test_id("completed-run-row")).to_have_count(2)
+        expect(page.get_by_test_id("completed-run-row")).to_have_count(3)
         page.get_by_test_id("completed-run-status").select_option("SUCCESS")
         with_htmx_wait(page, lambda: page.locator("#completed-runs-table").get_by_role("button", name="Apply", exact=True).first.click())
-        expect(page.get_by_test_id("completed-run-row")).to_have_count(1)
-        expect(page.get_by_test_id("completed-run-row")).to_contain_text("Success")
+        expect(page.get_by_test_id("completed-run-row")).to_have_count(2)
+        expect(page.get_by_test_id("completed-run-row")).to_contain_text(["Success", "Success"])
         expect(page.locator("#completed-runs-table-search")).to_have_value(run_prefix)
         page.reload()
         expect(page.get_by_test_id("completed-run-status")).to_have_value("SUCCESS")
-        expect(page.get_by_test_id("completed-run-row")).to_have_count(1)
+        expect(page.get_by_test_id("completed-run-row")).to_have_count(2)
+
+        completed_url = url_for(
+            "admin.scheduler_completed_runs", search=run_prefix, status="SUCCESS", page=2, limit=1, order="last_run_asc", _external=True
+        )
+        page.goto(completed_url)
+        expect(page.locator("#completed-runs-table")).to_contain_text("Page 2 of 2")
+        page.evaluate("window.schedulerDocument = document")
+        scheduler_requests = []
+        page.on("request", lambda request: scheduler_requests.append(request) if "/scheduler" in request.url else None)
+        page.clock.fast_forward(11000)
+        page.wait_for_timeout(100)
+        assert scheduler_requests == []
+
+        extra_run_id = f"{run_prefix}-extra"
+        core_request_client.post(
+            "/tasks",
+            headers=api_header,
+            authenticated=False,
+            json_data={
+                "id": extra_run_id,
+                "task": "scheduler_test",
+                "worker_type": "Scheduler Test",
+                "status": "SUCCESS",
+                "result": {"message": "Another scheduled run completed"},
+            },
+        )
+        # The isolated E2E stack omits Centrifugo; exercise the same browser event it dispatches.
+        page.evaluate("document.dispatchEvent(new CustomEvent('realtime:scheduler.changed'))")
+        expect(page.locator("#completed-runs-table")).to_contain_text("Page 2 of 3")
+        core_request_client.delete(f"/tasks/{extra_run_id}")
+        page.evaluate("document.dispatchEvent(new CustomEvent('realtime:resync'))")
+        expect(page.locator("#completed-runs-table")).to_contain_text("Page 2 of 2")
+        expect(page.locator("#completed-runs-table-search")).to_have_value(run_prefix)
+        expect(page.get_by_test_id("completed-run-status")).to_have_value("SUCCESS")
+        expect(page).to_have_url(completed_url)
+        assert page.evaluate("window.schedulerDocument === document")
+        completed_requests = [request for request in scheduler_requests if urlparse(request.url).path == urlparse(completed_url).path]
+        assert len(completed_requests) == 2
+        assert all(parse_qs(urlparse(request.url).query) == parse_qs(urlparse(completed_url).query) for request in completed_requests)
+        assert all(request.headers.get("hx-request") == "true" for request in scheduler_requests)
+        assert {urlparse(request.url).path for request in scheduler_requests} == {
+            url_for("admin.scheduler_completed_runs"),
+            url_for("admin.scheduler_queue_cards"),
+        }
 
         with_htmx_wait(page, lambda: page.locator('.tab[data-tab="history"]').click())
         expect(page.locator("#execution-history-table")).to_be_visible()

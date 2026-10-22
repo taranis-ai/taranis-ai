@@ -1,7 +1,10 @@
 (function () {
   const MAX_RECONNECT_ATTEMPTS = 8;
+  document.documentElement.dataset.realtimeConnected = "false";
   const SUPPORTED_TYPES = new Set([
     "assess.changed",
+    "scheduler.changed",
+    "task.changed",
     "report.item.changed",
     "report.lock.changed",
     "product.rendered",
@@ -46,6 +49,11 @@
       return;
     }
 
+    if (typeof payload?.connect?.client === "string") {
+      document.documentElement.dataset.realtimeConnected = "true";
+      return;
+    }
+
     const disconnectCode = payload?.disconnect?.code;
     if (
       Number.isInteger(disconnectCode) && disconnectCode >= 4500 &&
@@ -55,6 +63,7 @@
       return;
     }
     if (Number.isInteger(disconnectCode)) {
+      document.documentElement.dataset.realtimeConnected = "false";
       suppressNextResync = true;
       return;
     }
@@ -181,6 +190,7 @@
   }
 
   function close(permanent = false) {
+    document.documentElement.dataset.realtimeConnected = "false";
     reconnectAllowed = permanent ? false : reconnectAllowed;
     self.clearTimeout(reconnectTimer);
     self.clearTimeout(resyncTimer);
@@ -217,11 +227,14 @@
       hideStatusNotification();
       if (shouldResync) {
         scheduleResync("reconnected");
+      } else if (!opened) {
+        document.dispatchEvent(new CustomEvent("realtime:connected"));
       }
       opened = true;
       disconnected = false;
     });
     eventSource.addEventListener("error", () => {
+      document.documentElement.dataset.realtimeConnected = "false";
       if (!reconnectAllowed) {
         return;
       }
