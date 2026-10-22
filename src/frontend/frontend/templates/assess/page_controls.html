@@ -1,11 +1,12 @@
-<div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+<div class="mb-3 flex flex-wrap items-center gap-3 rounded-box border border-base-300 bg-base-100 p-2 shadow-sm">
   <h1 class="sr-only">Assess</h1>
   {% include "assess/active_filters.html" %}
+  {% include "assess/bookmarks_bar.html" %}
   <div class="flex shrink-0 items-center gap-2 ml-auto">
     <details class="dropdown dropdown-end">
       <summary class="btn btn-outline btn-sm">View</summary>
       <div class="dropdown-content z-20 bg-base-100 rounded-box shadow p-3 w-56">
-        {% for name, label in [('compact_view', 'Compact view'), ('highlight', 'Highlight search terms')] %}
+        {% for name, label in [('compact_view', 'Compact view'), ('highlight', 'Highlight search terms'), ('show_bookmark_bar', 'Show bookmark bar')] %}
           <label class="label cursor-pointer justify-start gap-3">
             <input type="checkbox"
                    name="{{ name }}"

@@ -328,6 +328,7 @@ def test_display_preferences_preserve_filters_and_render_saved_profile(authentic
 
     saved = auth_user.model_copy(deep=True)
     saved.profile.compact_view = True
+    saved.profile.show_bookmark_bar = False
     responses_mock.post(f"{Config.TARANIS_CORE_URL}{ProfileSettings._core_endpoint}", json={"message": "Saved"}, status=status)
     responses_mock.get(f"{Config.TARANIS_CORE_URL}/users", json=saved.model_dump(mode="json"))
     mock_story_for_edit(responses_mock, story_with_news_item_tags())
@@ -335,7 +336,7 @@ def test_display_preferences_preserve_filters_and_render_saved_profile(authentic
     responses_mock.get(f"{Config.TARANIS_CORE_URL}/assess/bookmarks", json={"items": []})
     response = authenticated_client.post(
         url_for("assess.display_preferences"),
-        data={"compact_view": "true"},
+        data={"compact_view": "true", "show_bookmark_bar": "false"},
         headers={"HX-Request": "true", "HX-Current-URL": "http://localhost/assess?search=incident"},
     )
     assert response.status_code == status
@@ -343,6 +344,8 @@ def test_display_preferences_preserve_filters_and_render_saved_profile(authentic
         tree = html.fromstring(response.text)
         assert tree.xpath('//*[@id="assess"]/@data-search') == ["incident"]
         assert tree.xpath('//input[@name="compact_view"]/@checked')
+        assert not tree.xpath('//input[@name="show_bookmark_bar"]/@checked')
+        assert "hidden" in tree.xpath('//*[@id="assess-bookmarks-bar"]/@class')[0].split()
         assert "line-clamp-1" in response.text
         requests = [call for call in responses_mock.calls if urlparse(call.request.url).path.endswith("/assess/stories")]
         assert parse_qs(urlparse(requests[-1].request.url).query)["search"] == ["incident"]
@@ -351,7 +354,7 @@ def test_display_preferences_preserve_filters_and_render_saved_profile(authentic
         assert "Unable to save display preferences" in response.text
 
     calls_before_validation = len(responses_mock.calls)
-    invalid_response = authenticated_client.post(url_for("assess.display_preferences"), data={"compact_view": "invalid"})
+    invalid_response = authenticated_client.post(url_for("assess.display_preferences"), data={"show_bookmark_bar": "invalid"})
     assert invalid_response.status_code == 400
     assert invalid_response.headers["HX-Retarget"] == "#notification-bar"
     assert 'id="assess"' not in invalid_response.text
@@ -1121,11 +1124,13 @@ def test_assess_bookmarks_bar_renders_first_six_ordered_collections(authenticate
     assert parse_qs(urlparse(bookmark_request.request.url).query) == {"limit": ["6"], "order": ["position_asc"]}
 
 
-def test_assess_bookmarks_bar_uses_context_limit(app: Any) -> None:
+def test_assess_bookmarks_bar_uses_context_limit(app: Any, auth_user) -> None:
     bookmarks = [SimpleNamespace(id=f"bookmark-{index}", name=f"Bookmark {index}", story_count=index) for index in range(1, 4)]
 
     with app.test_request_context():
-        markup = render_template("assess/bookmarks_bar.html", bookmark_collections=bookmarks, assess_bookmark_bar_limit=2)
+        markup = render_template(
+            "assess/bookmarks_bar.html", bookmark_collections=bookmarks, assess_bookmark_bar_limit=2, current_user=auth_user
+        )
 
     tree = html.fromstring(markup)
     bar = tree.xpath('//*[@data-testid="assess-bookmarks-bar"]')[0]

@@ -50,6 +50,7 @@ class ProfileSettings(TaranisBaseModel):
 
     dark_theme: bool = False
     compact_view: bool = False
+    show_bookmark_bar: bool = True
     show_charts: bool = False
     infinite_scroll: bool = True
     advanced_story_options: bool = True

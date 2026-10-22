@@ -10527,6 +10527,9 @@ components:
           type: boolean
           examples:
           - false
+        show_bookmark_bar:
+          type: boolean
+          default: true
         infinite_scroll:
           type: boolean
           examples:

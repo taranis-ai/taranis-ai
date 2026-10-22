@@ -254,11 +254,18 @@ class TestUserWorkflow(BaseE2ETest):
         for story_id in selected_story_ids:
             self.highlight_element(page.get_by_test_id(f"story-card-{story_id}"), scroll=False).click()
 
+        bookmark_bar = page.get_by_test_id("assess-bookmarks-bar")
+        expect(bookmark_bar).to_be_visible()
+        page.get_by_text("View", exact=True).click()
+        page.get_by_role("checkbox", name="Show bookmark bar", exact=True).uncheck()
+        expect(bookmark_bar).to_be_hidden()
+
         self.highlight_element(page.locator("#assess-top-bar").get_by_role("button", name="Bookmark")).click()
         expect(page.get_by_test_id("story-bookmark-dialog")).to_be_visible()
         self.highlight_element(page.get_by_test_id("new-bookmark-name")).fill(bookmark_name)
         self.highlight_element(page.get_by_test_id("submit-bookmark-story")).click()
         expect(page.locator("#notification-bar")).to_contain_text("Bookmark collections updated")
+        expect(bookmark_bar).to_be_hidden()
 
         for story_id in selected_story_ids:
             card = page.get_by_test_id(f"story-card-{story_id}")
@@ -331,6 +338,15 @@ class TestUserWorkflow(BaseE2ETest):
         expect(first_card).to_have_attribute("aria-selected", "true")
         page.reload(wait_until="domcontentloaded")
         expect(first_card.get_by_test_id("bookmark-story")).to_have_text("Saved")
+
+        expect(bookmark_bar).to_be_hidden()
+        page.get_by_text("View", exact=True).click()
+        show_bookmark_bar = page.get_by_role("checkbox", name="Show bookmark bar", exact=True)
+        expect(show_bookmark_bar).not_to_be_checked()
+        show_bookmark_bar.check()
+        expect(bookmark_bar).to_be_visible()
+        page.reload(wait_until="domcontentloaded")
+        expect(bookmark_bar).to_be_visible()
 
         self.highlight_element(page.get_by_test_id("assess-all-bookmarks")).click()
         page.wait_for_url("**/bookmarks", wait_until="domcontentloaded")

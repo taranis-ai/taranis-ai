@@ -1191,7 +1191,7 @@ class StoryView(BaseView):
     @classmethod
     @auth_required("ASSESS_ACCESS")
     def display_preferences(cls):
-        updates = {key: request.form[key] for key in ("highlight", "compact_view") if key in request.form}
+        updates = {key: request.form[key] for key in ("highlight", "compact_view", "show_bookmark_bar") if key in request.form}
         try:
             payload = ProfileSettings.model_validate(updates).model_dump(mode="json", include=set(updates))
             response = CoreApi().api_post(ProfileSettings._core_endpoint, json_data=payload)
