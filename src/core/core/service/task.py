@@ -97,6 +97,10 @@ class TaskService:
             if applied:
                 try:
                     cls._handle_success_result(submission)
+                    if submission.user_id:
+                        for stage in result_data["bot_stages"]:
+                            for story_id in dict.fromkeys(stage["story_ids"]):
+                                realtime_publisher.story_bot_finished(story_id, submission.user_id, stage["bot_type"])
                     realtime_publisher.assess_changed()
                 except Exception:
                     logger.exception("Bot run committed but post-commit notification failed")

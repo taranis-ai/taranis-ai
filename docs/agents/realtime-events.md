@@ -22,6 +22,14 @@ Reconnect recovery coalesces authoritative-state refresh into `realtime:resync` 
 
 Terminal user source previews publish source ID/status only. Matching waiting fragments refetch HTML; retain reconnect and the existing 20-second fallback because delivery is best-effort. This is an explicit exception to the [general event-driven UI rule](frontend-development.md).
 
+## Story Editor AI Results
+
+Successful staged bot runs publish user-scoped `story.bot.finished` after commit and frontend cache invalidation, once per stage/story. Events carry only the story ID and bot type; rejected, failed, duplicate, and unattributed background runs do not publish these completion events. The existing Assess invalidation remains separate.
+
+Editor fields use HTMX to fetch the authenticated edit route and select only their matching fragment: summary/title, sentiment, classification, or each linked news-item card for tagging bots. Other stories and unrelated editor fields are untouched. A separate fragment merges generated status values and known bot execution markers into the attribute form so a later Save cannot restore stale values; custom attribute drafts are preserved. Completion replaces the affected field's current value, including a draft in that same field; analyst comments, custom attributes, and news-item ordering remain in place. Delivery is best-effort: with realtime disabled or a missed event, reload to see the persisted result.
+
+Coverage extends the bot-pipeline transaction test and the Assess browser workflow; the latter dispatches completion events because the isolated E2E stack has no broker.
+
 ## Analyst Chat
 
 - An active Analyst Chat turn publishes `chat.turn.updated` to its owner's user-limited channel. Snapshots contain a client-generated turn ID, increasing sequence, progress stage, and cumulative plain-text answer. The chat browser boundary applies only the matching newest snapshot; the final synchronous Chat response remains authoritative.

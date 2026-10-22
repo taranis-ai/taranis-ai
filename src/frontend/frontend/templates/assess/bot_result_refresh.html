@@ -1,0 +1,11 @@
+{% macro bot_result_refresh(story, element_id, bot_types) -%}
+  id="{{ element_id }}"
+  hx-get="{{ url_for('assess.story_edit', story_id=story.id, layout='advanced') }}"
+  hx-trigger='realtime:story.bot.finished[detail.resource?.id === {{ story.id | tojson }} && ({% for bot_type in bot_types %}detail.data?.bot_type === {{ bot_type | tojson }}{{ " || " if not loop.last }}{% endfor %})] from:document'
+  hx-target="this"
+  hx-select="#{{ element_id }}"
+  hx-swap="outerHTML"
+  hx-status:400="target:#notification-bar select:#notification-bar swap:outerHTML"
+  hx-status:4xx="target:#notification-bar select:#notification-bar swap:outerHTML"
+  hx-status:5xx="target:#notification-bar select:#notification-bar swap:outerHTML"
+{%- endmacro %}

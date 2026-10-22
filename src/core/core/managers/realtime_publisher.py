@@ -137,6 +137,15 @@ class RealtimePublisher:
             data={"status": status},
         )
 
+    def story_bot_finished(self, story_id: str, user_id: str, bot_type: str) -> bool:
+        return self.publish(
+            f"user:#{user_id}",
+            "story.bot.finished",
+            "completed",
+            resource={"kind": "story", "id": story_id},
+            data={"bot_type": bot_type},
+        )
+
     def osint_source_preview_finished(self, source_id: str, user_id: str, status: str) -> bool:
         return self.publish(
             f"user:#{user_id}",

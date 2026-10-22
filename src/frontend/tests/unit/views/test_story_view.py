@@ -750,6 +750,15 @@ def test_story_edit_advanced_view_renders_sentiment_status_chip(authenticated_cl
     assert "Classification · Vulnerability" in response.text
     assert "Sentiment · Negative" in response.text
 
+    fragment = authenticated_client.get(
+        url_for("assess.story_edit", story_id=story_payload["id"], layout="advanced"),
+        headers={"HX-Request": "true", "HX-Target": "story-ai-sentiment"},
+    )
+    assert fragment.status_code == 200
+    tree = html.fromstring(fragment.text)
+    assert tree.xpath('//*[@id="story-ai-sentiment"]')[0].text == "Sentiment · Negative"
+    assert tree.xpath('//*[@id="story-ai-summary"]')
+
 
 def test_story_edit_misp_auto_update_is_advanced_only(authenticated_client, responses_mock):
     story_payload = story_with_news_item_tags()

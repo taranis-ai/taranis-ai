@@ -140,6 +140,16 @@ def test_realtime_owns_one_event_source_and_dispatches_valid_domain_event(page: 
 
     assert page.evaluate("() => EventSource.instances.length") == 1
     assert page.evaluate("() => window.receivedRealtimeEvents.length") == 1
+    page.evaluate("""
+        () => {
+          document.addEventListener('realtime:story.bot.finished', event => window.receivedRealtimeEvents.push(event.detail));
+          EventSource.instances[0].emit('message', JSON.stringify({pub: {data: {
+            v: 1, type: 'story.bot.finished', resource: {kind: 'story', id: 'story-1'},
+            data: {bot_type: 'SUMMARY_BOT'}, change: 'completed'
+          }}}));
+        }
+    """)
+    assert page.evaluate("() => window.receivedRealtimeEvents[1].data.bot_type") == "SUMMARY_BOT"
 
 
 def test_chat_stream_shows_optimistic_message_and_applies_newest_matching_snapshot(page: Page):

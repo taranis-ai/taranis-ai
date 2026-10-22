@@ -579,6 +579,40 @@ class TestEndToEndUser(BaseE2ETest):
                 )
                 expect(page.get_by_role("textbox", name="Title", exact=True)).to_have_value(edited_title)
                 expect(page.get_by_role("textbox", name="Analyst comments")).to_have_value("Unsaved analyst comment")
+            story_id = seeded_story["id"]
+            attributes = core_request_client.json_request("GET", f"/assess/stories/{story_id}")["attributes"]
+            attributes = [attribute for attribute in attributes if attribute["key"] != "classification"]
+            attributes.append({"key": "classification", "value": "vulnerability"})
+            core_request_client.patch(f"/assess/stories/{story_id}", json_data={"summary": "Completed AI summary", "attributes": attributes})
+            page.evaluate("document.querySelector('#story-ai-summary').dataset.beforeCompletion = 'true'")
+            page.evaluate(
+                """storyId => document.dispatchEvent(new CustomEvent('realtime:story.bot.finished', {
+                    detail: {resource: {id: storyId}, data: {bot_type: 'SUMMARY_BOT'}}
+                }))""",
+                "unrelated-story",
+            )
+            expect(page.locator("#story-ai-summary")).to_have_attribute("data-before-completion", "true")
+            for bot_type, selector in (
+                ("SUMMARY_BOT", "#story-ai-summary"),
+                ("SENTIMENT_ANALYSIS_BOT", "#story-ai-sentiment"),
+                ("CYBERSEC_CLASSIFIER_BOT", "#story-ai-classification"),
+            ):
+                page.locator(selector).evaluate("element => element.dataset.beforeCompletion = 'true'")
+                page.evaluate(
+                    """({storyId, botType}) => document.dispatchEvent(new CustomEvent('realtime:story.bot.finished', {
+                        detail: {resource: {id: storyId}, data: {bot_type: botType}}
+                    }))""",
+                    {"storyId": story_id, "botType": bot_type},
+                )
+                expect(page.locator(selector)).not_to_have_attribute("data-before-completion", "true")
+                expect(page.get_by_role("textbox", name="Analyst comments")).to_have_value("Unsaved analyst comment")
+            expect(page.locator("#story-ai-summary")).to_have_value("Completed AI summary")
+            expect(page.locator("#story-ai-classification")).to_contain_text("Vulnerability")
+            page.wait_for_function("""() => {
+                const key = Array.from(document.querySelectorAll('[data-testid="attribute-key-input"]'))
+                    .find(input => input.value === 'classification');
+                return key?.parentElement.querySelector('[data-testid="attribute-value-input"]').value === 'vulnerability';
+            }""")
             page.get_by_role("link", name="Return to story").click()
             expect(page.get_by_test_id("story-title")).to_contain_text(edited_title)
             back_to_assess.click()

@@ -78,6 +78,12 @@ class StoryView(BaseView):
     _show_sidebar = True
 
     @classmethod
+    def get_update_template(cls) -> str:
+        if request.method == "GET" and request.endpoint == cls.edit_route and is_htmx_request():
+            return "assess/story_edit_content.html"
+        return super().get_update_template()
+
+    @classmethod
     def _get_bookmark_bar_collections(cls) -> CacheObject[StoryBookmark]:
         try:
             paging_data = PagingData(
