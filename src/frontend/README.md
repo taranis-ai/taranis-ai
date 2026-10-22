@@ -28,6 +28,12 @@ uv sync --frozen
 granian app
 ```
 
+### LLM endpoints
+
+In **Admin Settings > LLM Endpoints**, select **Decisions (System One / OpenRouter)** for OpenRouter or a self-hosted server exposing `/v1/systemone` with a supported decision model. Choose **Decisions (OpenAI)** only for servers implementing OpenAI's `/v1/decisions` schema.
+
+Entering an OpenRouter provider base URL, such as `https://openrouter.ai/api/v1`, reveals **Use OpenRouter URL** beside the System One Decisions override. Click it to fill `https://openrouter.ai/api/alpha/decisions`, then save the endpoint. Existing overrides stay unchanged until you click the button or edit them yourself.
+
 ### Omnisearch
 
 The navbar search sends users to `GET /search?q=...`. Unqualified searches render grouped results across Stories, Reports, and Products with links to matching objects and to each filtered list view.
