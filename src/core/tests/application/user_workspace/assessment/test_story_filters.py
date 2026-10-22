@@ -101,7 +101,7 @@ def test_topic_classification_is_recomputed_and_filterable(client, auth_header, 
     story = create_story(news_items=items)
     story_id = story.id
     assert story.get_classification() == "general news"
-    response = client.get("/api/assess/stories", headers=auth_header, query_string={"classification": "general news"})
+    response = client.get("/api/assess/stories", headers=auth_header, query_string={"classification": "general news", "cybersecurity": "yes"})
     assert response.status_code == 200
     assert story_id in {item["id"] for item in response.json["items"]}
     response = client.get("/api/assess/stories", headers=auth_header, query_string={"classification": "vulnerability"})

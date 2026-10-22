@@ -212,7 +212,6 @@ class Stories(MethodView):
             "include_attr",
             "story_id",
             "story_ids",
-            "cybersecurity",
             "classification",
         ]
         filter_args: dict[str, str | int | list] = {k: v for k, v in request.args.items() if k in filter_keys}
@@ -260,7 +259,6 @@ class BotPipelineStories(MethodView):
             "include_attr",
             "story_id",
             "story_ids",
-            "cybersecurity",
             "classification",
             "group",
         }

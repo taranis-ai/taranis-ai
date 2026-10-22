@@ -406,8 +406,6 @@ class Story(BaseModel):
 
         if classification := filter_args.get("classification", "").lower():
             query = cls._add_key_value_filter_to_query(query, "classification", classification)
-        if cybersecurity_status := filter_args.get("cybersecurity", "").lower():
-            query = cls._add_key_value_filter_to_query(query, "cybersecurity", cybersecurity_status)
 
         relevant = filter_args.get("relevant", "").lower()
         if relevant == "true":

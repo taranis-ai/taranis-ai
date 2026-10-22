@@ -8,7 +8,6 @@ from urllib.parse import quote, unquote
 import language_tags
 from bs4 import BeautifulSoup
 from pydantic import BeforeValidator, ConfigDict, Field, TypeAdapter, ValidationInfo, field_validator, model_validator
-from pydantic.json_schema import SkipJsonSchema
 
 from models.base import TaranisBaseModel
 from models.classification import Classification
@@ -121,8 +120,6 @@ class AssessSearchFilters(TaranisBaseModel):
     relevant: bool | None = None
     in_report: bool | None = None
     classification: Classification | None = None
-    # Historical saved filters remain valid, but new searches use topic classification.
-    cybersecurity: SkipJsonSchema[Literal["yes", "no", "mixed", "incomplete"] | None] = None
     changed_by: Literal["me"] | None = None
     range: str | None = Field(default=None, pattern=r"^(shift|24h|day|week|month|last[1-9][0-9]*)$")
     timefrom: datetime | None = None
@@ -140,7 +137,7 @@ class AssessSearchFilters(TaranisBaseModel):
             if value is not None and value != [] and not (isinstance(value, str) and value.strip().casefold() in {"", "null"})
         }
 
-    @field_validator("classification", "cybersecurity", "changed_by", "range", "sort", mode="before")
+    @field_validator("classification", "changed_by", "range", "sort", mode="before")
     @classmethod
     def normalize_choices(cls, value: Any) -> Any:
         return value.lower() if isinstance(value, str) else value

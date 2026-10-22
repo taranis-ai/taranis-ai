@@ -1006,15 +1006,10 @@ def test_assess_filters_support_htmx_and_native_form_submission(authenticated_cl
     assert not filter_form.xpath('.//select[@name="group"]')
     assert not filter_form.xpath('.//select[@name="tags"]')
     assert not filter_form.xpath('.//select[@name="language"]')
-    assert filter_form.xpath('.//input[@type="hidden" and @name="cybersecurity"]/@value') == ["no"]
-    assert dict(filter_form.form_values())["cybersecurity"] == "no"
+    assert "cybersecurity" not in dict(filter_form.form_values())
     topic_chip = tree.xpath('//a[@aria-label="Remove Classification: security incident"]')[0]
-    assert parse_qs(urlparse(topic_chip.get("href")).query) == {"search": ["pull"], "cybersecurity": ["no"]}
-    legacy_chip = tree.xpath('//a[@aria-label="Remove Cybersecurity: no"]')[0]
-    assert parse_qs(urlparse(legacy_chip.get("href")).query) == {"search": ["pull"], "classification": ["security incident"]}
-    cleared = authenticated_client.get(legacy_chip.get("href"), headers={"HX-Request": "true", "HX-Refresh-Sidebar": "true"})
-    assert cleared.status_code == 200
-    assert not html.fromstring(cleared.text).xpath('//input[@name="cybersecurity"]')
+    assert parse_qs(urlparse(topic_chip.get("href")).query) == {"search": ["pull"]}
+    assert not tree.xpath('//a[@aria-label="Remove Cybersecurity: no"]')
 
 
 def test_story_read_action_replaces_story_card(app):
@@ -1207,6 +1202,7 @@ def test_assess_redirects_default_saved_filter_into_browser_url(authenticated_cl
             id="filter-1",
             name="Shift queue",
             filters={
+                "cybersecurity": "yes",
                 "source": ["source-1"],
                 "language": ["en"],
                 "read": "true",
@@ -1297,6 +1293,7 @@ def test_assess_save_saved_filter_posts_selected_filters_to_profile(authenticate
         url_for("assess.save_saved_filter"),
         data=MultiDict(
             [
+                ("cybersecurity", "yes"),
                 ("name", "Shift queue"),
                 ("is_default", "true"),
                 ("source", "source-1"),

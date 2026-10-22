@@ -148,7 +148,6 @@ class StoryView(BaseView):
             "in_report": "In reports",
             "relevant": "Relevant",
             "changed_by": "Changed by",
-            "cybersecurity": "Cybersecurity",
             "classification": "Classification",
             "tags": "Tag",
             "source": "Source",
@@ -452,6 +451,7 @@ class StoryView(BaseView):
         params = {
             key: [value for value in values if value not in (None, "")]
             for key, values in (request_params or request.args.to_dict(flat=False)).items()
+            if key in ASSESS_FILTER_KEYS | {"page", "offset", "limit", "order", "reset"}
         }
         has_reset = "reset" in params
         params.pop("reset", None)
