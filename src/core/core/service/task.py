@@ -41,9 +41,33 @@ class TaskService:
 
     @staticmethod
     def get_user_tasks(user_id: str, filters: UserTaskFilter) -> tuple[dict[str, Any], int]:
-        result, status = TaskModel.get_user_tasks_for_api(user_id, filters)
-        if status != 200:
-            return result, status
+        from core.managers import queue_manager
+
+        live_tasks = queue_manager.queue_manager.get_user_live_tasks(user_id)
+        if search := (filters.search or "").lower():
+            live_tasks = [
+                task
+                for task in live_tasks
+                if any(
+                    search in str(task.get(field) or "").lower() for field in ("job_id", "name", "task", "worker_id", "worker_type", "status")
+                )
+            ]
+        if not live_tasks:
+            result, status = TaskModel.get_user_tasks_for_api(user_id, filters)
+        else:
+            offset = (filters.page - 1) * filters.limit
+            # Live rows can move this page back by at most their count. Keep the SQL window bounded.
+            history_offset = max(0, offset - len(live_tasks))
+            history_filters = filters.model_copy(update={"page": 1, "limit": filters.limit + offset - history_offset})
+            result, status = TaskModel.get_completed_runs_for_api(history_filters, user_id=user_id, offset=history_offset)
+            completed_at = {task["job_id"]: task["last_run"] for task in result["items"]}
+            live_tasks = [task for task in live_tasks if completed_at.get(task["job_id"], "") < task["last_run"]]
+            items = result["items"] + live_tasks
+            field, direction = filters.order.rsplit("_", 1)
+            items.sort(key=lambda task: task["id"], reverse=True)
+            items.sort(key=lambda task: task.get(field) or "", reverse=direction == "desc")
+            page_offset = offset - history_offset
+            result = {"items": items[page_offset : page_offset + filters.limit], "total_count": result["total_count"] + len(live_tasks)}
         validated = UserTaskList.model_validate(result)
         return validated.model_dump(mode="json", exclude_none=False), status
 

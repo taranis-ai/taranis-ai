@@ -2,6 +2,106 @@ import uuid
 from datetime import UTC, datetime, timedelta
 
 import pytest
+from rq.executions import Execution
+from rq.job import JobStatus
+
+
+@pytest.mark.parametrize("action,outcome", [("summary_bot", "SUCCESS"), ("generate_tags", "FAILURE")])
+def test_story_task_lifecycle_is_visible_only_to_its_owner(
+    app, client, session, redis_client, api_header, auth_header, auth_header_user_permissions, action, outcome
+):
+    from core.model.user import User
+    from tests.application.support.builders import build_news_item_payload, create_story
+
+    story = create_story(news_items=[build_news_item_payload()])
+    story_id = story.id
+    user_id = User.find_by_name("user").id
+    manager = app.extensions["rq"]
+    queue = manager.get_queue("bots")
+    history_id = f"previous-{story_id}"
+    assert client.post("/api/tasks", json=_task_payload(history_id, user_id=user_id), headers=api_header).status_code == 200
+
+    response = client.post(
+        "/api/assess/stories/botactions", json={"story_id": story_id, "bot_id": action}, headers=auth_header_user_permissions
+    )
+    assert response.status_code == 200
+    job = queue.get_jobs()[0]
+    # Private queue configuration must never enter either public task projection.
+    job.meta["checkpoint"] = {"secret": "private-provider-configuration"}
+    job.save_meta()
+
+    own = client.get("/api/tasks/user", query_string={"search": story_id}, headers=auth_header_user_permissions).json
+    assert own["total_count"] == 2
+    live = next(item for item in own["items"] if item["job_id"] == job.id)
+    assert live["status"] == "QUEUED"
+    assert story_id in live["name"]
+    expected_action = "Generate Tags" if action == "generate_tags" else "Summary"
+    assert expected_action in live["name"]
+    assert "private-provider-configuration" not in str(own)
+    assert client.get("/api/tasks/user", query_string={"search": story_id}, headers=auth_header).json["total_count"] == 0
+
+    scheduled = client.get("/api/config/schedule", query_string={"search": story_id}, headers=auth_header).json
+    assert [item["id"] for item in scheduled["items"]] == [job.id]
+    assert scheduled["items"][0]["name"] == live["name"]
+    assert scheduled["items"][0]["status_badge"]["label"] == "Queued"
+    assert manager.get_scheduled_job_count() == manager.get_scheduled_jobs({})[0]["total_count"]
+
+    # RQ creates an execution and records STARTED before invoking the worker function.
+    with redis_client.pipeline() as pipeline:
+        Execution.create(job, ttl=300, pipeline=pipeline)
+        job.prepare_for_execution("task-lifecycle-worker", pipeline=pipeline)
+        pipeline.execute()
+    running = client.get("/api/tasks/user", query_string={"search": story_id}, headers=auth_header_user_permissions).json
+    assert next(item for item in running["items"] if item["job_id"] == job.id)["status"] == "RUNNING"
+    assert client.get("/api/config/schedule", query_string={"search": story_id}, headers=auth_header).json["total_count"] == 0
+    active = client.get("/api/config/workers/active", query_string={"search": story_id}, headers=auth_header).json
+    assert [item["id"] for item in active["items"]] == [job.id]
+    assert active["items"][0]["name"] == live["name"]
+
+    payload = _task_payload(job.id, user_id=user_id, status=outcome)
+    payload.update(task=job.meta["task"], worker_id=job.meta["worker_id"], worker_type=job.meta["worker_type"])
+    assert client.post("/api/tasks", json=payload, headers=api_header).status_code == 200
+    completed = client.get("/api/tasks/user", headers=auth_header_user_permissions).json["items"]
+    assert [item["status"] for item in completed if item["job_id"] == job.id] == [outcome]
+    assert history_id in {item["job_id"] for item in completed}
+    assert client.get("/api/config/workers/active", query_string={"search": story_id}, headers=auth_header).json["total_count"] == 0
+
+    job.set_status(JobStatus.FINISHED if outcome == "SUCCESS" else JobStatus.FAILED)
+    job.delete()
+    assert client.get("/api/tasks/user", query_string={"search": job.id}, headers=auth_header_user_permissions).json["total_count"] == 1
+
+
+def test_user_tasks_page_live_jobs_together_with_history(app, client, session, redis_client, auth_header_user_permissions):
+    from core.model.task import Task
+    from core.model.user import User
+
+    user = User.find_by_name("user")
+    queue = app.extensions["rq"].get_queue("bots")
+    now = datetime.now(UTC)
+    for index in range(6):
+        job_id = f"mixed-task-{index}"
+        if index % 2:
+            task = Task(**_task_payload(job_id, user_id=user.id))
+            task.last_run = (now + timedelta(seconds=index)).replace(tzinfo=None)
+            session.add(task)
+        else:
+            job = queue.enqueue("worker.bots.bot_tasks.bot_task", job_id=job_id, meta={"user_id": user.id})
+            job.enqueued_at = now + timedelta(seconds=index)
+            job.save()
+    session.commit()
+
+    for direction in ("asc", "desc"):
+        seen = []
+        for page in range(1, 5):
+            response = client.get(
+                "/api/tasks/user",
+                query_string={"search": "mixed-task", "limit": 2, "page": page, "order": f"last_run_{direction}"},
+                headers=auth_header_user_permissions,
+            )
+            assert response.status_code == 200
+            assert response.json["total_count"] == 6
+            seen.extend(item["job_id"] for item in response.json["items"])
+        assert seen == [f"mixed-task-{index}" for index in sorted(range(6), reverse=direction == "desc")]
 
 
 def _task_payload(job_id: str, *, user_id: str | None, status: str = "SUCCESS", worker_type: str = "presenter_task"):

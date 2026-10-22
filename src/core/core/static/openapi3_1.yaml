@@ -2878,7 +2878,7 @@ paths:
       tags:
       - tasks
       operationId: tasks.user_tasks.get
-      description: list completed tasks triggered by the authenticated user
+      description: List queued, running, and completed tasks triggered by the authenticated user. Live queue metadata and private result data are omitted.
       security:
       - UserAuth: []
       parameters:
@@ -11948,6 +11948,10 @@ components:
       properties:
         id:
           type: string
+        name:
+          type:
+          - string
+          - 'null'
         job_id:
           type:
           - string

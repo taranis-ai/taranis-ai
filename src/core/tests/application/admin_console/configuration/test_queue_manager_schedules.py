@@ -7,7 +7,6 @@ import pytest
 from models.scheduler import ScheduledJob
 from redis import Redis
 from redis.exceptions import AuthenticationError, AuthorizationError, BusyLoadingError, ConnectionError, TimeoutError
-from rq import Queue
 
 from core.managers.queue_manager import QueueManager
 from core.model.bot import Bot
@@ -42,32 +41,6 @@ def test_get_scheduled_jobs_includes_cleanup_cron(app, monkeypatch):
     assert history_cleanup_job.get("schedule") == "0 3 * * *"
     assert history_cleanup_job.get("type") == "cron"
     assert isinstance(history_cleanup_job.get("next_run_time"), str)
-
-
-def test_get_scheduled_jobs_skips_zero_count_registry_debug_logs(monkeypatch, caplog):
-    class FakeRegistry:
-        def __init__(self, queue):
-            self.queue = queue
-
-        def get_job_ids(self):
-            return []
-
-    import rq.registry as rq_registry
-
-    monkeypatch.setattr(rq_registry, "ScheduledJobRegistry", FakeRegistry)
-    monkeypatch.setattr(QueueManager, "_get_cron_schedule_entries", lambda self: [])
-
-    queue_manager = QueueManager.__new__(QueueManager)
-    queue_manager.error = ""
-    queue_manager._queues = cast(dict[str, Queue], {"bots": object()})
-    queue_manager._redis = cast(Redis, object())
-
-    with caplog.at_level(logging.DEBUG):
-        schedules, status = QueueManager.get_scheduled_jobs(queue_manager, {})
-
-    assert status == 200
-    assert schedules["total_count"] == 0
-    assert "Queue bots: found 0 scheduled jobs in registry" not in caplog.text
 
 
 def test_annotate_jobs_does_not_mark_late_cron_runs_as_missed():

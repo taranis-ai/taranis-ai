@@ -106,6 +106,7 @@ class UserTask(TaranisBaseModel):
     model_config = ConfigDict(extra="ignore")
 
     id: str
+    name: str | None = None
     job_id: str | None = None
     task: str | None = None
     worker_id: str | None = None

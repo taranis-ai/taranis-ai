@@ -23,12 +23,17 @@
     "sortable": false
   },
   {
-    "title": "Completed",
+    "title": "Updated",
     "field": "last_run",
     "sortable": true
   }
 ] %}
-<div id="{{ container_id }}" class="table-container space-y-4">
+<div id="{{ container_id }}"
+     class="table-container space-y-4"
+     hx-get="{{ base_url }}{{ request.query_string.decode() and '?' ~ request.query_string.decode() }}"
+     hx-trigger="{% if tasks | selectattr('status', 'in', ['QUEUED', 'RUNNING']) | list %}every 5s{% else %}refresh{% endif %}"
+     hx-select="#{{ container_id }}"
+     hx-swap="outerHTML">
   {{ table_search_bar(container_id, base_url) }}
   <div class="overflow-x-auto">
     <table class="table shadow table-zebra table-sm" id="user-tasks" data-testid="user-tasks">
@@ -40,11 +45,13 @@
           {% for task in tasks %}
             <tr class="hover:bg-info" data-testid="user-task-row">
               <td>
-                <div class="font-medium">{{ (task.worker_type or task.task or "Task") | replace('_', ' ') | title }}</div>
+                <div class="font-medium">{{ task.name or ((task.worker_type or task.task or "Task") | replace('_', ' ') | title) }}</div>
                 <div class="text-xs opacity-50">{{ task.job_id or task.id }}</div>
               </td>
               <td>
-                {% if task.status == "SUCCESS" %}
+                {% if task.status == "RUNNING" %}
+                  <span class="badge badge-info badge-sm"><span class="loading loading-spinner loading-xs"></span> Running</span>
+                {% elif task.status == "SUCCESS" %}
                   <span class="badge badge-success badge-sm">Success</span>
                 {% elif task.status == "NOT_MODIFIED" %}
                   <span class="badge badge-info badge-sm">Not Modified</span>
@@ -56,7 +63,7 @@
                   <span class="badge badge-ghost badge-sm">{{ task.status | replace('_', ' ') | title }}</span>
                 {% endif %}
               </td>
-              <td class="max-w-[50ch] whitespace-normal">{{ task.result.message }}</td>
+              <td class="max-w-[50ch] whitespace-normal">{{ task.result.message or '—' }}</td>
               <td>
                 {% if task.result.reason %}
                   <span>{{ task.result.reason | replace('_', ' ') | title }}</span>
@@ -71,7 +78,7 @@
         {% else %}
           <tr>
             <td colspan="{{ columns | length }}">
-              <div class="py-6 text-center text-base-content/60" data-testid="empty-user-tasks">No completed tasks found.</div>
+              <div class="py-6 text-center text-base-content/60" data-testid="empty-user-tasks">No tasks found.</div>
             </td>
           </tr>
         {% endif %}

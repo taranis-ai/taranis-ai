@@ -156,7 +156,9 @@ class Task(BaseModel):
         return cls.get_completed_runs_for_api(filters, user_id=user_id)
 
     @classmethod
-    def get_completed_runs_for_api(cls, filters: UserTaskFilter, *, user_id: str | None = None) -> tuple[dict[str, Any], int]:
+    def get_completed_runs_for_api(
+        cls, filters: UserTaskFilter, *, user_id: str | None = None, offset: int | None = None
+    ) -> tuple[dict[str, Any], int]:
         query = db.select(cls).where(cls.status.in_(cls.USER_TASK_TERMINAL_STATUSES), cls.last_run.is_not(None))
         if user_id is not None:
             query = query.where(cls.user_id == user_id)
@@ -179,6 +181,8 @@ class Task(BaseModel):
 
         count = cls.get_filtered_count(query)
         query = cls._add_paging_to_query(filter_args, query)
+        if offset is not None:
+            query = query.offset(offset)
         query = cls._add_sorting_to_query(filter_args, query).order_by(cls.id.desc())
         items = cls.get_filtered(query) or []
         return {"items": cls.to_list(items), "total_count": count}, 200
