@@ -1,0 +1,75 @@
+{% macro completion_tracking() %}
+  {# djlint:off #}
+  x-data='{
+    observedJobs: [],
+    announcedJobs: {},
+    completionCount: 0,
+    executionKey(job) {
+      return JSON.stringify([job.id, job.started_at]);
+    },
+    completionMessage(count) {
+      return count === 1
+        ? {{ _("1 job you were viewing has finished.") | tojson }}
+        : {{ _("{count} jobs you were viewing have finished.") | tojson }}.replace("{count}", count);
+    },
+    prepareObservations(event) {
+      if (event.defaultPrevented) return;
+      const ctx = event.detail.ctx;
+      if (ctx.sourceElement.id === "scheduler-dashboard") {
+        if (ctx.target.id === "active-jobs-table") {
+          ctx.request.method = "POST";
+          ctx.request.body = new FormData();
+          ctx.request.body.set("observed_jobs", JSON.stringify(this.observedJobs));
+        }
+      } else if (ctx.sourceElement.id !== "queue-cards") {
+        this.observedJobs = [];
+        this.announcedJobs = {};
+      }
+    },
+    receiveJobs(activeJobs, completedJobs) {
+      const observed = new Set(this.observedJobs.map(job => this.executionKey(job)));
+      let newlyCompleted = 0;
+      for (const job of completedJobs) {
+        const key = this.executionKey(job);
+        if (observed.has(key) && !this.announcedJobs[key]) {
+          this.announcedJobs[key] = true;
+          newlyCompleted++;
+        }
+      }
+      this.observedJobs = this.observedJobs.filter(job => !this.announcedJobs[this.executionKey(job)]);
+      for (const job of activeJobs) {
+        const key = this.executionKey(job);
+        if (job.started_at && !observed.has(key) && !this.announcedJobs[key]) {
+          this.observedJobs.push(job);
+          observed.add(key);
+        }
+      }
+      if (newlyCompleted) {
+        this.completionCount += newlyCompleted;
+        window.taranisNotifications?.add({ message: this.completionMessage(newlyCompleted), level: "info" });
+      }
+    }
+  }'
+  {# djlint:on #}
+  @htmx:before:request="prepareObservations($event)"
+  @scheduler:jobs-loaded="receiveJobs($event.detail.active, $event.detail.completed)"
+{% endmacro %}
+
+{% macro completion_notice() %}
+  <div class="toast toast-center toast-bottom z-50"
+       data-test-id="scheduler-completion-notice"
+       x-cloak
+       x-show="completionCount > 0"
+       role="status"
+       aria-live="polite">
+    <div class="alert alert-info flex items-center gap-3">
+      <span x-text="completionMessage(completionCount)"></span>
+      <a class="btn btn-primary btn-sm"
+         href="{{ url_for('admin.scheduler_completed_runs', tab='completed') }}"
+         hx-boost="select:#completed-runs-table target:#completed-runs-table swap:outerHTML"
+         hx-sync="#scheduler-dashboard:replace"
+         @click="activeTab = 'completed'; completionCount = 0">{{ _("View completed runs") }}</a>
+      <button type="button" class="btn btn-ghost btn-sm" @click="completionCount = 0">{{ _("Dismiss") }}</button>
+    </div>
+  </div>
+{% endmacro %}

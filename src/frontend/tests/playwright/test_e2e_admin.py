@@ -5,12 +5,16 @@ from urllib.parse import parse_qs, urlparse
 from zoneinfo import ZoneInfo
 
 import pytest
+import redis
 from base_e2e_test import BaseE2ETest
 from flask import url_for
-from htmx_helpers import reset_htmx_state, with_htmx_wait
+from htmx_helpers import reset_htmx_state, wait_for_htmx_settled, with_htmx_wait
 from playwright.sync_api import Page, expect
+from rq import Queue
+from rq.executions import Execution
+from rq.job import JobStatus
 
-from tests.external_e2e import allow_requests_passthru
+from tests.external_e2e import allow_requests_passthru, external_core_api_url
 from tests.playwright.notification_helpers import dismiss_notifications
 
 
@@ -292,6 +296,139 @@ class TestEndToEndAdmin(BaseE2ETest):
         with_htmx_wait(page, lambda: page.locator('.tab[data-tab="scheduled"]').click())
         with_htmx_wait(page, lambda: page.locator('.tab[data-tab="history"]').click())
         expect(page.locator("#history-tab .stats")).to_have_count(1)
+
+    @pytest.mark.skipif(external_core_api_url(), reason="Completion workflow seeds the isolated Redis instance")
+    def test_scheduler_completion_notice(
+        self, logged_in_page: Page, forward_console_and_page_errors, core_request_client, api_header, docker_services
+    ):
+        page = logged_in_page
+        page.clock.install()
+        allow_requests_passthru(core_request_client.base_url)
+        connection = redis.Redis(host="127.0.0.1", port=docker_services.port_for("redis", 6379))
+        queue = Queue("bots", connection=connection)
+        run_prefix = f"scheduler-observed-{uuid.uuid4().hex}"
+        jobs = [
+            queue.create_job("worker.bots.bot_tasks.bot_task", job_id=f"{run_prefix}-{index:02}", meta={"name": f"{run_prefix}-{index:02}"})
+            for index in range(10)
+        ]
+        active_url = url_for("admin.scheduler_active_jobs", _external=True)
+        notice = page.locator('[data-test-id="scheduler-completion-notice"]')
+
+        def save_result(index: int, status: str = "SUCCESS"):
+            core_request_client.post(
+                "/tasks",
+                headers=api_header,
+                authenticated=False,
+                json_data={
+                    "id": jobs[index].id,
+                    "name": jobs[index].meta["name"],
+                    "task": "scheduler_test",
+                    "worker_type": "Scheduler Test",
+                    "status": status,
+                    "result": {"message": "Scheduler run completed", "reason": "job_timeout" if status == "FAILURE" else None},
+                },
+            )
+
+        def refresh(event: str | None = None):
+            with page.expect_response(lambda response: response.url.startswith(active_url) and response.request.method == "POST"):
+                if event:
+                    page.evaluate("event => document.dispatchEvent(new CustomEvent(event))", event)
+                else:
+                    page.locator("#scheduler-refresh").click()
+            wait_for_htmx_settled(page)
+
+        try:
+            # Seed running executions directly, keeping workers from racing these observable transitions.
+            for job in jobs:
+                job.save()
+                with connection.pipeline() as pipeline:
+                    Execution.create(job, ttl=900, pipeline=pipeline)
+                    job.prepare_for_execution("scheduler-monitor", pipeline=pipeline)
+                    pipeline.execute()
+
+            page.goto(url_for("admin.scheduler_active_jobs", search=run_prefix, limit=5, order="name_asc", _external=True))
+            expect(page.get_by_test_id("active-jobs")).to_contain_text(jobs[0].id)
+            expect(page.locator("#active-jobs-table")).to_contain_text("Page 1 of 2")
+            expect(notice).not_to_be_visible()
+            page.evaluate("window.schedulerDocument = document; window.taranisNotifications.clear()")
+            save_result(0)
+            # The isolated stack omits Centrifugo; use the event dispatched by the shared transport.
+            refresh("realtime:scheduler.changed")
+            expect(notice).to_contain_text("1 job you were viewing has finished.")
+            expect(page.get_by_test_id("active-jobs")).not_to_contain_text(jobs[0].id)
+            expect(page.get_by_test_id("active-jobs")).to_contain_text(jobs[1].id)
+
+            # A row can disappear before its durable result arrives. Retain its observation until resync.
+            jobs[1].set_status(JobStatus.FINISHED)
+            refresh("realtime:scheduler.changed")
+            expect(page.get_by_test_id("active-jobs")).not_to_contain_text(jobs[1].id)
+            expect(notice).to_contain_text("1 job you were viewing has finished.")
+            save_result(1, "FAILURE")
+            refresh("realtime:resync")
+            expect(notice).to_contain_text("2 jobs you were viewing have finished.")
+            page.clock.fast_forward(11000)
+            expect(notice).to_be_visible()
+            for event in ("realtime:scheduler.changed", "realtime:resync", None):
+                refresh(event)
+                expect(notice).to_contain_text("2 jobs you were viewing have finished.")
+            assert len(page.evaluate("taranisNotifications.read()")) == 2
+            expect(page.locator('.tab[data-tab="active"]')).to_have_class("tab tab-active")
+            assert page.evaluate("window.schedulerDocument === document")
+
+            notice.get_by_role("button", name="Dismiss", exact=True).click()
+            expect(notice).not_to_be_visible()
+            refresh()
+            expect(notice).not_to_be_visible()
+            save_result(2, "WARNING")
+            refresh()
+            expect(notice).to_contain_text("1 job you were viewing has finished.")
+
+            # Search and pagination establish new viewing contexts while retaining the existing notice.
+            with_htmx_wait(page, lambda: page.locator("#active-jobs-table-search").fill(jobs[3].id))
+            expect(page.get_by_test_id("active-jobs").locator("tbody tr")).to_have_count(1)
+            save_result(4)
+            refresh()
+            expect(notice).to_contain_text("1 job you were viewing has finished.")
+            with_htmx_wait(page, lambda: page.locator("#active-jobs-table-search").fill(run_prefix))
+            expect(page.locator("#active-jobs-table")).to_contain_text("Page 1 of 2")
+            with_htmx_wait(page, lambda: page.locator("#active-jobs-table").get_by_role("link", name="›", exact=True).click())
+            expect(page.get_by_test_id("active-jobs")).to_contain_text(jobs[9].id)
+            save_result(3)
+            refresh()
+            expect(notice).to_contain_text("1 job you were viewing has finished.")
+
+            with_htmx_wait(page, lambda: page.locator('.tab[data-tab="completed"]').click())
+            expect(notice).to_be_visible()
+            with_htmx_wait(page, lambda: page.locator("#completed-runs-table-search").fill(run_prefix))
+            page.get_by_test_id("completed-run-status").select_option("FAILURE")
+            with_htmx_wait(page, lambda: page.locator("#completed-runs-table").get_by_role("button", name="Apply", exact=True).first.click())
+            expect(page.get_by_test_id("completed-run-row")).to_have_count(1)
+            save_result(9)
+            with_htmx_wait(page, lambda: page.locator('.tab[data-tab="active"]').click())
+            refresh("realtime:resync")
+            expect(notice).to_contain_text("1 job you were viewing has finished.")
+            assert len(page.evaluate("taranisNotifications.read()")) == 3
+
+            with_htmx_wait(page, lambda: notice.get_by_role("link", name="View completed runs", exact=True).click())
+            expect(page.get_by_test_id("completed-runs")).to_be_visible()
+            expect(page.locator("#completed-runs-table-search")).to_have_value("")
+            expect(page.get_by_test_id("completed-run-status")).to_have_value("")
+            expect(page.get_by_test_id("completed-run-row").filter(has_text=run_prefix).first).to_contain_text(jobs[9].id)
+            assert not {"search", "status", "page", "limit", "order"}.intersection(parse_qs(urlparse(page.url).query))
+            expect(notice).not_to_be_visible()
+
+            with_htmx_wait(page, lambda: page.locator('.tab[data-tab="active"]').click())
+            save_result(5)
+            refresh()
+            expect(notice).to_be_visible()
+            page.goto(url_for("admin.dashboard", _external=True))
+            page.goto(active_url)
+            expect(notice).not_to_be_visible()
+        finally:
+            for job in jobs:
+                job.delete()
+                core_request_client.delete(f"/tasks/{job.id}", raise_for_status=False)
+            connection.close()
 
     def test_news_item_creation_methods(self, logged_in_page: Page, core_request_client):
         page = logged_in_page

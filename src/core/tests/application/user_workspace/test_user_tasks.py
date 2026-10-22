@@ -317,7 +317,7 @@ def test_user_tasks_requires_authentication(client):
     assert client.get("/api/tasks/user").status_code == 401
 
 
-def test_completed_runs_includes_background_jobs_and_filters_without_exposing_payloads(app, client, api_header):
+def test_completed_runs_includes_background_jobs_and_filters_without_exposing_payloads(app, client, api_header, auth_header_user_permissions):
     prefix = f"completed-{uuid.uuid4().hex}"
     job_ids = [f"{prefix}-{suffix}" for suffix in ("success", "failure", "active")]
     try:
@@ -353,6 +353,26 @@ def test_completed_runs_includes_background_jobs_and_filters_without_exposing_pa
         assert next_page.json["total_count"] == 102
         assert len(next_page.json["items"]) == 2
         assert {item["id"] for item in bounded.json["items"]}.isdisjoint(item["id"] for item in next_page.json["items"])
+
+        # Exact selections are independent of broad searches and apply before pagination.
+        selected_ids = job_ids[:3]
+        selected = client.get("/api/tasks/runs", query_string={"job_ids": selected_ids, "limit": 1}, headers=api_header)
+        assert selected.json["total_count"] == 2
+        assert selected.json["items"] == response.json["items"]
+        selected_next = client.get("/api/tasks/runs", query_string={"job_ids": selected_ids, "limit": 1, "page": 2}, headers=api_header)
+        assert selected_next.json["total_count"] == 2
+        assert [item["job_id"] for item in selected_next.json["items"]] == [job_ids[0]]
+        selected_success = client.get(
+            "/api/tasks/runs", query_string={"job_ids": selected_ids, "status": "SUCCESS", "search": prefix}, headers=api_header
+        )
+        assert selected_success.json["total_count"] == 1
+        assert selected_success.json["items"] == selected_next.json["items"]
+        for unmatched_id in (prefix, f"{prefix}%", ""):
+            unmatched = client.get("/api/tasks/runs", query_string={"job_ids": unmatched_id}, headers=api_header)
+            assert unmatched.status_code == 200
+            assert unmatched.json == {"items": [], "total_count": 0, "live_tasks_available": True}
+
+        assert client.get("/api/tasks/runs", query_string={"job_ids": selected_ids}, headers=auth_header_user_permissions).status_code == 403
         assert client.get("/api/tasks/runs").status_code == 401
     finally:
         _delete_tasks(app, job_ids)

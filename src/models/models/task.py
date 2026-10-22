@@ -176,6 +176,7 @@ class TaskRun(UserTask):
 
 class TaskRunFilter(UserTaskFilter):
     status: Literal["SUCCESS", "FAILURE", "WARNING", "NOT_MODIFIED", "PREVIEW"] | None = None
+    job_ids: list[str] | None = None
 
     @field_validator("limit", mode="after")
     @classmethod

@@ -1,3 +1,5 @@
+import json
+from datetime import UTC, datetime
 from typing import Any
 
 from flask import render_template, request
@@ -8,13 +10,65 @@ from models.task import TaskHistoryResponse, TaskRun, TaskRunFilter
 from werkzeug.exceptions import HTTPException
 
 from frontend.auth import auth_required
-from frontend.cache_models import CacheObject
+from frontend.cache_models import CacheObject, PagingData
 from frontend.config import Config
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.log import logger
 from frontend.utils.router_helpers import is_htmx_request, parse_paging_data
 from frontend.views.admin_views.admin_base_view import AdminBaseView
 from frontend.views.base_view import BaseView
+
+
+COMPLETION_LOOKUP_BATCH_SIZE = 50
+
+
+def _as_utc(value: datetime) -> datetime:
+    return value.replace(tzinfo=UTC) if value.tzinfo is None else value.astimezone(UTC)
+
+
+def _observed_job_starts() -> dict[tuple[str, str], datetime]:
+    observations = json.loads(request.form.get("observed_jobs", "[]"))
+    if not isinstance(observations, list):
+        raise TypeError("Invalid observed jobs")
+
+    observed_starts = {}
+    for observation in observations:
+        if not isinstance(observation, dict):
+            raise TypeError("Invalid observed job")
+        job_id = observation.get("id")
+        started_at = observation.get("started_at")
+        if not isinstance(job_id, str) or not job_id.strip() or len(job_id) > 512:
+            raise ValueError("Invalid observed job ID")
+        if started_at in (None, ""):
+            continue
+        if not isinstance(started_at, str) or len(started_at) > 64:
+            raise ValueError("Invalid observed job start")
+        observed_starts[(job_id, started_at)] = _as_utc(datetime.fromisoformat(started_at))
+    return observed_starts
+
+
+def _completed_observed_jobs(observed_starts: dict[tuple[str, str], datetime], persistence: DataPersistenceLayer) -> list[dict[str, str]]:
+    job_ids = list(dict.fromkeys(job_id for job_id, _ in observed_starts))
+    completed_at = {}
+    for offset in range(0, len(job_ids), COMPLETION_LOOKUP_BATCH_SIZE):
+        paging = PagingData(
+            page=1,
+            limit=COMPLETION_LOOKUP_BATCH_SIZE,
+            query_params={
+                "job_ids": job_ids[offset : offset + COMPLETION_LOOKUP_BATCH_SIZE],
+                "page": "1",
+                "limit": str(COMPLETION_LOOKUP_BATCH_SIZE),
+            },
+        )
+        for run in persistence.get_objects(TaskRun, paging, use_cache=False):
+            completed_at[run.job_id] = _as_utc(run.last_run)
+
+    # Reused job IDs can still have a result from before the execution being observed.
+    return [
+        {"id": job_id, "started_at": started_at}
+        for (job_id, started_at), observed_start in observed_starts.items()
+        if job_id in completed_at and completed_at[job_id] >= observed_start
+    ]
 
 
 def _task_stats_page(task_history: TaskHistoryResponse) -> CacheObject:
@@ -200,6 +254,31 @@ class ScheduleActiveJobsAPI(MethodView):
         except Exception:  # pragma: no cover - defensive rendering path
             logger.exception("Failed to load active jobs")
             return BaseView.render_response_notification({"error": "Failed to load active jobs."}), 500
+
+    @auth_required()
+    def post(self):
+        try:
+            observed_starts = _observed_job_starts()
+        except TypeError, ValueError, OverflowError:
+            return BaseView.render_response_notification({"error": "Invalid observed jobs."}), 400
+
+        persistence = DataPersistenceLayer()
+        try:
+            active_jobs = persistence.get_objects(ActiveJob, parse_paging_data(), use_cache=False)
+        except HTTPException:
+            raise
+        except Exception:
+            logger.exception("Failed to load active jobs")
+            return BaseView.render_response_notification({"error": "Failed to load active jobs."}), 500
+
+        try:
+            completed_jobs = _completed_observed_jobs(observed_starts, persistence)
+        except HTTPException:
+            raise
+        except Exception:
+            logger.exception("Failed to check observed job completions")
+            completed_jobs = []
+        return render_template("schedule/active_jobs.html", active_jobs=active_jobs, completed_jobs=completed_jobs)
 
 
 class ScheduleFailedJobsAPI(MethodView):
