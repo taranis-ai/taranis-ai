@@ -19,6 +19,7 @@ import responses
 from flask import json, url_for
 from models.user import ADMIN_ADVANCED_TOUR_ID, ADMIN_WELCOME_TOUR_ID, ONBOARDING_COMPLETED_STATUS, USER_PRODUCT_OVERVIEW_TASK_ID
 from playwright.sync_api import Browser, BrowserContext, Page, expect
+from plotly.offline import get_plotlyjs, get_plotlyjs_version
 
 from tests.core_requests import CoreRequestClient
 from tests.external_e2e import (
@@ -523,6 +524,21 @@ def non_admin_logged_in_page(authenticated_page_factory, completed_basic_user):
         yield page
     finally:
         page.close()
+
+
+@pytest.fixture
+def bundled_plotly(non_admin_logged_in_page):
+    script_url = f"https://cdn.plot.ly/plotly-{get_plotlyjs_version()}.min.js"
+    script = get_plotlyjs()
+
+    def serve_plotly(route):
+        route.fulfill(content_type="application/javascript", body=script, headers={"Access-Control-Allow-Origin": "*"})
+
+    non_admin_logged_in_page.route(script_url, serve_plotly)
+    try:
+        yield
+    finally:
+        non_admin_logged_in_page.unroute(script_url, serve_plotly)
 
 
 @pytest.fixture

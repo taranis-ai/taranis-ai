@@ -105,7 +105,9 @@ class TestEndToEndUser(BaseE2ETest):
         finally:
             context.close()
 
-    def test_user_dashboard(self, non_admin_logged_in_page: Page, forward_console_and_page_errors_non_admin, stories_function_wrapper):
+    def test_user_dashboard(
+        self, non_admin_logged_in_page: Page, forward_console_and_page_errors_non_admin, stories_function_wrapper, bundled_plotly
+    ):
         page = non_admin_logged_in_page
 
         def test_dashboard_edit_settings(page: Page) -> None:
@@ -1005,8 +1007,14 @@ class TestEndToEndUser(BaseE2ETest):
         page.goto(url_for("assess.assess", _external=True))
         expect(page.get_by_test_id("assess")).to_be_visible()
 
-        page.get_by_placeholder("Search stories").fill(expected_title)
-        with_htmx_wait(page, lambda: page.get_by_placeholder("Search stories").press("Enter"))
+        assess_path = url_for("assess.assess")
+        with page.expect_response(
+            lambda response: (
+                urlparse(response.url).path == assess_path and parse_qs(urlparse(response.url).query).get("search") == [expected_title]
+            )
+        ):
+            page.get_by_placeholder("Search stories").fill(expected_title)
+        wait_for_htmx_settled(page)
 
         story = page.locator("article", has=page.get_by_test_id("story-title").filter(has_text=expected_title)).first
         expect(story).to_be_visible()
