@@ -309,6 +309,18 @@ def test_story_card_shows_distinct_top_source_icons(authenticated_client, respon
     if "a" in expected_sources:
         assert icons.xpath('./*/a/img[@alt="Source a"]/@src') == [url_for("assess.source_icon", source_id="a")]
 
+    responses_mock.get(f"{Config.TARANIS_CORE_URL}/assess/stories", json={"items": [story_payload], "total_count": 1})
+    filtered_list = authenticated_client.get(
+        assess_url,
+        headers={
+            "HX-Request": "true",
+            "HX-Target": "story-list",
+            "HX-Current-URL": url_for("assess.assess", search="old search", source="a", _external=True),
+        },
+    )
+    assert filtered_list.status_code == 200
+    assert html.fromstring(filtered_list.text).xpath('//*[@data-test-id="story-source-icons"]/*/a/@href') == icons.xpath("./*/a/@href")
+
 
 def test_source_icons_are_user_scoped_and_revalidated(authenticated_client, responses_mock):
     responses_mock.get(
@@ -773,10 +785,15 @@ def test_story_action_response_refreshes_updated_story(authenticated_client, res
 
     authenticated_client.get(url_for("assess.story_edit", story_id=story_payload["id"]))
     responses_mock.replace("GET", story_url, json=updated_story)
-    response = authenticated_client.post(url_for("assess.story_update", story_id=story_payload["id"]), headers=htmx_header)
+    response = authenticated_client.post(
+        url_for("assess.story_update", story_id=story_payload["id"]),
+        headers={**htmx_header, "HX-Current-URL": url_for("assess.assess", search="active search", page=3, _external=True)},
+    )
 
     assert "Updated replacement content" in response.text
     assert "Updated source" in response.text
+    source_link = html.fromstring(response.text).xpath('//*[@data-test-id="story-source-icons"]/*/a/@href')[0]
+    assert parse_qs(urlparse(source_link).query) == {"search": ["active search"], "source": ["manual"]}
 
 
 def test_story_edit_misp_auto_update_controls_require_connector_access(authenticated_client, auth_user, responses_mock):
