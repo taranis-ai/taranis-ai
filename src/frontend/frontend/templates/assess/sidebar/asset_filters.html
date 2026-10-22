@@ -1,6 +1,6 @@
 <div x-data="{}">
   <input type="hidden" name="_asset_filters_form" value="true">
-  <label class="label cursor-pointer justify-start gap-3">
+  <label class="peer/asset-match label cursor-pointer justify-start gap-3">
     <input type="checkbox"
            name="asset_match"
            value="true"
@@ -10,7 +10,10 @@
            @change="if (!$el.checked) { $refs.advanced.querySelectorAll('input, select').forEach(input => { input.value = input.tagName === 'SELECT' && input.querySelector('option[value=any]') ? 'any' : ''; }); }">
     <span class="label-text">Asset matches only</span>
   </label>
-  <details x-ref="advanced" {% if asset_filters.advanced_asset_filters %}open{% endif %} @change="$refs.assetMatch.checked = true">
+  <details class="hidden peer-has-checked/asset-match:block"
+           x-ref="advanced"
+           {% if asset_filters.advanced_asset_filters %}open{% endif %}
+           @change="$refs.assetMatch.checked = true">
     <summary class="cursor-pointer text-sm font-semibold py-2">Advanced asset filters</summary>
     <div class="space-y-3 py-2">
       {% if asset_filter_error %}<p role="alert" class="text-error">{{ asset_filter_error }}</p>{% endif %}
