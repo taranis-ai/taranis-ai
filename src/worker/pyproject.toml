@@ -144,7 +144,8 @@ reportIncompatibleMethodOverride = "none"
 [tool.uv]
 config-settings = { editable_mode = "compat" }
 exclude-newer = "1 week"
-exclude-newer-package = { "taranis-llm-bot" = false }
+# Allow security updates to the certificate bundle and image decoders without the release delay.
+exclude-newer-package = { "taranis-llm-bot" = false, certifi = false, pillow = false }
 required-environments = [
   "sys_platform == 'linux' and platform_machine == 'x86_64'",
   "sys_platform == 'linux' and platform_machine == 'aarch64'",
