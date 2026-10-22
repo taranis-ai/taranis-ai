@@ -157,4 +157,4 @@ pytest
 
 There are [e2e tests](./tests/playwright/README.md) using Playwright, including the browser suite and the RQ/Redis integration e2e suite.
 
-Story editor AI actions refresh their affected fields through SSE and HTMX after the bot result commits: summary/title, sentiment, classification, and news-item tags. Unrelated unsaved fields stay intact; generated output replaces drafts in the affected fields. If realtime is disabled or delivery is missed, reload to see the saved results.
+Story editor AI actions refresh their affected fields through SSE and HTMX after the bot result commits: summary/title, sentiment, classification, and news-item tags. Completion events combine all affected story IDs and bot types into one publication per saved run. Tag refresh requests return only the targeted news-item card. Unrelated unsaved fields stay intact; generated output replaces drafts in the affected fields. If realtime is disabled or delivery is missed, reload to see the saved results.

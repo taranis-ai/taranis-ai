@@ -138,7 +138,16 @@ def test_bot_pipeline_uses_one_snapshot_and_commits_only_complete_runs(app, clie
         assert completed == []
         committed = client.post("/api/tasks", json=payload, headers=api_header)
         assert committed.status_code == 200
-        expected_events = [(story_id, "manual-user", stage["bot_type"]) for stage in stages for story_id in stage["story_ids"]]
+        expected_events = [
+            (
+                {
+                    first.id: ["NLP_BOT", "STORY_BOT", "SUMMARY_BOT", "IOC_BOT"],
+                    second.id: ["NLP_BOT", "STORY_BOT"],
+                    third.id: ["STORY_BOT"],
+                },
+                "manual-user",
+            )
+        ]
         assert completed == expected_events
         assert Story.get(second.id) is None
         assert Story.get(third.id) is None

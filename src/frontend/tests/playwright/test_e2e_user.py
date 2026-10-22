@@ -587,7 +587,7 @@ class TestEndToEndUser(BaseE2ETest):
             page.evaluate("document.querySelector('#story-ai-summary').dataset.beforeCompletion = 'true'")
             page.evaluate(
                 """storyId => document.dispatchEvent(new CustomEvent('realtime:story.bot.finished', {
-                    detail: {resource: {id: storyId}, data: {bot_type: 'SUMMARY_BOT'}}
+                    detail: {data: {stories: {[storyId]: ['SUMMARY_BOT']}}}
                 }))""",
                 "unrelated-story",
             )
@@ -596,11 +596,12 @@ class TestEndToEndUser(BaseE2ETest):
                 ("SUMMARY_BOT", "#story-ai-summary"),
                 ("SENTIMENT_ANALYSIS_BOT", "#story-ai-sentiment"),
                 ("CYBERSEC_CLASSIFIER_BOT", "#story-ai-classification"),
+                ("NLP_BOT", f"#news-item-card-{seeded_story['news_items'][0]['id']}"),
             ):
                 page.locator(selector).evaluate("element => element.dataset.beforeCompletion = 'true'")
                 page.evaluate(
                     """({storyId, botType}) => document.dispatchEvent(new CustomEvent('realtime:story.bot.finished', {
-                        detail: {resource: {id: storyId}, data: {bot_type: botType}}
+                        detail: {data: {stories: {[storyId]: [botType]}}}
                     }))""",
                     {"storyId": story_id, "botType": bot_type},
                 )
