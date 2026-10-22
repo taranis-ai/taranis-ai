@@ -570,16 +570,13 @@ class Bot(BaseModel):
         entries: list[dict[str, Any]] = []
 
         bots = cls.get_all_for_collector()
+        task_results = TaskModel.get_latest_for_schedules({bot.task_id: (bot.cron_run_prefix, bot.task_id) for bot in bots})
         for bot in bots:
             if not (cron_schedule := bot.get_schedule()):
                 continue
 
             try:
-                task_result = TaskModel.get_latest_matching(
-                    exact_ids={bot.task_id},
-                    prefixes=[bot.cron_run_prefix],
-                    task_name=bot.task_id,
-                )
+                task_result = task_results.get(bot.task_id)
 
                 entries.append(
                     QueueManager.build_cron_schedule_entry(

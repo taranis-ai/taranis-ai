@@ -501,16 +501,13 @@ class OSINTSource(BaseModel):
         schedule_entries: list[dict[str, Any]] = []
 
         sources = cls.get_all_for_collector()
+        task_results = TaskModel.get_latest_for_schedules({source.task_id: (source.cron_run_prefix, "collector_task") for source in sources})
         for source in sources:
             if not (cron_schedule := source.get_schedule_with_default()):
                 continue
 
             try:
-                task_result = TaskModel.get_latest_matching(
-                    exact_ids={source.task_id},
-                    prefixes=[source.cron_run_prefix],
-                    task_name="collector_task",
-                )
+                task_result = task_results.get(source.task_id)
 
                 schedule_entries.append(
                     QueueManager.build_cron_schedule_entry(

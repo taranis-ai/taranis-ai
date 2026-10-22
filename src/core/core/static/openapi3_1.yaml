@@ -2878,7 +2878,7 @@ paths:
       tags:
       - tasks
       operationId: tasks.user_tasks.get
-      description: list completed tasks triggered by the authenticated user
+      description: List queued, running, and completed tasks triggered by the authenticated user. Live queue metadata and private result data are omitted.
       security:
       - UserAuth: []
       parameters:
@@ -11821,6 +11821,10 @@ components:
           type: string
           minLength: 1
           description: accepted input alias for id
+        name:
+          type:
+          - string
+          - 'null'
         task:
           type:
           - string
@@ -11843,6 +11847,10 @@ components:
       properties:
         id:
           type: string
+        name:
+          type:
+          - string
+          - 'null'
         task:
           type:
           - string
@@ -11878,6 +11886,10 @@ components:
       properties:
         id:
           type: string
+        name:
+          type:
+          - string
+          - 'null'
         task:
           type:
           - string
@@ -11948,6 +11960,10 @@ components:
       properties:
         id:
           type: string
+        name:
+          type:
+          - string
+          - 'null'
         job_id:
           type:
           - string
@@ -11986,6 +12002,10 @@ components:
             $ref: '#/components/schemas/user_task'
         total_count:
           type: integer
+        live_tasks_available:
+          type: boolean
+          default: true
+          description: False when live queue state is temporarily unavailable; completed history remains available.
       required:
       - items
       - total_count

@@ -245,38 +245,6 @@ def test_preview_osint_source_purges_existing_preview_artifacts(monkeypatch):
     assert response == {"message": "Preview for source scheduled", "id": "source_preview_123", "status": "STARTED"}
 
 
-def test_get_active_jobs_uses_registry(monkeypatch):
-    class FakeJob:
-        def __init__(self, job_id):
-            self.id = job_id
-            self.func_name = "other.task"
-            self.args = []
-            self.meta = {}
-            self.started_at = datetime(2025, 1, 1, 12, 0, tzinfo=UTC)
-
-    class FakeRegistry:
-        def __init__(self, queue=None):
-            self.queue = queue
-
-        def get_job_ids(self):
-            return ["job-1"]
-
-    def fake_fetch(job_id, connection=None):
-        return FakeJob(job_id)
-
-    monkeypatch.setattr(rq_registry, "StartedJobRegistry", FakeRegistry)
-    monkeypatch.setattr(qm_module, "Job", type("Job", (), {"fetch": staticmethod(fake_fetch)}))
-
-    qm = _make_queue_manager()
-    qm._queues = {"bots": _DummyQueue("bots")}  # type: ignore[assignment]
-
-    payload, status = qm.get_active_jobs({})
-
-    assert status == 200
-    assert payload["items"][0]["id"] == "job-1"
-    assert payload["items"][0]["status"] == "running"
-
-
 @pytest.mark.parametrize("reason", [None, "job_timeout", "llm_request_timeout", "private-unknown-reason"])
 @pytest.mark.parametrize("checkpoint", [False, True])
 def test_get_failed_jobs_uses_registry(app, session, reason, checkpoint):
@@ -681,8 +649,8 @@ def test_osint_schedule_entries_include_metadata(monkeypatch):
     monkeypatch.setattr(OSINTSource, "get_all_for_collector", classmethod(lambda cls: [FakeSource()]))
     monkeypatch.setattr(
         TaskModel,
-        "get_latest_matching",
-        classmethod(lambda cls, exact_ids=None, prefixes=None, task_name=None: FakeTask()),
+        "get_latest_for_schedules",
+        classmethod(lambda cls, schedule_specs: {"task-1": FakeTask()}),
     )
 
     entries = OSINTSource.get_enabled_schedule_entries(now=datetime(2025, 1, 1, 0, 0))
@@ -714,7 +682,7 @@ def test_osint_schedule_entries_handle_many(monkeypatch):
         return FakeSource(idx)
 
     monkeypatch.setattr(OSINTSource, "get_all_for_collector", classmethod(lambda cls: [make_source(i) for i in range(120)]))
-    monkeypatch.setattr(TaskModel, "get_latest_matching", classmethod(lambda cls, exact_ids=None, prefixes=None, task_name=None: None))
+    monkeypatch.setattr(TaskModel, "get_latest_for_schedules", classmethod(lambda cls, schedule_specs: {}))
 
     entries = OSINTSource.get_enabled_schedule_entries(now=datetime(2025, 1, 1, 0, 0))
 
@@ -728,12 +696,14 @@ def test_bot_schedule_entries_skip_invalid_cron(monkeypatch):
             self.id = "bot-1"
             self.name = "Bot One"
             self.task_id = "task-1"
+            self.cron_run_prefix = "cron_bot_bot-1_"
+            self.cron_job_id = "bot_bot-1"
 
         def get_schedule(self):
             return "not-a-cron"
 
     monkeypatch.setattr(Bot, "get_all_for_collector", classmethod(lambda cls: [FakeBot()]))
-    monkeypatch.setattr(TaskModel, "get", classmethod(lambda cls, task_id: None))
+    monkeypatch.setattr(TaskModel, "get_latest_for_schedules", classmethod(lambda cls, schedule_specs: {}))
 
     entries = Bot.get_enabled_schedule_entries(now=datetime(2025, 1, 1, 0, 0))
 
@@ -762,8 +732,8 @@ def test_bot_schedule_entries_include_last_reason(monkeypatch):
     monkeypatch.setattr(Bot, "get_all_for_collector", classmethod(lambda cls: [FakeBot()]))
     monkeypatch.setattr(
         TaskModel,
-        "get_latest_matching",
-        classmethod(lambda cls, exact_ids=None, prefixes=None, task_name=None: FakeTask()),
+        "get_latest_for_schedules",
+        classmethod(lambda cls, schedule_specs: {"task-1": FakeTask()}),
     )
 
     entries = Bot.get_enabled_schedule_entries(now=datetime(2025, 1, 1, 0, 0))
