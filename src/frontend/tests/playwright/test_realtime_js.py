@@ -599,6 +599,10 @@ def test_story_bot_refresh_fetches_once_and_preserves_drafts(app, page: Page):
     expect(page.locator('[name="comments"]')).to_have_value("Private comment draft")
 
     requests.clear()
+    page.evaluate("""() => {
+        window.completedRefreshes = 0;
+        document.addEventListener('htmx:finally:request', () => window.completedRefreshes++);
+    }""")
     with_htmx_wait(
         page,
         lambda: page.evaluate("""() => {
@@ -609,4 +613,5 @@ def test_story_bot_refresh_fetches_once_and_preserves_drafts(app, page: Page):
             }
         }"""),
     )
+    page.wait_for_function("window.completedRefreshes === 3")
     assert [parse_qs(urlparse(request.url).query)["bot_types"] for request in requests] == [["NLP_BOT"], ["SUMMARY_BOT"], ["NLP_BOT"]]
