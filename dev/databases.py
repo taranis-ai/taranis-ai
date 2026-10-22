@@ -180,13 +180,19 @@ def clear_redis(clients: list[Redis]):
         client.flushdb()
 
 
+def copy_database(connection, source: str, destination: str):
+    require_database(connection, source)
+    require_idle_databases(connection, [source])
+    # PostgreSQL rejects an existing destination, including a concurrent create.
+    connection.execute(sql.SQL("CREATE DATABASE {} TEMPLATE {}").format(sql.Identifier(destination), sql.Identifier(source)))
+
+
 def clone_database(connection, config: DevelopmentConfig, name: str, processes: TmuxProcesses | None):
     if connection.execute("SELECT 1 FROM pg_database WHERE datname = %s", (name,)).fetchone():
         raise ValueError(f"Database {name!r} already exists. Existing databases are never overwritten.")
     if processes:
         processes.stop()
-    require_idle_databases(connection, [config.selected])
-    connection.execute(sql.SQL("CREATE DATABASE {} TEMPLATE {}").format(sql.Identifier(name), sql.Identifier(config.selected)))
+    copy_database(connection, config.selected, name)
     print(f"Cloned {config.selected} to {name}; selected database is still {config.selected}.")
     print("Services remain stopped so restarting cannot migrate the source. Run switch with the database you want to use next.")
 

@@ -15,6 +15,8 @@ on:
     paths:
       - .github/workflows/test_named_databases.yaml
       - dev/db.sh
+      - dev/switch.sh
+      - dev/branch_databases.py
       - dev/databases.py
       - dev/database_processes.py
       - dev/test_named_databases.sh
@@ -49,6 +51,6 @@ jobs:
 
       - name: Check development database helpers
         run: |
-          uv run --project src/core --frozen --no-sync ruff check --config src/core/pyproject.toml dev/databases.py dev/database_processes.py dev/tests
+          uv run --project src/core --frozen --no-sync ruff check --config src/core/pyproject.toml dev/databases.py dev/database_processes.py dev/branch_databases.py dev/tests
           uv run --project src/core --frozen --no-sync python -m unittest discover -s dev/tests
           CONTAINER_CLI=docker ./dev/test_named_databases.sh

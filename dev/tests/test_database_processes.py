@@ -16,7 +16,7 @@ from database_processes import TmuxProcesses
 
 @unittest.skipUnless(shutil.which("tmux"), "tmux is required for the development lifecycle check")
 class DatabaseProcessesTest(unittest.TestCase):
-    def test_switch_reuses_panes_and_stops_application_children(self):
+    def test_switch_waits_for_core_and_preserves_panes(self):
         with tempfile.TemporaryDirectory(prefix="taranis-db-processes-") as temporary:
             root = Path(temporary)
             previous_environment = {name: os.environ.get(name) for name in ("TMUX_TMPDIR", "TMUX", "TMUX_PANE")}
@@ -45,7 +45,22 @@ class DatabaseProcessesTest(unittest.TestCase):
                         urls[name] = f"http://127.0.0.1:{port}/{route}"
                         command = f"exec python3 -m http.server {port} --bind 127.0.0.1"
                     script = directory / "install_and_run_dev.sh"
-                    script.write_text('#!/bin/sh\nprintf "%s" "${DB_DATABASE:-}" > selected-database\n' + command + "\n")
+                    startup = '#!/bin/sh\nprintf "%s" "${DB_DATABASE:-}" > selected-database\n'
+                    if name == "core":
+                        startup += (
+                            "sleep 0.5\n"
+                            'printf \'%s\' \'{"services": {"database": "up", "seed_data": "up", '
+                            '"broker": "up", "workers": "down"}}\' > api/health\n'
+                            "touch ready\n"
+                        )
+                    else:
+                        startup += "test -f ../core/ready || exit 1\n"
+                        if name == "worker":
+                            startup += (
+                                'printf \'%s\' \'{"services": {"database": "up", "seed_data": "up", '
+                                '"broker": "up", "workers": "up"}}\' > ../core/api/health\n'
+                            )
+                    script.write_text(startup + command + "\n")
                     script.chmod(0o700)
                     tmux_command = (
                         ["tmux", "-f", "/dev/null", "new-session", "-d", "-s", "database-test"]
@@ -63,6 +78,7 @@ class DatabaseProcessesTest(unittest.TestCase):
                 processes.start("taranis_first")
                 self.assertEqual((root / "src/core/selected-database").read_text(), "taranis_first")
                 processes.stop()
+                (root / "src/core/ready").unlink()
                 processes.start("taranis_second")
                 self.assertEqual((root / "src/core/selected-database").read_text(), "taranis_second")
                 processes.stop()
@@ -76,6 +92,14 @@ class DatabaseProcessesTest(unittest.TestCase):
                 ).stdout
                 self.assertIn("taranis_first", history)
                 self.assertIn("taranis_second", history)
+                for name in ("core", "frontend", "worker"):
+                    (root / "src" / name / "selected-database").unlink()
+                (root / "src/core/ready").unlink()
+                (root / "src/core/install_and_run_dev.sh").write_text("#!/bin/sh\nexit 1\n")
+                with self.assertRaisesRegex(RuntimeError, "Core exited during startup"):
+                    processes.start("taranis_failed")
+                for name in ("frontend", "worker"):
+                    self.assertFalse((root / "src" / name / "selected-database").exists())
             finally:
                 subprocess.run(["tmux", "kill-server"], capture_output=True, check=False)
                 for name, value in previous_environment.items():

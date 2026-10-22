@@ -66,8 +66,10 @@ if [ -z "$PG_PORT" ] || [ -z "$REDIS_PORT" ]; then
 fi
 
 uv run --project "$ROOT_DIR/src/core" --frozen python - "$ROOT_DIR" "$TMP_DIR" "$PG_PORT" "$REDIS_PORT" <<'PY'
+import json
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 
@@ -215,6 +217,108 @@ try:
     assert core_env.read_bytes() == previous_env
     assert row("taranis", "SELECT * FROM experiment") == ("source change",)
     assert row("feature", "SELECT * FROM experiment") == ("feature change", None)
+finally:
+    subprocess.run(["tmux", "kill-server"], env=helper_env, capture_output=True, check=False)
+
+# Exercise branch coordination in this same disposable checkout and database instance.
+development = workspace / "dev"
+development.mkdir()
+for filename in ("switch.sh", "branch_databases.py", "db.sh", "databases.py", "database_processes.py"):
+    shutil.copy2(repo / "dev" / filename, development / filename)
+(workspace / ".gitignore").write_text(".env\n__pycache__/\nstarted-database\ntmux/\n", encoding="utf-8")
+branch_file = workspace / "branch.txt"
+branch_file.write_text("main\n", encoding="utf-8")
+
+
+def git(*args):
+    return subprocess.check_output(["git", "-C", str(workspace), *args], env=helper_env, text=True).strip()
+
+
+def switch_branch(*args, succeeds=True):
+    result = subprocess.run(
+        [sys.executable, str(development / "branch_databases.py"), "--root", str(workspace), "--session", "database-test", *args],
+        env=helper_env,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    output = result.stdout + result.stderr
+    assert (result.returncode == 0) == succeeds, output
+    return output
+
+
+git("init", "-q", "-b", "main")
+git("config", "user.name", "Developer")
+git("config", "user.email", "developer@example.test")
+git("config", "commit.gpgsign", "false")
+git("config", "core.hooksPath", "/dev/null")
+git("add", ".gitignore", "branch.txt", "dev", "src")
+git("commit", "-qm", "Define local development branches")
+git("switch", "-qc", "reports")
+branch_file.write_text("reports\n", encoding="utf-8")
+git("add", "branch.txt")
+git("commit", "-qm", "Develop report editing")
+git("branch", "unmapped")
+
+switch_branch("main", "--db", "feature", "--stopped")
+broker.set("rq:previous-branch", "old branch")
+switch_branch("reports", "--db", "reports_data", "--from", "feature", "--stopped")
+assert git("branch", "--show-current") == "reports"
+assert branch_file.read_text(encoding="utf-8") == "reports\n"
+assert selected() == "reports_data"
+assert broker.dbsize() == 0
+assert row("feature", "SELECT * FROM experiment") == ("feature change", None)
+with connect("reports_data") as connection:
+    connection.execute("UPDATE experiment SET value = 'report changes'")
+    connection.execute("ALTER TABLE experiment ADD COLUMN report_only text")
+switch_branch("main", "--stopped")
+assert selected() == "feature"
+assert row(selected(), "SELECT * FROM experiment") == ("feature change", None)
+with connect("feature") as connection:
+    connection.execute("UPDATE experiment SET value = 'main change'")
+switch_branch("reports", "--stopped")
+assert selected() == "reports_data"
+assert row(selected(), "SELECT * FROM experiment") == ("report changes", None, None)
+assert row("feature", "SELECT * FROM experiment") == ("main change", None)
+
+associations = workspace / git("rev-parse", "--git-path", "taranis-dev/branches.json")
+assert json.loads(associations.read_text(encoding="utf-8")) == {"main": "feature", "reports": "reports_data"}
+previous_associations = associations.read_bytes()
+previous_env = core_env.read_bytes()
+switch_branch("unmapped", "--stopped", succeeds=False)
+branch_file.write_text("unfinished changes\n", encoding="utf-8")
+switch_branch("main", "--stopped", succeeds=False)
+assert branch_file.read_text(encoding="utf-8") == "unfinished changes\n"
+branch_file.write_text("reports\n", encoding="utf-8")
+switch_branch("unmapped", "--db", "reports_data", "--from", "feature", "--stopped", succeeds=False)
+assert git("branch", "--show-current") == "reports"
+assert core_env.read_bytes() == previous_env
+assert associations.read_bytes() == previous_associations
+assert row("reports_data", "SELECT * FROM experiment") == ("report changes", None, None)
+assert not git("status", "--porcelain")
+
+try:
+    for index, component in enumerate(("core", "frontend", "worker")):
+        directory = workspace / "src" / component
+        (directory / "started-database").unlink(missing_ok=True)
+        command = ["tmux", "-f", "/dev/null"]
+        command += ["new-session", "-d", "-s", "database-test"] if index == 0 else ["new-window", "-t", "database-test"]
+        subprocess.run(command + ["-n", component, "-c", str(directory), "/bin/sh"], env=helper_env, check=True)
+    failure = switch_branch("unmapped", "--db", "startup_failure", "--from", "feature", succeeds=False)
+    assert git("branch", "--show-current") == "unmapped"
+    assert selected() == "startup_failure"
+    assert "unmapped" in failure and "startup_failure" in failure, failure
+    assert (workspace / "src/core/started-database").read_text(encoding="utf-8") == "startup_failure\n"
+    assert not (workspace / "src/frontend/started-database").exists()
+    assert not (workspace / "src/worker/started-database").exists()
+    assert json.loads(associations.read_text(encoding="utf-8")) == {
+        "main": "feature", "reports": "reports_data", "unmapped": "startup_failure"
+    }
+    assert row("feature", "SELECT * FROM experiment") == ("main change", None)
+    assert row("reports_data", "SELECT * FROM experiment") == ("report changes", None, None)
+    assert row("startup_failure", "SELECT * FROM experiment") == ("main change", None)
+    commands = subprocess.check_output(["tmux", "list-panes", "-a", "-F", "#{pane_current_command}"], env=helper_env, text=True)
+    assert set(commands.splitlines()) == {"sh"}, commands
 finally:
     subprocess.run(["tmux", "kill-server"], env=helper_env, capture_output=True, check=False)
 

@@ -159,7 +159,7 @@ class TmuxProcesses:
             time.sleep(0.2)
         raise RuntimeError("Development processes did not stop. Inspect their tmux panes before retrying.")
 
-    def _core_ready(self) -> bool:
+    def _core_ready(self, *, require_workers: bool = True) -> bool:
         try:
             try:
                 response = self.http.open(self.core_url, timeout=2)
@@ -178,7 +178,7 @@ class TmuxProcesses:
                 services.get("database") == "up"
                 and services.get("seed_data") == "up"
                 and services.get("broker") in {"up", "n/a"}
-                and services.get("workers") in {"up", "n/a"}
+                and (not require_workers or services.get("workers") in {"up", "n/a"})
             )
         except (OSError, URLError, ValueError, AttributeError):
             return False
@@ -190,23 +190,40 @@ class TmuxProcesses:
         except (OSError, URLError):
             return False
 
+    def _start_pane(self, name: str, database: str) -> None:
+        # Component .env files own connection settings; old pane exports must
+        # not reconnect a process to a different database or Redis server.
+        command = "env " + " ".join(f"-u {key}" for key in CONNECTION_ENVIRONMENT_KEYS)
+        if name == "core":
+            command += f" DB_DATABASE={shlex.quote(database)}"
+        command += f" ./{APP_SCRIPTS[name][1]}"
+        target = self.panes[name].target
+        self._command("tmux", "send-keys", "-t", target, "C-u")
+        self._command("tmux", "send-keys", "-t", target, "-l", command)
+        self._command("tmux", "send-keys", "-t", target, "Enter")
+
+    def _wait_for_core(self) -> None:
+        # Core registers its API after synchronous database setup and migrations.
+        deadline = time.monotonic() + 120
+        startup_grace = time.monotonic() + 1
+        while time.monotonic() < deadline:
+            core_idle = "core" in self._idle_apps()
+            if core_idle and time.monotonic() >= startup_grace:
+                raise RuntimeError("Core exited during startup. Inspect its tmux pane before starting dependent services.")
+            if not core_idle and self._core_ready(require_workers=False):
+                return
+            time.sleep(0.2)
+        raise RuntimeError("Core did not become ready. Dependent development services remain stopped.")
+
     def start(self, database: str) -> None:
         app_names = set(self.panes) & APP_SCRIPTS.keys()
         if self._idle_apps() != app_names:
             raise RuntimeError("Stop all development application panes before restarting them.")
-        for name, (_, script) in APP_SCRIPTS.items():
-            if name not in self.panes:
-                continue
-            # Component .env files own connection settings; old pane exports must
-            # not reconnect a process to a different database or Redis server.
-            command = "env " + " ".join(f"-u {key}" for key in CONNECTION_ENVIRONMENT_KEYS)
-            if name == "core":
-                command += f" DB_DATABASE={shlex.quote(database)}"
-            command += f" ./{script}"
-            target = self.panes[name].target
-            self._command("tmux", "send-keys", "-t", target, "C-u")
-            self._command("tmux", "send-keys", "-t", target, "-l", command)
-            self._command("tmux", "send-keys", "-t", target, "Enter")
+        self._start_pane("core", database)
+        self._wait_for_core()
+        for name in APP_SCRIPTS:
+            if name != "core" and name in self.panes:
+                self._start_pane(name, database)
         deadline = time.monotonic() + 120
         startup_grace = time.monotonic() + 1
         stable_since = None

@@ -1,7 +1,8 @@
 # Named Development Databases
 
-Load for: local dataset cloning or switching, `dev/db.sh`, or development
-startup changes affecting database selection. Operator usage lives in
+Load for: local dataset cloning or switching, `dev/db.sh`, `dev/switch.sh`, Git
+branch/database associations, or development startup changes affecting database
+selection. Operator usage lives in
 [dev/README.md](../../dev/README.md#named-local-databases).
 
 ## Contracts
@@ -10,7 +11,7 @@ startup changes affecting database selection. Operator usage lives in
   `.env`. `clone` copies the selected database with `CREATE DATABASE … TEMPLATE`,
   rejects an existing destination, and leaves selection unchanged. Cloning leaves
   applications stopped so current-branch startup migrations cannot alter the source.
-- `switch` checks connectivity before stopping applications, requires both the
+- `db.sh switch` checks connectivity before stopping applications, requires both the
   current and target databases to have no connected clients, clears configured
   Redis state, atomically changes Core's `DB_DATABASE`, and restarts existing
   application panes. Startup failure stops target processes and restores the
@@ -40,16 +41,42 @@ startup changes affecting database selection. Operator usage lives in
   These must be dedicated development databases. Other logical databases remain
   untouched. Queue loss and startup recovery follow [Redis Runtime State](redis-runtime-state.md).
 - Copies contain PostgreSQL data only. External files remain shared; there is no
-  backup lifecycle or Git branch association. Each copy consumes database-sized
+  backup lifecycle. Each copy consumes database-sized
   storage plus WAL overhead. PostgreSQL template cloning excludes database-level
   settings and grants; see the [PostgreSQL reference](https://www.postgresql.org/docs/18/sql-createdatabase.html).
+
+## Branch Associations
+
+- `dev/switch.sh BRANCH` coordinates code and database selection for an existing
+  local branch in a clean checkout. The target must contain the helper modules
+  and normal application startup scripts; rebase older branches onto that support
+  before using it. Applications stop before `git switch --no-guess --no-overwrite-ignore`.
+- An unassociated branch requires `--db NAME`; an existing database is reused.
+  A missing destination additionally requires `--from SOURCE`. Reject `--from`
+  for an existing destination instead of overwriting it. The source is an explicit
+  existing database, usually the default `taranis`. All copies share the configured
+  local PostgreSQL instance (normally the `taranis-database-1` container), reached
+  through host-side `DB_URL`. Save associations in `taranis-dev/branches.json`
+  under Git's metadata directory, outside tracked
+  content. No hooks, database merges, or automatic deletion are part of this workflow.
+- Connection and Redis contracts above also apply. Core migration readiness
+  precedes dependent application startup. `--root`, `--session`, and `--stopped`
+  support the same checkout/session and manual process handling.
+- After code and database selection succeed, startup failure preserves the target
+  branch, selected database, and association, then leaves applications stopped.
+  Earlier failures can leave the target branch with the previous selection. Report
+  the actual branch/database pair so the developer can fix the problem and retry
+  the target command, omitting `--from` if cloning already succeeded. Never roll
+  back Git automatically, reverse target migrations, or drop a database on failure.
 
 ## Code and Coverage
 
 `dev/db.sh` runs `dev/databases.py` in Core's `uv` environment;
+`dev/switch.sh` runs the branch coordinator in `dev/branch_databases.py`.
 `dev/database_processes.py` coordinates tmux panes and application readiness.
-`dev/test_named_databases.sh` covers cloning, selection, Redis isolation, and
-failure behavior against disposable PostgreSQL and Redis containers.
+`dev/test_named_databases.sh` covers cloning, selection, branch/database
+coordination, Redis isolation, and failure behavior against disposable PostgreSQL
+and Redis containers.
 `dev/tests/test_database_processes.py` exercises process restarts on a private
 tmux server. Run these checks explicitly when changing the helpers. The dedicated
 `.github/workflows/test_named_databases.yaml` workflow runs them for changes to

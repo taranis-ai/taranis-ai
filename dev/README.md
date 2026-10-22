@@ -310,9 +310,10 @@ database configured by `REDIS_URL` or `CACHE_REDIS_URL` across Core, frontend,
 and worker, including the default `redis://localhost:6379/0` when `REDIS_URL`
 is absent. Other logical databases are untouched. Pending jobs, retries, and
 unfinished bot chains are lost; Core rebuilds recurring schedules on startup
-and caches refill on demand. Files outside PostgreSQL remain shared. Cloning
-does not provide backups or connect a dataset to a Git branch, and each clone
-requires a full copy's disk space plus PostgreSQL's write-ahead log overhead.
+and caches refill on demand. Files outside PostgreSQL remain shared. Keep
+backups separately; each clone requires a full copy's disk space plus
+PostgreSQL's write-ahead log overhead. To associate datasets with Git branches,
+use the branch workflow below.
 Database-level permissions and settings are not copied by
 [PostgreSQL's template operation](https://www.postgresql.org/docs/18/sql-createdatabase.html).
 
@@ -324,6 +325,62 @@ the database helpers, alongside
 for the tmux lifecycle check. The dedicated **Development database helpers** workflow
 runs these checks for relevant helper or Core dependency changes and supports
 manual runs. The shared application pipeline does not run them.
+
+### Switch branches with their databases
+
+Use `./dev/switch.sh` to switch an existing local Git branch together with its
+development database. Create the branch explicitly first. For example, with an
+existing default `taranis` database:
+
+```bash
+git branch feature/report-editor
+./dev/switch.sh feature/report-editor --db reports --from taranis
+```
+
+This stops the applications, switches to `feature/report-editor`, clones
+`taranis` into the new `reports` database, selects it, and saves the branch's
+database association. Core starts first and finishes its migrations before
+frontend, workers, and optional cron/dashboard panes start. Later, resume with:
+
+```bash
+./dev/switch.sh feature/report-editor
+```
+
+The checkout must be clean. The target branch must already exist locally and
+contain the database helpers, branch switch helper, and normal application
+startup scripts. Rebase older branches onto a branch containing that support
+before using this workflow. Git switches with `--no-guess --no-overwrite-ignore`
+so it neither creates a branch from a remote reference nor overwrites ignored
+local files.
+
+An unassociated branch requires `--db NAME`. An existing database is reused;
+creating a missing database also requires `--from SOURCE`. Supplying `--from`
+when the destination already exists is rejected. The source is always an
+explicit existing PostgreSQL database, usually the default `taranis`.
+The default `taranis` database and its copies share the existing
+`taranis-database-1` development container. Each branch uses a named database,
+and the helper reaches that same PostgreSQL server through the host-side
+`DB_URL`; it does not create a container per branch. Associations are saved locally
+as `taranis-dev/branches.json` under Git's metadata directory and are not committed.
+Use this command explicitly whenever code and database should move together;
+there are no Git hooks, automatic database merges, or automatic database deletion.
+
+The same local connection settings, tmux session handling, Redis clearing, and
+storage limits described above apply. `--root /path/to/checkout` and
+`--session my_session` select the checkout and existing session. For manual
+startup, stop all application processes first and pass `--stopped`; this changes
+the branch and database selection without restarting applications.
+
+If startup fails after the branch and database are selected, both remain selected
+and associated, and application processes are stopped. Earlier failures after
+the Git switch can leave the target branch with the previous database selection.
+The command reports the actual branch and selected database. Inspect that pair,
+fix the reported problem, and rerun the target command; omit `--from` if the copy
+already exists. Recovery does not roll back Git, undo target migrations, or drop
+the target database.
+
+The existing `./dev/test_named_databases.sh` harness also covers branch/database
+coordination with disposable PostgreSQL and Redis services.
 
 ### Migration Test Harness
 
