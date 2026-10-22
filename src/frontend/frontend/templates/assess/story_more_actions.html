@@ -1,0 +1,9 @@
+{% from "assess/story_actions.html" import story_actions with context %}
+<div class="join join-vertical w-full">
+  {% if request.args.get("include_edit") == "true" and story.can_edit %}
+    <a href="{{ url_for('assess.story_edit', story_id=story.id, bookmark_id=bookmark_id or None, assess_url=assess_return_url | default(None)) }}"
+       class="btn btn-outline btn-xs w-full join-item justify-start gap-2"
+       data-testid="edit-story">{{ heroicon_mini("pencil-square") }} Edit story</a>
+  {% endif %}
+  {{ story_actions(story, secondary_only=True, bookmark_id=bookmark_id, delete_target=delete_target, delete_swap='outerHTML') }}
+</div>

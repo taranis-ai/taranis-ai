@@ -1,0 +1,26 @@
+{% macro bookmark_action(story_id, bookmarked=False, size='xs', oob=False) %}
+  <div id="story-bookmark-{{ story_id }}" class="inline-flex"{% if oob %} hx-swap-oob="outerHTML"{% endif %}>
+    <form method="post" action="{{ url_for('assess.instant_bookmark_story', story_id=story_id) }}">
+      <input type="hidden" name="csrf_token" value="{{ request.cookies.get(config['JWT_ACCESS_CSRF_COOKIE_NAME'], '') }}">
+      {% if bookmarked %}<input type="hidden" name="remove" value="true">{% endif %}
+      <button type="submit"
+              class="btn btn-outline {{ 'btn-primary' if bookmarked else '' }} btn-{{ size }} gap-2 story-card-action"
+              hx-post="{{ url_for('assess.instant_bookmark_story', story_id=story_id) }}"
+              hx-target="#notification-bar"
+              hx-status:400="target:#notification-bar"
+              hx-status:4xx="target:#notification-bar"
+              hx-status:5xx="target:#notification-bar"
+              hx-swap="outerHTML"
+              data-testid="bookmark-story"
+              title="{{ 'Unbookmark' if bookmarked else 'Bookmark' }}">
+        {% if bookmarked %}
+          {{ heroicon_mini("bookmark") }}
+          <span>Saved</span>
+        {% else %}
+          {{ heroicon_outline("bookmark", class="h-4 w-4") }}
+          <span>Bookmark</span>
+        {% endif %}
+      </button>
+    </form>
+  </div>
+{% endmacro %}

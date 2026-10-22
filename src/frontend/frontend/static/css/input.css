@@ -188,6 +188,32 @@
   }
 }
 
+.story-card-actions .story-card-action {
+  width: 100%;
+  min-height: 1.5rem;
+  height: 100%;
+  flex-shrink: 0;
+  justify-content: flex-start;
+  border-radius: var(--radius-field);
+  white-space: normal;
+}
+
+.story-card-actions form {
+  width: 100%;
+}
+
+.story-card-actions-compact .story-card-action {
+  min-width: 1.75rem;
+  height: 1.75rem;
+  padding-inline: 0.25rem;
+  justify-content: center;
+  gap: 0;
+}
+
+.story-card-actions-compact .story-card-action > span {
+  @apply sr-only;
+}
+
 [x-cloak] {
   display: none !important;
 }

@@ -3,31 +3,37 @@
   {% set tags = (story.tags or []) | selectattr('name') | list %}
 
   {% if tags and (not compact_view or selected_tags) %}
-    <div class="flex flex-wrap gap-1 w-full max-w-full" x-data="{ tagsExpanded: false }" @click.stop>
-      {% set ns = namespace(hidden_count=0) %}
+    <div class="col-span-2 flex flex-wrap gap-1 w-full max-w-full" x-data="{ tagsExpanded: false }" @click.stop>
+      {% set ns = namespace(hidden_count=0, wide_hidden_count=0) %}
       {% for tag in tags %}
         {% set matched = tag.name in selected_tags or tag.tag_type in selected_tags %}
         {% set visible = loop.index <= 5 or matched %}
+        {% set wide_visible = visible or (not compact_view and loop.index <= 10) %}
         {% if not visible %}
           {% set ns.hidden_count = ns.hidden_count + 1 %}
         {% endif %}
+        {% if not wide_visible %}
+          {% set ns.wide_hidden_count = ns.wide_hidden_count + 1 %}
+        {% endif %}
         <a href="{{ update_query_params({'tags': tag.name}) | trim }}"
-           class="tooltip before:z-[50] badge {{ 'badge-primary font-semibold' if matched else 'badge-ghost' }} badge-xs max-w-full"
+           class="tooltip before:z-[50] badge {{ 'badge-primary font-semibold' if matched else 'badge-ghost' }} badge-xs max-w-full {{ 'hidden' if not visible else '' }} {{ '@min-[80rem]:inline-flex' if wide_visible and not visible else '' }}"
            data-tip="{{ tag.tag_type }}{{ ' (matches tag filter)' if matched else '' }}"
-           x-show="tagsExpanded || isOpen || {{ 'true' if visible else 'false' }}"
-           {% if not visible %}x-cloak{% endif %}>
+           :class="{ '!inline-flex': tagsExpanded || isOpen }">
           <span>{{ tag.name }}</span>
         </a>
       {% endfor %}
       {% if ns.hidden_count %}
         <button type="button"
-                class="badge badge-outline badge-xs cursor-pointer"
+                class="badge badge-outline badge-xs cursor-pointer {{ '@min-[80rem]:hidden' if not ns.wide_hidden_count else '' }}"
                 data-testid="toggle-story-tags"
                 x-show="!isOpen"
                 @click="tagsExpanded = !tagsExpanded"
                 :aria-expanded="tagsExpanded.toString()"
-                :aria-label="tagsExpanded ? 'Show fewer tags' : 'Show all tags'"
-                x-text="tagsExpanded ? 'Show fewer tags' : '+{{ ns.hidden_count }}'">+{{ ns.hidden_count }}</button>
+                :aria-label="tagsExpanded ? 'Show fewer tags' : 'Show all tags'">
+          <span class="@min-[80rem]:hidden" x-text="tagsExpanded ? 'Show fewer tags' : '+{{ ns.hidden_count }}'">+{{ ns.hidden_count }}</span>
+          <span class="hidden @min-[80rem]:inline"
+                x-text="tagsExpanded ? 'Show fewer tags' : '+{{ ns.wide_hidden_count }}'">+{{ ns.wide_hidden_count }}</span>
+        </button>
       {% endif %}
     </div>
   {% endif %}
