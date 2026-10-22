@@ -31,6 +31,8 @@ def set_security_headers(response: Response) -> Response:
         "font-src 'self' data:; frame-src 'self' data: blob:; "
         "object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'",
     )
-    if request.endpoint not in {"static", "api_doc.static"}:
+    if request.endpoint not in {"static", "api_doc.static"} and not (
+        request.endpoint == "assess.source_icon" and response.cache_control.private
+    ):
         response.headers["Cache-Control"] = "no-store"
     return response

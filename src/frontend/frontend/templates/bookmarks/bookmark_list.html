@@ -62,6 +62,7 @@
                  data-testid="open-bookmark-{{ bookmark.id }}">{{ bookmark.name }}</a>
               <div class="flex flex-wrap items-center gap-2 text-xs text-base-content/70">
                 <span class="badge badge-outline badge-sm">{{ bookmark.story_count }} stories</span>
+                {% if bookmark.is_default %}<span class="badge badge-primary badge-sm">Quick-save default</span>{% endif %}
                 {% if bookmark.updated %}<span>Updated {{ bookmark.updated | format_datetime }}</span>{% endif %}
               </div>
             </div>
@@ -77,6 +78,15 @@
             </div>
           </div>
 
+          {% if not bookmark.is_default %}
+            <button type="button"
+                    class="btn btn-ghost btn-xs"
+                    hx-patch="{{ url_for('assess.bookmark_update', bookmark_id=bookmark.id) }}"
+                    hx-vals='{"is_default": true}'
+                    hx-target="#bookmarks-page"
+                    hx-swap="outerHTML"
+                    data-test-id="bookmark-default-{{ bookmark.id }}">Use for quick-save</button>
+          {% endif %}
           <div class="flex min-w-0 items-center gap-2">
             <form class="flex min-w-0 flex-1 gap-2"
                   hx-patch="{{ url_for('assess.bookmark_update', bookmark_id=bookmark.id) }}"

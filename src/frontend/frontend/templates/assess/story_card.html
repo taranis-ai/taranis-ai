@@ -1,8 +1,6 @@
 {% macro story_card(story, detail_view=False, show_bookmark=True, bookmark_id=None) %}
   {% from "assess/story_actions.html" import story_card_actions with context %}
   {% from "assess/story_tags.html" import story_tags %}
-  {% from "assess/news_item_card.html" import news_item_card %}
-  {% from "macros/query_params.html" import update_query_params %}
   {% set story_id = story.id %}
   {% set news_items = (story.news_items | default([])) | list %}
   {% set news_count = news_items | length %}
@@ -12,8 +10,10 @@
   {% set selected_story_ids = selected_story_ids | default([]) %}
   {% set is_selected = (not detail_view) and story_id in selected_story_ids %}
 
-  {% set card_classes = ["card", "card-bordered", "bg-base-100", "border-l-4", "hover:shadow-lg", "relative", "w-full", "max-w-full"] %}
-  {% if is_selected or not (story.read | default(false)) %}
+  {% set card_classes = ["card", "card-bordered", "bg-base-100", "border-l-4", "hover:shadow-lg", "relative", "w-full", "max-w-full", "@container"] %}
+  {% if is_selected %}
+    {% set card_classes = card_classes + ['border-info'] %}
+  {% elif not (story.read | default(false)) %}
     {% set card_classes = card_classes + ['border-primary'] %}
   {% else %}
     {% set card_classes = card_classes + ['border-base-200'] %}
@@ -22,7 +22,7 @@
     {% set card_classes = card_classes + ['ring-2', 'ring-warning/70'] %}
   {% endif %}
   {% if is_selected %}
-    {% set card_classes = card_classes + ['bg-primary/5', 'shadow-md'] %}
+    {% set card_classes = card_classes + ['bg-info/5', 'shadow-md'] %}
   {% endif %}
   {% if compact_view %}
     {% set card_classes = card_classes + ['mb-1'] %}
@@ -43,20 +43,24 @@
            data-story-read="{{ 'true' if (story.read | default(false) ) else 'false' }}"
            data-story-detail-view="{{ 'true' if detail_view else 'false' }}"
            data-testid="story-card-{{ story_id }}"
-           x-data="{ isOpen: {{ 'true' if detail_view else 'false' }} }"
-           {% if not detail_view %}@click="toggleSelection('{{ story_id }}')"{% endif %}
+           x-data="{ detailsLoaded: false, isOpen: {{ 'true' if detail_view else 'false' }} }"
+           {% if not detail_view %}x-init="$dispatch('story-card-updated')" @click="toggleSelection('{{ story_id }}')"{% endif %}
            aria-selected="{{ 'true' if is_selected else 'false' }}">
-    <div class="p-2 space-y-2 w-full max-w-full" id="story-card-content-{{ story_id }}">
-      <div class="flex flex-col gap-2 lg:flex-row lg:items-start lg:gap-4 w-full max-w-full">
+    <div class="{{ 'px-2 py-1.5' if compact_view else 'p-2 space-y-2' }} w-full max-w-full" id="story-card-content-{{ story_id }}">
+      <div class="grid {{ 'grid-cols-[minmax(0,1fr)_auto] gap-1 gap-x-2' if compact_view else 'grid-cols-[min(16rem,32%)_minmax(0,1fr)] gap-2 gap-x-4 @min-[80rem]:grid-cols-[16rem_minmax(0,1fr)_20rem]' }} w-full max-w-full">
 
         <!-- status and metadata column -->
-        <section class="space-y-4 text-sm text-base-content/80 lg:flex-shrink-0 lg:w-64 min-w-0">
+        <section class="flex flex-wrap items-center gap-x-3 {{ 'gap-y-1 col-span-2' if compact_view else 'gap-y-2' }} text-xs text-base-content/70 min-w-0 content-start">
+          {% if not detail_view %}
+            <input type="checkbox" name="story_ids" value="{{ story_id }}" class="checkbox {{ 'checkbox-xs' if compact_view else 'checkbox-sm' }}" aria-label="Select {{ story.title }}" @click.stop {% if bookmark_id %}form="bookmark-selection-form" {% if is_selected %}checked{% endif %}{% else %}x-model="selectedItems"{% endif %}>
+          {% endif %}
           <div class="flex items-start gap-2">
-            <span class="font-semibold uppercase tracking-wide text-xs text-base-content/60">Published</span>
-            <div class="flex flex-col gap-1">
+            <span class="{{ 'sr-only' if compact_view else 'font-semibold uppercase tracking-wide text-xs text-base-content/60' }}">Published</span>
+            <div class="flex flex-col gap-1"
+                 title="Published: {{ pub.get('earliest') | format_datetime if pub.get('earliest') else 'Not available' }}{% if pub.get('latest') and pub.get('latest') != pub.get('earliest') %} – {{ pub.get('latest') | format_datetime }}{% endif %}">
               {% if pub.get("earliest") %}
                 <span class="text-xs">{{ pub.get("earliest") | format_datetime }}</span>
-                {% if pub.get("latest") and pub.get("latest") != pub.get("earliest") %}
+                {% if not compact_view and pub.get("latest") and pub.get("latest") != pub.get("earliest") %}
                   <span class="text-xs">{{ pub.get("latest") | format_datetime }}</span>
                 {% endif %}
               {% else %}
@@ -66,20 +70,22 @@
           </div>
 
           {% if story.model_extra.source_infos %}
-            <div class="flex gap-3 mb-2">
-              <span class="font-semibold uppercase tracking-wide text-xs text-base-content/60">Sources</span>
+            <div class="flex items-center gap-2 {{ '' if compact_view else 'w-full' }}">
+              <span class="{{ 'sr-only' if compact_view else 'font-semibold uppercase tracking-wide text-xs text-base-content/60' }}">Sources</span>
               <div class="flex items-center gap-1" data-test-id="story-source-icons">
                 {% for source in story.model_extra.source_infos %}
                   <div class="tooltip before:z-[50]" data-tip="{{ source.name }}">
-                    {% if source.icon %}
-                      <img src="data:image/png;base64,{{ source.icon | string }}"
-                           alt="{{ source.name }}"
-                           height="16"
-                           width="16"
-                           tabindex="0" />
-                    {% else %}
-                      <span role="img" aria-label="{{ source.name }}" tabindex="0">{{ heroicon_mini("newspaper", class="h-4 w-4") }}</span>
-                    {% endif %}
+                    <a href="{{ story.model_extra.source_filter_urls[source.id] }}"
+                       aria-label="Filter by source: {{ source.name }}"
+                       class="inline-flex"
+                       tabindex="0"
+                       @click.stop>
+                      {% if source.icon %}
+                        <img src="{{ url_for('assess.source_icon', source_id=source.id) }}" alt="{{ source.name }}" height="16" width="16" />
+                      {% else %}
+                        <span role="img" aria-label="{{ source.name }}">{{ heroicon_mini("newspaper", class="h-4 w-4") }}</span>
+                      {% endif %}
+                    </a>
                   </div>
                 {% endfor %}
               </div>
@@ -88,7 +94,7 @@
 
           {% set languages = news_items | map(attribute='language') | select('string') | select | unique | list %}
           {% if languages and detail_view %}
-            <div class="flex gap-3 mb-2">
+            <div class="flex items-center gap-2">
               <span class="font-semibold uppercase tracking-wide text-xs text-base-content/60">Language</span>
               <div class="flex gap-1">
                 {% for lang in languages %}<span class="badge badge-ghost badge-xs uppercase">{{ lang }}</span>{% endfor %}
@@ -96,56 +102,68 @@
             </div>
           {% endif %}
 
-          {% if not compact_view or bookmark_id %}
-            <div class="flex items-center gap-1 mb-2">
-              <div class="flex flex-wrap items-center gap-2 gap-y-1 text-xs">
-                {% if story.read | default(false) %}
-                  <span class="badge badge-success badge-outline badge-xs whitespace-nowrap">Read</span>
+          <div class="flex items-center gap-1 {{ '' if compact_view else 'w-full' }}">
+            <div class="flex flex-wrap items-center gap-2 gap-y-1 text-xs">
+              {% if not (story.read | default(false)) %}
+                <span class="badge badge-primary badge-xs whitespace-nowrap">Unread</span>
+              {% endif %}
+              {% if story.important | default(false) %}<span class="badge badge-warning badge-xs whitespace-nowrap">Important</span>{% endif %}
+              {% if story.misp_auto_update and story.misp_auto_update.enabled %}
+                <span class="badge badge-success badge-outline badge-xs whitespace-nowrap">MISP auto-update</span>
+              {% endif %}
+              {% if story.relevance and not compact_view %}
+                <span class="badge badge-outline badge-xs whitespace-nowrap">Relevance {{ story.relevance }}</span>
+              {% endif %}
+              {% if news_count > 1 %}
+                <span class="badge badge-outline badge-xs whitespace-nowrap">{{ (news_count ~ ' items') if compact_view else ('News Items ' ~ news_count) }}</span>
+              {% endif %}
+            </div>
+          </div>
+
+          {% if story.in_reports_count %}
+            {% set report_count = story.in_reports_count | int %}
+            <div class="flex items-center gap-1">
+              <span class="{{ 'sr-only' if compact_view else 'font-semibold uppercase tracking-wide text-xs text-base-content/60' }}">In Reports</span>
+              <div class="tooltip inline-flex items-center gap-1 text-warning"
+                   aria-label="In {{ report_count }} reports"
+                   tabindex="0"
+                   data-tip="Story in {{ report_count }} Reports">
+                {% if compact_view %}<span>{{ report_count }}</span>{% endif %}
+                {% if report_count < 2 %}
+                  {{ heroicon_mini("arrow-up-on-square", class="h-4 w-4") }}
                 {% else %}
-                  <span class="badge badge-primary badge-xs whitespace-nowrap">Unread</span>
-                {% endif %}
-                {% if story.important | default(false) %}<span class="badge badge-warning badge-xs whitespace-nowrap">Important</span>{% endif %}
-                {% if story.misp_auto_update and story.misp_auto_update.enabled %}
-                  <span class="badge badge-success badge-outline badge-xs whitespace-nowrap">MISP auto-update</span>
-                {% endif %}
-                {% if story.relevance is not none %}
-                  <span class="badge badge-outline badge-xs whitespace-nowrap">Relevance {{ story.relevance }}</span>
-                {% endif %}
-                {% if story.news_items is not none %}
-                  <span class="badge badge-outline badge-xs whitespace-nowrap">News Items {{ story.news_items | length }}</span>
+                  {{ heroicon_mini("arrow-up-on-square-stack", class="h-4 w-4") }}
                 {% endif %}
               </div>
             </div>
-
-            {% if story.in_reports_count %}
-              {% set report_count = story.in_reports_count | int %}
-              <div class="flex items-center gap-1 mb-1">
-                <span class="font-semibold uppercase tracking-wide text-xs text-base-content/60">In Reports</span>
-                <div class="tooltip gap-1 text-warning" data-tip="Story in {{ report_count }} Reports">
-                  {% if report_count < 2 %}
-                    {{ heroicon_mini("arrow-up-on-square", class="h-4 w-4") }}
-                  {% else %}
-                    {{ heroicon_mini("arrow-up-on-square-stack", class="h-4 w-4") }}
-                  {% endif %}
-                </div>
-              </div>
-            {% endif %}
           {% endif %}
         </section>
 
         <!-- main content column -->
-        <section class="space-y-3 lg:flex-1 min-w-0">
-          <div class="flex flex-col gap-2 min-w-0">
-            <h2 class="text-lg font-semibold leading-tight text-base-content highlight truncate"
-                data-testid="story-title">{{ story.title }}</h2>
+        <section class="{{ 'col-span-2 @min-[48rem]:col-span-1' if compact_view else 'space-y-1' }} min-w-0">
+          <div class="flex {{ 'items-center' if compact_view else 'flex-col' }} gap-1 min-w-0">
+            <h2 class="{{ 'text-sm' if compact_view else 'text-lg' }} font-semibold leading-tight text-base-content highlight max-w-full truncate"
+                data-testid="story-title">
+              {% if detail_view %}
+                {{ story.title }}
+              {% else %}
+                <a href="{{ url_for('assess.story', story_id=story_id, assess_url=assess_return_url | default(None)) }}"
+                   @click.stop
+                   data-testid="open-detail-view"
+                   class="hover:underline"
+                   title="{{ story.title }}">{{ story.title }}</a>
+              {% endif %}
+            </h2>
             {% if story.links %}
               <a href="{{ story.links[0] }}"
                  target="_blank"
                  rel="noopener"
-                 class="link link-primary text-xs inline-flex items-center gap-1 self-start max-w-full truncate"
+                 title="{{ story.links[0] }}"
+                 class="link link-primary text-xs inline-flex items-center gap-1 {{ 'shrink-0' if compact_view else 'self-start max-w-full min-w-0' }}"
+                 @click.stop
                  data-testid="story-link-{{ story_id }}">
-                {{ heroicon_mini("arrow-top-right-on-square") }}
-                <span class="truncate">{{ story.links[0] }}</span>
+                {{ heroicon_mini("arrow-top-right-on-square", class="h-4 w-4 shrink-0") }}
+                <span class="{{ 'sr-only' if compact_view else 'truncate' }}">{{ story.links[0] }}</span>
               </a>
             {% endif %}
           </div>
@@ -159,69 +177,27 @@
               <em>No summary available.</em>
             {% endif %}
           </div>
+          {% if compact_view %}{{ story_tags(story, compact_view=true, selected_tags=active_tag_filters | default([])) }}{% endif %}
         </section>
 
-        <!-- actions column -->
-        <section class="flex flex-col items-end gap-1 text-xs lg:flex-shrink-0 lg:ml-auto" @click.stop>
+        {% if not compact_view %}{{ story_tags(story, compact_view=false, selected_tags=active_tag_filters | default([])) }}{% endif %}
+
+        <footer class="story-card-actions grid grid-flow-col auto-cols-fr content-start text-xs {{ 'story-card-actions-compact gap-1 col-span-2 @min-[48rem]:col-span-1 @min-[48rem]:self-center' if compact_view else 'gap-2 col-span-2 @min-[80rem]:grid-flow-row @min-[80rem]:grid-cols-1 @min-[80rem]:auto-cols-auto @min-[80rem]:col-span-1 @min-[80rem]:col-start-3 @min-[80rem]:row-start-1' }}"
+                @click.stop>
           {{ story_card_actions(story, compact_view=compact_view, detail_view=detail_view, show_bookmark=show_bookmark, bookmark_id=bookmark_id) }}
-        </section>
+        </footer>
       </div>
 
-      <!-- tags section -->
-      {{ story_tags(story, compact_view=compact_view, selected_tags=active_tag_filters | default([])) }}
-
-      <!-- expandable details section -->
-      <div class="border-t border-base-200 pt-2 space-y-1 w-full max-w-full" x-show="isOpen" x-transition x-cloak>
-        <div class="stats stats-horizontal shadow bg-base-100 w-full max-w-full">
-          <div class="stat py-1">
-            <div class="stat-title">News items</div>
-            <div class="stat-value text-base">{{ news_count }}</div>
-          </div>
-          <div class="stat py-1">
-            <div class="stat-title">Likes</div>
-            <div class="stat-value text-base">{{ story.likes | default(0) }}</div>
-          </div>
-          <div class="stat py-1">
-            <div class="stat-title">Dislikes</div>
-            <div class="stat-value text-base">{{ story.dislikes | default(0) }}</div>
-          </div>
-          <div class="stat py-1">
-            <div class="stat-title">Created</div>
-            <div class="stat-value text-sm text-base-content/80 whitespace-nowrap">{{ story.created | format_datetime if story.created else '—' }}</div>
-          </div>
-          <div class="stat py-1">
-            <div class="stat-title">Updated</div>
-            <div class="stat-value text-sm text-base-content/80 whitespace-nowrap">{{ story.updated | format_datetime if story.updated else '—' }}</div>
-          </div>
-        </div>
-
-        <!-- news items list -->
-        {% if news_items %}
-          <div class="space-y-2 w-full max-w-full">
-            <div class="flex items-center gap-2">
-              <h3 class="font-semibold uppercase tracking-wide text-xs text-base-content/60">News Items</h3>
-              <span class="badge badge-outline badge-sm">{{ news_count }}</span>
-            </div>
-            <div class="space-y-2">
-              {% if detail_view %}
-                {% for item in news_items %}{{ news_item_card(item, story) }}{% endfor %}
-              {% else %}
-                {% for item in news_items %}
-                  <div class="flex flex-wrap items-start gap-2">
-                    <h3 class="font-semibold text-base text-base-content highlight break-all" data-testid="news-item-title-{{ item.id }}">
-                      {{ item.title or 'Untitled news item' }}
-                    </h3>
-                    {% if item.language %}<span class="badge badge-ghost badge-sm uppercase">{{ item.language }}</span>{% endif %}
-                  </div>
-                  <a href="{{ item.link }}" target="_blank" rel="noopener" class="link link-primary text-xs inline-flex items-center gap-1">
-                    {{ heroicon_mini("arrow-top-right-on-square") }}
-                    <span>{{ item.link }}</span>
-                  </a>
-                  {% if not loop.last %}<div class="divider"></div>{% endif %}
-                {% endfor %}
-              {% endif %}
-            </div>
-          </div>
+      <div id="story-details-{{ story_id }}"
+           x-ref="details"
+           class="border-t border-base-200 pt-2 space-y-1 w-full max-w-full"
+           x-show="isOpen"
+           x-cloak
+           {% if not detail_view %} hx-get="{{ url_for('assess.story_details', story_id=story_id) }}" hx-trigger="load-story-details" hx-sync="this:drop" hx-target="this" hx-swap="innerHTML" hx-status:400="target:#notification-bar select:#notification-bar swap:outerHTML" hx-status:4xx="target:#notification-bar select:#notification-bar swap:outerHTML" hx-status:5xx="target:#notification-bar select:#notification-bar swap:outerHTML" {% endif %}>
+        {% if detail_view %}
+          {% include "assess/story_card_details.html" %}
+        {% else %}
+          <span class="loading loading-spinner loading-sm" aria-label="Loading story details"></span>
         {% endif %}
       </div>
     </div>

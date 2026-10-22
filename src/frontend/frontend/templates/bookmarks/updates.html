@@ -1,0 +1,6 @@
+{% from "bookmarks/bookmark_action.html" import bookmark_action with context %}
+{% for story_id in story_ids %}{{ bookmark_action(story_id, bookmarked=story_id in saved_ids, oob=True) }}{% endfor %}
+{% if include_bookmark_bar %}
+  {% set bookmark_bar_oob = True %}
+  {% include "assess/bookmarks_bar.html" %}
+{% endif %}

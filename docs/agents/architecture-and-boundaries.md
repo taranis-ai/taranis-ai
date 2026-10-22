@@ -18,7 +18,7 @@ Before component, API, workflow, background-job, persistence, migration, or date
 
 - User-facing frontend views must not import `models.admin` or use admin/config endpoints. Publishing reference data belongs in user-scoped `src/core/core/api/publish.py` endpoints and `src/models/models/product.py` models.
 - Prefer frontend `DataPersistenceLayer`; direct `CoreApi()` calls are for raw responses, downloads/streams, or deliberate cache bypasses.
-- Config/admin blueprints share constraint handling in `src/core/core/api/config.py`: rollback, then safe unique/not-null validation messages (400) or a logged static 500 for other integrity errors. Pydantic errors use the shared formatter and rollback boundary. Endpoint catch-alls must let `IntegrityError` and `ValidationError` reach it; curated bot-index conflicts retain their domain message. Coverage: `src/core/tests/unit/test_config_integrity_errors.py`.
+- Config/admin blueprints share constraint handling in `src/core/core/api/config.py`: rollback, then safe unique/not-null validation messages (400) or a logged static 500 for other integrity errors. PostgreSQL duplicate messages identify fields only when the constraint matches a known unique model column; unknown constraints use a generic duplicate message. SQLite uses structured constraint codes for duplicate/required-value messages, never parsed SQL or driver text. Pydantic errors use the shared formatter and rollback boundary. Endpoint catch-alls must let `IntegrityError` and `ValidationError` reach it; curated bot-index conflicts retain their domain message. Coverage: `src/core/tests/unit/test_config_integrity_errors.py` and admin configuration API tests.
 
 ## Persistence and Datetimes
 

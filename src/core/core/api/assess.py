@@ -10,6 +10,7 @@ from models.assess import (
     AnalystReviewActionPayload,
     AssessSearchFilters,
     StoryBookmarkCreatePayload,
+    StoryBookmarkMembershipPayload,
     StoryBookmarkOrderPayload,
     StoryBookmarkStoryPayload,
     StoryBookmarkUpdatePayload,
@@ -149,9 +150,10 @@ class NewsItemCTI(MethodView):
 
 class UpdateNewsItemAttributes(MethodView):
     @auth_required("ASSESS_UPDATE")
+    @validate_json
     def put(self, news_item_id: str):
         actor = story.Story.last_change_for_user(current_user)
-        response, status = NewsItemService.update_attributes(news_item_id, request.json, actor=actor)
+        response, status = NewsItemService.update_attributes(news_item_id, request.json, actor=actor, user=current_user)
         invalidate_frontend_cache_on_success(status, scopes=(SCOPE_ASSESS_VIEWS,), object_ids={"news_item": news_item_id})
         return response, status
 
@@ -208,7 +210,8 @@ class Stories(MethodView):
 
     @auth_required("ASSESS_UPDATE")
     def post(self):
-        if not (data_json := request.json):
+        data_json = request.get_json(silent=True)
+        if not isinstance(data_json, dict) or not data_json:
             return {"error": "No story ids provided"}, 400
         story_ids = data_json.get("story_ids")
         payload = data_json.get("payload")
@@ -227,23 +230,11 @@ class Stories(MethodView):
         else:
             payload = {}
 
-        result_dict: dict[str, Any] = {"message": "Bulk action completed", "updated": 0, "success": [], "errors": []}
-        for story_id in story_ids:
-            if not story_id:
-                continue
-            s = story.Story.get(story_id)
-            if s is None:
-                return {"error": "Story not found"}, 404
-            response, code = StoryService.update(s.id, payload, current_user)
-            if code != 200:
-                result_dict["errors"].append({"story_id": s.id, "response": response})
-            else:
-                result_dict["success"].append({"story_id": s.id, "response": response})
-                result_dict["updated"] += 1
-
-        result_dict["message"] = f"Bulk action completed. {result_dict['updated']} stories updated."
-        invalidate_frontend_cache_on_success(200, models=("story",))
-        return result_dict, 200
+        result, status = StoryService.update_many(story_ids, payload, current_user)
+        if status == 200:
+            invalidate_frontend_cache_on_success(status, scopes=(SCOPE_ASSESS_VIEWS, SCOPE_STORY_REPORT_VIEWS))
+            realtime_publisher.assess_changed()
+        return result, status
 
 
 class StoryExport(MethodView):
@@ -446,9 +437,12 @@ class BotActions(MethodView):
         if report_ids:
             filter_data["report_ids"] = report_ids
 
-        if selected_bot := bot.Bot.filter_by_type(bot_id):
-            bot_id = selected_bot.id
-        response, code = queue_manager.queue_manager.execute_bot_task(bot_id=bot_id, filter=filter_data, user_id=current_user.id)
+        if bot_id == "generate_tags":
+            response, code = queue_manager.queue_manager.execute_tagging_tasks(filter=filter_data, user_id=current_user.id)
+        else:
+            if selected_bot := bot.Bot.filter_by_type(bot_id):
+                bot_id = selected_bot.id
+            response, code = queue_manager.queue_manager.execute_bot_task(bot_id=bot_id, filter=filter_data, user_id=current_user.id)
         if code == 200:
             realtime_publisher.assess_changed()
         invalidate_frontend_cache_on_success(code, models=("story", "report_item"))
@@ -508,7 +502,7 @@ class StoryBookmarks(MethodView):
             return _validation_error_response(exc)
 
         response, status = story.StoryBookmark.add(payload.model_dump(mode="json"), current_user)
-        invalidate_frontend_cache_on_success(status, models=("story_bookmark",))
+        invalidate_frontend_cache_on_success(status, models=("story_bookmark", "story"))
         return response, status
 
 
@@ -526,13 +520,15 @@ class StoryBookmark(MethodView):
             return _validation_error_response(exc)
 
         response, status = story.StoryBookmark.update_for_api(bookmark_id, payload.model_dump(mode="json"), current_user)
-        invalidate_frontend_cache_on_success(status, models=("story_bookmark",), object_ids={"story_bookmark": bookmark_id})
+        invalidate_frontend_cache_on_success(status, models=("story_bookmark", "story"), user_profiles=(current_user.username,))
         return response, status
 
     @auth_required("ASSESS_ACCESS")
     def delete(self, bookmark_id: str):
         response, status = story.StoryBookmark.delete_for_api(bookmark_id, current_user)
-        invalidate_frontend_cache_on_success(status, models=("story_bookmark",), object_ids={"story_bookmark": bookmark_id})
+        invalidate_frontend_cache_on_success(
+            status, models=("story_bookmark", "story"), object_ids={"story_bookmark": bookmark_id}, user_profiles=(current_user.username,)
+        )
         return response, status
 
 
@@ -546,7 +542,33 @@ class StoryBookmarkOrder(MethodView):
             return _validation_error_response(exc)
 
         response, status = story.StoryBookmark.reorder_for_api(payload.bookmark_ids, current_user)
-        invalidate_frontend_cache_on_success(status, models=("story_bookmark",))
+        invalidate_frontend_cache_on_success(status, models=("story_bookmark", "story"))
+        return response, status
+
+
+class StoryBookmarkQuickSave(MethodView):
+    @auth_required("ASSESS_ACCESS")
+    @validate_json
+    def post(self):
+        try:
+            payload = StoryBookmarkStoryPayload.model_validate(request.json or {})
+        except ValidationError as exc:
+            return _validation_error_response(exc)
+        response, status = story.StoryBookmark.quick_save(payload.story_ids, current_user)
+        invalidate_frontend_cache_on_success(status, models=("story_bookmark", "story"), user_profiles=(current_user.username,))
+        return response, status
+
+
+class StoryBookmarkMemberships(MethodView):
+    @auth_required("ASSESS_ACCESS")
+    @validate_json
+    def post(self):
+        try:
+            payload = StoryBookmarkMembershipPayload.model_validate(request.json or {})
+        except ValidationError as exc:
+            return _validation_error_response(exc)
+        response, status = story.StoryBookmark.update_memberships(payload.model_dump(mode="json"), current_user)
+        invalidate_frontend_cache_on_success(status, models=("story_bookmark", "story"), user_profiles=(current_user.username,))
         return response, status
 
 
@@ -560,7 +582,7 @@ class StoryBookmarkStories(MethodView):
             return _validation_error_response(exc)
 
         response, status = story.StoryBookmark.add_stories(bookmark_id, payload.story_ids, current_user)
-        invalidate_frontend_cache_on_success(status, models=("story_bookmark",), object_ids={"story_bookmark": bookmark_id})
+        invalidate_frontend_cache_on_success(status, models=("story_bookmark", "story"), object_ids={"story_bookmark": bookmark_id})
         return response, status
 
 
@@ -574,7 +596,7 @@ class StoryBookmarkStoryRemoval(MethodView):
             return _validation_error_response(exc)
 
         response, status = story.StoryBookmark.remove_stories(bookmark_id, payload.story_ids, current_user)
-        invalidate_frontend_cache_on_success(status, models=("story_bookmark",), object_ids={"story_bookmark": bookmark_id})
+        invalidate_frontend_cache_on_success(status, models=("story_bookmark", "story"), object_ids={"story_bookmark": bookmark_id})
         return response, status
 
 
@@ -617,6 +639,8 @@ def initialize(app: Flask):
     assess_bp.add_url_rule("/analyst-review/actions", view_func=AnalystReviewAction.as_view("analyst_review_action"))
     assess_bp.add_url_rule("/bookmarks", view_func=StoryBookmarks.as_view("bookmarks"))
     assess_bp.add_url_rule("/bookmarks/order", view_func=StoryBookmarkOrder.as_view("bookmark_order"))
+    assess_bp.add_url_rule("/bookmarks/quick-save", view_func=StoryBookmarkQuickSave.as_view("bookmark_quick_save"))
+    assess_bp.add_url_rule("/bookmarks/memberships", view_func=StoryBookmarkMemberships.as_view("bookmark_memberships"))
     assess_bp.add_url_rule("/bookmarks/<string:bookmark_id>", view_func=StoryBookmark.as_view("bookmark"))
     assess_bp.add_url_rule("/bookmarks/<string:bookmark_id>/stories", view_func=StoryBookmarkStories.as_view("bookmark_stories"))
     assess_bp.add_url_rule(

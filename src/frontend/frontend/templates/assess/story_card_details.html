@@ -1,0 +1,62 @@
+{% from "assess/news_item_card.html" import news_item_card, news_item_metadata %}
+{% set news_items = story.news_items | default([]) %}
+{% set news_count = news_items | length %}
+<div x-init="detailsLoaded = true">
+  <div class="stats stats-horizontal shadow bg-base-100 w-full max-w-full">
+    <div class="stat py-1">
+      <div class="stat-title">News items</div>
+      <div class="stat-value text-base">{{ news_count }}</div>
+    </div>
+    <div class="stat py-1">
+      <div class="stat-title">Likes</div>
+      <div class="stat-value text-base">{{ story.likes | default(0) }}</div>
+    </div>
+    <div class="stat py-1">
+      <div class="stat-title">Dislikes</div>
+      <div class="stat-value text-base">{{ story.dislikes | default(0) }}</div>
+    </div>
+    <div class="stat py-1">
+      <div class="stat-title">Created</div>
+      <div class="stat-value text-sm text-base-content/80 whitespace-nowrap">{{ story.created | format_datetime if story.created else '—' }}</div>
+    </div>
+    <div class="stat py-1">
+      <div class="stat-title">Updated</div>
+      <div class="stat-value text-sm text-base-content/80 whitespace-nowrap">{{ story.updated | format_datetime if story.updated else '—' }}</div>
+    </div>
+  </div>
+
+  <!-- news items list -->
+  {% if news_items %}
+    <div class="space-y-2 w-full max-w-full">
+      <div class="flex items-center gap-2">
+        <h3 class="font-semibold uppercase tracking-wide text-xs text-base-content/60">News Items</h3>
+        <span class="badge badge-outline badge-sm">{{ news_count }}</span>
+      </div>
+      <div class="space-y-2">
+        {% if detail_view %}
+          {% for item in news_items %}{{ news_item_card(item, story) }}{% endfor %}
+        {% else %}
+          {% for item in news_items %}
+            <div class="flex flex-wrap items-start gap-2">
+              <h3 class="font-semibold text-base text-base-content highlight break-all" data-testid="news-item-title-{{ item.id }}">
+                {{ item.title or 'Untitled news item' }}
+              </h3>
+            </div>
+            {% if item.link %}
+              <a href="{{ item.link }}"
+                 target="_blank"
+                 rel="noopener"
+                 class="link link-primary text-xs inline-flex items-center gap-1 max-w-full">
+                {{ heroicon_mini("arrow-top-right-on-square", class="h-4 w-4 shrink-0") }}
+                <span class="break-all">{{ item.link }}</span>
+              </a>
+            {% endif %}
+            {{ news_item_metadata(item, story) }}
+            {% if not loop.last %}<div class="divider"></div>{% endif %}
+          {% endfor %}
+        {% endif %}
+      </div>
+    </div>
+  {% endif %}
+
+</div>
