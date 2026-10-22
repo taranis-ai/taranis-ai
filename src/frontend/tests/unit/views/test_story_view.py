@@ -953,7 +953,7 @@ def test_assess_filters_support_htmx_and_native_form_submission(authenticated_cl
     )
 
     response = authenticated_client.get(
-        url_for("assess.assess", search="pull"),
+        url_for("assess.assess", search="pull", cybersecurity="no", classification="security incident"),
         headers={"HX-Target": "div#story-list"},
     )
 
@@ -996,6 +996,15 @@ def test_assess_filters_support_htmx_and_native_form_submission(authenticated_cl
     assert not filter_form.xpath('.//select[@name="group"]')
     assert not filter_form.xpath('.//select[@name="tags"]')
     assert not filter_form.xpath('.//select[@name="language"]')
+    assert filter_form.xpath('.//input[@type="hidden" and @name="cybersecurity"]/@value') == ["no"]
+    assert dict(filter_form.form_values())["cybersecurity"] == "no"
+    topic_chip = tree.xpath('//a[@aria-label="Remove Classification: security incident"]')[0]
+    assert parse_qs(urlparse(topic_chip.get("href")).query) == {"search": ["pull"], "cybersecurity": ["no"]}
+    legacy_chip = tree.xpath('//a[@aria-label="Remove Cybersecurity: no"]')[0]
+    assert parse_qs(urlparse(legacy_chip.get("href")).query) == {"search": ["pull"], "classification": ["security incident"]}
+    cleared = authenticated_client.get(legacy_chip.get("href"), headers={"HX-Request": "true", "HX-Refresh-Sidebar": "true"})
+    assert cleared.status_code == 200
+    assert not html.fromstring(cleared.text).xpath('//input[@name="cybersecurity"]')
 
 
 def test_story_read_action_replaces_story_card(app):

@@ -143,6 +143,7 @@ class StoryView(BaseView):
             "relevant": "Relevant",
             "changed_by": "Changed by",
             "cybersecurity": "Cybersecurity",
+            "classification": "Classification",
             "tags": "Tag",
             "source": "Source",
             "group": "Group",

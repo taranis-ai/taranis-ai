@@ -6,7 +6,7 @@ Assess sidebar/search/default filters, `/assess`, `/api/assess/filter-lists`, om
 
 ## Contracts
 
-- Topic `classification` uses the eight categories in `models/classification.py`, matching llm-bot. Sidebar, `classification:`/`topic:` omnisearch (quote values containing spaces), saved filters, and Chat share the contract. Historical `cybersecurity` saved filters remain readable against old attributes but are absent from new controls and Chat’s schema; rerun classification and replace those filters to use topics.
+- Topic `classification` uses the eight categories in `models/classification.py`, matching llm-bot. Sidebar, `classification:`/`topic:` omnisearch (quote values containing spaces), saved filters, and Chat share the contract. Historical `cybersecurity` saved filters remain readable against old attributes but are absent from new controls and Chat’s schema; rerun classification and replace those filters to use topics. Active historical criteria are retained in a hidden sidebar field when changing or saving searches, until removed through their chip. Topic filters also expose a removable active-filter chip.
 
 - Assess removes empty GET parameter values before rendering. Native navigation redirects to the clean Assess URL; HTMX normalizes request arguments in place and returns `HX-Push-Url` so filters stay asynchronous. Preserve repeated non-empty values and explicit values such as `false` and `0`.
 - Without JavaScript, search and the native sidebar filters submit through one GET form, and the form exposes an explicit Apply filters button. Source, language, group, and tag filters are hidden because their token-selection workflows require JavaScript.
