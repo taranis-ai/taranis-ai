@@ -45,31 +45,31 @@
         <input class="input input-bordered block" name="search" type="search" value="{{ request.args.get('search', '') }}" maxlength="200">
       </label>
       {% if asset_id %}
-        <label>
-          Severity
-          <select name="severity" class="select select-bordered block">
+        <div>
+          <label for="asset-cve-severity">Severity</label>
+          <select id="asset-cve-severity" name="severity" class="select select-bordered block">
             <option value="">All severities</option>
             {% for severity in severities %}<option value="{{ severity }}"
         {% if request.args.get('severity') == severity %}selected{% endif %}>{{ severity | title }}</option>{% endfor %}
           </select>
-        </label>
+        </div>
       {% else %}
-        <label>
-          Asset group
-          <select name="group" class="select select-bordered block">
+        <div>
+          <label for="asset-cve-group">Asset group</label>
+          <select id="asset-cve-group" name="group" class="select select-bordered block">
             <option value="">All groups</option>
             {% for group in data.groups if data %}<option value="{{ group.id }}"
         {% if request.args.get('group') == group.id %}selected{% endif %}>{{ group.name }}</option>{% endfor %}
           </select>
-        </label>
-        <label>
-          Tag
-          <select name="tag" class="select select-bordered block">
+        </div>
+        <div>
+          <label for="asset-cve-tag">Tag</label>
+          <select id="asset-cve-tag" name="tag" class="select select-bordered block">
             <option value="">All tags</option>
             {% for tag in data.tags if data %}<option value="{{ tag }}"
         {% if request.args.get('tag', '') | trim | lower == tag %}selected{% endif %}>{{ tag }}</option>{% endfor %}
           </select>
-        </label>
+        </div>
       {% endif %}
       <input type="hidden" name="limit" value="{{ data.limit if data else 20 }}">
       <button class="btn btn-primary" type="submit">{{ 'Filter CVEs' if asset_id else 'Filter assets' }}</button>
