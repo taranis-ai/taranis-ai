@@ -465,6 +465,7 @@ class TestUserWorkflow(BaseE2ETest):
         read_filter = page.get_by_role("combobox", name="Read", exact=True)
         important_filter = page.get_by_role("combobox", name="Important", exact=True)
         read_filter.select_option("")
+        self.wait_for_htmx_settled(page)
         important_filter.select_option("")
         self.wait_for_htmx_settled(page)
 
