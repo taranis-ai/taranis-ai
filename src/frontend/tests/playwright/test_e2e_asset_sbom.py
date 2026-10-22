@@ -314,7 +314,10 @@ class TestAssetSbomWorkflow(BaseE2ETest):
         expect(nginx_story.locator('[data-test-id="story-matched-assets"]')).to_contain_text("1 matched asset")
         with_htmx_wait(page, lambda: page.get_by_label("CVE match", exact=True).select_option("yes"))
         with_htmx_wait(page, lambda: advisory.get_by_role("link", name="Why this matches").click())
-        self.highlight_element(advisory.get_by_role("link", name="portal-staging", exact=True), scroll=True).click()
+        self.highlight_element(
+            advisory.locator('[data-test-id="story-matched-assets"]').get_by_role("link", name="portal-staging", exact=True).first,
+            scroll=True,
+        ).click()
         expect(page).to_have_url(re.compile(f"/assets/{staging_id}\\?"))
         page.get_by_role("link", name="Software inventory", exact=True).click()
         page.get_by_role("link", name="Back to Assess", exact=True).click()

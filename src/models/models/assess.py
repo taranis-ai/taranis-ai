@@ -295,6 +295,9 @@ class MispAutoUpdatePayload(TaranisBaseModel):
 class MatchedAsset(TaranisBaseModel):
     id: str
     name: str
+    max_cvss: float | None = None
+    cve_count: int = 0
+    software_match: bool = False
 
 
 class Story(TaranisBaseModel):

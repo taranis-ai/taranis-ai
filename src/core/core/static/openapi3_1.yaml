@@ -12851,13 +12851,25 @@ components:
       properties:
         matched_assets:
           type: array
-          description: Deduplicated qualifying assets, present in asset-filtered responses. Detailed evidence is fetched separately.
+          description: Deduplicated qualifying asset summaries across matching articles, present in asset-filtered responses. Detailed evidence is fetched separately.
           items:
             type: object
             required: [id, name]
             properties:
               id: {type: string}
               name: {type: string}
+              max_cvss:
+                type: [number, 'null']
+                minimum: 0
+                maximum: 10
+                description: Highest source-reported CVSS among qualifying article matches; null when none is scored. Does not confirm exposure.
+              cve_count:
+                type: integer
+                minimum: 0
+                description: Distinct matching CVE identifiers across qualifying articles for this asset.
+              software_match:
+                type: boolean
+                description: Whether any qualifying article matches an enabled software phrase for this asset.
         tlp_level:
           type: string
           readOnly: true

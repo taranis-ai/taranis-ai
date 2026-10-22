@@ -127,8 +127,25 @@ def matching_asset_stories(user: User, filters: AssessSearchFilters, story_query
             yield associations[0].item.story_id, associations
 
 
+def summarize_asset_matches(associations: list[ArticleAssetMatch]) -> list[dict]:
+    """Summarize each asset across the story's qualifying article associations."""
+    asset_associations: dict[str, list[ArticleAssetMatch]] = {}
+    for association in associations:
+        asset_associations.setdefault(association.asset.id, []).append(association)
+    return [
+        {
+            "id": matches[0].asset.id,
+            "name": matches[0].asset.name,
+            "max_cvss": max((match.max_cvss for match in matches if match.max_cvss is not None), default=None),
+            "cve_count": len({finding.cve_id for match in matches for finding in match.findings}),
+            "software_match": any(match.software_matches for match in matches),
+        }
+        for matches in sorted(asset_associations.values(), key=lambda matches: (matches[0].asset.name.casefold(), matches[0].asset.id))
+    ]
+
+
 def assess_match_page(user: User, story_query: Select, filter_args: dict) -> tuple[dict[str, list[dict]], dict[str, int] | None]:
-    """Count matches in bounded batches, retaining only the requested page's asset names."""
+    """Count matches in bounded batches, retaining only the requested page's asset summaries."""
     filters = AssessSearchFilters.model_validate({key: value for key, value in filter_args.items() if key in ASSESS_FILTER_KEYS})
     page_assets: dict[str, list[dict]] = {}
     counts = dict.fromkeys(("total_count", "read_count", "important_count", "in_reports_count"), 0)
@@ -144,10 +161,7 @@ def assess_match_page(user: User, story_query: Select, filter_args: dict) -> tup
 
     for position, (story_id, associations) in enumerate(matching_asset_stories(user, filters, story_query)):
         if position >= offset and (not limit or len(page_assets) < limit):
-            assets = {a.asset.id: a.asset for a in associations}
-            page_assets[story_id] = [
-                {"id": asset.id, "name": asset.name} for asset in sorted(assets.values(), key=lambda asset: (asset.name.casefold(), asset.id))
-            ]
+            page_assets[story_id] = summarize_asset_matches(associations)
         if include_counts:
             count_batch.append(story_id)
             if len(count_batch) == STORY_BATCH_SIZE:

@@ -10,7 +10,7 @@
     <li class="badge badge-outline h-auto" data-test-id="asset-matched-software">{{ software.name }} · {{ software.versions | length }} installed version{{ 's' if software.versions | length != 1 }} · {{ match_reason(software) }}</li>
   {% endfor %}
 </ul>
-<details open>
+<details>
   <summary class="cursor-pointer">Installed software and evidence</summary>
   <div class="space-y-3 pt-2">
     <ul class="space-y-2">

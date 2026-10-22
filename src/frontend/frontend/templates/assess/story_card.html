@@ -7,7 +7,7 @@
   {% set news_items = (story.news_items | default([])) | list %}
   {% set news_count = news_items | length %}
   {% set compact_view = false if detail_view else current_user.profile.compact_view %}
-  {% set line_clamp = "" if detail_view else "line-clamp-1" if compact_view else "line-clamp-4" %}
+  {% set line_clamp = "" if detail_view else "line-clamp-1" if compact_view else "line-clamp-2" if story.matched_assets else "line-clamp-4" %}
   {% set summary_content = story.model_extra.summary_content %}
   {% set selected_story_ids = selected_story_ids | default([]) %}
   {% set is_selected = (not detail_view) and story_id in selected_story_ids %}
@@ -47,6 +47,9 @@
            {% if not detail_view %}@click="toggleSelection('{{ story_id }}')"{% endif %}
            aria-selected="{{ 'true' if is_selected else 'false' }}">
     <div class="p-2 space-y-2 w-full max-w-full" id="story-card-content-{{ story_id }}">
+      {% if story.matched_assets %}
+        {% include "assess/asset_summary.html" %}
+      {% endif %}
       <div class="flex flex-col gap-2 lg:flex-row lg:items-start lg:gap-4 w-full max-w-full">
 
         <!-- status and metadata column -->
@@ -168,19 +171,6 @@
       </div>
 
       <!-- tags section -->
-      {% if story.matched_assets %}
-        <div class="text-xs space-y-2" data-test-id="story-matched-assets" @click.stop>
-          <span>{{ story.matched_assets | length }} matched asset{{ 's' if story.matched_assets | length != 1 }}</span>
-          <a class="link link-primary ml-2"
-             href="{{ url_for('assess.asset_matches', story_id=story.id, assess_url=assess_return_url | default(None)) }}"
-             hx-get="{{ url_for('assess.asset_matches', story_id=story.id, assess_url=assess_return_url | default(None)) }}"
-             hx-target="#asset-matches-{{ story.id }}"
-             hx-swap="innerHTML"
-             hx-status:4xx="target:#asset-matches-{{ story.id }}"
-             hx-status:5xx="target:#asset-matches-{{ story.id }}">Why this matches</a>
-          <div id="asset-matches-{{ story.id }}"></div>
-        </div>
-      {% endif %}
       {{ story_tags(story, compact_view=compact_view, selected_tags=active_tag_filters | default([])) }}
 
       <!-- expandable details section -->

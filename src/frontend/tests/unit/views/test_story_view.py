@@ -934,7 +934,7 @@ def test_asset_filtered_assess_refreshes_matches_after_story_actions(authenticat
     assert updated.status_code == 200
     assert updated.headers["HX-Retarget"] == "#assess"
     assert "2 matched assets" in updated.text
-    assert "Replacement host" not in updated.text and "Current host" not in updated.text
+    assert "Replacement host" in updated.text and "Current host" in updated.text
     returned_url = html.fromstring(updated.text).xpath('//*[@id="assess"]/@data-assess-url')[0]
     assert parse_qs(urlparse(returned_url).query)["asset_match"] == ["true"]
 

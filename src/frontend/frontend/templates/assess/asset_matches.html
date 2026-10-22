@@ -12,7 +12,7 @@
               data-test-id="asset-host-count">{{ article.hosts | length }} matched asset{{ 's' if article.hosts | length != 1 }}</span>
         {% for host in article.hosts %}
           <section class="border-l-4 border-primary pl-3 space-y-2" data-test-id="asset-matched-host">
-            <a class="link font-bold"
+            <a class="link text-lg font-bold"
                href="{{ url_for('assets.asset', asset_id=host.asset_id, assess_url=assess_return_url) }}">{{ host.asset_name }}</a>
             {% if host.max_cvss is not none %}<span class="badge badge-outline" data-test-id="asset-highest-cvss">Highest reported CVSS {{ host.max_cvss }}</span>{% else %}<span>No matching CVE score</span>{% endif %}
             {% with asset_id=host.asset_id, article=host %}

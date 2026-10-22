@@ -396,6 +396,8 @@ def test_intelligence_paginates_complete_stories(client, auth_header, api_header
     empty = client.get("/api/assess/stories", headers=auth_header, query_string={**query, "page": 2}).json
     assert empty["items"] == []
     grouped_id = NewsItem.get(articles[0]["id"]).story_id
+    grouped_story = next(story for story in first["items"] + second["items"] if story["id"] == grouped_id)
+    assert grouped_story["matched_assets"][0]["cve_count"] == 1
     evidence = client.get(f"/api/assess/stories/{grouped_id}/asset-matches", headers=auth_header, query_string=query).json
     assert len(evidence["articles"]) == 2
     for article in evidence["articles"]:
@@ -426,7 +428,14 @@ def test_intelligence_paginates_complete_stories(client, auth_header, api_header
     assert [story["id"] for story in second["items"]] == expected_assess[5:10]
     assert first["counts"]["total_count"] == second["counts"]["total_count"] == 21
     assert first["counts"]["read_count"] == first["counts"]["important_count"] == 1
-    assert all(story["matched_assets"] == [{"id": asset_id, "name": "Paged intelligence"}] for story in first["items"])
+    expected_asset = {
+        "id": asset_id,
+        "name": "Paged intelligence",
+        "max_cvss": None,
+        "cve_count": 1,
+        "software_match": not cve_only,
+    }
+    assert all(story["matched_assets"] == [expected_asset] for story in first["items"])
     unread = client.get("/api/assess/stories", headers=auth_header, query_string=assess_query | {"read": "false"}).json
     assert unread["counts"]["total_count"] == 20 and unread["counts"]["read_count"] == 0
     no_count = client.get("/api/assess/stories", headers=auth_header, query_string=assess_query | {"no_count": "true", "page": 1}).json
@@ -838,7 +847,9 @@ def test_assess_asset_filters_and_evidence_preserve_host_scope_and_scores(
     evidence_url = f"{endpoint}/{story.id}/asset-matches"
     assessed = client.get(endpoint, headers=auth_header, query_string={"asset_match": "true"}).json
     assert assessed["counts"]["total_count"] == 1
-    assert assessed["items"][0]["matched_assets"] == [{"id": first.id, "name": "Host A"}, {"id": second.id, "name": "Host B"}]
+    first_summary = {"id": first.id, "name": "Host A", "max_cvss": 9.1, "cve_count": 2, "software_match": True}
+    second_summary = {"id": second.id, "name": "Host B", "max_cvss": 0, "cve_count": 1, "software_match": True}
+    assert assessed["items"][0]["matched_assets"] == [first_summary, second_summary]
     data = client.get(evidence_url, headers=auth_header).json
     articles = {a["id"]: a for a in data["articles"]}
     assert set(articles) == {both.id, tagged.id, product.id}
@@ -880,7 +891,7 @@ def test_assess_asset_filters_and_evidence_preserve_host_scope_and_scores(
     # Several CVEs can be covered by separate articles, but must all belong to one asset.
     cve_filters = {"asset_match": "true", "tags": ["cve-2026-12345", "CVE-2026-12346"]}
     listed = client.get(endpoint, headers=auth_header, query_string=cve_filters).json
-    assert listed["items"][0]["matched_assets"] == [{"id": first.id, "name": "Host A"}]
+    assert listed["items"][0]["matched_assets"] == [first_summary]
     evidence = client.get(evidence_url, headers=auth_header, query_string=cve_filters).json
     assert {a["id"] for a in evidence["articles"]} == {both.id, tagged.id}
     assert all([h["asset_id"] for h in a["hosts"]] == [first.id] for a in evidence["articles"])
@@ -889,6 +900,11 @@ def test_assess_asset_filters_and_evidence_preserve_host_scope_and_scores(
     selected = client.get(evidence_url, headers=auth_header, query_string={"tags": "CVE-2026-12346"}).json
     assert len(selected["articles"]) == 1
     assert [h["max_cvss"] for h in selected["articles"][0]["hosts"]] == [None, 0]
+    selected_stories = client.get(endpoint, headers=auth_header, query_string={"asset_match": "true", "tags": "CVE-2026-12346"}).json
+    assert selected_stories["items"][0]["matched_assets"] == [
+        first_summary | {"max_cvss": None, "cve_count": 1, "software_match": False},
+        second_summary | {"software_match": False},
+    ]
 
     client.put(first_base + "/sbom/cves/CVE-2026-12346", headers=auth_header, json={"enabled": False})
     assert client.get(endpoint, headers=auth_header, query_string=cve_filters).json["items"] == []
