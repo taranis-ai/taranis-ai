@@ -54,7 +54,7 @@
             <p class="text-sm text-base-content/70 mb-4">Enter the provider base URL without /responses, /chat/completions, or /batches. Enable the formats this provider supports and choose a model for each.</p>
             {% set formats = endpoint.api_formats | default({'responses': {}}) %}
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-              {% for api_format, label in llm_api_formats.items() %}
+              {% for api_format, label in llm_api_formats.items() if api_format not in ('systemone', 'openai_decisions') %}
                 {% set api_config = formats.get(api_format, {}) %}
                 <fieldset class="border border-base-300 rounded-box p-4" data-test-id="llm-format-{{ api_format }}">
                   <label class="flex items-center gap-3 mb-4 font-semibold">
@@ -67,21 +67,34 @@
                   </label>
                   {{ form_input(label ~ ' model', 'api_formats[' ~ api_format ~ '][model]', api_config.model | default(''), preserve=False, floating=False, required=False, placeholder='Provider model ID', input_id='llm-' ~ endpoint_id ~ '-' ~ api_format ~ '-model') }}
                   {{ form_input(label ~ ' URL override', 'api_formats[' ~ api_format ~ '][base_url]', api_config.base_url | default(''), type='url', preserve=False, floating=False, required=False, placeholder='Use provider base URL', input_id='llm-' ~ endpoint_id ~ '-' ~ api_format ~ '-url') }}
-                  {% if api_format == "systemone" %}
-                    <p class="text-sm text-base-content/70">Use for OpenRouter or self-hosted servers exposing /v1/systemone with a supported decision model.</p>
-                    <div class="mt-3" x-show="isOpenRouter" x-cloak>
-                      <p class="text-sm text-base-content/70 mb-2">OpenRouter uses a separate Decisions URL: https://openrouter.ai/api/alpha/decisions.</p>
-                      <button type="button"
-                              class="btn btn-sm btn-outline"
-                              @click="$el.closest('fieldset').querySelector('input[type=url]').value = 'https://openrouter.ai/api/alpha/decisions'">
-                        Use OpenRouter URL
-                      </button>
-                    </div>
-                  {% elif api_format == "openai_decisions" %}
-                    <p class="text-sm text-base-content/70">Use for OpenAI or self-hosted servers exposing OpenAI's /v1/decisions schema. For OpenRouter, choose System One / OpenRouter.</p>
-                  {% endif %}
                 </fieldset>
               {% endfor %}
+              {% set decisions_format = 'openai_decisions' if 'openai_decisions' in formats and 'systemone' not in formats else 'systemone' %}
+              {% set decisions_config = formats.get(decisions_format, {}) %}
+              <fieldset class="border border-base-300 rounded-box p-4 md:col-span-2" data-test-id="llm-format-decisions">
+                <label class="flex items-center gap-3 mb-4 font-semibold">
+                  <input type="checkbox"
+                         class="checkbox checkbox-sm"
+                         name="decisions[enabled]"
+                         value="true"
+                         {% if decisions_config.enabled | default(decisions_format in formats) %}checked{% endif %} />
+                  Enable Decisions
+                </label>
+                {{ form_select('Decisions API format', 'decisions[api_format]', decisions_format, options=[{'id': 'systemone', 'name': 'System One / OpenRouter'}, {'id': 'openai_decisions', 'name': 'OpenAI'}], input_id='llm-' ~ endpoint_id ~ '-decisions-format') }}
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {{ form_input('Decisions model', 'decisions[model]', decisions_config.model | default(''), preserve=False, floating=False, required=False, placeholder='Provider model ID', input_id='llm-' ~ endpoint_id ~ '-decisions-model') }}
+                  {{ form_input('Decisions URL override', 'decisions[base_url]', decisions_config.base_url | default(''), type='url', preserve=False, floating=False, required=False, placeholder='Use provider base URL', input_id='llm-' ~ endpoint_id ~ '-decisions-url') }}
+                </div>
+                <p class="text-sm text-base-content/70">Use System One / OpenRouter for OpenRouter or self-hosted /v1/systemone servers with a supported decision model. Choose OpenAI for servers using OpenAI's /v1/decisions schema.</p>
+                <div class="mt-3" x-show="isOpenRouter" x-cloak>
+                  <p class="text-sm text-base-content/70 mb-2">OpenRouter uses System One format and a separate Decisions URL: https://openrouter.ai/api/alpha/decisions.</p>
+                  <button type="button"
+                          class="btn btn-sm btn-outline"
+                          @click="$el.closest('fieldset').querySelector('select').value = 'systemone'; $el.closest('fieldset').querySelector('input[type=url]').value = 'https://openrouter.ai/api/alpha/decisions'">
+                    Use OpenRouter settings
+                  </button>
+                </div>
+              </fieldset>
             </div>
             <p class="text-sm text-base-content/70 mb-4">Each enabled format uses its own model. Blank models use the provider default. Decisions URLs default to /systemone or /decisions under the provider base URL; use a full URL override for a different path. Responses is preferred over Chat Completions when both are enabled.</p>
             {{ form_select('Processing mode', 'processing_mode', endpoint.processing_mode | default('realtime'), options=[{'id': 'realtime', 'name': 'Realtime'}, {'id': 'openrouter_batch', 'name': 'OpenRouter batch'}], input_id='llm-' ~ endpoint_id ~ '-processing_mode') }}

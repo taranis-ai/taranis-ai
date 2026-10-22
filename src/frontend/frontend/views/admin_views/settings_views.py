@@ -82,6 +82,9 @@ class SettingsView(AdminBaseView):
 
         if action_url.startswith("/settings/llm-endpoints") and method == "post":
             payload = parse_formdata(request.form)
+            if decisions := payload.pop("decisions", None):
+                api_format = decisions.pop("api_format", "systemone")
+                payload.setdefault("api_formats", {})[api_format] = decisions
             submitted_formats = payload.get("api_formats")
             if "api_formats" in payload:
                 payload["api_formats"] = {
