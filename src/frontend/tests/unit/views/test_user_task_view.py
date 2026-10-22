@@ -48,6 +48,21 @@ def test_my_tasks_renders_standard_table_for_basic_user(authenticated_client_bas
     assert "Retryable" in body
     assert 'data-testid="nav-my-tasks"' in body
     assert ">My Tasks</a>" in body
+    assert 'hx-trigger="refresh"' in body
+
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/tasks/user",
+        json={"items": [_task_payload()], "total_count": 1, "live_tasks_available": False},
+    )
+    unavailable = authenticated_client_basic.get(url)
+    assert unavailable.status_code == 200
+    assert "Product rendered" in unavailable.text
+    assert 'hx-trigger="every 5s"' in unavailable.text
+
+    responses_mock.get(f"{Config.TARANIS_CORE_URL}/tasks/user", json={"items": [], "total_count": 0})
+    recovered = authenticated_client_basic.get(url)
+    assert recovered.status_code == 200
+    assert 'hx-trigger="refresh"' in recovered.text
 
 
 def test_my_tasks_forwards_table_query_to_core(authenticated_client_basic, responses_mock, htmx_header):
@@ -86,7 +101,7 @@ def test_my_tasks_htmx_failure_returns_sanitized_notification(authenticated_clie
     def fail_to_load_tasks(*args, **kwargs):
         raise RuntimeError("sensitive task loading details")
 
-    monkeypatch.setattr("frontend.views.user_views.DataPersistenceLayer.get_objects", fail_to_load_tasks)
+    monkeypatch.setattr("frontend.views.user_views.CoreApi.api_get", fail_to_load_tasks)
     with authenticated_client_basic.application.app_context():
         url = url_for("user.tasks")
 

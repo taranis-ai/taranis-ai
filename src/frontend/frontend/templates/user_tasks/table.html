@@ -31,12 +31,13 @@
 <div id="{{ container_id }}"
      class="table-container space-y-4"
      hx-get="{{ base_url }}{{ request.query_string.decode() and '?' ~ request.query_string.decode() }}"
-     hx-trigger="{% if tasks | selectattr('status', 'in', ['QUEUED', 'RUNNING']) | list %}every 5s{% else %}refresh{% endif %}"
+     hx-trigger="{% if not live_tasks_available or tasks | selectattr('status', 'in', ['QUEUED', 'RUNNING']) | list %}every 5s{% else %}refresh{% endif %}"
+     hx-sync="this:drop"
      hx-select="#{{ container_id }}"
      hx-swap="outerHTML">
-  {{ table_search_bar(container_id, base_url) }}
+  {{ table_search_bar(container_id, base_url, sync_target='#' ~ container_id) }}
   <div class="overflow-x-auto">
-    <table class="table shadow table-zebra table-sm" id="user-tasks" data-testid="user-tasks">
+    <table class="table shadow table-zebra table-sm" id="user-tasks" data-testid="user-tasks" hx-sync:inherited="#{{ container_id }}:replace">
       <thead>
         <tr>{% for column in columns %}{{ table_header(column, container_id, base_url) }}{% endfor %}</tr>
       </thead>

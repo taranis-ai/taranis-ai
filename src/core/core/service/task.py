@@ -44,6 +44,8 @@ class TaskService:
         from core.managers import queue_manager
 
         live_tasks = queue_manager.queue_manager.get_user_live_tasks(user_id)
+        live_tasks_available = live_tasks is not None
+        live_tasks = live_tasks or []
         if search := (filters.search or "").lower():
             live_tasks = [
                 task
@@ -68,6 +70,7 @@ class TaskService:
             items.sort(key=lambda task: task.get(field) or "", reverse=direction == "desc")
             page_offset = offset - history_offset
             result = {"items": items[page_offset : page_offset + filters.limit], "total_count": result["total_count"] + len(live_tasks)}
+        result["live_tasks_available"] = live_tasks_available
         validated = UserTaskList.model_validate(result)
         return validated.model_dump(mode="json", exclude_none=False), status
 

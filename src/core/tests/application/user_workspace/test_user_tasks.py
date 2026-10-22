@@ -2,13 +2,14 @@ import uuid
 from datetime import UTC, datetime, timedelta
 
 import pytest
+from redis.exceptions import RedisError
 from rq.executions import Execution
 from rq.job import JobStatus
 
 
 @pytest.mark.parametrize("action,outcome", [("summary_bot", "SUCCESS"), ("generate_tags", "FAILURE")])
 def test_story_task_lifecycle_is_visible_only_to_its_owner(
-    app, client, session, redis_client, api_header, auth_header, auth_header_user_permissions, action, outcome
+    app, client, session, redis_client, api_header, auth_header, auth_header_user_permissions, monkeypatch, action, outcome
 ):
     from core.model.user import User
     from tests.application.support.builders import build_news_item_payload, create_story
@@ -30,7 +31,17 @@ def test_story_task_lifecycle_is_visible_only_to_its_owner(
     job.meta["checkpoint"] = {"secret": "private-provider-configuration"}
     job.save_meta()
 
+    def unavailable_live_jobs(**kwargs):
+        raise RedisError("Queue temporarily unavailable")
+
+    with monkeypatch.context() as outage:
+        outage.setattr(manager, "_live_jobs", unavailable_live_jobs)
+        history = client.get("/api/tasks/user", query_string={"search": story_id}, headers=auth_header_user_permissions).json
+        assert history["live_tasks_available"] is False
+        assert [item["job_id"] for item in history["items"]] == [history_id]
+
     own = client.get("/api/tasks/user", query_string={"search": story_id}, headers=auth_header_user_permissions).json
+    assert own["live_tasks_available"] is True
     assert own["total_count"] == 2
     live = next(item for item in own["items"] if item["job_id"] == job.id)
     assert live["status"] == "QUEUED"
@@ -259,7 +270,7 @@ def test_user_tasks_supports_search_sorting_and_paging(app, client, api_header, 
         assert searched.status_code == 200
         assert [item["job_id"] for item in searched.get_json()["items"]] == [older_job_id]
         assert hidden_data_search.status_code == 200
-        assert hidden_data_search.get_json() == {"items": [], "total_count": 0}
+        assert hidden_data_search.get_json() == {"items": [], "total_count": 0, "live_tasks_available": True}
         assert invalid.status_code == 200
         assert invalid.get_json()["items"][0]["job_id"] == newer_job_id
     finally:

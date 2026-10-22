@@ -219,7 +219,7 @@
   </form>
 {% endmacro %}
 
-{% macro table_search_bar(table_id, base_url, preserve_params=[], search_delay=500, filters="") %}
+{% macro table_search_bar(table_id, base_url, preserve_params=[], search_delay=500, filters="", sync_target="this") %}
   {% set current_search = request.args.get('search', '') %}
   <div class="grow">
     <form method="get"
@@ -233,7 +233,7 @@
           hx-status:5xx:inherited="target:#notification-bar select:#notification-bar swap:outerHTML"
           hx-trigger="submit, {{ search_trigger(table_id ~ '-search', search_delay) }}"
           hx-swap="outerHTML"
-          hx-sync="this:replace"
+          hx-sync="{{ sync_target }}:replace"
           hx-on::before:request="restoreSearchAfterSwap(ctx)">
       {{ filters }}
       <label class="input w-full">

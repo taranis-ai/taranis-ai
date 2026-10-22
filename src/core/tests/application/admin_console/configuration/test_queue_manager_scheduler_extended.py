@@ -649,8 +649,8 @@ def test_osint_schedule_entries_include_metadata(monkeypatch):
     monkeypatch.setattr(OSINTSource, "get_all_for_collector", classmethod(lambda cls: [FakeSource()]))
     monkeypatch.setattr(
         TaskModel,
-        "get_latest_matching",
-        classmethod(lambda cls, exact_ids=None, prefixes=None, task_name=None: FakeTask()),
+        "get_latest_for_schedules",
+        classmethod(lambda cls, schedule_specs: {"task-1": FakeTask()}),
     )
 
     entries = OSINTSource.get_enabled_schedule_entries(now=datetime(2025, 1, 1, 0, 0))
@@ -682,7 +682,7 @@ def test_osint_schedule_entries_handle_many(monkeypatch):
         return FakeSource(idx)
 
     monkeypatch.setattr(OSINTSource, "get_all_for_collector", classmethod(lambda cls: [make_source(i) for i in range(120)]))
-    monkeypatch.setattr(TaskModel, "get_latest_matching", classmethod(lambda cls, exact_ids=None, prefixes=None, task_name=None: None))
+    monkeypatch.setattr(TaskModel, "get_latest_for_schedules", classmethod(lambda cls, schedule_specs: {}))
 
     entries = OSINTSource.get_enabled_schedule_entries(now=datetime(2025, 1, 1, 0, 0))
 
@@ -696,12 +696,13 @@ def test_bot_schedule_entries_skip_invalid_cron(monkeypatch):
             self.id = "bot-1"
             self.name = "Bot One"
             self.task_id = "task-1"
+            self.cron_run_prefix = "cron_bot_bot-1_"
 
         def get_schedule(self):
             return "not-a-cron"
 
     monkeypatch.setattr(Bot, "get_all_for_collector", classmethod(lambda cls: [FakeBot()]))
-    monkeypatch.setattr(TaskModel, "get", classmethod(lambda cls, task_id: None))
+    monkeypatch.setattr(TaskModel, "get_latest_for_schedules", classmethod(lambda cls, schedule_specs: {}))
 
     entries = Bot.get_enabled_schedule_entries(now=datetime(2025, 1, 1, 0, 0))
 
@@ -730,8 +731,8 @@ def test_bot_schedule_entries_include_last_reason(monkeypatch):
     monkeypatch.setattr(Bot, "get_all_for_collector", classmethod(lambda cls: [FakeBot()]))
     monkeypatch.setattr(
         TaskModel,
-        "get_latest_matching",
-        classmethod(lambda cls, exact_ids=None, prefixes=None, task_name=None: FakeTask()),
+        "get_latest_for_schedules",
+        classmethod(lambda cls, schedule_specs: {"task-1": FakeTask()}),
     )
 
     entries = Bot.get_enabled_schedule_entries(now=datetime(2025, 1, 1, 0, 0))

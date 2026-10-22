@@ -121,6 +121,7 @@ class UserTaskList(TaranisBaseModel):
 
     items: list[UserTask] = Field(default_factory=list)
     total_count: int = 0
+    live_tasks_available: bool = True
 
 
 class UserTaskFilter(TaranisBaseModel):

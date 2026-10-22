@@ -1254,7 +1254,7 @@ class QueueManager:
                     del jobs[job_id]
         return list(jobs.values())
 
-    def get_user_live_tasks(self, user_id: str) -> list[dict[str, Any]]:
+    def get_user_live_tasks(self, user_id: str) -> list[dict[str, Any]] | None:
         if self.error or not self._redis:
             return []
         try:
@@ -1279,7 +1279,7 @@ class QueueManager:
             return tasks
         except RedisError:
             logger.exception("Failed to read live user tasks; showing persisted history")
-            return []
+            return None
 
     @staticmethod
     def build_cron_schedule_entry(

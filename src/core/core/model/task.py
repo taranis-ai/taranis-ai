@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import Any, ClassVar
 
 from models.task import TaskRunFilter, UserTaskFilter
-from sqlalchemy import func, or_
+from sqlalchemy import String, column, func, or_, select, values
 from sqlalchemy.orm import Mapped
 from sqlalchemy.sql.elements import ColumnElement
 
@@ -191,6 +191,35 @@ class Task(BaseModel):
         query = query.order_by(column.desc() if direction == "desc" else column.asc(), cls.id.desc())
         items = cls.get_filtered(query) or []
         return {"items": cls.to_list(items), "total_count": count}, 200
+
+    @classmethod
+    def get_latest_for_schedules(cls, schedule_specs: dict[str, tuple[str, str]]) -> dict[str, "Task"]:
+        """Match legacy IDs and cron runs, returning one result per schedule."""
+        if not schedule_specs:
+            return {}
+
+        schedules = (
+            values(column("schedule_id", String), column("prefix", String), column("task_name", String))
+            .data([(task_id, prefix, task_name) for task_id, (prefix, task_name) in schedule_specs.items()])
+            .cte("schedules")
+        )
+        ranked = (
+            select(
+                schedules.c.schedule_id,
+                cls.id.label("task_id"),
+                func.row_number()
+                .over(partition_by=schedules.c.schedule_id, order_by=(cls.last_run.desc(), cls.last_success.desc(), cls.job_id.desc()))
+                .label("position"),
+            )
+            .select_from(schedules)
+            .join(
+                cls,
+                (cls.task == schedules.c.task_name) & ((cls.job_id == schedules.c.schedule_id) | cls.job_id.like(schedules.c.prefix + "%")),
+            )
+            .subquery()
+        )
+        query = select(ranked.c.schedule_id, cls).join(cls, cls.id == ranked.c.task_id).where(ranked.c.position == 1)
+        return {schedule_id: task for schedule_id, task in db.session.execute(query)}
 
     @classmethod
     def get_latest_matching(

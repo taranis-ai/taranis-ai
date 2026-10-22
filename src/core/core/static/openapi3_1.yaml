@@ -11990,6 +11990,10 @@ components:
             $ref: '#/components/schemas/user_task'
         total_count:
           type: integer
+        live_tasks_available:
+          type: boolean
+          default: true
+          description: False when live queue state is temporarily unavailable; completed history remains available.
       required:
       - items
       - total_count
