@@ -697,6 +697,7 @@ def test_bot_schedule_entries_skip_invalid_cron(monkeypatch):
             self.name = "Bot One"
             self.task_id = "task-1"
             self.cron_run_prefix = "cron_bot_bot-1_"
+            self.cron_job_id = "bot_bot-1"
 
         def get_schedule(self):
             return "not-a-cron"

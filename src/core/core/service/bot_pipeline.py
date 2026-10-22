@@ -71,6 +71,7 @@ class BotPipelineService:
             result_payload = submission.result.model_dump(mode="json", exclude_none=False)
             task_data: dict[str, Any] = {
                 "id": submission.id,
+                "name": submission.name,
                 "task": submission.task,
                 "user_id": submission.user_id,
                 "worker_id": submission.worker_id,
@@ -122,6 +123,7 @@ class BotPipelineService:
             warning = bool(stage["result"].get("errors"))
             entry = Task(
                 id=job_id,
+                name=run.name,
                 task=f"bot_{bot_id}",
                 worker_id=bot_id,
                 worker_type=stage["bot_type"],

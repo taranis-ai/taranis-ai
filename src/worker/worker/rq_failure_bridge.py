@@ -74,6 +74,7 @@ def _persist_failure(job: Job, *, message: str, reason: str, retryable: bool, da
         task_name,
         "FAILURE",
         user_id=user_id,
+        name=get_meta_string(meta, "name"),
         worker_id=worker_id,
         worker_type=worker_type,
         result=build_failure_task_result(message, reason=reason, retryable=retryable, data=data),

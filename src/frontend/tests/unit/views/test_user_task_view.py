@@ -85,6 +85,13 @@ def test_my_tasks_forwards_table_query_to_core(authenticated_client_basic, respo
         "order": "last_run_asc",
     }
 
+    for headers in ({}, htmx_header):
+        invalid = authenticated_client_basic.get(
+            url.split("?")[0], query_string={"search": "render", "page": "abc", "limit": -1, "order": "bad"}, headers=headers
+        )
+        assert invalid.status_code == 200
+        assert responses_mock.calls[-1].request.params == {"search": "render", "page": "1", "limit": "20", "order": "last_run_desc"}
+
 
 def test_my_tasks_renders_empty_state(authenticated_client_basic, responses_mock):
     responses_mock.get(f"{Config.TARANIS_CORE_URL}/tasks/user", json={"items": [], "total_count": 0})

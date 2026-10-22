@@ -87,6 +87,7 @@ class Task(TaranisBaseModel):
 
     id: str
     job_id: str | None = None
+    name: str | None = None
     task: str | None = None
     user_id: str | None = None
     worker_id: str | None = None
@@ -195,6 +196,7 @@ class TaskSubmission(TaranisBaseModel):
     model_config = ConfigDict(extra="forbid", populate_by_name=True, coerce_numbers_to_str=False)
 
     id: str = Field(min_length=1, validation_alias=AliasChoices("id", "task_id"), serialization_alias="id")
+    name: str | None = None
     task: str | None = None
     user_id: str | None = None
     worker_id: str | None = None

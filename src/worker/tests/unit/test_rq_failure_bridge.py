@@ -31,7 +31,18 @@ def test_timeout_exception_persists_synthetic_failure(monkeypatch):
 
     monkeypatch.setattr(rq_failure_bridge, "CoreApi", FakeCoreApi)
 
-    job = cast(Job, DummyJob(meta={"task": "collector_task", "user_id": "user-1", "worker_id": "source-1", "worker_type": "rss_collector"}))
+    job = cast(
+        Job,
+        DummyJob(
+            meta={
+                "task": "collector_task",
+                "user_id": "user-1",
+                "name": "Collect source",
+                "worker_id": "source-1",
+                "worker_type": "rss_collector",
+            }
+        ),
+    )
 
     result = rq_failure_bridge.rq_failure_exception_handler(
         job,
@@ -44,6 +55,7 @@ def test_timeout_exception_persists_synthetic_failure(monkeypatch):
     assert captured["read_url"] == "/tasks/job-1"
     assert captured["args"] == ("job-1", "collector_task", "FAILURE")
     assert captured["kwargs"]["user_id"] == "user-1"
+    assert captured["kwargs"]["name"] == "Collect source"
     assert captured["kwargs"]["worker_id"] == "source-1"
     assert captured["kwargs"]["worker_type"] == "rss_collector"
     assert isinstance(captured["kwargs"]["result"], TaskResult)

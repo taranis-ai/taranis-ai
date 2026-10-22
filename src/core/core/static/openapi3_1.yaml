@@ -11821,6 +11821,10 @@ components:
           type: string
           minLength: 1
           description: accepted input alias for id
+        name:
+          type:
+          - string
+          - 'null'
         task:
           type:
           - string
@@ -11843,6 +11847,10 @@ components:
       properties:
         id:
           type: string
+        name:
+          type:
+          - string
+          - 'null'
         task:
           type:
           - string
@@ -11878,6 +11886,10 @@ components:
       properties:
         id:
           type: string
+        name:
+          type:
+          - string
+          - 'null'
         task:
           type:
           - string

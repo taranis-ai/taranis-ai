@@ -27,6 +27,7 @@ class Task(BaseModel):
 
     id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), primary_key=True, default=BaseModel.uuid7_str)
     job_id: Mapped[str] = db.Column(db.String, unique=True, nullable=False)
+    name: Mapped[str | None] = db.Column(db.String, nullable=True)
     task: Mapped[str] = db.Column(db.String, nullable=True)
     user_id: Mapped[str | None] = db.Column(db.String(UUID_STR_LENGTH), nullable=True)
     worker_id: Mapped[str] = db.Column(db.String, nullable=True)
@@ -36,7 +37,7 @@ class Task(BaseModel):
     last_run: Mapped[datetime] = db.Column(db.DateTime, nullable=True)
     last_success: Mapped[datetime] = db.Column(db.DateTime, nullable=True)
 
-    def __init__(self, result=None, status=None, id=None, task=None, user_id=None, worker_id=None, worker_type=None):
+    def __init__(self, result=None, status=None, id=None, task=None, user_id=None, worker_id=None, worker_type=None, name=None):
         if id:
             try:
                 self.id = self.normalize_uuid_id(id)
@@ -47,6 +48,7 @@ class Task(BaseModel):
         else:
             self.id = self.uuid7_str()
             self.job_id = self.id
+        self.name = name
         if status:
             self.status = status
         if task:
@@ -67,6 +69,7 @@ class Task(BaseModel):
         if entry := cls.get_by_job_id(entry_data["id"]):
             entry.result = cls._serialize_result(entry_data["result"])
             entry.status = entry_data.get("status")
+            entry.name = entry_data.get("name", entry.name)
             entry.task = entry_data.get("task", entry.task)
             entry.user_id = entry_data.get("user_id", entry.user_id)
             entry.worker_id = entry_data.get("worker_id", entry.worker_id)
@@ -104,6 +107,7 @@ class Task(BaseModel):
         return {
             "id": self.id,
             "job_id": self.job_id,
+            "name": self.name,
             "result": result,
             "task": self.task,
             "user_id": self.user_id,
@@ -170,6 +174,7 @@ class Task(BaseModel):
             query = query.where(
                 or_(
                     cls.job_id.ilike(pattern),
+                    cls.name.ilike(pattern),
                     cls.task.ilike(pattern),
                     cls.worker_id.ilike(pattern),
                     cls.worker_type.ilike(pattern),
@@ -188,7 +193,11 @@ class Task(BaseModel):
         if field == "worker_type":
             # Match the live-task merge's ordering on both PostgreSQL and SQLite.
             column = func.coalesce(column, "")
-        query = query.order_by(column.desc() if direction == "desc" else column.asc(), cls.id.desc())
+        # Locale collation must agree with Python before selecting the history window.
+        collation = "C" if db.engine.dialect.name == "postgresql" else "BINARY"
+        if field != "last_run":
+            column = column.collate(collation)
+        query = query.order_by(column.desc() if direction == "desc" else column.asc(), cls.id.collate(collation).desc())
         items = cls.get_filtered(query) or []
         return {"items": cls.to_list(items), "total_count": count}, 200
 

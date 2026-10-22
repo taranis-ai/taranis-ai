@@ -695,7 +695,7 @@ class TestSaveTaskResult:
 
     def test_save_task_result_uses_current_job_user_id_when_missing(self, requests_mock, monkeypatch):
         class DummyJob:
-            meta = {"user_id": "user-123"}
+            meta = {"user_id": "user-123", "name": "Summary · Story: story-1"}
 
         requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
         monkeypatch.setattr("worker.core_api.get_current_job", lambda: DummyJob())
@@ -705,6 +705,7 @@ class TestSaveTaskResult:
         post_calls = [req for req in requests_mock.request_history if req.method == "POST" and req.url.endswith("/tasks")]
         assert len(post_calls) == 1
         assert post_calls[0].json()["user_id"] == "user-123"
+        assert post_calls[0].json()["name"] == "Summary · Story: story-1"
 
     @pytest.mark.parametrize(
         "result_payload",

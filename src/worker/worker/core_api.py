@@ -174,6 +174,7 @@ class CoreApi:
         status: str,
         *,
         user_id: str | None = None,
+        name: str | None = None,
         worker_id: str | None = None,
         worker_type: str | None = None,
         result: Any = _MISSING_RESULT,
@@ -196,8 +197,15 @@ class CoreApi:
             if user_id is None:
                 user_id = self._get_current_job_user_id()
 
+            if name is None:
+                job = get_current_job()
+                meta = getattr(job, "meta", None)
+                if isinstance(meta, dict) and isinstance(meta.get("name"), str):
+                    name = meta["name"]
+
             submission = TaskSubmission(
                 id=job_id,
+                name=name,
                 task=task_name,
                 user_id=user_id,
                 worker_id=worker_id,

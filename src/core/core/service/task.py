@@ -150,6 +150,8 @@ class TaskService:
             "result": result_payload,
             "status": submission.status,
         }
+        if submission.name is not None:
+            payload["name"] = submission.name
         if submission.task is not None:
             payload["task"] = submission.task
         if submission.user_id is not None:

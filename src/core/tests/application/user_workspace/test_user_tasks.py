@@ -11,6 +11,8 @@ from rq.job import JobStatus
 def test_story_task_lifecycle_is_visible_only_to_its_owner(
     app, client, session, redis_client, api_header, auth_header, auth_header_user_permissions, monkeypatch, action, outcome
 ):
+    from rq.job import Job
+
     from core.model.user import User
     from tests.application.support.builders import build_news_item_payload, create_story
 
@@ -40,7 +42,22 @@ def test_story_task_lifecycle_is_visible_only_to_its_owner(
         assert history["live_tasks_available"] is False
         assert [item["job_id"] for item in history["items"]] == [history_id]
 
-    own = client.get("/api/tasks/user", query_string={"search": story_id}, headers=auth_header_user_permissions).json
+    other = queue.enqueue("worker.bots.bot_tasks.bot_task", meta={"user_id": "another-user", "checkpoint": "large-private-snapshot"})
+    fetch_many = Job.fetch_many
+    with monkeypatch.context() as reads:
+
+        def fetch_owned(job_ids, **kwargs):
+            assert other.id not in job_ids
+            return fetch_many(job_ids, **kwargs)
+
+        reads.setattr(Job, "fetch_many", fetch_owned)
+        own = client.get("/api/tasks/user", query_string={"search": story_id}, headers=auth_header_user_permissions).json
+        # Legacy jobs are projected once, then subsequent polls read only the owner field.
+        redis_client.hdel(other.key, "taranis_user_id")
+        assert manager.get_user_live_tasks(user_id)
+        assert redis_client.hget(other.key, "taranis_user_id") == b"another-user"
+        assert manager.get_user_live_tasks(user_id)
+    other.delete()
     assert own["live_tasks_available"] is True
     assert own["total_count"] == 2
     live = next(item for item in own["items"] if item["job_id"] == job.id)
@@ -70,10 +87,11 @@ def test_story_task_lifecycle_is_visible_only_to_its_owner(
     assert active["items"][0]["name"] == live["name"]
 
     payload = _task_payload(job.id, user_id=user_id, status=outcome)
-    payload.update(task=job.meta["task"], worker_id=job.meta["worker_id"], worker_type=job.meta["worker_type"])
+    payload.update(name=job.meta["name"], task=job.meta["task"], worker_id=job.meta["worker_id"], worker_type=job.meta["worker_type"])
     assert client.post("/api/tasks", json=payload, headers=api_header).status_code == 200
-    completed = client.get("/api/tasks/user", headers=auth_header_user_permissions).json["items"]
+    completed = client.get("/api/tasks/user", query_string={"search": story_id}, headers=auth_header_user_permissions).json["items"]
     assert [item["status"] for item in completed if item["job_id"] == job.id] == [outcome]
+    assert next(item for item in completed if item["job_id"] == job.id)["name"] == live["name"]
     assert history_id in {item["job_id"] for item in completed}
     assert client.get("/api/config/workers/active", query_string={"search": story_id}, headers=auth_header).json["total_count"] == 0
 
@@ -91,7 +109,7 @@ def test_user_tasks_page_live_jobs_together_with_history(app, client, session, r
     user = User.find_by_name("user")
     queue = app.extensions["rq"].get_queue("bots")
     now = datetime.now(UTC)
-    worker_types = ["A", "B", "Z", None, "D", "C"]
+    worker_types = ["A", "rss_collector", "Z", None, "word_presenter", "SUMMARY_BOT"]
     for index, worker_type in enumerate(worker_types):
         job_id = f"mixed-task-{index}"
         if index % 2:
@@ -105,7 +123,7 @@ def test_user_tasks_page_live_jobs_together_with_history(app, client, session, r
             job.save()
     session.commit()
 
-    for field, ascending in {"last_run": [0, 1, 2, 3, 4, 5], "worker_type": [3, 0, 1, 5, 4, 2]}.items():
+    for field, ascending in {"last_run": [0, 1, 2, 3, 4, 5], "worker_type": [3, 0, 5, 2, 1, 4]}.items():
         for direction in ("asc", "desc"):
             seen = []
             for page in range(1, 5):

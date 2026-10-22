@@ -47,7 +47,7 @@ from models.task import FAILURE_MESSAGES
 from opentelemetry.propagate import inject
 from pydantic import TypeAdapter
 from redis import Redis
-from redis.exceptions import AuthenticationError, AuthorizationError, RedisError
+from redis.exceptions import AuthenticationError, AuthorizationError, RedisError, WatchError
 from redis.exceptions import ConnectionError as RedisConnectionError
 from redis.exceptions import TimeoutError as RedisTimeoutError
 from redis.maint_notifications import MaintNotificationsConfig
@@ -91,6 +91,14 @@ TASK_MAP = {
     "cleanup_task_history": "worker.misc.misc_tasks.cleanup_task_history",
     "fetch_single_news_item": "worker.collectors.collector_tasks.fetch_single_news_item",
 }
+
+
+class OwnedJob(Job):
+    def to_dict(self, include_meta: bool = True, include_result: bool = True) -> dict:
+        values = super().to_dict(include_meta=include_meta, include_result=include_result)
+        # Keep ownership cheap to read even when metadata contains a large checkpoint.
+        values["taranis_user_id"] = self.meta.get("user_id") or ""
+        return values
 
 
 class QueueManager:
@@ -142,6 +150,7 @@ class QueueManager:
                 queue_name,
                 connection=self._redis,
                 default_timeout=Config.RQ_DEFAULT_JOB_TIMEOUT,
+                job_class=OwnedJob,
             )
 
         logger.info("QueueManager initialized")
@@ -1234,6 +1243,38 @@ class QueueManager:
                 job_ids.update(StartedJobRegistry(queue=queue).get_job_ids(cleanup=False))
         if not job_ids:
             return []
+
+        if user_id is not None:
+            candidates = list(job_ids)
+            with self._redis.pipeline() as pipeline:
+                for job_id in candidates:
+                    pipeline.hget(Job.key_for(job_id), "taranis_user_id")
+                owners = pipeline.execute()
+            # Jobs created by older core/cron processes have no ownership projection yet.
+            missing = [job_id for job_id, owner in zip(candidates, owners, strict=True) if owner is None]
+            legacy_owners = {}
+            if missing:
+                with self._redis.pipeline() as ownership:
+                    ownership.watch(*(Job.key_for(job_id) for job_id in missing))
+                    with self._redis.pipeline() as pipeline:
+                        for job_id in missing:
+                            pipeline.hget(Job.key_for(job_id), "meta")
+                        metadata = pipeline.execute()
+                    ownership.multi()
+                    for job_id, raw in zip(missing, metadata, strict=True):
+                        meta = Job(job_id, connection=self._redis).serializer.loads(raw) if raw else {}
+                        owner = (meta.get("user_id") or "").encode()
+                        legacy_owners[job_id] = owner
+                        if raw is not None:
+                            ownership.hsetnx(Job.key_for(job_id), "taranis_user_id", owner)
+                    # Cache only an unchanged snapshot; never recreate an expired job hash.
+                    with contextlib.suppress(WatchError):
+                        ownership.execute()
+            job_ids = {
+                job_id
+                for job_id, owner in zip(candidates, owners, strict=True)
+                if (owner if owner is not None else legacy_owners[job_id]) == user_id.encode()
+            }
 
         jobs: dict[str, Job] = {}
         for job in Job.fetch_many(job_ids, connection=self._redis):
