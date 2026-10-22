@@ -334,6 +334,11 @@ class TestUserWorkflow(BaseE2ETest):
         self.highlight_element(selected_card, scroll=False).click()
         expect(selected_card).to_have_attribute("aria-selected", "true")
         assert "bg-primary/5" in (selected_card.get_attribute("class") or "")
+        for action in ("toggle-read", "toggle-important"):
+            selected_card.get_by_test_id(action).click()
+            self.wait_for_htmx_settled(page)
+            expect(selected_card.locator('input[name="story_ids"]')).to_be_checked()
+            expect(page.get_by_test_id("assess_story_selection_count")).to_have_text("1 stories selected")
         self.highlight_element(page.get_by_test_id("bookmark-remove-selected")).click()
         confirm_button = page.locator(".swal2-container .swal2-confirm")
         expect(confirm_button).to_be_visible()

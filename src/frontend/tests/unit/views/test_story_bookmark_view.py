@@ -7,6 +7,7 @@ from flask.testing import FlaskClient
 from lxml import html  # pyright: ignore[reportMissingTypeStubs]
 from models.user import UserProfile
 from responses import RequestsMock
+from werkzeug.datastructures import MultiDict
 
 from frontend.cache import add_user_to_cache
 from frontend.config import Config
@@ -86,7 +87,10 @@ def test_submit_memberships_preserves_partial_collections_and_removes_unchecked(
     authenticated_client_basic: FlaskClient, responses_mock: RequestsMock
 ) -> None:
     responses_mock.post(f"{Config.TARANIS_CORE_URL}/assess/bookmarks/memberships", json={"message": "Bookmark collections updated"})
-    responses_mock.get(f"{Config.TARANIS_CORE_URL}/assess/bookmarks", json={"items": [_bookmark_payload()], "total_count": 1})
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/assess/bookmarks",
+        json={"items": [_bookmark_payload(), _bookmark_payload(bookmark_id="bookmark-2", name="Second")], "total_count": 2},
+    )
     response = authenticated_client_basic.post(
         url_for("assess.submit_bookmark_story"),
         headers={"HX-Request": "true"},
@@ -109,6 +113,31 @@ def test_submit_memberships_preserves_partial_collections_and_removes_unchecked(
     tree = html.fromstring(response.text)
     assert tree.xpath('//*[@id="story-bookmark-story-1"]//span[text()="Saved"]')
     assert tree.xpath('//*[@id="story-bookmark-story-2"]//span[text()="Bookmark"]')
+
+    responses_mock.replace(
+        "POST", f"{Config.TARANIS_CORE_URL}/assess/bookmarks/memberships", json={"error": "Collection name already exists"}, status=400
+    )
+    failed = authenticated_client_basic.post(
+        url_for("assess.submit_bookmark_story"),
+        data={"story_ids": ["story-1", "story-2"], "remove_bookmark_ids": ["bookmark-1"], "bookmark_ids": ["bookmark-2"], "name": "Research"},
+    )
+    assert failed.status_code == 400
+    tree = html.fromstring(failed.text)
+    assert tree.xpath('//input[@name="remove_bookmark_ids" and @value="bookmark-1" and not(@disabled)]')
+    removed_choice = tree.xpath('//input[@name="bookmark_ids" and @value="bookmark-1"]')[0]
+    added_choice = tree.xpath('//input[@name="bookmark_ids" and @value="bookmark-2"]')[0]
+    assert removed_choice.get("checked") is None
+    assert added_choice.get("checked") is not None
+    assert removed_choice.get("x-init") is None and added_choice.get("x-init") is None
+    retry_form = tree.xpath('//form[@id="story-bookmark-form"]')[0]
+    retry_data = MultiDict(retry_form.form_values())
+    retry_data["name"] = "Unique Research"
+    responses_mock.replace(
+        "POST", f"{Config.TARANIS_CORE_URL}/assess/bookmarks/memberships", json={"message": "Bookmark collections updated"}
+    )
+    retried = authenticated_client_basic.post(retry_form.get("action"), data=retry_data)
+    assert retried.status_code == 302
+    assert _request_json(responses_mock.calls[-1])["remove_bookmark_ids"] == ["bookmark-1"]
 
 
 def test_quick_save_updates_card_and_offers_undo_only_for_new_membership(
@@ -325,7 +354,7 @@ def test_bookmark_story_action_keeps_bookmark_card_behavior(
     response = authenticated_client_basic.put(
         url_for("assess.story", story_id="story-1", bookmark_id="bookmark-1"),
         headers={**htmx_header, "HX-Current-URL": url_for("assess.bookmark", bookmark_id="bookmark-1", _external=True)},
-        data={"read": "false"},
+        data={"read": "false", "story_ids": ["story-1", "story-2"]},
     )
 
     assert response.status_code == 200
@@ -333,6 +362,11 @@ def test_bookmark_story_action_keeps_bookmark_card_behavior(
     story_card = tree.xpath('//article[@data-testid="story-card-story-1"]')[0]
     assert not story_card.xpath('.//*[@data-testid="bookmark-story"]')
     assert "bookmark_id=bookmark-1" in story_card.xpath('.//*[@data-testid="toggle-read"]')[0].get("hx-put")
+    assert story_card.xpath('.//input[@name="story_ids" and @value="story-1" and @checked]')
+    for action in ("toggle-read", "toggle-important"):
+        assert story_card.xpath(f'.//*[@data-testid="{action}"]')[0].get("hx-include") == (
+            "#bookmark-selection-root input[name=story_ids]:checked"
+        )
 
 
 def test_bookmark_ungroup_error_stays_in_bookmark(

@@ -5,5 +5,5 @@
        class="btn btn-outline btn-xs w-full join-item justify-start gap-2"
        data-testid="edit-story">{{ heroicon_mini("pencil-square") }} Edit story</a>
   {% endif %}
-  {{ story_actions(story, secondary_only=True, bookmark_id=bookmark_id, delete_target='#bookmark-detail-container' if bookmark_id else '#assess', delete_swap='outerHTML') }}
+  {{ story_actions(story, secondary_only=True, bookmark_id=bookmark_id, delete_target=delete_target, delete_swap='outerHTML') }}
 </div>

@@ -14,6 +14,7 @@
               class="btn btn-outline btn-{{ size }} {{ 'story-card-action' if primary_only else 'w-full join-item' }} justify-start gap-2"
               hx-put="{{ story_update_url }}"
               hx-vals='{"read": {{ toggled_read }} }'
+              {% if bookmark_id %}hx-include="#bookmark-selection-root input[name=story_ids]:checked"{% endif %}
               hx-target="#story-{{ story_id }}"
               hx-select="#story-{{ story_id }}"
               hx-status:400="target:#notification-bar select:#notification-bar swap:outerHTML"
@@ -43,6 +44,7 @@
               class="btn btn-outline btn-{{ size }} {{ 'story-card-action' if primary_only else 'w-full join-item' }} justify-start gap-2"
               hx-put="{{ story_update_url }}"
               hx-vals='{"important": {{ toggled_important }} }'
+              {% if bookmark_id %}hx-include="#bookmark-selection-root input[name=story_ids]:checked"{% endif %}
               hx-target="#story-{{ story_id }}"
               hx-select="#story-{{ story_id }}"
               hx-status:400="target:#notification-bar select:#notification-bar swap:outerHTML"

@@ -116,6 +116,16 @@ def test_assess_upstream_failure_returns_safe_error_page(authenticated_client, r
         assert "Stories updated" not in tree.text_content()
         assert "private upstream details" not in tree.text_content()
 
+        responses_mock.get(f"{Config.TARANIS_CORE_URL}/assess/stories/story-1", body=RequestException("private upstream details"))
+        for endpoint in ("assess.story_details", "assess.story_actions"):
+            response = authenticated_client.get(url_for(endpoint, story_id="story-1"), headers=htmx_header)
+            assert response.status_code == 502
+            tree = html.fromstring(response.text)
+            assert tree.tag == "section" and tree.get("id") == "notification-bar"
+            assert tree.get("hx-swap-oob") is None
+            assert "Unable to load story. Please try again." in tree.text_content()
+            assert "private upstream details" not in tree.text_content()
+
 
 @pytest.mark.parametrize(
     ("return_url", "expected_return"),
@@ -137,6 +147,11 @@ def test_story_assess_return_navigation(authenticated_client, responses_mock, re
     assert {"HX-Request", "HX-Target"} <= set(response.vary)
     tree = html.fromstring(response.text)
     assert tree.xpath('//*[@data-test-id="back-to-assess"]/@href') == [expected_return]
+    menu_url = tree.xpath('//*[@data-testid="story-actions-menu"]/@hx-get')[0]
+    current_url = url_for("assess.story", story_id="story-1", _external=True)
+    actions = authenticated_client.get(menu_url, headers={"HX-Request": "true", "HX-Current-URL": current_url})
+    delete_action = html.fromstring(actions.text).xpath('//*[@data-testid="delete-story"]')[0]
+    assert tree.xpath("//*[@id=$target]", target=delete_action.get("hx-target").removeprefix("#"))
     edit_url = tree.xpath('//*[@data-testid="edit-story"]/@href')[0]
     response = authenticated_client.get(edit_url)
     tree = html.fromstring(response.text)
@@ -160,6 +175,10 @@ def test_story_assess_return_navigation(authenticated_client, responses_mock, re
     response = authenticated_client.get(response.headers["Location"])
     tree = html.fromstring(response.text)
     assert tree.xpath('//*[@data-test-id="back-to-assess"]/@href') == [expected_return]
+
+    responses_mock.delete(f"{Config.TARANIS_CORE_URL}/assess/story/story-1", json={"message": "Story deleted"})
+    response = authenticated_client.delete(delete_action.get("hx-delete"), headers={"HX-Request": "true", "HX-Current-URL": current_url})
+    assert response.headers["HX-Redirect"] == url_for("assess.assess")
 
 
 @pytest.mark.parametrize(

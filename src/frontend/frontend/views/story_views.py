@@ -1149,13 +1149,19 @@ class StoryView(BaseView):
             raise
         except Exception:
             logger.exception("Unable to load story fragment")
+            story = None
+        if story is None:
             return render_template(
                 "notification/index.html", notification={"message": "Unable to load story. Please try again.", "error": True}, oob=False
             ), 502
-        if story is None:
-            abort(404)
         template = {"details": "assess/story_card_details.html", "actions": "assess/story_more_actions.html"}[fragment]
-        return render_template(template, story=story, bookmark_id=cls._get_bookmark_id(), assess_return_url=cls._get_assess_return_url()), 200
+        return render_template(
+            template,
+            story=story,
+            bookmark_id=cls._get_bookmark_id(),
+            assess_return_url=cls._get_assess_return_url(),
+            delete_target=cls._get_story_action_target([story_id]),
+        ), 200
 
     @classmethod
     @auth_required("ASSESS_ACCESS")
@@ -1635,6 +1641,7 @@ class StoryView(BaseView):
             )
 
         context["show_bookmark"] = not bookmark_id
+        context["selected_story_ids"] = request.form.getlist("story_ids")
         return render_template("assess/story.html", detail_view=False, **context)
 
     @classmethod

@@ -193,6 +193,7 @@ class StoryBookmarkView(BaseView):
                     story_ids=story_ids,
                     memberships=memberships,
                     submitted_bookmark_ids=payload["bookmark_ids"],
+                    submitted_remove_bookmark_ids=payload["remove_bookmark_ids"],
                     selected_default_id=payload["default_bookmark_id"],
                     new_collection_name=payload["new_collection_name"],
                     error=error or cls._response_json(response).get("error") or "Unable to update bookmarks. Please try again.",

@@ -45,6 +45,7 @@
           {% set count = memberships.get(bookmark.id, 0) %}
           {% set all_saved = count == story_ids | length %}
           {% set partial = count > 0 and not all_saved %}
+          {% set remove_requested = bookmark.id in (submitted_remove_bookmark_ids | default([])) %}
           {% if all_saved %}<input type="hidden" name="original_bookmark_ids" value="{{ bookmark.id }}">{% endif %}
           <div class="flex items-center gap-3 rounded-box border border-base-300 p-3"
                data-name="{{ bookmark.name | lower }}"
@@ -55,8 +56,8 @@
                      class="checkbox checkbox-sm"
                      name="bookmark_ids"
                      value="{{ bookmark.id }}"
-                     {% if (submitted_bookmark_ids is defined and bookmark.id in submitted_bookmark_ids) or (submitted_bookmark_ids is not defined and all_saved) %}checked{% endif %}
-                     {% if partial %}x-init="$el.indeterminate = true"{% endif %}
+                     {% if (submitted_bookmark_ids is defined and bookmark.id in submitted_bookmark_ids) or (submitted_bookmark_ids is not defined and all_saved) %}checked {% endif %}
+                     {% if partial and not remove_requested and bookmark.id not in (submitted_bookmark_ids | default([])) %}x-init="$el.indeterminate = true"{% endif %}
                      {% if partial %}@change="$refs.removal.disabled = $el.checked"{% endif %}
                      data-test-id="bookmark-choice-{{ bookmark.id }}">
               <span class="min-w-0">
@@ -67,7 +68,11 @@
               </span>
             </label>
             {% if partial %}
-              <input type="hidden" name="remove_bookmark_ids" value="{{ bookmark.id }}" disabled x-ref="removal">
+              <input type="hidden"
+                     name="remove_bookmark_ids"
+                     value="{{ bookmark.id }}"
+                     {% if not remove_requested %}disabled{% endif %}
+                     x-ref="removal">
             {% endif %}
             <label class="flex shrink-0 items-center gap-2 text-xs">
               <input type="radio"
