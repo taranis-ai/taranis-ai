@@ -132,7 +132,7 @@ class LLMProvider(BaseModel):
     def for_format(self, api_format: LLMAPIFormat) -> dict:
         config = self.api_formats[api_format]
         base_url = config.base_url or self.base_url
-        if api_format in DECISIONS_FORMATS and not urlparse(base_url).path.endswith(("/systemone", "/decisions")):
+        if not config.base_url and api_format in DECISIONS_FORMATS and not urlparse(base_url).path.endswith(("/systemone", "/decisions")):
             base_url += "/systemone" if api_format == "systemone" else "/decisions"
         return LLMEndpoint(
             name=self.name,

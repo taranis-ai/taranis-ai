@@ -57,13 +57,22 @@ def probe(kind: str, config: dict, batch_state: dict | None = None, save_batch_s
         if "api_formats" in config:
             provider = LLMProvider.model_validate({"name": "Probe", **config})
             healthy = True
+            pending = None
             for api_format in provider.api_formats:
                 state = batch_state.setdefault(api_format, {}) if batch_state is not None else None
+                if state is not None and "healthy" in state:
+                    healthy = healthy and state["healthy"]
+                    continue
                 result = probe(kind, provider.for_format(api_format), state, save_batch_state)
                 if isinstance(result, Retry):
-                    return result
+                    pending = result
+                    continue
+                if state is not None:
+                    state["healthy"] = result
+                    if save_batch_state:
+                        save_batch_state()
                 healthy = healthy and result
-            return healthy
+            return pending if pending is not None else healthy
         if config["api_format"] in {"systemone", "openai_decisions"}:
             client = get_decisions_client({"llm_endpoint": {"name": "Probe", **config}})
             questions = {"probe": ChoiceQuestion("Choose OK.", {"OK": "The requested answer", "other": "Any other answer"})}

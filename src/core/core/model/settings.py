@@ -225,6 +225,7 @@ class Settings(BaseModel):
             return {"error": "Settings not found"}, 404
         values = cls.with_defaults(entry.settings)
         endpoints = dict(values["llm_endpoints"])
+        previous = LLMProvider.model_validate(endpoints[endpoint_id]) if endpoint_id in endpoints else None
         if delete:
             from core.model.bot import Bot
 
@@ -251,6 +252,7 @@ class Settings(BaseModel):
                     current_format = next(iter(existing.get("api_formats", {"responses": {}})))
                     api_format = submitted.pop("api_format", current_format)
                     api_config = dict(existing.get("api_formats", {}).get(api_format, {}))
+                    api_config.setdefault("model", existing.get("api_formats", {}).get(current_format, {}).get("model", ""))
                     if "model" in submitted:
                         api_config["model"] = submitted.pop("model")
                     formats = dict(existing.get("api_formats", {})) if api_format == current_format else {}
@@ -280,14 +282,13 @@ class Settings(BaseModel):
         from core.model.bot import Bot
 
         provider = LLMProvider.model_validate(endpoints[endpoint_id]) if endpoint_id in endpoints else None
-        if endpoint_id == values.get("llm_classification_endpoint") and provider and not provider.supports("classification"):
+        lost_features = {
+            feature for feature in LLM_FEATURES if provider and previous and previous.supports(feature) and not provider.supports(feature)
+        }
+        if endpoint_id == values.get("llm_classification_endpoint") and "classification" in lost_features:
             return {"error": "Reassign topic classification before changing this endpoint's API format."}, 400
         for bot in db.session.execute(db.select(Bot)).scalars():
-            if (
-                bot.parameters.get("LLM_ENDPOINT") == endpoint_id
-                and provider
-                and not provider.supports(LLM_BOT_FEATURES.get(bot.type.value, ""))
-            ):
+            if bot.parameters.get("LLM_ENDPOINT") == endpoint_id and LLM_BOT_FEATURES.get(bot.type.value) in lost_features:
                 return {"error": "Reassign incompatible bots before changing this endpoint's API format."}, 400
         entry.settings = values
         db.session.commit()

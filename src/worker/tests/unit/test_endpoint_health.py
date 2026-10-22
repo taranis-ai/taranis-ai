@@ -19,43 +19,63 @@ def test_batch_endpoint_check_waits_for_inference(requests_mock, monkeypatch, ap
         "api_key": "probe-key",
         "timeout": 10,
     }
+    other_format = "chat_completions" if api_format == "responses" else "responses"
     config["api_formats"] = {
+        "systemone": {"model": "topic-model", "base_url": "https://batch.test/api/classify"},
         api_format: {"model": config["model"]},
-        "systemone": {"model": "topic-model", "base_url": "https://batch.test/alpha/decisions"},
+        other_format: {"model": config["model"]},
     }
     decisions = requests_mock.post(
-        "https://batch.test/alpha/decisions",
+        "https://batch.test/api/classify",
         json={"answers": {"probe": {"type": "choice", "choice": "OK", "probabilities": {"OK": 1.0, "other": 0.0}}}},
     )
     route = f"{Config.TARANIS_CORE_URL}/worker/endpoint-health/llm/test-id"
     requests_mock.get(route, json={"config": config})
     saved = requests_mock.post(route, json={"accepted": True})
-    submitted = requests_mock.post(f"{config['base_url']}/batches", status_code=202, json={"id": "batch_probe", "status": "validating"})
+    submitted = requests_mock.post(
+        f"{config['base_url']}/batches",
+        [
+            {"status_code": 202, "json": {"id": "batch_probe", "status": "validating"}},
+            {"status_code": 202, "json": {"id": "batch_other", "status": "validating"}},
+        ],
+    )
     job = Job.create(check_endpoint, connection=FakeRedis())
     job.save()
     monkeypatch.setattr("worker.endpoint_health.get_current_job", lambda: job)
     assert isinstance(check_endpoint("llm", "test-id", "current-check"), Retry)
     assert saved.call_count == 0
-    request_id = submitted.last_request.json()["requests"][0]["custom_id"]
+    assert submitted.call_count == 2
+    assert decisions.call_count == 1
+    request_id = submitted.request_history[0].json()["requests"][0]["custom_id"]
+    other_id = submitted.request_history[1].json()["requests"][0]["custom_id"]
     requests_mock.get(f"{config['base_url']}/batches/batch_probe", json={"status": "in_progress"})
+    requests_mock.get(f"{config['base_url']}/batches/batch_other", json={"status": "in_progress"})
+    job = Job.fetch(job.id, connection=job.connection)
     assert isinstance(check_endpoint("llm", "test-id", "current-check"), Retry)
     assert saved.call_count == 0
-    body = (
-        {"choices": [{"message": {"content": "OK"}}]}
-        if api_format == "chat_completions"
-        else {"status": "completed", "output": [{"type": "message", "content": [{"type": "output_text", "text": "OK"}]}]}
-    )
-    requests_mock.get(
+    responses_body = {"status": "completed", "output": [{"type": "message", "content": [{"type": "output_text", "text": "OK"}]}]}
+    chat_body = {"choices": [{"message": {"content": "OK"}}]}
+    body = chat_body if api_format == "chat_completions" else responses_body
+    other_body = responses_body if api_format == "chat_completions" else chat_body
+    completed = requests_mock.get(
         f"{config['base_url']}/batches/batch_probe",
-        json={
-            "status": "completed",
-            "results": [{"custom_id": request_id, "response": {"status_code": 200, "body": body}}],
-        },
+        json={"status": "completed", "results": [{"custom_id": request_id, "response": {"status_code": 200, "body": body}}]},
+    )
+    assert isinstance(check_endpoint("llm", "test-id", "current-check"), Retry)
+    job = Job.fetch(job.id, connection=job.connection)
+    finished = job.meta["llm_batch_probe"][api_format]
+    assert finished["healthy"] is True
+    finished["batches"][0]["submitted_at"] -= 26 * 3600
+    job.save_meta()
+    requests_mock.get(
+        f"{config['base_url']}/batches/batch_other",
+        json={"status": "completed", "results": [{"custom_id": other_id, "response": {"status_code": 200, "body": other_body}}]},
     )
     check_endpoint("llm", "test-id", "current-check")
     assert saved.last_request.json() == {"check_id": "current-check", "healthy": True}
-    assert submitted.call_count == 1
+    assert submitted.call_count == 2
     assert decisions.call_count == 1
+    assert completed.call_count == 1
     assert decisions.last_request.json()["model"] == "topic-model"
     assert "llm_batch_probe" not in job.meta
 
@@ -129,13 +149,13 @@ def test_endpoint_check_failure_and_recovery(requests_mock, kind, config, url, r
     check_endpoint(kind, "test-id", "old-check")
     assert upstream.call_count == 4
     extra_format = "responses" if config["api_format"] in {"systemone", "openai_decisions"} else "systemone"
-    extra_url = "https://other-path.test/v1"
+    extra_url = "https://other-path.test/v1" if extra_format == "responses" else "https://other-path.test/api/classify"
     extra_result = (
         {"output": [{"type": "message", "content": [{"type": "output_text", "text": "OK"}]}]}
         if extra_format == "responses"
         else {"answers": {"probe": {"type": "choice", "choice": "OK", "probabilities": {"OK": 1.0, "other": 0.0}}}}
     )
-    extra = requests_mock.post(extra_url + ("/responses" if extra_format == "responses" else "/systemone"), json=extra_result)
+    extra = requests_mock.post(extra_url + ("/responses" if extra_format == "responses" else ""), json=extra_result)
     combined = {
         **config,
         "api_formats": {
