@@ -1,8 +1,6 @@
 # Mastodon Collector
 
-## When To Load
-
-`MASTODON_COLLECTOR`, hashtag/home/account timelines, Mastodon.py, or cursor pagination.
+Load for: `MASTODON_COLLECTOR`, hashtag/home/account timelines, Mastodon.py, or cursor pagination.
 
 ## Contracts
 
@@ -15,7 +13,7 @@
 - Keep replies/boosts. Boosts map to the original post URL for deduplication. Treat status IDs as opaque strings and paginate in API response order; do not use write-scoped Mastodon markers that change other clients' read position.
 - Complete mode after long downtime can hit rate/resource limits.
 
-## Entry Points and Coverage
+## Code and Tests
 
 `src/worker/worker/collectors/mastodon_collector.py`, `src/models/models/worker_parameters.py`, `src/core/core/model/osint_source.py`; setup: `docs/mastodon.md`.
 

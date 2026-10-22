@@ -26,6 +26,7 @@ from models.assess import (
     StoryBookmark,
     StoryUpdatePayload,
 )
+from models.classification import CLASSIFICATION_CATEGORIES
 from models.cti import CTIResponse
 from models.report import ReportItem
 from models.revision_diff import build_story_revision_diff_payload
@@ -79,6 +80,12 @@ class StoryView(BaseView):
     _show_sidebar = True
 
     @classmethod
+    def get_update_template(cls) -> str:
+        if request.method == "GET" and request.endpoint == cls.edit_route and is_htmx_request():
+            return "assess/story_edit_content.html"
+        return super().get_update_template()
+
+    @classmethod
     def _get_bookmark_bar_collections(cls) -> CacheObject[StoryBookmark]:
         try:
             paging_data = PagingData(
@@ -102,6 +109,7 @@ class StoryView(BaseView):
     def get_extra_context(cls, base_context: dict[str, Any]) -> dict[str, Any]:
         filter_lists = cls.get_filter_lists()
         base_context["filter_lists"] = filter_lists
+        base_context["classification_categories"] = CLASSIFICATION_CATEGORIES
         tag_request_args = request.args.to_dict(flat=False)
         if request.method != "GET" and cls._get_current_url_path() == url_for("assess.assess"):
             tag_request_args = parse_qs(urlparse(request.headers["HX-Current-URL"]).query)
@@ -153,7 +161,7 @@ class StoryView(BaseView):
             "in_report": "In reports",
             "relevant": "Relevant",
             "changed_by": "Changed by",
-            "cybersecurity": "Cybersecurity",
+            "classification": "Classification",
             "tags": "Tag",
             "source": "Source",
             "group": "Group",
@@ -440,6 +448,7 @@ class StoryView(BaseView):
         params = {
             key: [value for value in values if value not in (None, "")]
             for key, values in (request_params or request.args.to_dict(flat=False)).items()
+            if key in ASSESS_FILTER_KEYS | {"page", "offset", "limit", "order", "reset", "exclude_attr", "_asset_filters_form"}
         }
         if params.pop("_asset_filters_form", None) and params.get("asset_match") != ["true"]:
             for key in ASSESS_ADVANCED_ASSET_FILTER_KEYS:
@@ -1081,24 +1090,24 @@ class StoryView(BaseView):
                     context["misp_connectors"] = []
             attributes = story.attributes or []
 
-            cybersecurity_value = next(
-                (attr.get("value") for attr in attributes if isinstance(attr, dict) and attr.get("key") == "cybersecurity"),
+            classification_value = next(
+                (attr.get("value") for attr in attributes if isinstance(attr, dict) and attr.get("key") == "classification"),
                 None,
             )
             sentiment_value = next(
                 (attr.get("value") for attr in attributes if isinstance(attr, dict) and attr.get("key") == "sentiment"),
                 None,
             )
-            context["story_cyber_status"] = cls._format_cyber_status(cybersecurity_value)
-            context["cyber_chip_class"] = cls._get_cyber_chip_class(context["story_cyber_status"])
+            context["story_classification"] = (
+                classification_value.capitalize() if classification_value in CLASSIFICATION_CATEGORIES else "Not Classified"
+            )
             context["story_sentiment_status"] = cls._format_sentiment_status(sentiment_value)
             context["sentiment_chip_class"] = cls._get_sentiment_chip_class(context["story_sentiment_status"])
             sources = list(cls.get_filter_lists().sources)
             source_dict = {source.id: source for source in sources if source.id}
             cls._enhance_story_with_details(story, source_dict)
         else:
-            context["story_cyber_status"] = "Not Classified"
-            context["cyber_chip_class"] = "badge badge-outline"
+            context["story_classification"] = "Not Classified"
             context["story_sentiment_status"] = "Not Classified"
             context["sentiment_chip_class"] = "badge badge-outline"
 
@@ -1143,31 +1152,6 @@ class StoryView(BaseView):
         if not context.get("story"):
             abort(404)
         return render_template("assess/news_item_order.html", **context, order_message=message)
-
-    @staticmethod
-    def _format_cyber_status(status: str | None) -> str:
-        if not status:
-            return "Not Classified"
-        normalized = status.strip().lower()
-        labels = {
-            "yes": "Yes",
-            "no": "No",
-            "mixed": "Mixed",
-            "incomplete": "Incomplete",
-            "none": "Not Classified",
-        }
-        return labels.get(normalized, normalized.capitalize())
-
-    @staticmethod
-    def _get_cyber_chip_class(status: str) -> str:
-        mapping = {
-            "Yes": "badge badge-success badge-lg",
-            "No": "badge badge-error badge-lg",
-            "Mixed": "badge badge-secondary badge-lg",
-            "Incomplete": "badge badge-warning badge-lg",
-            "Not Classified": "badge badge-outline badge-lg",
-        }
-        return mapping.get(status, "badge badge-outline badge-lg")
 
     @staticmethod
     def _format_sentiment_status(status: str | None) -> str:

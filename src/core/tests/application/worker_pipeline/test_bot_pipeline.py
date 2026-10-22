@@ -7,15 +7,19 @@ from sqlalchemy import select
 from tests.application.support.builders import build_news_item_payload, create_osint_source, create_story
 
 
-def test_bot_pipeline_uses_one_snapshot_and_commits_only_complete_runs(app, client, api_header, session):
+def test_bot_pipeline_uses_one_snapshot_and_commits_only_complete_runs(app, client, api_header, session, monkeypatch):
     with app.app_context():
         if session.get_bind().dialect.name == "sqlite":
             session.get_bind().exec_driver_sql("BEGIN")
         session().join_transaction_mode = "create_savepoint"
+        from core.managers.realtime_publisher import realtime_publisher
         from core.model.bot import Bot
         from core.model.news_item import NewsItem
         from core.model.story import Story
         from core.model.task import Task
+
+        completed = []
+        monkeypatch.setattr(realtime_publisher, "story_bot_finished", lambda *args: completed.append(args))
 
         source = create_osint_source(rank=0)
         first_payload = build_news_item_payload(source.id, title="First story")
@@ -98,7 +102,9 @@ def test_bot_pipeline_uses_one_snapshot_and_commits_only_complete_runs(app, clie
         payload = {
             "id": str(uuid.uuid4()),
             "task": "bot_pipeline",
+            "name": "Bot pipeline · 3 stories",
             "worker_type": "BOT_PIPELINE",
+            "user_id": "manual-user",
             "status": "SUCCESS",
             "result": {
                 "message": "Pipeline complete",
@@ -130,8 +136,20 @@ def test_bot_pipeline_uses_one_snapshot_and_commits_only_complete_runs(app, clie
             assert Task.get_by_job_id(f"{invalid_payload['id']}:bot:{nlp_bot.id}") is None
             assert nlp_bot.status["status"] == "FAILURE"
 
+        assert completed == []
         committed = client.post("/api/tasks", json=payload, headers=api_header)
         assert committed.status_code == 200
+        expected_events = [
+            (
+                {
+                    first.id: ["NLP_BOT", "STORY_BOT", "SUMMARY_BOT", "IOC_BOT"],
+                    second.id: ["NLP_BOT", "STORY_BOT"],
+                    third.id: ["STORY_BOT"],
+                },
+                "manual-user",
+            )
+        ]
+        assert completed == expected_events
         assert Story.get(second.id) is None
         assert Story.get(third.id) is None
         merged = Story.get(first.id)
@@ -144,6 +162,7 @@ def test_bot_pipeline_uses_one_snapshot_and_commits_only_complete_runs(app, clie
         assert {tag.name for tag in NewsItem.get(first_item_id).tags} == {"CVE-2026-1234"}
         assert {tag.name for tag in NewsItem.get(second_item_id).tags} == {"CVE-2026-5678"}
         pipeline = Task.get_by_job_id(payload["id"])
+        assert pipeline.name == payload["name"]
         for bot_type, bot_id in bot_ids.items():
             status = Bot.get(bot_id).status
             assert status["status"] == "SUCCESS"
@@ -152,10 +171,12 @@ def test_bot_pipeline_uses_one_snapshot_and_commits_only_complete_runs(app, clie
             assert status["last_success"] == pipeline.last_run.isoformat()
         assert nlp_bot.id not in {bot.id for bot in session.execute(select(Bot).where(Bot.failure_condition())).scalars()}
         stage_job_id = f"{payload['id']}:bot:{nlp_bot.id}"
+        assert Task.get_by_job_id(stage_job_id).name == payload["name"]
         stage_task_id = Task.get_by_job_id(stage_job_id).id
         revision = merged.revision
         assert client.post("/api/tasks", json=payload, headers=api_header).status_code == 200
         assert Story.get(first.id).revision == revision
+        assert completed == expected_events
         assert Task.get_by_job_id(stage_job_id).id == stage_task_id
         assert nlp_bot.status["last_run"] == pipeline.last_run.isoformat()
 

@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import Any, ClassVar
 
 from models.task import TaskRunFilter, UserTaskFilter
-from sqlalchemy import func, or_
+from sqlalchemy import String, column, func, or_, select, values
 from sqlalchemy.orm import Mapped
 from sqlalchemy.sql.elements import ColumnElement
 
@@ -27,6 +27,7 @@ class Task(BaseModel):
 
     id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), primary_key=True, default=BaseModel.uuid7_str)
     job_id: Mapped[str] = db.Column(db.String, unique=True, nullable=False)
+    name: Mapped[str | None] = db.Column(db.String, nullable=True)
     task: Mapped[str] = db.Column(db.String, nullable=True)
     user_id: Mapped[str | None] = db.Column(db.String(UUID_STR_LENGTH), nullable=True)
     worker_id: Mapped[str] = db.Column(db.String, nullable=True)
@@ -36,7 +37,7 @@ class Task(BaseModel):
     last_run: Mapped[datetime] = db.Column(db.DateTime, nullable=True)
     last_success: Mapped[datetime] = db.Column(db.DateTime, nullable=True)
 
-    def __init__(self, result=None, status=None, id=None, task=None, user_id=None, worker_id=None, worker_type=None):
+    def __init__(self, result=None, status=None, id=None, task=None, user_id=None, worker_id=None, worker_type=None, name=None):
         if id:
             try:
                 self.id = self.normalize_uuid_id(id)
@@ -47,6 +48,7 @@ class Task(BaseModel):
         else:
             self.id = self.uuid7_str()
             self.job_id = self.id
+        self.name = name
         if status:
             self.status = status
         if task:
@@ -67,6 +69,7 @@ class Task(BaseModel):
         if entry := cls.get_by_job_id(entry_data["id"]):
             entry.result = cls._serialize_result(entry_data["result"])
             entry.status = entry_data.get("status")
+            entry.name = entry_data.get("name", entry.name)
             entry.task = entry_data.get("task", entry.task)
             entry.user_id = entry_data.get("user_id", entry.user_id)
             entry.worker_id = entry_data.get("worker_id", entry.worker_id)
@@ -104,6 +107,7 @@ class Task(BaseModel):
         return {
             "id": self.id,
             "job_id": self.job_id,
+            "name": self.name,
             "result": result,
             "task": self.task,
             "user_id": self.user_id,
@@ -156,7 +160,9 @@ class Task(BaseModel):
         return cls.get_completed_runs_for_api(filters, user_id=user_id)
 
     @classmethod
-    def get_completed_runs_for_api(cls, filters: UserTaskFilter, *, user_id: str | None = None) -> tuple[dict[str, Any], int]:
+    def get_completed_runs_for_api(
+        cls, filters: UserTaskFilter, *, user_id: str | None = None, offset: int | None = None
+    ) -> tuple[dict[str, Any], int]:
         query = db.select(cls).where(cls.status.in_(cls.USER_TASK_TERMINAL_STATUSES), cls.last_run.is_not(None))
         if user_id is not None:
             query = query.where(cls.user_id == user_id)
@@ -168,6 +174,7 @@ class Task(BaseModel):
             query = query.where(
                 or_(
                     cls.job_id.ilike(pattern),
+                    cls.name.ilike(pattern),
                     cls.task.ilike(pattern),
                     cls.worker_id.ilike(pattern),
                     cls.worker_type.ilike(pattern),
@@ -179,9 +186,49 @@ class Task(BaseModel):
 
         count = cls.get_filtered_count(query)
         query = cls._add_paging_to_query(filter_args, query)
-        query = cls._add_sorting_to_query(filter_args, query).order_by(cls.id.desc())
+        if offset is not None:
+            query = query.offset(offset)
+        field, direction = filters.order.rsplit("_", 1)
+        column = getattr(cls, field)
+        if field == "worker_type":
+            # Match the live-task merge's ordering on both PostgreSQL and SQLite.
+            column = func.coalesce(column, "")
+        # Locale collation must agree with Python before selecting the history window.
+        collation = "C" if db.engine.dialect.name == "postgresql" else "BINARY"
+        if field != "last_run":
+            column = column.collate(collation)
+        query = query.order_by(column.desc() if direction == "desc" else column.asc(), cls.id.collate(collation).desc())
         items = cls.get_filtered(query) or []
         return {"items": cls.to_list(items), "total_count": count}, 200
+
+    @classmethod
+    def get_latest_for_schedules(cls, schedule_specs: dict[str, tuple[str, str]]) -> dict[str, "Task"]:
+        """Match legacy IDs and cron runs, returning one result per schedule."""
+        if not schedule_specs:
+            return {}
+
+        schedules = (
+            values(column("schedule_id", String), column("prefix", String), column("task_name", String))
+            .data([(task_id, prefix, task_name) for task_id, (prefix, task_name) in schedule_specs.items()])
+            .cte("schedules")
+        )
+        ranked = (
+            select(
+                schedules.c.schedule_id,
+                cls.id.label("task_id"),
+                func.row_number()
+                .over(partition_by=schedules.c.schedule_id, order_by=(cls.last_run.desc(), cls.last_success.desc(), cls.job_id.desc()))
+                .label("position"),
+            )
+            .select_from(schedules)
+            .join(
+                cls,
+                (cls.task == schedules.c.task_name) & ((cls.job_id == schedules.c.schedule_id) | cls.job_id.like(schedules.c.prefix + "%")),
+            )
+            .subquery()
+        )
+        query = select(ranked.c.schedule_id, cls).join(cls, cls.id == ranked.c.task_id).where(ranked.c.position == 1)
+        return {schedule_id: task for schedule_id, task in db.session.execute(query)}
 
     @classmethod
     def get_latest_matching(

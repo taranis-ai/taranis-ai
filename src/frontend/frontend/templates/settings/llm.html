@@ -8,7 +8,7 @@
 <section id="llm-endpoints" class="rounded-box border border-base-300 bg-base-100 p-6 shadow-sm" data-test-id="llm-settings">
   <h2 class="text-lg font-semibold">LLM Endpoints</h2>
   <p class="text-sm text-base-content/70 mt-2 mb-6">
-    Configure providers and models for Chat, NER, sentiment, cybersecurity classification, clustering, and summarization. Set a default, then override individual functions if needed.
+    Configure providers and models for Chat, NER, sentiment, topic classification, clustering, and summarization. Set a default, then override individual functions if needed.
     Changes apply to the next message or bot run. Prompts and selected story content are sent to the assigned provider.
     Disabled endpoints pause health checks, Chat, and bot scheduling.
   </p>
@@ -45,13 +45,55 @@
             {{ form_select('Endpoint state', 'enabled', 'true' if endpoint.enabled | default(not config['DEBUG']) else 'false', options=[{'id': 'true', 'name': 'Enabled'}, {'id': 'false', 'name': 'Disabled'}], input_id='llm-' ~ endpoint_id ~ '-enabled') }}
             {{ form_input('Name', 'name', endpoint.name | default(''), preserve=False, floating=False, required=True, input_id='llm-' ~ endpoint_id ~ '-name') }}
             {{ form_input('Provider base URL', 'base_url', endpoint.base_url | default(''), type='url', preserve=False, floating=False, required=True, placeholder='https://provider.example/v1', input_id='llm-' ~ endpoint_id ~ '-base_url') }}
-            <p class="text-sm text-base-content/70 mb-4">Enter the base URL without /responses, /chat/completions, or /batches.</p>
-            {{ form_input('Model', 'model', endpoint.model | default(''), preserve=False, floating=False, required=False, placeholder='Provider model ID', input_id='llm-' ~ endpoint_id ~ '-model') }}
-            <p class="text-sm text-base-content/70 mb-4">Use the provider's exact model ID. Leave blank only if the provider supplies a default model.</p>
-            {{ form_select('API format', 'api_format', endpoint.api_format | default('responses'), options=[{'id': 'responses', 'name': 'Responses'}, {'id': 'chat_completions', 'name': 'Chat Completions'}], input_id='llm-' ~ endpoint_id ~ '-api_format') }}
+            <p class="text-sm text-base-content/70 mb-4">Enter the provider base URL without /responses, /chat/completions, or /batches. Enable the formats this provider supports and choose a model for each.</p>
+            {% set formats = endpoint.api_formats | default({'responses': {}}) %}
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              {% for api_format, label in llm_api_formats.items() if api_format not in ('systemone', 'openai_decisions') %}
+                {% set api_config = formats.get(api_format, {}) %}
+                <fieldset class="border border-base-300 rounded-box p-4" data-test-id="llm-format-{{ api_format }}">
+                  <label class="flex items-center gap-3 mb-4 font-semibold">
+                    <input type="checkbox"
+                           class="checkbox checkbox-sm"
+                           name="api_formats[{{ api_format }}][enabled]"
+                           value="true"
+                           {% if api_config.enabled | default(api_format in formats) %}checked{% endif %} />
+                    Enable {{ label }}
+                  </label>
+                  {{ form_input(label ~ ' model', 'api_formats[' ~ api_format ~ '][model]', api_config.model | default(''), preserve=False, floating=False, required=False, placeholder='Provider model ID', input_id='llm-' ~ endpoint_id ~ '-' ~ api_format ~ '-model') }}
+                  {{ form_input(label ~ ' URL override', 'api_formats[' ~ api_format ~ '][base_url]', api_config.base_url | default(''), type='url', preserve=False, floating=False, required=False, placeholder='Use provider base URL', input_id='llm-' ~ endpoint_id ~ '-' ~ api_format ~ '-url') }}
+                </fieldset>
+              {% endfor %}
+              {% set decisions_wire_format = 'openai_decisions' if 'openai_decisions' in formats and 'systemone' not in formats else 'systemone' %}
+              {% set decisions_config = formats.get(decisions_wire_format, {}) %}
+              {% set decisions_format = 'openrouter' if decisions_wire_format == 'systemone' and decisions_config.base_url | default('') == 'https://openrouter.ai/api/alpha/decisions' else decisions_wire_format %}
+              <fieldset class="border border-base-300 rounded-box p-4 md:col-span-2"
+                        data-test-id="llm-format-decisions"
+                        x-data="{ isOpenRouter: false }"
+                        x-init="isOpenRouter = $el.querySelector('select').value === 'openrouter'"
+                        @change="if ($event.target.name === 'decisions[api_format]') isOpenRouter = $event.target.value === 'openrouter'">
+                <label class="flex items-center gap-3 mb-4 font-semibold">
+                  <input type="checkbox"
+                         class="checkbox checkbox-sm"
+                         name="decisions[enabled]"
+                         value="true"
+                         {% if decisions_config.enabled | default(decisions_wire_format in formats) %}checked{% endif %} />
+                  Enable Decisions
+                </label>
+                {{ form_select('Decisions API format', 'decisions[api_format]', decisions_format, options=[{'id': 'systemone', 'name': 'System One (vLLM / llama.cpp)'}, {'id': 'openrouter', 'name': 'OpenRouter'}, {'id': 'openai_decisions', 'name': 'OpenAI'}], input_id='llm-' ~ endpoint_id ~ '-decisions-format') }}
+                {{ form_input('Decisions model', 'decisions[model]', decisions_config.model | default(''), preserve=False, floating=False, required=False, placeholder='Provider model ID', input_id='llm-' ~ endpoint_id ~ '-decisions-model') }}
+                <fieldset x-show="!isOpenRouter" :disabled="isOpenRouter">
+                  {{ form_input('Decisions URL override', 'decisions[base_url]', '' if decisions_format == 'openrouter' else decisions_config.base_url | default(''), type='url', preserve=False, floating=False, required=False, placeholder='Use provider base URL', input_id='llm-' ~ endpoint_id ~ '-decisions-url') }}
+                </fieldset>
+                <p class="text-sm text-base-content/70"
+                   x-show="isOpenRouter"
+                   x-cloak>OpenRouter's Decisions URL is configured automatically.</p>
+                <p class="text-sm text-base-content/70">Use System One for self-hosted /v1/systemone servers with a supported decision model, OpenRouter for its hosted models, or OpenAI for servers using OpenAI's /v1/decisions schema.</p>
+              </fieldset>
+            </div>
+            <p class="text-sm text-base-content/70 mb-4">Each enabled format uses its own model. Blank models use the provider default. Decisions URLs default to /systemone or /decisions under the provider base URL; use a full URL override for a different path. Responses is preferred over Chat Completions when both are enabled.</p>
             {{ form_select('Processing mode', 'processing_mode', endpoint.processing_mode | default('realtime'), options=[{'id': 'realtime', 'name': 'Realtime'}, {'id': 'openrouter_batch', 'name': 'OpenRouter batch'}], input_id='llm-' ~ endpoint_id ~ '-processing_mode') }}
             <p class="text-sm text-base-content/70 mb-4">
-              OpenRouter batch uses /batches for background bots and can take up to 24 hours. Use https://openrouter.ai/api/v1 and a model that supports batch processing. Chat requires a realtime endpoint.
+              OpenRouter batch uses /batches for background bots and can take up to 24 hours. Use https://openrouter.ai/api/v1 and a model that supports batch processing. Chat requires realtime processing. Decisions always uses realtime processing, even when other formats use batch. The same endpoint can serve Chat and topic classification with different models.
             </p>
             {{ form_input('API key', 'api_key', '', type='password', required=False, preserve=False, floating=False, placeholder='Leave blank to keep the saved key' if endpoint_id else 'Enter provider API key', input_id='llm-' ~ endpoint_id ~ '-api_key') }}
             <p class="text-sm text-base-content/70 mb-4">{{ 'An API key is saved.' if endpoint.api_key_configured else 'No API key saved. Optional for providers without authentication.' }}</p>

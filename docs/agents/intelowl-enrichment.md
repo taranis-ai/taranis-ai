@@ -1,8 +1,6 @@
 # IntelOwl Enrichment
 
-## When To Load
-
-IntelOwl, IOC/CTI enrichment, `INTEL_OWL_BOT`, observable analysis, or story/report/asset CTI views.
+Load for: IntelOwl, IOC/CTI enrichment, `INTEL_OWL_BOT`, observable analysis, or story/report/asset CTI views.
 
 ## Contracts
 
@@ -14,7 +12,7 @@ IntelOwl, IOC/CTI enrichment, `INTEL_OWL_BOT`, observable analysis, or story/rep
 - CTI reads aggregate tags for a news item, all items in a story, or all stories in a report. Assets combine typed `asset_observables` with tags from readable linked vulnerability reports; the overview includes only readable assets/reports. Assets also include current imported SBOM findings, grouped by normalized CVE/identifier, with source records and exact installed-component associations. Both asset endpoints paginate 50 IDs and support CVE/component search; story/report contracts stay unchanged. Existing CVE tags supply live article associations after access checks and the independent imported-CVE matching toggle. These reads reuse cached IOC enrichment and make no new analyzer requests. Imported provenance and analysis remain distinct from IntelOwl results. See [Asset SBOM Import](asset-sbom-import.md) for replacement and matching rules.
 - CTI opens full pages via native links and returns through browser history. The shared renderer handles known NVD/VirusTotal/URLhaus summaries, with JSON fallback for unknown analyzers. Analyzer links allow only HTTP(S), never domain-substring validation.
 
-## Entry Points and Coverage
+## Code and Tests
 
 - Worker: `src/worker/worker/bots/intelowl_bot.py`, `src/worker/worker/bots/ioc_bot.py`, `src/worker/worker/intelowl_taranis_setup.py`
 - Core: `src/core/core/model/ioc.py`, `src/core/core/model/asset.py`, `src/core/core/service/cti.py`, `src/core/core/service/task.py`

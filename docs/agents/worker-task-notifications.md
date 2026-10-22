@@ -1,8 +1,6 @@
 # Worker Task Notifications
 
-## When To Load
-
-Worker-backed actions, queue warnings/priority, task results, `/health`, My Tasks, or history retention.
+Load for: Worker-backed actions, queue warnings/priority, task results, `/health`, My Tasks, or history retention.
 
 ## Queue and Result Contracts
 
@@ -10,7 +8,7 @@ Task entry points and RQ failure hooks own their HTTP session scope, including r
 
 - With `QUEUE_ENABLED=false`, core skips queue connections and scheduling; broker/worker health is `n/a` and queue actions are unavailable (503). Source collection/preview and bot execution/chains reject disabled queues before source/bot validation or graph construction. Enabled queues require Redis at startup.
 - Accepted jobs report queue success. Only cached core health `services.workers == "down"` changes this to a queued-but-no-worker warning; failed/missing health checks retain the original notice. Do not change queue endpoint status codes or poll for final failures through this notification.
-- Story editor AI actions submit bot types to Assess; Core resolves a type to the first configured bot by index before queueing its UUID. Explicit UUIDs still select that bot. Generate Tags submits `generate_tags` through the same endpoint and queues one Wordlist → IOC → NER pipeline scoped to the selected story, using the first configured instance of each type by index. Missing or disabled bots, disabled endpoints, or invalid configurations reject the whole dispatch. Story write checks precede resolution. The editor returns only a task notification, preserves the Core status, and targets notifications on HTMX errors without replacing the editor. The Assess browser workflow temporarily enables its default LLM endpoint and restores its prior state afterward.
+- Story AI actions resolve bot types to the first configured instance by index; explicit UUIDs select that bot. `generate_tags` queues Wordlist → IOC → NER for the selected story. Check write access first; any missing/disabled/invalid bot or endpoint rejects dispatch. Return only notifications with Core’s status, preserving the editor on errors. Assess E2E temporarily enables and restores its LLM endpoint.
 - Connector pulls return the queue manager's response and HTTP status directly: success means scheduled, and disabled queues return 503. News-item URL fetches preserve queue error tuples through `StoryService` and the Assess endpoint. These API contracts are covered in the core configuration workflow and disabled-queue startup tests.
 - Authenticated runs, including auto-render after product edits, carry `user_id`; scheduler runs do not. Propagate attribution through dependencies and post-collection bots.
 - User jobs enqueue at the front of their functional queue (LIFO); background jobs remain FIFO. Workers check presenters, publishers, connectors, misc, bots, then collectors. Priority does not preempt running jobs or affect workers subscribed to other queues.
@@ -19,6 +17,7 @@ Task entry points and RQ failure hooks own their HTTP session scope, including r
 - Bot checkpoint continuation follows [Bot Run Order DAG](bot-run-order-dag.md). Interim attempts do not create completed failure results; My Tasks receives only the final success or terminal failure. RQ results and worker logs retain attempt evidence.
 - Publisher network failures persist a curated message, publisher/product IDs, publisher type, and the operation from the publisher exception. Operations are logged normally without phase metadata or timing state. RQ deadlines and killed workhorses use generic static failures; deduplication and user attribution remain intact. User-visible messages never contain raw exception text.
 - Publisher handlers and cleanup propagate RQ timeout exceptions to the failure bridge. Network timeout classification requires a timeout exception (direct or wrapped); elapsed time alone does not turn an ordinary failure into a timeout.
+- Successful user-attributed staged bot results also publish story-scoped completion events for targeted editor refreshes; see [Realtime Events](realtime-events.md#story-editor-ai-results).
 - Successful presenter results publish user-scoped `product.rendered` after commit; notification failure cannot change task success. See [Realtime Events](realtime-events.md).
 - MISP results reflect completed sync/proposal operations, not dispatch success. Entire failures use one connector failure path; curated reasons include `connector_not_found` and `connector_type_missing`.
 - Bot transport failures use retryable `bot_service_unavailable` so dependents do not run. Log the transport error server-side, retain the curated exception's originating traceback, and suppress the underlying HTTP exception chain from displayed failures.
@@ -31,14 +30,18 @@ Endpoint probe health is stored separately from execution history; see [LLM Endp
 
 Committed pipeline steps produce separate per-bot results with the pipeline owner and completion timestamp; they also appear in My Tasks and the scheduler Completed Runs view.
 
-My Tasks lists only completed persisted results owned by the authenticated user, including successful `PREVIEW` results. It never queries Redis for queued/running jobs. Omit task `result.data`; search only visible relational fields, never serialized results. This differs from [Notification Center](notification-center.md) history.
+My Tasks combines owned RQ queued/deferred/delayed/running jobs with persisted terminal results, including successful `PREVIEW` results. RQ metadata is projected through an allowlist; story bot job names identify the configured action and story ID. Workers preserve that public name in terminal submissions, including failure hooks and committed pipeline stages; history searches the name after the RQ job expires. The nullable `task.name` column is added by the automatic migration; older history remains unnamed. Deploy Core before updated workers, which submit the new field. The additive column can remain during rollback. Never expose checkpoints, job arguments, or task `result.data`; search only visible fields. Terminal results suppress stale live entries for the same execution, while older results remain visible during a new execution. Redis outages or disabled queues leave completed history available. Sorting/pagination merge live rows with a bounded SQL history window. This differs from [Notification Center](notification-center.md) history.
+
+My Tasks refreshes every five seconds while its visible page contains a live job or the API reports `live_tasks_available=false`, retaining search/order/paging and stopping after completion. Redis read failures retain completed history and keep polling until live state recovers. The frontend bypasses its list cache for these responses. Search, sorting, and pagination share an HTMX request queue with polling: user requests replace pending requests, while polls drop when a request is active. Story action acceptance invalidates task/scheduler list caches.
+
+Live jobs are fetched in one Redis pipeline and use the status from that snapshot; missing jobs are skipped. Core queues project ownership into the RQ job hash atomically with job creation. User polling reads that small field before fetching full owned jobs; legacy/cron jobs read metadata once and cache ownership in the existing hash without recreating expired jobs. The field expires with the job, and ownership is rechecked on fetched metadata. SQL history and the live-row merge sort missing worker types as empty strings and use binary text ordering (PostgreSQL `C`, SQLite `BINARY`) for fields and ID tie-breaks so pagination agrees with Python.
 
 Daily `cleanup_task_history` applies global `TASK_HISTORY_RETENTION_DAYS` across task families. Cleanup records core HTTP/transport failures as `core_http_error`/`core_transport_error`.
 
 Source-detail Collect/Bot Run return notifications; Collect All/Update Wordlists replace their table containers. Follow [shared frontend swap rules](frontend-development.md).
 
-## Entry Points and Coverage
+## Code and Tests
 
 `BaseView.render_worker_task_notification` in `src/frontend/frontend/views/base_view.py`; `DataPersistenceLayer.get_core_health` in `src/frontend/frontend/data_persistence.py`; `UserTaskView` in `src/frontend/frontend/views/user_views.py`; user endpoint `GET /tasks/user`.
 
-Tests: `src/frontend/tests/unit/views/test_worker_task_notifications.py`, `src/frontend/tests/unit/views/test_user_task_view.py`, `src/worker/tests/connectors/test_misp_connector.py`, `src/worker/tests/bots/test_bot_tasks.py`.
+Tests: `src/core/tests/application/user_workspace/test_user_tasks.py`, `src/frontend/tests/playwright/test_e2e_rq_tasks.py`, `src/frontend/tests/unit/views/test_worker_task_notifications.py`, `src/frontend/tests/unit/views/test_user_task_view.py`, `src/worker/tests/connectors/test_misp_connector.py`, `src/worker/tests/bots/test_bot_tasks.py`.

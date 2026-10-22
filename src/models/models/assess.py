@@ -10,6 +10,7 @@ from bs4 import BeautifulSoup
 from pydantic import BeforeValidator, ConfigDict, Field, TypeAdapter, ValidationInfo, field_validator, model_validator
 
 from models.base import TaranisBaseModel
+from models.classification import Classification
 from models.types import CONNECTOR_TYPES, TLPLevel
 
 
@@ -126,7 +127,7 @@ class AssessSearchFilters(TaranisBaseModel):
     asset_software_match: Literal["any", "yes", "no"] = "any"
     asset_cvss_min: float | None = Field(default=None, ge=0, le=10, allow_inf_nan=False)
     asset_cvss_max: float | None = Field(default=None, ge=0, le=10, allow_inf_nan=False)
-    cybersecurity: Literal["yes", "no", "mixed", "incomplete"] | None = None
+    classification: Classification | None = None
     changed_by: Literal["me"] | None = None
     range: str | None = Field(default=None, pattern=r"^(shift|24h|day|week|month|last[1-9][0-9]*)$")
     timefrom: datetime | None = None
@@ -144,7 +145,7 @@ class AssessSearchFilters(TaranisBaseModel):
             if value is not None and value != [] and not (isinstance(value, str) and value.strip().casefold() in {"", "null"})
         }
 
-    @field_validator("cybersecurity", "changed_by", "range", "sort", "asset_cve_match", "asset_software_match", mode="before")
+    @field_validator("classification", "changed_by", "range", "sort", "asset_cve_match", "asset_software_match", mode="before")
     @classmethod
     def normalize_choices(cls, value: Any) -> Any:
         return value.lower() if isinstance(value, str) else value

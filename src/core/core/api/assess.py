@@ -474,7 +474,7 @@ class BotActions(MethodView):
             response, code = queue_manager.queue_manager.execute_bot_task(bot_id=bot_id, filter=filter_data, user_id=current_user.id)
         if code == 200:
             realtime_publisher.assess_changed()
-        invalidate_frontend_cache_on_success(code, models=("story", "report_item"))
+        invalidate_frontend_cache_on_success(code, models=("story", "report_item", "user_task", "job", "active_job"))
         return response, code
 
 

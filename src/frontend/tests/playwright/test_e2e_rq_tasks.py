@@ -11,6 +11,7 @@ from croniter import croniter
 from flask import url_for
 from playwright.sync_api import expect
 from rq import Queue
+from rq.executions import Execution
 from rq.job import Job
 from rq.results import Result
 
@@ -272,6 +273,56 @@ def rq_harness(
 
 
 @pytest.mark.e2e_ci
+def test_my_tasks_refreshes_live_status(logged_in_page, forward_console_and_page_errors, rq_harness: RqE2EHarness, api_header):
+    page = logged_in_page
+    core = rq_harness.core_client
+    user = next(user for user in core.json_request("GET", "/config/users")["items"] if user["username"] == "admin")
+    queue = rq_harness.queue("bots")
+    blocker = queue.create_job("worker.bots.bot_tasks.bot_task")
+    blocker.save()
+    job = queue.enqueue(
+        "worker.bots.bot_tasks.bot_task",
+        depends_on=blocker,
+        meta={"user_id": user["id"], "name": "Story summary", "worker_type": "SUMMARY_BOT"},
+    )
+    try:
+        # A deferred job keeps these short-lived states observable without pausing shared workers.
+        page.goto(url_for("user.tasks", search=job.id, order="last_run_asc", limit=5, _external=True))
+        row = page.get_by_test_id("user-task-row").filter(has_text=job.id)
+        expect(row).to_contain_text("Queued")
+        expect(row).to_contain_text("Story summary")
+        with queue.connection.pipeline() as pipeline:
+            Execution.create(job, ttl=300, pipeline=pipeline)
+            job.prepare_for_execution("task-monitor", pipeline=pipeline)
+            pipeline.execute()
+        expect(row).to_contain_text("Running", timeout=15000)
+        core.post(
+            "/tasks",
+            headers=api_header,
+            authenticated=False,
+            json_data={
+                "id": job.id,
+                "task": "bot_task",
+                "user_id": user["id"],
+                "worker_type": "SUMMARY_BOT",
+                "status": "SUCCESS",
+                "result": {"message": "Summary completed"},
+            },
+        )
+        expect(row).to_contain_text("Success", timeout=15000)
+        expect(row).to_contain_text("Summary completed")
+        expect(page.get_by_test_id("user-task-row")).to_have_count(1)
+        expect(page.locator("#user-tasks-table-container")).not_to_have_attribute("hx-trigger", "every 5s")
+        expect(page.locator("#user-tasks-table-container")).to_have_attribute(
+            "hx-get", url_for("user.tasks", search=job.id, order="last_run_asc", limit=5)
+        )
+    finally:
+        job.delete()
+        blocker.delete()
+        core.delete(f"/tasks/{job.id}", raise_for_status=False)
+
+
+@pytest.mark.e2e_ci
 @pytest.mark.parametrize("splitting", ["false", "true"])
 def test_url_news_item_creation(logged_in_page, worker_process, core_request_client, splitting):
     page = logged_in_page
@@ -513,9 +564,8 @@ def test_endpoint_check_marks_bot_and_health(worker_process: None, rq_harness: R
         page = logged_in_page
         page.goto(url_for("admin.dashboard", _external=True))
         processing = page.locator("#sidebar details").filter(has=page.get_by_test_id("admin-menu-Bot"))
-        expect(processing).not_to_have_attribute("open", "")
+        expect(processing).to_have_attribute("open", "")
         expect(processing.locator("summary .badge-error")).to_be_visible()
-        processing.locator("summary").click()
         page.get_by_test_id("admin-menu-Bot-errors").click()
         expect(page).to_have_url(url_for("admin.bots", state="failure", _external=True))
         expect(page.get_by_test_id("admin-menu-Bot")).to_have_attribute("aria-current", "page")

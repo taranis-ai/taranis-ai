@@ -1,8 +1,11 @@
 from pathlib import Path
-from urllib.parse import quote
+from urllib.parse import parse_qs, quote, urlparse
 
 import pytest
-from playwright.sync_api import Page
+from flask import render_template_string
+from playwright.sync_api import Page, expect
+
+from tests.playwright.htmx_helpers import with_htmx_wait
 
 
 pytestmark = pytest.mark.e2e_ci
@@ -140,6 +143,16 @@ def test_realtime_owns_one_event_source_and_dispatches_valid_domain_event(page: 
 
     assert page.evaluate("() => EventSource.instances.length") == 1
     assert page.evaluate("() => window.receivedRealtimeEvents.length") == 1
+    page.evaluate("""
+        () => {
+          document.addEventListener('realtime:story.bot.finished', event => window.receivedRealtimeEvents.push(event.detail));
+          EventSource.instances[0].emit('message', JSON.stringify({pub: {data: {
+            v: 1, type: 'story.bot.finished',
+            data: {stories: {'story-1': ['SUMMARY_BOT']}}, change: 'completed'
+          }}}));
+        }
+    """)
+    assert page.evaluate("() => window.receivedRealtimeEvents[1].data.stories['story-1']") == ["SUMMARY_BOT"]
 
 
 def test_chat_stream_shows_optimistic_message_and_applies_newest_matching_snapshot(page: Page):
@@ -527,3 +540,78 @@ def test_logout_closes_event_source(page: Page):
     page.locator("[data-realtime-close-on-logout]").click(no_wait_after=True)
 
     assert page.evaluate("() => EventSource.instances[0].closed") is True
+
+
+def test_story_bot_refresh_fetches_once_and_preserves_drafts(app, page: Page):
+    template = """
+        {% from 'assess/bot_result_refresh.html' import bot_result_refresh, bot_result_fragment %}
+        {{ bot_result_refresh(story, ['SUMMARY_BOT', 'NLP_BOT']) }}
+        <form>
+          <input name="title" {{ bot_result_fragment('title', ['SUMMARY_BOT']) }} value="Saved title">
+          <textarea name="summary" {{ bot_result_fragment('summary', ['SUMMARY_BOT']) }}>Saved summary</textarea>
+          <textarea name="comments">Saved comments</textarea>
+          {% for index in range(20) %}
+            <article {{ bot_result_fragment('card-' ~ index, ['NLP_BOT']) }}>Updated tags</article>
+          {% endfor %}
+        </form>
+    """
+    with app.test_request_context():
+        content = render_template_string(template, story={"id": "story-1"})
+    requests = []
+
+    def respond(route):
+        if route.request.headers.get("hx-request"):
+            requests.append(route.request)
+        route.fulfill(content_type="text/html", body=content)
+
+    page.route("http://story-refresh.test/**", respond)
+    page.goto("http://story-refresh.test/")
+    page.add_script_tag(path=str(VENDOR_JS_PATH))
+    page.evaluate("htmx.process(document.body)")
+    page.locator('[name="title"]').fill("Private title draft")
+    page.locator('[name="summary"]').fill("x" * 12000)
+    page.locator('[name="comments"]').fill("Private comment draft")
+    page.locator("#card-0").evaluate("element => element.textContent = 'Old tags'")
+
+    def complete(story_id, bot_types):
+        page.evaluate(
+            """({storyId, botTypes}) => document.dispatchEvent(new CustomEvent('realtime:story.bot.finished', {
+                detail: {data: {stories: {[storyId]: botTypes}}}
+            }))""",
+            {"storyId": story_id, "botTypes": bot_types},
+        )
+
+    complete("other-story", ["SUMMARY_BOT"])
+    assert requests == []
+    with_htmx_wait(page, lambda: complete("story-1", ["NLP_BOT"]))
+    assert len(requests) == 1
+    assert parse_qs(urlparse(requests[-1].url).query) == {"layout": ["advanced"], "bot_types": ["NLP_BOT"]}
+    expect(page.locator("#card-0")).to_have_text("Updated tags")
+    expect(page.locator('[name="summary"]')).to_have_value("x" * 12000)
+    expect(page.locator('[name="title"]')).to_have_value("Private title draft")
+    expect(page.locator('[name="comments"]')).to_have_value("Private comment draft")
+
+    with_htmx_wait(page, lambda: complete("story-1", ["SUMMARY_BOT", "NLP_BOT"]))
+    assert len(requests) == 2
+    assert parse_qs(urlparse(requests[-1].url).query) == {"layout": ["advanced"], "bot_types": ["SUMMARY_BOT", "NLP_BOT"]}
+    expect(page.locator('[name="summary"]')).to_have_value("Saved summary")
+    expect(page.locator('[name="title"]')).to_have_value("Saved title")
+    expect(page.locator('[name="comments"]')).to_have_value("Private comment draft")
+
+    requests.clear()
+    page.evaluate("""() => {
+        window.completedRefreshes = 0;
+        document.addEventListener('htmx:finally:request', () => window.completedRefreshes++);
+    }""")
+    with_htmx_wait(
+        page,
+        lambda: page.evaluate("""() => {
+            for (const bot of ['NLP_BOT', 'SUMMARY_BOT', 'NLP_BOT']) {
+                document.dispatchEvent(new CustomEvent('realtime:story.bot.finished', {
+                    detail: {data: {stories: {'story-1': [bot]}}}
+                }));
+            }
+        }"""),
+    )
+    page.wait_for_function("window.completedRefreshes === 3")
+    assert [parse_qs(urlparse(request.url).query)["bot_types"] for request in requests] == [["NLP_BOT"], ["SUMMARY_BOT"], ["NLP_BOT"]]

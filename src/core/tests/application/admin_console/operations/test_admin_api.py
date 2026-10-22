@@ -85,7 +85,6 @@ class TestAdminApi(BaseTest):
             ("story_bot", "clustering"),
             ("nlp_bot", "ner"),
             ("sentiment_analysis_bot", "sentiment"),
-            ("cybersec_classifier_bot", "classification"),
         ],
     )
     def test_llm_endpoints_assignments_and_secrets(self, client, auth_header, app, monkeypatch, bot_type, feature):
@@ -105,6 +104,10 @@ class TestAdminApi(BaseTest):
         assert response.mimetype == "application/json"
         endpoint_id = response.get_json()["id"]
         assert "private-test-key" not in response.get_data(as_text=True)
+        for api_format in ("responses", "chat_completions"):
+            self.assert_post_ok(client, f"llm-endpoints/{endpoint_id}", {"api_format": api_format}, auth_header)
+            with app.app_context():
+                assert Settings.get_settings()["llm_endpoints"][endpoint_id]["api_formats"][api_format]["model"] == values["model"]
         with app.app_context():
             assert Settings.save_llm_endpoint({}, delete=True) == ({"error": "LLM endpoint not found"}, 404)
             assert endpoint_id in Settings.get_settings()["llm_endpoints"]
@@ -201,6 +204,126 @@ class TestAdminApi(BaseTest):
         assert client.get(worker_url, headers=worker_headers).json["llm_endpoint"] is None
         assert client.delete(bot_url, headers=auth_header).status_code == 200
         self.assert_post_ok(client, f"llm-endpoints/{endpoint_id}/delete", {}, auth_header)
+
+    @pytest.mark.parametrize("api_format", ["systemone", "openai_decisions"])
+    def test_decisions_endpoint_assignment(self, client, auth_header, api_format, app):
+        endpoint = {
+            "name": "Topics",
+            "base_url": "https://provider.example/v1/decisions",
+            "api_format": api_format,
+            "enabled": True,
+            "api_key": "private-decisions-key",
+        }
+        endpoint_id = self.assert_post_ok(client, "llm-endpoints", endpoint, auth_header).json["id"]
+        endpoint_url = self.concat_url(f"llm-endpoints/{endpoint_id}")
+        incompatible_id = self.assert_post_ok(
+            client, "llm-endpoints", {"name": "Other provider", "base_url": "https://provider.example/v1"}, auth_header
+        ).json["id"]
+        for incompatible_format in ("responses", "chat_completions"):
+            self.assert_post_ok(client, f"llm-endpoints/{incompatible_id}", {"api_format": incompatible_format}, auth_header)
+            response = client.patch(
+                self.concat_url("settings"), json={"settings": {"llm_classification_endpoint": incompatible_id}}, headers=auth_header
+            )
+            assert response.status_code == 400
+            response = client.post(
+                "/api/config/bots",
+                json={"name": "Invalid topics", "type": "cybersec_classifier_bot", "parameters": {"LLM_ENDPOINT": incompatible_id}},
+                headers=auth_header,
+            )
+            assert response.status_code == 400
+        assert client.post(endpoint_url, json={"processing_mode": "openrouter_batch"}, headers=auth_header).status_code == 400
+        assert client.post(endpoint_url, json={"api_format": "responses"}, headers=auth_header).status_code == 400
+        for feature in ("default", "chat", "ner"):
+            response = client.patch(
+                self.concat_url("settings"), json={"settings": {f"llm_{feature}_endpoint": endpoint_id}}, headers=auth_header
+            )
+            assert response.status_code == 400
+        self.assert_patch_ok(client, "settings", {"settings": {"llm_classification_endpoint": endpoint_id}}, auth_header)
+        for incompatible_format in ("responses", "chat_completions"):
+            response = client.post(
+                endpoint_url, json={"base_url": "https://provider.example/v1", "api_format": incompatible_format}, headers=auth_header
+            )
+            assert response.status_code == 400
+        bot = client.post("/api/config/bots", json={"name": "Topics", "type": "cybersec_classifier_bot"}, headers=auth_header)
+        assert bot.status_code == 201
+        worker = client.get(f"/api/worker/bots/{bot.json['id']}", headers={"Authorization": "Bearer test_key"})
+        assert worker.json["llm_endpoint"]["api_format"] == api_format
+        assert worker.json["llm_endpoint"]["api_key"] == endpoint["api_key"]
+        assert worker.headers["Cache-Control"] == "no-store"
+        public = client.get(self.concat_url("settings"), headers=auth_header)
+        assert "private-decisions-key" not in public.text
+        other = client.post(
+            "/api/config/bots", json={"name": "NER", "type": "nlp_bot", "parameters": {"LLM_ENDPOINT": endpoint_id}}, headers=auth_header
+        )
+        assert other.status_code == 400
+        bot_url = f"/api/config/bots/{bot.json['id']}"
+        assert client.patch(bot_url, json={"parameters": {"LLM_ENDPOINT": endpoint_id}}, headers=auth_header).status_code == 200
+        with app.app_context():
+            from core.managers.db_manager import db
+            from core.model.bot import Bot
+            from core.model.settings import Settings
+
+            # Upgraded binary classifiers can retain assignments to non-Decisions providers.
+            values = Settings.get_settings()
+            values["llm_classification_endpoint"] = incompatible_id
+            Settings.get_settings_entry().settings = values
+            Bot.get(bot.json["id"]).parameters = {"LLM_ENDPOINT": incompatible_id}
+            db.session.commit()
+        self.assert_post_ok(
+            client,
+            f"llm-endpoints/{incompatible_id}",
+            {"name": "Updated provider", "enabled": False, "api_key": "rotated-test-key", "timeout": 45},
+            auth_header,
+        )
+        with app.app_context():
+            saved = Settings.get_settings()["llm_endpoints"][incompatible_id]
+            assert (saved["enabled"], saved["api_key"], saved["timeout"]) == (False, "rotated-test-key", 45)
+        self.assert_patch_ok(client, "settings", {"settings": {"llm_classification_endpoint": endpoint_id}}, auth_header)
+        assert client.patch(bot_url, json={"parameters": {"LLM_ENDPOINT": endpoint_id}}, headers=auth_header).status_code == 200
+        self.assert_patch_ok(client, "settings", {"settings": {"llm_classification_endpoint": ""}}, auth_header)
+        for incompatible_format in ("responses", "chat_completions"):
+            response = client.post(
+                endpoint_url, json={"base_url": "https://provider.example/v1", "api_format": incompatible_format}, headers=auth_header
+            )
+            assert response.status_code == 400
+            assert client.patch(bot_url, json={"parameters": {"LLM_ENDPOINT": incompatible_id}}, headers=auth_header).status_code == 400
+        formats = {
+            "responses": {"model": "conversation-model"},
+            api_format: {"model": "topic-model", "base_url": "https://provider.example/api/classify"},
+        }
+        self.assert_post_ok(
+            client, f"llm-endpoints/{endpoint_id}", {"base_url": "https://provider.example/v1", "api_formats": formats}, auth_header
+        )
+        self.assert_patch_ok(client, "settings", {"settings": {"llm_default_endpoint": endpoint_id}}, auth_header)
+        with app.app_context():
+            from core.service.chat import ChatClient
+
+            chat = ChatClient()
+            assert (chat.api_format, chat.model, chat.base_url) == ("responses", "conversation-model", "https://provider.example/v1")
+        worker = client.get(f"/api/worker/bots/{bot.json['id']}", headers={"Authorization": "Bearer test_key"})
+        assert worker.json["llm_endpoint"]["model"] == "topic-model"
+        assert worker.json["llm_endpoint"]["base_url"] == "https://provider.example/api/classify"
+        other = client.post(
+            "/api/config/bots",
+            json={"name": "Shared NER", "type": "nlp_bot", "parameters": {"LLM_ENDPOINT": endpoint_id}},
+            headers=auth_header,
+        )
+        assert other.status_code == 201
+        ner = client.get(f"/api/worker/bots/{other.json['id']}", headers={"Authorization": "Bearer test_key"})
+        assert ner.json["llm_endpoint"]["model"] == "conversation-model"
+        for removed_format in formats:
+            response = client.post(
+                endpoint_url,
+                json={"api_formats": {key: value for key, value in formats.items() if key != removed_format}},
+                headers=auth_header,
+            )
+            assert response.status_code == 400
+        assert client.delete(f"/api/config/bots/{other.json['id']}", headers=auth_header).status_code == 200
+        self.assert_patch_ok(client, "settings", {"settings": {"llm_default_endpoint": ""}}, auth_header)
+        assert client.delete(f"/api/config/bots/{bot.json['id']}", headers=auth_header).status_code == 200
+        self.assert_patch_ok(client, "settings", {"settings": {"llm_classification_endpoint": ""}}, auth_header)
+        self.assert_post_ok(client, f"llm-endpoints/{endpoint_id}/delete", {}, auth_header)
+        self.assert_post_ok(client, f"llm-endpoints/{incompatible_id}/delete", {}, auth_header)
 
     def test_settings_rejects_negative_bot_lookback(self, client, auth_header):
         response = client.put(

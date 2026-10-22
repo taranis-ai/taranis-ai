@@ -16,7 +16,7 @@
 {% set important_filter = request_args.get('important', ['']) | first %}
 {% set in_report_filter = request_args.get('in_report', ['']) | first %}
 {% set relevant_filter = request_args.get('relevant', ['']) | first %}
-{% set cybersecurity_filter = request_args.get('cybersecurity', ['']) | first %}
+{% set classification_filter = request_args.get('classification', ['']) | first %}
 {% set changed_by_filter = request_args.get('changed_by', ['']) | first %}
 {% set sort_choices = sort_choices | default([
   {'label': 'Story date: newest first', 'value': 'date_desc'},
@@ -162,7 +162,7 @@
     {% endif %}
 
     {% for item in tri_state_filters if item.name != 'relevant' %}{{ tri_state_filter(item) }}{% endfor %}
-    <details {% if changed_by_filter or cybersecurity_filter or relevant_filter %}open{% endif %}>
+    <details {% if changed_by_filter or classification_filter or relevant_filter %}open{% endif %}>
       <summary class="cursor-pointer text-sm mb-2">Advanced filters</summary>
       <div class="space-y-3">
         <label class="select w-full">
@@ -176,14 +176,14 @@
           </select>
         </label>
         <label class="select w-full">
-          <span class="label">Cybersecurity</span>
-          <select name="cybersecurity"
-                  onchange="this.name = this.value ? 'cybersecurity' : ''"
+          <span class="label">Classification</span>
+          <select name="classification"
+                  onchange="this.name = this.value ? 'classification' : ''"
                   class="select select-bordered select-sm"
                   hx-trigger="change">
-            <option value="" {% if cybersecurity_filter in ['', None] %}selected{% endif %}>Any</option>
-            {% for option in ['yes', 'no', 'mixed', 'incomplete'] %}
-              <option value="{{ option }}" {% if cybersecurity_filter == option %}selected{% endif %}>{{ option|capitalize }}</option>
+            <option value="" {% if classification_filter in ['', None] %}selected{% endif %}>Any</option>
+            {% for option in classification_categories %}
+              <option value="{{ option }}" {% if classification_filter == option %}selected{% endif %}>{{ option|capitalize }}</option>
             {% endfor %}
           </select>
         </label>

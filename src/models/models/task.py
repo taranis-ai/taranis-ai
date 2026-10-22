@@ -87,6 +87,7 @@ class Task(TaranisBaseModel):
 
     id: str
     job_id: str | None = None
+    name: str | None = None
     task: str | None = None
     user_id: str | None = None
     worker_id: str | None = None
@@ -106,6 +107,7 @@ class UserTask(TaranisBaseModel):
     model_config = ConfigDict(extra="ignore")
 
     id: str
+    name: str | None = None
     job_id: str | None = None
     task: str | None = None
     worker_id: str | None = None
@@ -120,6 +122,7 @@ class UserTaskList(TaranisBaseModel):
 
     items: list[UserTask] = Field(default_factory=list)
     total_count: int = 0
+    live_tasks_available: bool = True
 
 
 class UserTaskFilter(TaranisBaseModel):
@@ -193,6 +196,7 @@ class TaskSubmission(TaranisBaseModel):
     model_config = ConfigDict(extra="forbid", populate_by_name=True, coerce_numbers_to_str=False)
 
     id: str = Field(min_length=1, validation_alias=AliasChoices("id", "task_id"), serialization_alias="id")
+    name: str | None = None
     task: str | None = None
     user_id: str | None = None
     worker_id: str | None = None

@@ -1,5 +1,6 @@
 from llm_bot.schemas import NerRequest, NerResponse
 from llm_bot.tasks.ner import prepare_ner
+from models.classification import SECURITY_CATEGORIES
 from rq import Retry
 
 from worker.llm import get_llm_client, run_llm_tasks
@@ -30,7 +31,7 @@ class NLPBot(BaseBot):
 
         for story in stories:
             if "attributes" in story and story.get("attributes", {}):
-                is_cybersecurity = story["attributes"].get("cybersecurity", {}).get("value", "no") == "yes"
+                is_cybersecurity = story["attributes"].get("classification", {}).get("value") in SECURITY_CATEGORIES
             else:
                 is_cybersecurity = False
             for news_item in story["news_items"]:

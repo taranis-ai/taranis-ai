@@ -93,6 +93,16 @@ def test_product_event_uses_user_limited_channel(enabled_realtime):
     assert publisher.product_rendered(product_id, user_id, "success") is True
     assert session.post.call_args.kwargs["json"]["channels"] == [f"user:#{user_id}"]
 
+    session.post.reset_mock()
+    stories = {f"story-{index}": ["SUMMARY_BOT", "NLP_BOT"] for index in range(500)}
+    assert publisher.story_bot_finished(stories, user_id) is True
+    session.post.assert_called_once()
+    publication = session.post.call_args.kwargs["json"]
+    assert publication["channels"] == [f"user:#{user_id}"]
+    assert publication["data"]["type"] == "story.bot.finished"
+    assert "resource" not in publication["data"]
+    assert publication["data"]["data"] == {"stories": stories}
+
 
 def test_osint_source_preview_event_uses_user_limited_channel(enabled_realtime):
     publisher, session = _publisher()

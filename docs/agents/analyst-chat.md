@@ -1,8 +1,6 @@
 # Analyst Chat
 
-## When To Load
-
-Chat routes, `CHAT_ENABLED`, `chat_*` settings, provider integration, conversational Assess search, or conversation persistence/privacy.
+Load for: Chat routes, `CHAT_ENABLED`, `chat_*` settings, provider integration, conversational Assess search, or conversation persistence/privacy.
 
 ## Contracts
 
@@ -19,8 +17,8 @@ Chat routes, `CHAT_ENABLED`, `chat_*` settings, provider integration, conversati
 - One 540-second deadline covers the entire turn, including continuous response reads and persistence checks. Lease: 570 seconds; frontend timeout: 600 seconds; provider per-read timeout remains configurable.
 - Shipped ingress and development Nginx give `/chat/` requests a 660-second read timeout so the synchronous POST can return final HTML and navigation headers. Separate realtime updates do not keep that POST alive. Recopy/reload installed development configs after changing `dev/nginx.conf`.
 - Roll back database work before outbound provider calls. Re-fetch the owned conversation and commit both messages together only after success. Store canonical filters, total count, and selected IDs as search metadata, never story text.
-- Frontend escapes plain-text answers and builds the Assess link. The empty workspace explains supported story searches with clickable starter prompts and states that administrative and system data are outside Chat's scope. Chat bypasses frontend model caching. Failed deletion retains the conversation.
-- Saved user and assistant messages display their persisted UTC `created` timestamp through the shared `format_datetime` filter, using the authenticated user's locale and profile timezone. Final turn responses and reopened history use the same template; pending/streaming placeholders have no timestamp until the turn is saved.
+- Frontend escapes answers, builds Assess links, bypasses model caching, and retains conversations on failed deletion. Starter prompts explain story searches and exclude administrative/system data.
+- Saved messages use persisted UTC `created` through `format_datetime` with the user’s locale/timezone. Final responses and history share the template; unsaved placeholders have no timestamp.
 - Cumulative realtime snapshots carry turn ID, increasing sequence, stage, and text on `user:#<user_id>`; text updates are throttled to 200 ms. Ignore other turns/older sequences. Final HTMX replaces transient content. Never log snapshots or enable channel history.
 
 ## Configuration
@@ -29,14 +27,13 @@ Set `CHAT_ENABLED=true` on Core and frontend to enable Chat. Configure its provi
 
 The Chat form patches only submitted fields. Missing provider configuration returns a curated 503 setup warning through the conversation-list response without exposing admin settings.
 
-## Entry Points and Tests
+## Code and Tests
 
 - Core: `core/service/chat.py`, `core/model/chat.py`, `core/api/chat.py` under `src/core/`.
 - Contracts: `src/models/models/chat.py`; new tables use startup metadata creation.
 - Frontend: `frontend/views/chat_views.py`, `frontend/router/chat.py`, `frontend/templates/chat/`, `frontend/static/js/chat.js` under `src/frontend/`.
-- Core tests: `src/core/tests/unit/test_chat_client.py`. Exercise both API formats through the same feature flows: streamed general answer, persisted story search, and non-streaming fallback. Credential forwarding is asserted in the search flow; a socket-backed stream verifies deadline interruption and response cleanup. Avoid provider-shape/negative-case matrices.
+- Core tests: `src/core/tests/unit/test_chat_client.py`. Exercise both API formats through the shared feature flows: streamed general answer, persisted story search, and non-streaming fallback. Credential forwarding is asserted in the search flow; a socket-backed stream verifies deadline interruption and response cleanup. Avoid provider-shape/negative-case matrices.
 - Frontend tests: `src/frontend/tests/unit/views/test_chat_view.py`, `src/frontend/tests/playwright/test_realtime_js.py`.
-- Landing-page recording and browser workflow: `test_e2e_workflow.py::TestUserWorkflow::test_chat` uses an internal scripted provider with real Core search/history, verifies an unread follow-up, clicks the Assess evidence link and opens a matching story's source content, and cleans up demo data. Pacing uses the shared highlight helper with no fixed typing/reading delays. It runs in CI and skips external instances; recording commands are in the Playwright README.
-- Validation/signoff: [Development Workflow](development-workflow.md).
+- Browser workflow: `test_e2e_workflow.py::TestUserWorkflow::test_chat` uses the scripted provider with real search/history, unread follow-up, and Assess evidence navigation. It cleans demo data, skips external instances, and uses shared highlights without fixed delays. Recording commands: Playwright README.
 
 Advanced Assess asset fields are withheld from the Chat tool schema and rejected on provider submission until visible asset-reference validation is supported. Existing `asset_match` remains available; omnisearch syntax is unchanged.

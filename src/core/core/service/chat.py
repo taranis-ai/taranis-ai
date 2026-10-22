@@ -51,7 +51,7 @@ Use JSON arrays of strings for source, group, tags, language, and story_ids. Boo
 - language: exact supplied language values.
 - story_ids: only IDs from supplied recent_results, for follow-ups such as "the second result". Combine only with sort, leaving other filters unused.
 - read, important, relevant, in_report: booleans.
-- cybersecurity: yes, no, mixed, or incomplete.
+- classification: disinformation, security incident, vulnerability, threat intelligence, security policy, security news, general news, or other.
 - changed_by: only me.
 - range: shift, 24h, day, week, month, or lastN with a positive integer N. "last week" means last7; "this week" means week.
 - timefrom/timeto: ISO 8601 timestamps for explicit dates, interpreted using the supplied analyst timezone.

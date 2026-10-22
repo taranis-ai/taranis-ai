@@ -100,7 +100,7 @@ def schedule_check(kind: str, endpoint_id: str) -> None:
             endpoint_id,
             check_id,
             retry=Retry(max=len(RETRY_INTERVALS), interval=RETRY_INTERVALS),
-            job_timeout=180,
+            job_timeout=180 * len(config.get("api_formats", {"responses": {}})),
         )
         if not job:
             record_result(kind, endpoint_id, check_id, False)

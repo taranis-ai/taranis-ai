@@ -47,13 +47,15 @@ from models.task import FAILURE_MESSAGES
 from opentelemetry.propagate import inject
 from pydantic import TypeAdapter
 from redis import Redis
-from redis.exceptions import AuthenticationError, AuthorizationError, RedisError
+from redis.exceptions import AuthenticationError, AuthorizationError, RedisError, WatchError
 from redis.exceptions import ConnectionError as RedisConnectionError
 from redis.exceptions import TimeoutError as RedisTimeoutError
 from redis.maint_notifications import MaintNotificationsConfig
 from rq import Queue
 from rq.exceptions import NoSuchJobError
-from rq.job import Dependency, Job
+from rq.job import Dependency, Job, JobStatus
+from rq.registry import DeferredJobRegistry, ScheduledJobRegistry, StartedJobRegistry
+from sqlalchemy import select
 
 from core.config import Config
 from core.log import logger
@@ -91,6 +93,14 @@ TASK_MAP = {
     "cleanup_task_history": "worker.misc.misc_tasks.cleanup_task_history",
     "fetch_single_news_item": "worker.collectors.collector_tasks.fetch_single_news_item",
 }
+
+
+class OwnedJob(Job):
+    def to_dict(self, include_meta: bool = True, include_result: bool = True) -> dict:
+        values = super().to_dict(include_meta=include_meta, include_result=include_result)
+        # Keep ownership cheap to read even when metadata contains a large checkpoint.
+        values["taranis_user_id"] = self.meta.get("user_id") or ""
+        return values
 
 
 class QueueManager:
@@ -142,6 +152,7 @@ class QueueManager:
                 queue_name,
                 connection=self._redis,
                 default_timeout=Config.RQ_DEFAULT_JOB_TIMEOUT,
+                job_class=OwnedJob,
             )
 
         logger.info("QueueManager initialized")
@@ -988,7 +999,8 @@ class QueueManager:
                     fallback="BOT_TASK",
                     transform=lambda value: value.upper(),
                 ),
-            ),
+            )
+            | {"name": self._bot_job_name(bot.name, filter)},
             **bot_args,
         ):
             logger.info(f"Executing Bot {bot_id} scheduled")
@@ -1185,15 +1197,132 @@ class QueueManager:
                     user_id=user_id,
                     worker_id="bot_pipeline",
                     worker_type="BOT_PIPELINE",
-                ),
+                )
+                | {"name": self._bot_job_name("Generate Tags" if job_suffix == "generate_tags" else "Bot pipeline", filter)},
             )
         )
+
+    @staticmethod
+    def _bot_job_name(action: str, filters: dict | None) -> str:
+        filters = filters or {}
+        story_ids = [filters["story_id"]] if filters.get("story_id") else filters.get("story_ids") or filters.get("STORY_IDS") or []
+        if len(story_ids) == 1:
+            return f"{action} · Story: {story_ids[0]}"
+        return f"{action} · {len(story_ids)} stories" if story_ids else action
 
     def _get_job_display_name(self, job: Job) -> str:
         """Get human-readable name for a job based on its function and args"""
         if func_name := job.func_name:
             return job.meta.get("name", func_name.split(".")[-1].replace("_", " ").title())
         return job.id or "Unknown Task"
+
+    @staticmethod
+    def _pending_job_ids(queue: Queue) -> set[str]:
+        return (
+            set(queue.get_job_ids())
+            | set(ScheduledJobRegistry(queue=queue).get_job_ids())
+            | set(DeferredJobRegistry(queue=queue).get_job_ids())
+        )
+
+    def _live_jobs(self, *, running: bool, pending: bool, user_id: str | None = None) -> list[Job]:
+        """Read current RQ state; registries can briefly retain jobs after a transition."""
+        from core.managers.db_manager import db
+        from core.model.task import Task
+
+        if self._redis is None:
+            return []
+
+        statuses = set()
+        if pending:
+            statuses.update({JobStatus.QUEUED, JobStatus.SCHEDULED, JobStatus.DEFERRED})
+        if running:
+            statuses.add(JobStatus.STARTED)
+        job_ids = set()
+        for queue in self._queues.values():
+            if pending:
+                job_ids.update(self._pending_job_ids(queue))
+            if running:
+                job_ids.update(StartedJobRegistry(queue=queue).get_job_ids(cleanup=False))
+        if not job_ids:
+            return []
+
+        if user_id is not None:
+            candidates = list(job_ids)
+            with self._redis.pipeline() as pipeline:
+                for job_id in candidates:
+                    pipeline.hget(Job.key_for(job_id), "taranis_user_id")
+                owners = pipeline.execute()
+            # Jobs created by older core/cron processes have no ownership projection yet.
+            missing = [job_id for job_id, owner in zip(candidates, owners, strict=True) if owner is None]
+            legacy_owners = {}
+            if missing:
+                with self._redis.pipeline() as ownership:
+                    ownership.watch(*(Job.key_for(job_id) for job_id in missing))
+                    with self._redis.pipeline() as pipeline:
+                        for job_id in missing:
+                            pipeline.hget(Job.key_for(job_id), "meta")
+                        metadata = pipeline.execute()
+                    ownership.multi()
+                    for job_id, raw in zip(missing, metadata, strict=True):
+                        meta = Job(job_id, connection=self._redis).serializer.loads(raw) if raw else {}
+                        owner = (meta.get("user_id") or "").encode()
+                        legacy_owners[job_id] = owner
+                        if raw is not None:
+                            ownership.hsetnx(Job.key_for(job_id), "taranis_user_id", owner)
+                    # Cache only an unchanged snapshot; never recreate an expired job hash.
+                    with contextlib.suppress(WatchError):
+                        ownership.execute()
+            job_ids = {
+                job_id
+                for job_id, owner in zip(candidates, owners, strict=True)
+                if (owner if owner is not None else legacy_owners[job_id]) == user_id.encode()
+            }
+
+        jobs: dict[str, Job] = {}
+        for job in Job.fetch_many(job_ids, connection=self._redis):
+            if job is None or job.get_status(refresh=False) not in statuses:
+                continue
+            if user_id is None or job.meta.get("user_id") == user_id:
+                jobs[job.id] = job
+
+        if jobs:
+            # Workers persist the outcome before RQ removes the running entry.
+            completed = db.session.execute(
+                select(Task.job_id, Task.last_run).where(Task.job_id.in_(jobs), Task.status.in_(Task.USER_TASK_TERMINAL_STATUSES))
+            )
+            for job_id, last_run in completed:
+                job = jobs[job_id]
+                enqueued_at = job.enqueued_at or job.created_at
+                if last_run and last_run >= enqueued_at.astimezone(UTC).replace(tzinfo=None):
+                    del jobs[job_id]
+        return list(jobs.values())
+
+    def get_user_live_tasks(self, user_id: str) -> list[dict[str, Any]] | None:
+        if self.error or not self._redis:
+            return []
+        try:
+            jobs = self._live_jobs(running=True, pending=True, user_id=user_id)
+            tasks = []
+            for job in jobs:
+                is_running = job.get_status(refresh=False) == JobStatus.STARTED
+                updated_at = (job.started_at if is_running else job.enqueued_at) or job.created_at
+                tasks.append(
+                    {
+                        "id": job.id,
+                        "job_id": job.id,
+                        "name": self._get_job_display_name(job),
+                        "task": job.meta.get("task"),
+                        "worker_id": job.meta.get("worker_id"),
+                        "worker_type": job.meta.get("worker_type"),
+                        "status": "RUNNING" if is_running else "QUEUED",
+                        "last_run": updated_at.astimezone(UTC).replace(tzinfo=None).isoformat(),
+                        "result": {"message": ""},
+                    }
+                )
+            return tasks
+        except RedisError:
+            logger.exception("Failed to read live user tasks; showing persisted history")
+            return None
 
     @staticmethod
     def build_cron_schedule_entry(
@@ -1292,7 +1421,7 @@ class QueueManager:
             job = Job.fetch(task_id, connection=self._redis)
             return {
                 "id": job.id,
-                "name": job.func_name,
+                "name": self._get_job_display_name(job),
                 "scheduled_for": job.enqueued_at.isoformat() if job.enqueued_at else None,
                 "status": job.get_status(),
             }, 200
@@ -1308,72 +1437,51 @@ class QueueManager:
             return 0
 
         try:
-            from rq.registry import ScheduledJobRegistry
-
             job_ids = set(self._get_managed_cron_specs())
             for queue in self._queues.values():
-                job_ids.update(ScheduledJobRegistry(queue=queue).get_job_ids())
+                job_ids.update(self._pending_job_ids(queue))
             return len(job_ids)
         except Exception:
             logger.exception("Failed to count scheduled jobs")
             return 0
 
     def get_scheduled_jobs(self, filter_args: dict[str, Any]) -> tuple[dict, int]:
-        """Get all scheduled jobs across all queues
+        """List immediate, deferred, delayed, and recurring jobs awaiting execution."""
+        from core.managers.db_manager import db
+        from core.model.task import Task
 
-        Returns both:
-        1. Jobs currently in the scheduled registry (enqueued but waiting to run)
-        2. Cron jobs registered with the cron scheduler
-        """
         if self.error or not self._redis:
             return {"error": self.error or "Queue unavailable"}, 503 if not Config.QUEUE_ENABLED else 500
 
         try:
-            from rq.registry import ScheduledJobRegistry
-
+            live_jobs = self._live_jobs(running=False, pending=True)
+            task_results = {}
+            if live_jobs:
+                query = select(Task).where(Task.job_id.in_([job.id for job in live_jobs]))
+                task_results = {task.job_id: task for task in db.session.scalars(query)}
             all_jobs = []
-
-            # 1. Get jobs from scheduled registries (already enqueued, waiting to run)
-            for queue_name, queue in self._queues.items():
-                registry = ScheduledJobRegistry(queue=queue)
-                job_ids = list(registry.get_job_ids())
-                if job_ids:
-                    logger.debug(f"Queue {queue_name}: found {len(job_ids)} scheduled jobs in registry")
-
-                for job_id in job_ids:
+            for job in live_jobs:
+                scheduled_for = None
+                if job.get_status(refresh=False) == JobStatus.SCHEDULED:
                     try:
-                        job = Job.fetch(job_id, connection=self._redis)
-                        # Get scheduled time from registry for this specific job
-                        scheduled_time = registry.get_scheduled_time(job_id)
-
-                        logger.debug(f"Job {job_id}: func={job.func_name}, scheduled_time={scheduled_time}")
-
-                        scheduled_for: datetime | None = None
-                        if isinstance(scheduled_time, datetime):
-                            scheduled_for = scheduled_time.astimezone(UTC).replace(tzinfo=None) if scheduled_time.tzinfo else scheduled_time
-
-                        # Get human-readable name from job args
-                        job_name = self._get_job_display_name(job)
-                        task_result = self._get_latest_task_result(exact_ids={job.id})
-
-                        all_jobs.append(
-                            {
-                                "id": job.id,
-                                "name": job_name,
-                                "queue": queue_name,
-                                "next_run_time": scheduled_for,
-                                "type": "scheduled",
-                                "last_run": task_result.last_run if task_result else None,
-                                "last_success": task_result.last_success if task_result else None,
-                                "last_status": task_result.status if task_result else None,
-                                "last_reason": StoredTaskResult.model_validate(task_result).result.reason if task_result else None,
-                            }
-                        )
-                    except Exception as e:
-                        logger.error(f"Failed to fetch job {job_id} from queue {queue_name}: {e}")
+                        scheduled_for = ScheduledJobRegistry(name=job.origin, connection=self._redis).get_scheduled_time(job.id)
+                    except NoSuchJobError:
+                        # RQ may promote or cancel the job after the snapshot was read.
                         continue
-
-            # 2. Get cron schedules from database (since cron jobs are in scheduler's memory)
+                task_result = task_results.get(job.id)
+                all_jobs.append(
+                    {
+                        "id": job.id,
+                        "name": self._get_job_display_name(job),
+                        "queue": job.origin,
+                        "next_run_time": scheduled_for,
+                        "type": "scheduled",
+                        "last_run": task_result.last_run if task_result else None,
+                        "last_success": task_result.last_success if task_result else None,
+                        "last_status": task_result.status if task_result else None,
+                        "last_reason": StoredTaskResult.model_validate(task_result).result.reason if task_result else None,
+                    }
+                )
             all_jobs.extend(self._get_cron_schedule_entries())
 
             jobs = [ScheduledJob.model_validate(job).model_dump(mode="json") for job in all_jobs]
@@ -1494,30 +1602,16 @@ class QueueManager:
             return {"error": self.error or "Queue unavailable"}, 503 if not Config.QUEUE_ENABLED else 500
 
         try:
-            from rq.registry import StartedJobRegistry
-
-            active_jobs = []
-            for queue_name, queue in self._queues.items():
-                registry = StartedJobRegistry(queue=queue)
-                job_ids = list(registry.get_job_ids())
-
-                for job_id in job_ids:
-                    try:
-                        job = Job.fetch(job_id, connection=self._redis)
-                        job_name = self._get_job_display_name(job)
-
-                        active_jobs.append(
-                            {
-                                "id": job.id,
-                                "name": job_name,
-                                "queue": queue_name,
-                                "started_at": job.started_at.isoformat() if job.started_at else None,
-                                "status": "running",
-                            }
-                        )
-                    except Exception as e:
-                        logger.error(f"Failed to fetch active job {job_id}: {e}")
-                        continue
+            active_jobs = [
+                {
+                    "id": job.id,
+                    "name": self._get_job_display_name(job),
+                    "queue": job.origin,
+                    "started_at": job.started_at.isoformat() if job.started_at else None,
+                    "status": "running",
+                }
+                for job in self._live_jobs(running=True, pending=False)
+            ]
 
             return JobFilter.model_validate(filter_args).paginate(active_jobs, default_order="started_at_asc"), 200
         except Exception as e:

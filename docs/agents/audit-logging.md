@@ -1,8 +1,6 @@
 # Audit Logging
 
-## When To Load
-
-Audit/security/request/login logs, `core.audit`, or `AUDIT_LOG_ENABLED`.
+Load for: Audit/security/request/login logs, `core.audit`, or `AUDIT_LOG_ENABLED`.
 
 ## Contracts
 
@@ -14,7 +12,7 @@ The hook is registered once, honors the environment toggle, and logs failures wi
 
 Chat creation, message, and deletion requests use the same metadata-only hook. Analyst prompts, provider answers, filters, and `chat_llm_api_key` must never be added to audit records.
 
-## Entry Points and Coverage
+## Code and Tests
 
 `src/core/core/audit.py`, `src/core/core/managers/api_manager.py`, `src/core/core/config.py`, `src/core/core/auth/database_authenticator.py`.
 

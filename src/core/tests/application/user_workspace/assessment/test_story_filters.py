@@ -91,6 +91,34 @@ def test_tag_suggestions_rank_exact_matches_then_distinct_story_counts(client, a
     assert response.get_json() == []
 
 
+def test_topic_classification_is_recomputed_and_filterable(client, auth_header, api_header, session):
+    from tests.application.support.builders import build_news_item_payload, create_story
+
+    items = [
+        {**build_news_item_payload(), "attributes": [{"key": "classification", "value": category}]}
+        for category in ("general news", "general news", "vulnerability")
+    ]
+    story = create_story(news_items=items)
+    story_id = story.id
+    assert story.get_classification() == "general news"
+    response = client.get("/api/assess/stories", headers=auth_header, query_string={"classification": "general news", "cybersecurity": "yes"})
+    assert response.status_code == 200
+    assert story_id in {item["id"] for item in response.json["items"]}
+    response = client.get("/api/assess/stories", headers=auth_header, query_string={"classification": "vulnerability"})
+    assert story_id not in {item["id"] for item in response.json["items"]}
+    for item, expected in zip(items, ("vulnerability", "vulnerability", "none"), strict=True):
+        response = client.put(
+            f"/api/bots/news-item/{item['id']}/attributes",
+            json={"attributes": [{"key": "classification", "value": "none"}]},
+            headers=api_header,
+        )
+        assert response.status_code == 200
+        response = client.get(f"/api/assess/story/{story_id}", headers=auth_header)
+        assert {attr["key"]: attr["value"] for attr in response.json["attributes"]}["classification"] == expected
+    response = client.get("/api/assess/stories", headers=auth_header, query_string={"classification": "vulnerability"})
+    assert story_id not in {item["id"] for item in response.json["items"]}
+
+
 class TestStoryFilters(BaseTest):
     base_uri = "/api/assess"
     _multi_value_filters = frozenset({"source", "group", "story_ids", "tags", "language"})

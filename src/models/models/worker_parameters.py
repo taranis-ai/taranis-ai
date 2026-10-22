@@ -337,9 +337,8 @@ class SentimentAnalysisBotParameters(SharedLLMBotParameters):
 
 class CybersecClassifierBotParameters(SharedLLMBotParameters):
     BOT_ENDPOINT: SkipJsonSchema[str] = "http://llm-bot:8000/cybersec-classification"
-    CLASSIFICATION_THRESHOLD: float = Field(
-        0.65, ge=0, le=1, title="Classification threshold", description="Minimum score classified as cybersecurity-related."
-    )
+    # Accept saved binary-classifier settings; topic classification always selects the highest score.
+    CLASSIFICATION_THRESHOLD: SkipJsonSchema[float] = Field(0.65, ge=0, le=1)
 
 
 class TemplatePresenterParameters(WorkerParameters):
@@ -565,8 +564,8 @@ _DEFINITIONS = (
     _definition(WORKER_TYPES.SENTIMENT_ANALYSIS_BOT, "Sentiment Analysis Bot", "Bot for analyzing sentiment", SentimentAnalysisBotParameters),
     _definition(
         WORKER_TYPES.CYBERSEC_CLASSIFIER_BOT,
-        "Cybersecurity classification bot",
-        "Bot for classifying cybersecurity content",
+        "Topic classification bot",
+        "Bot for classifying news items into general and security topics",
         CybersecClassifierBotParameters,
     ),
     _definition(

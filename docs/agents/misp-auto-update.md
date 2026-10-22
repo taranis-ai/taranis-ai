@@ -1,8 +1,6 @@
 # MISP Auto-Update
 
-## When To Load
-
-Scheduled MISP pushes, proposal warnings, `has_proposals`, or `StoryMispAutoUpdate`.
+Load for: Scheduled MISP pushes, proposal warnings, `has_proposals`, or `StoryMispAutoUpdate`.
 
 ## Contracts
 
@@ -15,7 +13,7 @@ Scheduled MISP pushes, proposal warnings, `has_proposals`, or `StoryMispAutoUpda
 - Worker returns explicit sync/blocked/skipped results; entirely failed execution raises curated `misp_sync_failed`. Core ignores invalid individual entries while applying other results, and timestamps/revisions proposal changes. Cards show only the enabled badge; editor status includes proposals independently.
 - Empty connector timeout uses the five-second default.
 
-## Entry Points and Coverage
+## Code and Tests
 
 `src/core/core/model/story.py`, `src/core/core/service/misp_auto_update.py`, `src/core/core/service/misp_story_sync.py`, `src/worker/worker/connectors/misp_connector.py`, `src/frontend/frontend/templates/assess/story_edit_content.html`.
 

@@ -5,17 +5,17 @@ from flask.typing import ResponseReturnValue
 from flask.views import MethodView
 from flask_babel import gettext
 from flask_jwt_extended import current_user
-from models.task import UserTask
+from models.task import UserTask, UserTaskFilter, UserTaskList
 from models.user import ProfileSettings, UserProfile
 from pydantic import ValidationError
 from werkzeug.exceptions import HTTPException
 
 from frontend.auth import auth_required, update_current_user_cache
+from frontend.cache_models import CacheObject
 from frontend.core_api import CoreApi
-from frontend.data_persistence import DataPersistenceLayer
 from frontend.i18n import get_supported_language_options, get_timezone_options
 from frontend.log import logger
-from frontend.utils.router_helpers import is_htmx_request, parse_paging_data
+from frontend.utils.router_helpers import is_htmx_request
 from frontend.utils.validation_helpers import format_pydantic_errors
 from frontend.views.base_view import BaseView
 
@@ -146,9 +146,18 @@ class UserTaskView(MethodView):
 
     def get(self) -> ResponseReturnValue:
         try:
-            tasks = DataPersistenceLayer().get_objects(UserTask, parse_paging_data())
+            filters = UserTaskFilter.model_validate(request.args.to_dict())
+            # Live state and availability must recover without a cached outage response.
+            result = UserTaskList.model_validate(CoreApi().api_get(UserTask._core_endpoint, filters.model_dump(exclude_none=True)))
+            tasks = CacheObject(
+                result.items,
+                total_count=result.total_count,
+                page=filters.page,
+                limit=filters.limit,
+                order=filters.order,
+            )
             template = "user_tasks/table.html" if is_htmx_request() else "user_tasks/index.html"
-            return render_template(template, tasks=tasks), 200
+            return render_template(template, tasks=tasks, live_tasks_available=result.live_tasks_available), 200
         except HTTPException:
             raise
         except Exception:
