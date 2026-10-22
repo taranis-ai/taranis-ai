@@ -52,7 +52,7 @@
       {% set badges.values = dict(badges.values, **{view_name: badge}) %}
     {% endfor %}
     <li>
-      <details {% if name in view_names %}open{% endif %}>
+      <details open>
         <summary>
           <span class="min-w-0 whitespace-normal">{{ group_name }}</span>
           {% for view_name, badge in badges.values.items() if badge > 0 %}
