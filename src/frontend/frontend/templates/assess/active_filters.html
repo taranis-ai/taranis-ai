@@ -1,5 +1,6 @@
 {% if active_filters %}
-  <nav aria-label="Active filters" class="flex min-w-0 max-w-full items-center gap-2 overflow-x-auto lg:max-w-[40%]">
+  <nav aria-label="Active filters"
+       class="flex min-w-0 max-w-full items-center gap-2 overflow-x-auto {{ 'lg:max-w-[40%]' if current_user.profile.show_bookmark_bar else 'flex-1' }}">
     {% for filter in active_filters %}
       <a href="{{ filter.url }}"
          class="badge badge-outline shrink-0 gap-2 h-auto py-1 max-w-full"
