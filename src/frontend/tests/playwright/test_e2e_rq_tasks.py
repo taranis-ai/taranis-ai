@@ -513,9 +513,8 @@ def test_endpoint_check_marks_bot_and_health(worker_process: None, rq_harness: R
         page = logged_in_page
         page.goto(url_for("admin.dashboard", _external=True))
         processing = page.locator("#sidebar details").filter(has=page.get_by_test_id("admin-menu-Bot"))
-        expect(processing).not_to_have_attribute("open", "")
+        expect(processing).to_have_attribute("open", "")
         expect(processing.locator("summary .badge-error")).to_be_visible()
-        processing.locator("summary").click()
         page.get_by_test_id("admin-menu-Bot-errors").click()
         expect(page).to_have_url(url_for("admin.bots", state="failure", _external=True))
         expect(page.get_by_test_id("admin-menu-Bot")).to_have_attribute("aria-current", "page")
