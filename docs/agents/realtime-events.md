@@ -1,8 +1,6 @@
 # Realtime Events
 
-## When To Load
-
-Centrifugo/SSE, `/sse`, connect proxy, `REALTIME_ENABLED`, reconnects, broadcasts/presence, preview/render completion, or report locks.
+Load for: Centrifugo/SSE, `/sse`, connect proxy, `REALTIME_ENABLED`, reconnects, broadcasts/presence, preview/render completion, or report locks.
 
 ## Transport and Security
 
@@ -20,22 +18,22 @@ One frontend module owns one EventSource per authenticated tab, validates versio
 
 Reconnect recovery coalesces authoritative-state refresh into `realtime:resync` after 300 ms. Control/heartbeat frames do not imply data changes. No broker history or Last-Event-ID replay is assumed. Assess/Analyze/Publish show a refresh notice; Assess refetches the filtered `#assess` fragment or navigates normally and retains its top bar/counter on empty results.
 
-Terminal user source previews publish source ID/status only. Matching waiting fragments refetch HTML; retain reconnect and the existing 20-second fallback because delivery is best-effort. This is an explicit exception to the [general event-driven UI rule](frontend-development.md).
+Terminal user source previews publish source ID/status only. Matching waiting fragments refetch HTML; retain reconnect and the 20-second fallback because delivery is best-effort. This is an explicit exception to the [general event-driven UI rule](frontend-development.md).
 
 ## Story Editor AI Results
 
-Successful staged bot runs publish user-scoped `story.bot.finished` after commit and frontend cache invalidation, in one publication per saved result, regardless of story/stage count. Its `data.stories` maps story IDs to deduplicated bot types, without result content; rejected, failed, duplicate, and unattributed background runs do not publish these completion events. The existing Assess invalidation remains separate.
+Successful staged bot runs publish user-scoped `story.bot.finished` after commit and frontend cache invalidation, in one publication per saved result, regardless of story/stage count. Its `data.stories` maps story IDs to deduplicated bot types, without result content; rejected, failed, duplicate, and unattributed background runs do not publish these completion events. The Assess invalidation remains separate.
 
-One form-free controller per open story editor fetches the authenticated edit route once per matching completion event, sending only the supported bot types. HTMX selects affected fields from that single response for out-of-band swaps: summary/title, sentiment, classification, or linked news-item tag displays for tagging bots. Each card updates its saved tag baseline through a local event without replacing the editor or its open draft; Cancel/reopen uses the latest saved tags. The controller remains in place and queues overlapping events so different bot results are not dropped. HTMX 4 trigger filters end at the first closing bracket, so story-map lookups use `Reflect.get` rather than computed-property brackets. Other stories and unrelated editor fields are untouched. A fragment inside the attributes section uses a local bubbling event to merge only the completed bots' generated status values and execution markers into the attribute form; custom and unrelated generated-attribute drafts are preserved. Completion replaces the affected field's current value, including a draft in that same field; analyst comments and news-item ordering remain in place. Delivery is best-effort: with realtime disabled or a missed event, reload to see the persisted result.
+One form-free controller per story editor queues completion events and fetches the authenticated edit route once per matching event with supported bot types. OOB swaps update only affected summary/title, sentiment, classification, or tag displays. HTMX 4 trigger filters stop at the first `]`; use `Reflect.get` for story-map lookups.
+
+Local events update saved tag baselines and merge completed bots’ generated attributes/markers. Preserve open tag editors, custom/unrelated drafts, comments, and item ordering. A completed field replaces a draft in that same field. Missed/disabled realtime requires reload; persisted results remain authoritative.
 
 Coverage extends the bot-pipeline transaction test and the Assess browser workflow; the latter dispatches completion events because the isolated E2E stack has no broker.
 
 ## Analyst Chat
 
-- An active Analyst Chat turn publishes `chat.turn.updated` to its owner's user-limited channel. Snapshots contain a client-generated turn ID, increasing sequence, progress stage, and cumulative plain-text answer. The chat browser boundary applies only the matching newest snapshot; the final synchronous Chat response remains authoritative.
-- Chat snapshots may contain sensitive analyst and provider text. Publish them only to `user:#<user_id>`, render through `textContent`, do not log them, and do not enable history or cache recovery on the shared user namespace.
-
-During an Analyst Chat turn, core publishes immediate stage changes and cumulative answer snapshots at most every 200 ms. The first publication failure disables further realtime attempts for that turn without interrupting provider generation or persistence. No Centrifugo history or recovery is enabled; a later cumulative snapshot repairs missed content, and the completed HTMX response repairs complete realtime loss.
+- `chat.turn.updated` carries turn ID, increasing sequence, stage, and cumulative text only on the owner’s `user:#<user_id>` channel. Accept only the newest matching turn; render via `textContent`. Never log snapshots or enable channel history/cache recovery.
+- Publish stages immediately and text at most every 200 ms. First publish failure disables realtime for that turn without affecting generation/persistence. Later snapshots repair gaps; final synchronous HTMX is authoritative.
 
 Producer and consumer: `src/core/core/service/chat.py`, `src/frontend/frontend/static/js/chat.js`.
 
@@ -45,7 +43,7 @@ Producer and consumer: `src/core/core/service/chat.py`, `src/frontend/frontend/s
 - Presence is enabled only on `global`. Core queries `global:events`, resolves IDs to usernames, and returns client/unique-user counts to Admin Notifications. Do not grant client presence access or attach profile metadata; presence adds work proportional to connections.
 - Report locks remain process-local, serialized with a thread lock; they provide no distributed leases, expiry, ownership tokens, or lost-update protection.
 
-## Entry Points and Coverage
+## Code and Tests
 
 Core: `src/core/core/managers/realtime_publisher.py`, `src/core/core/api/realtime.py`, `src/core/core/managers/report_item_lock_service.py`. Browser: `src/frontend/frontend/static/js/realtime.js`, `src/frontend/frontend/templates/partials/realtime_notices.html`. Deployment: `src/ingress/extras/default.conf.template`, `dev/nginx.conf`, `docker/compose.yml`, `deploy/kubernetes/`, `deploy/helm/`.
 

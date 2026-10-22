@@ -1,8 +1,6 @@
 # Authentication Cookies
 
-## When To Load
-
-Login/logout, JWT/CSRF cookies, implicit renewal, `JWT_COOKIE_SUFFIX`, `APPLICATION_ROOT`, or `TARANIS_BASE_PATH`.
+Load for: Login/logout, JWT/CSRF cookies, implicit renewal, `JWT_COOKIE_SUFFIX`, `APPLICATION_ROOT`, or `TARANIS_BASE_PATH`.
 
 ## Contracts
 
@@ -15,7 +13,7 @@ Login/logout, JWT/CSRF cookies, implicit renewal, `JWT_COOKIE_SUFFIX`, `APPLICAT
 - Logout, rejected renewal, and expiration clear the configured names and paths.
 - Realtime connect authentication uses a dedicated cookie-validating proxy; see [Realtime Events](realtime-events.md). Do not disable browser CSRF checks to accommodate EventSource.
 
-## Entry Points and Coverage
+## Code and Tests
 
 Settings: `src/core/core/config.py`, `src/frontend/frontend/config.py`. Issuance/validation: `src/core/core/auth/base_authenticator.py`, `src/core/core/api/auth.py`, `src/core/core/managers/auth_manager.py`. Frontend forwarding/clearing: `src/frontend/frontend/auth.py`; cookie consumers include `core_api.py`, `data_persistence.py`, templates, and `static/js/main.js` under `src/frontend/frontend/`.
 

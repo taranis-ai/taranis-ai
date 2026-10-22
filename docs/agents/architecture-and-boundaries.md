@@ -1,8 +1,6 @@
 # Architecture and Boundaries
 
-## When To Load
-
-Before component, API, workflow, background-job, persistence, migration, or datetime changes.
+Read before component, API, workflow, background-job, persistence, migration, or datetime changes.
 
 ## Components and Tasks
 

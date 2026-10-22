@@ -1,8 +1,6 @@
 # Admin User CLI
 
-## When To Load
-
-`taranis-cli`, password reset, role repair, or core-container user administration.
+Load for: `taranis-cli`, password reset, role repair, or core-container user administration.
 
 ## Contracts
 
@@ -13,6 +11,6 @@ Run inside the core container against existing users:
 
 The CLI starts Flask with `initial_setup=False`, validates references, and commits in an app context. It is for user repair, not creation.
 
-## Entry Points and Coverage
+## Code and Tests
 
 `src/core/core/cli.py`; console entry in `src/core/pyproject.toml`; operator docs in `src/core/README.md` and `deploy/README.md`; tests in `src/core/tests/unit/test_cli.py`.

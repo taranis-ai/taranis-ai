@@ -1,8 +1,6 @@
 # IntelOwl Enrichment
 
-## When To Load
-
-IntelOwl, IOC/CTI enrichment, `INTEL_OWL_BOT`, observable analysis, or story/report/asset CTI views.
+Load for: IntelOwl, IOC/CTI enrichment, `INTEL_OWL_BOT`, observable analysis, or story/report/asset CTI views.
 
 ## Contracts
 
@@ -14,7 +12,7 @@ IntelOwl, IOC/CTI enrichment, `INTEL_OWL_BOT`, observable analysis, or story/rep
 - CTI reads aggregate tags for a news item, all items in a story, or all stories in a report. Assets combine typed `asset_observables` with tags from readable linked vulnerability reports; the overview includes only readable assets/reports.
 - CTI opens full pages via native links and returns through browser history. The shared renderer handles known NVD/VirusTotal/URLhaus summaries, with JSON fallback for unknown analyzers. Analyzer links allow only HTTP(S), never domain-substring validation.
 
-## Entry Points and Coverage
+## Code and Tests
 
 - Worker: `src/worker/worker/bots/intelowl_bot.py`, `src/worker/worker/bots/ioc_bot.py`, `src/worker/worker/intelowl_taranis_setup.py`
 - Core: `src/core/core/model/ioc.py`, `src/core/core/model/asset.py`, `src/core/core/service/cti.py`, `src/core/core/service/task.py`

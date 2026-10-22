@@ -1,8 +1,6 @@
 # Test Design
 
-## When To Load
-
-Before adding, removing, or changing tests.
+Read before adding, removing, or changing tests.
 
 ## Coverage
 

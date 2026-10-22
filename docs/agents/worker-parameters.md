@@ -1,8 +1,6 @@
 # Worker Parameters
 
-## When To Load
-
-Worker parameter contracts/forms, configured/effective values, secrets, SFTP host trust, dispatch, seeding, or registry migration.
+Load for: Worker parameter contracts/forms, configured/effective values, secrets, SFTP host trust, dispatch, seeding, or registry migration.
 
 ## Contracts
 
@@ -10,7 +8,7 @@ Worker parameter contracts/forms, configured/effective values, secrets, SFTP hos
 - Persist only explicitly configured native values, even when equal to defaults. Human APIs return configured non-secrets and `********` markers. Worker APIs validate/expand defaults and include raw secrets; workers revalidate before adding transient task filters.
 - LLM bots select `LLM_ENDPOINT`; blank inherits the feature assignment or shared default. Core selects a compatible format and its model from the provider and includes that resolved configuration in worker configuration; `REQUESTS_TIMEOUT` overrides only its network timeout. Blank retains the endpoint request timeout. Old connection parameters remain accepted for imports but are hidden and removed at startup. The classifier retains its stored worker type and accepts the obsolete `CLASSIFICATION_THRESHOLD` invisibly; general topic classification always uses the highest probability. See [LLM Endpoints](llm-endpoints.md).
 - Collector `TLP_LEVEL` absent/null/blank inherits the global default; explicit CLEAR overrides it. Collection/previews preserve item inheritance and upstream labels.
-- Frontend renders validation-mode JSON Schema with aliases. Use standard schema metadata first; `json_schema_extra` is for widgets schema cannot express. Number schema fields render with `step="any"` so fractional values pass native browser validation; integer fields retain the native integer step. Required controls stay visible, optional controls are collapsed but submitted. Type changes replace the shared section. [News Item Creation](news-item-creation.md) owns the dedicated Assess URL form.
+- Forms use aliased validation-mode JSON Schema; reserve `json_schema_extra` for unsupported widgets. Numbers use `step="any"`, integers the native step. Required controls stay visible; optional controls collapse but submit; type changes replace the shared section. See [News Item Creation](news-item-creation.md) for URL forms.
 - POST creates; `PUT.parameters` replaces non-secrets while preserving omitted/masked configured secrets; PATCH merges, with `null` removing a value and omission retaining it. Worker type is immutable.
 - Form normalization preserves submitted nullable fields that normalize to `None` as PATCH removal markers; omitted controls remain omitted. Put blank-to-null conversion in field annotations so partial validation also applies it.
 - Sources/bots may be incomplete only while disabled; enabling/executing fully validates. Connector contract failures persist `invalid_parameters` before aborting. Stateful reference/template/DAG/deployment checks remain in core/frontend.
@@ -29,7 +27,7 @@ Worker parameter contracts/forms, configured/effective values, secrets, SFTP hos
 
 Unsupported types/invalid enabled source or bot configs fail with owner table/ID/type rather than discarding records. Incomplete connector/product-type/publisher-preset configs remain repairable but must validate before execution. Mappings: `TAGGING_BOT.KEYWORDS` to `REGULAR_EXPRESSION` if canonical value is absent; TAXII `token` to `bearer`.
 
-## Entry Points and Coverage
+## Code and Tests
 
 Contract above; policy: `src/core/core/service/worker_parameters.py`; human/worker APIs: `src/core/core/api/config.py`, `src/core/core/api/worker.py`; forms: `src/frontend/frontend/views/admin_views/admin_base_view.py`, `src/frontend/frontend/templates/partials/worker_parameters.html`.
 

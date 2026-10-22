@@ -1,8 +1,6 @@
 # Worker Task Notifications
 
-## When To Load
-
-Worker-backed actions, queue warnings/priority, task results, `/health`, My Tasks, or history retention.
+Load for: Worker-backed actions, queue warnings/priority, task results, `/health`, My Tasks, or history retention.
 
 ## Queue and Result Contracts
 
@@ -10,7 +8,7 @@ Task entry points and RQ failure hooks own their HTTP session scope, including r
 
 - With `QUEUE_ENABLED=false`, core skips queue connections and scheduling; broker/worker health is `n/a` and queue actions are unavailable (503). Source collection/preview and bot execution/chains reject disabled queues before source/bot validation or graph construction. Enabled queues require Redis at startup.
 - Accepted jobs report queue success. Only cached core health `services.workers == "down"` changes this to a queued-but-no-worker warning; failed/missing health checks retain the original notice. Do not change queue endpoint status codes or poll for final failures through this notification.
-- Story editor AI actions submit bot types to Assess; Core resolves a type to the first configured bot by index before queueing its UUID. Explicit UUIDs still select that bot. Generate Tags submits `generate_tags` through the same endpoint and queues one Wordlist → IOC → NER pipeline scoped to the selected story, using the first configured instance of each type by index. Missing or disabled bots, disabled endpoints, or invalid configurations reject the whole dispatch. Story write checks precede resolution. The editor returns only a task notification, preserves the Core status, and targets notifications on HTMX errors without replacing the editor. The Assess browser workflow temporarily enables its default LLM endpoint and restores its prior state afterward.
+- Story AI actions resolve bot types to the first configured instance by index; explicit UUIDs select that bot. `generate_tags` queues Wordlist → IOC → NER for the selected story. Check write access first; any missing/disabled/invalid bot or endpoint rejects dispatch. Return only notifications with Core’s status, preserving the editor on errors. Assess E2E temporarily enables and restores its LLM endpoint.
 - Connector pulls return the queue manager's response and HTTP status directly: success means scheduled, and disabled queues return 503. News-item URL fetches preserve queue error tuples through `StoryService` and the Assess endpoint. These API contracts are covered in the core configuration workflow and disabled-queue startup tests.
 - Authenticated runs, including auto-render after product edits, carry `user_id`; scheduler runs do not. Propagate attribution through dependencies and post-collection bots.
 - User jobs enqueue at the front of their functional queue (LIFO); background jobs remain FIFO. Workers check presenters, publishers, connectors, misc, bots, then collectors. Priority does not preempt running jobs or affect workers subscribed to other queues.
@@ -36,7 +34,7 @@ Daily `cleanup_task_history` applies global `TASK_HISTORY_RETENTION_DAYS` across
 
 Source-detail Collect/Bot Run return notifications; Collect All/Update Wordlists replace their table containers. Follow [shared frontend swap rules](frontend-development.md).
 
-## Entry Points and Coverage
+## Code and Tests
 
 `BaseView.render_worker_task_notification` in `src/frontend/frontend/views/base_view.py`; `DataPersistenceLayer.get_core_health` in `src/frontend/frontend/data_persistence.py`; `UserTaskView` in `src/frontend/frontend/views/user_views.py`; user endpoint `GET /tasks/user`.
 

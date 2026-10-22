@@ -1,6 +1,6 @@
 # Agent Memory
 
-Read matching memories before planning or editing related features, routes, models, or workflows. Code and tests remain the source of truth. Shared rules live in the operational references; feature memories record only distinct contracts and non-obvious pitfalls.
+Read matching memories before planning or editing application behavior. Code and tests are authoritative. Operational references own shared rules; feature memories own distinct contracts and pitfalls.
 
 ## Operational References
 
@@ -15,12 +15,12 @@ Read matching memories before planning or editing related features, routes, mode
 
 - [Redis Runtime State](redis-runtime-state.md): disposable Redis/RQ state, persistence settings, and restart recovery.
 - [Story Export](story-export.md): Settings and Assess downloads, metadata, import contracts, dates, and access checks.
-- [Telemetry](telemetry.md) - Sentry initialization, OTLP traces and metrics, RQ trace propagation, and the optional Grafana LGTM Compose profile.
-- [Analyst Chat](analyst-chat.md) - persistent chat workflow, Responses and Chat Completions integration, Assess search planning, privacy, ownership, and deployment configuration.
+- [Telemetry](telemetry.md): Sentry initialization, OTLP traces and metrics, RQ trace propagation, and the optional Grafana LGTM Compose profile.
+- [Analyst Chat](analyst-chat.md): persistent chat workflow, Responses and Chat Completions integration, Assess search planning, privacy, ownership, and deployment configuration.
 - [LLM Endpoints](llm-endpoints.md): shared provider settings, feature assignments, secrets, and worker execution.
 - [Global Settings](global-settings.md): transaction-scoped read caching, defaults, and invalidation.
 - [News Item Creation](news-item-creation.md): method chooser, independent drafts, validation, and file-import retry.
-- [News Item Ordering](news-item-ordering.md) - local shared item order, editor controls, conflict normalization, and ungrouping title fallback.
+- [News Item Ordering](news-item-ordering.md): local shared item order, editor controls, conflict normalization, and ungrouping title fallback.
 - [Story Cards](story-cards.md): source icons, frequency ranking, and shared story enrichment.
 - [Assess Filters](assess-filters.md): sidebar queries, saved filters, pagination, and cache invalidation.
 - [Story Bookmarks](story-bookmarks.md): private collections, ordering, and Assess action context.
@@ -50,12 +50,12 @@ Read matching memories before planning or editing related features, routes, mode
 - [Admin User Import/Export](admin-user-import-export.md): JSON format, duplicates, and passwordless users.
 - [Admin User CLI](admin-user-cli.md): existing-user password and role repair.
 - [Initial User Onboarding](initial-user-onboarding.md): global defaults and per-user overrides.
-- [Presenter Template API](template-api.md) - template names, Pydantic responses, sorting, and admin routing.
+- [Presenter Template API](template-api.md): template names, Pydantic responses, sorting, and admin routing.
 
 ## Maintaining Memories
 
-Keep a short load trigger, distinct behavior/invariants, and the most useful code and test entry points. Add flow or pitfalls sections only when they explain something not already stated. Test paths identify coverage; validation commands and signoff belong in [Development Workflow](development-workflow.md).
+Keep load triggers, distinct contracts/pitfalls, and useful code/test entry points. Link shared rules instead of copying them; validation commands belong in [Development Workflow](development-workflow.md).
 
-Update the owning memory when its contract, code paths, cache behavior, or test strategy changes. Link related memories instead of copying their rules. Add and index a memory for a substantial recurring workflow.
+Update the owning memory when behavior, paths, caching, or validation changes. Add and index substantial recurring workflows.
 
-Omit obvious UI mechanics, CSS classes, exhaustive symbol/template inventories, generic engineering advice, repeated test commands, and branch history or promises about future PRs. Preserve security boundaries, transaction semantics, surprising defaults, failure behavior, and operational limitations. Document released migration/rollback requirements when still relevant.
+Omit cosmetic details, exhaustive symbol lists, generic advice, repeated commands, and branch history. Preserve security, transactions, defaults, failure behavior, operational limits, and relevant migration/rollback requirements.

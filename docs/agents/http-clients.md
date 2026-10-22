@@ -1,8 +1,6 @@
 # HTTP Client Lifetimes
 
-## When To Load
-
-HTTP clients, connection pooling, service/source request policies, frontend downloads, or HTTP dependency changes.
+Load for: HTTP clients, connection pooling, service/source request policies, frontend downloads, or HTTP dependency changes.
 
 ## Contracts
 
@@ -18,10 +16,10 @@ HTTP clients, connection pooling, service/source request policies, frontend down
 - Downloads own a separate session and response in an `ExitStack`. Request teardown closes unclaimed downloads. `stream_proxy` transfers ownership to the Flask response, whose iterator/final close releases both resources on completion, partial consumption, or abandonment. It must remain usable after request teardown without buffering the whole download.
 - Shared models do not depend on an HTTP client. Build `WorkerProduct` from bytes and MIME type at the worker API boundary.
 
-## Entry Points and Coverage
+## Code and Tests
 
 Worker: `src/worker/worker/http_client.py`, `core_api.py`, `bot_api.py`, `collectors/base_web_collector.py`, and task entry points. Frontend: `src/frontend/frontend/core_api.py` and `__init__.py`.
 
-Extend existing coverage when refactoring HTTP clients: `src/worker/tests/collectors/test_collector.py` covers shared collector sessions and validators/304 behavior; `src/frontend/tests/unit/views/test_product_view.py` exercises the download endpoint through the real HTTP client and stream proxy; `src/frontend/tests/unit/test_data_persistence.py` covers bearer-token forwarding and caching. Existing auth tests own repeated `Set-Cookie` forwarding. Do not add standalone client suites or HTTP server fixtures for this refactor.
+Extend collector HTTP coverage in `src/worker/tests/collectors/test_collector.py`, frontend downloads in `src/frontend/tests/unit/views/test_product_view.py`, and bearer-token/cache coverage in `src/frontend/tests/unit/test_data_persistence.py`. Auth tests own repeated `Set-Cookie` forwarding. Do not add standalone client suites or HTTP-server fixtures for this refactor.
 
 Worker tests alias Requests to Niquests for `requests-mock` and bridge async requests through its synchronous transport. These mocks do not prove async transport or SDK compatibility; verify changes to cancellation/redirect transport against a real HTTP server. Pooling does not automatically parallelize sequential collection.
