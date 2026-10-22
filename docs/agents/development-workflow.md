@@ -18,6 +18,7 @@ Before application edits, validation, development setup changes, or local startu
 Run component commands from that component's directory; CI definitions are in `.github/workflows`. Read [Test Design](test-design.md) before changing tests and [Frontend E2E Harness](frontend-e2e-harness.md) for browser-stack details.
 
 - For branch-wide validation or CI regressions: `uv run pytest` in core and frontend, then `uv run pytest tests/playwright --e2e-ci` in frontend. Narrow targets are for isolating failures after reproduction; they do not replace signoff.
+- `certifi` and Pillow are exempt from the one-week dependency cooling period so fixes for compromised CA roots and image-decoder advisories can be locked immediately. Upgrade only the affected packages with `uv lock --upgrade-package`; keep audit checks enabled.
 - Lint changed components with `uv run ruff check`; use `--fix` and `uv run ruff format` as appropriate. After Python edits, run `./dev/check_pyrefly.sh` from the repository root.
 - Models has no unit tests. Worker browser-scraping tests require Playwright browsers.
 - Core tests use a per-session temporary SQLite database, temporary data directory, and in-process Redis fakes to avoid affecting concurrent test runs or running instances. The data directory also keeps presenter templates separate from files owned by Compose containers. Do not uncomment disabled E2E admin tests on `master` without proving they pass.

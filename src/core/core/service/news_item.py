@@ -74,8 +74,14 @@ class NewsItemService:
         return response, status
 
     @staticmethod
-    def update_attributes(news_item_id: str, attributes, actor: str | None = None) -> tuple[dict, int]:
+    def update_attributes(news_item_id: str, attributes, actor: str | None = None, user: User | None = None) -> tuple[dict, int]:
         item = NewsItem.get(news_item_id)
+        if (
+            user is not None
+            and item
+            and (not item.allowed_with_acl(user, require_write_access=True) or (item.story and not item.story.allowed_to_update(user)))
+        ):
+            return {"error": "User does not have write access to this news item"}, 403
         response, status = NewsItem.update_attributes(news_item_id, attributes, actor=actor)
         if status == 200 and item:
             refresh_misp_auto_update_jobs([item.story_id])

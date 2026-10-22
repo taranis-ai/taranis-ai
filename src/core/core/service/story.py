@@ -65,6 +65,44 @@ class StoryService:
             db.session.commit()
         return cls._refresh_auto_update_jobs_on_success(result, [story_id])
 
+    @staticmethod
+    def update_many(story_ids: list[str], data: dict[str, Any], user: User) -> tuple[dict, int]:
+        from core.service.asset_intelligence import match_story
+
+        story_ids = list(dict.fromkeys(story_ids))
+        try:
+            # Lock in a consistent order; each update and revision belongs to this one transaction.
+            stories = db.session.scalars(db.select(Story).where(Story.id.in_(story_ids)).order_by(Story.id).with_for_update()).all()
+            by_id = {story.id: story for story in stories}
+            successes = []
+            for story_id in story_ids:
+                if story_id not in by_id:
+                    db.session.rollback()
+                    return {"error": "Story not found"}, 404
+                response, status = Story.apply_update(by_id[story_id], data, user=user)
+                if status != 200:
+                    db.session.rollback()
+                    return response, status
+                match_story(story_id)
+                successes.append({"story_id": story_id, "response": response})
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            logger.exception("Failed to update selected stories")
+            return {"error": "Unable to update selected stories. No changes were saved."}, 500
+        message = f"Bulk action completed. {len(successes)} stories updated."
+        try:
+            refresh_misp_auto_update_jobs(story_ids)
+        except Exception:
+            logger.exception("Stories were committed but automatic synchronization could not be scheduled")
+            message += " Automatic synchronization could not be scheduled."
+        return {
+            "message": message,
+            "updated": len(successes),
+            "success": successes,
+            "errors": [],
+        }, 200
+
     @classmethod
     def delete(cls, story_id: str, user: User) -> tuple[dict, int]:
         result = Story.delete_by_id(story_id, user)
@@ -119,18 +157,16 @@ class StoryService:
         stories: dict[str, dict] = {}
 
         for row in result:
-            values = row._mapping
-            if values.get("news_item_id") is None:
+            data = row._mapping
+            if data.get("news_item_id") is None:
                 continue
-            story = stories.setdefault(
-                values["id"], {"id": values["id"], "created": Story.serialize_datetime(values["created"]), "news_items": []}
-            )
+            story = stories.setdefault(data["id"], {"id": data["id"], "created": Story.serialize_datetime(data["created"]), "news_items": []})
 
             story["news_items"].append(
                 {
-                    "id": values["news_item_id"],
-                    "title": values["news_item_title"],
-                    "content": values["news_item_content"],
+                    "id": data["news_item_id"],
+                    "title": data["news_item_title"],
+                    "content": data["news_item_content"],
                 }
             )
 

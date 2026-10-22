@@ -1,0 +1,27 @@
+{% from "assess/story_card.html" import story_card with context %}
+{% if stories %}
+  <div id="story-list"
+       x-ref="storyList"
+       hx-on::after:swap="if (ctx.swap.includes('show:top') && ctx.swap.includes('showTarget:window')) window.scrollTo(0, 0)">
+    {% for story in stories %}{{ story_card(story) }}{% endfor %}
+  </div>
+  {% if pagination %}
+    {% set hx_target = request.headers.get("HX-Target") %}
+    <div id="story-pagination"
+         x-init="saveSearch($el.dataset.assessUrl)"
+         data-assess-url="{{ assess_return_url }}"
+         {% if hx_target in ['div#story-list', '#story-list', 'story-list'] %}hx-swap-oob="outerHTML:#story-pagination"{% endif %}>
+      {% if pagination.infinite_scroll %}
+        {% include "assess/story_table_infinite_scroll.html" %}
+      {% else %}
+        {% include "assess/story_table_paging.html" %}
+      {% endif %}
+    </div>
+  {% endif %}
+{% else %}
+  <h2 class="text-center text-base-content/60 text-xl mb-4">No stories found.</h2>
+  <a href="{{ routes.base_route }}" class="btn btn-primary w-full">
+    {{ heroicon_outline('arrow-path', class='h-6 w-6') }}
+    Reset filters
+  </a>
+{% endif %}

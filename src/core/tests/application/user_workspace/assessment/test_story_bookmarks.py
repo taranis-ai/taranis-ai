@@ -1,5 +1,8 @@
 from uuid import uuid4
 
+from sqlalchemy import event
+
+from core.managers.db_manager import db
 from tests.application.support.api_test_base import BaseTest
 from tests.application.support.builders import build_news_item_payload, create_story
 
@@ -70,12 +73,24 @@ class TestStoryBookmarks(BaseTest):
         assert duplicate_response.get_json()["added"] == 0
         assert duplicate_response.get_json()["story_count"] == 2
 
-        detail_response = client.get(self.concat_url(f"bookmarks/{bookmark_id}"), headers=auth_header)
+        membership_queries = []
+
+        def collect(_conn, _cursor, statement, _params, _context, _many):
+            if "FROM story_bookmark_story JOIN story_bookmark ON" in statement:
+                membership_queries.append(statement)
+
+        event.listen(db.engine, "before_cursor_execute", collect)
+        try:
+            detail_response = client.get(self.concat_url(f"bookmarks/{bookmark_id}"), headers=auth_header)
+        finally:
+            event.remove(db.engine, "before_cursor_execute", collect)
         assert detail_response.status_code == 200
         detail = detail_response.get_json()
         assert detail["story_count"] == 2
         assert set(detail["story_ids"]) == set(stories[:2])
         assert {item["id"] for item in detail["stories"]} == set(stories[:2])
+        assert all(item["bookmarked"] for item in detail["stories"])
+        assert len(membership_queries) == 1
 
         remove_response = client.post(
             self.concat_url(f"bookmarks/{bookmark_id}/stories/remove"), headers=auth_header, json={"story_ids": [stories[0]]}
@@ -128,6 +143,69 @@ class TestStoryBookmarks(BaseTest):
 
         assert response.status_code == 409
         assert response.get_json() == {"error": "A bookmark collection with this name already exists"}
+
+    def test_explicit_default_survives_reordering_and_deleted_default_recovers(self, client, stories, auth_header):
+        first = self._create_bookmark(client, auth_header, f"Default {uuid4()}")
+        second = self._create_bookmark(client, auth_header, f"Other {uuid4()}")
+        response = client.patch(self.concat_url(f"bookmarks/{first}"), headers=auth_header, json={"is_default": True})
+        assert response.status_code == 200
+        assert response.get_json()["bookmark"]["is_default"] is True
+        client.patch(self.concat_url("bookmarks/order"), headers=auth_header, json={"bookmark_ids": [second, first]})
+
+        saved = client.post(self.concat_url("bookmarks/quick-save"), headers=auth_header, json={"story_ids": [stories[0]]})
+        assert saved.status_code == 200
+        assert saved.get_json()["bookmark"]["id"] == first
+        assert saved.get_json()["added_story_ids"] == [stories[0]]
+        repeated = client.post(self.concat_url("bookmarks/quick-save"), headers=auth_header, json={"story_ids": [stories[0]]})
+        assert repeated.get_json()["added_story_ids"] == []
+
+        client.delete(self.concat_url(f"bookmarks/{first}"), headers=auth_header)
+        recovered = client.post(self.concat_url("bookmarks/quick-save"), headers=auth_header, json={"story_ids": [stories[0]]})
+        assert recovered.status_code == 200
+        assert recovered.get_json()["bookmark"]["name"] == "Bookmarks"
+        assert recovered.get_json()["bookmark"]["is_default"] is True
+        assert recovered.get_json()["bookmark"]["id"] != second
+
+    def test_membership_changes_are_atomic_and_leave_unmentioned_collections_unchanged(self, client, stories, auth_header):
+        first = self._create_bookmark(client, auth_header, f"First {uuid4()}")
+        second = self._create_bookmark(client, auth_header, f"Second {uuid4()}")
+        self._add_stories(client, auth_header, first, stories[:2])
+        self._add_stories(client, auth_header, second, [stories[0]])
+        payload = {"story_ids": stories[:2], "remove_bookmark_ids": [first], "new_collection_name": f"New {uuid4()}"}
+        response = client.post(self.concat_url("bookmarks/memberships"), headers=auth_header, json=payload)
+        assert response.status_code == 200
+        assert client.get(self.concat_url(f"bookmarks/{first}"), headers=auth_header).get_json()["story_ids"] == []
+        assert client.get(self.concat_url(f"bookmarks/{second}"), headers=auth_header).get_json()["story_ids"] == [stories[0]]
+        created = client.get(self.concat_url("bookmarks"), headers=auth_header, query_string={"search": payload["new_collection_name"]})
+        assert set(created.get_json()["items"][0]["story_ids"]) == set(stories[:2])
+
+        payload.update(bookmark_ids=[first], remove_bookmark_ids=[second])
+        conflict = client.post(self.concat_url("bookmarks/memberships"), headers=auth_header, json=payload)
+        assert conflict.status_code == 409
+        assert client.get(self.concat_url(f"bookmarks/{first}"), headers=auth_header).get_json()["story_ids"] == []
+        assert client.get(self.concat_url(f"bookmarks/{second}"), headers=auth_header).get_json()["story_ids"] == [stories[0]]
+
+    def test_membership_and_saved_state_are_private(self, client, stories, auth_header, auth_header_user_permissions):
+        private = self._create_bookmark(client, auth_header, f"Private membership {uuid4()}")
+        self._add_stories(client, auth_header, private, [stories[0]])
+        for path in (f"stories/{stories[0]}", "stories"):
+            query = {"story_ids": [stories[0]]} if path == "stories" else {}
+            response = client.get(self.concat_url(path), headers=auth_header, query_string=query)
+            assert response.status_code == 200
+            story = response.get_json()["items"][0] if path == "stories" else response.get_json()
+            assert story["bookmarked"] is True
+            other = client.get(self.concat_url(path), headers=auth_header_user_permissions, query_string=query)
+            assert other.status_code == 200
+            story = other.get_json()["items"][0] if path == "stories" else other.get_json()
+            assert story["bookmarked"] is False
+        response = client.post(
+            self.concat_url("bookmarks/memberships"),
+            headers=auth_header_user_permissions,
+            json={"story_ids": [stories[0]], "bookmark_ids": [private], "new_collection_name": f"Never created {uuid4()}"},
+        )
+        assert response.status_code == 404
+        default = client.patch(self.concat_url(f"bookmarks/{private}"), headers=auth_header_user_permissions, json={"is_default": True})
+        assert default.status_code == 404
 
     def test_story_bookmark_rejects_missing_stories(self, client, auth_header):
         bookmark_id = self._create_bookmark(client, auth_header, f"Missing story {uuid4()}")

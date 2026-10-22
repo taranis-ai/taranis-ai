@@ -13,6 +13,14 @@ def init(app: Flask):
     assess_bp = Blueprint("assess", __name__, url_prefix=f"{app.config['APPLICATION_ROOT']}")
 
     assess_bp.add_url_rule("/assess", view_func=StoryView.as_view("assess"))
+    assess_bp.add_url_rule("/assess/display", view_func=StoryView.display_preferences, methods=["POST"], endpoint="display_preferences")
+    assess_bp.add_url_rule("/assess/sources/<string:source_id>/icon", view_func=StoryView.source_icon, endpoint="source_icon")
+    assess_bp.add_url_rule(
+        "/story/<string:story_id>/details", view_func=StoryView.story_fragment, defaults={"fragment": "details"}, endpoint="story_details"
+    )
+    assess_bp.add_url_rule(
+        "/story/<string:story_id>/actions", view_func=StoryView.story_fragment, defaults={"fragment": "actions"}, endpoint="story_actions"
+    )
     assess_bp.add_url_rule(
         "/analyst-review/start",
         view_func=AnalystReviewView.start,

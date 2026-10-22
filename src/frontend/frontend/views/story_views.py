@@ -1,4 +1,7 @@
+import base64
+import binascii
 import datetime
+import hashlib
 import uuid
 from collections import Counter
 from collections.abc import Callable
@@ -6,7 +9,7 @@ from json import JSONDecodeError
 from typing import Any, cast
 from urllib.parse import parse_qs, quote, urlencode, urlparse
 
-from flask import Response, abort, flash, json, make_response, redirect, render_template, request, session, url_for
+from flask import Response, abort, after_this_request, flash, json, make_response, redirect, render_template, request, session, url_for
 from flask.typing import ResponseReturnValue
 from flask_jwt_extended import current_user
 from models.assess import (
@@ -26,11 +29,12 @@ from models.assess import (
 from models.cti import CTIResponse
 from models.report import ReportItem
 from models.revision_diff import build_story_revision_diff_payload
+from models.user import ProfileSettings
 from models.worker_parameters import SimpleWebCollectorParameters, normalize_parameter_values
 from pydantic import ValidationError
 from requests import RequestException
 from requests import Response as RequestsResponse
-from werkzeug.datastructures import FileStorage
+from werkzeug.datastructures import FileStorage, ImmutableMultiDict
 from werkzeug.exceptions import HTTPException
 
 from frontend.auth import auth_required, update_current_user_cache
@@ -52,6 +56,14 @@ _quote_via = cast(Any, quote)
 ASSESS_SAVED_FILTER_SESSION_KEY = "assess_saved_filter_active"
 ASSESS_SAVED_FILTER_NAME_MAX_LENGTH = 80
 ASSESS_BOOKMARK_BAR_LIMIT = 6
+ASSESS_TIME_PRESETS = {
+    "shift": "Today (shift)",
+    "week": "This week",
+    "month": "This month",
+    "24h": "Last 24 hours",
+    "last7": "Last 7 days",
+    "last30": "Last 30 days",
+}
 
 
 class StoryView(BaseView):
@@ -95,15 +107,17 @@ class StoryView(BaseView):
             tag_request_args = parse_qs(urlparse(request.headers["HX-Current-URL"]).query)
         base_context["active_tag_filters"] = tag_request_args.get("tags", [])
         assess_request_args: dict[str, list[str]] = {}
-        if request.endpoint == "assess.assess":
-            assess_request_args = cls._get_assess_request_params()
+        if request.endpoint == "assess.assess" or cls._get_current_url_path() == url_for("assess.assess"):
+            assess_request_args = cls._get_assess_request_params(tag_request_args)
             base_context["assess_request_args"] = assess_request_args
-            base_context["assess_return_url"] = (
+            filters_url = (
                 cls._build_assess_filters_url(assess_request_args) if assess_request_args else url_for("assess.assess", reset="true")
             )
+            base_context["assess_return_url"] = filters_url if request.endpoint == "assess.assess" else get_assess_return_url() or filters_url
         else:
             base_context["assess_return_url"] = get_assess_return_url()
-        base_context["bookmark_collections"] = cls._get_bookmark_bar_collections()
+        if request.headers.get("HX-Target", "").split("#")[-1] != "story-list":
+            base_context["bookmark_collections"] = cls._get_bookmark_bar_collections()
         base_context["assess_bookmark_bar_limit"] = ASSESS_BOOKMARK_BAR_LIMIT
         base_context["asset_filters"] = AssessSearchFilters.model_validate(cls._normalize_assess_filter_payload(assess_request_args))
         base_context["asset_filter_lists"] = {"assets": [], "groups": [], "tags": []}
@@ -120,6 +134,55 @@ class StoryView(BaseView):
                 base_context["asset_filter_error"] = "Unable to load asset filter choices."
         base_context["source_filter_select"] = cls._build_source_filter_select(filter_lists, assess_request_args)
         base_context["language_filter_select"] = cls._build_language_filter_select(filter_lists, assess_request_args)
+        time_presets = dict(ASSESS_TIME_PRESETS)
+        current_range = next(iter(assess_request_args.get("range", [])), "")
+        if current_range == "day":
+            time_presets["day"] = "Since yesterday"
+        elif current_range.startswith("last") and current_range[4:].isdigit():
+            days = int(current_range[4:])
+            time_presets[current_range] = f"Last {days} {'day' if days == 1 else 'days'}"
+        base_context["time_presets"] = time_presets
+        chips = []
+        labels = {
+            "search": "Search",
+            "range": "Time",
+            "timefrom": "From",
+            "timeto": "To",
+            "read": "Read",
+            "important": "Important",
+            "in_report": "In reports",
+            "relevant": "Relevant",
+            "changed_by": "Changed by",
+            "cybersecurity": "Cybersecurity",
+            "tags": "Tag",
+            "source": "Source",
+            "group": "Group",
+            "language": "Language",
+        }
+        names = {source.id: source.name for source in filter_lists.sources}
+        names.update({cls._get_group_field(group, "id"): cls._get_group_field(group, "name") for group in filter_lists.groups})
+        choices = {"true": "Yes", "false": "No", "me": "Me", **time_presets}
+        for key, values in assess_request_args.items():
+            if key not in labels:
+                continue
+            for value in values:
+                if not value:
+                    continue
+                remaining = {name: list(items) for name, items in assess_request_args.items() if name not in {"page", "offset"}}
+                remaining[key] = [item for item in values if item != value]
+                remaining = {name: items for name, items in remaining.items() if items}
+                label = (
+                    choices.get(value, value)
+                    if key in {"read", "important", "in_report", "relevant", "range", "changed_by"}
+                    else names.get(value, value)
+                )
+                chips.append(
+                    {
+                        "label": f"{labels[key]}: {label}",
+                        "url": cls._build_assess_filters_url(remaining) if remaining else url_for("assess.assess", reset="true"),
+                    }
+                )
+        base_context["active_filters"] = chips
         if stories := base_context.get("stories"):
             enhanced_stories = cls._get_enhanced_stories(stories, list(base_context["filter_lists"].sources))
             base_context["story_ids"] = [story.id for story in enhanced_stories if getattr(story, "id", None)]
@@ -147,11 +210,25 @@ class StoryView(BaseView):
         if not story.news_items:
             return story
         source_ids = [item.osint_source_id for item in story.news_items if item.osint_source_id in sources]
+        story.source_names = {source_id: sources[source_id].name for source_id in source_ids}  # type: ignore
         if len(story.news_items) > 5:
             source_ids = [source_id for source_id, _ in Counter(source_ids).most_common(5)]
         else:
             source_ids = list(dict.fromkeys(source_ids))
         story.source_infos = [sources[source_id] for source_id in source_ids]  # type: ignore
+        assess_url = None if request.endpoint == "assess.assess" and request.method == "GET" else get_assess_return_url()
+        filter_params = parse_qs(urlparse(assess_url).query) if assess_url else request.args.to_dict(flat=False)
+        filter_params = {key: values for key, values in filter_params.items() if key in ASSESS_FILTER_KEYS | {"order", "limit"}}
+        story.source_filter_urls = {  # type: ignore
+            source_id: StoryView._build_assess_filters_url(
+                {**filter_params, "source": list(dict.fromkeys([*filter_params.get("source", []), source_id]))}
+            )
+            for source_id in source_ids
+        }
+        try:
+            story.source_domain = urlparse(story.links[0]).hostname if story.links else ""  # type: ignore
+        except ValueError:
+            story.source_domain = ""  # type: ignore
         story.summary_content = story.summary or story.news_items[0].content  # type: ignore
         return story
 
@@ -778,6 +855,8 @@ class StoryView(BaseView):
             logger.debug("No story IDs supplied for bulk update. Returning current story list.")
             return cls.rerender_list(notification=cls.render_response_notification({"error": "No stories selected for bulk action."}))
         response = CoreApi().api_post("/assess/stories/bulk_action", json_data=bulk_action.model_dump(mode="json"))
+        if not response.ok:
+            return cls.get_notification_from_response(response, oob=False), response.status_code
         return cls.rerender_list(notification=cls.get_notification_from_response(response))
 
     @classmethod
@@ -872,7 +951,13 @@ class StoryView(BaseView):
         context["asset_scan_run"] = scan_run
         context["asset_scan_error"] = scan_error
 
-        return render_template(cls.get_list_template(), **context), 200 if items is not None else 502
+        template = cls.get_list_template()
+        if is_htmx_request() and request.headers.get("HX-Target", "").split("#")[-1] == "story-list":
+            template = "assess/story_list.html"
+        content = render_template(template, **context)
+        if request.headers.get("HX-Refresh-Sidebar") == "true":
+            content += render_template("assess/sidebar/refresh.html", **context)
+        return content, 200 if items is not None else 502
 
     @classmethod
     def rerender_list(cls, notification: str | None = None):
@@ -939,6 +1024,18 @@ class StoryView(BaseView):
 
     @classmethod
     def list_view(cls) -> ResponseReturnValue:
+        if any(value == "" for _, value in request.args.items(multi=True)):
+            clean_args = ImmutableMultiDict((key, value) for key, value in request.args.items(multi=True) if value != "")
+            clean_url = cls._build_assess_filters_url(clean_args.to_dict(flat=False))
+            if not is_htmx_request():
+                return redirect(clean_url)
+            request.args = clean_args
+
+            @after_this_request
+            def push_clean_url(response: Response) -> Response:
+                response.headers["HX-Push-Url"] = clean_url
+                return response
+
         raw_request_params = request.args.to_dict(flat=False)
         if not is_htmx_request():
             filtered_request_params = {
@@ -1101,6 +1198,72 @@ class StoryView(BaseView):
     @auth_required()
     def story_view(cls, story_id: str):
         return render_template("assess/story_view.html", **cls.get_item_context(story_id)), 200
+
+    @classmethod
+    @auth_required("ASSESS_ACCESS")
+    def story_fragment(cls, story_id: str, fragment: str):
+        try:
+            story = DataPersistenceLayer().get_object(Story, story_id)
+            if story is not None and fragment == "details":
+                cls._enhance_story_with_details(story, {source.id: source for source in cls.get_filter_lists().sources if source.id})
+        except HTTPException:
+            raise
+        except Exception:
+            logger.exception("Unable to load story fragment")
+            story = None
+        if story is None:
+            return render_template(
+                "notification/index.html", notification={"message": "Unable to load story. Please try again.", "error": True}, oob=False
+            ), 502
+        template = {"details": "assess/story_card_details.html", "actions": "assess/story_more_actions.html"}[fragment]
+        return render_template(
+            template,
+            story=story,
+            bookmark_id=cls._get_bookmark_id(),
+            assess_return_url=get_assess_return_url(),
+            delete_target=cls._get_story_action_target([story_id]),
+        ), 200
+
+    @classmethod
+    @auth_required("ASSESS_ACCESS")
+    def source_icon(cls, source_id: str):
+        source = next((source for source in cls.get_filter_lists().sources if source.id == source_id), None)
+        if not source or not source.icon:
+            abort(404)
+        try:
+            icon = base64.b64decode(source.icon, validate=True)
+        except ValueError, binascii.Error:
+            abort(404)
+        response = make_response(icon)
+        response.mimetype = "image/png"
+        response.headers["Cache-Control"] = "private, no-cache"
+        response.set_etag(hashlib.sha256(icon).hexdigest())
+        return response.make_conditional(request)
+
+    @classmethod
+    @auth_required("ASSESS_ACCESS")
+    def display_preferences(cls):
+        updates = {key: request.form[key] for key in ("highlight", "compact_view", "show_bookmark_bar") if key in request.form}
+        try:
+            payload = ProfileSettings.model_validate(updates).model_dump(mode="json", include=set(updates))
+            response = CoreApi().api_post(ProfileSettings._core_endpoint, json_data=payload)
+            if not response.ok:
+                return render_template(
+                    "notification/index.html", notification={"message": "Unable to save display preferences.", "error": True}, oob=False
+                ), response.status_code
+            updated_user = update_current_user_cache()
+            if updated_user is not None:
+                current_user.profile = updated_user.profile
+        except ValidationError as exc:
+            return cls._validation_error_notification(exc, ProfileSettings)
+        except HTTPException:
+            raise
+        except Exception:
+            logger.exception("Unable to save Assess display preferences")
+            return render_template(
+                "notification/index.html", notification={"message": "Unable to save display preferences.", "error": True}, oob=False
+            ), 502
+        return cls.rerender_list()
 
     @classmethod
     @auth_required()
@@ -1314,6 +1477,8 @@ class StoryView(BaseView):
             logger.warning(f"News item {news_item_id} not found on story {story_id}")
             return render_template("partials/404.html")
 
+        sources = {source.id: source for source in StoryView.get_filter_lists().sources if source.id}
+        StoryView._enhance_story_with_details(story, sources)
         return render_template("assess/news_item_card_fragment.html", news_item=news_item, story=story, edit_tags=True)
 
     @classmethod
@@ -1452,7 +1617,13 @@ class StoryView(BaseView):
         except HTTPException:
             raise
         except Exception:
-            return cls.render_response_notification({"error": "Failed to delete story"})
+            logger.exception("Failed to delete story")
+            return render_template(
+                "notification/index.html", notification={"message": "Failed to delete story", "error": True}, oob=False
+            ), 502
+
+        if not core_response.ok:
+            return cls.get_notification_from_response(core_response, oob=False), core_response.status_code
 
         if bookmark_id := cls._get_bookmark_id():
             notification_html = cls.get_notification_from_response(core_response)
@@ -1531,6 +1702,7 @@ class StoryView(BaseView):
             )
 
         context["show_bookmark"] = not bookmark_id
+        context["selected_story_ids"] = request.form.getlist("story_ids")
         return render_template("assess/story.html", detail_view=False, **context)
 
     @classmethod
@@ -1539,6 +1711,8 @@ class StoryView(BaseView):
         if news_item_ids := request.form.getlist("news_item_ids[]"):
             try:
                 response = CoreApi().api_put("/assess/news-items/ungroup", json_data=news_item_ids)
+                if not response.ok:
+                    return cls.get_notification_from_response(response, oob=False), response.status_code
                 notification_html = cls.get_notification_from_response(response)
                 if response.ok and (refreshed := cls._refresh_asset_filtered_assess(notification_html)) is not None:
                     return refreshed
@@ -1552,6 +1726,8 @@ class StoryView(BaseView):
         else:
             try:
                 core_response = CoreApi().api_put("/assess/stories/ungroup", json_data=[story_id])
+                if not core_response.ok:
+                    return cls.get_notification_from_response(core_response, oob=False), core_response.status_code
                 if bookmark_id := cls._get_bookmark_id():
                     return cls._render_bookmark_after_story_change(
                         bookmark_id,

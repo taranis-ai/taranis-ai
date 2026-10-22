@@ -1,6 +1,5 @@
 {% from "assess/sidebar/tri_state_filter.html" import tri_state_filter %}
 {% from "assess/sidebar/filter_token_select.html" import filter_token_select_assets %}
-{% from "macros/htmx.html" import search_trigger %}
 {% set base_url = routes.base_route %}
 {% set request_args = assess_request_args | default({}) %}
 {% set selected_tags = request_args.get('tags', []) %}
@@ -20,16 +19,11 @@
 {% set cybersecurity_filter = request_args.get('cybersecurity', ['']) | first %}
 {% set changed_by_filter = request_args.get('changed_by', ['']) | first %}
 {% set sort_choices = sort_choices | default([
-  {'label': 'Newest first', 'value': 'date_desc'},
-  {'label': 'Oldest first', 'value': 'date_asc'},
-  {'label': 'Most relevant', 'value': 'relevance'},
-  {'label': 'Most recent updated', 'value': 'updated_desc'},
-  {'label': 'Least recent updated', 'value': 'updated_asc'}
-]) %}
-{% set quick_ranges = quick_ranges | default([
-  {'label': 'Shift', 'value': 'shift'},
-  {'label': 'Week', 'value': 'week'},
-  {'label': '24h', 'value': '24h'}
+  {'label': 'Story date: newest first', 'value': 'date_desc'},
+  {'label': 'Story date: oldest first', 'value': 'date_asc'},
+  {'label': 'Relevance: highest first', 'value': 'relevance'},
+  {'label': 'Updated: newest first', 'value': 'updated_desc'},
+  {'label': 'Updated: oldest first', 'value': 'updated_asc'}
 ]) %}
 {% set tri_state_filters = [
   {'name': 'read', 'label': 'Read', 'value': read_filter},
@@ -40,45 +34,23 @@
 
 {{ filter_token_select_assets() }}
 
-<script>
-if (typeof htmx !== 'undefined' && htmx.onLoad) {
-  htmx.onLoad(function (elt) {
-    highlightSearch({{ current_search | tojson }});
-  });
-} else {
-  highlightSearch({{ current_search | tojson }});
-}
-
-function highlightSearch(searchTerm) {
-  const term = typeof searchTerm === 'string' ? searchTerm : '';
-  if ({{ highlight | tojson }} && term.trim().length > 0) {
-    console.log("Highlighting search term: ", searchTerm);
-    highlightSearchTerm({ search: term, selector: ".highlight"});
-  }
-}
-
-document.addEventListener('htmx:after:swap', function (event) {
-  if (event.detail.ctx?.target?.id === 'assess') {
-    const searchInput = document.getElementById('story_search');
-    if (searchInput) {
-      highlightSearch(searchInput.value || '');
-    }
-  }
-});
-
-</script>
-
 <div class="p-4">
   <form id="assess-sidebar"
+        x-data="assessTimeFilters"
+        @htmx:after:request="if ($event.detail.ctx.response.status >= 400) restoreTimeFilters(); else timeClearPending = false"
         action="{{ base_url }}"
         method="get"
         data-tour-target="assess-filters"
         hx-get="{{ base_url }}"
         hx-target:inherited="#assess"
         hx-swap:inherited="outerHTML"
-        hx-status:5xx:inherited="target:#notification-bar select:#notification-bar swap:outerHTML"
+        hx-status:400:inherited="target:#notification-bar select:#notification-bar swap:outerHTML push:false"
+        hx-status:4xx:inherited="target:#notification-bar select:#notification-bar swap:outerHTML push:false"
+        hx-status:5xx:inherited="target:#notification-bar select:#notification-bar swap:outerHTML push:false"
         hx-push-url:inherited="true"
-        hx-trigger="{{ search_trigger('story_search') }}, change"
+        hx-sync:inherited="#assess-sidebar:replace"
+        hx-trigger="input changed delay:300ms from:#story_search, search from:#story_search, change[event.target.id !== 'story_search']"
+        hx-on::config:request="for (const [key, value] of [...ctx.request.body]) { if (value === '') ctx.request.body.delete(key); }"
         hx-on:submit="event.preventDefault()">
     <section class="space-y-3">
       <div class="flex items-center justify-between">
@@ -100,6 +72,7 @@ document.addEventListener('htmx:after:swap', function (event) {
                  oninput="this.name = this.value ? 'search' : '';"
                  value="{{ current_search }}"
                  placeholder="Search stories"
+                 aria-label="Search stories"
                  class="grow"
                  autocomplete="off"
                  @keydown.window.prevent.ctrl.k="$el.focus()">
@@ -108,81 +81,79 @@ document.addEventListener('htmx:after:swap', function (event) {
           </span>
         </label>
       </div>
+      <button type="button"
+              class="btn btn-outline btn-sm w-full"
+              data-testid="assess-saved-filters-button"
+              hx-get="{{ url_for('assess.saved_filters') }}"
+              hx-include="#assess-sidebar"
+              hx-target="body"
+              hx-swap="beforeend"
+              hx-on::before:request="document.getElementById('assess_saved_filters_dialog')?.remove()">
+        {{ heroicon_outline('bookmark-square', class='h-4 w-4') }} Save &amp; manage searches
+      </button>
       {% include "assess/sidebar/tags_select.html" %}
     </section>
 
-    <div class="divider text-xs">Filter</div>
     {# djlint: off #}
-    <section class="space-y-4"
-             x-data='{
-               clearTimeFilters() {
-                 const timeFrom = this.$refs.timeFrom;
-                 const timeTo = this.$refs.timeTo;
-                 if (timeFrom) {
-                   timeFrom.value = "";
-                   timeFrom.removeAttribute("name");
-                 }
-                 if (timeTo) {
-                   timeTo.value = "";
-                   timeTo.removeAttribute("name");
-                 }
-                 if (this.$refs.rangeRadios) {
-                   this.$refs.rangeRadios.querySelectorAll("input").forEach((radio) => {
-                     radio.checked = false;
-                   });
-                 }
-               }
-             }'>
+    <section class="space-y-3 mt-5"
+             @change="if (!$refs.timePreset.value) $refs.customPeriod.selected = !!($refs.timeFrom.value || $refs.timeTo.value)">
     {# djlint:on #}
-    <button type="button"
-            class="btn btn-outline btn-xs mb-1 w-full"
-            title="Clear time filters"
-            hx-get="{{ base_url }}"
-            hx-on::config:request="ctx.request.body.delete('timefrom'); ctx.request.body.delete('timeto'); ctx.request.body.delete('range')"
-            hx-include="#assess-sidebar"
-            hx-target="#assess"
-            hx-swap="outerHTML"
-            @click="clearTimeFilters()">{{ heroicon_mini('x-mark', class='h-4 w-4') }} Clear time filters</button>
-    <div class="mt-2 flex w-full flex-wrap gap-2" role="radiogroup" aria-label="Time presets" x-ref="rangeRadios">
-      {% for preset in quick_ranges %}
-        {% set input_id = 'quick-range-' ~ preset.value %}
-        <label class="cursor-pointer">
-          <span class="label-text text-sm">{{ preset.label }}</span>
-          <input id="{{ input_id }}"
-                 type="radio"
-                 name="range"
-                 value="{{ preset.value }}"
-                 class="radio"
-                 hx-trigger="change"
-                 {% if current_preset == preset.value %}checked{% endif %}>
-        </label>
+    <div class="flex items-center gap-2">
+      <label for="assess-time-period" class="text-sm font-semibold">Time period</label>
+      <div class="tooltip">
+        <div id="assess-time-help" class="tooltip-content w-52 whitespace-normal text-left" role="tooltip">
+          Calendar periods start at midnight UTC; weeks start on Monday.
+        </div>
+        <button type="button" class="btn btn-ghost btn-xs btn-circle" aria-label="About time periods" aria-describedby="assess-time-help">
+          {{ heroicon_outline('information-circle', class='h-4 w-4') }}
+        </button>
+      </div>
+    </div>
+    <select id="assess-time-period"
+            name="range"
+            class="select select-bordered select-sm w-full"
+            x-ref="timePreset"
+            @change="if (!$el.value) clearTimeFilters()">
+      <option value="" {% if not current_preset and not time_from and not time_to %}selected{% endif %}>Any time</option>
+      <option value=""
+              x-ref="customPeriod"
+              disabled
+              hidden
+              {% if not current_preset and (time_from or time_to) %}selected{% endif %}>Custom dates</option>
+      {% for value, label in time_presets.items() %}
+        <option value="{{ value }}" {% if current_preset == value %}selected{% endif %}>{{ label }}</option>
       {% endfor %}
-    </div>
-    <div class="grid grid-cols-1 gap-3">
-      <label class="input w-full p-1">
-        <span class="label text-xs font-medium text-base-content/70 pr-1 mr-1">From</span>
-        <input type="datetime-local"
-               x-ref="timeFrom"
-               name="timefrom"
-               value="{{ time_from }}"
-               onchange="this.name = this.value ? 'timefrom' : ''"
-               class="input-bordered input-xs -ml-3"
-               hx-trigger="change delay:250ms">
-      </label>
-      <label class="input w-full p-1">
-        <span class="label text-xs font-medium text-base-content/70 pr-1 mr-1">To</span>
-        <input type="datetime-local"
-               x-ref="timeTo"
-               name="timeto"
-               value="{{ time_to }}"
-               onchange="this.name = this.value ? 'timeto' : ''"
-               class="input-bordered input-xs -ml-3"
-               hx-trigger="change delay:250ms">
-      </label>
-    </div>
+    </select>
+    <details {% if time_from or time_to %}open{% endif %}>
+      <summary class="cursor-pointer text-sm mb-2">Custom dates</summary>
+      <p class="text-xs text-base-content/60 mb-2">Dates further narrow the selected period.</p>
+      <div class="grid grid-cols-1 gap-3">
+        <label class="input w-full p-1">
+          <span class="label text-xs font-medium text-base-content/70 pr-1 mr-1">From</span>
+          <input type="datetime-local"
+                 x-ref="timeFrom"
+                 name="timefrom"
+                 value="{{ time_from }}"
+                 onchange="this.name = this.value ? 'timefrom' : ''"
+                 class="input-bordered input-xs -ml-3"
+                 hx-trigger="change delay:250ms">
+        </label>
+        <label class="input w-full p-1">
+          <span class="label text-xs font-medium text-base-content/70 pr-1 mr-1">To</span>
+          <input type="datetime-local"
+                 x-ref="timeTo"
+                 name="timeto"
+                 value="{{ time_to }}"
+                 onchange="this.name = this.value ? 'timeto' : ''"
+                 class="input-bordered input-xs -ml-3"
+                 hx-trigger="change delay:250ms">
+        </label>
+      </div>
+    </details>
   </section>
 
-  <section class="space-y-3 mt-2">
+  <div class="divider text-xs">Filters</div>
+  <section class="space-y-3">
     {% include "assess/sidebar/source_select.html" %}
     {% include "assess/sidebar/language_select.html" %}
 
@@ -190,76 +161,65 @@ document.addEventListener('htmx:after:swap', function (event) {
       {% include "assess/sidebar/asset_filters.html" %}
     {% endif %}
 
-    {% for item in tri_state_filters %}{{ tri_state_filter(item) }}{% endfor %}
-    <label class="select w-full">
-      <span class="label">Changed by</span>
-      <select name="changed_by"
-              onchange="this.name = this.value ? 'changed_by' : ''"
-              class="select select-bordered select-sm"
-              hx-trigger="change">
-        <option value="" {% if changed_by_filter in ['', None] %}selected{% endif %}>Any</option>
-        <option value="me" {% if changed_by_filter == 'me' %}selected{% endif %}>Me</option>
-      </select>
-    </label>
-    <label class="select w-full">
-      <span class="label">Cybersecurity</span>
-      <select name="cybersecurity"
-              onchange="this.name = this.value ? 'cybersecurity' : ''"
-              class="select select-bordered select-sm"
-              hx-trigger="change">
-        <option value="" {% if cybersecurity_filter in ['', None] %}selected{% endif %}>Any</option>
-        {% for option in ['yes', 'no', 'mixed', 'incomplete'] %}
-          <option value="{{ option }}" {% if cybersecurity_filter == option %}selected{% endif %}>{{ option|capitalize }}</option>
-        {% endfor %}
-      </select>
-    </label>
+    {% for item in tri_state_filters if item.name != 'relevant' %}{{ tri_state_filter(item) }}{% endfor %}
+    <details {% if changed_by_filter or cybersecurity_filter or relevant_filter %}open{% endif %}>
+      <summary class="cursor-pointer text-sm mb-2">Advanced filters</summary>
+      <div class="space-y-3">
+        <label class="select w-full">
+          <span class="label">Changed by</span>
+          <select name="changed_by"
+                  onchange="this.name = this.value ? 'changed_by' : ''"
+                  class="select select-bordered select-sm"
+                  hx-trigger="change">
+            <option value="" {% if changed_by_filter in ['', None] %}selected{% endif %}>Any</option>
+            <option value="me" {% if changed_by_filter == 'me' %}selected{% endif %}>Me</option>
+          </select>
+        </label>
+        <label class="select w-full">
+          <span class="label">Cybersecurity</span>
+          <select name="cybersecurity"
+                  onchange="this.name = this.value ? 'cybersecurity' : ''"
+                  class="select select-bordered select-sm"
+                  hx-trigger="change">
+            <option value="" {% if cybersecurity_filter in ['', None] %}selected{% endif %}>Any</option>
+            {% for option in ['yes', 'no', 'mixed', 'incomplete'] %}
+              <option value="{{ option }}" {% if cybersecurity_filter == option %}selected{% endif %}>{{ option|capitalize }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        {{ tri_state_filter(tri_state_filters[-1]) }}
+      </div>
+    </details>
   </section>
 
-  <div class="divider text-xs">Sort</div>
+  <div class="divider text-xs">
+    <label for="assess-sort">Sort</label>
+    <div class="tooltip">
+      <div id="assess-sort-help" class="tooltip-content w-52 whitespace-normal text-left" role="tooltip">
+        Story date uses the story's creation date, normally the earliest publication date among its news items, not when it was collected.
+        Updated uses the story's last update time. Relevance puts higher story scores first; full-text searches prioritize matching results by search rank.
+      </div>
+      <button type="button" class="btn btn-ghost btn-xs btn-circle" aria-label="About story sorting" aria-describedby="assess-sort-help">
+        {{ heroicon_outline('information-circle', class='h-4 w-4') }}
+      </button>
+    </div>
+  </div>
   <section>
-    <label class="select w-full">
-      <span class="label">Sort</span>
-      <select name="sort" onchange="this.name = this.value ? 'sort' : ''" class="select select-bordered select-sm" hx-trigger="change">
-        {% for option in sort_choices %}
-          <option value="{{ option.value }}" {% if option.value == current_sort %}selected{% endif %}>{{ option.label }}</option>
-        {% endfor %}
-      </select>
-    </label>
+    <select id="assess-sort"
+            name="sort"
+            onchange="this.name = this.value ? 'sort' : ''"
+            class="select select-bordered select-sm w-full"
+            hx-trigger="change"
+            aria-describedby="assess-sort-help">
+      {% for option in sort_choices %}
+        <option value="{{ option.value }}" {% if option.value == current_sort %}selected{% endif %}>{{ option.label }}</option>
+      {% endfor %}
+    </select>
   </section>
   <noscript>
     <button type="submit" class="btn btn-primary btn-sm mt-4 w-full" data-testid="assess-apply-filters">Apply filters</button>
   </noscript>
 </form>
-
-<div class="divider text-xs">Display</div>
-<section class="space-y-2">
-  <label class="label cursor-pointer justify-start gap-3">
-    <input type="checkbox"
-           class="checkbox checkbox-sm"
-           name="highlight"
-           value="true"
-           hx-post="{{ url_for('user.settings') }}"
-           hx-trigger="change"
-           hx-swap="none"
-           hx-vals="js:{highlight: this.checked}"
-           hx-on::after:request="window.location.reload()"
-           {% if highlight %}checked{% endif %}>
-    <span class="label-text">Highlight searchterms</span>
-  </label>
-  <label class="label cursor-pointer justify-start gap-3">
-    <input type="checkbox"
-           class="checkbox checkbox-sm"
-           name="compact_view"
-           value="true"
-           hx-post="{{ url_for('user.settings') }}"
-           hx-trigger="change"
-           hx-swap="none"
-           hx-vals="js:{compact_view: this.checked}"
-           hx-on::after:request="window.location.reload()"
-           {% if compact_view %}checked{% endif %}>
-    <span class="label-text">Compact view</span>
-  </label>
-</section>
 
 <div class="space-y-2 mb-1">
   <a href="{{ base_url }}?reset=true" class="btn btn-primary btn-sm w-full" @keyup.ctrl.escape.prevent.window="$el.click()">
@@ -268,21 +228,6 @@ document.addEventListener('htmx:after:swap', function (event) {
     <span class="text-xs">
       <kbd class="kbd kbd-xs text-base-content">ctrl+esc</kbd>
     </span>
-  </a>
-  <button type="button"
-          class="btn btn-accent btn-sm w-full"
-          data-testid="assess-saved-filters-button"
-          hx-get="{{ url_for('assess.saved_filters') }}"
-          hx-include="#assess-sidebar"
-          hx-target="body"
-          hx-swap="beforeend"
-          hx-on::before:request="document.getElementById('assess_saved_filters_dialog')?.remove()">
-    {{ heroicon_outline('bookmark-square', class='h-4 w-4') }}
-    Filters
-  </button>
-  <a class="btn btn-secondary btn-sm w-full" href="{{ url_for('assess.get_news_item', news_item_id='0') }}">
-    {{ heroicon_outline('pencil-square', class='h-4 w-4') }}
-    Create new item
   </a>
 </div>
 

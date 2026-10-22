@@ -703,6 +703,76 @@ class TestAssessStories(BaseTest):
         assert response.status_code == status
         assert response.get_json() == {"error": error}
 
+    @pytest.mark.parametrize("failure", ["missing", "forbidden", "storage", "schedule", None])
+    def test_bulk_updates_commit_together_and_roll_back_revisions(self, client, db, auth_header, admin_user, monkeypatch, failure):
+        from core.model.revision import StoryRevision
+        from core.model.story import Story
+        from core.service import story as story_service
+        from tests.application.support.rbac import create_rbac_source_story
+
+        first_source, first, _ = create_rbac_source_story(f"bulk-first-{failure}")
+        second_source, second, _ = create_rbac_source_story(f"bulk-second-{failure}")
+        ids = [first.id, second.id]
+        revisions = [first.revision, second.revision]
+        if failure == "forbidden":
+            from core.model.news_item_attribute import NewsItemAttribute
+
+            second.upsert_attribute(NewsItemAttribute(key="rt_id", value="locked"))
+            db.session.commit()
+        if failure == "storage":
+            original = Story.record_revision
+
+            def fail_second(story, *args, **kwargs):
+                if story.id == ids[1]:
+                    raise RuntimeError("private database details")
+                return original(story, *args, **kwargs)
+
+            monkeypatch.setattr(Story, "record_revision", fail_second)
+        from core.api import assess
+
+        jobs = Mock(side_effect=RuntimeError("private scheduling details") if failure == "schedule" else None)
+        invalidate = Mock()
+        publish = Mock()
+        monkeypatch.setattr(story_service, "refresh_misp_auto_update_jobs", jobs)
+        monkeypatch.setattr(assess, "invalidate_frontend_cache_on_success", invalidate)
+        monkeypatch.setattr(assess.realtime_publisher, "assess_changed", publish)
+        try:
+            response = client.post(
+                "/api/assess/stories/bulk_action",
+                headers=auth_header,
+                json={"story_ids": [ids[0], "missing-story" if failure == "missing" else ids[1]], "payload": {"read": True}},
+            )
+            assert response.status_code == {"missing": 404, "forbidden": 403, "storage": 500, "schedule": 200, None: 200}[failure]
+            assert "private database details" not in response.text
+            db.session.expire_all()
+            for story_id, revision in zip(ids, revisions, strict=True):
+                persisted = Story.get(story_id)
+                assert persisted.read is (failure in {None, "schedule"})
+                assert persisted.revision == revision + (failure in {None, "schedule"})
+                assert (
+                    db.session.scalar(db.select(db.func.count()).select_from(StoryRevision).where(StoryRevision.story_id == story_id))
+                    == persisted.revision
+                )
+            if failure in {None, "schedule"}:
+                assert response.json["updated"] == 2
+                assert "private scheduling details" not in response.text
+                if failure == "schedule":
+                    assert "Automatic synchronization could not be scheduled" in response.json["message"]
+                jobs.assert_called_once_with(ids)
+                invalidate.assert_called_once()
+                publish.assert_called_once()
+            else:
+                jobs.assert_not_called()
+                invalidate.assert_not_called()
+                publish.assert_not_called()
+        finally:
+            for story_id in ids:
+                Story.delete_by_id(story_id, admin_user)
+            from core.model.osint_source import OSINTSource
+
+            for source in (first_source, second_source):
+                OSINTSource.delete(source.id)
+
     def test_delete_story(self, client, stories, auth_header):
         response = self.assert_delete_ok(client, f"story/{stories[0]}", auth_header)
 

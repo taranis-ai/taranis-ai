@@ -252,7 +252,14 @@ function sidebarStep(id, target, title, description, requiredPermissions) {
   return {
     id,
     requiredPermissions,
-    element: `[data-tour-target="${target}"]`,
+    element: () => {
+      const element = document.querySelector(`[data-tour-target="${target}"]`);
+      const group = element?.closest("details");
+      if (group) {
+        group.open = true;
+      }
+      return element;
+    },
     popover: {
       title,
       description,

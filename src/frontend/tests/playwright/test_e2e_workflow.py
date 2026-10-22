@@ -239,6 +239,7 @@ class TestUserWorkflow(BaseE2ETest):
         tag_searchbox.fill("tag")
         expect(tag_suggestion_list).to_be_visible()
 
+    @pytest.mark.e2e_ci
     def test_story_bookmarks(
         self,
         non_admin_logged_in_page: Page,
@@ -253,12 +254,99 @@ class TestUserWorkflow(BaseE2ETest):
         for story_id in selected_story_ids:
             self.highlight_element(page.get_by_test_id(f"story-card-{story_id}"), scroll=False).click()
 
-        self.highlight_element(page.get_by_role("button", name="Bookmark")).click()
+        bookmark_bar = page.get_by_test_id("assess-bookmarks-bar")
+        expect(bookmark_bar).to_be_visible()
+        page.get_by_text("View", exact=True).click()
+        page.get_by_role("checkbox", name="Show bookmark bar", exact=True).uncheck()
+        expect(bookmark_bar).to_be_hidden()
+
+        self.highlight_element(page.locator("#assess-top-bar").get_by_role("button", name="Bookmark")).click()
         expect(page.get_by_test_id("story-bookmark-dialog")).to_be_visible()
-        self.highlight_element(page.get_by_test_id("bookmark-mode-new")).click()
         self.highlight_element(page.get_by_test_id("new-bookmark-name")).fill(bookmark_name)
         self.highlight_element(page.get_by_test_id("submit-bookmark-story")).click()
-        expect(page.locator("#notification-bar")).to_contain_text("stories bookmarked")
+        expect(page.locator("#notification-bar")).to_contain_text("Bookmark collections updated")
+        expect(bookmark_bar).to_be_hidden()
+
+        for story_id in selected_story_ids:
+            card = page.get_by_test_id(f"story-card-{story_id}")
+            expect(card.get_by_test_id("bookmark-story")).to_have_text("Saved")
+            expect(card).to_have_attribute("aria-selected", "true")
+
+        first_card = page.get_by_test_id(f"story-card-{selected_story_ids[0]}")
+        second_card = page.get_by_test_id(f"story-card-{selected_story_ids[1]}")
+        second_card.click()
+        page.locator("#assess-top-bar").get_by_role("button", name="Bookmark").click()
+        picker = page.get_by_test_id("story-bookmark-dialog")
+        first_choice = picker.locator("label").filter(has_text=bookmark_name).locator('input[name="bookmark_ids"]')
+        expect(first_choice).to_be_checked()
+        picker.get_by_role("radio", name=f"Use {bookmark_name} for quick-save", exact=True).check()
+        extra_name = f"Extra {uuid4()}"
+        picker.get_by_test_id("new-bookmark-name").fill(extra_name)
+        picker.get_by_test_id("submit-bookmark-story").click()
+        expect(picker).not_to_be_visible()
+        second_card.click()
+
+        # Bulk saves preserve mixed memberships, including rows hidden by search.
+        page.locator("#assess-top-bar").get_by_role("button", name="Bookmark").click()
+        picker = page.get_by_test_id("story-bookmark-dialog")
+        partial = picker.locator("label").filter(has_text=extra_name).locator('input[name="bookmark_ids"]')
+        expect(partial).to_have_js_property("indeterminate", True)
+        picker.get_by_role("searchbox", name="Find a collection").fill(bookmark_name)
+        expect(partial).not_to_be_visible()
+        picker.get_by_test_id("submit-bookmark-story").click()
+        expect(picker).not_to_be_visible()
+
+        # Toggling a mixed membership on and off explicitly removes it from the selection.
+        page.locator("#assess-top-bar").get_by_role("button", name="Bookmark").click()
+        partial = picker.locator("label").filter(has_text=extra_name).locator('input[name="bookmark_ids"]')
+        partial.check()
+        partial.uncheck()
+        picker.get_by_test_id("submit-bookmark-story").click()
+        expect(picker).not_to_be_visible()
+
+        # A failed inline create retains the changed membership and entered name.
+        second_card.click()
+        page.locator("#assess-top-bar").get_by_role("button", name="Bookmark").click()
+        extra_choice = picker.locator("label").filter(has_text=extra_name).locator('input[name="bookmark_ids"]')
+        expect(extra_choice).not_to_be_checked()
+        extra_choice.check()
+        picker.get_by_test_id("new-bookmark-name").fill(bookmark_name)
+        picker.get_by_test_id("submit-bookmark-story").click()
+        expect(page.locator("#notification-bar")).to_contain_text("already exists")
+        expect(picker).to_be_visible()
+        expect(picker.get_by_test_id("new-bookmark-name")).to_have_value(bookmark_name)
+        expect(picker.locator("label").filter(has_text=extra_name).locator('input[name="bookmark_ids"]')).to_be_checked()
+        picker.get_by_role("button", name="Cancel", exact=True).click()
+        second_card.click()
+
+        # Quick-save, unbookmark, and undo preserve selection and persist across reloads.
+        third_card = page.get_by_test_id(f"story-card-{stories_date_descending[2]}")
+        third_card.get_by_test_id("bookmark-story").click()
+        expect(page.locator("#notification-bar")).to_contain_text(f"Saved to {bookmark_name}")
+        expect(third_card.get_by_test_id("bookmark-story")).to_have_text("Saved")
+        third_card.get_by_test_id("bookmark-story").click()
+        expect(third_card.get_by_test_id("bookmark-story")).to_have_text("Bookmark")
+        expect(page.get_by_test_id("story-bookmark-dialog")).not_to_be_visible()
+        page.reload(wait_until="domcontentloaded")
+        expect(third_card.get_by_test_id("bookmark-story")).to_have_text("Bookmark")
+        first_card.click()
+        second_card.click()
+        third_card.get_by_test_id("bookmark-story").click()
+        expect(third_card.get_by_test_id("bookmark-story")).to_have_text("Saved")
+        page.locator('[data-test-id="bookmark-undo"]').click()
+        expect(third_card.get_by_test_id("bookmark-story")).to_have_text("Bookmark")
+        expect(first_card).to_have_attribute("aria-selected", "true")
+        page.reload(wait_until="domcontentloaded")
+        expect(first_card.get_by_test_id("bookmark-story")).to_have_text("Saved")
+
+        expect(bookmark_bar).to_be_hidden()
+        page.get_by_text("View", exact=True).click()
+        show_bookmark_bar = page.get_by_role("checkbox", name="Show bookmark bar", exact=True)
+        expect(show_bookmark_bar).not_to_be_checked()
+        show_bookmark_bar.check()
+        expect(bookmark_bar).to_be_visible()
+        page.reload(wait_until="domcontentloaded")
+        expect(bookmark_bar).to_be_visible()
 
         self.highlight_element(page.get_by_test_id("assess-all-bookmarks")).click()
         page.wait_for_url("**/bookmarks", wait_until="domcontentloaded")
@@ -275,7 +363,12 @@ class TestUserWorkflow(BaseE2ETest):
         selected_card = page.get_by_test_id(f"story-card-{selected_story_ids[0]}")
         self.highlight_element(selected_card, scroll=False).click()
         expect(selected_card).to_have_attribute("aria-selected", "true")
-        assert "bg-primary/5" in (selected_card.get_attribute("class") or "")
+        assert "bg-info/5" in (selected_card.get_attribute("class") or "")
+        for action in ("toggle-read", "toggle-important"):
+            selected_card.get_by_test_id(action).click()
+            self.wait_for_htmx_settled(page)
+            expect(selected_card.locator('input[name="story_ids"]')).to_be_checked()
+            expect(page.get_by_test_id("assess_story_selection_count")).to_have_text("1 stories selected")
         self.highlight_element(page.get_by_test_id("bookmark-remove-selected")).click()
         confirm_button = page.locator(".swal2-container .swal2-confirm")
         expect(confirm_button).to_be_visible()

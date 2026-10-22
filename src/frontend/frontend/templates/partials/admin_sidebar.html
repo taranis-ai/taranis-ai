@@ -1,18 +1,71 @@
+{% from "macros/admin_menu_badge.html" import admin_menu_badge %}
+{% macro menu_item(view_name, view, badge=0) %}
+  <li class="relative">
+    <a href="{{ view.get_base_route() }}"
+       class="{% if name == view_name %}menu-active{% endif %} {% if badge > 0 and view.get_admin_menu_badge_route %}pr-12{% endif %}"
+       {% if name == view_name %}aria-current="page"{% endif %}
+       data-testid="admin-menu-{{ view_name }}"
+       data-tour-target="admin-menu-{{ view_name | lower | replace(' ', '-') }}">
+      {{ heroicon_outline(view.icon) }}
+      {{ view_name }}
+    </a>
+    {{ admin_menu_badge(view, view_name, badge) }}
+  </li>
+{% endmacro %}
+{% set menu_groups = {
+  "Overview": [
+    "Notifications",
+    "Scheduler"
+  ],
+  "Access management": [
+    "User",
+    "Organization",
+    "Role",
+    "ACL"
+  ],
+  "Collection": [
+    "OSINT Source",
+    "OSINT Source Group",
+    "Word List"
+  ],
+  "Processing and integrations": [
+    "Bot",
+    "Connector"
+  ],
+  "Publishing and content setup": [
+    "Report Item Type",
+    "Attribute",
+    "Publisher Preset",
+    "Product Type",
+    "Template"
+  ]
+} %}
 <ul class="menu menu-vertical bg-base-200 w-full">
-  {% for view_name, view in admin_views.items() %}
-    {% set badge = view.get_admin_menu_badge() if view.get_admin_menu_badge else 0 %}
-    <li class="relative">
-      <a href="{{ view.get_base_route() }}"
-         class="{% if badge > 0 and view.get_admin_menu_badge_route %}pr-12{% endif %}"
-         data-testid="admin-menu-{{ view_name }}"
-         data-tour-target="admin-menu-{{ view_name | lower | replace(' ', '-') }}">
-        {{ heroicon_outline(view.icon) }}
-        {{ view_name }}
-      </a>
-      {% from "macros/admin_menu_badge.html" import admin_menu_badge %}
-      {{ admin_menu_badge(view, view_name, badge) }}
+  {{ menu_item("Admin Dashboard", admin_views["Admin Dashboard"]) }}
+  {% set grouped = namespace(names=["Admin Dashboard"]) %}
+  {% for group_name, view_names in menu_groups.items() %}
+    {% set grouped.names = grouped.names + view_names %}
+    {% set badges = namespace(values={}) %}
+    {% for view_name in view_names %}
+      {% set view = admin_views[view_name] %}
+      {% set badge = view.get_admin_menu_badge() if view.get_admin_menu_badge else 0 %}
+      {% set badges.values = dict(badges.values, **{view_name: badge}) %}
+    {% endfor %}
+    <li>
+      <details {% if name in view_names %}open{% endif %}>
+        <summary>
+          <span class="min-w-0 whitespace-normal">{{ group_name }}</span>
+          {% for view_name, badge in badges.values.items() if badge > 0 %}
+            <span class="badge badge-error badge-sm" aria-label="{{ badge }} current {{ view_name }} errors">{{ badge }}</span>
+          {% endfor %}
+        </summary>
+        <ul>
+          {% for view_name in view_names %}{{ menu_item(view_name, admin_views[view_name], badges.values[view_name]) }}{% endfor %}
+        </ul>
+      </details>
     </li>
   {% endfor %}
+  {% for view_name, view in admin_views.items() if view_name not in grouped.names %}{{ menu_item(view_name, view) }}{% endfor %}
   <li>
     <a href="{{ url_for('base.open_api') }}" target="_blank">
       <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">

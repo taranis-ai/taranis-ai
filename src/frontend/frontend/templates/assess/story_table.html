@@ -6,138 +6,20 @@
      data-assess-path="{{ url_for('assess.assess') }}"
      data-user-id="{{ current_user.id }}"
      data-offer-restore="{{ 'true' if not request.args and not request.headers.get('HX-Request') else 'false' }}"
+     data-search="{{ (assess_request_args | default({})).get('search', ['']) | first }}"
+     data-highlight="{{ 'true' if current_user.profile.highlight else 'false' }}"
+     @story-card-updated.debounce.0ms="highlightSearch()"
      x-data="assessSearchState">
   {% set actions = actions | default([]) %}
   {% set pagination = pagination | default({}) %}
 
   {# djlint:off #}
-  <div id="assess-container" class="p-4" data-first-story-index="{{ pagination.page_start | default(0) }}" data-selection-key="{{ assess_selection_key | default('') }}" @keyup.escape.window="clearSelection()"
-    x-data='{
-      selectedItems: [],
-      storyIds: [],
-      firstStoryIndex: 0,
-      storyImportantMap: {},
-      storyReadMap: {},
-      pruneToVisibleOnNextInit: false,
-      showHints: false,
-      init() {
-        this.firstStoryIndex = Number(this.$el.dataset.firstStoryIndex);
-        this.restoreSelection();
-        this.refreshStoryMeta();
-        this.pruneSelectionToVisible();
-        this.$nextTick(() => this.syncSelectedCardState());
-        const storyList = this.$refs.storyList || document.querySelector("#story-list");
-        if (storyList) {
-          const observer = new MutationObserver(() => {
-            this.refreshStoryMeta();
-          });
-          observer.observe(storyList, { childList: true, subtree: true });
-        }
-        this.$watch("selectedItems", () => {
-          this.persistSelection();
-          this.syncSelectedCardState();
-        });
-      },
-      selectionKey() {
-        return this.$root.dataset.selectionKey || "";
-      },
-      restoreSelection() {
-        const state = window.assessSelectionState || {};
-        if (state.key !== this.selectionKey()) {
-          window.assessSelectionState = { key: this.selectionKey(), selectedItems: [], storyImportantMap: {}, storyReadMap: {} };
-          return;
-        }
-        this.selectedItems = Array.isArray(state.selectedItems) ? [...new Set(state.selectedItems)] : [];
-        this.storyImportantMap = state.storyImportantMap || {};
-        this.storyReadMap = state.storyReadMap || {};
-        this.pruneToVisibleOnNextInit = state.pruneToVisibleOnNextInit === true;
-      },
-      persistSelection() {
-        window.assessSelectionState = {
-          key: this.selectionKey(),
-          selectedItems: [...new Set(this.selectedItems)],
-          storyImportantMap: this.storyImportantMap,
-          storyReadMap: this.storyReadMap,
-          pruneToVisibleOnNextInit: this.pruneToVisibleOnNextInit,
-        };
-      },
-      pruneSelectionToVisible() {
-        if (!this.pruneToVisibleOnNextInit) return;
-        const visibleIds = new Set(this.storyIds);
-        this.selectedItems = this.selectedItems.filter(id => visibleIds.has(id));
-        this.pruneToVisibleOnNextInit = false;
-        this.persistSelection();
-      },
-      syncSelectedCardState() {
-        const storyList = this.$refs.storyList || document.querySelector("#story-list");
-        syncSelectedStoryCardState(storyList, this.selectedItems);
-      },
-      toggleSelection(id) {
-        if (this.selectedItems.includes(id)) {
-          this.selectedItems = this.selectedItems.filter(item => item !== id);
-        } else {
-          this.selectedItems = [...this.selectedItems, id];
-        }
-      },
-      isSelected(id) {
-        return this.selectedItems.includes(id);
-      },
-      clearSelection() {
-        this.selectedItems = [];
-      },
-      refreshStoryMeta() {
-        const storyList = this.$refs.storyList || document.querySelector("#story-list");
-        if (!storyList) {
-          this.storyIds = [];
-          this.storyImportantMap = {};
-          this.storyReadMap = {};
-          return;
-        }
-        const cards = Array.from(storyList.querySelectorAll("article[data-story-id]"));
-        const ids = cards
-          .map(node => node.dataset.storyId)
-          .filter(Boolean);
-        const importantMap = {};
-        const readMap = {};
-        cards.forEach(node => {
-          const id = node.dataset.storyId;
-          if (!id) return;
-          importantMap[id] = node.dataset.storyImportant === "true";
-          readMap[id] = node.dataset.storyRead === "true";
-        });
-        this.storyIds = Array.from(new Set(ids));
-        this.storyImportantMap = { ...this.storyImportantMap, ...importantMap };
-        this.storyReadMap = { ...this.storyReadMap, ...readMap };
-        this.persistSelection();
-        this.syncSelectedCardState();
-      },
-      selectAll() {
-        this.refreshStoryMeta();
-        if (!this.storyIds.length) {
-          this.selectedItems = [];
-          return;
-        }
-        this.selectedItems = [...this.storyIds];
-      },
-      selectedItemsAreImportant() {
-        return this.selectedItems.length > 0 && this.selectedItems.every(id => this.storyImportantMap[id] === true);
-      },
-      selectedItemsAreRead() {
-        return this.selectedItems.length > 0 && this.selectedItems.every(id => this.storyReadMap[id] === true);
-      },
-      action_vals(action, value) {
-        if (!action && !value) return JSON.stringify({ story_ids: this.selectedItems });
-        return JSON.stringify({ story_ids: this.selectedItems, action: action, value: value });
-      },
-      openStoryEdit() {
-        if (this.selectedItems.length !== 1) return;
-        const storyId = this.selectedItems[0];
-        const storyEditTemplate = "{{ url_for("assess.story_edit", story_id="__ID__") }}";
-        const url = new URL(storyEditTemplate.replace("__ID__", storyId), window.location.origin);
-        url.searchParams.set("assess_url", document.getElementById("assess").dataset.assessUrl);
-        window.location.href = url;
-      }
-    }'
+  <div id="assess-container" class="p-4" data-selection-key="{{ assess_selection_key | default('') }}" @keyup.escape.window="clearSelection()"
+    @story-card-updated.debounce.0ms="refreshStoryMeta()"
+    @htmx:after:swap="refreshStoryMeta()"
+    data-page-start="{{ pagination.page_start | default(0) }}"
+    data-edit-url="{{ url_for('assess.story_edit', story_id='__ID__') }}"
+    x-data="assessSelection"
     >
   {# djlint:on #}
   <div class="alert mb-4" x-show="previousSearch" style="display: none" role="status" data-test-id="restore-assess-search">
@@ -146,7 +28,7 @@
     <button type="button" class="btn btn-sm btn-ghost" @click="dismiss()">Dismiss</button>
   </div>
   {% include "assess/asset_scan.html" %}
-  {% include "assess/bookmarks_bar.html" %}
+  {% include "assess/page_controls.html" %}
   {% include "assess/assess_top_bar.html" %}
   {% if pagination.infinite_scroll and pagination.has_previous %}
     <div class="alert mb-4" role="status" data-test-id="assess-resume-position">
@@ -157,31 +39,6 @@
       <a href="{{ pagination.first_url }}" class="btn btn-sm btn-primary">Start from beginning</a>
     </div>
   {% endif %}
-  {% if stories %}
-    <div id="story-list"
-         x-ref="storyList"
-         hx-on::after:swap="if (ctx.swap.includes('show:top') && ctx.swap.includes('showTarget:window')) window.scrollTo(0, 0)">
-      {% for story in stories %}{{ story_card(story) }}{% endfor %}
-    </div>
-    {% if pagination %}
-      {% set hx_target = request.headers.get("HX-Target") %}
-      <div id="story-pagination"
-           x-init="saveSearch($el.dataset.assessUrl)"
-           data-assess-url="{{ assess_return_url }}"
-           {% if hx_target == 'div#story-list' %}hx-swap-oob="outerHTML:#story-pagination"{% endif %}>
-        {% if pagination.infinite_scroll %}
-          {% include "assess/story_table_infinite_scroll.html" %}
-        {% else %}
-          {% include "assess/story_table_paging.html" %}
-        {% endif %}
-      </div>
-    {% endif %}
-  {% else %}
-    <h2 class="text-center text-base-content/60 text-xl mb-4">No stories found.</h2>
-    <a href="{{ routes.base_route }}" class="btn btn-primary w-full">
-      {{ heroicon_outline('arrow-path', class='h-6 w-6') }}
-      Reset filters
-    </a>
-  {% endif %}
+  {% include "assess/story_list.html" %}
 </div>
 </div>
