@@ -75,15 +75,17 @@
               <div class="flex items-center gap-1" data-test-id="story-source-icons">
                 {% for source in story.model_extra.source_infos %}
                   <div class="tooltip before:z-[50]" data-tip="{{ source.name }}">
-                    {% if source.icon %}
-                      <img src="{{ url_for('assess.source_icon', source_id=source.id) }}"
-                           alt="{{ source.name }}"
-                           height="16"
-                           width="16"
-                           tabindex="0" />
-                    {% else %}
-                      <span role="img" aria-label="{{ source.name }}" tabindex="0">{{ heroicon_mini("newspaper", class="h-4 w-4") }}</span>
-                    {% endif %}
+                    <a href="{{ story.model_extra.source_filter_urls[source.id] }}"
+                       aria-label="Filter by source: {{ source.name }}"
+                       class="inline-flex"
+                       tabindex="0"
+                       @click.stop>
+                      {% if source.icon %}
+                        <img src="{{ url_for('assess.source_icon', source_id=source.id) }}" alt="{{ source.name }}" height="16" width="16" />
+                      {% else %}
+                        <span role="img" aria-label="{{ source.name }}">{{ heroicon_mini("newspaper", class="h-4 w-4") }}</span>
+                      {% endif %}
+                    </a>
                   </div>
                 {% endfor %}
               </div>

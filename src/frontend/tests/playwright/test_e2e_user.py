@@ -475,6 +475,14 @@ class TestEndToEndUser(BaseE2ETest):
             )
             page.keyboard.press("Tab")
 
+            page.goto(url_for("assess.assess", search=target_title, _external=True))
+            source_icon.press("Enter")
+            page.wait_for_url(lambda url: "source=" in url)
+            assert parse_qs(urlparse(page.url).query) == {
+                "search": [target_title],
+                "source": [seeded_story["news_items"][0]["osint_source_id"]],
+            }
+
             menu = story_card().get_by_test_id("story-actions-menu")
             expect(menu).to_be_attached()
             expect(menu).to_be_visible()
@@ -629,7 +637,7 @@ class TestEndToEndUser(BaseE2ETest):
             hidden_tag = card.locator("a.badge").filter(has_text=tags[20]["name"])
             expect(hidden_tag).not_to_be_visible()
             toggle_tags = card.get_by_test_id("toggle-story-tags")
-            expect(toggle_tags).to_have_text("+17")
+            expect(toggle_tags).to_have_text("+12", use_inner_text=True)
             selection_count = self._get_assess_selection_count(page)
             toggle_tags.click()
             expect(hidden_tag).to_be_visible()

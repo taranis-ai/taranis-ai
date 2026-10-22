@@ -273,7 +273,8 @@ def test_story_card_shows_distinct_top_source_icons(authenticated_client, respon
         },
     )
 
-    response = authenticated_client.get(url_for("assess.story", story_id=story_payload["id"]))
+    assess_url = url_for("assess.assess", source="f", tags=["tag-one", "tag-two"], language="en", read="false", page=3)
+    response = authenticated_client.get(url_for("assess.story", story_id=story_payload["id"], assess_url=assess_url))
 
     assert response.status_code == 200
     tree = html.fromstring(response.text)
@@ -293,11 +294,20 @@ def test_story_card_shows_distinct_top_source_icons(authenticated_client, respon
         return
     icons = source_icons[0]
     assert icons.xpath("./*/@data-tip") == [f"Source {source_id}" for source_id in expected_sources]
-    assert icons.xpath("./*/img/@tabindex | ./*/span/@tabindex") == ["0"] * len(expected_sources)
+    assert icons.xpath("./*/a/@tabindex") == ["0"] * len(expected_sources)
     assert "Source" not in icons.text_content()
-    assert icons.xpath("./*/img/@alt | ./*/span/@aria-label") == [f"Source {source_id}" for source_id in expected_sources]
+    assert icons.xpath("./*/a/img/@alt | ./*/a/span/@aria-label") == [f"Source {source_id}" for source_id in expected_sources]
+    for source_id, link in zip(expected_sources, icons.xpath("./*/a"), strict=True):
+        parsed = urlparse(link.get("href"))
+        assert parsed.path == url_for("assess.assess")
+        assert parse_qs(parsed.query) == {
+            "source": list(dict.fromkeys(["f", source_id])),
+            "tags": ["tag-one", "tag-two"],
+            "language": ["en"],
+            "read": ["false"],
+        }
     if "a" in expected_sources:
-        assert icons.xpath('./*/img[@alt="Source a"]/@src') == [url_for("assess.source_icon", source_id="a")]
+        assert icons.xpath('./*/a/img[@alt="Source a"]/@src') == [url_for("assess.source_icon", source_id="a")]
 
 
 def test_source_icons_are_user_scoped_and_revalidated(authenticated_client, responses_mock):
@@ -1023,8 +1033,8 @@ def test_assess_tag_filters_highlight_matches_beyond_collapsed_limit(authenticat
     card = tree.xpath('//*[@data-story-id="story-1"]')[0]
     matched = card.xpath('.//a[contains(@class, "badge-primary")]')
     assert [tag.text_content().strip() for tag in matched] == ["tag-22", "tag-23"]
-    assert all(tag.get("x-show").endswith("true") and tag.get("x-cloak") is None for tag in matched)
-    assert card.xpath('.//*[@data-testid="toggle-story-tags"]/text()') == ["+17"]
+    assert all("hidden" not in tag.get("class").split() for tag in matched)
+    assert card.xpath('.//*[@data-testid="toggle-story-tags"]/span[1]/text()') == ["+17"]
     if method != "GET":
         action_url = card.xpath('.//*[@data-testid="open-detail-view"]/@href')[0]
         assert parse_qs(urlparse(action_url).query)["assess_url"] == [return_url]

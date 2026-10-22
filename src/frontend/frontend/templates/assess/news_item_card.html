@@ -17,6 +17,9 @@
         Author · {{ news_item.author }}
       </span>
     {% endif %}
+    {% if news_item.language %}
+      <span class="badge badge-sm badge-outline">Language · {{ news_item.language | upper }}</span>
+    {% endif %}
     {% if news_item.osint_source_id == "manual" %}<span class="badge badge-info badge-sm self-start">Manually added</span>{% endif %}
     {% if news_item.tlp_level %}<span class="badge badge-sm badge-outline">TLP:{{ news_item.tlp_level | upper }}</span>{% endif %}
   </div>
@@ -33,7 +36,6 @@
           <h4 class="font-semibold text-base text-base-content highlight break-all" data-testid="news-item-title">
             {{ news_item.title or 'Untitled news item' }}
           </h4>
-          {% if news_item.language %}<span class="badge badge-ghost badge-sm uppercase">{{ news_item.language }}</span>{% endif %}
         </div>
         <div class="flex flex-wrap gap-2">
           {% if story.news_items | length > 1 %}

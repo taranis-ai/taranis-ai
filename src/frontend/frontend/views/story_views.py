@@ -219,6 +219,15 @@ class StoryView(BaseView):
         else:
             source_ids = list(dict.fromkeys(source_ids))
         story.source_infos = [sources[source_id] for source_id in source_ids]  # type: ignore
+        assess_url = StoryView._get_assess_return_url()
+        filter_params = parse_qs(urlparse(assess_url).query) if assess_url else request.args.to_dict(flat=False)
+        filter_params = {key: values for key, values in filter_params.items() if key in ASSESS_FILTER_KEYS | {"order", "limit"}}
+        story.source_filter_urls = {  # type: ignore
+            source_id: StoryView._build_assess_filters_url(
+                {**filter_params, "source": list(dict.fromkeys([*filter_params.get("source", []), source_id]))}
+            )
+            for source_id in source_ids
+        }
         try:
             story.source_domain = urlparse(story.links[0]).hostname if story.links else ""  # type: ignore
         except ValueError:
