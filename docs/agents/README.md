@@ -13,6 +13,7 @@ Read matching memories before planning or editing application behavior. Code and
 
 ## Feature Memories
 
+- [Named Development Databases](named-development-databases.md): local dataset cloning, selection, process coordination, and Redis isolation.
 - [Redis Runtime State](redis-runtime-state.md): disposable Redis/RQ state, persistence settings, and restart recovery.
 - [Story Export](story-export.md): Settings and Assess downloads, metadata, import contracts, dates, and access checks.
 - [Telemetry](telemetry.md): Sentry initialization, OTLP traces and metrics, RQ trace propagation, and the optional Grafana LGTM Compose profile.

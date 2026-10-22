@@ -252,6 +252,74 @@ Taranis AI should be reachable on _local.taranis.ai_.
 
 ## Development Tools
 
+### Named local databases
+
+Use `./dev/db.sh` to keep separate PostgreSQL datasets for local feature work:
+
+```bash
+./dev/db.sh list
+./dev/db.sh clone feature_work
+./dev/db.sh switch feature_work
+./dev/db.sh switch taranis
+```
+
+`list` shows each database's size and marks the saved selection with `*`.
+`clone` copies the currently selected database and keeps the existing selection.
+It stops the application's tmux processes and leaves them stopped: restarting
+Core on the current branch could apply migrations to the source. Run `switch`
+to choose the database to start next. Existing databases are never overwritten.
+
+`switch` stops Core, frontend, workers, and any cron/dashboard panes in the
+existing `taranis` tmux session, clears configured Redis queues and caches,
+saves `DB_DATABASE` in `src/core/.env`, and restarts those application panes.
+The target starts with the current checkout's code and migrations. If startup
+fails, the helper stops the target's processes, restores the previous selection,
+and leaves applications stopped for inspection; it does not undo migrations
+already applied to the target. Use `list` to check the selection before restarting.
+
+The default process handling supports the standard `start_dev.sh` /
+`start_tmux.sh` session with one pane per named window. Tailwind and the support
+containers keep running. Run database commands from a terminal outside the
+managed application panes. Use `./dev/db.sh --session my_session switch feature_work`
+for another existing standard session. For manual or customized startup, stop
+**all** Core, frontend, worker, cron, and dashboard processes yourself, then use
+`clone feature_work --stopped` or `switch feature_work --stopped`. This flag asserts
+that the processes are already stopped and skips tmux management and automatic
+restart. Close SQL clients too; the helper refuses connected databases instead
+of disconnecting clients. `--root /path/to/checkout` selects another checkout's
+configuration and must appear before the command.
+
+Prepare the Core `uv` environment and start local PostgreSQL first. The helper
+connects from the host using Core's `DB_URL`, `DB_USER`, and `DB_PASSWORD`, with
+the development defaults when absent. It works with either Docker or Podman
+without recreating infrastructure. PostgreSQL and Redis endpoints must be
+loopback addresses. The PostgreSQL user needs access to the `postgres`
+maintenance database and, for cloning, ownership of the source and `CREATEDB`
+privileges (or superuser access). Core's `.env` must be a regular file; unset
+inherited database connection, Redis/cache, `TARANIS_CORE_URL`, and
+`FLASK_RUN_PORT` / `FLASK_RUN_HOST` settings and move any needed overrides into
+the appropriate component `.env` files. Managed restarts clear those inherited
+settings from the tmux command's environment so the checked configuration takes
+effect. Remove an explicit `SQLALCHEMY_DATABASE_URI` or nonstandard
+`SQLALCHEMY_SCHEMA`. Names use 1–63 lowercase letters, digits, or
+underscores, beginning with a letter; `postgres` and names beginning with
+`template` are reserved.
+
+Use dedicated development Redis databases. Switching flushes each logical
+database configured by `REDIS_URL` or `CACHE_REDIS_URL` across Core, frontend,
+and worker, including the default `redis://localhost:6379/0` when `REDIS_URL`
+is absent. Other logical databases are untouched. Pending jobs, retries, and
+unfinished bot chains are lost; Core rebuilds recurring schedules on startup
+and caches refill on demand. Files outside PostgreSQL remain shared. Cloning
+does not provide backups or connect a dataset to a Git branch, and each clone
+requires a full copy's disk space plus PostgreSQL's write-ahead log overhead.
+Database-level permissions and settings are not copied by
+[PostgreSQL's template operation](https://www.postgresql.org/docs/18/sql-createdatabase.html).
+
+The isolated helper harness, `./dev/test_named_databases.sh`, exercises actual
+PostgreSQL and Redis containers and removes them afterward. It defaults to
+Podman; set `CONTAINER_CLI=docker` to use Docker.
+
 ### Migration Test Harness
 
 Use the migration harness to reproduce production-like upgrades from the current master schema to the current branch:

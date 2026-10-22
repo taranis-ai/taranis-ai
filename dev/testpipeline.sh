@@ -82,6 +82,14 @@ run_worker() {
   run_in_dir src/worker uv run --frozen --no-sync pytest
 }
 
+run_dev_tools() {
+  run_step "development database helpers"
+  uv run --project src/core --frozen --no-sync ruff check --config src/core/pyproject.toml \
+    dev/databases.py dev/database_processes.py dev/tests
+  uv run --project src/core --frozen --no-sync python -m unittest discover -s dev/tests
+  CONTAINER_CLI=docker ./dev/test_named_databases.sh
+}
+
 start_parallel_step() {
   local name="$1"
   local command="$2"
@@ -156,4 +164,5 @@ start_parallel_step "src/core" run_core
 start_parallel_step "src/frontend" run_frontend
 start_parallel_step "src/worker" run_worker
 start_parallel_step "src/frontend e2e" run_frontend_e2e
+start_parallel_step "development helpers" run_dev_tools
 wait_parallel_steps
