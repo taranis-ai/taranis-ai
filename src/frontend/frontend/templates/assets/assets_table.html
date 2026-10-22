@@ -9,6 +9,7 @@
     {% call table_decoration(name, model_name, table_container, routes=routes, new_item_target="#assets", search_params=["tag", "group", "vulnerable", "limit", "order"]) %}
       <div class="grow-0">
         <a class="btn btn-outline" href="{{ url_for('assets.assets_cves') }}" data-test-id="assets-cve-overview">CVE overview</a>
+        <a class="btn btn-outline" href="{{ url_for('assets.tactical') }}">Tactical preview</a>
         {% if current_user and "ASSESS_ACCESS" in current_user.permissions %}
           <a class="btn btn-outline"
              href="{{ url_for('assess.assess', asset_match='true') }}"

@@ -2,7 +2,7 @@
 
 ## When To Load
 
-Asset SBOM uploads, software inventory, CPE coverage, import confirmation, component triggers, imported findings, CVE overview, replacement, Dependency-Track integration, or asset intelligence matching.
+Asset SBOM uploads, software inventory, CPE coverage, import confirmation, component triggers, imported findings, CVE overview, tactical dependency preview, replacement, Dependency-Track integration, or asset intelligence matching.
 
 ## Contracts
 
@@ -56,6 +56,12 @@ Asset SBOM uploads, software inventory, CPE coverage, import confirmation, compo
 - Core requires `ASSETS_ACCESS` and current asset-group access (own organization or shared default group), independently of Assess access. `/api/assets/cves` accepts asset `search`, `group`, exact normalized `tag`, `page` and `limit` (1–100). It paginates assets by name/ID before streaming their findings. Filter choices contain only accessible assets' groups/tags. The per-asset endpoint searches CVE IDs, filters `severity`, and pages compact entries ordered by severity, descending score and CVE ID. Both frontend reads bypass collection caches so replacement, manual edits, deletion and access changes take effect immediately.
 - Contracts live in `models/asset_cve.py`, aggregation in `core/service/asset_cves.py`, and presentation in `frontend/views/asset_cve_views.py` and `templates/assets/cves.html`. Core workflow coverage exercises deduplication, ratings, zero-CVE assets, access without Assess, filters/paging and current state; replacement coverage verifies removed findings disappear. Frontend request coverage checks fresh reads and static error handling, and the existing SBOM browser workflow covers index navigation, severity drilldown, filters and an empty host.
 
+## Tactical Dependency Preview
+
+- **Tactical** in the main menu and **Assets → Tactical preview** open `/assets/tactical`, requiring `ASSETS_ACCESS` independently of Assess access. This is explicitly fictional sample data, rendered entirely in the frontend without loading live inventory, CVEs, Assess/news associations, or persistent dependency state.
+- Native GET navigation switches database, queue and isolated staging scenarios and selects a host for inspection. Arrows run from provider to dependent; highlighted downstream hosts show hypothetical impact, not confirmed vulnerability or exploit propagation. Unknown scenario/host values fall back to the database scenario and selected scenario's affected host respectively.
+- Presentation lives in `views/asset_tactical_views.py` and `templates/assets/tactical.html`. Request coverage in `tests/unit/views/test_asset_tactical_views.py` exercises scenario/host navigation, access without Assess, permission denial and menu visibility without Core data requests.
+
 ## Future Dependency-Track Connector Contract (Deferred)
 
 The connector itself is not implemented. Its agreed identity is **one Dependency-Track project UUID per Taranis asset**, even when different project UUIDs represent releases of the same product.
@@ -65,7 +71,7 @@ The connector itself is not implemented. Its agreed identity is **one Dependency
 3. Use the shared parser and transactional application service: create unmapped projects, update changed mapped projects, skip unchanged normalized inventory **and findings**. Ignore export timestamps and regenerated document/component references when comparing; preserve reference associations while canonicalizing. Raw upload SHA-256 protects manual updates but is not the future semantic-change fingerprint.
 4. Add database uniqueness and per-project synchronization state with safe retries/overlap. Keep the last successful snapshot on invalid, inaccessible or disappeared projects; never automatically delete assets. Record per-project status and curated errors. A connector must enforce its configured organization/group scope and queue matching only after successful application.
 
-Dependency graphs, licenses, snapshot history and automatic external enrichment remain deferred.
+Real dependency ingestion, licenses, snapshot history and automatic external enrichment remain deferred; the tactical view uses only fictional preview relationships.
 
 ## Local PoC Walkthrough
 

@@ -3,6 +3,7 @@ from flask import Blueprint, Flask
 from frontend.views.asset_cve_views import asset_cves
 from frontend.views.asset_intelligence_views import asset_scan, asset_triggers
 from frontend.views.asset_sbom_views import asset_inventory, preview_sbom, sbom_progress, upload_sbom
+from frontend.views.asset_tactical_views import tactical
 from frontend.views.asset_views import AssetView
 
 
@@ -12,6 +13,7 @@ def init(app: Flask):
     asset_bp.add_url_rule("/assets", view_func=AssetView.as_view("assets"))
     asset_bp.add_url_rule("/assets/cti", view_func=AssetView.all_cti_dialog, endpoint="assets_cti")
     asset_bp.add_url_rule("/assets/cves", view_func=asset_cves, endpoint="assets_cves")
+    asset_bp.add_url_rule("/assets/tactical", view_func=tactical, endpoint="tactical")
     asset_bp.add_url_rule("/assets/<string:asset_id>/cves", view_func=asset_cves, endpoint="asset_cves")
     asset_bp.add_url_rule("/assets/<string:asset_id>", view_func=AssetView.as_view("asset"))
     asset_bp.add_url_rule("/assets/<string:asset_id>/cti", view_func=AssetView.cti_dialog, endpoint="asset_cti")
