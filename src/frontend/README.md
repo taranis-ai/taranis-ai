@@ -30,9 +30,9 @@ granian app
 
 ### LLM endpoints
 
-In **Admin Settings > LLM Endpoints**, the single **Decisions** box has one enable checkbox, API format selector, model, and URL override. Use **System One / OpenRouter** for OpenRouter or a self-hosted server exposing `/v1/systemone` with a supported decision model. Choose **OpenAI** only for servers implementing OpenAI's `/v1/decisions` schema. Existing endpoints open with their effective Decisions format and model.
+In **Admin Settings > LLM Endpoints**, the single **Decisions** box has one enable checkbox, API format selector, and model. Choose **System One (vLLM / llama.cpp)** for self-hosted `/v1/systemone` servers with a supported decision model, **OpenRouter** for its hosted models, or **OpenAI** for servers implementing OpenAI's `/v1/decisions` schema. Existing endpoints open with their effective Decisions format and model.
 
-Entering an OpenRouter provider base URL, such as `https://openrouter.ai/api/v1`, reveals **Use OpenRouter settings** inside the Decisions box. Click it to select System One format and fill `https://openrouter.ai/api/alpha/decisions`, then save the endpoint. Changing API format keeps the model and URL fields; existing values stay unchanged until you edit them or apply the suggestion.
+Selecting **OpenRouter** configures `https://openrouter.ai/api/alpha/decisions` automatically and hides the manual URL override. The other formats use the provider base URL plus their format path unless you enter an override. Switching away from a saved OpenRouter choice starts with a blank override, so its hosted URL is not accidentally reused for a self-hosted server. The model stays unchanged when switching formats.
 
 ### Omnisearch
 

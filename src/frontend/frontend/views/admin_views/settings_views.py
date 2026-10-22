@@ -84,6 +84,9 @@ class SettingsView(AdminBaseView):
             payload = parse_formdata(request.form)
             if decisions := payload.pop("decisions", None):
                 api_format = decisions.pop("api_format", "systemone")
+                if api_format == "openrouter":
+                    api_format = "systemone"
+                    decisions["base_url"] = "https://openrouter.ai/api/alpha/decisions"
                 payload.setdefault("api_formats", {})[api_format] = decisions
             submitted_formats = payload.get("api_formats")
             if "api_formats" in payload:
