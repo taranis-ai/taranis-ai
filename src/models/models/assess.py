@@ -293,6 +293,7 @@ class Story(TaranisBaseModel):
     relevance_override: int | None = None
     comments: str | None = None
     in_reports_count: int | None = None
+    bookmarked: bool = False
     tags: list[dict[str, Any]] | None = None
     attributes: list[dict[str, Any]] | None = None
     misp_auto_update: MispAutoUpdatePayload | None = None
@@ -374,12 +375,22 @@ class StoryBookmarkCreatePayload(StoryBookmarkBase):
     pass
 
 
-class StoryBookmarkUpdatePayload(StoryBookmarkBase):
-    pass
+class StoryBookmarkUpdatePayload(TaranisBaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=120)
+    is_default: Literal[True] | None = None
 
 
 class StoryBookmarkStoryPayload(TaranisBaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+
     story_ids: list[str] = Field(min_length=1)
+
+
+class StoryBookmarkMembershipPayload(StoryBookmarkStoryPayload):
+    bookmark_ids: list[str] = Field(default_factory=list)
+    remove_bookmark_ids: list[str] = Field(default_factory=list)
+    new_collection_name: str = Field(default="", max_length=120)
+    default_bookmark_id: str | None = None
 
 
 class StoryBookmarkOrderPayload(TaranisBaseModel):
@@ -394,6 +405,7 @@ class StoryBookmark(StoryBookmarkBase):
 
     id: str | None = None
     position: int = 0
+    is_default: bool = False
     created: datetime | None = None
     updated: datetime | None = None
     story_count: int = 0

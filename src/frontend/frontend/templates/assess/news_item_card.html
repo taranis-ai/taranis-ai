@@ -1,3 +1,30 @@
+{% macro news_item_metadata(news_item, story) %}
+  {% set source_name = (story.model_extra.source_names | default({})).get(news_item.osint_source_id) or news_item.source %}
+  <div class="flex flex-wrap gap-2 text-xs text-base-content/60">
+    {% if source_name %}
+      <span class="badge badge-sm badge-outline h-auto max-w-full whitespace-normal break-words text-left" data-test-id="news-item-source">
+        Source · {{ source_name }}
+      </span>
+    {% endif %}
+    {% if news_item.published %}
+      <span class="badge badge-sm badge-outline">Published · {{ news_item.published | format_datetime }}</span>
+    {% endif %}
+    {% if news_item.collected %}
+      <span class="badge badge-sm badge-outline">Collected · {{ news_item.collected | format_datetime }}</span>
+    {% endif %}
+    {% if news_item.author %}
+      <span class="badge badge-sm badge-outline h-auto max-w-full whitespace-normal break-words text-left" data-test-id="news-item-author">
+        Author · {{ news_item.author }}
+      </span>
+    {% endif %}
+    {% if news_item.language %}
+      <span class="badge badge-sm badge-outline">Language · {{ news_item.language | upper }}</span>
+    {% endif %}
+    {% if news_item.osint_source_id == "manual" %}<span class="badge badge-info badge-sm self-start">Manually added</span>{% endif %}
+    {% if news_item.tlp_level %}<span class="badge badge-sm badge-outline">TLP:{{ news_item.tlp_level | upper }}</span>{% endif %}
+  </div>
+{% endmacro %}
+
 {% macro news_item_card(news_item, story, edit_tags=false) %}
   {% set news_item_tags = (news_item.tags.values() if news_item.tags is mapping else (news_item.tags or [])) | list %}
   <article id="news-item-card-{{ news_item.id }}"
@@ -9,7 +36,6 @@
           <h4 class="font-semibold text-base text-base-content highlight break-all" data-testid="news-item-title">
             {{ news_item.title or 'Untitled news item' }}
           </h4>
-          {% if news_item.language %}<span class="badge badge-ghost badge-sm uppercase">{{ news_item.language }}</span>{% endif %}
         </div>
         <div class="flex flex-wrap gap-2">
           {% if story.news_items | length > 1 %}
@@ -111,20 +137,7 @@
         </form>
         {# djlint:on #}
       {% endif %}
-      <footer class="flex flex-wrap gap-2 text-xs text-base-content/60">
-        {% if news_item.source == "manual" %}<span class="badge badge-info badge-sm self-start">Manually added</span>{% endif %}
-        {% if news_item.author %}
-          <span class="badge badge-sm badge-outline h-auto max-w-full whitespace-normal text-left" data-test-id="news-item-author">
-            Author · {{ news_item.author }}
-          </span>
-        {% endif %}
-        {% if news_item.collected %}
-          <span class="badge badge-sm badge-outline">Collected · {{ news_item.collected | format_datetime }}</span>
-        {% endif %}
-        {% if news_item.published %}
-          <span class="badge badge-sm badge-outline">Published · {{ news_item.published | format_datetime }}</span>
-        {% endif %}
-      </footer>
+      {{ news_item_metadata(news_item, story) }}
     </div>
   </article>
 {% endmacro %}

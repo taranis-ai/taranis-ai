@@ -116,6 +116,16 @@ def test_assess_upstream_failure_returns_safe_error_page(authenticated_client, r
         assert "Stories updated" not in tree.text_content()
         assert "private upstream details" not in tree.text_content()
 
+        responses_mock.get(f"{Config.TARANIS_CORE_URL}/assess/stories/story-1", body=RequestException("private upstream details"))
+        for endpoint in ("assess.story_details", "assess.story_actions"):
+            response = authenticated_client.get(url_for(endpoint, story_id="story-1"), headers=htmx_header)
+            assert response.status_code == 502
+            tree = html.fromstring(response.text)
+            assert tree.tag == "section" and tree.get("id") == "notification-bar"
+            assert tree.get("hx-swap-oob") is None
+            assert "Unable to load story. Please try again." in tree.text_content()
+            assert "private upstream details" not in tree.text_content()
+
 
 @pytest.mark.parametrize(
     ("return_url", "expected_return"),
@@ -137,6 +147,11 @@ def test_story_assess_return_navigation(authenticated_client, responses_mock, re
     assert {"HX-Request", "HX-Target"} <= set(response.vary)
     tree = html.fromstring(response.text)
     assert tree.xpath('//*[@data-test-id="back-to-assess"]/@href') == [expected_return]
+    menu_url = tree.xpath('//*[@data-testid="story-actions-menu"]/@hx-get')[0]
+    current_url = url_for("assess.story", story_id="story-1", _external=True)
+    actions = authenticated_client.get(menu_url, headers={"HX-Request": "true", "HX-Current-URL": current_url})
+    delete_action = html.fromstring(actions.text).xpath('//*[@data-testid="delete-story"]')[0]
+    assert tree.xpath("//*[@id=$target]", target=delete_action.get("hx-target").removeprefix("#"))
     edit_url = tree.xpath('//*[@data-testid="edit-story"]/@href')[0]
     response = authenticated_client.get(edit_url)
     tree = html.fromstring(response.text)
@@ -160,6 +175,10 @@ def test_story_assess_return_navigation(authenticated_client, responses_mock, re
     response = authenticated_client.get(response.headers["Location"])
     tree = html.fromstring(response.text)
     assert tree.xpath('//*[@data-test-id="back-to-assess"]/@href') == [expected_return]
+
+    responses_mock.delete(f"{Config.TARANIS_CORE_URL}/assess/story/story-1", json={"message": "Story deleted"})
+    response = authenticated_client.delete(delete_action.get("hx-delete"), headers={"HX-Request": "true", "HX-Current-URL": current_url})
+    assert response.headers["HX-Redirect"] == url_for("assess.assess")
 
 
 @pytest.mark.parametrize(
@@ -230,9 +249,16 @@ def story_with_news_item_tags() -> dict:
 def test_story_card_shows_distinct_top_source_icons(authenticated_client, responses_mock, source_ids, expected_sources):
     story_payload = story_with_news_item_tags()
     story_payload["news_items"] = [
-        {"id": f"news-{index}", "story_id": story_payload["id"], "osint_source_id": source_id, "content": "News content"}
+        {
+            "id": f"news-{index}",
+            "story_id": story_payload["id"],
+            "osint_source_id": source_id,
+            "source": f"Original source {source_id}",
+            "content": "News content",
+        }
         for index, source_id in enumerate(source_ids)
     ]
+    story_payload["links"] = ["https://[malformed"]
     mock_story_for_edit(responses_mock, story_payload)
     responses_mock.get(f"{Config.TARANIS_CORE_URL}/assess/bookmarks", json={"items": [], "total_count": 0})
     responses_mock.replace(
@@ -247,21 +273,104 @@ def test_story_card_shows_distinct_top_source_icons(authenticated_client, respon
         },
     )
 
-    response = authenticated_client.get(url_for("assess.story", story_id=story_payload["id"]))
+    assess_url = url_for("assess.assess", source="f", tags=["tag-one", "tag-two"], language="en", read="false", page=3)
+    response = authenticated_client.get(url_for("assess.story", story_id=story_payload["id"], assess_url=assess_url))
 
     assert response.status_code == 200
     tree = html.fromstring(response.text)
+    expected_item_sources = [
+        f"Source · Source {source_id}" if source_id in "abcdef" else f"Source · Original source {source_id}" for source_id in source_ids
+    ]
+    assert [badge.text_content().strip() for badge in tree.xpath('//*[@data-test-id="news-item-source"]')] == expected_item_sources
+
+    details = authenticated_client.get(url_for("assess.story_details", story_id=story_payload["id"]))
+    assert details.status_code == 200
+    detail_sources = html.fromstring(details.text).xpath('//*[@data-test-id="news-item-source"]')
+    assert [badge.text_content().strip() for badge in detail_sources] == expected_item_sources
+
     source_icons = tree.xpath('//*[@data-test-id="story-source-icons"]')
     if not expected_sources:
         assert not source_icons
         return
     icons = source_icons[0]
     assert icons.xpath("./*/@data-tip") == [f"Source {source_id}" for source_id in expected_sources]
-    assert icons.xpath("./*/img/@tabindex | ./*/span/@tabindex") == ["0"] * len(expected_sources)
+    assert icons.xpath("./*/a/@tabindex") == ["0"] * len(expected_sources)
     assert "Source" not in icons.text_content()
-    assert icons.xpath("./*/img/@alt | ./*/span/@aria-label") == [f"Source {source_id}" for source_id in expected_sources]
+    assert icons.xpath("./*/a/img/@alt | ./*/a/span/@aria-label") == [f"Source {source_id}" for source_id in expected_sources]
+    for source_id, link in zip(expected_sources, icons.xpath("./*/a"), strict=True):
+        parsed = urlparse(link.get("href"))
+        assert parsed.path == url_for("assess.assess")
+        assert parse_qs(parsed.query) == {
+            "source": list(dict.fromkeys(["f", source_id])),
+            "tags": ["tag-one", "tag-two"],
+            "language": ["en"],
+            "read": ["false"],
+        }
     if "a" in expected_sources:
-        assert icons.xpath('./*/img[@alt="Source a"]/@src') == ["data:image/png;base64,aWNvbg=="]
+        assert icons.xpath('./*/a/img[@alt="Source a"]/@src') == [url_for("assess.source_icon", source_id="a")]
+
+    responses_mock.get(f"{Config.TARANIS_CORE_URL}/assess/stories", json={"items": [story_payload], "total_count": 1})
+    filtered_list = authenticated_client.get(
+        assess_url,
+        headers={
+            "HX-Request": "true",
+            "HX-Target": "story-list",
+            "HX-Current-URL": url_for("assess.assess", search="old search", source="a", _external=True),
+        },
+    )
+    assert filtered_list.status_code == 200
+    assert html.fromstring(filtered_list.text).xpath('//*[@data-test-id="story-source-icons"]/*/a/@href') == icons.xpath("./*/a/@href")
+
+
+def test_source_icons_are_user_scoped_and_revalidated(authenticated_client, responses_mock):
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/assess/filter-lists", json={"sources": [{"id": "visible", "name": "Visible", "icon": "aWNvbg=="}]}
+    )
+    response = authenticated_client.get(url_for("assess.source_icon", source_id="visible"))
+    assert response.status_code == 200 and response.data == b"icon"
+    assert response.headers["Cache-Control"] == "private, no-cache"
+    cached = authenticated_client.get(url_for("assess.source_icon", source_id="visible"), headers={"If-None-Match": response.headers["ETag"]})
+    assert cached.status_code == 304 and cached.data == b""
+    assert authenticated_client.get(url_for("assess.source_icon", source_id="hidden")).status_code == 404
+
+
+@pytest.mark.parametrize("status", [200, 400, 503])
+def test_display_preferences_preserve_filters_and_render_saved_profile(authenticated_client, responses_mock, auth_user, status):
+    from models.user import ProfileSettings
+
+    saved = auth_user.model_copy(deep=True)
+    saved.profile.compact_view = True
+    saved.profile.show_bookmark_bar = False
+    responses_mock.post(f"{Config.TARANIS_CORE_URL}{ProfileSettings._core_endpoint}", json={"message": "Saved"}, status=status)
+    responses_mock.get(f"{Config.TARANIS_CORE_URL}/users", json=saved.model_dump(mode="json"))
+    mock_story_for_edit(responses_mock, story_with_news_item_tags())
+    responses_mock.get(f"{Config.TARANIS_CORE_URL}/assess/stories", json={"items": [story_with_news_item_tags()], "total_count": 1})
+    responses_mock.get(f"{Config.TARANIS_CORE_URL}/assess/bookmarks", json={"items": []})
+    response = authenticated_client.post(
+        url_for("assess.display_preferences"),
+        data={"compact_view": "true", "show_bookmark_bar": "false"},
+        headers={"HX-Request": "true", "HX-Current-URL": "http://localhost/assess?search=incident"},
+    )
+    assert response.status_code == status
+    if status == 200:
+        tree = html.fromstring(response.text)
+        assert tree.xpath('//*[@id="assess"]/@data-search') == ["incident"]
+        assert tree.xpath('//input[@name="compact_view"]/@checked')
+        assert not tree.xpath('//input[@name="show_bookmark_bar"]/@checked')
+        assert "hidden" in tree.xpath('//*[@id="assess-bookmarks-bar"]/@class')[0].split()
+        assert "line-clamp-1" in response.text
+        requests = [call for call in responses_mock.calls if urlparse(call.request.url).path.endswith("/assess/stories")]
+        assert parse_qs(urlparse(requests[-1].request.url).query)["search"] == ["incident"]
+    else:
+        assert 'id="assess"' not in response.text
+        assert "Unable to save display preferences" in response.text
+
+    calls_before_validation = len(responses_mock.calls)
+    invalid_response = authenticated_client.post(url_for("assess.display_preferences"), data={"show_bookmark_bar": "invalid"})
+    assert invalid_response.status_code == 400
+    assert invalid_response.headers["HX-Retarget"] == "#notification-bar"
+    assert 'id="assess"' not in invalid_response.text
+    assert len(responses_mock.calls) == calls_before_validation
 
 
 def _bookmark_collection_payload(bookmark_id: str, name: str, story_count: int, position: int = 0) -> dict:
@@ -518,6 +627,7 @@ def test_news_item_card_shows_author_when_present(app):
                     "story_id": "story-1",
                     "osint_source_id": "manual",
                     "title": "News with author",
+                    "source": "Analyst interview",
                     "author": "James Bond",
                 }
             ],
@@ -531,6 +641,7 @@ def test_news_item_card_shows_author_when_present(app):
     author_badge = tree.xpath('//*[@data-test-id="news-item-author"]')
     assert len(author_badge) == 1
     assert author_badge[0].text_content().strip() == "Author · James Bond"
+    assert "Manually added" in tree.text_content()
 
 
 def test_news_item_card_hides_author_when_missing_or_empty(app):
@@ -674,10 +785,15 @@ def test_story_action_response_refreshes_updated_story(authenticated_client, res
 
     authenticated_client.get(url_for("assess.story_edit", story_id=story_payload["id"]))
     responses_mock.replace("GET", story_url, json=updated_story)
-    response = authenticated_client.post(url_for("assess.story_update", story_id=story_payload["id"]), headers=htmx_header)
+    response = authenticated_client.post(
+        url_for("assess.story_update", story_id=story_payload["id"]),
+        headers={**htmx_header, "HX-Current-URL": url_for("assess.assess", search="active search", page=3, _external=True)},
+    )
 
     assert "Updated replacement content" in response.text
     assert "Updated source" in response.text
+    source_link = html.fromstring(response.text).xpath('//*[@data-test-id="story-source-icons"]/*/a/@href')[0]
+    assert parse_qs(urlparse(source_link).query) == {"search": ["active search"], "source": ["manual"]}
 
 
 def test_story_edit_misp_auto_update_controls_require_connector_access(authenticated_client, auth_user, responses_mock):
@@ -806,6 +922,21 @@ def test_assess_later_page_explains_missing_earlier_results(authenticated_client
         assert 'id="infinite-scroll-trigger"' not in response.text
 
 
+def test_pagination_fragments_keep_the_requested_return_page(authenticated_client, responses_mock):
+    responses_mock.get(f"{Config.TARANIS_CORE_URL}/assess/filter-lists", json={"tags": [], "sources": [], "groups": []})
+    responses_mock.get(f"{Config.TARANIS_CORE_URL}/assess/stories", json={"items": [story_with_news_item_tags()], "total_count": 60})
+    response = authenticated_client.get(
+        url_for("assess.assess", page=1),
+        headers={"HX-Request": "true", "HX-Target": "div#story-list", "HX-Current-URL": "http://localhost/assess"},
+    )
+    assert response.status_code == 200
+    tree = html.fromstring(response.text)
+    assert not tree.xpath('//*[@id="assess" or @id="assess-sidebar" or @id="assess-top-bar"]')
+    link = tree.xpath('//*[@data-testid="open-detail-view"]/@href')[0]
+    assert parse_qs(urlparse(link).query)["assess_url"] == [url_for("assess.assess", page=1)]
+    assert tree.xpath('//*[@id="story-pagination"]/@hx-swap-oob') == ["outerHTML:#story-pagination"]
+
+
 def test_assess_filters_support_htmx_and_native_form_submission(authenticated_client, responses_mock):
     responses_mock.get(
         f"{Config.TARANIS_CORE_URL}/assess/filter-lists",
@@ -831,7 +962,6 @@ def test_assess_filters_support_htmx_and_native_form_submission(authenticated_cl
     tree = html.fromstring(response.text)
     filter_form = tree.xpath('//form[@id="assess-sidebar"]')[0]
     search_input = tree.xpath('//input[@id="story_search"]')[0]
-    clear_button = tree.xpath("//button[@title='Clear time filters']")[0]
     pagination = tree.xpath('//*[@id="story-pagination"]')[0]
     changed_by_select = filter_form.xpath('.//label[.//span[text()="Changed by"]]/select')[0]
     highlight_checkbox = tree.xpath('//input[@name="highlight"]')[0]
@@ -839,25 +969,24 @@ def test_assess_filters_support_htmx_and_native_form_submission(authenticated_cl
 
     assert filter_form.get("method") == "get"
     assert filter_form.get("action") == url_for("assess.assess")
-    assert filter_form.get("hx-trigger") == f"{expected_search_trigger('story_search')}, change"
+    assert (
+        filter_form.get("hx-trigger")
+        == "input changed delay:300ms from:#story_search, search from:#story_search, change[event.target.id !== 'story_search']"
+    )
     assert filter_form.get("hx-include") is None
     assert filter_form.get("hx-on:submit") == "event.preventDefault()"
-    assert clear_button.get("hx-include") == "#assess-sidebar"
     assert filter_form.get("hx-target:inherited") == "#assess"
     assert filter_form.get("hx-swap:inherited") == "outerHTML"
     notification_rule = "target:#notification-bar select:#notification-bar swap:outerHTML"
-    assert filter_form.get("hx-status:5xx:inherited") == notification_rule
+    assert filter_form.get("hx-status:5xx:inherited") == notification_rule + " push:false"
     buttons = tree.xpath('//button[@data-testid="bulk-toggle-read" or @data-testid="bulk-toggle-important" or @data-testid="delete-story"]')
-    assert len(buttons) >= 3
+    assert len(buttons) >= 2
     assert all(button.get("hx-status:5xx") == notification_rule for button in buttons)
     assert filter_form.get("hx-push-url:inherited") == "true"
-    assert clear_button.get("hx-on::config:request") == (
-        "ctx.request.body.delete('timefrom'); ctx.request.body.delete('timeto'); ctx.request.body.delete('range')"
-    )
     assert pagination.get("hx-swap-oob") == "outerHTML:#story-pagination"
     assert [option.text for option in changed_by_select.xpath("./option")] == ["Any", "Me"]
-    assert highlight_checkbox.get("hx-vals") == "js:{highlight: this.checked}"
-    assert compact_checkbox.get("hx-vals") == "js:{compact_view: this.checked}"
+    assert highlight_checkbox.get("hx-vals") == "js:{ highlight: this.checked }"
+    assert compact_checkbox.get("hx-vals") == "js:{ compact_view: this.checked }"
     assert search_input.get("name") == "search"
     assert search_input.get("hx-get") is None
     assert search_input.get("hx-include") is None
@@ -924,12 +1053,15 @@ def test_assess_tag_filters_highlight_matches_beyond_collapsed_limit(authenticat
     card = tree.xpath('//*[@data-story-id="story-1"]')[0]
     matched = card.xpath('.//a[contains(@class, "badge-primary")]')
     assert [tag.text_content().strip() for tag in matched] == ["tag-22", "tag-23"]
-    assert all(tag.get("x-show").endswith("true") and tag.get("x-cloak") is None for tag in matched)
-    assert card.xpath('.//*[@data-testid="toggle-story-tags"]/text()') == ["+17"]
+    assert all("hidden" not in tag.get("class").split() for tag in matched)
+    assert card.xpath('.//*[@data-testid="toggle-story-tags"]/span[1]/text()') == ["+17"]
     if method != "GET":
-        for action in ("open-detail-view", "edit-story"):
-            action_url = card.xpath(f'.//*[@data-testid="{action}"]/@href')[0]
-            assert parse_qs(urlparse(action_url).query)["assess_url"] == [return_url]
+        action_url = card.xpath('.//*[@data-testid="open-detail-view"]/@href')[0]
+        assert parse_qs(urlparse(action_url).query)["assess_url"] == [return_url]
+        menu_url = card.xpath('.//*[@data-testid="story-actions-menu"]/@hx-get')[0]
+        actions = authenticated_client.get(menu_url)
+        edit_url = html.fromstring(actions.text).xpath('.//*[@data-testid="edit-story"]/@href')[0]
+        assert parse_qs(urlparse(edit_url).query)["assess_url"] == [return_url]
 
 
 @pytest.mark.parametrize("has_remaining_story", [True, False])
@@ -967,6 +1099,15 @@ def test_delete_story_preserves_assess_filters(authenticated_client, responses_m
     if not has_remaining_story:
         assert "No stories found." in response.text
 
+    responses_mock.replace("DELETE", f"{Config.TARANIS_CORE_URL}/assess/story/deleted-story", json={"error": "Deletion denied"}, status=403)
+    rejected = authenticated_client.delete(
+        url_for("assess.story_delete", story_id="deleted-story"),
+        headers={"HX-Request": "true", "HX-Current-URL": url_for("assess.assess", **filters, _external=True)},
+    )
+    assert rejected.status_code == 403
+    assert "Deletion denied" in rejected.text
+    assert 'id="assess"' not in rejected.text
+
 
 def test_assess_bookmarks_bar_renders_first_six_ordered_collections(authenticated_client, responses_mock):
     story_payload = story_with_news_item_tags()
@@ -1000,11 +1141,13 @@ def test_assess_bookmarks_bar_renders_first_six_ordered_collections(authenticate
     assert parse_qs(urlparse(bookmark_request.request.url).query) == {"limit": ["6"], "order": ["position_asc"]}
 
 
-def test_assess_bookmarks_bar_uses_context_limit(app: Any) -> None:
+def test_assess_bookmarks_bar_uses_context_limit(app: Any, auth_user) -> None:
     bookmarks = [SimpleNamespace(id=f"bookmark-{index}", name=f"Bookmark {index}", story_count=index) for index in range(1, 4)]
 
     with app.test_request_context():
-        markup = render_template("assess/bookmarks_bar.html", bookmark_collections=bookmarks, assess_bookmark_bar_limit=2)
+        markup = render_template(
+            "assess/bookmarks_bar.html", bookmark_collections=bookmarks, assess_bookmark_bar_limit=2, current_user=auth_user
+        )
 
     tree = html.fromstring(markup)
     bar = tree.xpath('//*[@data-testid="assess-bookmarks-bar"]')[0]

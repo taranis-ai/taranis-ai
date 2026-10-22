@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import pytest
 
@@ -174,6 +174,31 @@ class TestStoryFilters(BaseTest):
     def test_story_filters(self, client, auth_header, story_filter_data, filters, expected_story_keys):
         self._assert_filtered_story_ids(client, auth_header, story_filter_data, filters, expected_story_keys)
 
+    @pytest.mark.parametrize(
+        "preset, cutoff",
+        [
+            ("24h", datetime(2026, 3, 1, 15, 30)),
+            ("last7", datetime(2026, 2, 23, 15, 30)),
+            ("week", datetime(2026, 3, 2)),
+            ("month", datetime(2026, 3, 1)),
+        ],
+    )
+    def test_time_period_boundaries(self, app, client, auth_header, story_filter_data, monkeypatch, preset, cutoff):
+        from core.managers.db_manager import db
+        from core.model.story import Story
+
+        now = datetime(2026, 3, 2, 15, 30)
+        monkeypatch.setattr(Story, "utcnow", staticmethod(lambda: now))
+        story_keys = list(story_filter_data["stories"])
+        dates = [cutoff - timedelta(seconds=1), cutoff, cutoff + timedelta(seconds=1), now]
+        with app.app_context():
+            for key, created in zip(story_keys, dates, strict=True):
+                story = Story.get(story_filter_data["stories"][key])
+                story.created = created
+            db.session.commit()
+
+        self._assert_filtered_story_ids(client, auth_header, story_filter_data, {"range": preset}, set(story_keys[1:]))
+
     @pytest.mark.parametrize("sort", ["date_desc", "date_asc", "relevance", "updated_desc", "updated_asc"])
     def test_paging_preserves_counts_and_breaks_sort_ties_by_id(self, app, client, auth_header, story_filter_data, sort):
         from core.managers.db_manager import db
@@ -196,6 +221,30 @@ class TestStoryFilters(BaseTest):
         assert payload["counts"]["read_count"] == 2
         assert payload["counts"]["important_count"] == 2
         assert payload["counts"]["in_reports_count"] == 1
+
+    def test_paged_lists_batch_related_data_and_edit_permissions(self, client, auth_header, story_filter_data):
+        from sqlalchemy import event
+
+        from core.managers.db_manager import db
+
+        query_counts = []
+        for limit in (1, 4):
+            db.session.expire_all()
+            statements = []
+
+            def collect(_conn, _cursor, statement, _params, _context, _many, collected=statements):
+                if statement.lstrip().upper().startswith("SELECT"):
+                    collected.append(statement)
+
+            event.listen(db.engine, "before_cursor_execute", collect)
+            try:
+                response = client.get(self.concat_url("stories"), headers=auth_header, query_string={"limit": limit})
+                assert response.status_code == 200
+                assert len(response.json["items"]) == limit
+                query_counts.append(len(statements))
+            finally:
+                event.remove(db.engine, "before_cursor_execute", collect)
+        assert query_counts[1] <= query_counts[0] + 1, query_counts
 
     def test_filter_lists_include_news_item_languages(self, client, auth_header, story_filter_data):
         response = client.get(self.concat_url("filter-lists"), headers=auth_header)

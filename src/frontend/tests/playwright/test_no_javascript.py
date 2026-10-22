@@ -88,6 +88,11 @@ class TestNoJavaScriptLayout:
             story_card.get_by_test_id("story-actions-menu").click()
             story_card.get_by_test_id("bookmark-story").click()
             page.wait_for_url("**/story/**", wait_until="domcontentloaded")
+            saved_card = page.get_by_test_id(f"story-card-{story_id}")
+            saved_card.get_by_test_id("bookmark-story").click()
+            expect(saved_card.get_by_test_id("bookmark-story")).to_have_text("Bookmark")
+            saved_card.get_by_test_id("bookmark-story").click()
+            expect(saved_card.get_by_test_id("bookmark-story")).to_have_text("Saved")
 
             page.goto(url_for("assess.bookmarks", _external=True))
             page.locator('[data-testid^="open-bookmark-"]').first.click()

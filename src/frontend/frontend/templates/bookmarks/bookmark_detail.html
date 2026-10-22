@@ -9,10 +9,19 @@
       <h1 class="truncate text-2xl font-semibold text-base-content">{{ bookmark.name }}</h1>
       <div class="mt-1 flex flex-wrap items-center gap-2 text-sm text-base-content/70">
         <span class="badge badge-outline">{{ bookmark.story_count }} stories</span>
+        {% if bookmark.is_default %}<span class="badge badge-primary">Quick-save default</span>{% endif %}
         {% if bookmark.updated %}<span>Updated {{ bookmark.updated | format_datetime }}</span>{% endif %}
       </div>
     </div>
     <div class="flex flex-col gap-2 sm:flex-row">
+      {% if not bookmark.is_default %}
+        <button type="button"
+                class="btn btn-outline btn-sm"
+                hx-patch="{{ url_for('assess.bookmark_update', bookmark_id=bookmark.id) }}"
+                hx-vals='{"is_default": true, "return_to": "detail"}'
+                hx-target="#bookmark-detail-container"
+                hx-swap="outerHTML">Use for quick-save</button>
+      {% endif %}
       <form class="flex gap-2"
             hx-patch="{{ url_for('assess.bookmark_update', bookmark_id=bookmark.id) }}"
             hx-target="#bookmark-detail-container"
@@ -44,13 +53,13 @@
 
   {% if stories %}
     {# djlint:off #}
-    <form id="bookmark-selection-form"
+    <div id="bookmark-selection-root"
           x-data='{
             selectionRevision: 0,
             showHints: false,
             editUrlTemplate: {{ url_for("assess.story_edit", story_id="__ID__", bookmark_id=bookmark.id) | tojson }},
             get selectionForm() {
-              return document.getElementById("bookmark-selection-form");
+              return document.getElementById("bookmark-selection-root");
             },
             get storyInputs() {
               void this.selectionRevision;
@@ -106,21 +115,15 @@
           @change="refreshSelection()"
           @htmx:after:swap="refreshSelection()"
           @keyup.escape.window="clearSelection()">
-      <input type="hidden" name="bookmark_id" value="{{ bookmark.id }}">
+      <form id="bookmark-selection-form"><input type="hidden" name="bookmark_id" value="{{ bookmark.id }}"></form>
       {% include "assess/assess_top_bar.html" %}
 
       <div id="bookmark-story-list" data-story-list>
         {% for story in stories %}
-          <input id="bookmark-select-story-{{ story.id }}"
-                 type="checkbox"
-                 name="story_ids"
-                 value="{{ story.id }}"
-                 {% if story.id in selected_story_ids %}checked{% endif %}
-                 hidden>
           {{ story_card(story, show_bookmark=False, bookmark_id=bookmark.id) }}
         {% endfor %}
       </div>
-    </form>
+    </div>
     {# djlint:on #}
   {% else %}
     <div class="alert alert-info" data-testid="empty-bookmark">This bookmark collection has no stories.</div>

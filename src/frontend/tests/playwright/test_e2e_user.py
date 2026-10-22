@@ -328,8 +328,8 @@ class TestEndToEndUser(BaseE2ETest):
             with_htmx_wait(page, page.go_back)
             expect(page.locator("#story-pagination")).to_contain_text("Page 1 of")
 
-            with page.expect_navigation(wait_until="load"):
-                page.get_by_role("checkbox", name="Compact view").uncheck()
+            page.get_by_text("View", exact=True).click()
+            with_htmx_wait(page, page.get_by_role("checkbox", name="Compact view", exact=True).uncheck)
             expect(page.get_by_test_id("assess")).to_be_visible()
             expect(page.get_by_test_id("user-menu-button")).to_have_count(1)
 
@@ -402,10 +402,55 @@ class TestEndToEndUser(BaseE2ETest):
 
         def access_story():
             target_title = pre_seed_stories[0]["title"]
+            page.goto(
+                url_for(
+                    "assess.assess",
+                    source=seeded_story["news_items"][0]["osint_source_id"],
+                    timefrom="2026-01-01T00:00",
+                    timeto="2026-02-01T00:00",
+                    _external=True,
+                )
+            )
+            filtered_url = page.url
+            page.route(
+                "**/assess?*",
+                lambda route: route.fulfill(
+                    status=503,
+                    content_type="text/html",
+                    body='<section id="notification-bar"><div role="alert">Unable to load stories.</div></section>',
+                ),
+                times=1,
+            )
+            with page.expect_response(lambda response: urlparse(response.url).path.endswith("/assess") and response.status == 503):
+                page.get_by_role("combobox", name="Time period", exact=True).select_option(label="Any time")
+            with pytest.raises(AssertionError, match=r"HTMX response error .* for GET .*/assess.* returned 503"):
+                wait_for_htmx_settled(page)
+            reset_htmx_state(page)
+            expect(page.get_by_role("alert")).to_contain_text("Unable to load stories.")
+            assert page.url == filtered_url
+            expect(page.get_by_role("textbox", name="From", exact=True)).to_have_value("2026-01-01T00:00")
+            expect(page.get_by_role("textbox", name="To", exact=True)).to_have_value("2026-02-01T00:00")
+            with_htmx_wait(page, lambda: page.get_by_role("combobox", name="Time period", exact=True).select_option(label="Any time"))
+            remaining_filters = parse_qs(urlparse(page.url).query)
+            assert not {"range", "timefrom", "timeto"}.intersection(remaining_filters)
+            assert remaining_filters["source"] == [seeded_story["news_items"][0]["osint_source_id"]]
+            expect(page.get_by_role("textbox", name="From", exact=True)).to_have_value("")
+            expect(page.get_by_role("textbox", name="To", exact=True)).to_have_value("")
             search = page.get_by_placeholder("Search stories")
-            search.fill(target_title)
+            with_htmx_wait(page, lambda: search.fill("no-matching-assess-story-7cc87"))
+            expect(page.get_by_text("No stories found.", exact=True)).to_be_visible()
+            requests = []
+
+            def record_assess_request(request):
+                if urlparse(request.url).path.endswith("/assess"):
+                    requests.append(request.url)
+
+            page.on("request", record_assess_request)
+            with_htmx_wait(page, lambda: search.fill(target_title))
             expect(page.locator("#story-list article[data-story-id]")).to_have_count(1)
-            with_htmx_wait(page, search.blur)
+            search.blur()
+            assert len(requests) == 1
+            page.remove_listener("request", record_assess_request)
 
             story = page.locator("article", has=page.get_by_test_id("story-title").filter(has_text=target_title)).first
             expect(story).to_be_visible()
@@ -430,6 +475,14 @@ class TestEndToEndUser(BaseE2ETest):
             )
             page.keyboard.press("Tab")
 
+            page.goto(url_for("assess.assess", search=target_title, _external=True))
+            source_icon.press("Enter")
+            page.wait_for_url(lambda url: "source=" in url)
+            assert parse_qs(urlparse(page.url).query) == {
+                "search": [target_title],
+                "source": [seeded_story["news_items"][0]["osint_source_id"]],
+            }
+
             menu = story_card().get_by_test_id("story-actions-menu")
             expect(menu).to_be_attached()
             expect(menu).to_be_visible()
@@ -438,9 +491,7 @@ class TestEndToEndUser(BaseE2ETest):
             edited_title = f"{title} edited title"
 
             story_card().get_by_test_id("toggle-summary").click()
-            story_card().get_by_test_id("story-actions-menu").click()
             with_htmx_wait(page, story_card().get_by_test_id("toggle-read").click)
-            story_card().get_by_test_id("story-actions-menu").click()
             with_htmx_wait(page, story_card().get_by_test_id("toggle-important").click)
             story_card().get_by_test_id("story-actions-menu").click()
             share_story = story_card().get_by_test_id("share-story")
@@ -458,9 +509,24 @@ class TestEndToEndUser(BaseE2ETest):
             assert parse_qs(urlparse(return_url).query) == parse_qs(urlparse(assess_url).query)
             page.go_back()
             expect(page.get_by_placeholder("Search stories")).to_have_value(target_title)
+            for use_shortcut in (True, False):
+                story_card().locator('input[name="story_ids"]').check()
+                expect(page.get_by_test_id("assess_story_selection_count")).to_have_text("1 stories selected")
+                if use_shortcut:
+                    story_card().locator('input[name="story_ids"]').blur()
+                    page.keyboard.press("e")
+                    expect(page).to_have_url(assess_url)
+                    page.keyboard.press("Shift+E")
+                else:
+                    page.locator("#assess-top-bar").get_by_role("button", name="Edit").click()
+                expect(page).to_have_url(re.compile(rf"/story/{story_id}/edit\?"))
+                expect(page.get_by_role("textbox", name="Title", exact=True)).to_have_value(title)
+                expect(back_to_assess).to_have_attribute("href", return_url)
+                back_to_assess.click()
+                expect(page.get_by_placeholder("Search stories")).to_have_value(target_title)
             story_card().get_by_test_id("open-detail-view").click()
             expect(back_to_assess).to_have_attribute("href", return_url)
-            page.get_by_test_id("edit-story").click()
+            page.get_by_role("link", name=re.compile(r"^Edit [Ss]tory$")).click()
             expect(back_to_assess).to_have_attribute("href", return_url)
             page.get_by_role("textbox", name="Title").fill(edited_title)
             page.get_by_role("textbox", name="Summary").fill("Test summary")
@@ -571,7 +637,7 @@ class TestEndToEndUser(BaseE2ETest):
             hidden_tag = card.locator("a.badge").filter(has_text=tags[20]["name"])
             expect(hidden_tag).not_to_be_visible()
             toggle_tags = card.get_by_test_id("toggle-story-tags")
-            expect(toggle_tags).to_have_text("+17")
+            expect(toggle_tags).to_have_text("+12", use_inner_text=True)
             selection_count = self._get_assess_selection_count(page)
             toggle_tags.click()
             expect(hidden_tag).to_be_visible()
@@ -588,19 +654,45 @@ class TestEndToEndUser(BaseE2ETest):
             for match in matches.all():
                 expect(match).to_be_visible()
 
-            card.get_by_test_id("story-actions-menu").click()
             with_htmx_wait(page, card.get_by_test_id("toggle-important").click)
             expect(matches).to_have_count(2)
             for match in matches.all():
                 expect(match).to_be_visible()
 
             compact = page.get_by_role("checkbox", name="Compact view", exact=True)
-            with page.expect_navigation(wait_until="load"):
-                compact.check()
+            if not compact.is_visible():
+                page.get_by_text("View", exact=True).click()
+            card.locator('input[name="story_ids"]').check()
+            display_url = url_for("assess.display_preferences", _external=True)
+
+            def reject_display(route):
+                route.fulfill(
+                    status=400,
+                    content_type="text/html",
+                    body='<section id="notification-bar"><div class="alert alert-error" role="alert">Unable to save display preferences.</div></section>',
+                )
+
+            page.route(display_url, reject_display)
+            original_compact = compact.is_checked()
+            try:
+                with page.expect_response(lambda response: response.url == display_url and response.status == 400):
+                    compact.set_checked(not original_compact)
+                with pytest.raises(AssertionError, match=r"HTMX response error .* for POST .*/assess/display returned 400"):
+                    wait_for_htmx_settled(page)
+                reset_htmx_state(page)
+                expect(card).to_be_visible()
+                expect(card.locator('input[name="story_ids"]')).to_be_checked()
+                assert compact.is_checked() == original_compact
+                assert self._get_assess_selection_count(page) == 1
+            finally:
+                page.unroute(display_url, reject_display)
+            card.locator('input[name="story_ids"]').uncheck()
+            with_htmx_wait(page, compact.check)
             for match in matches.all():
                 expect(match).to_be_visible()
-            with page.expect_navigation(wait_until="load"):
-                compact.uncheck()
+            if not compact.is_visible():
+                page.get_by_text("View", exact=True).click()
+            with_htmx_wait(page, compact.uncheck)
             core_request_client.put(f"/assess/news-items/{news_item_id}/tags", json_data=seeded_story["news_items"][0]["tags"])
             page.goto(assess_url)
 
@@ -661,8 +753,8 @@ class TestEndToEndUser(BaseE2ETest):
             return_url = parse_qs(urlparse(detail_url).query)["assess_url"][0]
             assert parse_qs(urlparse(return_url).query)["page"] == [str(last_page)]
             for action in ("toggle-read", "toggle-important"):
-                last_card.get_by_test_id("story-actions-menu").click()
                 with_htmx_wait(page, last_card.get_by_test_id(action).click)
+                with_htmx_wait(page, last_card.get_by_test_id("story-actions-menu").click)
                 for link in ("open-detail-view", "edit-story"):
                     link_url = last_card.get_by_test_id(link).get_attribute("href")
                     assert link_url
@@ -862,6 +954,7 @@ class TestEndToEndUser(BaseE2ETest):
         share_story = story.get_by_test_id("share-story")
         actions_menu.focus()
         expect(actions_menu).to_be_focused()
+        with_htmx_wait(page, lambda: actions_menu.press("Enter"))
         expect(share_story).to_be_visible()
         with_htmx_wait(page, share_story.click)
 

@@ -2,11 +2,13 @@ import json
 from typing import Any, cast
 from urllib.parse import parse_qs, urlparse
 
+import pytest
 from flask import url_for
 from flask.testing import FlaskClient
 from lxml import html  # pyright: ignore[reportMissingTypeStubs]
 from models.user import UserProfile
 from responses import RequestsMock
+from werkzeug.datastructures import MultiDict
 
 from frontend.cache import add_user_to_cache
 from frontend.config import Config
@@ -70,134 +72,138 @@ def _bookmark_payload(
     }
 
 
-def test_add_to_bookmark_dialog_lists_existing_bookmarks(authenticated_client_basic: FlaskClient, responses_mock: RequestsMock) -> None:
+def test_add_to_bookmark_dialog_lists_current_memberships(authenticated_client_basic: FlaskClient, responses_mock: RequestsMock) -> None:
     responses_mock.get(
         f"{Config.TARANIS_CORE_URL}/assess/bookmarks",
-        json={"items": [_bookmark_payload(story_count=0, stories=[])], "total_count": 1},
+        json={"items": [_bookmark_payload()], "total_count": 1},
     )
-
-    response = authenticated_client_basic.get(url_for("assess.bookmark_story", story_ids=["story-1", "story-2"]))
-
+    response = authenticated_client_basic.get(url_for("assess.bookmark_story", story_ids=["story-1"]), headers={"HX-Request": "true"})
     assert response.status_code == 200
     tree = html.fromstring(response.text)
     assert tree.xpath('//dialog[@data-testid="story-bookmark-dialog"]')
-    assert tree.xpath('//select[@data-testid="bookmark-select"]/option[@value="bookmark-1"]')[0].text_content() == "Research (0)"
-    assert len(tree.xpath('//input[@name="story_ids"]')) == 2
+    assert tree.xpath('//input[@name="bookmark_ids" and @value="bookmark-1" and @checked]')
 
 
-def test_submit_add_to_existing_bookmark_posts_story_ids(authenticated_client_basic: FlaskClient, responses_mock: RequestsMock) -> None:
-    responses_mock.post(
-        f"{Config.TARANIS_CORE_URL}/assess/bookmarks/bookmark-1/stories",
-        json={"message": "2 stories bookmarked", "added": 2, "story_count": 2},
-    )
-
-    response = authenticated_client_basic.post(
-        url_for("assess.submit_bookmark_story"),
-        data={"mode": "existing", "bookmark_id": "bookmark-1", "story_ids": ["story-1", "story-2"]},
-    )
-
-    assert response.status_code == 200
-    assert "2 stories bookmarked" in response.text
-    payload = _request_json(responses_mock.calls[0])
-    assert payload == {"story_ids": ["story-1", "story-2"]}
-
-
-def test_submit_add_to_new_bookmark_creates_then_adds(authenticated_client_basic: FlaskClient, responses_mock: RequestsMock) -> None:
-    responses_mock.post(
-        f"{Config.TARANIS_CORE_URL}/assess/bookmarks",
-        json={"message": "Bookmark collection created", "id": "bookmark-2", "bookmark": _bookmark_payload(story_count=0, stories=[])},
-        status=201,
-    )
-    responses_mock.post(
-        f"{Config.TARANIS_CORE_URL}/assess/bookmarks/bookmark-2/stories",
-        json={"message": "1 stories bookmarked", "added": 1, "story_count": 1},
-    )
-
-    response = authenticated_client_basic.post(
-        url_for("assess.submit_bookmark_story"),
-        data={"mode": "new", "name": "New Research", "story_ids": ["story-1"]},
-    )
-
-    assert response.status_code == 200
-    assert "1 stories bookmarked" in response.text
-    requested_paths = [urlparse(_request_url(call)).path.removeprefix("/api") for call in responses_mock.calls]
-    assert requested_paths == ["/assess/bookmarks", "/assess/bookmarks/bookmark-2/stories"]
-
-
-def test_instant_bookmark_story_uses_first_ordered_bookmark(
-    authenticated_client_basic: FlaskClient, responses_mock: RequestsMock, htmx_header: dict[str, bool]
+def test_submit_memberships_preserves_partial_collections_and_removes_unchecked(
+    authenticated_client_basic: FlaskClient, responses_mock: RequestsMock
 ) -> None:
+    responses_mock.post(f"{Config.TARANIS_CORE_URL}/assess/bookmarks/memberships", json={"message": "Bookmark collections updated"})
     responses_mock.get(
         f"{Config.TARANIS_CORE_URL}/assess/bookmarks",
-        json={"items": [_bookmark_payload(story_count=0, stories=[])], "total_count": 1},
+        json={"items": [_bookmark_payload(), _bookmark_payload(bookmark_id="bookmark-2", name="Second")], "total_count": 2},
     )
-    responses_mock.post(
-        f"{Config.TARANIS_CORE_URL}/assess/bookmarks/bookmark-1/stories",
-        json={"message": "1 stories bookmarked", "added": 1, "story_count": 1},
-    )
-
     response = authenticated_client_basic.post(
-        url_for("assess.instant_bookmark_story", story_id="story-1"),
-        headers=htmx_header,
+        url_for("assess.submit_bookmark_story"),
+        headers={"HX-Request": "true"},
+        data={
+            "bookmark_ids": ["bookmark-2"],
+            "original_bookmark_ids": ["bookmark-1"],
+            "story_ids": ["story-1", "story-2"],
+            "name": "New Research",
+            "default_bookmark_id": "bookmark-2",
+        },
     )
-
     assert response.status_code == 200
-    assert "1 stories bookmarked" in response.text
-    requested_paths = [urlparse(_request_url(call)).path.removeprefix("/api") for call in responses_mock.calls]
-    assert requested_paths == ["/assess/bookmarks", "/assess/bookmarks/bookmark-1/stories"]
-    bookmark_query = dict(parse_qs(urlparse(_request_url(responses_mock.calls[0])).query))
-    assert bookmark_query == {"limit": ["1"], "order": ["position_asc"]}
-    payload = _request_json(responses_mock.calls[1])
-    assert payload == {"story_ids": ["story-1"]}
+    assert _request_json(responses_mock.calls[0]) == {
+        "story_ids": ["story-1", "story-2"],
+        "bookmark_ids": ["bookmark-2"],
+        "remove_bookmark_ids": ["bookmark-1"],
+        "new_collection_name": "New Research",
+        "default_bookmark_id": "bookmark-2",
+    }
+    tree = html.fromstring(response.text)
+    assert tree.xpath('//*[@id="story-bookmark-story-1"]//span[text()="Saved"]')
+    assert tree.xpath('//*[@id="story-bookmark-story-2"]//span[text()="Bookmark"]')
+
+    responses_mock.replace(
+        "POST", f"{Config.TARANIS_CORE_URL}/assess/bookmarks/memberships", json={"error": "Collection name already exists"}, status=400
+    )
+    failed = authenticated_client_basic.post(
+        url_for("assess.submit_bookmark_story"),
+        data={"story_ids": ["story-1", "story-2"], "remove_bookmark_ids": ["bookmark-1"], "bookmark_ids": ["bookmark-2"], "name": "Research"},
+    )
+    assert failed.status_code == 400
+    tree = html.fromstring(failed.text)
+    assert tree.xpath('//input[@name="remove_bookmark_ids" and @value="bookmark-1" and not(@disabled)]')
+    removed_choice = tree.xpath('//input[@name="bookmark_ids" and @value="bookmark-1"]')[0]
+    added_choice = tree.xpath('//input[@name="bookmark_ids" and @value="bookmark-2"]')[0]
+    assert removed_choice.get("checked") is None
+    assert added_choice.get("checked") is not None
+    assert removed_choice.get("x-init") is None and added_choice.get("x-init") is None
+    retry_form = tree.xpath('//form[@id="story-bookmark-form"]')[0]
+    retry_data = MultiDict(retry_form.form_values())
+    retry_data["name"] = "Unique Research"
+    responses_mock.replace(
+        "POST", f"{Config.TARANIS_CORE_URL}/assess/bookmarks/memberships", json={"message": "Bookmark collections updated"}
+    )
+    retried = authenticated_client_basic.post(retry_form.get("action"), data=retry_data)
+    assert retried.status_code == 302
+    assert _request_json(responses_mock.calls[-1])["remove_bookmark_ids"] == ["bookmark-1"]
+
+
+def test_quick_save_updates_card_and_offers_undo_only_for_new_membership(
+    authenticated_client_basic: FlaskClient, responses_mock: RequestsMock
+) -> None:
+    for added in (True, False):
+        responses_mock.post(
+            f"{Config.TARANIS_CORE_URL}/assess/bookmarks/quick-save",
+            json={"bookmark": _bookmark_payload(), "added_story_ids": ["story-1"] if added else []},
+        )
+        responses_mock.get(f"{Config.TARANIS_CORE_URL}/assess/bookmarks", json={"items": [_bookmark_payload()], "total_count": 1})
+        response = authenticated_client_basic.post(
+            url_for("assess.instant_bookmark_story", story_id="story-1"), headers={"HX-Request": "true"}
+        )
+        assert response.status_code == 200
+        tree = html.fromstring(response.text)
+        assert "Saved to Research" in response.text
+        assert tree.xpath('//*[@id="story-bookmark-story-1"]//span[text()="Saved"]')
+        assert bool(tree.xpath('//*[@data-test-id="bookmark-undo"]')) == added
 
 
 def test_instant_bookmark_story_redirects_to_story_without_htmx(
     authenticated_client_basic: FlaskClient, responses_mock: RequestsMock
 ) -> None:
-    responses_mock.get(
-        f"{Config.TARANIS_CORE_URL}/assess/bookmarks",
-        json={"items": [_bookmark_payload(story_count=0, stories=[])], "total_count": 1},
-    )
     responses_mock.post(
-        f"{Config.TARANIS_CORE_URL}/assess/bookmarks/bookmark-1/stories",
-        json={"message": "1 stories bookmarked", "added": 1, "story_count": 1},
+        f"{Config.TARANIS_CORE_URL}/assess/bookmarks/quick-save",
+        json={"message": "Story bookmarked", "bookmark": _bookmark_payload(), "added_story_ids": ["story-1"]},
     )
-
     response = authenticated_client_basic.post(url_for("assess.instant_bookmark_story", story_id="story-1"))
-
     assert response.status_code == 302
     assert response.headers["Location"] == url_for("assess.story", story_id="story-1")
 
 
-def test_instant_bookmark_story_creates_default_collection_when_none_exists(
-    authenticated_client_basic: FlaskClient, responses_mock: RequestsMock, htmx_header: dict[str, bool]
+@pytest.mark.parametrize("status", [200, 403])
+def test_unbookmark_removes_all_memberships_and_updates_card_only_on_success(
+    authenticated_client_basic: FlaskClient, responses_mock: RequestsMock, status: int
 ) -> None:
-    responses_mock.get(f"{Config.TARANIS_CORE_URL}/assess/bookmarks", json={"items": [], "total_count": 0})
+    bookmarks = [
+        _bookmark_payload(),
+        _bookmark_payload(bookmark_id="bookmark-2", name="Second"),
+        _bookmark_payload(bookmark_id="bookmark-3", name="Other", stories=[_story_payload("story-2")]),
+    ]
+    responses_mock.get(f"{Config.TARANIS_CORE_URL}/assess/bookmarks", json={"items": bookmarks, "total_count": 3})
     responses_mock.post(
+        f"{Config.TARANIS_CORE_URL}/assess/bookmarks/memberships",
+        json={"message": "Bookmark collections updated"} if status == 200 else {"error": "Access denied"},
+        status=status,
+    )
+    responses_mock.get(
         f"{Config.TARANIS_CORE_URL}/assess/bookmarks",
-        json={
-            "message": "Bookmark collection created",
-            "id": "bookmark-default",
-            "bookmark": _bookmark_payload(bookmark_id="bookmark-default", name="Bookmarks", story_count=0, stories=[]),
-        },
-        status=201,
+        json={"items": [_bookmark_payload(stories=[_story_payload("story-2")])], "total_count": 1},
     )
-    responses_mock.post(
-        f"{Config.TARANIS_CORE_URL}/assess/bookmarks/bookmark-default/stories",
-        json={"message": "1 stories bookmarked", "added": 1, "story_count": 1},
-    )
-
     response = authenticated_client_basic.post(
-        url_for("assess.instant_bookmark_story", story_id="story-1"),
-        headers=htmx_header,
+        url_for("assess.instant_bookmark_story", story_id="story-1"), headers={"HX-Request": "true"}, data={"remove": "true"}
     )
-
-    assert response.status_code == 200
-    assert "1 stories bookmarked" in response.text
-    requested_paths = [urlparse(_request_url(call)).path.removeprefix("/api") for call in responses_mock.calls]
-    assert requested_paths == ["/assess/bookmarks", "/assess/bookmarks", "/assess/bookmarks/bookmark-default/stories"]
-    create_payload = _request_json(responses_mock.calls[1])
-    assert create_payload == {"name": "Bookmarks"}
+    assert response.status_code == status
+    mutation = next(call for call in responses_mock.calls if call.request.method == "POST")
+    assert _request_json(mutation) == {"story_ids": ["story-1"], "remove_bookmark_ids": ["bookmark-1", "bookmark-2"]}
+    tree = html.fromstring(response.text)
+    if status == 200:
+        assert "Story unbookmarked" in response.text
+        assert tree.xpath('//*[@id="story-bookmark-story-1"]//span[text()="Bookmark"]')
+    else:
+        assert "Access denied" in response.text
+        assert not tree.xpath('//*[@id="story-bookmark-story-1"]')
 
 
 def test_bookmarks_page_renders_and_delete_rerenders_list(
@@ -285,10 +291,13 @@ def test_bookmark_detail_renders_stories_and_remove_selected(
     assert story_card.get("data-story-important") == "true"
     assert "bookmark_id=bookmark-1" in story_card.xpath('.//*[@data-testid="toggle-read"]')[0].get("hx-put")
     assert "bookmark_id=bookmark-1" in story_card.xpath('.//*[@data-testid="toggle-important"]')[0].get("hx-put")
-    ungroup_story = story_card.xpath('.//*[@data-testid="ungroup-story"]')[0]
+    menu = story_card.xpath('.//*[@data-testid="story-actions-menu"]')[0]
+    assert "bookmark_id=bookmark-1" in menu.get("hx-get")
+    responses_mock.get(f"{Config.TARANIS_CORE_URL}/assess/stories/story-1", json=_story_payload())
+    actions = authenticated_client_basic.get(menu.get("hx-get"))
+    ungroup_story = html.fromstring(actions.text).xpath('.//*[@data-testid="ungroup-story"]')[0]
     assert "bookmark_id=bookmark-1" in ungroup_story.get("hx-post")
     assert ungroup_story.get("hx-target") == "#bookmark-detail-container"
-    assert "Read" in story_card.text_content()
     assert "Important" in story_card.text_content()
     assert "In Reports" in story_card.text_content()
     assert tree.xpath('//*[@data-testid="assess-select-all-button"]')
@@ -296,13 +305,19 @@ def test_bookmark_detail_renders_stories_and_remove_selected(
     assert "Shift+B" not in response.text
     selection_form = tree.xpath('//form[@id="bookmark-selection-form"]')[0]
     assert selection_form.xpath('./input[@name="bookmark_id" and @value="bookmark-1"]')
-    assert selection_form.xpath('.//input[@type="checkbox" and @name="story_ids" and @value="story-1"]')
+    assert tree.xpath('//input[@type="checkbox" and @form="bookmark-selection-form" and @name="story_ids" and @value="story-1"]')
     for action in ("bulk-toggle-read", "bulk-toggle-important"):
-        assert tree.xpath(f'//*[@data-testid="{action}"]')[0].get("hx-include") == "#bookmark-selection-form"
+        assert (
+            tree.xpath(f'//*[@data-testid="{action}"]')[0].get("hx-include")
+            == "#bookmark-selection-form, #bookmark-selection-root input[name=story_ids]:checked"
+        )
     for action_url in (url_for("assess.cluster_story"), url_for("assess.report_story")):
-        assert tree.xpath(f'//*[@hx-get="{action_url}"]')[0].get("hx-include") == "#bookmark-selection-form"
-    remove_selected = selection_form.xpath('.//button[@type="button" and @data-testid="bookmark-remove-selected"]')[0]
-    assert remove_selected.get("hx-include") == "#bookmark-selection-form"
+        assert (
+            tree.xpath(f'//*[@hx-get="{action_url}"]')[0].get("hx-include")
+            == "#bookmark-selection-form, #bookmark-selection-root input[name=story_ids]:checked"
+        )
+    remove_selected = tree.xpath('.//button[@type="button" and @data-testid="bookmark-remove-selected"]')[0]
+    assert remove_selected.get("hx-include") == "#bookmark-selection-form, #bookmark-selection-root input[name=story_ids]:checked"
     assert remove_selected.get("hx-confirm") == "Remove selected stories from this bookmark collection?"
     assert not tree.xpath('//*[@data-testid="bookmark-story"]')
     story_request = next(call for call in responses_mock.calls if urlparse(_request_url(call)).path.endswith("/assess/stories"))
@@ -374,7 +389,7 @@ def test_bookmark_story_action_keeps_bookmark_card_behavior(
     response = authenticated_client_basic.put(
         url_for("assess.story", story_id="story-1", bookmark_id="bookmark-1"),
         headers={**htmx_header, "HX-Current-URL": url_for("assess.bookmark", bookmark_id="bookmark-1", _external=True)},
-        data={"read": "false"},
+        data={"read": "false", "story_ids": ["story-1", "story-2"]},
     )
 
     assert response.status_code == 200
@@ -382,6 +397,11 @@ def test_bookmark_story_action_keeps_bookmark_card_behavior(
     story_card = tree.xpath('//article[@data-testid="story-card-story-1"]')[0]
     assert not story_card.xpath('.//*[@data-testid="bookmark-story"]')
     assert "bookmark_id=bookmark-1" in story_card.xpath('.//*[@data-testid="toggle-read"]')[0].get("hx-put")
+    assert story_card.xpath('.//input[@name="story_ids" and @value="story-1" and @checked]')
+    for action in ("toggle-read", "toggle-important"):
+        assert story_card.xpath(f'.//*[@data-testid="{action}"]')[0].get("hx-include") == (
+            "#bookmark-selection-root input[name=story_ids]:checked"
+        )
 
 
 def test_bookmark_ungroup_error_stays_in_bookmark(
@@ -407,9 +427,9 @@ def test_bookmark_ungroup_error_stays_in_bookmark(
         headers=htmx_header,
     )
 
-    assert response.status_code == 200
+    assert response.status_code == 400
     assert "Story is assigned to a report" in response.text
-    assert 'data-testid="bookmark-detail"' in response.text
+    assert 'data-testid="bookmark-detail"' not in response.text
     assert "HX-Redirect" not in response.headers
     assert _request_json(responses_mock.calls[0]) == ["story-1"]
 

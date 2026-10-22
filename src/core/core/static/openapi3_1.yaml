@@ -1613,6 +1613,71 @@ paths:
           $ref: '#/components/responses/401Unauthorized'
         '404':
           $ref: '#/components/responses/404NotFound'
+  /assess/bookmarks/quick-save:
+    post:
+      security:
+      - UserAuth: []
+      tags:
+      - assess
+      description: Save stories to the user's explicit default collection, creating Bookmarks as the fallback.
+      operationId: assess.bookmark_quick_save.post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/story_bookmark_story_payload'
+      responses:
+        '200':
+          description: Saved stories and newly added memberships (for undo)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  bookmark:
+                    $ref: '#/components/schemas/story_bookmark'
+                  added_story_ids:
+                    type: array
+                    items:
+                      type: string
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '404':
+          $ref: '#/components/responses/404NotFound'
+        '500':
+          description: Unable to save bookmarks
+  /assess/bookmarks/memberships:
+    post:
+      security:
+      - UserAuth: []
+      tags:
+      - assess
+      description: Atomically add/remove private memberships, optionally create a collection, and choose a default. Unmentioned collections remain unchanged.
+      operationId: assess.bookmark_memberships.post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/story_bookmark_memberships'
+      responses:
+        '200':
+          description: Bookmark memberships updated
+        '400':
+          description: Invalid or contradictory membership changes
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '404':
+          $ref: '#/components/responses/404NotFound'
+        '409':
+          description: Duplicate collection name; all changes rolled back
+        '500':
+          description: Unable to update bookmarks
   /assess/bookmarks/{bookmark_id}:
     parameters:
     - name: bookmark_id
@@ -1643,14 +1708,14 @@ paths:
       - UserAuth: []
       tags:
       - assess
-      description: rename a private story bookmark collection
+      description: Rename a private story bookmark collection or make it the quick-save default
       operationId: assess.bookmark.patch
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/story_bookmark_create'
+              $ref: '#/components/schemas/story_bookmark_update'
       responses:
         '200':
           description: bookmark collection updated
@@ -6445,7 +6510,7 @@ paths:
       - UserAuth: []
       tags:
       - assess
-      description: handle stories bulk action
+      description: Update selected stories in one transaction. Missing, forbidden, or failed stories roll back every update and revision. Cache invalidation, scheduling, and realtime publication occur only after commit.
       operationId: assess.bulk_action.post
       requestBody:
         required: true
@@ -10462,6 +10527,9 @@ components:
           type: boolean
           examples:
           - false
+        show_bookmark_bar:
+          type: boolean
+          default: true
         infinite_scroll:
           type: boolean
           examples:
@@ -10489,6 +10557,10 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/hotkey'
+        default_bookmark_id:
+          type:
+          - string
+          - 'null'
         assess_saved_filters:
           type: array
           items:
@@ -11230,6 +11302,9 @@ components:
           type: boolean
         in_reports_count:
           type: integer
+        bookmarked:
+          type: boolean
+          description: Whether this story belongs to any collection owned by the requesting user
         last_change:
           type: string
         tags:
@@ -11254,8 +11329,45 @@ components:
           type: string
           minLength: 1
           maxLength: 120
+    story_bookmark_update:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        is_default:
+          type: boolean
+          const: true
+    story_bookmark_memberships:
+      type: object
+      additionalProperties: false
+      required:
+      - story_ids
+      properties:
+        story_ids:
+          type: array
+          minItems: 1
+          items:
+            type: string
+        bookmark_ids:
+          type: array
+          items:
+            type: string
+        remove_bookmark_ids:
+          type: array
+          items:
+            type: string
+        new_collection_name:
+          type: string
+          maxLength: 120
+        default_bookmark_id:
+          type:
+          - string
+          - 'null'
     story_bookmark_story_payload:
       type: object
+      additionalProperties: false
       required:
       - story_ids
       properties:
@@ -11283,6 +11395,8 @@ components:
           type: string
         position:
           type: integer
+        is_default:
+          type: boolean
         created:
           type: string
           format: date-time

@@ -9,7 +9,7 @@
     <form method="dialog">
       <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
     </form>
-    <h3 class="font-bold text-lg mt-1 mb-4">Saved Filters</h3>
+    <h3 class="font-bold text-lg mt-1 mb-4">Save &amp; manage searches</h3>
 
     {% if notification %}
       <div class="alert {% if notification.error %}alert-error{% else %}alert-success{% endif %} mb-4 py-2 text-sm">
@@ -28,6 +28,8 @@
           hx-status:400="target:#assess_saved_filters_dialog"
           hx-status:4xx="target:#assess_saved_filters_dialog"
           hx-status:5xx="target:#assess_saved_filters_dialog">
+      <h4 class="font-semibold">Save current search</h4>
+      <p class="text-sm text-base-content/70">Save the current search terms, filters, and sort order for reuse.</p>
       <label class="form-control w-full">
         <span class="label-text mb-1">Name</span>
         <input type="text"
@@ -35,7 +37,7 @@
                maxlength="{{ assess_saved_filter_name_max_length }}"
                required
                class="input input-bordered w-full"
-               placeholder="Filter name"
+               placeholder="Search name"
                data-testid="saved-filter-name-input">
       </label>
       <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -48,7 +50,7 @@
                   class="btn btn-primary btn-sm w-full whitespace-nowrap sm:w-auto"
                   {% if not has_current_filters %}disabled aria-describedby="saved-filter-disabled-reason"{% endif %}>
             {{ heroicon_outline('bookmark', class='h-4 w-4') }}
-            Save current filter
+            Save current search
           </button>
           {% if not has_current_filters %}
             <p id="saved-filter-disabled-reason" class="text-xs text-base-content/60">Apply at least one Assess filter before saving.</p>
@@ -57,11 +59,12 @@
       </div>
     </form>
 
+    <h4 class="font-semibold mb-2">Saved searches</h4>
     {% if saved_filters %}
       {{ saved_filter_cards(saved_filters, show_management_actions=true, scroll=true) }}
     {% else %}
       <div class="border-y border-base-300 py-6">
-        <p class="text-sm text-base-content/60">No saved filters yet.</p>
+        <p class="text-sm text-base-content/60">No saved searches yet.</p>
       </div>
     {% endif %}
   </div>
