@@ -580,6 +580,11 @@ class TestEndToEndUser(BaseE2ETest):
                 expect(page.get_by_role("textbox", name="Title", exact=True)).to_have_value(edited_title)
                 expect(page.get_by_role("textbox", name="Analyst comments")).to_have_value("Unsaved analyst comment")
             story_id = seeded_story["id"]
+            news_item_id = seeded_story["news_items"][0]["id"]
+            response = core_request_client.put(
+                f"/assess/news-items/{news_item_id}/tags", json_data=[{"name": "Generated tag", "tag_type": "misc"}]
+            )
+            assert response.ok
             attributes = core_request_client.json_request("GET", f"/assess/stories/{story_id}")["attributes"]
             attributes = [attribute for attribute in attributes if attribute["key"] != "classification"]
             attributes.append({"key": "classification", "value": "vulnerability"})
@@ -594,15 +599,10 @@ class TestEndToEndUser(BaseE2ETest):
             expect(page.locator("#story-ai-summary")).to_have_attribute("data-before-completion", "true")
             page.locator("#story-ai-summary").fill("Private summary draft " * 600)
             page.get_by_test_id("attribute-value-input").nth(1).fill("Unsaved custom attribute")
-            news_item_id = seeded_story["news_items"][0]["id"]
             news_card = page.locator(f"#news-item-card-{news_item_id}")
             news_card.get_by_test_id("edit-newsitem-tags").click()
             tag_draft = news_card.get_by_test_id("news-item-tag-name-input").first
             tag_draft.fill("Unsaved tag draft")
-            response = core_request_client.put(
-                f"/assess/news-items/{news_item_id}/tags", json_data=[{"name": "Generated tag", "tag_type": "misc"}]
-            )
-            assert response.ok
             refresh_requests = []
 
             def record_refresh(request):
