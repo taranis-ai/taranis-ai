@@ -1,7 +1,7 @@
 {% macro bot_result_refresh(story, element_id, bot_types) -%}
   id="{{ element_id }}"
   hx-get="{{ url_for('assess.story_edit', story_id=story.id, layout='advanced') }}"
-  hx-trigger='realtime:story.bot.finished[({% for bot_type in bot_types %}detail.data?.stories?.[{{ story.id | tojson }}]?.includes({{ bot_type | tojson }}){{ " || " if not loop.last }}{% endfor %})] from:document'
+  hx-trigger='realtime:story.bot.finished[({% for bot_type in bot_types %}Reflect.get(detail.data?.stories || {}, {{ story.id | tojson }})?.includes({{ bot_type | tojson }}){{ " || " if not loop.last }}{% endfor %})] from:document'
   hx-target="this"
   hx-select="#{{ element_id }}"
   hx-swap="outerHTML"
