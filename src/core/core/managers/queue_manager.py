@@ -55,6 +55,7 @@ from rq import Queue
 from rq.exceptions import NoSuchJobError
 from rq.job import Dependency, Job, JobStatus
 from rq.registry import DeferredJobRegistry, ScheduledJobRegistry, StartedJobRegistry
+from sqlalchemy import select
 
 from core.config import Config
 from core.log import logger
@@ -1217,36 +1218,40 @@ class QueueManager:
         from core.managers.db_manager import db
         from core.model.task import Task
 
-        jobs: dict[str, Job] = {}
+        if self._redis is None:
+            return []
+
         statuses = set()
         if pending:
             statuses.update({JobStatus.QUEUED, JobStatus.SCHEDULED, JobStatus.DEFERRED})
         if running:
             statuses.add(JobStatus.STARTED)
+        job_ids = set()
         for queue in self._queues.values():
-            job_ids = self._pending_job_ids(queue) if pending else set()
+            if pending:
+                job_ids.update(self._pending_job_ids(queue))
             if running:
                 job_ids.update(StartedJobRegistry(queue=queue).get_job_ids(cleanup=False))
-            for job_id in job_ids:
-                try:
-                    job = Job.fetch(job_id, connection=self._redis)
-                    if user_id is not None and job.meta.get("user_id") != user_id:
-                        continue
-                    if job.get_status() in statuses:
-                        jobs[job.id] = job
-                except NoSuchJobError:
-                    continue
+        if not job_ids:
+            return []
+
+        jobs: dict[str, Job] = {}
+        for job in Job.fetch_many(job_ids, connection=self._redis):
+            if job is None or job.get_status(refresh=False) not in statuses:
+                continue
+            if user_id is None or job.meta.get("user_id") == user_id:
+                jobs[job.id] = job
 
         if jobs:
             # Workers persist the outcome before RQ removes the running entry.
             completed = db.session.execute(
-                db.select(Task).where(Task.job_id.in_(jobs), Task.status.in_(Task.USER_TASK_TERMINAL_STATUSES))
-            ).scalars()
-            for task in completed:
-                job = jobs[task.job_id]
+                select(Task.job_id, Task.last_run).where(Task.job_id.in_(jobs), Task.status.in_(Task.USER_TASK_TERMINAL_STATUSES))
+            )
+            for job_id, last_run in completed:
+                job = jobs[job_id]
                 enqueued_at = job.enqueued_at or job.created_at
-                if task.last_run and task.last_run >= enqueued_at.astimezone(UTC).replace(tzinfo=None):
-                    del jobs[task.job_id]
+                if last_run and last_run >= enqueued_at.astimezone(UTC).replace(tzinfo=None):
+                    del jobs[job_id]
         return list(jobs.values())
 
     def get_user_live_tasks(self, user_id: str) -> list[dict[str, Any]]:
@@ -1399,16 +1404,28 @@ class QueueManager:
 
     def get_scheduled_jobs(self, filter_args: dict[str, Any]) -> tuple[dict, int]:
         """List immediate, deferred, delayed, and recurring jobs awaiting execution."""
+        from core.managers.db_manager import db
+        from core.model.task import Task
+
         if self.error or not self._redis:
             return {"error": self.error or "Queue unavailable"}, 503 if not Config.QUEUE_ENABLED else 500
 
         try:
+            live_jobs = self._live_jobs(running=False, pending=True)
+            task_results = {}
+            if live_jobs:
+                query = select(Task).where(Task.job_id.in_([job.id for job in live_jobs]))
+                task_results = {task.job_id: task for task in db.session.scalars(query)}
             all_jobs = []
-            for job in self._live_jobs(running=False, pending=True):
+            for job in live_jobs:
                 scheduled_for = None
                 if job.get_status(refresh=False) == JobStatus.SCHEDULED:
-                    scheduled_for = ScheduledJobRegistry(name=job.origin, connection=self._redis).get_scheduled_time(job.id)
-                task_result = self._get_latest_task_result(exact_ids={job.id})
+                    try:
+                        scheduled_for = ScheduledJobRegistry(name=job.origin, connection=self._redis).get_scheduled_time(job.id)
+                    except NoSuchJobError:
+                        # RQ may promote or cancel the job after the snapshot was read.
+                        continue
+                task_result = task_results.get(job.id)
                 all_jobs.append(
                     {
                         "id": job.id,

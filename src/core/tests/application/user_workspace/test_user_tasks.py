@@ -68,6 +68,8 @@ def test_story_task_lifecycle_is_visible_only_to_its_owner(
 
     job.set_status(JobStatus.FINISHED if outcome == "SUCCESS" else JobStatus.FAILED)
     job.delete()
+    # A registry snapshot can still contain an ID whose job has disappeared.
+    redis_client.rpush(queue.key, job.id)
     assert client.get("/api/tasks/user", query_string={"search": job.id}, headers=auth_header_user_permissions).json["total_count"] == 1
 
 
@@ -78,30 +80,34 @@ def test_user_tasks_page_live_jobs_together_with_history(app, client, session, r
     user = User.find_by_name("user")
     queue = app.extensions["rq"].get_queue("bots")
     now = datetime.now(UTC)
-    for index in range(6):
+    worker_types = ["A", "B", "Z", None, "D", "C"]
+    for index, worker_type in enumerate(worker_types):
         job_id = f"mixed-task-{index}"
         if index % 2:
             task = Task(**_task_payload(job_id, user_id=user.id))
+            task.worker_type = worker_type
             task.last_run = (now + timedelta(seconds=index)).replace(tzinfo=None)
             session.add(task)
         else:
-            job = queue.enqueue("worker.bots.bot_tasks.bot_task", job_id=job_id, meta={"user_id": user.id})
+            job = queue.enqueue("worker.bots.bot_tasks.bot_task", job_id=job_id, meta={"user_id": user.id, "worker_type": worker_type})
             job.enqueued_at = now + timedelta(seconds=index)
             job.save()
     session.commit()
 
-    for direction in ("asc", "desc"):
-        seen = []
-        for page in range(1, 5):
-            response = client.get(
-                "/api/tasks/user",
-                query_string={"search": "mixed-task", "limit": 2, "page": page, "order": f"last_run_{direction}"},
-                headers=auth_header_user_permissions,
-            )
-            assert response.status_code == 200
-            assert response.json["total_count"] == 6
-            seen.extend(item["job_id"] for item in response.json["items"])
-        assert seen == [f"mixed-task-{index}" for index in sorted(range(6), reverse=direction == "desc")]
+    for field, ascending in {"last_run": [0, 1, 2, 3, 4, 5], "worker_type": [3, 0, 1, 5, 4, 2]}.items():
+        for direction in ("asc", "desc"):
+            seen = []
+            for page in range(1, 5):
+                response = client.get(
+                    "/api/tasks/user",
+                    query_string={"search": "mixed-task", "limit": 2, "page": page, "order": f"{field}_{direction}"},
+                    headers=auth_header_user_permissions,
+                )
+                assert response.status_code == 200
+                assert response.json["total_count"] == 6
+                seen.extend(item["job_id"] for item in response.json["items"])
+            expected = ascending if direction == "asc" else ascending[::-1]
+            assert seen == [f"mixed-task-{index}" for index in expected]
 
 
 def _task_payload(job_id: str, *, user_id: str | None, status: str = "SUCCESS", worker_type: str = "presenter_task"):

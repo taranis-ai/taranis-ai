@@ -33,6 +33,8 @@ My Tasks combines owned RQ queued/deferred/delayed/running jobs with persisted t
 
 My Tasks refreshes every five seconds while its visible page contains a live job, retaining search/order/paging and stopping after completion. Like the scheduler, it reads authoritative RQ state because worker start transitions have no frontend event. Story action acceptance invalidates task/scheduler list caches.
 
+Live jobs are fetched in one Redis pipeline and use the status from that snapshot; missing jobs are skipped. SQL history and the live-row merge both sort missing worker types as empty strings so pagination agrees on PostgreSQL and SQLite.
+
 Daily `cleanup_task_history` applies global `TASK_HISTORY_RETENTION_DAYS` across task families. Cleanup records core HTTP/transport failures as `core_http_error`/`core_transport_error`.
 
 Source-detail Collect/Bot Run return notifications; Collect All/Update Wordlists replace their table containers. Follow [shared frontend swap rules](frontend-development.md).

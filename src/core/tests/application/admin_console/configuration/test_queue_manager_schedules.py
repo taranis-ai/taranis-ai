@@ -1,26 +1,25 @@
 import logging
 from datetime import UTC, datetime, timedelta, timezone
-from typing import cast
 from unittest.mock import DEFAULT, Mock, call
 
 import pytest
 from models.scheduler import ScheduledJob
-from redis import Redis
 from redis.exceptions import AuthenticationError, AuthorizationError, BusyLoadingError, ConnectionError, TimeoutError
+from rq.registry import ScheduledJobRegistry
 
 from core.managers.queue_manager import QueueManager
 from core.model.bot import Bot
 from core.model.osint_source import OSINTSource
 
 
-def test_get_scheduled_jobs_includes_cleanup_cron(app, monkeypatch):
+def test_get_scheduled_jobs_includes_cleanup_cron(app, redis_client, monkeypatch):
     monkeypatch.setattr(OSINTSource, "get_enabled_schedule_entries", classmethod(lambda cls: []))
     monkeypatch.setattr(Bot, "get_enabled_schedule_entries", classmethod(lambda cls: []))
 
-    queue_manager = QueueManager.__new__(QueueManager)
-    queue_manager.error = ""
-    queue_manager._queues = {}
-    queue_manager._redis = cast(Redis, object())
+    queue_manager = app.extensions["rq"]
+    queue = queue_manager.get_queue("bots")
+    queued = queue.enqueue("worker.bots.bot_tasks.bot_task")
+    scheduled = queue.enqueue_at(datetime.now(UTC) + timedelta(minutes=1), "worker.bots.bot_tasks.bot_task")
 
     with app.app_context():
         schedules, status = QueueManager.get_scheduled_jobs(queue_manager, {})
@@ -41,6 +40,21 @@ def test_get_scheduled_jobs_includes_cleanup_cron(app, monkeypatch):
     assert history_cleanup_job.get("schedule") == "0 3 * * *"
     assert history_cleanup_job.get("type") == "cron"
     assert isinstance(history_cleanup_job.get("next_run_time"), str)
+
+    assert {queued.id, scheduled.id} <= {job["id"] for job in items}
+    get_scheduled_time = ScheduledJobRegistry.get_scheduled_time
+
+    def promote_before_read(registry, job_id):
+        redis_client.zrem(registry.key, job_id)
+        return get_scheduled_time(registry, job_id)
+
+    monkeypatch.setattr(ScheduledJobRegistry, "get_scheduled_time", promote_before_read)
+    with app.app_context():
+        schedules, status = queue_manager.get_scheduled_jobs({})
+    assert status == 200
+    remaining_ids = {job["id"] for job in schedules["items"]}
+    assert {queued.id, *cleanup_jobs} <= remaining_ids
+    assert scheduled.id not in remaining_ids
 
 
 def test_annotate_jobs_does_not_mark_late_cron_runs_as_missed():

@@ -183,7 +183,12 @@ class Task(BaseModel):
         query = cls._add_paging_to_query(filter_args, query)
         if offset is not None:
             query = query.offset(offset)
-        query = cls._add_sorting_to_query(filter_args, query).order_by(cls.id.desc())
+        field, direction = filters.order.rsplit("_", 1)
+        column = getattr(cls, field)
+        if field == "worker_type":
+            # Match the live-task merge's ordering on both PostgreSQL and SQLite.
+            column = func.coalesce(column, "")
+        query = query.order_by(column.desc() if direction == "desc" else column.asc(), cls.id.desc())
         items = cls.get_filtered(query) or []
         return {"items": cls.to_list(items), "total_count": count}, 200
 
