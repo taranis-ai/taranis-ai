@@ -1897,7 +1897,7 @@ wheels = [
 
 [[package]]
 name = "taranis-llm-bot"
-version = "0.1.5"
+version = "0.1.6"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "langcodes", extra = ["data"] },
@@ -1905,9 +1905,9 @@ dependencies = [
     { name = "pydantic" },
     { name = "pydantic-settings" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ca/da/de5cf7542814527d38776a201096efd2e2446abf9ae8f48820adc2c5a83f/taranis_llm_bot-0.1.5.tar.gz", hash = "sha256:405e140237103ebb2f1502ec26f1c808674d3b6f0ca391210f4fee988970f77a", size = 125368, upload-time = "2026-10-08T23:12:06.357Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/69/42/8dd06d1749143d4ee23481a67fc3ac7e511c7b9eca824f373ae1124e5288/taranis_llm_bot-0.1.6.tar.gz", hash = "sha256:4d1368fe43b837d53af7a5e29cc6657806213ba4014d9301788c409dd5b19503", size = 145208, upload-time = "2026-10-21T11:30:32.197Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/5f/f2/1aa1f1239f0a9f297b98c08afb103a7b6cc774aac2722d51005c53e5378d/taranis_llm_bot-0.1.5-py3-none-any.whl", hash = "sha256:999488ba156f6cea906288c9d745ac721b4ed16bd9a6f1b543bea19d24f2d477", size = 66067, upload-time = "2026-10-08T23:12:05.148Z" },
+    { url = "https://files.pythonhosted.org/packages/82/5c/ed236ac95f27e3d9c5fd7593f8f0b99bdc63942cd09f55a23ee1a0d809fb/taranis_llm_bot-0.1.6-py3-none-any.whl", hash = "sha256:27a6f0a550c400f2cfe65d055d2b453f8137255d202b1f4fa66bd1ad97788d6b", size = 72950, upload-time = "2026-10-21T11:30:31.223Z" },
 ]
 
 [[package]]
@@ -2028,7 +2028,7 @@ requires-dist = [
     { name = "ruff", marker = "extra == 'dev'" },
     { name = "setuptools", marker = "extra == 'dev'" },
     { name = "setuptools-scm", marker = "extra == 'dev'" },
-    { name = "taranis-llm-bot", specifier = "==0.1.5" },
+    { name = "taranis-llm-bot", specifier = "==0.1.6" },
     { name = "taranis-models", editable = "../models" },
     { name = "taxii2-client" },
     { name = "trafilatura" },

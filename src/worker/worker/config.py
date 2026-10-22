@@ -32,7 +32,6 @@ class Settings(BaseSettings):
     OTEL_EXPORTER_OTLP_ENDPOINT: str | None = None
     OTEL_SERVICE_NAME: str = "taranis-worker"
     OTEL_METRIC_EXPORT_INTERVAL: Annotated[float, Field(gt=0)] = 60_000
-    CYBERSEC_CLASSIFIER_THRESHOLD: float = 0.65
     CRON_POLL_INTERVAL_SECONDS: float = 15.0
 
     @field_validator("OTEL_EXPORTER_OTLP_ENDPOINT", mode="before")

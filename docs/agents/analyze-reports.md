@@ -1,8 +1,6 @@
 # Analyze Reports
 
-## When To Load
-
-Analyze lists, report editors, story-count sorting, report-type choices, or the report Publish dialog.
+Load for: Analyze lists, report editors, story-count sorting, report-type choices, or the report Publish dialog.
 
 ## Contracts
 
@@ -13,7 +11,7 @@ Analyze lists, report editors, story-count sorting, report-type choices, or the 
 - Search debounces at 250 ms and preserves native GET submission.
 - Choose product opens the publishing product chooser; Add to report in Assess attaches the selected stories without sharing them through a connector.
 
-## Entry Points and Coverage
+## Code and Tests
 
 Core: `src/core/core/api/analyze.py`, `publish.py`, and their Report/Product models. Frontend: `src/frontend/frontend/views/report_views.py`; shared contracts: `src/models/models/report.py` and `product.py`.
 

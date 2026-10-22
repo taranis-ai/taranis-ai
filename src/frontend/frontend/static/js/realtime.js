@@ -5,6 +5,7 @@
     "report.item.changed",
     "report.lock.changed",
     "product.rendered",
+    "story.bot.finished",
     "osint_source.preview.finished",
     "notification.broadcast",
     "chat.turn.updated",

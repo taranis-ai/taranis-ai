@@ -1,8 +1,6 @@
 # Notification Center
 
-## When To Load
-
-`/notifications`, frontend notification history, persistent notices, or browser storage.
+Load for: `/notifications`, frontend notification history, persistent notices, or browser storage.
 
 ## Contracts
 
@@ -12,7 +10,7 @@ Capture once at the event source: notification-fragment Alpine initialization, r
 
 Server-rendered `persistent: true` notices remain until clicked. [Admin broadcasts](realtime-events.md) use the same history boundary and remain until dismissed.
 
-## Entry Points and Coverage
+## Code and Tests
 
 `src/frontend/frontend/static/js/notification-center.js`, `src/frontend/frontend/templates/notification/index.html`, `src/frontend/frontend/templates/user_notifications/index.html`, `src/frontend/frontend/views/user_views.py`.
 

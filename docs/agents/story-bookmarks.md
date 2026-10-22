@@ -1,8 +1,6 @@
 # Story Bookmarks
 
-## When To Load
-
-Bookmark collections, `/bookmarks`, Assess bookmark bar/dialog, story bookmarking, or bookmark cache/context changes.
+Load for: Bookmark collections, `/bookmarks`, Assess bookmark bar/dialog, story bookmarking, or bookmark cache/context changes.
 
 ## Contracts
 

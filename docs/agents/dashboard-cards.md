@@ -1,20 +1,18 @@
 # Dashboard Cards
 
-## When To Load
-
-Dashboard workflow cards, weekly counts, or the analyst review entry.
+Load for: Dashboard workflow cards, weekly counts, or the analyst review entry.
 
 ## Contracts
 
 Assess counts news items/stories, Analyze separates completed/in-progress reports, Publish counts products (not published or ready products), and Connectors separates story/news-item conflicts. Keep existing dashboard-wide scope and the [analyst review](analyst-review.md) permission gate.
 
-Weekly counts run from Monday 00:00 UTC through now, inclusive, excluding future content. News items use publication time; stories/reports/products use creation time. This is not a rolling seven-day window. The shared Dashboard response uses the existing 30-second frontend cache.
+Weekly counts run from Monday 00:00 UTC through now, inclusive, excluding future content. News items use publication time; stories/reports/products use creation time. This is not a rolling seven-day window. The shared Dashboard response uses the 30-second frontend cache.
 
-Assess top-source percentage bars respect the per-user dashboard `show_charts` setting and are omitted when there are no sources. The per-user `source_distribution_limit` defaults to three and must be a non-negative integer. Zero disables the distribution and returns no sources, including no Other entry; positive limits group remaining sources as Other. Saving a profile invalidates the dashboard cache so the new limit is visible immediately. The authenticated API passes the user to the dashboard service and source query, which reads the limit from the user profile. Calls without a user keep the default limit. They sit beside the counts on wide screens and stack below them on smaller screens.
+Source distribution respects per-user `show_charts` and `source_distribution_limit` (default 3, non-negative integer). Zero disables it, including Other; positive limits group remaining sources as Other. Profile saves invalidate the dashboard cache. The authenticated query uses the user profile; calls without a user retain the default.
 
 The source query caps its SQL limit at the total news-item count, so even configured integers beyond the database's binding range show all available sources without overflowing. No fixed product maximum applies.
 
-## Entry Points and Coverage
+## Code and Tests
 
 `src/core/core/service/dashboard.py`, `src/models/models/dashboard.py`, `src/frontend/frontend/templates/dashboard/user_item_cards.html`.
 

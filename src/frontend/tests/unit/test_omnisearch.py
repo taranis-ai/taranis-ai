@@ -127,13 +127,13 @@ def test_omnisearch_resolves_filter_list_values():
 
 def test_omnisearch_treats_story_keywords_as_implicit_story_mode(app):
     with app.test_request_context("/frontend/search"):
-        location = build_omnisearch_target_url("vpn cyber:yes in-report:false range:24h", _filter_lists())
+        location = build_omnisearch_target_url('vpn topic:"security incident" in-report:false range:24h', _filter_lists())
 
     parsed_location = urlparse(location or "")
     assert parsed_location.path.endswith("/assess")
     assert parse_qs(parsed_location.query) == {
         "search": ["vpn"],
-        "cybersecurity": ["yes"],
+        "classification": ["security incident"],
         "in_report": ["false"],
         "range": ["24h"],
     }

@@ -108,7 +108,7 @@ def pre_seed_update(db_engine: Engine):
 
 
 def pre_seed_llm_endpoints():
-    from models.llm import LLM_BOT_FEATURES, LLMEndpoint
+    from models.llm import LLM_BOT_FEATURES, LLMProvider
 
     from core.managers.db_manager import db
     from core.model.bot import Bot
@@ -117,8 +117,8 @@ def pre_seed_llm_endpoints():
     Settings.initialize()
     settings = Settings.get_settings_entry()
     assert settings is not None
-    endpoint = LLMEndpoint(
-        name="internal", base_url="http://llm-inference:8000/v1", api_format="chat_completions", enabled=not Config.DEBUG
+    endpoint = LLMProvider(
+        name="internal", base_url="http://llm-inference:8000/v1", api_formats={"chat_completions": {}}, enabled=not Config.DEBUG
     ).model_dump()
     endpoint["api_key"] = Config.LLM_INFERENCE_API_KEY.get_secret_value()
     values = deepcopy(settings.settings)

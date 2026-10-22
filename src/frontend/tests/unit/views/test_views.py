@@ -50,7 +50,7 @@ def assert_admin_navigation(document, view_name):
     assert current[0].get("data-testid") == f"admin-menu-{view_name}"
     assert "menu-active" in current[0].get("class").split()
     groups = current[0].xpath("ancestor::details")
-    assert tree.xpath("//aside//details[@open]") == groups
+    assert tree.xpath("//aside//details[@open]") == tree.xpath("//aside//details")
     assert len(groups) == (0 if view_name in {"Admin Dashboard", "Settings"} else 1)
 
 
