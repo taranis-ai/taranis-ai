@@ -38,6 +38,22 @@ ADMIN_VIEWS = [(name, cls) for name, cls in VIEW_ITEMS if getattr(cls, "_is_admi
 ADMIN_IDS = [name for name, _ in ADMIN_VIEWS]
 
 
+def assert_admin_navigation(document, view_name):
+    tree = html.fromstring(document)
+    links = tree.xpath('//aside[@id="sidebar"]//a[@data-tour-target]')
+    assert {link.get("data-testid") for link in links} == {f"admin-menu-{name}" for name in ADMIN_IDS}
+    assert len(links) == len(ADMIN_IDS)
+    assert links[0].get("data-testid") == "admin-menu-Admin Dashboard"
+    assert not links[0].xpath("ancestor::details")
+    current = tree.xpath('//aside//a[@aria-current="page"]')
+    assert len(current) == 1
+    assert current[0].get("data-testid") == f"admin-menu-{view_name}"
+    assert "menu-active" in current[0].get("class").split()
+    groups = current[0].xpath("ancestor::details")
+    assert tree.xpath("//aside//details[@open]") == groups
+    assert len(groups) == (0 if view_name in {"Admin Dashboard", "Settings"} else 1)
+
+
 def test_native_delete_rejects_create_id(authenticated_client):
     response = authenticated_client.post(SourceView.get_edit_route(osint_source_id="0"), data={"_action": "delete"})
     assert response.status_code == 405
@@ -260,6 +276,7 @@ class TestAdminViews:
         assert expected is not None, f"Expected: {expected} item in {view_name!r} not found in payload: {payload!r}"
 
         assert expected in html, f"Expected {expected!r} in the {view_name!r} HTML but did not find it.\nHTML snippet: {html[200:500]}…"
+        assert_admin_navigation(html, view_name)
 
 
 @pytest.mark.parametrize("view_name,view_cls", CRUD_ITEMS, ids=CRUD_IDS)
@@ -284,6 +301,8 @@ class TestCRUDViews:
         html = resp.get_data(as_text=True)
         print(f"FORMDATA FOR : {view_name}")
         print(form_formats_from_models[view_name])
+        if view_cls._is_admin:
+            assert_admin_navigation(html, view_name)
         actual_keys = form_data(html).get_cleaned_keys()
         allowed = form_formats_from_models[view_name]["allowed"]
         required = form_formats_from_models[view_name]["required"]
@@ -310,6 +329,8 @@ class TestCRUDViews:
         assert resp.status_code == 200
 
         html = resp.get_data(as_text=True)
+        if view_cls._is_admin:
+            assert_admin_navigation(html, view_name)
         actual_keys = form_data(html).get_cleaned_keys()
         allowed = form_formats_from_models[view_name]["allowed"]
         required = form_formats_from_models[view_name]["required"]
@@ -363,6 +384,7 @@ class TestSourceView:
         assert first.status_code == 200
         tree = html.fromstring(first.text)
         assert tree.xpath('//a[contains(@href, "state=failure")]/span[1]/text()') == ["4", "7"]
+        assert tree.xpath("//aside//summary/span[@aria-label]/text()") == ["4", "7"]
         assert len([call for call in responses_mock.calls if call.request.url == badge_url]) == 1
 
         responses_mock.replace("GET", badge_url, json={"osint_source": 5, "bot": 8})
@@ -370,7 +392,14 @@ class TestSourceView:
         assert second.status_code == 200
         tree = html.fromstring(second.text)
         assert tree.xpath('//a[contains(@href, "state=failure")]/span[1]/text()') == ["5", "8"]
+        assert tree.xpath("//aside//summary/span[@aria-label]/text()") == ["5", "8"]
         assert len([call for call in responses_mock.calls if call.request.url == badge_url]) == 2
+
+        responses_mock.replace("GET", badge_url, json={"osint_source": 0, "bot": 0})
+        third = authenticated_client.get(SourceView.get_base_route())
+        assert third.status_code == 200
+        tree = html.fromstring(third.text)
+        assert not tree.xpath('//aside//summary/span[@aria-label] | //aside//a[contains(@href, "state=failure")]')
 
     @pytest.mark.parametrize("status", [200, 409])
     def test_native_delete_redirects_with_notification(self, authenticated_client, responses_mock, status):
