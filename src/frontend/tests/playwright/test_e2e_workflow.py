@@ -266,7 +266,9 @@ class TestUserWorkflow(BaseE2ETest):
             expect(card).to_have_attribute("aria-selected", "true")
 
         first_card = page.get_by_test_id(f"story-card-{selected_story_ids[0]}")
-        first_card.get_by_test_id("bookmark-story").click()
+        second_card = page.get_by_test_id(f"story-card-{selected_story_ids[1]}")
+        second_card.click()
+        page.locator("#assess-top-bar").get_by_role("button", name="Bookmark").click()
         picker = page.get_by_test_id("story-bookmark-dialog")
         first_choice = picker.locator("label").filter(has_text=bookmark_name).locator('input[name="bookmark_ids"]')
         expect(first_choice).to_be_checked()
@@ -275,6 +277,7 @@ class TestUserWorkflow(BaseE2ETest):
         picker.get_by_test_id("new-bookmark-name").fill(extra_name)
         picker.get_by_test_id("submit-bookmark-story").click()
         expect(picker).not_to_be_visible()
+        second_card.click()
 
         # Bulk saves preserve mixed memberships, including rows hidden by search.
         page.locator("#assess-top-bar").get_by_role("button", name="Bookmark").click()
@@ -295,7 +298,8 @@ class TestUserWorkflow(BaseE2ETest):
         expect(picker).not_to_be_visible()
 
         # A failed inline create retains the changed membership and entered name.
-        first_card.get_by_test_id("bookmark-story").click()
+        second_card.click()
+        page.locator("#assess-top-bar").get_by_role("button", name="Bookmark").click()
         extra_choice = picker.locator("label").filter(has_text=extra_name).locator('input[name="bookmark_ids"]')
         expect(extra_choice).not_to_be_checked()
         extra_choice.check()
@@ -306,11 +310,21 @@ class TestUserWorkflow(BaseE2ETest):
         expect(picker.get_by_test_id("new-bookmark-name")).to_have_value(bookmark_name)
         expect(picker.locator("label").filter(has_text=extra_name).locator('input[name="bookmark_ids"]')).to_be_checked()
         picker.get_by_role("button", name="Cancel", exact=True).click()
+        second_card.click()
 
-        # Quick-save and undo update cards without dropping the current selection.
+        # Quick-save, unbookmark, and undo preserve selection and persist across reloads.
         third_card = page.get_by_test_id(f"story-card-{stories_date_descending[2]}")
         third_card.get_by_test_id("bookmark-story").click()
         expect(page.locator("#notification-bar")).to_contain_text(f"Saved to {bookmark_name}")
+        expect(third_card.get_by_test_id("bookmark-story")).to_have_text("Saved")
+        third_card.get_by_test_id("bookmark-story").click()
+        expect(third_card.get_by_test_id("bookmark-story")).to_have_text("Bookmark")
+        expect(page.get_by_test_id("story-bookmark-dialog")).not_to_be_visible()
+        page.reload(wait_until="domcontentloaded")
+        expect(third_card.get_by_test_id("bookmark-story")).to_have_text("Bookmark")
+        first_card.click()
+        second_card.click()
+        third_card.get_by_test_id("bookmark-story").click()
         expect(third_card.get_by_test_id("bookmark-story")).to_have_text("Saved")
         page.locator('[data-test-id="bookmark-undo"]').click()
         expect(third_card.get_by_test_id("bookmark-story")).to_have_text("Bookmark")

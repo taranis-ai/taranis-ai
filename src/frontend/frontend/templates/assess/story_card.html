@@ -11,8 +11,10 @@
   {% set is_selected = (not detail_view) and story_id in selected_story_ids %}
 
   {% set card_classes = ["card", "card-bordered", "bg-base-100", "border-l-4", "hover:shadow-lg", "relative", "w-full", "max-w-full", "@container"] %}
-  {% if is_selected or not (story.read | default(false)) %}
+  {% if is_selected %}
     {% set card_classes = card_classes + ['border-primary'] %}
+  {% elif not (story.read | default(false)) %}
+    {% set card_classes = card_classes + ['border-info'] %}
   {% else %}
     {% set card_classes = card_classes + ['border-base-200'] %}
   {% endif %}

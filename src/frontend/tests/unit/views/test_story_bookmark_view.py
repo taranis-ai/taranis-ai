@@ -2,6 +2,7 @@ import json
 from typing import Any, cast
 from urllib.parse import parse_qs, urlparse
 
+import pytest
 from flask import url_for
 from flask.testing import FlaskClient
 from lxml import html  # pyright: ignore[reportMissingTypeStubs]
@@ -169,6 +170,40 @@ def test_instant_bookmark_story_redirects_to_story_without_htmx(
     response = authenticated_client_basic.post(url_for("assess.instant_bookmark_story", story_id="story-1"))
     assert response.status_code == 302
     assert response.headers["Location"] == url_for("assess.story", story_id="story-1")
+
+
+@pytest.mark.parametrize("status", [200, 403])
+def test_unbookmark_removes_all_memberships_and_updates_card_only_on_success(
+    authenticated_client_basic: FlaskClient, responses_mock: RequestsMock, status: int
+) -> None:
+    bookmarks = [
+        _bookmark_payload(),
+        _bookmark_payload(bookmark_id="bookmark-2", name="Second"),
+        _bookmark_payload(bookmark_id="bookmark-3", name="Other", stories=[_story_payload("story-2")]),
+    ]
+    responses_mock.get(f"{Config.TARANIS_CORE_URL}/assess/bookmarks", json={"items": bookmarks, "total_count": 3})
+    responses_mock.post(
+        f"{Config.TARANIS_CORE_URL}/assess/bookmarks/memberships",
+        json={"message": "Bookmark collections updated"} if status == 200 else {"error": "Access denied"},
+        status=status,
+    )
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/assess/bookmarks",
+        json={"items": [_bookmark_payload(stories=[_story_payload("story-2")])], "total_count": 1},
+    )
+    response = authenticated_client_basic.post(
+        url_for("assess.instant_bookmark_story", story_id="story-1"), headers={"HX-Request": "true"}, data={"remove": "true"}
+    )
+    assert response.status_code == status
+    mutation = next(call for call in responses_mock.calls if call.request.method == "POST")
+    assert _request_json(mutation) == {"story_ids": ["story-1"], "remove_bookmark_ids": ["bookmark-1", "bookmark-2"]}
+    tree = html.fromstring(response.text)
+    if status == 200:
+        assert "Story unbookmarked" in response.text
+        assert tree.xpath('//*[@id="story-bookmark-story-1"]//span[text()="Bookmark"]')
+    else:
+        assert "Access denied" in response.text
+        assert not tree.xpath('//*[@id="story-bookmark-story-1"]')
 
 
 def test_bookmarks_page_renders_and_delete_rerenders_list(

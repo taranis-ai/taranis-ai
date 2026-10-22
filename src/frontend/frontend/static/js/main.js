@@ -157,7 +157,8 @@ function syncSelectedStoryCardState(storyList, selectedItems) {
     const selected = selectedIds.has(node.dataset.storyId);
     const read = node.dataset.storyRead === "true";
     node.classList.toggle("bg-primary/5", selected);
-    node.classList.toggle("border-primary", selected || !read);
+    node.classList.toggle("border-primary", selected);
+    node.classList.toggle("border-info", !selected && !read);
     node.classList.toggle("border-base-200", !selected && read);
     node.classList.toggle("shadow-md", selected);
     node.setAttribute("aria-selected", selected.toString());

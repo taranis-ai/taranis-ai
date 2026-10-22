@@ -208,7 +208,20 @@ class StoryBookmarkView(BaseView):
     @classmethod
     @auth_required("ASSESS_ACCESS")
     def instant_bookmark_story(cls, story_id: str) -> ResponseReturnValue:
-        response = CoreApi().api_post("/assess/bookmarks/quick-save", json_data={"story_ids": [story_id]})
+        remove = request.form.get("remove") == "true"
+        if remove:
+            bookmarks, error = cls._load_bookmarks(fetch_all=True)
+            if error:
+                return cls.render_response_notification({"error": error}), 502
+            response = CoreApi().api_post(
+                "/assess/bookmarks/memberships",
+                json_data={
+                    "story_ids": [story_id],
+                    "remove_bookmark_ids": [bookmark.id for bookmark in bookmarks or [] if story_id in bookmark.story_ids],
+                },
+            )
+        else:
+            response = CoreApi().api_post("/assess/bookmarks/quick-save", json_data={"story_ids": [story_id]})
         if response.ok:
             cls._invalidate_bookmark_cache()
         if not is_htmx_request():
@@ -216,6 +229,9 @@ class StoryBookmarkView(BaseView):
             return cls.redirect_htmx(url_for("assess.story", story_id=story_id))
         if not response.ok:
             return make_response(cls.get_notification_from_response(response), cls._response_status(response))
+        if remove:
+            body = cls.render_response_notification({"message": "Story unbookmarked"})
+            return make_response(body + cls._membership_updates([story_id]), 200)
         payload = cls._response_json(response)
         bookmark = payload["bookmark"]
         body = render_template(
