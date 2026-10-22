@@ -302,10 +302,8 @@ class NewsItem(BaseModel):
     def get_sentiment(self) -> str:
         return next((attr.value for attr in self.attributes if attr.key == "sentiment_category"), "")
 
-    def get_cybersecurity_status(self) -> str:
-        return next((attr.value for attr in self.attributes if attr.key == "cybersecurity_human"), None) or next(
-            (attr.value for attr in self.attributes if attr.key == "cybersecurity_bot"), "none"
-        )
+    def get_classification(self) -> str:
+        return next((attr.value for attr in self.attributes if attr.key == "classification"), "none")
 
     def upsert(self):
         """Insert a NewsItem into the database or skip if hash exists."""

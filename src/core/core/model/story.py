@@ -6,6 +6,7 @@ from typing import Any
 
 from models.assess import NewsItem as AssessNewsItem
 from models.assess import Story as StoryPayload
+from models.classification import story_classification
 from models.types import BOT_TYPES
 from pydantic import ValidationError
 from sqlalchemy import func, inspect, or_, select
@@ -403,8 +404,8 @@ class Story(BaseModel):
         if important == "false":
             query = query.filter(Story.important == false())
 
-        if cybersecurity_status := filter_args.get("cybersecurity", "").lower():
-            query = cls._add_key_value_filter_to_query(query, "cybersecurity", cybersecurity_status)
+        if classification := filter_args.get("classification", "").lower():
+            query = cls._add_key_value_filter_to_query(query, "classification", classification)
 
         relevant = filter_args.get("relevant", "").lower()
         if relevant == "true":
@@ -1413,19 +1414,8 @@ class Story(BaseModel):
             db.session.commit()
         return new_story.id or None
 
-    def get_cybersecurity_status(self) -> str:
-        status_list = [news_item.get_cybersecurity_status() for news_item in self.news_items]
-        status_set = frozenset(status_list)
-
-        if "none" in status_set and len(status_set) > 1:
-            return "incomplete"
-        status_map = {
-            frozenset(["yes"]): "yes",
-            frozenset(["no"]): "no",
-            frozenset(["yes", "no"]): "mixed",
-            frozenset(["none"]): "none",
-        }
-        return status_map.get(status_set, "none")
+    def get_classification(self) -> str:
+        return story_classification(item.get_classification() for item in self.news_items)
 
     def get_story_sentiment(self) -> str:
         counts = Counter(item.get_sentiment() for item in self.news_items)
@@ -1475,11 +1465,11 @@ class Story(BaseModel):
     def update_status_attributes(self):
         self.refresh_tlp()
         attributes = [
-            NewsItemAttribute(key="cybersecurity", value=self.get_cybersecurity_status()),
+            NewsItemAttribute(key="classification", value=self.get_classification()),
             NewsItemAttribute(key="sentiment", value=self.get_story_sentiment()),
         ]
         for attribute in attributes:
-            if attribute.value != "none":
+            if attribute.value != "none" or (attribute.key == "classification" and self.find_attribute_by_key("classification")):
                 self.upsert_attribute(attribute)
 
     @staticmethod

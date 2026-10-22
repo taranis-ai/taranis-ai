@@ -533,7 +533,7 @@ def test_rq_scheduled_wordlist_bot_cron(
 
 
 @pytest.mark.e2e_ci
-def test_endpoint_check_marks_bot_and_health(worker_process: None, rq_harness: RqE2EHarness) -> None:
+def test_endpoint_check_marks_bot_and_health(worker_process: None, rq_harness: RqE2EHarness, logged_in_page) -> None:
     endpoint = rq_harness.core_client.json_request(
         "POST",
         "/settings/llm-endpoints",
@@ -561,6 +561,14 @@ def test_endpoint_check_marks_bot_and_health(worker_process: None, rq_harness: R
         assert response.json()["services"]["worker_endpoints"] == "down"
         failed = rq_harness.core_client.json_request("GET", "/config/bots?state=failure")
         assert bot_id in {item["id"] for item in failed["items"]}
+        page = logged_in_page
+        page.goto(url_for("admin.dashboard", _external=True))
+        processing = page.locator("#sidebar details").filter(has=page.get_by_test_id("admin-menu-Bot"))
+        expect(processing).to_have_attribute("open", "")
+        expect(processing.locator("summary .badge-error")).to_be_visible()
+        page.get_by_test_id("admin-menu-Bot-errors").click()
+        expect(page).to_have_url(url_for("admin.bots", state="failure", _external=True))
+        expect(page.get_by_test_id("admin-menu-Bot")).to_have_attribute("aria-current", "page")
         rq_harness.core_client.post(f"/settings/llm-endpoints/{endpoint_id}", json_data={"enabled": False})
         assert rq_harness.core_client.json_request("GET", route)["endpoint_health"]["status"] == "disabled"
         assert rq_harness.core_client.get("/health", raise_for_status=False).json()["services"]["worker_endpoints"] == "n/a"

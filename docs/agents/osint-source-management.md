@@ -1,8 +1,6 @@
 # OSINT Source Management
 
-## When To Load
-
-Source administration, bulk creation/deletion, curated lists, source groups, `/admin/sources`, rolling collection metrics, or version-4 source import.
+Load for: Source administration, bulk creation/deletion, curated lists, source groups, `/admin/sources`, rolling collection metrics, or version-4 source import.
 
 ## Contracts
 
@@ -16,11 +14,11 @@ Source administration, bulk creation/deletion, curated lists, source groups, `/a
 - Curated loading commits reconciliation, then schedules every selected enabled source when queues are enabled. With `QUEUE_ENABLED=false`, loading succeeds without scheduling. Scheduling failure returns 503 without undoing data; repeat loads retry existing sources too. Successful loads invalidate source/group caches.
 - Bulk input errors return 400, core failures retain their status, and transport failures return 502 with the form notification.
 - Detail Collect preserves unsaved edits with a notification-only response. Row/Collect All refresh the table; Collect All retains query parameters. Apply the [shared swap/error rules](frontend-development.md).
-- Manual-source and status filters apply on change with JavaScript; native GET submission remains available through Apply buttons only when JavaScript is disabled. The existing OSINT browser workflow checks that the buttons stay hidden before and after filtering.
+- Manual-source and status filters apply on change with JavaScript; native GET submission remains available through Apply buttons only when JavaScript is disabled. The OSINT browser workflow checks that the buttons stay hidden before and after filtering.
 
 - Source details show rolling collection counts for the trailing 24 hours, 7 days, or 30 days, defaulting to week, alongside the lifetime news-item count. Use `NewsItem.collected`, never `NewsItem.published`.
 
-## Entry Points and Coverage
+## Code and Tests
 
 `src/frontend/frontend/views/admin_views/source_views.py`, `src/frontend/frontend/templates/osint_source/`, `src/core/core/model/osint_source.py`, `src/core/core/api/config.py`, `src/core/core/static/curated_osint_sources.json`.
 

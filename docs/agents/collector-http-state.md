@@ -1,8 +1,6 @@
 # Collector HTTP State
 
-## When To Load
-
-RSS/Simple Web conditional requests, ETag/Last-Modified, 304 results, collector dates, or failure propagation.
+Load for: RSS/Simple Web conditional requests, ETag/Last-Modified, 304 results, collector dates, or failure propagation.
 
 ## Contracts
 
@@ -15,7 +13,7 @@ RSS/Simple Web conditional requests, ETag/Last-Modified, 304 results, collector 
 
 Direct requests and icons share the task's external Niquests pool; cookies persist only within a redirect chain. Session ownership and connect/read timeout policy are defined in [HTTP Client Lifetimes](http-clients.md). HTTP validators remain request-local and retain the contracts above.
 
-Direct HTTP connection failures and timeouts in `send_get_request` use a static message advising checks of worker-container DNS, network access, and `PROXY_SERVER`. This covers every collector using the helper, including RSS, Simple Web, and RT. Original exception details are logged server-side at ERROR level, with tracebacks at DEBUG level, and suppressed from the displayed error chain. Connection and timeout diagnostics remain HTTP request exceptions, preserving RT’s existing per-item error handling. This adds no retries and does not diagnose DNS or an unreachable endpoint as the definite cause of a read timeout. The shared HTTP request test covers connection and timeout diagnostics, exception-chain suppression, and logging at INFO configuration. The RT collection test also covers per-item network failure fallbacks and continued collection.
+Connection failures/timeouts in `send_get_request` return static DNS/network/`PROXY_SERVER` guidance without claiming a definite cause or retrying. Log details at ERROR and tracebacks at DEBUG; suppress displayed exception chains. Preserve HTTP request exception types for RT’s per-item fallback. Shared collector tests cover diagnostics/logging; RT tests cover continued collection.
 
 ## Date Fallbacks
 
@@ -23,7 +21,7 @@ RSS uses the first parseable nonblank entry date, linked article date, channel `
 
 Ignore invalid Last-Modified dates. Parsed offset-aware dates become naive UTC; timezone-less values are treated as UTC. Persist/replay HTTP validator strings unchanged. Normalize legacy aware `last_attempted` to UTC before GMT formatting.
 
-## Entry Points and Coverage
+## Code and Tests
 
 Worker: `src/worker/worker/collectors/base_web_collector.py`, `rss_collector.py`, `simple_web_collector.py`, and `collector_tasks.py` in that directory. Core: `src/core/core/model/osint_source.py`, `src/core/core/service/task.py`.
 

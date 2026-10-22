@@ -124,6 +124,14 @@ class TaskService:
             if applied:
                 try:
                     cls._handle_success_result(submission)
+                    if submission.user_id:
+                        stories: dict[str, list[str]] = {}
+                        for stage in result_data["bot_stages"]:
+                            for story_id in dict.fromkeys(stage["story_ids"]):
+                                bot_types = stories.setdefault(story_id, [])
+                                if stage["bot_type"] not in bot_types:
+                                    bot_types.append(stage["bot_type"])
+                        realtime_publisher.story_bot_finished(stories, submission.user_id)
                     realtime_publisher.assess_changed()
                 except Exception:
                     logger.exception("Bot run committed but post-commit notification failed")

@@ -3,7 +3,7 @@ from copy import deepcopy
 from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from models.llm import LLM_FEATURES, LLMEndpoint
+from models.llm import LLM_BOT_FEATURES, LLM_FEATURES, LLMEndpoint, LLMProvider
 from sqlalchemy import event
 from sqlalchemy.orm import Mapped, Session
 
@@ -70,7 +70,10 @@ class Settings(BaseModel):
         for key in list(merged):
             if key.startswith("chat_llm_"):
                 merged.pop(key)
-        merged["llm_endpoints"] = {key: {"enabled": not Config.DEBUG, **endpoint} for key, endpoint in merged["llm_endpoints"].items()}
+        merged["llm_endpoints"] = {
+            key: LLMProvider.model_validate({"enabled": not Config.DEBUG, **endpoint}).model_dump()
+            for key, endpoint in merged["llm_endpoints"].items()
+        }
         merged.setdefault("llm_default_endpoint", "")
         for feature in LLM_FEATURES:
             merged.setdefault(f"llm_{feature}_endpoint", "")
@@ -139,6 +142,12 @@ class Settings(BaseModel):
                 return {"error": "Select an existing LLM endpoint"}, 400
         if cls._chat_uses_batch({**current_settings, **update_data}):
             return {"error": "Chat requires a realtime LLM endpoint. Assign Chat explicitly before using a batch default."}, 400
+        if cls._nonclassification_uses_decisions({**current_settings, **update_data}):
+            return {"error": "Decisions endpoints support only topic classification. Use a Responses or Chat Completions default."}, 400
+        if (endpoint_id := update_data.get("llm_classification_endpoint")) and not LLMProvider.model_validate(
+            current_settings["llm_endpoints"][endpoint_id]
+        ).supports("classification"):
+            return {"error": "Topic classification requires a realtime Decisions endpoint."}, 400
         if "chat_max_stories" in update_data:
             try:
                 value = cls._validate_non_negative_int(update_data["chat_max_stories"])
@@ -167,7 +176,7 @@ class Settings(BaseModel):
 
     @classmethod
     def _validate_llm_settings(cls, values: dict) -> None:
-        endpoints = {key: LLMEndpoint.model_validate(value).model_dump() for key, value in values["llm_endpoints"].items()}
+        endpoints = {key: LLMProvider.model_validate(value).model_dump() for key, value in values["llm_endpoints"].items()}
         names = [endpoint["name"].casefold() for endpoint in endpoints.values()]
         if len(names) != len(set(names)):
             raise ValueError("Duplicate LLM endpoint names")
@@ -177,6 +186,8 @@ class Settings(BaseModel):
         values["llm_endpoints"] = endpoints
         if cls._chat_uses_batch(values):
             raise ValueError("Chat requires a realtime LLM endpoint")
+        if cls._nonclassification_uses_decisions(values):
+            raise ValueError("Decisions endpoints support only topic classification")
         values["chat_max_stories"] = cls._validate_non_negative_int(values["chat_max_stories"])
         if not 1 <= values["chat_max_stories"] <= 20:
             raise ValueError("Maximum stories must be between 1 and 20")
@@ -188,13 +199,22 @@ class Settings(BaseModel):
         return bool(endpoint and endpoint.get("processing_mode") == "openrouter_batch")
 
     @classmethod
+    def _nonclassification_uses_decisions(cls, values: dict) -> bool:
+        for feature in LLM_FEATURES.keys() - {"classification"}:
+            endpoint_id = values.get(f"llm_{feature}_endpoint") or values.get("llm_default_endpoint")
+            endpoint = values.get("llm_endpoints", {}).get(endpoint_id, {})
+            if endpoint and not LLMProvider.model_validate(endpoint).supports(feature):
+                return True
+        return False
+
+    @classmethod
     def get_llm_endpoint(cls, feature: str, settings: dict | None = None) -> dict | None:
         if feature not in LLM_FEATURES:
             return None
         values = settings if settings is not None else cls.get_settings()
         endpoint_id = values.get(f"llm_{feature}_endpoint") or values.get("llm_default_endpoint")
         endpoint = values.get("llm_endpoints", {}).get(endpoint_id)
-        return deepcopy(endpoint) if endpoint and endpoint.get("enabled", True) else None
+        return LLMProvider.model_validate(endpoint).for_feature(feature) if endpoint and endpoint.get("enabled", True) else None
 
     @classmethod
     def save_llm_endpoint(cls, data: dict | None, endpoint_id: str | None = None, *, delete: bool = False) -> tuple[dict, int]:
@@ -205,6 +225,7 @@ class Settings(BaseModel):
             return {"error": "Settings not found"}, 404
         values = cls.with_defaults(entry.settings)
         endpoints = dict(values["llm_endpoints"])
+        previous = LLMProvider.model_validate(endpoints[endpoint_id]) if endpoint_id in endpoints else None
         if delete:
             from core.model.bot import Bot
 
@@ -221,9 +242,21 @@ class Settings(BaseModel):
             if not isinstance(data, dict):
                 return {"error": "Invalid LLM endpoint"}, 400
             submitted = dict(data)
+            if submitted.get("api_formats") == {}:
+                return {"error": "Enable at least one API format for this endpoint."}, 400
             try:
                 clear_key = cls._validate_bool(submitted.pop("api_key_clear", False))
                 existing = endpoints.get(endpoint_id, {})
+                if "api_formats" not in submitted and ("api_format" in submitted or "model" in submitted):
+                    # Preserve the existing single-format API for integrations and saved configurations.
+                    current_format = next(iter(existing.get("api_formats", {"responses": {}})))
+                    api_format = submitted.pop("api_format", current_format)
+                    api_config = dict(existing.get("api_formats", {}).get(api_format, {}))
+                    api_config.setdefault("model", existing.get("api_formats", {}).get(current_format, {}).get("model", ""))
+                    if "model" in submitted:
+                        api_config["model"] = submitted.pop("model")
+                    formats = dict(existing.get("api_formats", {})) if api_format == current_format else {}
+                    submitted["api_formats"] = {**formats, api_format: api_config}
                 if "enabled" in submitted:
                     submitted["enabled"] = cls._validate_bool(submitted["enabled"])
                 elif endpoint_id is None:
@@ -232,7 +265,7 @@ class Settings(BaseModel):
                     submitted["api_key"] = ""
                 elif "api_key" not in submitted or (isinstance(submitted["api_key"], str) and not submitted["api_key"].strip()):
                     submitted["api_key"] = existing.get("api_key", "")
-                endpoint = LLMEndpoint.model_validate({**existing, **submitted}).model_dump()
+                endpoint = LLMProvider.model_validate({**existing, **submitted}).model_dump()
             except (TypeError, ValueError):
                 return {
                     "error": "Invalid LLM endpoint. Check the name, base URL, model, API format, processing mode, and positive timeout."
@@ -244,6 +277,19 @@ class Settings(BaseModel):
         values["llm_endpoints"] = endpoints
         if cls._chat_uses_batch(values):
             return {"error": "Chat requires a realtime LLM endpoint. Reassign Chat before changing this endpoint to batch."}, 400
+        if cls._nonclassification_uses_decisions(values):
+            return {"error": "Decisions endpoints support only topic classification. Reassign other features first."}, 400
+        from core.model.bot import Bot
+
+        provider = LLMProvider.model_validate(endpoints[endpoint_id]) if endpoint_id in endpoints else None
+        lost_features = {
+            feature for feature in LLM_FEATURES if provider and previous and previous.supports(feature) and not provider.supports(feature)
+        }
+        if endpoint_id == values.get("llm_classification_endpoint") and "classification" in lost_features:
+            return {"error": "Reassign topic classification before changing this endpoint's API format."}, 400
+        for bot in db.session.execute(db.select(Bot)).scalars():
+            if bot.parameters.get("LLM_ENDPOINT") == endpoint_id and LLM_BOT_FEATURES.get(bot.type.value) in lost_features:
+                return {"error": "Reassign incompatible bots before changing this endpoint's API format."}, 400
         entry.settings = values
         db.session.commit()
         from core.model.bot import Bot

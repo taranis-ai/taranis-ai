@@ -1,8 +1,6 @@
 # Frontend E2E Harness
 
-## When To Load
-
-Playwright stack setup, `--e2e-ci`, Compose service selection, RQ readiness, screenshots, traces, or slow E2E startup.
+Load for: Playwright stack setup, `--e2e-ci`, Compose service selection, RQ readiness, screenshots, traces, or slow E2E startup.
 
 ## Harness Contracts
 

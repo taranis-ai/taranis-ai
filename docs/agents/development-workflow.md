@@ -1,8 +1,6 @@
 # Development Workflow
 
-## When To Load
-
-Before application edits, validation, development setup changes, or local startup advice.
+Read before application edits, validation, development setup changes, or local startup advice.
 
 ## Environment and Startup
 
@@ -17,7 +15,7 @@ Before application edits, validation, development setup changes, or local startu
 
 Run component commands from that component's directory; CI definitions are in `.github/workflows`. Read [Test Design](test-design.md) before changing tests and [Frontend E2E Harness](frontend-e2e-harness.md) for browser-stack details.
 
-- For branch-wide validation or CI regressions: `uv run pytest` in core and frontend, then `uv run pytest tests/playwright --e2e-ci` in frontend. Narrow targets are for isolating failures after reproduction; they do not replace signoff.
+- For branch-wide validation, run `./dev/testpipeline.sh` from the repository root. It syncs environments and runs audits, lint, unit tests, and the full isolated frontend E2E suite. Narrow targets isolate failures but do not replace signoff.
 - `certifi` and Pillow are exempt from the one-week dependency cooling period so fixes for compromised CA roots and image-decoder advisories can be locked immediately. Upgrade only the affected packages with `uv lock --upgrade-package`; keep audit checks enabled.
 - Lint changed components with `uv run ruff check`; use `--fix` and `uv run ruff format` as appropriate. After Python edits, run `./dev/check_pyrefly.sh` from the repository root.
 - Models has no unit tests. Worker browser-scraping tests require Playwright browsers.
@@ -43,8 +41,8 @@ It requires a clean worktree, runs the full lint/unit/E2E pipeline, then pushes 
 
 ## Development Conventions
 
-- Before preparing or updating a PR, read [Contributing](../../CONTRIBUTING.md). Its contributor process, mandatory [PR template](../../.github/pull_request_template.md) use, prompt disclosure, human confirmations, and human review-time estimates apply only to outside collaborators. Core members of the [taranis-ai/ait team](https://github.com/orgs/taranis-ai/teams/ait) are exempt and may omit those template sections. Agents must not request them from core members; follow [AGENTS.md](../../AGENTS.md#pull-requests) to determine the human contributor's status. Shared code, security, testing, licensing, commit attribution, and review and branch-protection rules still apply to everyone.
-- Root `README.md` is curated product documentation; edit it only when explicitly requested. Use scoped documentation for development and deployment changes. `.github/CODEOWNERS` assigns root `README.md` and the ownership file to `@b3n4kh`. On `master`, enable **Require review from Code Owners** and **Dismiss stale pull request approvals when new commits are pushed**; ownership rules take effect after the file reaches the PR's base branch. Stale approval dismissal applies to all PRs. GitHub requests Ben's review on ready-for-review PRs from other authors. His existing review bypass remains available to him, but agents must never use it for these files. GitHub cannot accept self-approval on PRs authored by his account, so those require his explicit manual decision.
+- Before PR work, read [Contributing](../../CONTRIBUTING.md). Apply the human contributor’s status and review rules from [AGENTS.md](../../AGENTS.md#pull-requests); core members are exempt from the outside-contributor process.
+- Follow [AGENTS.md](../../AGENTS.md#security-and-git) for root README and CODEOWNERS edits. On `master`, require Code Owner review and dismiss stale approvals. Ownership applies once CODEOWNERS reaches the base branch. GitHub cannot accept self-approval; PRs authored by Ben require his explicit manual decision.
 - Keep changes simple and focused. Prefer flat settings JSON and direct values; avoid forced DRY abstractions, unnecessary metadata, and compatibility aliases or migrations for unreleased branch-only behavior.
 - Use `fix/`, `feature/`, or `chore/` branch prefixes. Never use `git add -A`; stage intended files only.
 - Fix tests/lint before committing. Omit test-pass counts from commit messages and change-history comments from code.

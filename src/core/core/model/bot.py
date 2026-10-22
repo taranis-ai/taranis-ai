@@ -504,7 +504,7 @@ class Bot(BaseModel):
         return None
 
     def to_worker_dict(self) -> dict[str, Any]:
-        from models.llm import LLM_BOT_FEATURES
+        from models.llm import LLM_BOT_FEATURES, LLMProvider
 
         from core.model.settings import Settings
 
@@ -512,7 +512,8 @@ class Bot(BaseModel):
         data["parameters"] = effective_parameters(self.type, self.parameters)
         if self.type.value in LLM_BOT_FEATURES:
             settings = Settings.get_settings()
-            data["llm_endpoint"] = settings["llm_endpoints"].get(self.get_llm_endpoint_id(settings))
+            endpoint = settings["llm_endpoints"].get(self.get_llm_endpoint_id(settings))
+            data["llm_endpoint"] = LLMProvider.model_validate(endpoint).for_feature(LLM_BOT_FEATURES[self.type.value]) if endpoint else None
         return data
 
     def is_llm_endpoint_enabled(self, settings: dict | None = None) -> bool:

@@ -711,6 +711,7 @@ def test_manual_news_item_validation_error_targets_notification_bar(authenticate
 def test_story_edit_renders_news_item_tag_editor(app, authenticated_client, responses_mock, can_edit):
     story_payload = story_with_news_item_tags()
     story_payload["can_edit"] = can_edit
+    story_payload["news_items"].append({**story_payload["news_items"][0], "id": "news-2", "title": "Other news item"})
     mock_story_for_edit(responses_mock, story_payload)
     csrf_token = "csrf-token"
     authenticated_client.set_cookie(key=app.config["JWT_ACCESS_CSRF_COOKIE_NAME"], value=csrf_token)
@@ -738,7 +739,7 @@ def test_story_edit_renders_news_item_tag_editor(app, authenticated_client, resp
 def test_story_edit_advanced_view_renders_sentiment_status_chip(authenticated_client, responses_mock):
     story_payload = story_with_news_item_tags()
     story_payload["attributes"] = [
-        {"key": "cybersecurity", "value": "yes"},
+        {"key": "classification", "value": "vulnerability"},
         {"key": "sentiment", "value": "negative"},
     ]
     mock_story_for_edit(responses_mock, story_payload)
@@ -747,8 +748,17 @@ def test_story_edit_advanced_view_renders_sentiment_status_chip(authenticated_cl
 
     assert response.status_code == 200
     assert "Story status" in response.text
-    assert "Cybersecurity · Yes" in response.text
+    assert "Classification · Vulnerability" in response.text
     assert "Sentiment · Negative" in response.text
+
+    fragment = authenticated_client.get(
+        url_for("assess.story_edit", story_id=story_payload["id"], layout="advanced"),
+        headers={"HX-Request": "true", "HX-Target": "story-ai-sentiment"},
+    )
+    assert fragment.status_code == 200
+    tree = html.fromstring(fragment.text)
+    assert tree.xpath('//*[@id="story-ai-sentiment"]')[0].text == "Sentiment · Negative"
+    assert tree.xpath('//*[@id="story-ai-summary"]')
 
 
 def test_story_edit_misp_auto_update_is_advanced_only(authenticated_client, responses_mock):
@@ -953,7 +963,7 @@ def test_assess_filters_support_htmx_and_native_form_submission(authenticated_cl
     )
 
     response = authenticated_client.get(
-        url_for("assess.assess", search="pull"),
+        url_for("assess.assess", search="pull", cybersecurity="no", classification="security incident"),
         headers={"HX-Target": "div#story-list"},
     )
 
@@ -996,6 +1006,10 @@ def test_assess_filters_support_htmx_and_native_form_submission(authenticated_cl
     assert not filter_form.xpath('.//select[@name="group"]')
     assert not filter_form.xpath('.//select[@name="tags"]')
     assert not filter_form.xpath('.//select[@name="language"]')
+    assert "cybersecurity" not in dict(filter_form.form_values())
+    topic_chip = tree.xpath('//a[@aria-label="Remove Classification: security incident"]')[0]
+    assert parse_qs(urlparse(topic_chip.get("href")).query) == {"search": ["pull"]}
+    assert not tree.xpath('//a[@aria-label="Remove Cybersecurity: no"]')
 
 
 def test_story_read_action_replaces_story_card(app):
@@ -1188,6 +1202,7 @@ def test_assess_redirects_default_saved_filter_into_browser_url(authenticated_cl
             id="filter-1",
             name="Shift queue",
             filters={
+                "cybersecurity": "yes",
                 "source": ["source-1"],
                 "language": ["en"],
                 "read": "true",
@@ -1278,6 +1293,7 @@ def test_assess_save_saved_filter_posts_selected_filters_to_profile(authenticate
         url_for("assess.save_saved_filter"),
         data=MultiDict(
             [
+                ("cybersecurity", "yes"),
                 ("name", "Shift queue"),
                 ("is_default", "true"),
                 ("source", "source-1"),

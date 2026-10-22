@@ -1,8 +1,6 @@
 # Analyst Review
 
-## When To Load
-
-Start analyst review, `/analyst-review/*`, `/api/assess/analyst-review/*`, Add/Dismiss/Skip, or guided Report-to-Publish handoff.
+Load for: Start analyst review, `/analyst-review/*`, `/api/assess/analyst-review/*`, Add/Dismiss/Skip, or guided Report-to-Publish handoff.
 
 ## Contracts
 
@@ -14,7 +12,7 @@ Start analyst review, `/analyst-review/*`, `/api/assess/analyst-review/*`, Add/D
 - Publish opens the sole Product already containing the Report, or a new Product with that Report preselected when there are zero/multiple matches. Delete review state at this handoff; never publish automatically.
 - Preserve ordinary Assess/Report/Product flows outside a review run. The dashboard entry retains its permission gate.
 
-## Entry Points and Coverage
+## Code and Tests
 
 Frontend: `src/frontend/frontend/views/analyst_review_views.py`, `src/frontend/frontend/templates/analyst_review/`, `src/frontend/frontend/views/report_views.py`. Core: `src/core/core/service/analyst_review.py`, `src/core/core/api/assess.py`; snapshot/type metadata in `src/core/core/model/story.py` and `src/core/core/model/report_item_type.py`.
 

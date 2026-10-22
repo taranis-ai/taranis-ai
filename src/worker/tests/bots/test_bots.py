@@ -4,6 +4,9 @@ from unittest.mock import patch
 import pytest
 from llm_bot.client import LLMClient
 from llm_bot.config import Config as LLMConfig
+from llm_bot.decisions_client import DecisionsClient
+from llm_bot.schemas import ClassifyResponse
+from models.classification import CLASSIFICATION_CATEGORIES
 from rq import Retry
 
 from worker.bots.base_bot import BaseBot
@@ -172,7 +175,7 @@ def test_nlp_bot(stories, story_get_mock, requests_mock):
         assert provider.call_args.args[2] == _news_item_content_for_tagging(stories[-1]["news_items"][-1], separator="\n")
         assert "Cybersecurity mode is disabled" in provider.call_args.args[1]
 
-        cyber_story = {**stories[-1], "attributes": {"cybersecurity": {"value": "yes"}}}
+        cyber_story = {**stories[-1], "attributes": {"classification": {"value": "security incident"}}}
         requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/stories", json=[cyber_story])
         bots.NLPBot().execute({"llm_endpoint": endpoint})
         assert "Cybersecurity mode is enabled" in provider.call_args.args[1]
@@ -214,27 +217,49 @@ def test_summary_bot_uses_library(stories, requests_mock, multiple_items):
         }
 
 
-@pytest.mark.parametrize("threshold, expected", [(0.65, "no"), (0.5, "yes")])
-def test_cybersec_class_bot(stories, story_get_mock, threshold, expected):
+def test_classification_bot(stories, requests_mock):
     from worker import bots
 
-    endpoint = {"name": "Classification", "base_url": "https://llm.test/v1"}
-    with patch.object(LLMClient, "create_response", autospec=True) as provider:
-        provider.return_value = {"output_text": '{"cybersecurity": 0.6, "non-cybersecurity": 0.4}'}
-        result = bots.CyberSecClassifierBot().execute({"llm_endpoint": endpoint, "CLASSIFICATION_THRESHOLD": threshold})
-    count = sum(len(story["news_items"]) for story in stories)
-    assert result["message"] == f"Classified {count} news items"
-    assert provider.await_count == count
-    assert len(result["changes"]["story_attributes"]) == len(stories)
-    assert len(result["changes"]["item_attributes"]) == len({item["id"] for story in stories for item in story["news_items"]})
-    assert all(
-        {attr["key"]: attr["value"] for attr in attributes}["cybersecurity"] == expected
-        for attributes in result["changes"]["story_attributes"].values()
-    )
-    assert all(
-        {attr["key"]: attr["value"] for attr in attributes}["cybersecurity_bot_score"] == "0.6"
-        for attributes in result["changes"]["item_attributes"].values()
-    )
+    assert tuple(field.alias or name for name, field in ClassifyResponse.model_fields.items()) == CLASSIFICATION_CATEGORIES
+    items = [dict(item, id=f"classified-{index}") for index, item in enumerate(stories[0]["news_items"][:1] * 4)]
+    items[-1]["content"] = "  "
+    items[-1]["attributes"] = [
+        {"key": "classification", "value": "vulnerability"},
+        {"key": "classification_scores", "value": '{"vulnerability": 1.0}'},
+    ]
+    selected = [{**stories[0], "news_items": items}]
+    requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/stories", json=selected)
+    endpoint = {
+        "name": "Classification",
+        "base_url": "https://llm.test/v1/systemone",
+        "api_format": "systemone",
+        "model": "classifier",
+        "api_key": "classification-key",
+        "timeout": 45,
+    }
+    scores = {category: 0.0 for category in CLASSIFICATION_CATEGORIES}
+    scores.update({"security incident": 0.4, "general news": 0.6})
+    state = {}
+    parameters = {"llm_endpoint": endpoint, "_llm_batch_state": state, "CLASSIFICATION_THRESHOLD": 0.99}
+    with patch.object(DecisionsClient, "create_decision", autospec=True) as provider:
+        provider.return_value = {"category": scores}
+        result = bots.CyberSecClassifierBot().execute(parameters)
+        assert provider.await_count == 3
+        client = provider.call_args.args[0]
+        assert (client.url, client.model, client.api_key, client.timeout) == (endpoint["base_url"], "classifier", "classification-key", 45)
+        assert bots.CyberSecClassifierBot().execute(parameters) == result
+        assert provider.await_count == 3
+    assert result["message"] == "Classified 3 news items"
+    assert result["changes"]["story_attributes"] == {selected[0]["id"]: [{"key": "classification", "value": "general news"}]}
+    for item in items[:-1]:
+        attributes = {attr["key"]: attr["value"] for attr in result["changes"]["item_attributes"][item["id"]]}
+        assert attributes["classification"] == "general news"
+        assert json.loads(attributes["classification_scores"]) == scores
+        assert "cybersecurity_bot" not in attributes
+    assert result["changes"]["item_attributes"][items[-1]["id"]] == [
+        {"key": "classification", "value": "none"},
+        {"key": "classification_scores", "value": "{}"},
+    ]
 
 
 @pytest.mark.parametrize("batch", [False, True])

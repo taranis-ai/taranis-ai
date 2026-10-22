@@ -114,9 +114,24 @@ def test_endpoint_health_lifecycle(client, auth_header, api_header, app, db_pers
             assert client.post(route, json={"check_id": current["check_id"], "healthy": True}, headers=api_header).json["accepted"]
 
             for bot_type in ("nlp_bot", "sentiment_analysis_bot", "cybersec_classifier_bot"):
+                selected_endpoint_id = endpoint_id
+                if bot_type == "cybersec_classifier_bot":
+                    response = client.post(
+                        "/api/settings/llm-endpoints",
+                        json={**endpoint, "name": "Topic health", "api_format": "systemone", "enabled": True},
+                        headers=auth_header,
+                    )
+                    assert response.status_code == 200
+                    selected_endpoint_id = response.json["id"]
+                    state = read_state("llm", selected_endpoint_id)
+                    assert client.post(
+                        f"/api/worker/endpoint-health/llm/{selected_endpoint_id}",
+                        json={"check_id": state["check_id"], "healthy": True},
+                        headers=api_header,
+                    ).json["accepted"]
                 response = client.post(
                     "/api/config/bots",
-                    json={"name": bot_type, "type": bot_type, "parameters": {"LLM_ENDPOINT": endpoint_id}},
+                    json={"name": bot_type, "type": bot_type, "parameters": {"LLM_ENDPOINT": selected_endpoint_id}},
                     headers=auth_header,
                 )
                 assert response.status_code == 201
@@ -126,6 +141,13 @@ def test_endpoint_health_lifecycle(client, auth_header, api_header, app, db_pers
                 assert read_state("bot", shared_bot_id) == {}
                 client.patch(shared_route, json={"enabled": False}, headers=auth_header)
                 assert client.get(shared_route, headers=auth_header).json["endpoint_health"] is None
+                if selected_endpoint_id != endpoint_id:
+                    assert (
+                        client.post(
+                            f"/api/settings/llm-endpoints/{selected_endpoint_id}", json={"enabled": False}, headers=auth_header
+                        ).status_code
+                        == 200
+                    )
 
             # Pause existing cron, collector/dependent pipelines, and manual dispatch.
             count = misc_queue.count

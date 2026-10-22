@@ -28,15 +28,23 @@ uv sync --frozen
 granian app
 ```
 
+### LLM endpoints
+
+In **Admin Settings > LLM Endpoints**, the single **Decisions** box has one enable checkbox, API format selector, and model. Choose **System One (vLLM / llama.cpp)** for self-hosted `/v1/systemone` servers with a supported decision model, **OpenRouter** for its hosted models, or **OpenAI** for servers implementing OpenAI's `/v1/decisions` schema. Existing endpoints open with their effective Decisions format and model.
+
+Selecting **OpenRouter** configures `https://openrouter.ai/api/alpha/decisions` automatically and hides the manual URL override. The other formats use the provider base URL plus their format path unless you enter an override. Switching away from a saved OpenRouter choice starts with a blank override, so its hosted URL is not accidentally reused for a self-hosted server. The model stays unchanged when switching formats.
+
 ### Omnisearch
 
 The navbar search sends users to `GET /search?q=...`. Unqualified searches render grouped results across Stories, Reports, and Products with links to matching objects and to each filtered list view.
 
 Scope prefixes jump straight to the existing list views: `story: <search>` opens `/assess?search=<search>`, `report: <search>` opens `/analyze?search=<search>`, and `product: <search>` opens `/publish?search=<search>`. The aliases `stories:`, `assess:`, `reports:`, `analyze:`, `products:`, and `publish:` are also accepted. `report:true` and `report:false` are reserved for the Assess `in_report` filter; use `report: <search>` for report search.
 
-Assess keyword filters are implicit story mode. `vpn tag:apt read:false sort:relevance` opens `/assess` with the same query parameters as the Assess sidebar. Supported Assess qualifiers are `source:`, `group:`, `tag:`/`tags:`, `read:`, `important:`, `relevant:`, `in-report:`/`report:`, `cybersecurity:`/`cyber:`, `changed-by:`, `range:`, `from:`, `to:`, and `sort:`. `range:` accepts `shift`, `24h`, `week`, `day`, `month`, and `last<N>` values such as `last7`.
+Assess keyword filters are implicit story mode. `vpn tag:apt read:false sort:relevance` opens `/assess` with the same query parameters as the Assess sidebar. Supported Assess qualifiers are `source:`, `group:`, `tag:`/`tags:`, `read:`, `important:`, `relevant:`, `in-report:`/`report:`, `classification:`/`topic:` (quote multiword categories, such as `topic:"security incident"`), `changed-by:`, `range:`, `from:`, `to:`, and `sort:`. `range:` accepts `shift`, `24h`, `week`, `day`, `month`, and `last<N>` values such as `last7`.
 
 Assess sidebar filters can be saved per user using Save & manage searches beside the search box. The dialog lets users save the current search or apply and manage saved searches. Custom dates and Advanced filters expand when needed; active-filter chips share the top row with View and Create item and remove individual criteria. Saving with an existing saved filter name updates it, duplicate filter criteria under another name are rejected, and each saved filter can be updated from the current sidebar filters or deleted from the dashboard cards. One saved filter can be marked as the default; loading `/assess` without query parameters redirects to that saved filter, while `?reset=true` shows the unfiltered list.
+
+Topic classification filters have a removable active-filter chip. Saved searches use the supported topic criteria; replace older binary-classification searches after rerunning classification.
 
 The Time period dropdown offers Any time, Today (shift), This week, This month, Last 24 hours, Last 7 days, and Last 30 days. Calendar periods start at midnight UTC (Monday for the week); rolling periods count back from the current time. This corrects the previous midnight-based cutoff for `24h` and `last<N>`, including saved searches using those values. Existing `day` and other `last<N>` URLs remain selectable. Custom dates further constrain a preset. Selecting Any time clears the preset and custom dates while retaining other filters; custom-only filters display Custom dates until cleared. The information tooltip explains UTC calendar boundaries, which keep shared filter URLs independent of the viewer’s time zone.
 
@@ -148,3 +156,5 @@ pytest
 ```
 
 There are [e2e tests](./tests/playwright/README.md) using Playwright, including the browser suite and the RQ/Redis integration e2e suite.
+
+Story editor AI actions refresh their affected fields through SSE and HTMX after the bot result commits: summary/title, sentiment, classification, and news-item tags. Completion events combine all affected story IDs and bot types into one publication per saved run. Each matching event fetches the editor once without submitting form values; HTMX swaps only the affected fragments, including each linked news item’s tag display for tag results. Overlapping events queue on the same controller. Unrelated unsaved fields and attributes stay intact; generated output replaces drafts in the affected fields. Open tag-editor drafts are preserved while the saved tag display updates; Cancel and reopen load the latest saved tags. If realtime is disabled or delivery is missed, reload to see the saved results.

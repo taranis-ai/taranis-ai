@@ -72,8 +72,7 @@ def test_bot_parameters_include_optional_positive_integer_requests_timeout(authe
     assert requests_timeout_fields[0].get("required") is None
     assert requests_timeout_fields[0].get("step") is None
     if bot_type == "cybersec_classifier_bot":
-        threshold = tree.xpath('//input[@name="parameters[CLASSIFICATION_THRESHOLD]"]')[0]
-        assert (threshold.get("step"), threshold.get("min"), threshold.get("max")) == ("any", "0", "1")
+        assert not tree.xpath('//input[@name="parameters[CLASSIFICATION_THRESHOLD]"]')
     assert refresh_interval_fields[0].get("required") is None
     assert tree.xpath('//select[@name="parameters[LLM_ENDPOINT]"]')
     assert not tree.xpath(

@@ -564,14 +564,14 @@ class TestEndToEndUser(BaseE2ETest):
             expect(bot_attribute).to_have_value("preserved bot marker")
             expect(back_to_assess).to_have_attribute("href", return_url)
             expect(page.get_by_role("complementary")).to_contain_text("Story status")
-            page.get_by_text("Cybersecurity · Not Classified").click()
-            expect(page.get_by_role("complementary")).to_contain_text("Cybersecurity · Not Classified")
+            page.get_by_text("Classification · Not Classified").click()
+            expect(page.get_by_role("complementary")).to_contain_text("Classification · Not Classified")
             expect(page.get_by_role("complementary")).to_contain_text("AI assisted actions")
             expect(page.get_by_role("complementary")).to_contain_text("Generate summary & title")
             expect(page.get_by_role("complementary")).to_contain_text("Run sentiment analysis")
-            expect(page.get_by_role("complementary")).to_contain_text("Cybersecurity classification")
+            expect(page.get_by_role("complementary")).to_contain_text("Topic classification")
             page.get_by_role("textbox", name="Analyst comments").fill("Unsaved analyst comment")
-            for action in ("Generate summary & title", "Generate Tags", "Run sentiment analysis", "Cybersecurity classification"):
+            for action in ("Generate summary & title", "Generate Tags", "Run sentiment analysis", "Topic classification"):
                 with_htmx_wait(page, page.get_by_role("button", name=action, exact=True).click)
                 expect(page.locator("#notification-bar")).to_have_count(1)
                 expect(page.locator("#notification-message")).to_contain_text(
@@ -579,6 +579,73 @@ class TestEndToEndUser(BaseE2ETest):
                 )
                 expect(page.get_by_role("textbox", name="Title", exact=True)).to_have_value(edited_title)
                 expect(page.get_by_role("textbox", name="Analyst comments")).to_have_value("Unsaved analyst comment")
+            story_id = seeded_story["id"]
+            news_item_id = seeded_story["news_items"][0]["id"]
+            response = core_request_client.put(
+                f"/assess/news-items/{news_item_id}/tags", json_data=[{"name": "Generated tag", "tag_type": "misc"}]
+            )
+            assert response.ok
+            attributes = core_request_client.json_request("GET", f"/assess/stories/{story_id}")["attributes"]
+            attributes = [attribute for attribute in attributes if attribute["key"] != "classification"]
+            attributes.append({"key": "classification", "value": "vulnerability"})
+            core_request_client.patch(f"/assess/stories/{story_id}", json_data={"summary": "Completed AI summary", "attributes": attributes})
+            page.evaluate("document.querySelector('#story-ai-summary').dataset.beforeCompletion = 'true'")
+            page.evaluate(
+                """storyId => document.dispatchEvent(new CustomEvent('realtime:story.bot.finished', {
+                    detail: {data: {stories: {[storyId]: ['SUMMARY_BOT']}}}
+                }))""",
+                "unrelated-story",
+            )
+            expect(page.locator("#story-ai-summary")).to_have_attribute("data-before-completion", "true")
+            page.locator("#story-ai-summary").fill("Private summary draft " * 600)
+            page.get_by_test_id("attribute-value-input").nth(1).fill("Unsaved custom attribute")
+            news_card = page.locator(f"#news-item-card-{news_item_id}")
+            news_card.get_by_test_id("edit-newsitem-tags").click()
+            tag_draft = news_card.get_by_test_id("news-item-tag-name-input").first
+            tag_draft.fill("Unsaved tag draft")
+            refresh_requests = []
+
+            def record_refresh(request):
+                if urlparse(request.url).path == urlparse(page.url).path and request.headers.get("hx-request"):
+                    refresh_requests.append(request.url)
+
+            page.on("request", record_refresh)
+            for bot_type, selector in (
+                ("SENTIMENT_ANALYSIS_BOT", "#story-ai-sentiment"),
+                ("CYBERSEC_CLASSIFIER_BOT", "#story-ai-classification"),
+                ("NLP_BOT", f"#news-item-tags-{news_item_id}"),
+                ("SUMMARY_BOT", "#story-ai-summary"),
+            ):
+                refresh_requests.clear()
+                page.locator(selector).evaluate("element => element.dataset.beforeCompletion = 'true'")
+                page.evaluate(
+                    """({storyId, botType}) => document.dispatchEvent(new CustomEvent('realtime:story.bot.finished', {
+                        detail: {data: {stories: {[storyId]: [botType]}}}
+                    }))""",
+                    {"storyId": story_id, "botType": bot_type},
+                )
+                expect(page.locator(selector)).not_to_have_attribute("data-before-completion", "true")
+                wait_for_htmx_settled(page)
+                assert len(refresh_requests) == 1
+                assert parse_qs(urlparse(refresh_requests[0]).query) == {"layout": ["advanced"], "bot_types": [bot_type]}
+                expect(page.get_by_role("textbox", name="Analyst comments")).to_have_value("Unsaved analyst comment")
+                expect(page.get_by_test_id("attribute-value-input").nth(1)).to_have_value("Unsaved custom attribute")
+                if bot_type != "SUMMARY_BOT":
+                    expect(page.locator("#story-ai-summary")).to_have_value("Private summary draft " * 600)
+            page.remove_listener("request", record_refresh)
+            expect(tag_draft).to_have_value("Unsaved tag draft")
+            expect(news_card.get_by_test_id("news-item-tags")).to_contain_text("Generated tag")
+            news_card.get_by_role("button", name="Cancel", exact=True).click()
+            news_card.get_by_test_id("edit-newsitem-tags").click()
+            expect(tag_draft).to_have_value("Generated tag")
+            news_card.get_by_role("button", name="Cancel", exact=True).click()
+            expect(page.locator("#story-ai-summary")).to_have_value("Completed AI summary")
+            expect(page.locator("#story-ai-classification")).to_contain_text("Vulnerability")
+            page.wait_for_function("""() => {
+                const key = Array.from(document.querySelectorAll('[data-testid="attribute-key-input"]'))
+                    .find(input => input.value === 'classification');
+                return key?.parentElement.querySelector('[data-testid="attribute-value-input"]').value === 'vulnerability';
+            }""")
             page.get_by_role("link", name="Return to story").click()
             expect(page.get_by_test_id("story-title")).to_contain_text(edited_title)
             back_to_assess.click()

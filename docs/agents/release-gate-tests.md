@@ -1,8 +1,6 @@
 # Release Gate Tests
 
-## When To Load
-
-Release gates, load testing, PostgreSQL TLS multiprocess validation, or published GHCR images.
+Load for: Release gates, load testing, PostgreSQL TLS multiprocess validation, or published GHCR images.
 
 ## Contracts
 
@@ -10,7 +8,7 @@ The input-free workflow checks out current `master` and runs TLS validation, the
 
 The TLS gate creates temporary certificates. The load gate seeds synthetic stories/reports and completes user onboarding before Locust. Individual Locust flow failures are diagnostic (result-error exit code zero); setup/runner failures remain fatal. Upload captured output and Locust HTML/CSV/screenshots from `LOAD_ARTIFACT_DIR`.
 
-## Entry Points and Validation
+## Code and Tests
 
 `.github/workflows/release_gate.yml`, `docker/run_release_gate_tests.sh`, `docker/compose_command.sh`, `docker/test_core_postgres_tls_multiprocess.sh`, `docker/postgres-tls/`, `docker/compose-variations/compose.load.yml`; operator reference: `docker/README.md`.
 

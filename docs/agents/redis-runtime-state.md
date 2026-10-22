@@ -1,8 +1,6 @@
 # Redis Runtime State
 
-## When To Load
-
-Redis configuration, persistence, restart recovery, RQ durability, or cron startup.
+Load for: Redis configuration, persistence, restart recovery, RQ durability, or cron startup.
 
 ## Contracts
 
@@ -26,13 +24,13 @@ Redis configuration, persistence, restart recovery, RQ durability, or cron start
   Caches refill on demand; realtime has no history recovery. See
   [Realtime Events](realtime-events.md).
 
-## Entry Points and Coverage
+## Code and Tests
 
 `src/core/core/managers/queue_manager.py`, `src/core/core/api/worker.py`,
 `src/worker/worker/cron_scheduler.py`, `src/worker/worker/core_api.py`.
 
 Recovery coverage: `src/core/tests/application/worker_pipeline/test_worker_api.py`
-and `src/worker/tests/unit/test_cron_scheduler.py`. The existing scheduled collector
+and `src/worker/tests/unit/test_cron_scheduler.py`. The scheduled collector
 flow in `src/frontend/tests/playwright/test_e2e_rq_tasks.py` flushes the isolated
 broker while Core remains running, then verifies recovery and successful execution.
 Deployment checks must render

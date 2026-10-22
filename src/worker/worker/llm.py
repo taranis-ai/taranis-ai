@@ -5,6 +5,8 @@ from functools import partial
 from typing import Any
 
 from llm_bot.client import LLMClient, UpstreamLLMError
+from llm_bot.decisions_client import DecisionsClient
+from llm_bot.tasks.decision_utils import DecisionsTask
 from llm_bot.tasks.llm_utils import InvalidLLMOutputError, LLMTask, MissingOutputTextError
 from models.llm import LLMEndpoint
 from niquests.exceptions import RequestException, Timeout
@@ -39,7 +41,7 @@ def get_llm_client(parameters: dict) -> LLMClient:
     if not endpoint:
         raise LLMConfigurationError
     config = LLMEndpoint.model_validate(endpoint)
-    if not config.enabled:
+    if not config.enabled or config.is_decisions:
         raise LLMConfigurationError
     client = LLMClient(
         base_url=config.base_url,
@@ -51,6 +53,42 @@ def get_llm_client(parameters: dict) -> LLMClient:
     # The library treats an empty model as an environment fallback. Settings own it here.
     client.model = config.model
     return client
+
+
+def get_decisions_client(parameters: dict) -> DecisionsClient:
+    endpoint = parameters.get("llm_endpoint")
+    if not endpoint:
+        raise LLMConfigurationError
+    config = LLMEndpoint.model_validate(endpoint)
+    if not config.enabled or not config.is_decisions:
+        raise LLMTaskError(
+            "Select a realtime Decisions endpoint for topic classification in Admin Settings > LLM Endpoints.",
+            "llm_not_configured",
+        )
+    return DecisionsClient(
+        url=config.base_url,
+        api_key=config.api_key,
+        model=config.model,
+        api_mode="openai" if config.api_format == "openai_decisions" else "systemone",
+        timeout=parameters.get("REQUESTS_TIMEOUT") or config.timeout,
+    )
+
+
+def run_decisions_tasks[T](tasks: list[DecisionsTask[T]], client: DecisionsClient, parameters: dict) -> list[T]:
+    state = parameters.get("_llm_batch_state", {})
+    save_state = parameters.get("_save_llm_batch_state") or (lambda: None)
+    responses = state.setdefault("decisions_responses", [])
+    results = []
+    for index, task in enumerate(tasks):
+        if index < len(responses):
+            results.append(task.parse_response(responses[index]))
+            continue
+        saved = {}
+        recorded_task = replace(task, parse_response=partial(_record_response, parser=task.parse_response, saved=saved))
+        results.append(run_llm_task(recorded_task.run(client)))
+        responses.append(saved["response"])
+        save_state()
+    return results
 
 
 def run_llm_task[T](task: Coroutine[Any, Any, T]) -> T:
