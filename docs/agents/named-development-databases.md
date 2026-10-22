@@ -51,5 +51,9 @@ startup changes affecting database selection. Operator usage lives in
 `dev/test_named_databases.sh` covers cloning, selection, Redis isolation, and
 failure behavior against disposable PostgreSQL and Redis containers.
 `dev/tests/test_database_processes.py` exercises process restarts on a private
-tmux server. Both run in the local pipeline and the Core CI job. Shared
-feature completion requirements remain in [Development Workflow](development-workflow.md#feature-signoff-loop).
+tmux server. Run these checks explicitly when changing the helpers. The dedicated
+`.github/workflows/test_named_databases.yaml` workflow runs them for changes to
+the helpers, their coverage, or Core's dependency configuration. It also supports
+manual runs and is independent of local signoff; the shared application pipeline
+does not run these checks. Shared feature completion requirements remain in
+[Development Workflow](development-workflow.md#feature-signoff-loop).

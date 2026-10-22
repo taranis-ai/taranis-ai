@@ -100,13 +100,6 @@ jobs:
       - name: Lint with ruff
         run: uv run ruff check --output-format=github .
 
-      - name: Check development database helpers
-        working-directory: .
-        run: |
-          uv run --project src/core ruff check --config src/core/pyproject.toml dev/databases.py dev/database_processes.py dev/tests
-          uv run --project src/core python -m unittest discover -s dev/tests
-          CONTAINER_CLI=docker ./dev/test_named_databases.sh
-
       - name: Run tests and capture output
         id: run-tests
         run: |

@@ -1,0 +1,54 @@
+name: Development database helpers
+
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - .github/workflows/test_named_databases.yaml
+      - dev/db.sh
+      - dev/databases.py
+      - dev/database_processes.py
+      - dev/test_named_databases.sh
+      - dev/tests/**
+      - src/core/.python-version
+      - src/core/pyproject.toml
+      - src/core/uv.lock
+
+permissions:
+  contents: read
+
+jobs:
+  database_helpers:
+    timeout-minutes: 10
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v10.3.0
+        with:
+          enable-cache: true
+
+      - name: Install tmux
+        run: sudo apt-get update && sudo apt-get install -y tmux
+
+      - name: Sync Core dependencies
+        run: uv sync --directory src/core --all-extras --frozen
+
+      - name: Check development database helpers
+        run: |
+          uv run --project src/core --frozen --no-sync ruff check --config src/core/pyproject.toml dev/databases.py dev/database_processes.py dev/tests
+          uv run --project src/core --frozen --no-sync python -m unittest discover -s dev/tests
+          CONTAINER_CLI=docker ./dev/test_named_databases.sh

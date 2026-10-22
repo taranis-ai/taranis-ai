@@ -318,7 +318,12 @@ Database-level permissions and settings are not copied by
 
 The isolated helper harness, `./dev/test_named_databases.sh`, exercises actual
 PostgreSQL and Redis containers and removes them afterward. It defaults to
-Podman; set `CONTAINER_CLI=docker` to use Docker.
+Podman; set `CONTAINER_CLI=docker` to use Docker. Run it explicitly when changing
+the database helpers, alongside
+`uv run --project src/core --frozen python -m unittest discover -s dev/tests`
+for the tmux lifecycle check. The dedicated **Development database helpers** workflow
+runs these checks for relevant helper or Core dependency changes and supports
+manual runs. The shared application pipeline does not run them.
 
 ### Migration Test Harness
 
