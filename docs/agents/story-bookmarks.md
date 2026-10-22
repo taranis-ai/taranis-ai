@@ -15,6 +15,7 @@ Bookmark collections, `/bookmarks`, Assess bookmark bar/dialog, story bookmarkin
 - Detail pages reuse Assess cards and selection controls but omit Bookmark/`Shift+B`, keep Read/Important alongside Remove selected, and show Read/Important/In Reports even with compact cards. Follow [shared selection and form rules](frontend-development.md).
 - Bulk actions, report/clustering dialogs, Ungroup, and editor replacements/saves carry `bookmark_id` to preserve the current collection, return link, and visible selection on success or failure. `Cluster and Open` deliberately navigates to the primary story.
 - Instant bookmark and editor Save work as normal POST forms as well as HTMX actions; bookmark saves retain their return target.
+- Quick-save feedback's Change and Undo actions display failed requests in the notification bar; failed Change requests replace the notification instead of appending a dialog.
 - Query cards through the canonical Assess collection using the bookmark's ordered story IDs. Embedded bookmark `stories` lack Assess enrichment such as `in_reports_count`.
 - Core rejects ungrouping report-assigned stories. Eligible ungrouping replaces bookmark membership with the new standalone stories in the same transaction; partial ACL-limited ungrouping also retains a non-empty original story.
 

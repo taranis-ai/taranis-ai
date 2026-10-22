@@ -6,12 +6,18 @@
        hx-get="{{ url_for('assess.bookmark_story', story_id=story_id) }}"
        hx-target="body"
        hx-swap="beforeend"
+       hx-status:400="target:#notification-bar swap:outerHTML"
+       hx-status:4xx="target:#notification-bar swap:outerHTML"
+       hx-status:5xx="target:#notification-bar swap:outerHTML"
        class="btn btn-ghost btn-xs">Change</a>
     {% if can_undo %}
       <form method="post"
             action="{{ url_for('assess.submit_bookmark_story') }}"
             hx-post="{{ url_for('assess.submit_bookmark_story') }}"
             hx-target="#notification-bar"
+            hx-status:400="target:#notification-bar"
+            hx-status:4xx="target:#notification-bar"
+            hx-status:5xx="target:#notification-bar"
             hx-swap="outerHTML">
         <input type="hidden" name="csrf_token" value="{{ request.cookies.get(config['JWT_ACCESS_CSRF_COOKIE_NAME'], '') }}">
         <input type="hidden" name="story_ids" value="{{ story_id }}">
