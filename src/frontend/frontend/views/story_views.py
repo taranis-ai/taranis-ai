@@ -80,8 +80,6 @@ class StoryView(BaseView):
     @classmethod
     def get_update_template(cls) -> str:
         if request.method == "GET" and request.endpoint == cls.edit_route and is_htmx_request():
-            if request.headers.get("HX-Target", "").startswith("news-item-card-"):
-                return "assess/news_item_card_fragment.html"
             return "assess/story_edit_content.html"
         return super().get_update_template()
 
@@ -1023,18 +1021,6 @@ class StoryView(BaseView):
             form_url = url_for("assess.story_edit", story_id=object_id, bookmark_id=bookmark_id, return_to_bookmark="1")
         context["form_action"] = form_url
         story = context.get("story")
-
-        if cls.get_update_template() == "assess/news_item_card_fragment.html":
-            if not isinstance(story, Story):
-                abort(404)
-            news_item_id = request.headers["HX-Target"].removeprefix("news-item-card-")
-            news_item = next((item for item in story.news_items or [] if item.id == news_item_id), None)
-            if news_item is None:
-                abort(404)
-            sources = {source.id: source for source in cls.get_filter_lists().sources if source.id}
-            cls._enhance_story_with_details(story, sources)
-            context.update(news_item=news_item, edit_tags=story.can_edit)
-            return context
 
         if isinstance(story, Story):
             context["layout"] = request.args.get("layout", "advanced" if current_user.profile.advanced_story_options else "simple")

@@ -592,12 +592,22 @@ class TestEndToEndUser(BaseE2ETest):
                 "unrelated-story",
             )
             expect(page.locator("#story-ai-summary")).to_have_attribute("data-before-completion", "true")
+            page.locator("#story-ai-summary").fill("Private summary draft " * 600)
+            page.get_by_test_id("attribute-value-input").nth(1).fill("Unsaved custom attribute")
+            refresh_requests = []
+
+            def record_refresh(request):
+                if urlparse(request.url).path == urlparse(page.url).path and request.headers.get("hx-request"):
+                    refresh_requests.append(request.url)
+
+            page.on("request", record_refresh)
             for bot_type, selector in (
-                ("SUMMARY_BOT", "#story-ai-summary"),
                 ("SENTIMENT_ANALYSIS_BOT", "#story-ai-sentiment"),
                 ("CYBERSEC_CLASSIFIER_BOT", "#story-ai-classification"),
                 ("NLP_BOT", f"#news-item-card-{seeded_story['news_items'][0]['id']}"),
+                ("SUMMARY_BOT", "#story-ai-summary"),
             ):
+                refresh_requests.clear()
                 page.locator(selector).evaluate("element => element.dataset.beforeCompletion = 'true'")
                 page.evaluate(
                     """({storyId, botType}) => document.dispatchEvent(new CustomEvent('realtime:story.bot.finished', {
@@ -606,7 +616,14 @@ class TestEndToEndUser(BaseE2ETest):
                     {"storyId": story_id, "botType": bot_type},
                 )
                 expect(page.locator(selector)).not_to_have_attribute("data-before-completion", "true")
+                wait_for_htmx_settled(page)
+                assert len(refresh_requests) == 1
+                assert parse_qs(urlparse(refresh_requests[0]).query) == {"layout": ["advanced"], "bot_types": [bot_type]}
                 expect(page.get_by_role("textbox", name="Analyst comments")).to_have_value("Unsaved analyst comment")
+                expect(page.get_by_test_id("attribute-value-input").nth(1)).to_have_value("Unsaved custom attribute")
+                if bot_type != "SUMMARY_BOT":
+                    expect(page.locator("#story-ai-summary")).to_have_value("Private summary draft " * 600)
+            page.remove_listener("request", record_refresh)
             expect(page.locator("#story-ai-summary")).to_have_value("Completed AI summary")
             expect(page.locator("#story-ai-classification")).to_contain_text("Vulnerability")
             page.wait_for_function("""() => {

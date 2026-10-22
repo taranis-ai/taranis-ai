@@ -735,23 +735,6 @@ def test_story_edit_renders_news_item_tag_editor(app, authenticated_client, resp
     assert edit_form.get("hx-post") == edit_form.get("action")
     assert edit_form.xpath('./input[@name="csrf_token"]/@value') == [csrf_token]
 
-    fragment = authenticated_client.get(
-        url_for("assess.story_edit", story_id=story_payload["id"], layout="advanced"),
-        headers={"HX-Request": "true", "HX-Target": "news-item-card-news-1"},
-    )
-    assert fragment.status_code == 200
-    card = html.fromstring(fragment.text)
-    assert card.get("id") == "news-item-card-news-1"
-    assert bool(card.xpath('.//*[@data-testid="edit-newsitem-tags"]')) is can_edit
-    assert "item-tag" in fragment.text
-    assert "Other news item" not in fragment.text
-    assert "story-edit-form" not in fragment.text
-    missing = authenticated_client.get(
-        url_for("assess.story_edit", story_id=story_payload["id"]),
-        headers={"HX-Request": "true", "HX-Target": "news-item-card-missing"},
-    )
-    assert missing.status_code == 404
-
 
 def test_story_edit_advanced_view_renders_sentiment_status_chip(authenticated_client, responses_mock):
     story_payload = story_with_news_item_tags()

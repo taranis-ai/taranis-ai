@@ -14,10 +14,12 @@
 {% set dislike_active = user_vote == 'dislike' %}
 {% from "assess/news_item_card.html" import news_item_card %}
 {% from "assess/story_actions.html" import story_edit_actions with context %}
-{% from "assess/bot_result_refresh.html" import bot_result_refresh %}
+{% from "assess/bot_result_refresh.html" import bot_result_fragment, bot_result_refresh %}
 {% set refresh_bot_types = ["SUMMARY_BOT", "SENTIMENT_ANALYSIS_BOT", "CYBERSEC_CLASSIFIER_BOT", "WORDLIST_BOT", "IOC_BOT", "NLP_BOT", "TAGGING_BOT"] %}
+{% set completed_bot_types = request.args.getlist('bot_types') | select('in', refresh_bot_types) | list %}
+{% set generated_keys = completed_bot_types + (['classification'] if 'CYBERSEC_CLASSIFIER_BOT' in completed_bot_types else []) + (['sentiment'] if 'SENTIMENT_ANALYSIS_BOT' in completed_bot_types else []) %}
 {% set generated_attributes = namespace(items=[]) %}
-{% for attribute in story_attributes if attribute.key in refresh_bot_types + ['classification', 'sentiment'] %}
+{% for attribute in story_attributes if attribute.key in generated_keys %}
   {% set generated_attributes.items = generated_attributes.items + [attribute] %}
 {% endfor %}
 
@@ -32,8 +34,9 @@
          @keyup.shift.window="showHints = false"
          x-data="{ showHints: false, mispSettingsOpen: false }">
 
+  {{ bot_result_refresh(story, refresh_bot_types) }}
   {% include "assess/back_link.html" %}
-  <div {{ bot_result_refresh(story, 'story-ai-attributes', refresh_bot_types) }}
+  <div {{ bot_result_fragment('story-ai-attributes', refresh_bot_types) }}
        hidden
        x-data
        x-init='$dispatch("story-ai-attributes", { storyId: {{ story.id | tojson }}, attributes: {{ generated_attributes.items | tojson }} })'>
@@ -51,7 +54,7 @@
     <div class="card-body grid gap-4 grid-cols-1 2xl:grid-cols-2">
       <div class="space-y-3">
         <p class="text-xs uppercase tracking-wide text-base-content/60">Story reference · {{ story.id }}</p>
-        <h1 {{ bot_result_refresh(story, 'story-ai-heading', ['SUMMARY_BOT']) }}
+        <h1 {{ bot_result_fragment('story-ai-heading', ['SUMMARY_BOT']) }}
             class="text-3xl font-semibold leading-tight tracking-tight">{{ story.title or "Untitled story" }}</h1>
         <div class="flex flex-wrap gap-2 text-xs">
           <span class="{{ read_badge }}">{{ 'Read' if story.read else 'Unread' }}</span>
@@ -239,7 +242,7 @@
               <span class="label-text font-semibold">Title<span aria-hidden="true" class="text-error">*</span></span>
             </span>
             <input type="text"
-                   {{ bot_result_refresh(story, 'story-ai-title', ['SUMMARY_BOT']) }}
+                   {{ bot_result_fragment('story-ai-title', ['SUMMARY_BOT']) }}
                    name="title"
                    value="{{ story.title }}"
                    required
@@ -265,7 +268,7 @@
             <label class="floating-label">
               <span class="label">Summary</span>
               <textarea name="summary"
-                        {{ bot_result_refresh(story, 'story-ai-summary', ['SUMMARY_BOT']) }}
+                        {{ bot_result_fragment('story-ai-summary', ['SUMMARY_BOT']) }}
                         class="textarea textarea-bordered w-full"
                         placeholder="Summarise the key takeaways">{{ story.summary }}</textarea>
             </label>
@@ -322,9 +325,9 @@
           <div class="card-body space-y-4">
             <h3 class="card-title text-lg">Story status</h3>
             <div class="flex flex-wrap gap-3 text-sm">
-              <span {{ bot_result_refresh(story, 'story-ai-classification', ['CYBERSEC_CLASSIFIER_BOT']) }}
+              <span {{ bot_result_fragment('story-ai-classification', ['CYBERSEC_CLASSIFIER_BOT']) }}
                     class="badge badge-outline badge-lg">Classification · {{ story_classification }}</span>
-              <span {{ bot_result_refresh(story, 'story-ai-sentiment', ['SENTIMENT_ANALYSIS_BOT']) }}
+              <span {{ bot_result_fragment('story-ai-sentiment', ['SENTIMENT_ANALYSIS_BOT']) }}
                     class="{{ sentiment_chip_class }}">Sentiment · {{ story_sentiment_status }}</span>
             </div>
           </div>

@@ -1,11 +1,19 @@
-{% macro bot_result_refresh(story, element_id, bot_types) -%}
+{% macro bot_result_fragment(element_id, bot_types) -%}
   id="{{ element_id }}"
-  hx-get="{{ url_for('assess.story_edit', story_id=story.id, layout='advanced') }}"
-  hx-trigger='realtime:story.bot.finished[({% for bot_type in bot_types %}Reflect.get(detail.data?.stories || {}, {{ story.id | tojson }})?.includes({{ bot_type | tojson }}){{ " || " if not loop.last }}{% endfor %})] from:document'
-  hx-target="this"
-  hx-select="#{{ element_id }}"
-  hx-swap="outerHTML"
-  hx-status:400="target:#notification-bar select:#notification-bar swap:outerHTML"
-  hx-status:4xx="target:#notification-bar select:#notification-bar swap:outerHTML"
-  hx-status:5xx="target:#notification-bar select:#notification-bar swap:outerHTML"
+  data-bot-result-types="{{ bot_types | join(" ") }}"
+{%- endmacro %}
+
+{% macro bot_result_refresh(story, bot_types) -%}
+  <div hidden
+       hx-get="{{ url_for('assess.story_edit', story_id=story.id, layout='advanced') }}"
+       hx-trigger='realtime:story.bot.finished[({% for bot_type in bot_types %}Reflect.get(detail.data?.stories || {}, {{ story.id | tojson }})?.includes({{ bot_type | tojson }}){{ " || " if not loop.last }}{% endfor %})] from:document'
+       hx-sync="this:queue all"
+       hx-swap="none"
+       hx-on::config:request='const types = {{ bot_types | tojson }}.filter(type => ctx.sourceEvent.detail.data.stories[{{ story.id | tojson }}].includes(type));
+                              ctx.request.body = new FormData();
+                              types.forEach(type => ctx.request.body.append("bot_types", type));
+                              ctx.selectOOB = types.map(type => `[data-bot-result-types~="${type}"]`).join(",");'
+       hx-status:400="target:#notification-bar select:#notification-bar swap:outerHTML"
+       hx-status:4xx="target:#notification-bar select:#notification-bar swap:outerHTML"
+       hx-status:5xx="target:#notification-bar select:#notification-bar swap:outerHTML"></div>
 {%- endmacro %}
