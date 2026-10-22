@@ -11,16 +11,17 @@
   {% set pagination = pagination | default({}) %}
 
   {# djlint:off #}
-  <div id="assess-container" class="p-4" data-selection-key="{{ assess_selection_key | default('') }}" @keyup.escape.window="clearSelection()"
+  <div id="assess-container" class="p-4" data-first-story-index="{{ pagination.page_start | default(0) }}" data-selection-key="{{ assess_selection_key | default('') }}" @keyup.escape.window="clearSelection()"
     x-data='{
       selectedItems: [],
       storyIds: [],
-      firstStoryIndex: {{ pagination.page_start | default(0) }},
+      firstStoryIndex: 0,
       storyImportantMap: {},
       storyReadMap: {},
       pruneToVisibleOnNextInit: false,
       showHints: false,
       init() {
+        this.firstStoryIndex = Number(this.$el.dataset.firstStoryIndex);
         this.restoreSelection();
         this.refreshStoryMeta();
         this.pruneSelectionToVisible();
