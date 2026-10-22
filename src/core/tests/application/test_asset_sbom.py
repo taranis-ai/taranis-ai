@@ -657,6 +657,91 @@ def test_imported_findings_cti_and_live_tag_associations(
     assert client.get(assess_url, headers=auth_header).json["items"] == []
 
 
+def test_cve_overview_combines_inventory_and_manual_entries_without_assess(
+    client, auth_header, auth_header_user_permissions, session, finding_document
+):
+    # Authorization failures roll back their request; preserve earlier setup across them.
+    session.connection().exec_driver_sql("BEGIN")
+    session().join_transaction_mode = "create_savepoint"
+    finding_document["vulnerabilities"].extend(
+        {"id": f"CVE-2026-{30000 + i}", "ratings": [rating], "affects": [{"ref": "unresolved"}]}
+        for i, rating in enumerate(
+            [
+                {"method": "CVSSv31", "score": 7.0},
+                {"method": "CVSSv31", "score": 4.0},
+                {"method": "CVSSv31", "score": 0.1},
+                {"method": "CVSSv31", "score": 0.0},
+                {"severity": "high"},
+                {"method": "other", "score": 10.0},
+            ]
+        )
+    )
+    finding_document["vulnerabilities"].append({"id": "GHSA-test-only", "ratings": [{"severity": "critical"}]})
+    _, base = import_findings(client, auth_header, finding_document)
+    asset = Asset.get(base.rsplit("/", 1)[1])
+    asset.name = "CVE overview A"
+    asset.set_tags(["fleet"])
+    asset.asset_observables.extend(
+        [AssetObservable("cve", "cve-2026-12345"), AssetObservable("cve", "CVE-2026-99999"), AssetObservable("domain", "example.invalid")]
+    )
+    empty = Asset("CVE overview B", "", "")
+    private_org = Organization(name="CVE private organization")
+    db.session.add_all([empty, private_org])
+    db.session.flush()
+    private_group = AssetGroup("CVE private group", "", private_org)
+    db.session.add(private_group)
+    db.session.flush()
+    private = Asset("CVE overview C", "", "", group=private_group, tags=["private-cve-tag"])
+    db.session.add(private)
+    db.session.commit()
+    role = Role.filter_by_name("User")
+    role.permissions = [p for p in role.permissions if p.code not in {"ASSETS_ACCESS", "ASSESS_ACCESS"}]
+    db.session.commit()
+    endpoint = "/api/assets/cves"
+    assert client.get(endpoint, headers=auth_header_user_permissions).status_code == 403
+    assert client.get(base + "/cves", headers=auth_header_user_permissions).status_code == 403
+    role.permissions.extend(Permission.get_bulk(["ASSETS_ACCESS"]))
+    db.session.commit()
+    query = {"search": "CVE overview", "limit": 1}
+    response = client.get(endpoint, headers=auth_header_user_permissions, query_string=query)
+    assert response.status_code == 200, response.json
+    overview = response.json
+    assert overview["total_count"] == 2 and overview["page"] == 1
+    summary = overview["items"][0]
+    assert summary["id"] == asset.id and summary["total"] == 9
+    assert summary["counts"] == {"critical": 1, "high": 2, "medium": 1, "low": 1, "none": 1, "unknown": 3}
+    assert private_group.id not in {group["id"] for group in overview["groups"]}
+    assert "private-cve-tag" not in overview["tags"]
+    second = client.get(endpoint, headers=auth_header_user_permissions, query_string=query | {"page": 2}).json
+    assert second["items"][0]["id"] == empty.id and second["items"][0]["total"] == 0
+    filtered = client.get(
+        endpoint, headers=auth_header_user_permissions, query_string=query | {"group": asset.asset_group_id, "tag": " FLEET "}
+    ).json
+    assert filtered["total_count"] == 1 and filtered["items"][0] == summary
+    detail = client.get(base + "/cves", headers=auth_header_user_permissions).json
+    assert detail["total_count"] == 9
+    first = detail["items"][0]
+    assert first["cve_id"] == "CVE-2026-12345" and first["score"] == 9.1 and first["imported"] and first["manual"]
+    manual = next(entry for entry in detail["items"] if entry["cve_id"] == "CVE-2026-99999")
+    assert manual["manual"] and not manual["imported"] and manual["severity"] == "unknown"
+    high = client.get(base + "/cves?severity=high&limit=1&page=2", headers=auth_header_user_permissions).json
+    assert high["total_count"] == 2 and high["items"][0]["cve_id"] == "CVE-2026-30004"
+    assert client.get(base + "/cves?search=99999&severity=unknown", headers=auth_header_user_permissions).json["items"] == [manual]
+    assert client.get(base + "/cves?search=unrecorded", headers=auth_header_user_permissions).json["items"] == []
+    assert client.get(f"/api/assets/{private.id}/cves", headers=auth_header_user_permissions).status_code == 404
+    assert client.get(endpoint + "?limit=0", headers=auth_header).status_code == 400
+    assert client.get(base + "/cves?severity=invalid", headers=auth_header).status_code == 400
+    assert client.put(base + "/sbom/cves/CVE-2026-12345", headers=auth_header, json={"enabled": False}).status_code == 200
+    assert client.get(base + "/cves", headers=auth_header_user_permissions).json == detail
+    asset.asset_observables.clear()
+    db.session.commit()
+    current = client.get(base + "/cves", headers=auth_header_user_permissions).json
+    assert current["total_count"] == 8 and not current["items"][0]["manual"]
+    assert client.delete(base, headers=auth_header).status_code == 200
+    assert client.get(endpoint, headers=auth_header_user_permissions, query_string=query).json["total_count"] == 1
+    assert client.get(base + "/cves", headers=auth_header_user_permissions).status_code == 404
+
+
 def test_replacement_preserves_decisions_and_removes_obsolete_snapshot(client, auth_header, api_header, session, finding_document):
     preview, base = import_findings(client, auth_header, finding_document)
     asset = Asset.get(base.rsplit("/", 1)[1])
@@ -702,6 +787,9 @@ def test_replacement_preserves_decisions_and_removes_obsolete_snapshot(client, a
     assert client.get(base + "/sbom", headers=auth_header).json["id"] == preview["id"]
     body["expected_sha256"] = preview["sha256"]
     assert client.put(base + "/sbom", headers=auth_header, json=body).status_code == 200
+    cves = client.get(base + "/cves", headers=auth_header).json["items"]
+    assert [cve["cve_id"] for cve in cves] == ["CVE-2026-12345", "CVE-2026-54321"]
+    assert cves[0]["score"] == 8.1
     body.update(enable_software_matching=True, enable_cve_matching=True)
     assert client.put(base + "/sbom", headers=auth_header, json=body).status_code == 200
     new_rules = client.get(base + "/triggers?search=new-software", headers=auth_header).json["items"]
@@ -756,6 +844,7 @@ def test_replacement_preserves_decisions_and_removes_obsolete_snapshot(client, a
         == 200
     )
     assert not client.get(base + "/cti?search=CVE", headers=auth_header).json["iocs"]
+    assert client.get(base + "/cves", headers=auth_header).json["total_count"] == 0
     assert db.session.query(AssetSbomFindingComponent).count() == 0
     conflicts = client.get(base + "/triggers?search=BuildKit", headers=auth_header).json["items"]
     review = next(t for t in conflicts if "v0.34.0" in t["versions"] and t["phrase"] == "BuildKit")

@@ -229,6 +229,27 @@ class TestAssetSbomWorkflow(BaseE2ETest):
         staging_id = created_sbom_assets["portal-staging"]
         control_id = created_sbom_assets["monitoring-prod"]
 
+        page.goto(url_for("assets.assets", _external=True))
+        page.get_by_role("link", name="CVE overview", exact=True).click()
+        prod_row = page.locator(f'[data-test-id="asset-cve-summary"][data-asset-id="{prod_id}"]')
+        prod_row.get_by_role("link", name="portal-prod: 2 critical CVEs", exact=True).click()
+        expect(page.locator('[data-test-id="asset-cve-row"]')).to_have_count(2)
+        expect(page.get_by_label("Severity", exact=True)).to_have_value("critical")
+        page.get_by_label("CVE ID", exact=True).fill("109618")
+        with_htmx_wait(page, lambda: page.get_by_role("button", name="Filter CVEs", exact=True).click())
+        expect(page.locator('[data-test-id="asset-cve-row"]')).to_have_count(1)
+        expect(page.locator('[data-test-id="asset-cve-row"]')).to_contain_text("9.2")
+        page.get_by_role("link", name="CVE overview", exact=True).click()
+        page.get_by_label("Asset name", exact=True).fill("portal-")
+        page.get_by_label("Tag", exact=True).select_option("production")
+        with_htmx_wait(page, lambda: page.get_by_role("button", name="Filter assets", exact=True).click())
+        expect(page.locator('[data-test-id="asset-cve-summary"]')).to_have_count(1)
+        expect(prod_row).to_be_visible()
+        page.get_by_role("link", name="Clear filters", exact=True).click()
+        page.get_by_role("link", name="monitoring-prod", exact=True).click()
+        expect(page.locator('[data-test-id="asset-cve-row"]')).to_have_count(0)
+        expect(page.locator('[data-test-id="asset-cve-count"]')).to_have_text("0 CVEs")
+
         page.goto(url_for("assess.assess", asset_id=prod_id, _external=True))
         advisory = page.locator("article[data-story-id]").filter(has_text=sbom_news_items[1]["title"])
         with_htmx_wait(page, lambda: advisory.get_by_role("link", name="Why this matches", exact=True).click())

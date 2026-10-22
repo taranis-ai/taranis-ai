@@ -1,6 +1,8 @@
 from flask import Flask, jsonify, request
 from flask.views import MethodView
 from flask_jwt_extended import current_user
+from models.asset_cve import AssetCveFilters
+from pydantic import ValidationError
 from sqlalchemy import or_
 
 from core.api import asset_intelligence, asset_sbom
@@ -9,6 +11,7 @@ from core.managers.auth_manager import auth_required
 from core.managers.db_manager import db
 from core.managers.decorators import extract_args
 from core.model import asset
+from core.service.asset_cves import cve_list, cve_overview
 from core.service.cache_invalidation import invalidate_frontend_cache_on_success
 from core.service.cti import CTIService
 
@@ -111,6 +114,18 @@ class AssetCTI(MethodView):
         return CTIService.get_asset_cti(asset_id, current_user, request.args.get("page", 1, type=int), request.args.get("search", "").strip())
 
 
+class AssetCVEs(MethodView):
+    @auth_required("ASSETS_ACCESS")
+    def get(self, asset_id: str | None = None):
+        try:
+            filters = AssetCveFilters.model_validate(request.args.to_dict())
+        except ValidationError:
+            return {"error": "Invalid CVE filters. Choose a valid severity, page and page size (1–100)."}, 400
+        if asset_id:
+            return cve_list(current_user, asset_id, filters)
+        return cve_overview(current_user, filters), 200
+
+
 class AssetsCTI(MethodView):
     @auth_required("ASSETS_ACCESS")
     def get(self):
@@ -135,6 +150,8 @@ def initialize(app: Flask):
     asset_intelligence.initialize(app, base_route)
     app.add_url_rule(f"{base_route}/assets", view_func=Assets.as_view("assets"))
     app.add_url_rule(f"{base_route}/assets/cti", view_func=AssetsCTI.as_view("assets_cti"))
+    app.add_url_rule(f"{base_route}/assets/cves", view_func=AssetCVEs.as_view("assets_cves"))
+    app.add_url_rule(f"{base_route}/assets/<string:asset_id>/cves", view_func=AssetCVEs.as_view("asset_cves"))
     app.add_url_rule(f"{base_route}/assets/<string:asset_id>", view_func=Assets.as_view("asset"), methods=["GET", "PUT", "DELETE"])
     app.add_url_rule(f"{base_route}/assets/<string:asset_id>/cti", view_func=AssetCTI.as_view("asset_cti"))
     app.add_url_rule(

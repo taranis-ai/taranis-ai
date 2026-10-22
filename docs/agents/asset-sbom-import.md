@@ -2,7 +2,7 @@
 
 ## When To Load
 
-Asset SBOM uploads, software inventory, CPE coverage, import confirmation, component triggers, imported findings, replacement, Dependency-Track integration, or asset intelligence matching.
+Asset SBOM uploads, software inventory, CPE coverage, import confirmation, component triggers, imported findings, CVE overview, replacement, Dependency-Track integration, or asset intelligence matching.
 
 ## Contracts
 
@@ -48,6 +48,13 @@ Asset SBOM uploads, software inventory, CPE coverage, import confirmation, compo
 - IOC Bot remains the CVE extractor. Live joins between current findings and existing CVE/cves news-item tags determine relevance; there is no CVE/article evidence table or external lookup. CVE matching defaults on, is independent of product-name triggers, and applies across all source records of a CVE through `PUT /assets/{asset_id}/sbom/cves/{cve_id}`. Disabling retains the finding in CTI. Removing tags/findings or access updates intelligence on the next read without rescanning. A tag is evidence in its own right; no textual excerpt is invented.
 - Product and CVE matches share one article card and software summary. Candidate stories are read in bounded batches; visibility, article TLP and current product evidence are checked before story pagination. CVE matching covers existing tagged history, independent of the product scan lookback.
 - Asset CTI and its overview paginate 50 distinct indicator/finding IDs, accepting `page` and `search` (CVE ID, component name or PURL). Results include source records, exact reference-to-installed-component mappings, unresolved references, and cached enrichment. Findings remain visible when matching is disabled; inaccessible articles never appear in associations. Story/report CTI response contracts are unchanged.
+
+## Asset CVE Overview
+
+- **Assets → CVE overview** opens a separate inventory table at `/assets/cves`. Each accessible asset, including assets without CVEs, has distinct CVE counts by severity. Asset names and nonzero counts open `/assets/{asset_id}/cves`, optionally filtered by severity. These pages use only current imported findings and manually entered CVE observables; they neither load Assess/news/report associations nor initiate scans or enrichment.
+- Normalize and deduplicate CVEs per asset across source records and manual entries. Include imported findings regardless of matching participation or resolved component references. Use the highest valid source CVSS score (0=None, below 4=Low, below 7=Medium, below 9=High, otherwise Critical); if absent, use the highest recognized reported severity, otherwise Unknown. Manual-only entries have Unknown severity. Non-CVE findings and other observable types are excluded; None and zero counts do not assert that a host is safe.
+- Core requires `ASSETS_ACCESS` and current asset-group access (own organization or shared default group), independently of Assess access. `/api/assets/cves` accepts asset `search`, `group`, exact normalized `tag`, `page` and `limit` (1–100). It paginates assets by name/ID before streaming their findings. Filter choices contain only accessible assets' groups/tags. The per-asset endpoint searches CVE IDs, filters `severity`, and pages compact entries ordered by severity, descending score and CVE ID. Both frontend reads bypass collection caches so replacement, manual edits, deletion and access changes take effect immediately.
+- Contracts live in `models/asset_cve.py`, aggregation in `core/service/asset_cves.py`, and presentation in `frontend/views/asset_cve_views.py` and `templates/assets/cves.html`. Core workflow coverage exercises deduplication, ratings, zero-CVE assets, access without Assess, filters/paging and current state; replacement coverage verifies removed findings disappear. Frontend request coverage checks fresh reads and static error handling, and the existing SBOM browser workflow covers index navigation, severity drilldown, filters and an empty host.
 
 ## Future Dependency-Track Connector Contract (Deferred)
 

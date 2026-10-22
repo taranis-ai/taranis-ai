@@ -7715,6 +7715,94 @@ paths:
           description: forbidden
         '404':
           $ref: '#/components/responses/404NotFound'
+  /assets/cves:
+    get:
+      security:
+      - UserAuth: []
+      tags: [assets]
+      operationId: assets_cves.get
+      description: >-
+        Count distinct current imported and manually entered CVEs per accessible
+        asset, including assets with zero CVEs. Requires ASSETS_ACCESS and current
+        group access; does not require Assess access or load article/report data.
+        Counts include disabled findings and unresolved component references.
+        Severity uses the highest valid reported CVSS score, falling back to the
+        highest recognized reported severity, otherwise unknown.
+      parameters:
+      - name: search
+        in: query
+        description: Literal case-insensitive asset name substring.
+        schema: {type: string, maxLength: 200}
+      - name: group
+        in: query
+        schema: {type: string}
+      - name: tag
+        in: query
+        description: Exact trimmed lowercase asset classification tag.
+        schema: {type: string, maxLength: 200}
+      - name: page
+        in: query
+        schema: {type: integer, minimum: 1, default: 1}
+      - name: limit
+        in: query
+        schema: {type: integer, minimum: 1, maximum: 100, default: 20}
+      responses:
+        '200':
+          description: Assets ordered by name and ID, with accessible filter choices.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssetCveOverview'
+        '400':
+          description: Invalid filters.
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: ASSETS_ACCESS is required.
+  /assets/{asset_id}/cves:
+    parameters:
+    - name: asset_id
+      in: path
+      required: true
+      schema: {type: string}
+    get:
+      security:
+      - UserAuth: []
+      tags: [assets]
+      operationId: asset_cves.get
+      description: >-
+        List distinct current imported and manually entered CVEs for an accessible
+        asset. Requires ASSETS_ACCESS. Uses only asset inventory and observables;
+        matching participation has no effect. Manual-only CVEs have unknown severity.
+      parameters:
+      - name: search
+        in: query
+        description: Case-insensitive CVE ID substring.
+        schema: {type: string, maxLength: 200}
+      - name: severity
+        in: query
+        schema: {type: string, enum: ['', critical, high, medium, low, none, unknown]}
+      - name: page
+        in: query
+        schema: {type: integer, minimum: 1, default: 1}
+      - name: limit
+        in: query
+        schema: {type: integer, minimum: 1, maximum: 100, default: 20}
+      responses:
+        '200':
+          description: CVEs ordered by severity, descending score, then ID.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssetCveList'
+        '400':
+          description: Invalid filters.
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: ASSETS_ACCESS is required.
+        '404':
+          description: Asset does not exist or is inaccessible.
   /assets/cti:
     get:
       security:
@@ -11024,6 +11112,70 @@ components:
                 type: array
                 items:
                   $ref: '#/components/schemas/AssetIntelligenceHost'
+    AssetCveOverview:
+      type: object
+      required: [items, total_count, page, limit, groups, tags]
+      properties:
+        total_count: {type: integer}
+        page: {type: integer}
+        limit: {type: integer}
+        tags:
+          type: array
+          items: {type: string}
+        groups:
+          type: array
+          items:
+            type: object
+            required: [id, name]
+            properties:
+              id: {type: string}
+              name: {type: string}
+        items:
+          type: array
+          items:
+            type: object
+            required: [id, name, group_name, tags, total, counts]
+            properties:
+              id: {type: string}
+              name: {type: string}
+              group_name: {type: string}
+              tags:
+                type: array
+                items: {type: string}
+              total: {type: integer}
+              counts:
+                type: object
+                required: [critical, high, medium, low, none, unknown]
+                properties:
+                  critical: {type: integer}
+                  high: {type: integer}
+                  medium: {type: integer}
+                  low: {type: integer}
+                  none: {type: integer}
+                  unknown: {type: integer}
+    AssetCveList:
+      type: object
+      required: [asset_id, asset_name, items, total_count, page, limit]
+      properties:
+        asset_id: {type: string}
+        asset_name: {type: string}
+        total_count: {type: integer}
+        page: {type: integer}
+        limit: {type: integer}
+        items:
+          type: array
+          items:
+            type: object
+            required: [cve_id, severity, imported, manual, sources]
+            properties:
+              cve_id: {type: string}
+              severity: {type: string, enum: [critical, high, medium, low, none, unknown]}
+              score: {type: number, minimum: 0, maximum: 10}
+              imported: {type: boolean}
+              manual: {type: boolean}
+              sources:
+                type: array
+                items: {type: string}
     AssetIntelligenceHost:
       allOf:
       - $ref: '#/components/schemas/AssetIntelligenceArticle'

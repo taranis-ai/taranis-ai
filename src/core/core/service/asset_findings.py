@@ -51,6 +51,24 @@ def finding_response(finding: AssetSbomFinding, record: AssetSbomImport, asset_n
     }
 
 
+def valid_cvss_rating(rating: dict) -> dict | None:
+    """Accept finite CVSS scores, preserving the declared or vector-derived method."""
+    method = rating.get("method", "")
+    vector = rating.get("vector", "")
+    if not method:
+        method = next(
+            (m for prefix, m in (("CVSS:4.0/", "CVSSv4"), ("CVSS:3.1/", "CVSSv31"), ("CVSS:3.0/", "CVSSv3")) if vector.startswith(prefix)),
+            "",
+        )
+    if method not in ("CVSSv2", "CVSSv3", "CVSSv31", "CVSSv4") or isinstance(rating.get("score"), bool):
+        return None
+    try:
+        score = float(rating["score"])
+    except (KeyError, TypeError, ValueError):
+        return None
+    return {"score": score, "method": method, "vector": vector} if isfinite(score) and 0 <= score <= 10 else None
+
+
 def finding_cvss_ratings(finding: AssetSbomFinding) -> list[dict]:
     """Keep each rating tied to the components named by its source record."""
     references = {o["reference"]: c.id for c in finding.components for o in c.inventory["occurrences"]}
@@ -60,29 +78,10 @@ def finding_cvss_ratings(finding: AssetSbomFinding) -> list[dict]:
         if not component_ids:
             continue
         for rating in record.get("ratings", []):
-            method = rating.get("method", "")
-            vector = rating.get("vector", "")
-            if not method:
-                method = next(
-                    (
-                        m
-                        for prefix, m in (("CVSS:4.0/", "CVSSv4"), ("CVSS:3.1/", "CVSSv31"), ("CVSS:3.0/", "CVSSv3"))
-                        if vector.startswith(prefix)
-                    ),
-                    "",
-                )
-            if method not in ("CVSSv2", "CVSSv3", "CVSSv31", "CVSSv4") or isinstance(rating.get("score"), bool):
-                continue
-            try:
-                score = float(rating["score"])
-            except (KeyError, TypeError, ValueError):
-                continue
-            if isfinite(score) and 0 <= score <= 10:
+            if validated := valid_cvss_rating(rating):
                 ratings.append(
                     {
-                        "score": score,
-                        "method": method,
-                        "vector": vector,
+                        **validated,
                         "source": rating.get("source") or record.get("source") or {},
                         "component_ids": component_ids,
                     }
