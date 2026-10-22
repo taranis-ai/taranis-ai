@@ -12,9 +12,9 @@
 
   {% set card_classes = ["card", "card-bordered", "bg-base-100", "border-l-4", "hover:shadow-lg", "relative", "w-full", "max-w-full", "@container"] %}
   {% if is_selected %}
-    {% set card_classes = card_classes + ['border-primary'] %}
-  {% elif not (story.read | default(false)) %}
     {% set card_classes = card_classes + ['border-info'] %}
+  {% elif not (story.read | default(false)) %}
+    {% set card_classes = card_classes + ['border-primary'] %}
   {% else %}
     {% set card_classes = card_classes + ['border-base-200'] %}
   {% endif %}
@@ -22,7 +22,7 @@
     {% set card_classes = card_classes + ['ring-2', 'ring-warning/70'] %}
   {% endif %}
   {% if is_selected %}
-    {% set card_classes = card_classes + ['bg-primary/5', 'shadow-md'] %}
+    {% set card_classes = card_classes + ['bg-info/5', 'shadow-md'] %}
   {% endif %}
   {% if compact_view %}
     {% set card_classes = card_classes + ['mb-1'] %}

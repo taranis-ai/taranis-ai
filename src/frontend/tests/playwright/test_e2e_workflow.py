@@ -347,7 +347,7 @@ class TestUserWorkflow(BaseE2ETest):
         selected_card = page.get_by_test_id(f"story-card-{selected_story_ids[0]}")
         self.highlight_element(selected_card, scroll=False).click()
         expect(selected_card).to_have_attribute("aria-selected", "true")
-        assert "bg-primary/5" in (selected_card.get_attribute("class") or "")
+        assert "bg-info/5" in (selected_card.get_attribute("class") or "")
         for action in ("toggle-read", "toggle-important"):
             selected_card.get_by_test_id(action).click()
             self.wait_for_htmx_settled(page)

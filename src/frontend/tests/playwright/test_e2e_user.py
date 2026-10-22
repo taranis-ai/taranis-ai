@@ -518,7 +518,7 @@ class TestEndToEndUser(BaseE2ETest):
                 expect(page.get_by_placeholder("Search stories")).to_have_value(target_title)
             story_card().get_by_test_id("open-detail-view").click()
             expect(back_to_assess).to_have_attribute("href", return_url)
-            page.get_by_test_id("edit-story").click()
+            page.get_by_role("link", name=re.compile(r"^Edit [Ss]tory$")).click()
             expect(back_to_assess).to_have_attribute("href", return_url)
             page.get_by_role("textbox", name="Title").fill(edited_title)
             page.get_by_role("textbox", name="Summary").fill("Test summary")

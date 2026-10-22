@@ -135,6 +135,24 @@
   <div class="contents {{ '' if compact_view else '@min-[80rem]:grid @min-[80rem]:grid-cols-2 @min-[80rem]:gap-2' }}">
     {{ story_actions(story, size='xs', show_bookmark=show_bookmark, bookmark_id=bookmark_id, primary_only=True) }}
   </div>
+  {% if not compact_view and (story.can_edit or story.revision_count) %}
+    <div class="hidden @min-[80rem]:grid grid-cols-2 gap-2">
+      {% if story.can_edit %}
+        <a href="{{ url_for('assess.story_edit', story_id=story_id, bookmark_id=bookmark_id or None, assess_url=assess_return_url | default(None)) }}"
+           class="btn btn-outline btn-xs gap-2 story-card-action"
+           data-test-id="edit-story-wide">
+          {{ heroicon_mini("pencil-square") }}<span>Edit Story</span>
+        </a>
+      {% endif %}
+      {% if story.revision_count %}
+        <a href="{{ url_for('assess.story_versions', story_id=story_id) }}"
+           class="btn btn-outline btn-xs gap-2 story-card-action col-start-2"
+           data-test-id="version-history-wide">
+          {{ heroicon_mini("clock") }}<span>Version History ({{ story.revision_count }})</span>
+        </a>
+      {% endif %}
+    </div>
+  {% endif %}
   <div class="contents {{ '' if compact_view else '@min-[80rem]:grid @min-[80rem]:grid-cols-2 @min-[80rem]:gap-2' }}">
     <button type="button"
             class="btn btn-outline btn-xs gap-2 story-card-action"
@@ -152,7 +170,7 @@
     {% if detail_view and story.can_edit %}
       <a type="button"
          href="{{ url_for('assess.story_edit', story_id=story_id, bookmark_id=bookmark_id or None, assess_url=assess_return_url | default(None)) }}"
-         class="btn btn-outline btn-xs gap-2 story-card-action"
+         class="btn btn-outline btn-xs gap-2 story-card-action @min-[80rem]:hidden"
          data-testid="edit-story">
         {{ heroicon_mini("pencil-square") }}
         <span>Edit story</span>
