@@ -1825,7 +1825,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             endpoint.get_by_label("Responses model", exact=True).fill("response-model")
             endpoint.get_by_label("Enable Decisions", exact=True).check()
             endpoint.get_by_label("Decisions model", exact=True).fill("topic-model")
-            decisions_format = endpoint.get_by_label("Decisions API format", exact=True)
+            decisions_format = endpoint.get_by_label("Decisions API format")
             decisions_url = endpoint.get_by_label("Decisions URL override", exact=True)
             openrouter_url = endpoint.get_by_role("button", name="Use OpenRouter settings", exact=True)
             endpoint.get_by_label("Provider base URL").fill("https://openrouter.ai.example/api/v1")
