@@ -36,12 +36,6 @@
 
   {{ bot_result_refresh(story, refresh_bot_types) }}
   {% include "assess/back_link.html" %}
-  <div {{ bot_result_fragment('story-ai-attributes', refresh_bot_types) }}
-       hidden
-       x-data
-       x-init='$dispatch("story-ai-attributes", { storyId: {{ story.id | tojson }}, attributes: {{ generated_attributes.items | tojson }} })'>
-  </div>
-
   {% if not story.can_edit -%}
     <div class="alert alert-warning shadow-lg border border-warning/40">
       <span class="font-semibold text-sm">This story is read-only.</span>
@@ -281,8 +275,13 @@
             </label>
             {# djlint:off #}
             <section class="rounded-2xl border border-base-200 bg-base-200/40 p-5 sm:col-span-2"
-                     @story-ai-attributes.window='if ($event.detail.storyId === {{ story.id | tojson }}) { for (const fresh of $event.detail.attributes) { const existing = attributes.find(item => item.key === fresh.key); if (existing) existing.value = fresh.value; else attributes.push(fresh); } }'
+                     @story-ai-attributes='if ($event.detail.storyId === {{ story.id | tojson }}) { for (const fresh of $event.detail.attributes) { const existing = attributes.find(item => item.key === fresh.key); if (existing) existing.value = fresh.value; else attributes.push(fresh); } }'
                      x-data='{ showBotAttributes: false, attributes: {{ story_attributes | tojson }}, init() { if (!Array.isArray(this.attributes)) { this.attributes = Object.values(this.attributes || {}); } if (this.attributes.length === 0) { this.attributes.push({ "key": "", "value": "" }); } }, addAttribute() { this.attributes.push({ "key": "", "value": "" }); }, removeAttribute(index) { this.attributes.splice(index, 1); if (this.attributes.length === 0) { this.attributes.push({ "key": "", "value": "" }); } } }'>
+              <div {{ bot_result_fragment('story-ai-attributes', refresh_bot_types) }}
+                   hidden
+                   x-data
+                   x-init='$dispatch("story-ai-attributes", { storyId: {{ story.id | tojson }}, attributes: {{ generated_attributes.items | tojson }} })'>
+              </div>
               <div class="flex items-center justify-between gap-4">
                 <h3 class="text-lg font-semibold">Attributes</h3>
                 <div class="flex flex-wrap items-center justify-end gap-3">

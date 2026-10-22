@@ -594,6 +594,15 @@ class TestEndToEndUser(BaseE2ETest):
             expect(page.locator("#story-ai-summary")).to_have_attribute("data-before-completion", "true")
             page.locator("#story-ai-summary").fill("Private summary draft " * 600)
             page.get_by_test_id("attribute-value-input").nth(1).fill("Unsaved custom attribute")
+            news_item_id = seeded_story["news_items"][0]["id"]
+            news_card = page.locator(f"#news-item-card-{news_item_id}")
+            news_card.get_by_test_id("edit-newsitem-tags").click()
+            tag_draft = news_card.get_by_test_id("news-item-tag-name-input").first
+            tag_draft.fill("Unsaved tag draft")
+            response = core_request_client.put(
+                f"/assess/news-items/{news_item_id}/tags", json_data=[{"name": "Generated tag", "tag_type": "misc"}]
+            )
+            assert response.ok
             refresh_requests = []
 
             def record_refresh(request):
@@ -604,7 +613,7 @@ class TestEndToEndUser(BaseE2ETest):
             for bot_type, selector in (
                 ("SENTIMENT_ANALYSIS_BOT", "#story-ai-sentiment"),
                 ("CYBERSEC_CLASSIFIER_BOT", "#story-ai-classification"),
-                ("NLP_BOT", f"#news-item-card-{seeded_story['news_items'][0]['id']}"),
+                ("NLP_BOT", f"#news-item-tags-{news_item_id}"),
                 ("SUMMARY_BOT", "#story-ai-summary"),
             ):
                 refresh_requests.clear()
@@ -624,6 +633,12 @@ class TestEndToEndUser(BaseE2ETest):
                 if bot_type != "SUMMARY_BOT":
                     expect(page.locator("#story-ai-summary")).to_have_value("Private summary draft " * 600)
             page.remove_listener("request", record_refresh)
+            expect(tag_draft).to_have_value("Unsaved tag draft")
+            expect(news_card.get_by_test_id("news-item-tags")).to_contain_text("Generated tag")
+            news_card.get_by_role("button", name="Cancel", exact=True).click()
+            news_card.get_by_test_id("edit-newsitem-tags").click()
+            expect(tag_draft).to_have_value("Generated tag")
+            news_card.get_by_role("button", name="Cancel", exact=True).click()
             expect(page.locator("#story-ai-summary")).to_have_value("Completed AI summary")
             expect(page.locator("#story-ai-classification")).to_contain_text("Vulnerability")
             page.wait_for_function("""() => {
