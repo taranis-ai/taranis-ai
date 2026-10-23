@@ -256,27 +256,29 @@ def test_active_jobs_refresh_confirms_current_execution(
 def test_active_jobs_refresh_retains_active_table_when_completion_lookup_fails(
     authenticated_client, responses_mock, mock_core_get_endpoints, htmx_header
 ):
-    responses_mock.replace(
-        responses.GET,
-        f"{Config.TARANIS_CORE_URL}/tasks/runs",
-        json={"error": "private backend detail"},
-        status=500,
-    )
     with authenticated_client.application.app_context():
         url = url_for("admin.scheduler_active_jobs")
+        completed_url = url_for("admin.scheduler_completed_runs")
     data = {"observed_jobs": json.dumps([{"id": "observed-1", "started_at": "2026-10-22T12:00:00Z"}])}
 
-    response = authenticated_client.post(url, data=data, headers=htmx_header)
+    for status in (500, 403):
+        responses_mock.replace(
+            responses.GET,
+            f"{Config.TARANIS_CORE_URL}/tasks/runs",
+            json={"error": "private backend detail"},
+            status=status,
+        )
+        response = authenticated_client.post(url, data=data, headers=htmx_header)
 
-    assert response.status_code == 200
-    assert "Running Bot" in response.text
-    assert "private backend detail" not in response.text
-    document = lxml_html.fromstring(response.text)
-    assert json.loads(document.xpath('//*[@id="active-jobs-table"]')[0].get("data-completed-jobs")) == []
+        assert response.status_code == 200
+        assert "Running Bot" in response.text
+        assert "private backend detail" not in response.text
+        document = lxml_html.fromstring(response.text)
+        assert json.loads(document.xpath('//*[@id="active-jobs-table"]')[0].get("data-completed-jobs")) == []
 
-    responses_mock.replace(responses.GET, f"{Config.TARANIS_CORE_URL}/tasks/runs", json={"error": "Access denied"}, status=403)
-    response = authenticated_client.post(url, data=data, headers=htmx_header)
-    assert response.status_code == 403
+    assert authenticated_client.get(completed_url, headers=htmx_header).status_code == 403
+    responses_mock.replace(responses.GET, f"{Config.TARANIS_CORE_URL}/config/workers/active", json={"error": "Access denied"}, status=403)
+    assert authenticated_client.post(url, data=data, headers=htmx_header).status_code == 403
 
 
 @pytest.mark.parametrize(

@@ -6,7 +6,7 @@ from models.admin import ActiveJob, FailedJob, Job, QueueStatus, WorkerStats
 from models.scheduler import ObservedJob, ObservedJobsRequest
 from models.task import TaskHistoryResponse, TaskRun, TaskRunFilter
 from pydantic import ValidationError
-from werkzeug.exceptions import HTTPException
+from werkzeug.exceptions import Forbidden, HTTPException
 
 from frontend.cache_models import CacheObject, PagingData
 from frontend.data_persistence import DataPersistenceLayer
@@ -133,6 +133,9 @@ class SchedulerView(AdminBaseView):
                     if observed_jobs:
                         try:
                             completed_jobs = _completed_observed_jobs(observed_jobs, persistence)
+                        except Forbidden:
+                            # Completion history has a separate permission from live worker state.
+                            pass
                         except HTTPException:
                             raise
                         except Exception:
