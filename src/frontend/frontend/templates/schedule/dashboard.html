@@ -15,6 +15,7 @@
          hx-get="{{ url_for('admin.scheduler_queue_cards') }}"
          hx-trigger="realtime:scheduler.changed from:document throttle:300ms, realtime:resync from:document throttle:300ms, realtime:connected from:document throttle:300ms, scheduler:refresh from:#scheduler-dashboard"
          hx-sync="this:queue last"
+         hx-status:5xx="target:#notification-bar select:#notification-bar swap:outerHTML"
          hx-swap="innerHTML">{% include "schedule/queue_cards.html" %}</div>
     {% include "schedule/content.html" %}
   </div>

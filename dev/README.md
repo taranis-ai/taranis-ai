@@ -304,7 +304,7 @@ When you update a source/bot schedule in the database (via the UI or API):
 2. Core updates the cron definition in Redis
 3. The cron scheduler picks up the change on the next poll cycle
 
-Scheduler and My Tasks use current, uncached reads on realtime events. Tab navigation replaces one Scheduler content panel, preserving the current query during refresh. Continuous events are throttled with a final refresh, and acknowledged reconnects recover missed changes. When realtime is unavailable, use the visible Refresh control. Cron sends one task-change notice per batch and renews its leadership lease before each enqueue. Core also batches notices during bulk cron reconciliation and source/bot registration, so publisher outages do not add a network timeout for every item.
+Scheduler and My Tasks use current, uncached reads on realtime events. Tab navigation replaces one Scheduler content panel, preserving the current query during refresh. Continuous events are throttled with a final refresh, and acknowledged reconnects recover missed changes. Failed refreshes show an error notification while retaining the current table/cards. When realtime is unavailable, use the visible Refresh control. Cron sends one task-change notice per batch and renews its leadership lease before each enqueue. Core also batches notices during bulk cron reconciliation, source/bot registration, source import/curated loading/deletion, Collect All, and word-list gathering, so publisher outages do not add a network timeout for every item.
 
 ### RQ Dashboard
 

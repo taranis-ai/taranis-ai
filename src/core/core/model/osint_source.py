@@ -680,6 +680,7 @@ class OSINTSource(BaseModel):
         return response, status
 
     @classmethod
+    @batch_task_changes()
     def delete_many(cls, source_ids: list[str], force: bool = False) -> tuple[dict, int]:
         from core.managers import queue_manager
         from core.model.news_item import NewsItem
@@ -932,6 +933,7 @@ class OSINTSource(BaseModel):
         return converted_sources
 
     @classmethod
+    @batch_task_changes()
     def add_multiple_with_group(cls, sources, groups) -> list[str]:
         normalized_sources = []
         for source in sources:
@@ -1021,6 +1023,7 @@ class OSINTSource(BaseModel):
         ]
 
     @classmethod
+    @batch_task_changes()
     def load_curated_lists(cls, list_names: set[str]) -> dict[str, int | str]:
         catalog = cls.get_curated_catalog()
         catalog_lists = {curated_list.name: curated_list for curated_list in catalog.lists}

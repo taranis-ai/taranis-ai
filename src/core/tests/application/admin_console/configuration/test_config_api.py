@@ -547,7 +547,8 @@ class TestSourcesConfigApi(BaseTest):
         assert response.json["message"] == "OSINT Source deleted"
         assert response.json["id"] == source_id
 
-    def test_bulk_delete_sources_is_atomic_and_requires_explicit_force(self, app, client, auth_header):
+    def test_bulk_delete_sources_is_atomic_and_requires_explicit_force(self, app, client, auth_header, monkeypatch):
+        from core.managers.realtime_publisher import realtime_publisher
         from core.model.osint_source import OSINTSource
 
         source_ids = [str(uuid.uuid7()), str(uuid.uuid7())]
@@ -591,8 +592,11 @@ class TestSourcesConfigApi(BaseTest):
             with app.app_context():
                 assert all(OSINTSource.get(source_id) for source_id in source_ids)
 
+            publication = Mock(return_value=False)
+            monkeypatch.setattr(realtime_publisher, "publish", publication)
             response = client.delete(self.concat_url("osint-sources"), query_string={"ids": source_ids, "force": "true"}, headers=auth_header)
             assert response.status_code == 200
+            publication.assert_called_once_with("global:events", "scheduler.changed", "invalidated")
         finally:
             with app.app_context():
                 for source_id in source_ids:
