@@ -4,6 +4,7 @@ import argparse
 import os
 import re
 import signal
+import subprocess
 import sys
 import tempfile
 from contextlib import ExitStack
@@ -11,6 +12,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 import psycopg
+from database_branches import BranchDatabases
 from database_processes import CONNECTION_ENVIRONMENT_KEYS, TmuxProcesses
 from dotenv import dotenv_values, set_key, unset_key
 from psycopg import sql
@@ -224,12 +226,32 @@ def switch_database(connection, config: DevelopmentConfig, name: str, processes:
         print("Start Core, frontend and workers using your usual development workflow.")
 
 
+def refresh_branch(connection, config: DevelopmentConfig, processes: TmuxProcesses | None, branches: BranchDatabases):
+    # Fail on Redis connectivity/configuration before preparing or deleting data.
+    with ExitStack() as stack:
+        config.redis_clients(stack)
+        if processes:
+            processes.stop()
+        require_idle_databases(connection, [config.selected])
+        template = branches.master_template(connection)
+        replacement = branches.replacement(connection, template)
+        # The old selection survives until replacement startup succeeds. Failed
+        # migrations therefore cannot leave .env pointing at a deleted database.
+        switch_database(connection, config, replacement, processes)
+        branches.cleanup(connection, template, replacement)
+    print("Disposable branch database replaced from origin/master.")
+
+
 def parser() -> argparse.ArgumentParser:
     cli = argparse.ArgumentParser(description=__doc__)
     cli.add_argument("--root", type=Path, default=Path(__file__).resolve().parents[1], help="development checkout (default: this checkout)")
     cli.add_argument("--session", default="taranis", help="existing development tmux session (default: taranis)")
     commands = cli.add_subparsers(dest="command", required=True)
     commands.add_parser("list", help="show available databases, sizes, and the saved selection")
+    commands.add_parser("disable", help="disable automatic rotation without deleting databases or changing selection")
+    for operation in ("enable", "refresh"):
+        command = commands.add_parser(operation, help="prepare a fresh branch database from the latest origin/master")
+        command.add_argument("--stopped", action="store_true", help="all app processes are already stopped; skip tmux and restart")
     for operation in ("clone", "switch"):
         command = commands.add_parser(operation)
         command.add_argument("name", type=database_name)
@@ -239,6 +261,10 @@ def parser() -> argparse.ArgumentParser:
 
 def run(args):
     config = DevelopmentConfig(args.root.resolve())
+    if args.command == "disable":
+        (BranchDatabases(config).directory / "enabled").unlink(missing_ok=True)
+        print("Automatic branch database rotation disabled. Current selection and databases preserved.")
+        return
     with psycopg.connect(**config.connection, dbname="postgres", autocommit=True) as connection:
         if args.command == "list":
             print(f"Selected database: {config.selected}")
@@ -250,11 +276,18 @@ def run(args):
             return
         if not connection.execute("SELECT pg_try_advisory_lock(%s)", (DATABASE_OPERATION_LOCK,)).fetchone()[0]:
             raise RuntimeError("Another database operation is in progress. Retry when it finishes.")
-        require_database(connection, config.selected)
         processes = None if args.stopped else config.processes(args.session)
         if processes:
             processes.preflight()
-        if args.command == "clone":
+        if args.command in {"enable", "refresh"}:
+            branches = BranchDatabases(config)
+            if args.command == "enable":
+                branches.hook_path()
+            refresh_branch(connection, config, processes, branches)
+            if args.command == "enable":
+                branches.install_hook(args.session)
+        elif args.command == "clone":
+            require_database(connection, config.selected)
             clone_database(connection, config, args.name, processes)
         else:
             switch_database(connection, config, args.name, processes)
@@ -279,6 +312,12 @@ def main() -> int:
         return 1
     except RedisError:
         print("Error: Could not clear development Redis. Check its connection and permissions before restarting services.", file=sys.stderr)
+        return 1
+    except subprocess.SubprocessError:
+        print(
+            "Error: Master template initialization failed. Applications remain stopped; inspect the private template-setup.log in Git's taranis-branch-databases directory.",
+            file=sys.stderr,
+        )
         return 1
     except OSError:
         print(

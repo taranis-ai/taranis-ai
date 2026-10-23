@@ -254,7 +254,67 @@ Taranis AI should be reachable on _local.taranis.ai_.
 
 ### Named local databases
 
-Use `./dev/db.sh` to keep separate PostgreSQL datasets for local feature work:
+Enable automatic disposable databases for the current checkout with:
+
+```bash
+./dev/db.sh enable
+```
+
+Run this outside the standard application's tmux panes. It prepares the initial
+database and installs a checkout-local `post-checkout` hook, preserving an existing
+hook such as Git LFS. Each subsequent `git switch` / branch `git checkout`:
+
+1. Stops Core, frontend, workers, and any cron/dashboard panes.
+2. Fetches `origin/master` and checks the template's recorded commit. If master
+   changed, builds and seeds a new template using master's code in a temporary
+   worktree. Unpushed local master commits are not used. Fetch/setup failures stop
+   the operation; an offline switch never silently reuses a stale template.
+3. Copies the template into a fresh disposable database, clears every configured
+   Redis queue/cache database, and saves the new Core database selection.
+4. Restarts applications with the checked-out branch's code and startup migrations.
+   After readiness succeeds, deletes the previous disposable database and obsolete
+   templates. Other named databases, including the original `taranis`, are preserved.
+
+**Branch data is disposable:** switching away and back starts fresh from master.
+PostgreSQL creates a full copy, not a storage-level incremental database. Master
+templates reject application connections so branch migrations cannot modify them.
+The first enable and each master update can take longer while Core's dependencies
+are installed and the template is initialized. Initialization creates master's
+standard seed data; it does not copy your existing `taranis` dataset.
+
+The hook runs after Git has changed the checkout. If it fails, Git remains on the
+new branch; inspect the error and run `./dev/db.sh refresh` before restarting.
+Failed replacement startup restores the previous database selection and leaves
+applications stopped; the previous disposable database survives. A failed target
+may remain for inspection until the next successful refresh. Pending Redis jobs
+cannot be restored. Do not manually restart against the old selection on a new
+branch, because that could apply the new branch's migrations to the old database.
+
+The installed helper snapshot lives under the checkout's Git directory at
+`taranis-branch-databases/`, so automation still works on master before this feature
+is merged. To recover or disable it on a branch without `dev/db.sh`, use:
+
+```bash
+"$(git rev-parse --absolute-git-dir)/taranis-branch-databases/run" refresh
+"$(git rev-parse --absolute-git-dir)/taranis-branch-databases/run" disable
+```
+
+`./dev/db.sh disable` also stops future automatic rotations without changing the
+current selection or deleting databases. Re-run `enable` after updating these
+helpers to update the installed snapshot. Shared external hook directories and
+symlinked hooks are rejected. Each checkout has its own database namespace and
+hook guard; a temporary or unrelated worktree does not rotate this checkout.
+
+The default requires the existing standard `taranis` tmux session. Use
+`./dev/db.sh --session my_session enable` for another standard session. If all
+applications are stopped, `enable --stopped` or `refresh --stopped` prepares the
+database without restarting; subsequent automatic checkouts still require the
+configured tmux session. File-only checkouts do not rotate databases. Checking out
+a branch at the same commit still rotates them. If Git access or initialization
+fails, diagnostics from template setup are in the private
+`taranis-branch-databases/template-setup.log` under the checkout's Git directory.
+
+For explicitly managed, persistent datasets, the existing manual commands remain:
 
 ```bash
 ./dev/db.sh list
@@ -311,13 +371,15 @@ and worker, including the default `redis://localhost:6379/0` when `REDIS_URL`
 is absent. Other logical databases are untouched. Pending jobs, retries, and
 unfinished bot chains are lost; Core rebuilds recurring schedules on startup
 and caches refill on demand. Files outside PostgreSQL remain shared. Cloning
-does not provide backups or connect a dataset to a Git branch, and each clone
+does not provide backups, and manual clones have no Git branch association. Each clone
 requires a full copy's disk space plus PostgreSQL's write-ahead log overhead.
 Database-level permissions and settings are not copied by
 [PostgreSQL's template operation](https://www.postgresql.org/docs/18/sql-createdatabase.html).
 
 The isolated helper harness, `./dev/test_named_databases.sh`, exercises actual
-PostgreSQL and Redis containers and removes them afterward. It defaults to
+PostgreSQL and Redis containers, Git checkouts, master refresh, branch startup
+initialization, Redis isolation, hook preservation, and failure recovery. It removes
+its resources afterward. It defaults to
 Podman; set `CONTAINER_CLI=docker` to use Docker. Run it explicitly when changing
 the database helpers, alongside
 `uv run --project src/core --frozen python -m unittest discover -s dev/tests`

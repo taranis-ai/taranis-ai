@@ -112,7 +112,7 @@ class TmuxProcesses:
             if window == "tailwind":
                 continue
             supported = pane.command in SHELLS | {"uv", "flask", "rq-dashboard"}
-            supported |= bool(re.fullmatch(r"python(?:\d+(?:\.\d+)*)?|taranis-[\w-]+", pane.command))
+            supported |= bool(re.fullmatch(r"[Pp]ython(?:\d+(?:\.\d+)*)?|taranis-[\w-]+", pane.command))
             if not supported:
                 raise RuntimeError("A development tmux pane is running an unrecognized command.")
         self.panes = panes
