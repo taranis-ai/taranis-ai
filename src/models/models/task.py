@@ -1,5 +1,5 @@
 import json
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any, Literal
 
 from pydantic import AliasChoices, ConfigDict, Field, ValidationInfo, field_validator, model_validator
@@ -172,6 +172,12 @@ class TaskRun(UserTask):
     _core_endpoint = "/tasks/runs"
     _model_name = "task_run"
     _pretty_name = "Completed Run"
+
+    @field_validator("last_run")
+    @classmethod
+    def mark_persisted_timestamp_as_utc(cls, value: datetime) -> datetime:
+        # Persisted timestamps are UTC even when SQL omits timezone metadata.
+        return value.replace(tzinfo=UTC)
 
 
 class TaskRunFilter(UserTaskFilter):

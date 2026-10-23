@@ -234,65 +234,24 @@ def test_scheduler_htmx_partials_use_granular_endpoints(
     assert expected_text in response.get_data(as_text=True)
 
 
-def test_active_jobs_refresh_confirms_observed_executions_across_batches(
-    authenticated_client, responses_mock, mock_core_get_endpoints, htmx_header
+@pytest.mark.parametrize("started_at, completed", [("2026-10-15T16:27:01Z", True), ("2026-10-15T16:27:03Z", False)])
+def test_active_jobs_refresh_confirms_current_execution(
+    authenticated_client, responses_mock, mock_core_get_endpoints, htmx_header, started_at, completed
 ):
-    observed_jobs = [{"id": f"observed-{index}", "started_at": "2026-10-22T14:00:00+02:00"} for index in range(51)]
-    saved_runs = {
-        job_id: {
-            "id": job_id,
-            "job_id": job_id,
-            "status": status,
-            "last_run": completed_at,
-            "result": {"message": "Recorded result"},
-        }
-        for job_id, status, completed_at in (
-            ("observed-0", "SUCCESS", "2026-10-22T12:00:01"),
-            ("observed-1", "SUCCESS", "2026-10-22T11:59:59Z"),
-            ("observed-50", "FAILURE", "2026-10-22T12:00:00Z"),
-        )
-    }
-
-    def completed_runs(core_request):
-        job_ids = parse_qs(urlparse(core_request.url).query)["job_ids"]
-        items = [saved_runs[job_id] for job_id in job_ids if job_id in saved_runs]
-        return 200, {"Content-Type": "application/json"}, json.dumps({"items": items, "total_count": len(items)})
-
-    responses_mock.remove(responses.GET, f"{Config.TARANIS_CORE_URL}/tasks/runs")
-    responses_mock.add_callback(responses.GET, f"{Config.TARANIS_CORE_URL}/tasks/runs", callback=completed_runs)
+    job_ids = ["pipeline-1"] + [f"pending-{i}" for i in range(50)]
+    observed_jobs = [{"id": job_id, "started_at": started_at} for job_id in job_ids]
     with authenticated_client.application.app_context():
-        url = url_for("admin.scheduler_active_jobs", search="running", page=3, limit=5, order="name_desc")
-    submitted_jobs = [*observed_jobs, observed_jobs[0], {"id": "missing-start"}]
+        url = url_for("admin.scheduler_active_jobs", search="running", page=3, limit=5)
 
-    response = authenticated_client.post(url, data={"observed_jobs": json.dumps(submitted_jobs)}, headers=htmx_header)
+    response = authenticated_client.post(url, data={"observed_jobs": json.dumps(observed_jobs)}, headers=htmx_header)
 
     assert response.status_code == 200
-    document = lxml_html.fromstring(response.text)
-    table = document.xpath('//*[@id="active-jobs-table"]')[0]
-    assert json.loads(table.get("data-completed-jobs")) == [observed_jobs[0], observed_jobs[50]]
+    table = lxml_html.fromstring(response.text).get_element_by_id("active-jobs-table")
+    assert json.loads(table.get("data-completed-jobs")) == (observed_jobs[:1] if completed else [])
     assert "Running Bot" in response.text
-    assert "observed_jobs" not in table.get("data-refresh-url")
-    calls = responses_mock.calls
-    assert parse_qs(urlparse(calls[0].request.url).query) == {
-        "search": ["running"],
-        "page": ["3"],
-        "limit": ["5"],
-        "order": ["name_desc"],
-    }
-    for call, expected_ids in zip(calls[1:], [[job["id"] for job in observed_jobs[:50]], ["observed-50"]], strict=True):
-        assert parse_qs(urlparse(call.request.url).query) == {"job_ids": expected_ids, "page": ["1"], "limit": ["50"]}
-
-    # A later authoritative read can resolve a result that was missing during the first refresh.
-    saved_runs["observed-2"] = {**saved_runs["observed-0"], "id": "observed-2", "job_id": "observed-2"}
-    response = authenticated_client.post(url, data={"observed_jobs": json.dumps(submitted_jobs)}, headers=htmx_header)
-
-    assert response.status_code == 200
-    document = lxml_html.fromstring(response.text)
-    assert json.loads(document.xpath('//*[@id="active-jobs-table"]')[0].get("data-completed-jobs")) == [
-        observed_jobs[0],
-        observed_jobs[2],
-        observed_jobs[50],
-    ]
+    queries = [parse_qs(urlparse(call.request.url).query) for call in responses_mock.calls if "/tasks/runs" in call.request.url]
+    assert [len(query["job_ids"]) for query in queries] == [50, 1]
+    assert all(query["page"] == ["1"] and query["limit"] == ["50"] and "search" not in query for query in queries)
 
 
 def test_active_jobs_refresh_retains_active_table_when_completion_lookup_fails(

@@ -5,7 +5,7 @@
     announcedJobs: {},
     completionCount: 0,
     executionKey(job) {
-      return JSON.stringify([job.id, job.started_at]);
+      return JSON.stringify([job.id, Date.parse(job.started_at)]);
     },
     completionMessage(count) {
       return count === 1
