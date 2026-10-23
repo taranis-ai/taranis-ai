@@ -57,10 +57,18 @@ class StoryService:
         user: User | None = None,
         actor: str | None = None,
     ) -> tuple[dict, int]:
-        return cls._refresh_auto_update_jobs_on_success(Story.update(story_id, data, user=user, actor=actor), [story_id])
+        from core.service.asset_intelligence import match_story
+
+        result = Story.update(story_id, data, user=user, actor=actor)
+        if result[1] == 200:
+            match_story(story_id)
+            db.session.commit()
+        return cls._refresh_auto_update_jobs_on_success(result, [story_id])
 
     @staticmethod
     def update_many(story_ids: list[str], data: dict[str, Any], user: User) -> tuple[dict, int]:
+        from core.service.asset_intelligence import match_story
+
         story_ids = list(dict.fromkeys(story_ids))
         try:
             # Lock in a consistent order; each update and revision belongs to this one transaction.
@@ -75,6 +83,7 @@ class StoryService:
                 if status != 200:
                     db.session.rollback()
                     return response, status
+                match_story(story_id)
                 successes.append({"story_id": story_id, "response": response})
             db.session.commit()
         except Exception:

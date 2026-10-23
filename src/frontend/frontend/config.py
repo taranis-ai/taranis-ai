@@ -42,7 +42,7 @@ class Settings(BaseSettings):
     CHAT_REQUEST_TIMEOUT: Annotated[int, Field(gt=0)] = 600
     REQUESTS_TRUST_ENV: bool = True
     CORE_API_KEY: SecretStr = SecretStr("supersecret")
-    MAX_CONTENT_LENGTH: int = 50 * 1024 * 1024
+    MAX_CONTENT_LENGTH: int = 250 * 1024 * 1024
     OSINT_SOURCE_ICON_MAX_BYTES: int = 5 * 1024 * 1024
     OSINT_SOURCE_ICON_ALLOWED_MIMETYPES: str = "image/png,image/jpeg,image/webp,image/gif"
     DISABLE_PPN_COLLECTOR: bool = True

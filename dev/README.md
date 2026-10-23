@@ -356,7 +356,7 @@ Open **Scheduler > Completed Runs** for individual terminal outcomes across manu
 
 For failed jobs, open **Scheduler > Queue Failures > View Error**. The dialog distinguishes execution deadlines from LLM request failures, shows the actual job budget and attempt count, and includes checkpointed bot/progress information when available. Older runs explicitly report missing checkpoints. Use the displayed job ID to find technical diagnostics in worker logs; raw exception messages and private provider/configuration data are not shown in the browser.
 
-`dev/compose.yml` runs CPU inference at `127.0.0.1:8000`. Add `127.0.0.1 llm-inference` to your hosts file so host-based Core and workers can reach the endpoint Core registers automatically. Allow several minutes for model loading and sufficient RAM; see [inference configuration](../docker/README.md#bundled-llm-inference).
+`dev/compose.yml` runs CPU inference at `127.0.0.1:8000` with thinking disabled by default to reduce generation latency for bots and chat. Add `127.0.0.1 llm-inference` to your hosts file so host-based Core and workers can reach the endpoint Core registers automatically. Allow several minutes for model loading and sufficient RAM; see [inference configuration](../docker/README.md#bundled-llm-inference).
 
 Set the same `LLM_INFERENCE_API_KEY` in Core's private environment and the environment used to launch Compose. Restart both after changing it. Configure providers and assignments in **Admin Settings > LLM Endpoints**.
 

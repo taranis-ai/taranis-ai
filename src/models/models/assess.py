@@ -119,6 +119,14 @@ class AssessSearchFilters(TaranisBaseModel):
     important: bool | None = None
     relevant: bool | None = None
     in_report: bool | None = None
+    asset_match: bool = False
+    asset_id: str = Field(default="", max_length=64)
+    asset_group_id: str = Field(default="", max_length=64)
+    asset_tag: str = ""
+    asset_cve_match: Literal["any", "yes", "no"] = "any"
+    asset_software_match: Literal["any", "yes", "no"] = "any"
+    asset_cvss_min: float | None = Field(default=None, ge=0, le=10, allow_inf_nan=False)
+    asset_cvss_max: float | None = Field(default=None, ge=0, le=10, allow_inf_nan=False)
     classification: Classification | None = None
     changed_by: Literal["me"] | None = None
     range: str | None = Field(default=None, pattern=r"^(shift|24h|day|week|month|last[1-9][0-9]*)$")
@@ -137,20 +145,42 @@ class AssessSearchFilters(TaranisBaseModel):
             if value is not None and value != [] and not (isinstance(value, str) and value.strip().casefold() in {"", "null"})
         }
 
-    @field_validator("classification", "changed_by", "range", "sort", mode="before")
+    @field_validator("classification", "changed_by", "range", "sort", "asset_cve_match", "asset_software_match", mode="before")
     @classmethod
     def normalize_choices(cls, value: Any) -> Any:
         return value.lower() if isinstance(value, str) else value
 
+    @field_validator("asset_tag")
+    @classmethod
+    def normalize_asset_tag(cls, value: str) -> str:
+        return value.strip().lower()
+
+    @property
+    def advanced_asset_filters(self) -> bool:
+        return any(getattr(self, key) != type(self).model_fields[key].default for key in ASSESS_ADVANCED_ASSET_FILTER_KEYS)
+
+    @property
+    def asset_cve_ids(self) -> set[str]:
+        return {tag.strip().upper() for tag in self.tags if re.fullmatch(r"CVE-\d{4}-\d{4,}", tag.strip(), re.IGNORECASE)}
+
+    @model_validator(mode="after")
+    def validate_asset_filters(self) -> Self:
+        if self.asset_cvss_min is not None and self.asset_cvss_max is not None and self.asset_cvss_min > self.asset_cvss_max:
+            raise ValueError("The minimum CVSS score must not exceed the maximum")
+        if self.advanced_asset_filters:
+            self.asset_match = True
+        return self
+
     def to_query_params(self) -> dict[str, str | list[str]]:
         return {
-            key: str(value).lower() if isinstance(value, bool) else value
+            key: value if isinstance(value, list) else str(value).lower() if isinstance(value, bool) else str(value)
             for key, value in self.model_dump(mode="json", exclude_unset=True, exclude_defaults=True, exclude_none=True).items()
             if value not in ([], "")
         }
 
 
 ASSESS_FILTER_KEYS = frozenset(AssessSearchFilters.model_fields)
+ASSESS_ADVANCED_ASSET_FILTER_KEYS = frozenset(key for key in ASSESS_FILTER_KEYS if key.startswith("asset_") and key != "asset_match")
 ASSESS_FILTER_MULTI_KEYS = frozenset(name for name, field in AssessSearchFilters.model_fields.items() if get_origin(field.annotation) is list)
 
 
@@ -263,8 +293,17 @@ class MispAutoUpdatePayload(TaranisBaseModel):
     enabled: bool = False
 
 
+class MatchedAsset(TaranisBaseModel):
+    id: str
+    name: str
+    max_cvss: float | None = None
+    cve_count: int = 0
+    software_match: bool = False
+
+
 class Story(TaranisBaseModel):
     can_edit: bool = False
+    matched_assets: list[MatchedAsset] = Field(default_factory=list)
     tlp_level: TLPLevel | None = None
 
     _core_endpoint = "/assess/stories"

@@ -6,14 +6,47 @@
   {% set table_container = model_name + '-table-container' %}
 
   <div id="{{ table_container }}" class="table-container p-4" x-data="{ selectedItems: [] }">
-    {% call table_decoration(name, model_name, table_container, routes=routes, new_item_target="#assets") %}
+    {% call table_decoration(name, model_name, table_container, routes=routes, new_item_target="#assets", search_params=["tag", "group", "vulnerable", "limit", "order"]) %}
       <div class="grow-0">
+        <a class="btn btn-outline" href="{{ url_for('assets.assets_cves') }}" data-test-id="assets-cve-overview">CVE overview</a>
+        <a class="btn btn-outline" href="{{ url_for('assets.tactical') }}">Tactical preview</a>
+        {% if current_user and "ASSESS_ACCESS" in current_user.permissions %}
+          <a class="btn btn-outline"
+             href="{{ url_for('assess.assess', asset_match='true') }}"
+             data-test-id="assets-intelligence">Matching stories in Assess</a>
+        {% endif %}
+        {% if current_user and "ASSETS_CREATE" in current_user.permissions %}
+          <a class="btn btn-outline" href="{{ url_for('assets.sbom_upload') }}" data-test-id="import-sbom">Import SBOM</a>
+        {% endif %}
         <a class="btn btn-outline gap-2" href="{{ url_for('assets.assets_cti') }}" data-testid="assets-cti-button">
           {{ heroicon_mini("document-magnifying-glass", class="h-4 w-4") }}
-          <span>CTI</span>
+          <span>Findings &amp; indicators</span>
         </a>
       </div>
     {% endcall %}
+    <form method="get"
+          action="{{ routes.base_route }}"
+          class="flex gap-3 items-end mb-4"
+          hx-get="{{ routes.base_route }}"
+          hx-target="#{{ table_container }}"
+          hx-select="#{{ table_container }}"
+          hx-swap="outerHTML"
+          hx-push-url="true">
+      {% for key, values in request.args.lists() %}
+        {% if key not in ["tag", "page"] %}
+          {% for value in values %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endfor %}
+        {% endif %}
+      {% endfor %}
+      <div>
+        <label for="asset-tag-filter">Tag</label>
+        <select id="asset-tag-filter" name="tag" class="select select-bordered block" data-test-id="asset-tag-filter">
+          <option value="">All tags</option>
+          {% for tag in asset_tags | default([]) %}<option value="{{ tag }}"
+        {% if request.args.get('tag', '') | trim | lower == tag %}selected{% endif %}>{{ tag }}</option>{% endfor %}
+        </select>
+      </div>
+      <button type="submit" class="btn btn-outline">Filter assets</button>
+    </form>
     {{ table(model_name + '-table', data, columns, actions=actions, standalone=false, routes=routes) }}
   </div>
 </div>

@@ -21,6 +21,8 @@ Task entry points and RQ failure hooks own their HTTP session scope, including r
 - Successful presenter results publish user-scoped `product.rendered` after commit; notification failure cannot change task success. See [Realtime Events](realtime-events.md).
 - MISP results reflect completed sync/proposal operations, not dispatch success. Entire failures use one connector failure path; curated reasons include `connector_not_found` and `connector_type_missing`.
 - Bot transport failures use retryable `bot_service_unavailable` so dependents do not run. Log the transport error server-side, retain the curated exception's originating traceback, and suppress the underlying HTTP exception chain from displayed failures.
+- SBOM preparation uses user-attributed `sbom_import_task` jobs in `misc`. Parsing runs in the worker; Core stages private uploads and accepts bounded normalized batches. Failures and killed-worker hooks mark the preparation failed and release source bytes; daily task-history cleanup expires abandoned preparations. See [Asset SBOM Import](asset-sbom-import.md).
+- [Asset intelligence scans](asset-sbom-import.md) use user-attributed `asset_match_task` jobs in `misc`. Core owns authorization, bounded batches and progress; the worker drives the batches and reports the final task result.
 
 Endpoint probe health is stored separately from execution history; see [LLM Endpoints](llm-endpoints.md#endpoint-checks).
 

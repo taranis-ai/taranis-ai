@@ -69,6 +69,9 @@ def _persist_failure(job: Job, *, message: str, reason: str, retryable: bool, da
         logger.warning(f"Skipping synthetic failure persistence for {job.id} because task identity is missing")
         return
 
+    if task_name == "sbom_import_task" and worker_id:
+        CoreApi().api_post(f"/worker/sbom-uploads/{worker_id}/failure", {})
+
     CoreApi().save_task_result(
         job.id,
         task_name,

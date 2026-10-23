@@ -196,18 +196,20 @@ class DataPersistenceLayer:
             )
         raise ValueError(f"Failed to fetch {object_model._model_name} from: {endpoint}")
 
-    def get_objects(self, object_model: type[T], paging_data: PagingData | None = None) -> CacheObject[T]:
+    def get_objects(self, object_model: type[T], paging_data: PagingData | None = None, *, use_cache: bool = True) -> CacheObject[T]:
         if paging_data is None:
             paging_data = PagingData().set_fetch_all()
         endpoint = self.get_endpoint(object_model)
         cache_key = self.make_list_cache_key(object_model, endpoint, paging_data)
-        cached_payload = self._load_cached_object(cache_key, object_model, paging_data, collection=True)
+        cached_payload = self._load_cached_object(cache_key, object_model, paging_data, collection=True) if use_cache else None
         if cached_payload is not None:
             logger.debug(f"Cache hit for {cache_key}")
             return cached_payload
 
         result = self.api.api_get(endpoint, paging_data.query_params if paging_data else None)
         if isinstance(result, (dict, list)):
+            if not use_cache:
+                return self._build_cache_object(object_model, self._normalize_collection_payload(result), paging_data)
             return self._cache_and_paginate_objects(
                 self._normalize_collection_payload(result),
                 object_model,
