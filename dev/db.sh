@@ -31,6 +31,13 @@ for setting in DB_DATABASE SQLALCHEMY_DATABASE_URI; do
   [[ -z "${!setting+x}" ]] || fail "Unset $setting; Core's .env must own the database selection."
 done
 
+# Use Core's dotenv parser so quoted and case-insensitive keys cannot bypass this guard.
+uv run --frozen --no-sync --directory src/core python -c '
+import sys
+from dotenv import dotenv_values
+sys.exit(any(key.upper() == "SQLALCHEMY_DATABASE_URI" for key in dotenv_values(".env")))
+' || fail "Remove SQLALCHEMY_DATABASE_URI from src/core/.env; it overrides DB_DATABASE."
+
 tmux list-panes -t '=taranis:core' >/dev/null || fail "The standard taranis tmux session needs a core window."
 panes=()
 pids=()

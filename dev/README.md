@@ -259,6 +259,8 @@ The script fetches master, refreshes its seeded template, switches branches, and
 It clears the dedicated development Redis container; branch data and pending jobs are disposable.
 Known application panes stop and restart automatically; Core applies branch migrations. Errors stop without rollback.
 Uses the local Compose stack, default PostgreSQL credentials, and Core's `.env`; existing `taranis` data stays untouched.
+Remove `SQLALCHEMY_DATABASE_URI` from Core's `.env` and unset inherited `DB_DATABASE`/`SQLALCHEMY_DATABASE_URI` before running.
+The script rejects these overrides before stopping applications because an explicit URI takes precedence over `DB_DATABASE`.
 Set `CONTAINER_CLI=docker` for Docker (default: Podman); `COMPOSE_PROJECT_NAME` selects the stack.
 Copy `dev/db.sh` outside the checkout if you need to use it on branches without this script.
 
