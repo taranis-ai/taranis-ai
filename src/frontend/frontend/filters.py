@@ -11,6 +11,8 @@ from jinja2 import pass_context
 from markupsafe import Markup, escape
 from models.admin import OSINTSource
 from models.assess import Story
+from models.types import BOT_TYPES
+from models.worker_parameters import get_worker_definition
 
 
 __all__ = [
@@ -142,6 +144,8 @@ def render_truncated(item, field: str) -> str:
 
 def render_item_type(item) -> str:
     if hasattr(item, "type") and item.type:
+        if isinstance(item.type, BOT_TYPES):
+            return get_worker_definition(item.type.value).name
         return item.type.split("_")[0].capitalize()
     return "Unknown"
 
