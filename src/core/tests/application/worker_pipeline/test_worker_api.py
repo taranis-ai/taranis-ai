@@ -28,7 +28,7 @@ class TestWorkerApi:
 
         publication = Mock(return_value=True)
         monkeypatch.setattr(realtime_publisher, "publish", publication)
-        payload = {"user_ids": ["owner", "owner"]}
+        payload = {"user_ids": ["owner", "second-owner", "owner"]}
         path = f"{self.base_uri}/tasks/changed"
         assert client.post(path, json=payload).status_code == 401
         assert client.post(path, json=payload, headers=auth_header).status_code == 401
@@ -38,7 +38,7 @@ class TestWorkerApi:
         assert client.post(path, json=payload, headers=api_header).status_code == 200
         assert [call.args for call in publication.call_args_list] == [
             ("global:events", "scheduler.changed", "invalidated"),
-            ("user:#owner", "task.changed", "invalidated"),
+            (["user:#owner", "user:#second-owner"], "task.changed", "invalidated"),
         ]
         assert all(not call.kwargs for call in publication.call_args_list)
 

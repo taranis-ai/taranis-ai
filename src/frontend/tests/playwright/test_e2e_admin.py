@@ -9,6 +9,7 @@ import redis
 from base_e2e_test import BaseE2ETest
 from flask import url_for
 from htmx_helpers import reset_htmx_state, with_htmx_wait
+from models.scheduler import MAX_OBSERVED_JOBS
 from playwright.sync_api import Page, expect
 from rq import Queue
 from rq.executions import Execution
@@ -306,6 +307,7 @@ class TestEndToEndAdmin(BaseE2ETest):
         queue = Queue("bots", connection=connection)
         run_prefix = f"scheduler-observed-{uuid.uuid4().hex}"
         jobs = [queue.create_job("worker.bots.bot_tasks.bot_task", job_id=f"{run_prefix}-{index}") for index in range(3)]
+        jobs.append(queue.create_job("worker.endpoint_health.check_endpoint", job_id=f"{run_prefix}-probe"))
         notice = page.locator('[data-test-id="scheduler-completion-notice"]')
 
         def save_result(index: int, status: str):
@@ -332,7 +334,9 @@ class TestEndToEndAdmin(BaseE2ETest):
                     job.prepare_for_execution("scheduler-monitor", pipeline=pipeline)
                     pipeline.execute()
             page.goto(url_for("admin.scheduler_active_jobs", search=run_prefix, _external=True))
-            expect(page.get_by_test_id("active-jobs").locator("tbody tr")).to_have_count(3)
+            expect(page.get_by_test_id("active-jobs").locator("tbody tr")).to_have_count(4)
+            observed = page.locator("#active-jobs-table").get_attribute("data-active-jobs")
+            assert jobs[-1].id not in observed
             page.evaluate("window.taranisNotifications.clear()")
 
             save_result(0, "SUCCESS")
@@ -358,6 +362,25 @@ class TestEndToEndAdmin(BaseE2ETest):
             expect(page.locator("#scheduler-content-search")).to_have_value("")
             expect(page.get_by_test_id("completed-run-status")).to_have_value("")
             expect(notice).not_to_be_visible()
+
+            # Lost outcomes stay unannounced, and long-lived tabs retain bounded state.
+            state = page.evaluate(
+                """limit => {
+                    const owner = document.getElementById('scheduler-dashboard').parentElement;
+                    const state = Alpine.$data(owner);
+                    const active = Array.from({length: limit + 1}, (_, id) => ({id: `lost-${id}`, started_at: '2026-10-22T12:00:00Z'}));
+                    owner.dispatchEvent(new CustomEvent('scheduler:jobs-loaded', {detail: {active, completed: []}}));
+                    const pending = state.observedJobs.length;
+                    const count = state.completionCount;
+                    owner.dispatchEvent(new CustomEvent('scheduler:jobs-loaded', {detail: {active: [], completed: active}}));
+                    const next = [{id: 'next', started_at: '2026-10-22T12:00:00Z'}];
+                    owner.dispatchEvent(new CustomEvent('scheduler:jobs-loaded', {detail: {active: next, completed: []}}));
+                    owner.dispatchEvent(new CustomEvent('scheduler:jobs-loaded', {detail: {active: [], completed: next}}));
+                    return {pending, count, announced: Object.keys(state.announcedJobs).length, completed: state.completionCount};
+                }""",
+                MAX_OBSERVED_JOBS,
+            )
+            assert state == {"pending": MAX_OBSERVED_JOBS, "count": 0, "announced": MAX_OBSERVED_JOBS, "completed": MAX_OBSERVED_JOBS + 1}
         finally:
             for job in jobs:
                 job.delete()

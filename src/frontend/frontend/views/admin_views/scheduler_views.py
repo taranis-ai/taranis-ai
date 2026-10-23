@@ -3,7 +3,7 @@ from typing import Any
 from flask import abort, render_template, request
 from flask.typing import ResponseReturnValue
 from models.admin import ActiveJob, FailedJob, Job, QueueStatus, WorkerStats
-from models.scheduler import ObservedJob, ObservedJobsRequest
+from models.scheduler import MAX_OBSERVED_JOBS, ObservedJob, ObservedJobsRequest
 from models.task import TaskHistoryResponse, TaskRun, TaskRunFilter
 from pydantic import ValidationError
 from werkzeug.exceptions import Forbidden, HTTPException
@@ -38,7 +38,7 @@ def _completed_observed_jobs(observed_jobs: list[ObservedJob], persistence: Data
     return [job.model_dump(mode="json") for job in observed_jobs if job.id in completed_at and completed_at[job.id] >= job.started_at]
 
 
-def _task_stats_page(task_history: TaskHistoryResponse) -> CacheObject:
+def _task_stats_page(task_history: TaskHistoryResponse) -> CacheObject[Any]:
     paging_data = parse_paging_data()
     rows: list[dict[str, Any]] = [
         {
@@ -76,7 +76,7 @@ def _task_stats_page(task_history: TaskHistoryResponse) -> CacheObject:
     page = paging_data.page if paging_data.page and paging_data.page > 0 else 1
     limit = paging_data.limit if paging_data.limit and paging_data.limit > 0 else 20
     offset = (page - 1) * limit
-    return CacheObject(rows[offset : offset + limit], total_count=len(rows), page=page, limit=limit, order=order)
+    return CacheObject[Any](rows[offset : offset + limit], total_count=len(rows), page=page, limit=limit, order=order)
 
 
 def _completed_runs_page() -> CacheObject:
@@ -163,6 +163,7 @@ class SchedulerView(AdminBaseView):
                     "active_jobs": active_jobs,
                     "completed_runs": completed_runs,
                     "completed_jobs": completed_jobs,
+                    "max_observed_jobs": MAX_OBSERVED_JOBS,
                     "failed_jobs": failed_jobs,
                     "task_stats": task_stats,
                     "total_successes": total_successes,

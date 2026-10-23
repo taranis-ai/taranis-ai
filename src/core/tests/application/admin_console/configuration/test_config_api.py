@@ -285,7 +285,7 @@ class TestSourcesConfigApi(BaseTest):
         assert source_response.json["parameters"]["FEED_URL"] == "https://example.com/updated.xml"
         assert queue.fetch_job(preview_id) is None
         assert Task.get_by_job_id(preview_id) is None
-        assert call("user:#preview-owner", "task.changed", "invalidated") in publication.call_args_list
+        assert call(["user:#preview-owner"], "task.changed", "invalidated") in publication.call_args_list
 
     def test_modify_source_can_store_rank_zero(self, client, auth_header, cleanup_sources):
         source_id = cleanup_sources["id"]

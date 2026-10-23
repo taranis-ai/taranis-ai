@@ -104,6 +104,22 @@ def test_product_event_uses_user_limited_channel(enabled_realtime):
     assert publication["data"]["data"] == {"stories": stories}
 
 
+@pytest.mark.parametrize("responses, accepted", [([{}, {}], True), ([{}, {"error": {"code": 100}}], False), ([{}], False)])
+def test_task_events_broadcast_to_unique_owner_channels(enabled_realtime, responses, accepted):
+    publisher, session = _publisher(response_payload={"result": {"responses": responses}})
+
+    assert publisher.task_changed("owner", "second-owner", "owner") is accepted
+
+    session.post.assert_called_once()
+    publication = session.post.call_args.kwargs["json"]
+    assert publication["channels"] == ["user:#owner", "user:#second-owner"]
+    assert publication["data"]["type"] == "task.changed"
+    assert publication["data"]["data"] == {}
+    session.post.reset_mock()
+    assert publisher.task_changed() is False
+    session.post.assert_not_called()
+
+
 def test_osint_source_preview_event_uses_user_limited_channel(enabled_realtime):
     publisher, session = _publisher()
     source_id = str(uuid.uuid7())

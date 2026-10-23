@@ -1,4 +1,4 @@
-{% macro completion_tracking() %}
+{% macro completion_tracking(max_observed_jobs) %}
   {# djlint:off #}
   x-data='{
     observedJobs: [],
@@ -44,6 +44,9 @@
           observed.add(key);
         }
       }
+      // Bound long-lived tabs even when a job never records an outcome.
+      this.observedJobs = this.observedJobs.slice(-{{ max_observed_jobs }});
+      this.announcedJobs = Object.fromEntries(Object.entries(this.announcedJobs).slice(-{{ max_observed_jobs }}));
       if (newlyCompleted) {
         this.completionCount += newlyCompleted;
         window.taranisNotifications?.add({ message: this.completionMessage(newlyCompleted), level: "info" });

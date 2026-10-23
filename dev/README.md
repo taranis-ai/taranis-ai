@@ -306,6 +306,8 @@ When you update a source/bot schedule in the database (via the UI or API):
 
 Scheduler and My Tasks use current, uncached reads on realtime events. Tab navigation replaces one Scheduler content panel, preserving the current query during refresh. Continuous events are throttled with a final refresh, and acknowledged reconnects recover missed changes. Failed refreshes show an error notification while retaining the current table/cards. When realtime is unavailable, use the visible Refresh control. Cron sends one task-change notice per batch and renews its leadership lease before each enqueue. Core also batches notices during bulk cron reconciliation, source/bot registration, source import/curated loading/deletion, Collect All, and word-list gathering, so publisher outages do not add a network timeout for every item.
 
+Core broadcasts task hints to all affected owner channels in one request, alongside one scheduler broadcast. Queue Failures batches Redis job reads. Scheduler completion notices exclude endpoint probes and retain the newest 500 observations per tab; older unresolved observations are discarded without announcing completion.
+
 ### RQ Dashboard
 
 The development setup includes [rq-dashboard](https://github.com/Parallels/rq-dashboard) for monitoring RQ workers and jobs. It provides:

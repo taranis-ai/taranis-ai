@@ -412,11 +412,6 @@ class QueueManager:
         except Exception as e:
             logger.error(f"Failed to clear queues: {e}")
 
-    def publish_schedule_cache_invalidation(self) -> int:
-        from core.service.cache_invalidation import SCOPE_SCHEDULE, cache_invalidation_service
-
-        return cache_invalidation_service.invalidate_scope(SCOPE_SCHEDULE)
-
     @property
     def redis(self) -> Redis | None:
         return self._redis
@@ -1630,6 +1625,7 @@ class QueueManager:
                     "queue": job.origin,
                     "started_at": job.started_at.isoformat() if job.started_at else None,
                     "status": "running",
+                    "tracks_completion": job.func_name != TASK_MAP["check_endpoint"],
                 }
                 for job in self._live_jobs(running=True, pending=False)
             ]
@@ -1652,10 +1648,20 @@ class QueueManager:
             for queue_name, queue in self._queues.items():
                 registry = FailedJobRegistry(queue=queue)
                 job_ids = list(registry.get_job_ids())
+                if not job_ids:
+                    continue
+                try:
+                    jobs = Job.fetch_many(job_ids, connection=self._redis)
+                except Exception:
+                    # Isolate malformed jobs with the existing per-job recovery path.
+                    logger.exception("Failed to read failed jobs in bulk")
+                    jobs = None
 
-                for job_id in job_ids:
+                for index, job_id in enumerate(job_ids):
                     try:
-                        job = Job.fetch(job_id, connection=self._redis)
+                        job = jobs[index] if jobs is not None else Job.fetch(job_id, connection=self._redis)
+                        if job is None:
+                            raise NoSuchJobError
                         jobs_by_id[job.id] = job
                         job_name = self._get_job_display_name(job)
                         failed_jobs.append(

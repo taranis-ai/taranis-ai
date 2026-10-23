@@ -1,7 +1,7 @@
 {% from "schedule/table.html" import refreshable_table %}
 {% set observations = namespace(jobs=[]) %}
 {% for job in active_jobs %}
-  {% if job.started_at %}
+  {% if job.started_at and job.tracks_completion %}
     {% set observations.jobs = observations.jobs + [{"id": job.id, "started_at": job.started_at}] %}
   {% endif %}
 {% endfor %}

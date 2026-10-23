@@ -35,7 +35,7 @@ def test_story_task_lifecycle_is_visible_only_to_its_owner(
     publication.assert_has_calls(
         [
             call("global:events", "scheduler.changed", "invalidated"),
-            call(f"user:#{user_id}", "task.changed", "invalidated"),
+            call([f"user:#{user_id}"], "task.changed", "invalidated"),
         ]
     )
     job = queue.get_jobs()[0]
@@ -95,6 +95,7 @@ def test_story_task_lifecycle_is_visible_only_to_its_owner(
     active = client.get("/api/config/workers/active", query_string={"search": story_id}, headers=auth_header).json
     assert [item["id"] for item in active["items"]] == [job.id]
     assert active["items"][0]["name"] == live["name"]
+    assert active["items"][0]["tracks_completion"] is True
 
     payload = _task_payload(job.id, user_id=user_id, status=outcome)
     payload.update(name=job.meta["name"], task=job.meta["task"], worker_id=job.meta["worker_id"], worker_type=job.meta["worker_type"])
@@ -103,7 +104,7 @@ def test_story_task_lifecycle_is_visible_only_to_its_owner(
     publication.assert_has_calls(
         [
             call("global:events", "scheduler.changed", "invalidated"),
-            call(f"user:#{user_id}", "task.changed", "invalidated"),
+            call([f"user:#{user_id}"], "task.changed", "invalidated"),
         ]
     )
     assert "private-provider-configuration" not in str(publication.call_args_list)

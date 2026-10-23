@@ -2,7 +2,7 @@
 {% from "macros/live_table.html" import live_table_refresh %}
 {% from "schedule/completion_notice.html" import completion_tracking, completion_notice %}
 {% block content %}
-  <div {{ completion_tracking() }}>
+  <div {{ completion_tracking(max_observed_jobs) }}>
     <div class="p-4"
          id="scheduler-dashboard"
          {{ live_table_refresh('realtime:scheduler.changed', 'scheduler:refresh', url_for('admin.scheduler'), 'scheduler-content') }}>

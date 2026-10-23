@@ -34,7 +34,7 @@ def notify_task_change(*user_ids: str | None) -> None:
         return
     try:
         realtime_publisher.scheduler_changed()
-        for user_id in dict.fromkeys(user_id for user_id in user_ids if user_id):
-            realtime_publisher.task_changed(user_id)
+        if owners := dict.fromkeys(user_id for user_id in user_ids if user_id):
+            realtime_publisher.task_changed(*owners)
     except Exception:
         logger.exception("Could not publish task view changes")

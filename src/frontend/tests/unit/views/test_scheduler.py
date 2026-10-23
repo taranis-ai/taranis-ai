@@ -5,6 +5,7 @@ import pytest
 import responses
 from flask import url_for
 from lxml import html as lxml_html
+from models.scheduler import MAX_OBSERVED_JOBS
 from models.user import ProfileSettings
 
 from frontend.cache import add_user_to_cache, cache
@@ -285,6 +286,7 @@ def test_active_jobs_refresh_retains_active_table_when_completion_lookup_fails(
     "observed_jobs",
     [
         "private malformed value",
+        json.dumps([{"id": "observed-1", "started_at": "2026-10-22T12:00:00Z"}] * (MAX_OBSERVED_JOBS + 1)),
         json.dumps([{"id": "observed-1", "started_at": "private malformed value"}]),
     ],
 )

@@ -18,13 +18,16 @@ from pydantic import (
 from pydantic_core import PydanticUseDefault
 
 
+MAX_OBSERVED_JOBS = 500
+
+
 class ObservedJob(BaseModel):
     id: str = Field(min_length=1, max_length=512)
     started_at: AwareDatetime
 
 
 class ObservedJobsRequest(BaseModel):
-    observed_jobs: Json[list[ObservedJob]] = Field(default_factory=list)
+    observed_jobs: Json[Annotated[list[ObservedJob], Field(max_length=MAX_OBSERVED_JOBS)]] = Field(default_factory=list)
 
 
 class JobFilter(BaseModel):

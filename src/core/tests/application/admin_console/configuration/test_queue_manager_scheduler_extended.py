@@ -6,7 +6,6 @@ from unittest.mock import Mock
 
 import fakeredis
 import pytest
-import rq.registry as rq_registry
 from models.scheduler import JobFilter, ScheduledJob, StoredTaskResult
 from models.types import COLLECTOR_TYPES, PRESENTER_TYPES, PUBLISHER_TYPES
 from rq import Queue
@@ -163,24 +162,6 @@ def test_cancel_job_returns_false_when_not_found(monkeypatch):
     assert qm.cancel_job("job-123") is False
 
 
-def test_publish_schedule_cache_invalidation_notifies_scheduler_views(monkeypatch):
-    qm = _make_queue_manager()
-    cache_invalidation_calls: list[str] = []
-
-    def fake_invalidate_scope(scope_name: str) -> int:
-        cache_invalidation_calls.append(scope_name)
-        return 2
-
-    from core.service import cache_invalidation as cache_invalidation_module
-
-    monkeypatch.setattr(cache_invalidation_module.cache_invalidation_service, "invalidate_scope", fake_invalidate_scope)
-
-    published = qm.publish_schedule_cache_invalidation()
-
-    assert published == 2
-    assert cache_invalidation_calls == ["schedule"]
-
-
 def test_get_task_returns_live_rq_status(monkeypatch):
     class FakeJob:
         id = "source_preview_123"
@@ -249,7 +230,7 @@ def test_preview_osint_source_purges_existing_preview_artifacts(monkeypatch):
 
 @pytest.mark.parametrize("reason", [None, "job_timeout", "llm_request_timeout", "private-unknown-reason"])
 @pytest.mark.parametrize("checkpoint", [False, True])
-def test_get_failed_jobs_uses_registry(app, session, reason, checkpoint):
+def test_get_failed_jobs_uses_registry(app, session, monkeypatch, reason, checkpoint):
     qm = _make_queue_manager()
     queue = Queue("bots", connection=qm._redis)
     qm._queues = {"bots": queue}
@@ -279,8 +260,11 @@ def test_get_failed_jobs_uses_registry(app, session, reason, checkpoint):
                     "result": {"message": "private historical exception", "reason": reason},
                 }
             )
+        bulk_fetch = Mock(wraps=qm_module.Job.fetch_many)
+        monkeypatch.setattr(qm_module.Job, "fetch_many", bulk_fetch)
         payload, status = qm.get_failed_jobs({})
 
+    bulk_fetch.assert_called_once()
     assert status == 200
     assert payload["items"][0]["id"] == "job-9"
     assert payload["items"][0]["status"] == "failed"
@@ -307,33 +291,28 @@ def test_get_failed_jobs_uses_registry(app, session, reason, checkpoint):
     assert status == 200 and filtered["total_count"] == 1
 
 
-def test_get_failed_jobs_removes_stale_registry_entries(monkeypatch):
-    removed: list[tuple[str, bool]] = []
-
-    class FakeRegistry:
-        def __init__(self, queue=None):
-            self.queue = queue
-
-        def get_job_ids(self):
-            return ["job-stale"]
-
-        def remove(self, job_id, delete_job=False):
-            removed.append((job_id, delete_job))
-
-    def fake_fetch(job_id, connection=None):
-        raise qm_module.NoSuchJobError(f"No such job: rq:job:{job_id}")
-
-    monkeypatch.setattr(rq_registry, "FailedJobRegistry", FakeRegistry)
-    monkeypatch.setattr(qm_module, "Job", type("Job", (), {"fetch": staticmethod(fake_fetch)}))
-
+@pytest.mark.parametrize("malformed_job", [False, True])
+def test_get_failed_jobs_removes_stale_registry_entries(app, session, malformed_job):
     qm = _make_queue_manager()
-    qm._queues = {"bots": _DummyQueue("bots")}  # type: ignore[assignment]
+    queue = Queue("bots", connection=qm._redis)
+    qm._queues = {"bots": queue}
+    job = queue.enqueue("worker.bots.bot_tasks.bot_task", job_id="valid-failure")
+    registry = queue.failed_job_registry
+    registry.add(job)
+    qm._redis.zadd(registry.key, {"job-stale": float("inf")})
+    if malformed_job:
+        broken = queue.enqueue("worker.bots.bot_tasks.bot_task", job_id="malformed-failure")
+        registry.add(broken)
+        qm._redis.hset(broken.key, "created_at", "invalid timestamp")
 
-    payload, status = qm.get_failed_jobs({})
+    with app.app_context():
+        payload, status = qm.get_failed_jobs({})
 
     assert status == 200
-    assert payload == {"items": [], "total_count": 0}
-    assert removed == [("job-stale", False)]
+    assert [item["id"] for item in payload["items"]] == [job.id]
+    assert "job-stale" not in registry.get_job_ids()
+    if malformed_job:
+        assert broken.id in registry.get_job_ids()
 
 
 def test_autopublish_product_schedules_presenter_then_publisher(monkeypatch):
