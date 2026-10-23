@@ -254,138 +254,55 @@ Taranis AI should be reachable on _local.taranis.ai_.
 
 ### Named local databases
 
-Enable automatic disposable databases for the current checkout with:
+Enable automatic databases once, outside the application's tmux panes:
 
 ```bash
 ./dev/db.sh enable
 ```
 
-Run this outside the standard application's tmux panes. It prepares the initial
-database and installs a checkout-local `post-checkout` hook, preserving an existing
-hook such as Git LFS. Each subsequent `git switch` / branch `git checkout`:
+Each branch switch stops applications, fetches `origin/master`, updates the seeded
+master template if its commit changed, creates a fresh disposable database, clears
+configured Redis queues/caches, and restarts with branch migrations. After startup
+succeeds, it deletes the previous disposable database and obsolete templates.
+Existing named databases are preserved. **Switching away discards branch data.**
 
-1. Stops Core, frontend, workers, and any cron/dashboard panes.
-2. Fetches `origin/master` and checks the template's recorded commit. If master
-   changed, builds and seeds a new template using master's code in a temporary
-   worktree. Unpushed local master commits are not used. Fetch/setup failures stop
-   the operation; an offline switch never silently reuses a stale template.
-3. Copies the template into a fresh disposable database, clears every configured
-   Redis queue/cache database, and saves the new Core database selection.
-4. Restarts applications with the checked-out branch's code and startup migrations.
-   After readiness succeeds, deletes the previous disposable database and obsolete
-   templates. Other named databases, including the original `taranis`, are preserved.
+Requires local PostgreSQL/Redis, Core's `uv` environment and `.env`, access to
+`origin`, and the standard `taranis` tmux session. Connection settings belong in
+component `.env` files, not shell exports. Use dedicated loopback Redis databases:
+all configured `REDIS_URL` / `CACHE_REDIS_URL` databases are flushed; pending jobs
+are lost. SQL clients must be closed. External files stay shared.
 
-**Branch data is disposable:** switching away and back starts fresh from master.
-PostgreSQL creates a full copy, not a storage-level incremental database. Master
-templates reject application connections so branch migrations cannot modify them.
-The first enable and each master update can take longer while Core's dependencies
-are installed and the template is initialized. Initialization creates master's
-standard seed data; it does not copy your existing `taranis` dataset.
+| Command | Purpose |
+| --- | --- |
+| `./dev/db.sh refresh` | Retry or rebuild the disposable database now |
+| `./dev/db.sh disable` | Stop automatic rotation; preserve current selection/data |
+| `./dev/db.sh list` | Show databases, sizes, and selection |
+| `./dev/db.sh clone saved_work` | Keep a persistent copy; leave applications stopped |
+| `./dev/db.sh switch saved_work` | Select an existing database and restart |
 
-The hook runs after Git has changed the checkout. If it fails, Git remains on the
-new branch; inspect the error and run `./dev/db.sh refresh` before restarting.
-Failed replacement startup restores the previous database selection and leaves
-applications stopped; the previous disposable database survives. A failed target
-may remain for inspection until the next successful refresh. Pending Redis jobs
-cannot be restored. Do not manually restart against the old selection on a new
-branch, because that could apply the new branch's migrations to the old database.
+Use `--session NAME` or `--root PATH` **before** the command to override defaults.
+For manual startup, stop all applications and use `--stopped` after the command;
+this skips tmux and restart for that invocation. Automatic switches still require
+the configured session. Tailwind and infrastructure keep running.
 
-The installed helper snapshot lives under the checkout's Git directory at
-`taranis-branch-databases/`, so automation still works on master before this feature
-is merged. To recover or disable it on a branch without `dev/db.sh`, use:
+If template setup or startup fails, Git stays on the new branch and applications remain stopped.
+The previous database selection is restored after failed startup; migrations and
+Redis flushes cannot be undone. Run `refresh` before restarting. Template setup
+errors are logged privately under the checkout's Git directory at
+`taranis-branch-databases/template-setup.log`.
+
+The installed hook preserves existing hooks and works on branches without these
+scripts. Re-run `enable` after changing the helpers. To recover on such a branch:
 
 ```bash
 "$(git rev-parse --absolute-git-dir)/taranis-branch-databases/run" refresh
-"$(git rev-parse --absolute-git-dir)/taranis-branch-databases/run" disable
+# The same runner accepts disable.
 ```
 
-`./dev/db.sh disable` also stops future automatic rotations without changing the
-current selection or deleting databases. Re-run `enable` after updating these
-helpers to update the installed snapshot. Shared external hook directories and
-symlinked hooks are rejected. Each checkout has its own database namespace and
-hook guard; a temporary or unrelated worktree does not rotate this checkout.
-
-The default requires the existing standard `taranis` tmux session. Use
-`./dev/db.sh --session my_session enable` for another standard session. If all
-applications are stopped, `enable --stopped` or `refresh --stopped` prepares the
-database without restarting; subsequent automatic checkouts still require the
-configured tmux session. File-only checkouts do not rotate databases. Checking out
-a branch at the same commit still rotates them. If Git access or initialization
-fails, diagnostics from template setup are in the private
-`taranis-branch-databases/template-setup.log` under the checkout's Git directory.
-
-For explicitly managed, persistent datasets, the existing manual commands remain:
-
-```bash
-./dev/db.sh list
-./dev/db.sh clone feature_work
-./dev/db.sh switch feature_work
-./dev/db.sh switch taranis
-```
-
-`list` shows each database's size and marks the saved selection with `*`.
-`clone` copies the currently selected database and keeps the existing selection.
-It stops the application's tmux processes and leaves them stopped: restarting
-Core on the current branch could apply migrations to the source. Run `switch`
-to choose the database to start next. Existing databases are never overwritten.
-
-`switch` stops Core, frontend, workers, and any cron/dashboard panes in the
-existing `taranis` tmux session, clears configured Redis queues and caches,
-saves `DB_DATABASE` in `src/core/.env`, and restarts those application panes.
-The target starts with the current checkout's code and migrations. If startup
-fails, the helper stops the target's processes, restores the previous selection,
-and leaves applications stopped for inspection; it does not undo migrations
-already applied to the target. Use `list` to check the selection before restarting.
-
-The default process handling supports the standard `start_dev.sh` /
-`start_tmux.sh` session with one pane per named window. Tailwind and the support
-containers keep running. Run database commands from a terminal outside the
-managed application panes. Use `./dev/db.sh --session my_session switch feature_work`
-for another existing standard session. For manual or customized startup, stop
-**all** Core, frontend, worker, cron, and dashboard processes yourself, then use
-`clone feature_work --stopped` or `switch feature_work --stopped`. This flag asserts
-that the processes are already stopped and skips tmux management and automatic
-restart. Close SQL clients too; the helper refuses connected databases instead
-of disconnecting clients. `--root /path/to/checkout` selects another checkout's
-configuration and must appear before the command.
-
-Prepare the Core `uv` environment and start local PostgreSQL first. The helper
-connects from the host using Core's `DB_URL`, `DB_USER`, and `DB_PASSWORD`, with
-the development defaults when absent. It works with either Docker or Podman
-without recreating infrastructure. PostgreSQL and Redis endpoints must be
-loopback addresses. The PostgreSQL user needs access to the `postgres`
-maintenance database and, for cloning, ownership of the source and `CREATEDB`
-privileges (or superuser access). Core's `.env` must be a regular file; unset
-inherited database connection, Redis/cache, `TARANIS_CORE_URL`, and
-`FLASK_RUN_PORT` / `FLASK_RUN_HOST` settings and move any needed overrides into
-the appropriate component `.env` files. Managed restarts clear those inherited
-settings from the tmux command's environment so the checked configuration takes
-effect. Remove an explicit `SQLALCHEMY_DATABASE_URI` or nonstandard
-`SQLALCHEMY_SCHEMA`. Names use 1–63 lowercase letters, digits, or
-underscores, beginning with a letter; `postgres` and names beginning with
-`template` are reserved.
-
-Use dedicated development Redis databases. Switching flushes each logical
-database configured by `REDIS_URL` or `CACHE_REDIS_URL` across Core, frontend,
-and worker, including the default `redis://localhost:6379/0` when `REDIS_URL`
-is absent. Other logical databases are untouched. Pending jobs, retries, and
-unfinished bot chains are lost; Core rebuilds recurring schedules on startup
-and caches refill on demand. Files outside PostgreSQL remain shared. Cloning
-does not provide backups, and manual clones have no Git branch association. Each clone
-requires a full copy's disk space plus PostgreSQL's write-ahead log overhead.
-Database-level permissions and settings are not copied by
-[PostgreSQL's template operation](https://www.postgresql.org/docs/18/sql-createdatabase.html).
-
-The isolated helper harness, `./dev/test_named_databases.sh`, exercises actual
-PostgreSQL and Redis containers, Git checkouts, master refresh, branch startup
-initialization, Redis isolation, hook preservation, and failure recovery. It removes
-its resources afterward. It defaults to
-Podman; set `CONTAINER_CLI=docker` to use Docker. Run it explicitly when changing
-the database helpers, alongside
-`uv run --project src/core --frozen python -m unittest discover -s dev/tests`
-for the tmux lifecycle check. The dedicated **Development database helpers** workflow
-runs these checks for relevant helper or Core dependency changes and supports
-manual runs. The shared application pipeline does not run them.
+Validate changes with `./dev/test_named_databases.sh` (disposable containers;
+`CONTAINER_CLI=docker` selects Docker) and
+`uv run --project src/core --frozen python -m unittest discover -s dev/tests`.
+The **Development database helpers** CI workflow runs both independently of signoff.
 
 ### Migration Test Harness
 

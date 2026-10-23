@@ -193,53 +193,54 @@ def clone_database(connection, config: DevelopmentConfig, name: str, processes: 
     print("Services remain stopped so restarting cannot migrate the source. Run switch with the database you want to use next.")
 
 
-def switch_database(connection, config: DevelopmentConfig, name: str, processes: TmuxProcesses | None):
-    require_database(connection, name)
-    # Check target credentials before touching the running application or selection.
-    with psycopg.connect(**config.connection, dbname=name):
-        pass
-    selection = DatabaseSelection(config.env_path, name)
-    try:
-        with ExitStack() as stack:
-            clients = config.redis_clients(stack)
+def switch_database(
+    connection,
+    config: DevelopmentConfig,
+    name: str | None,
+    processes: TmuxProcesses | None,
+    branches: BranchDatabases | None = None,
+):
+    """Pause once, select an existing database or a fresh clone, then restart."""
+    with ExitStack() as stack:
+        if branches is None:
+            require_database(connection, name)
+            # Reject bad target credentials before interrupting applications.
+            with psycopg.connect(**config.connection, dbname=name):
+                pass
+            selection = DatabaseSelection(config.env_path, name)
+            stack.callback(selection.close)
+
+        clients = config.redis_clients(stack)
+        if processes:
+            processes.stop()
+        if branches:
+            require_idle_databases(connection, [config.selected])
+            template = branches.master_template(connection)
+            name = branches.replacement(connection, template)
+            selection = DatabaseSelection(config.env_path, name)
+            stack.callback(selection.close)
+
+        require_idle_databases(connection, [config.selected, name])
+        clear_redis(clients)
+        selection.apply()
+        try:
             if processes:
-                processes.stop()
-            require_idle_databases(connection, [config.selected, name])
-            clear_redis(clients)
-            selection.apply()
+                processes.start(name)
+        except BaseException:
+            # This branch could migrate the old database: leave it stopped.
             try:
                 if processes:
-                    processes.start(name)
-            except BaseException:
-                # Never restart the previous database here: this checkout may migrate it.
-                try:
-                    if processes:
-                        processes.stop()
-                finally:
-                    selection.restore()
-                clear_redis(clients)
-                raise
-    finally:
-        selection.close()
+                    processes.stop()
+            finally:
+                selection.restore()
+            clear_redis(clients)
+            raise
+
+        if branches:
+            branches.cleanup(connection, template, name)
     print(f"Selected database: {name}. Disposable Redis queues and caches cleared.")
     if not processes:
         print("Start Core, frontend and workers using your usual development workflow.")
-
-
-def refresh_branch(connection, config: DevelopmentConfig, processes: TmuxProcesses | None, branches: BranchDatabases):
-    # Fail on Redis connectivity/configuration before preparing or deleting data.
-    with ExitStack() as stack:
-        config.redis_clients(stack)
-        if processes:
-            processes.stop()
-        require_idle_databases(connection, [config.selected])
-        template = branches.master_template(connection)
-        replacement = branches.replacement(connection, template)
-        # The old selection survives until replacement startup succeeds. Failed
-        # migrations therefore cannot leave .env pointing at a deleted database.
-        switch_database(connection, config, replacement, processes)
-        branches.cleanup(connection, template, replacement)
-    print("Disposable branch database replaced from origin/master.")
 
 
 def parser() -> argparse.ArgumentParser:
@@ -283,7 +284,7 @@ def run(args):
             branches = BranchDatabases(config)
             if args.command == "enable":
                 branches.hook_path()
-            refresh_branch(connection, config, processes, branches)
+            switch_database(connection, config, None, processes, branches=branches)
             if args.command == "enable":
                 branches.install_hook(args.session)
         elif args.command == "clone":

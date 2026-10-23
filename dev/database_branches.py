@@ -89,35 +89,7 @@ class BranchDatabases:
             self.drop(connection, name)
         self.create(connection, name, "building")
         try:
-            with tempfile.TemporaryDirectory(prefix="taranis-master-") as temporary:
-                worktree = Path(temporary) / "master"
-                self.git("-c", "core.hooksPath=/dev/null", "worktree", "add", "--detach", str(worktree), revision)
-                try:
-                    environment = (
-                        self.environment
-                        | self.config.core
-                        | {
-                            "DB_DATABASE": name,
-                            "DISABLE_SCHEDULER": "true",
-                            "DEBUG": "true",
-                            "TARANIS_CORE_SENTRY_DSN": "",
-                            "OTEL_EXPORTER_OTLP_ENDPOINT": "",
-                        }
-                    )
-                    # Keep diagnostics private; dependency/setup output can contain local settings.
-                    log_path = self.directory / "template-setup.log"
-                    with log_path.open("w", encoding="utf-8") as log:
-                        log_path.chmod(0o600)
-                        subprocess.run(
-                            ["uv", "run", "--frozen", "python", "-c", SETUP_DATABASE],
-                            cwd=worktree / "src/core",
-                            env=environment,
-                            stdout=log,
-                            stderr=log,
-                            check=True,
-                        )
-                finally:
-                    self.git("worktree", "remove", "--force", str(worktree))
+            self.initialize_template(name, revision)
             connection.execute(sql.SQL("ALTER DATABASE {} ALLOW_CONNECTIONS false").format(sql.Identifier(name)))
             connection.execute(
                 sql.SQL("COMMENT ON DATABASE {} IS {}").format(sql.Identifier(name), sql.Literal(self.marker + "master:" + revision))
@@ -127,6 +99,37 @@ class BranchDatabases:
             raise
         print(f"Master template ready at {revision[:12]}.")
         return name
+
+    def initialize_template(self, name: str, revision: str):
+        with tempfile.TemporaryDirectory(prefix="taranis-master-") as temporary:
+            worktree = Path(temporary) / "master"
+            self.git("-c", "core.hooksPath=/dev/null", "worktree", "add", "--detach", str(worktree), revision)
+            try:
+                environment = (
+                    self.environment
+                    | self.config.core
+                    | {
+                        "DB_DATABASE": name,
+                        "DISABLE_SCHEDULER": "true",
+                        "DEBUG": "true",
+                        "TARANIS_CORE_SENTRY_DSN": "",
+                        "OTEL_EXPORTER_OTLP_ENDPOINT": "",
+                    }
+                )
+                # Keep diagnostics private; dependency/setup output can contain local settings.
+                log_path = self.directory / "template-setup.log"
+                with log_path.open("w", encoding="utf-8") as log:
+                    log_path.chmod(0o600)
+                    subprocess.run(
+                        ["uv", "run", "--frozen", "python", "-c", SETUP_DATABASE],
+                        cwd=worktree / "src/core",
+                        env=environment,
+                        stdout=log,
+                        stderr=log,
+                        check=True,
+                    )
+            finally:
+                self.git("worktree", "remove", "--force", str(worktree))
 
     def replacement(self, connection, template: str) -> str:
         name = self.prefix + ("b" if self.config.selected == self.prefix + "a" else "a")
@@ -146,9 +149,9 @@ class BranchDatabases:
             raise RuntimeError("Use repository-local Git hooks before enabling; shared external hooks are not modified.")
         if hook.is_symlink():
             raise RuntimeError("The existing post-checkout hook is a symlink. Use a regular repository-local hook before enabling.")
-        if (not hook.exists() or HOOK_LABEL not in hook.read_text(encoding="utf-8")) and hook.with_name(
-            "post-checkout.before-taranis"
-        ).exists():
+        installed = hook.exists() and HOOK_LABEL in hook.read_text(encoding="utf-8")
+        backup = hook.with_name("post-checkout.before-taranis")
+        if not installed and backup.exists():
             raise RuntimeError("A saved post-checkout hook already exists; inspect the hooks before enabling.")
         return hook
 
@@ -163,46 +166,44 @@ class BranchDatabases:
         uv = shutil.which("uv")
         if not uv:
             raise RuntimeError("Install uv before enabling branch databases.")
-        runner.write_text(
-            "#!/bin/sh\nexec "
-            + shlex.join(
-                [
-                    uv,
-                    "run",
-                    "--project",
-                    str(self.root / "src/core"),
-                    "--frozen",
-                    "--no-sync",
-                    "python",
-                    str(self.directory / "databases.py"),
-                    "--root",
-                    str(self.root),
-                    "--session",
-                    session,
-                ]
-            )
-            + ' "$@"\n',
-            encoding="utf-8",
+        command = shlex.join(
+            [
+                uv,
+                "run",
+                "--project",
+                str(self.root / "src/core"),
+                "--frozen",
+                "--no-sync",
+                "python",
+                str(self.directory / "databases.py"),
+                "--root",
+                str(self.root),
+                "--session",
+                session,
+            ]
         )
+        runner.write_text(f'#!/bin/sh\nexec {command} "$@"\n', encoding="utf-8")
         runner.chmod(0o700)
         (self.directory / "root").write_text(str(self.root) + "\n", encoding="utf-8")
         hook = self.hook_path()
         hook.parent.mkdir(parents=True, exist_ok=True)
         if not hook.exists() or HOOK_LABEL not in hook.read_text(encoding="utf-8"):
             previous = hook.with_name("post-checkout.before-taranis")
-            original = ""
             if hook.exists():
                 hook.rename(previous)
-                original = f'if [ -x {shlex.quote(str(previous))} ]; then\n  {shlex.quote(str(previous))} "$@" || exit $?\nfi\n'
+            saved_hook = shlex.quote(str(previous))
             hook.write_text(
-                "#!/bin/sh\n"
-                + HOOK_LABEL
-                + "\n"
-                + original
-                + 'runtime="$(git rev-parse --absolute-git-dir)/taranis-branch-databases"\n'
-                + 'if [ "${3:-0}" = 1 ] && [ -f "$runtime/enabled" ] &&\n'
-                + '  [ "$(git rev-parse --show-toplevel)" = "$(cat "$runtime/root")" ]; then\n'
-                + '  "$runtime/run" refresh\nfi\n',
+                f"""#!/bin/sh
+{HOOK_LABEL}
+if [ -x {saved_hook} ]; then
+    {saved_hook} "$@" || exit $?
+fi
+runtime="$(git rev-parse --absolute-git-dir)/taranis-branch-databases"
+if [ "${{3:-0}}" = 1 ] && [ -f "$runtime/enabled" ] &&
+   [ "$(git rev-parse --show-toplevel)" = "$(cat "$runtime/root")" ]; then
+    "$runtime/run" refresh
+fi
+""",
                 encoding="utf-8",
             )
             hook.chmod(0o700)

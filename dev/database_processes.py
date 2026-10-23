@@ -130,7 +130,12 @@ class TmuxProcesses:
 
     def _process_parents(self) -> dict[int, int]:
         output = self._command("ps", "-axo", "pid=,ppid=")
-        return {int(fields[0]): int(fields[1]) for line in output.splitlines() if len(fields := line.split()) == 2}
+        parents = {}
+        for line in output.splitlines():
+            fields = line.split()
+            if len(fields) == 2:
+                parents[int(fields[0])] = int(fields[1])
+        return parents
 
     def _idle_apps(self, processes: dict[int, int] | None = None) -> set[str]:
         current = self._current_panes()
@@ -144,10 +149,11 @@ class TmuxProcesses:
         app_names = set(self.panes) & APP_SCRIPTS.keys()
         processes = self._process_parents()
         app_processes = {self.panes[name].shell_pid for name in app_names}
-        children = set()
-        while children != app_processes:
-            children = app_processes.copy()
-            app_processes.update(pid for pid, parent in processes.items() if parent in app_processes)
+        while True:
+            children = {pid for pid, parent in processes.items() if parent in app_processes} - app_processes
+            if not children:
+                break
+            app_processes.update(children)
         app_processes.difference_update(self.panes[name].shell_pid for name in app_names)
         for name in app_names:
             self._command("tmux", "send-keys", "-t", self.panes[name].target, "C-c")
@@ -163,16 +169,15 @@ class TmuxProcesses:
         try:
             try:
                 response = self.http.open(self.core_url, timeout=2)
-            except HTTPError as response:
+            except HTTPError as error:
                 # Optional endpoint outages also make Core return 503. Require
                 # database and queue readiness without blocking on those endpoints.
-                with response:
-                    if response.code != 503:
-                        return False
-                    payload = json.loads(response.read(65536))
-            else:
-                with response:
-                    payload = json.loads(response.read(65536))
+                if error.code != 503:
+                    error.close()
+                    return False
+                response = error
+            with response:
+                payload = json.loads(response.read(65536))
             services = payload.get("services", {})
             return (
                 services.get("database") == "up"

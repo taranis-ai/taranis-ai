@@ -45,6 +45,9 @@ jobs:
       - name: Install tmux
         run: sudo apt-get update && sudo apt-get install -y tmux
 
+      - name: Fetch master for database fixtures
+        run: git fetch --no-tags --depth=1 origin master:refs/remotes/origin/master
+
       - name: Sync Core dependencies
         run: uv sync --directory src/core --all-extras --frozen
 
