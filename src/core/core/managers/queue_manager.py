@@ -459,6 +459,7 @@ class QueueManager:
             "worker_type": worker_type,
         }
 
+    @batch_task_changes()
     def update_empty_word_lists(self):
         """Gather word lists that have no entries"""
         from core.model.word_list import WordList
@@ -483,6 +484,7 @@ class QueueManager:
             )
         logger.info(f"Gathering for {len(word_lists)} empty WordLists scheduled")
 
+    @batch_task_changes()
     def gather_all_word_lists(self, user_id: str | None = None):
         """Gather all word lists"""
         from core.model.word_list import WordList
@@ -855,6 +857,7 @@ class QueueManager:
             logger.exception("Failed to fetch single news item")
         return {"error": "Failed to fetch single news item"}, 500
 
+    @batch_task_changes()
     def collect_all_osint_sources(self, user_id: str | None = None):
         """Trigger collection for all enabled sources"""
         from core.model.osint_source import OSINTSource

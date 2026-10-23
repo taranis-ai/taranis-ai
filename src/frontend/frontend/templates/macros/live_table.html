@@ -44,4 +44,5 @@
   hx-trigger="{{ change_event }} from:document throttle:300ms, realtime:resync from:document throttle:300ms, realtime:connected from:document throttle:300ms, {{ refresh_event }}"
   hx-sync="this:queue last"
   hx-swap="outerHTML"
+  hx-status:5xx="target:#notification-bar select:#notification-bar swap:outerHTML"
 {% endmacro %}
