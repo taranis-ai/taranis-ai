@@ -339,6 +339,10 @@ class TestEndToEndAdmin(BaseE2ETest):
             assert jobs[-1].id not in observed
             page.evaluate("window.taranisNotifications.clear()")
 
+            # A checkpoint retry keeps its job ID but starts a new attempt.
+            jobs[0].started_at = datetime.now(UTC)
+            jobs[0].save()
+            refresh()
             save_result(0, "SUCCESS")
             refresh()
             expect(notice).to_contain_text("1 job you were viewing has finished.")

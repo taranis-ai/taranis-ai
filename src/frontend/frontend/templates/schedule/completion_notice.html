@@ -40,6 +40,7 @@
       for (const job of activeJobs) {
         const key = this.executionKey(job);
         if (job.started_at && !observed.has(key) && !this.announcedJobs[key]) {
+          this.observedJobs = this.observedJobs.filter(previous => previous.id !== job.id);
           this.observedJobs.push(job);
           observed.add(key);
         }
