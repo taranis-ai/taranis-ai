@@ -158,7 +158,7 @@ class BranchDatabases:
     def install_hook(self, session: str):
         # Keep a snapshot outside tracked files so checkout of master can still
         # execute the lifecycle before this feature has been merged there.
-        for name in ("databases.py", "database_processes.py", "database_branches.py"):
+        for name in ("databases.py", "database_processes.sh", "database_branches.py"):
             source, destination = Path(__file__).with_name(name), self.directory / name
             if source.resolve() != destination.resolve():
                 shutil.copyfile(source, destination)

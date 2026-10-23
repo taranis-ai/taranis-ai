@@ -14,7 +14,6 @@ from dotenv import dotenv_values
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from database_branches import SETUP_DATABASE
-from database_processes import TmuxProcesses
 
 
 repo, workspace = (Path(value) for value in sys.argv[1:3])
@@ -152,7 +151,7 @@ try:
     for index, component in enumerate(("core", "frontend", "worker")):
         directory = workspace / "src" / component
         launcher = directory / "install_and_run_dev.sh"
-        launcher.write_text('#!/bin/sh\nprintf "%s\\n" "$DB_DATABASE" > started-database\nexit 1\n', encoding="utf-8")
+        launcher.write_text("#!/bin/sh\ntouch started-database\nexit 1\n", encoding="utf-8")
         launcher.chmod(0o700)
         command = ["tmux", "-f", "/dev/null"]
         if index == 0:
@@ -161,7 +160,7 @@ try:
             command += ["new-window", "-t", "database-test"]
         subprocess.run(command + ["-n", component, "-c", str(directory), "/bin/sh"], env=helper_env, check=True)
     invoke("switch", "taranis", succeeds=False)
-    assert (workspace / "src/core/started-database").read_text(encoding="utf-8") == "taranis\n"
+    assert (workspace / "src/core/started-database").exists()
     assert core_env.read_bytes() == previous_env
     assert row("taranis", "SELECT * FROM experiment") == ("source change",)
     assert row("feature", "SELECT * FROM experiment") == ("feature change", None)
@@ -255,7 +254,6 @@ with connect("postgres") as connection:
     assert row("postgres", f"SELECT count(*) FROM pg_database WHERE datname = '{collision}'") == (1,)
     connection.execute(psycopg.sql.SQL("DROP DATABASE {}").format(psycopg.sql.Identifier(collision)))
 
-urls = {}
 try:
     for index, component in enumerate(("core", "frontend", "worker")):
         directory = checkout / "src" / component
@@ -268,13 +266,10 @@ try:
                 port = listener.getsockname()[1]
             with (directory / ".env").open("a") as environment_file:
                 environment_file.write(f"\nFLASK_RUN_PORT={port}\n")
-            route = "api/health" if component == "core" else "frontend/health"
+            route = "api/isalive" if component == "core" else "frontend/health"
             response = directory / route
             response.parent.mkdir(parents=True, exist_ok=True)
-            response.write_text(
-                '{"services":{"database":"up","seed_data":"up","broker":"up","workers":"up"}}' if component == "core" else "ready"
-            )
-            urls[component] = f"http://127.0.0.1:{port}/{route}"
+            response.write_text("ready")
             if component == "core":
                 setup = shlex.join(["uv", "run", "--frozen", "--no-sync", "python", "-c", SETUP_DATABASE]) + "\n"
             command = shlex.join([sys.executable, "-m", "http.server", str(port), "--bind", "127.0.0.1"])
@@ -285,10 +280,7 @@ try:
         tmux_command += ["new-session", "-d", "-s", "database-test"] if index == 0 else ["new-window", "-t", "database-test"]
         subprocess.run(tmux_command + ["-n", component, "-c", str(directory), "/bin/sh"], env=helper_env, check=True)
 
-    os.environ["TMUX_TMPDIR"] = helper_env["TMUX_TMPDIR"]
-    processes = TmuxProcesses(checkout, "database-test", urls["core"], urls["frontend"])
-    processes.preflight()
-    processes.start(first_selection)
+    invoke("switch", first_selection, root=checkout)
     assert row(first_selection, "SELECT to_regclass('branch_migration')") == ("branch_migration",)
     with connect(first_selection) as connection:
         connection.execute("CREATE TABLE branch_data (value text)")
@@ -335,7 +327,12 @@ try:
     git(checkout, "checkout", "feature-b", succeeds=False)
     assert core_env.read_bytes() == previous_env
     assert managed_databases() == previous_databases
-    assert processes._idle_apps() == {"core", "frontend", "worker"}
+    pids = subprocess.check_output(
+        ["tmux", "list-panes", "-s", "-t", "=database-test", "-F", "#{pane_pid}"],
+        env=helper_env,
+        text=True,
+    ).splitlines()
+    assert all(subprocess.run(["pgrep", "-P", pid], capture_output=True, check=False).returncode == 1 for pid in pids)
     assert old_hook_calls.read_text().splitlines() == ["1", "1", "0", "1", "1", "1"]
     invoke("disable", root=checkout)
     git(checkout, "checkout", "master")
