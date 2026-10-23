@@ -232,7 +232,7 @@ def test_run_after_options_use_bot_instance_ids_and_allow_duplicate_types(monkey
         lambda: SimpleNamespace(get_objects=lambda model: SimpleNamespace(items=bots)),
     )
 
-    assert BotView.get_run_after_options(first_id) == [{"id": second_id, "name": "IOC Americas (IOC_BOT)", "enabled": "true"}]
+    assert BotView.get_run_after_options(first_id) == [{"id": second_id, "name": "IOC Americas (IOC Bot)", "enabled": "true"}]
 
 
 def test_bot_run_order_controls_render_selected_dependencies(app):
