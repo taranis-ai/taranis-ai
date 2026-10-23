@@ -252,16 +252,15 @@ Taranis AI should be reachable on _local.taranis.ai_.
 
 ## Development Tools
 
-### Named local databases
+### Branch development database
 
-Run `./dev/db.sh enable` outside the application panes in the standard tmux session.
-Each branch switch fetches `origin/master` and updates its seeded database template.
-It creates a fresh branch database, clears configured Redis queues/caches, and restarts with branch migrations.
-Branch data and pending jobs are disposable; existing named databases and external files are preserved.
-Use `./dev/db.sh refresh` to retry, `disable` to stop automation, or `--help` for manual commands.
-Startup failure restores the previous selection and leaves applications stopped; retry before restarting.
-The hook works across branches; re-run `enable` after updating the helpers.
-Local validation: `./dev/test_named_databases.sh` (Podman; set `CONTAINER_CLI=docker` for Docker).
+Run `./dev/db.sh EXISTING_LOCAL_BRANCH` outside the application's `taranis` tmux panes; close SQL clients first.
+The script fetches master, refreshes its seeded template, switches branches, and recreates `taranis_dev`.
+It clears the dedicated development Redis container; branch data and pending jobs are disposable.
+Known application panes stop and restart automatically; Core applies branch migrations. Errors stop without rollback.
+Uses the local Compose stack, default PostgreSQL credentials, and Core's `.env`; existing `taranis` data stays untouched.
+Set `CONTAINER_CLI=docker` for Docker (default: Podman); `COMPOSE_PROJECT_NAME` selects the stack.
+Copy `dev/db.sh` outside the checkout if you need to use it on branches without this script.
 
 ### Migration Test Harness
 
