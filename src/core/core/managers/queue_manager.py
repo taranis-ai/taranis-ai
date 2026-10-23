@@ -60,7 +60,7 @@ from sqlalchemy import select
 from core.config import Config
 from core.log import logger
 from core.service.simple_web_collector import get_simple_web_collector_url
-from core.service.task_events import notify_task_change
+from core.service.task_events import batch_task_changes, notify_task_change
 
 
 CRON_DEFS_KEY = "rq:cron:def"
@@ -181,6 +181,7 @@ class QueueManager:
             logger.exception("Failed to restore queue runtime state")
             return False
 
+    @batch_task_changes()
     def reschedule_all(self) -> bool:
         """Reconcile Redis cron definitions with the currently enabled sources and bots."""
         if self.error:

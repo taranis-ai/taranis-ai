@@ -16,6 +16,7 @@ from core.log import logger
 from core.managers.db_manager import db
 from core.model.base_model import UUID_STR_LENGTH, BaseModel
 from core.model.task import Task as TaskModel
+from core.service.task_events import batch_task_changes
 from core.service.worker_parameters import configured_parameters, effective_parameters, set_parameters
 
 
@@ -619,6 +620,7 @@ class Bot(BaseModel):
         return [bot for bot in db.session.execute(query).scalars() if bot.is_llm_endpoint_enabled(settings)]
 
     @classmethod
+    @batch_task_changes()
     def schedule_all_bots(cls):
         """Refresh cron registrations, including bots paused by their endpoint."""
         for bot in cls._get_all_ordered():
