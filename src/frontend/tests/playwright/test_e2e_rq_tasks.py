@@ -4,6 +4,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any, cast
+from urllib.parse import parse_qs, urlparse
 
 import pytest
 import redis
@@ -275,6 +276,7 @@ def rq_harness(
 @pytest.mark.e2e_ci
 def test_my_tasks_refreshes_live_status(logged_in_page, forward_console_and_page_errors, rq_harness: RqE2EHarness, api_header):
     page = logged_in_page
+    page.clock.install()
     core = rq_harness.core_client
     user = next(user for user in core.json_request("GET", "/config/users")["items"] if user["username"] == "admin")
     queue = rq_harness.queue("bots")
@@ -285,17 +287,29 @@ def test_my_tasks_refreshes_live_status(logged_in_page, forward_console_and_page
         depends_on=blocker,
         meta={"user_id": user["id"], "name": "Story summary", "worker_type": "SUMMARY_BOT"},
     )
+    later_task_id = f"{job.id}-later"
+    task_base_url = url_for("user.tasks", _external=True)
+    task_url = url_for("user.tasks", search=job.id, order="last_run_asc", limit=5, page=1, _external=True)
+    task_requests = []
+    page.on("request", lambda request: task_requests.append(request) if request.url.startswith(task_base_url) else None)
     try:
         # A deferred job keeps these short-lived states observable without pausing shared workers.
-        page.goto(url_for("user.tasks", search=job.id, order="last_run_asc", limit=5, _external=True))
+        page.goto(task_url)
         row = page.get_by_test_id("user-task-row").filter(has_text=job.id)
         expect(row).to_contain_text("Queued")
         expect(row).to_contain_text("Story summary")
+        page.evaluate("window.tasksDocument = document")
+        task_requests.clear()
+        page.clock.fast_forward(11000)
+        page.wait_for_timeout(100)
+        assert task_requests == []
         with queue.connection.pipeline() as pipeline:
             Execution.create(job, ttl=300, pipeline=pipeline)
             job.prepare_for_execution("task-monitor", pipeline=pipeline)
             pipeline.execute()
-        expect(row).to_contain_text("Running", timeout=15000)
+        # The isolated E2E stack omits the broker; dispatch its domain event at the browser boundary.
+        page.evaluate("document.dispatchEvent(new CustomEvent('realtime:task.changed'))")
+        expect(row).to_contain_text("Running")
         core.post(
             "/tasks",
             headers=api_header,
@@ -309,17 +323,67 @@ def test_my_tasks_refreshes_live_status(logged_in_page, forward_console_and_page
                 "result": {"message": "Summary completed"},
             },
         )
-        expect(row).to_contain_text("Success", timeout=15000)
+        page.evaluate("document.dispatchEvent(new CustomEvent('realtime:task.changed'))")
+        expect(row).to_contain_text("Success")
         expect(row).to_contain_text("Summary completed")
         expect(page.get_by_test_id("user-task-row")).to_have_count(1)
-        expect(page.locator("#user-tasks-table-container")).not_to_have_attribute("hx-trigger", "every 5s")
-        expect(page.locator("#user-tasks-table-container")).to_have_attribute(
-            "hx-get", url_for("user.tasks", search=job.id, order="last_run_asc", limit=5)
+        core.post(
+            "/tasks",
+            headers=api_header,
+            authenticated=False,
+            json_data={
+                "id": later_task_id,
+                "task": "bot_task",
+                "user_id": user["id"],
+                "worker_type": "SUMMARY_BOT",
+                "status": "SUCCESS",
+                "result": {"message": "Another summary completed"},
+            },
         )
+        page.evaluate("document.dispatchEvent(new CustomEvent('realtime:task.changed'))")
+        expect(page.get_by_test_id("user-task-row")).to_have_count(2)
+        core.delete(f"/tasks/{later_task_id}")
+        page.evaluate("document.dispatchEvent(new CustomEvent('realtime:resync'))")
+        expect(page.get_by_test_id("user-task-row")).to_have_count(1)
+        expect(page.locator("#user-tasks-table-container-search")).to_have_value(job.id)
+        expect(page).to_have_url(task_url)
+        assert page.evaluate("window.tasksDocument === document")
+        assert len(task_requests) == 4
+        assert all(request.url == task_url and request.headers.get("hx-request") == "true" for request in task_requests)
+
+        held_requests = []
+
+        def hold_refresh_and_navigation(route):
+            if len(held_requests) < 2:
+                held_requests.append(route)
+            else:
+                route.continue_()
+
+        page.route(f"{task_base_url}?**", hold_refresh_and_navigation)
+        with page.expect_request(lambda request: request.url.startswith(task_base_url)):
+            page.evaluate("document.dispatchEvent(new CustomEvent('realtime:task.changed'))")
+        with page.expect_request(lambda request: request.url.startswith(task_base_url)):
+            page.locator("#user-tasks-table-container-search").fill(f"{job.id}-missing")
+        deadline = time.monotonic() + 5
+        while len(held_requests) < 2 and time.monotonic() < deadline:
+            page.wait_for_timeout(10)
+        assert len(held_requests) == 2, "Refresh and navigation requests were not both held"
+        held_requests[0].abort()
+        navigation_response = held_requests[1].fetch()
+        page.evaluate("document.dispatchEvent(new CustomEvent('realtime:task.changed'))")
+        page.clock.fast_forward(350)
+        assert len(task_requests) == 6
+        with page.expect_request(lambda request: request.url.startswith(task_base_url)) as queued_refresh:
+            held_requests[1].fulfill(response=navigation_response)
+        expect(page.get_by_test_id("empty-user-tasks")).to_be_visible()
+        assert parse_qs(urlparse(queued_refresh.value.url).query)["search"] == [f"{job.id}-missing"]
+        assert page.evaluate("window.tasksDocument === document")
+        page.unroute(f"{task_base_url}?**", hold_refresh_and_navigation)
     finally:
         job.delete()
         blocker.delete()
         core.delete(f"/tasks/{job.id}", raise_for_status=False)
+        core.delete(f"/tasks/{later_task_id}", raise_for_status=False)
 
 
 @pytest.mark.e2e_ci

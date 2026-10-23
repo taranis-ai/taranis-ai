@@ -16,15 +16,17 @@ class RealtimePublisher:
 
     def publish(
         self,
-        channel: str,
+        channel: str | list[str],
         event_type: str,
         change: str,
         *,
         resource: dict[str, str] | None = None,
         data: dict[str, Any] | None = None,
     ) -> bool:
-        if not Config.REALTIME_ENABLED:
+        if not Config.REALTIME_ENABLED or not channel:
             return False
+
+        channels = [channel] if isinstance(channel, str) else channel
 
         event = {
             "v": 1,
@@ -42,12 +44,12 @@ class RealtimePublisher:
             response = self.session.post(
                 f"{Config.CENTRIFUGO_API_URL.rstrip('/')}/api/broadcast",
                 headers={"X-API-Key": Config.CENTRIFUGO_API_KEY.get_secret_value()},
-                json={"channels": [channel], "data": event},
+                json={"channels": channels, "data": event},
                 timeout=(0.2, 0.3),
             )
             response.raise_for_status()
             responses = response.json().get("result", {}).get("responses")
-            if not isinstance(responses, list) or len(responses) != 1 or any(item.get("error") for item in responses):
+            if not isinstance(responses, list) or len(responses) != len(channels) or any(item.get("error") for item in responses):
                 raise ValueError("Centrifugo rejected the broadcast")
         except Exception as error:
             now = time.monotonic()
@@ -58,7 +60,7 @@ class RealtimePublisher:
                     {
                         "event_id": event["id"],
                         "event_type": event_type,
-                        "audience": channel.partition(":")[0],
+                        "audience": channels[0].partition(":")[0],
                         "duration_ms": round((now - started) * 1000, 1),
                         "failure": type(error).__name__,
                     },
@@ -69,6 +71,12 @@ class RealtimePublisher:
 
     def assess_changed(self) -> bool:
         return self.publish("global:events", "assess.changed", "invalidated")
+
+    def scheduler_changed(self) -> bool:
+        return self.publish("global:events", "scheduler.changed", "invalidated")
+
+    def task_changed(self, *user_ids: str) -> bool:
+        return self.publish([f"user:#{user_id}" for user_id in dict.fromkeys(user_ids)], "task.changed", "invalidated")
 
     def broadcast_notification(self, message: str) -> bool:
         return self.publish(

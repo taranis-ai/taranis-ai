@@ -28,6 +28,7 @@ from core.model.settings import Settings
 from core.model.task import Task as TaskModel
 from core.model.word_list import WordList
 from core.service.role_based_access import RBACQuery, RoleBasedAccessService
+from core.service.task_events import batch_task_changes
 from core.service.worker_parameters import configured_parameters, effective_parameters, set_parameters
 
 
@@ -554,16 +555,18 @@ class OSINTSource(BaseModel):
                 logger.warning("Cannot enable OSINT source %s because its parameters are invalid", osint_source.id, exc_info=True)
                 return {"error": "Invalid OSINT Source payload"}, 400
             osint_source.enabled = True
-            osint_source.schedule_osint_source()
         elif state == "disabled":
             logger.debug(f"Disabling OSINT Source: {osint_source.name}")
             osint_source.enabled = False
-            osint_source.unschedule_osint_source()
         else:
             logger.warning(f"Unknown state {state} for OSINT Source: {osint_source.name}")
             return {"error": "Invalid state"}, 400
 
         db.session.commit()
+        if osint_source.enabled:
+            osint_source.schedule_osint_source()
+        else:
+            osint_source.unschedule_osint_source()
         return {"message": "OSINT Source state updated", "id": osint_source.id}, 200
 
     @classmethod
@@ -677,6 +680,7 @@ class OSINTSource(BaseModel):
         return response, status
 
     @classmethod
+    @batch_task_changes()
     def delete_many(cls, source_ids: list[str], force: bool = False) -> tuple[dict, int]:
         from core.managers import queue_manager
         from core.model.news_item import NewsItem
@@ -747,6 +751,7 @@ class OSINTSource(BaseModel):
         return {"message": "OSINT Sources deleted", "ids": source_ids}, 200
 
     @classmethod
+    @batch_task_changes()
     def schedule_all_osint_sources(cls):
         """Schedule all enabled OSINT sources using RQ"""
         sources = cls.get_all_for_collector()
@@ -928,6 +933,7 @@ class OSINTSource(BaseModel):
         return converted_sources
 
     @classmethod
+    @batch_task_changes()
     def add_multiple_with_group(cls, sources, groups) -> list[str]:
         normalized_sources = []
         for source in sources:
@@ -1017,6 +1023,7 @@ class OSINTSource(BaseModel):
         ]
 
     @classmethod
+    @batch_task_changes()
     def load_curated_lists(cls, list_names: set[str]) -> dict[str, int | str]:
         catalog = cls.get_curated_catalog()
         catalog_lists = {curated_list.name: curated_list for curated_list in catalog.lists}

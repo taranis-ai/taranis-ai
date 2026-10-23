@@ -19,7 +19,9 @@ def test_bot_pipeline_uses_one_snapshot_and_commits_only_complete_runs(app, clie
         from core.model.task import Task
 
         completed = []
+        task_changes = []
         monkeypatch.setattr(realtime_publisher, "story_bot_finished", lambda *args: completed.append(args))
+        monkeypatch.setattr(realtime_publisher, "task_changed", lambda user_id: task_changes.append(user_id))
 
         source = create_osint_source(rank=0)
         first_payload = build_news_item_payload(source.id, title="First story")
@@ -137,6 +139,7 @@ def test_bot_pipeline_uses_one_snapshot_and_commits_only_complete_runs(app, clie
             assert nlp_bot.status["status"] == "FAILURE"
 
         assert completed == []
+        assert task_changes == []
         committed = client.post("/api/tasks", json=payload, headers=api_header)
         assert committed.status_code == 200
         expected_events = [
@@ -150,6 +153,7 @@ def test_bot_pipeline_uses_one_snapshot_and_commits_only_complete_runs(app, clie
             )
         ]
         assert completed == expected_events
+        assert task_changes == ["manual-user"]
         assert Story.get(second.id) is None
         assert Story.get(third.id) is None
         merged = Story.get(first.id)
@@ -177,6 +181,7 @@ def test_bot_pipeline_uses_one_snapshot_and_commits_only_complete_runs(app, clie
         assert client.post("/api/tasks", json=payload, headers=api_header).status_code == 200
         assert Story.get(first.id).revision == revision
         assert completed == expected_events
+        assert task_changes == ["manual-user"]
         assert Task.get_by_job_id(stage_job_id).id == stage_task_id
         assert nlp_bot.status["last_run"] == pipeline.last_run.isoformat()
 

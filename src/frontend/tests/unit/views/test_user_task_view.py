@@ -48,7 +48,10 @@ def test_my_tasks_renders_standard_table_for_basic_user(authenticated_client_bas
     assert "Retryable" in body
     assert 'data-testid="nav-my-tasks"' in body
     assert ">My Tasks</a>" in body
-    assert 'hx-trigger="refresh"' in body
+    assert "realtime:task.changed from:document" in body
+    assert "realtime:resync from:document" in body
+    assert 'id="user-tasks-refresh"' in body
+    assert 'hx-trigger="every ' not in body
 
     responses_mock.get(
         f"{Config.TARANIS_CORE_URL}/tasks/user",
@@ -57,12 +60,14 @@ def test_my_tasks_renders_standard_table_for_basic_user(authenticated_client_bas
     unavailable = authenticated_client_basic.get(url)
     assert unavailable.status_code == 200
     assert "Product rendered" in unavailable.text
-    assert 'hx-trigger="every 5s"' in unavailable.text
+    assert "Live task status is unavailable. Refresh to try again." in unavailable.text
+    assert 'hx-trigger="every ' not in unavailable.text
 
     responses_mock.get(f"{Config.TARANIS_CORE_URL}/tasks/user", json={"items": [], "total_count": 0})
     recovered = authenticated_client_basic.get(url)
     assert recovered.status_code == 200
-    assert 'hx-trigger="refresh"' in recovered.text
+    assert "Live task status is unavailable" not in recovered.text
+    assert "realtime:task.changed from:document" in recovered.text
 
 
 def test_my_tasks_forwards_table_query_to_core(authenticated_client_basic, responses_mock, htmx_header):
@@ -98,10 +103,11 @@ def test_my_tasks_renders_empty_state(authenticated_client_basic, responses_mock
     with authenticated_client_basic.application.app_context():
         url = url_for("user.tasks")
 
-    response = authenticated_client_basic.get(url)
+    response = authenticated_client_basic.get(url, headers={"HX-Request": "true", "HX-History-Restore-Request": "true"})
 
     assert response.status_code == 200
     assert 'data-testid="empty-user-tasks"' in response.get_data(as_text=True)
+    assert 'id="my-tasks-page"' in response.get_data(as_text=True)
 
 
 def test_my_tasks_htmx_failure_returns_sanitized_notification(authenticated_client_basic, htmx_header, monkeypatch):

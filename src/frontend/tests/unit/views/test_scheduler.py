@@ -5,6 +5,7 @@ import pytest
 import responses
 from flask import url_for
 from lxml import html as lxml_html
+from models.scheduler import MAX_OBSERVED_JOBS
 from models.user import ProfileSettings
 
 from frontend.cache import add_user_to_cache, cache
@@ -45,22 +46,22 @@ def test_scheduler_deep_link_renders_dashboard(endpoint, expected_tab, authentic
     assert response.status_code == 200
 
     html = response.get_data(as_text=True)
-    assert f'class="tab tab-active" data-tab="{expected_tab}"' in html
-    assert f'id="{expected_tab}-tab" class="tab-panel ' in html
-    assert f'id="{expected_tab}-tab" class="tab-panel hidden"' not in html
+    tree = lxml_html.fromstring(html)
+    assert tree.xpath('//a[contains(@class, "tab-active")]/@data-tab') == [expected_tab]
+    assert len(tree.xpath('//*[@id="scheduler-content"]')) == 1
 
 
 def test_scheduler_tab_query_param_overrides_initial(authenticated_client, mock_core_get_endpoints):
     with authenticated_client.application.app_context():
         url = url_for("admin.scheduler_active_jobs", tab="scheduled")
 
-    response = authenticated_client.get(url)
+    response = authenticated_client.get(url, headers={"HX-Request": "true", "HX-History-Restore-Request": "true"})
 
     assert response.status_code == 200
 
     html = response.get_data(as_text=True)
-    assert 'class="tab tab-active" data-tab="scheduled"' in html
-    assert 'id="scheduled-tab" class="tab-panel hidden"' not in html
+    tree = lxml_html.fromstring(html)
+    assert tree.xpath('//a[contains(@class, "tab-active")]/@data-tab') == ["scheduled"]
 
 
 def test_source_filters_preserve_each_other_and_table_query(authenticated_client, mock_core_get_endpoints):
@@ -120,31 +121,21 @@ def test_bot_table_query_preserves_failure_filter(authenticated_client, mock_cor
     assert limit_select.xpath('ancestor::form//input[@type="hidden"][@name="state"][@value="failure"]')
 
 
-def test_scheduler_dashboard_auto_refresh_is_opt_in_and_tab_scoped(authenticated_client, mock_core_get_endpoints):
+def test_scheduler_dashboard_refreshes_from_events_with_manual_fallback(authenticated_client, mock_core_get_endpoints):
     with authenticated_client.application.app_context():
         url = url_for("admin.scheduler")
 
     response = authenticated_client.get(url)
 
     assert response.status_code == 200
-
     html = response.get_data(as_text=True)
     tree = lxml_html.fromstring(html)
-    auto_refresh_button = tree.xpath('//*[@id="scheduler-auto-refresh"]')[0]
-    assert auto_refresh_button.tag == "button"
-    assert auto_refresh_button.get("aria-pressed") == "false"
-    assert auto_refresh_button.text_content().strip() == "Auto-refresh: 10s"
-    assert 'id="queue-cards"' in html
-    assert 'hx-trigger="every 10s"' not in html
-    assert 'id="scheduled-jobs-table"' in html
-    assert 'id="active-jobs-table"' in html
-    assert 'id="failed-jobs-table"' in html
-    assert html.count('hx-trigger="scheduler:refresh"') == 6
-    assert html.count("intervalMs: 10000") == 4
-    assert "intervalMs: 5000" not in html
-    assert "let autoRefreshEnabled = false" in html
-    assert "!config || !autoRefreshEnabled" in html
-    assert 'id="execution-history"' in html
+    assert tree.xpath('//*[@id="scheduler-refresh"]')[0].text_content().strip() == "Refresh"
+    for target in ("scheduler-dashboard", "queue-cards"):
+        assert "realtime:scheduler.changed from:document" in tree.xpath(f'//*[@id="{target}"]')[0].get("hx-trigger")
+        assert "realtime:resync from:document" in tree.xpath(f'//*[@id="{target}"]')[0].get("hx-trigger")
+    assert "setInterval" not in html
+    assert 'hx-trigger="every ' not in html
 
 
 @pytest.mark.parametrize(
@@ -194,7 +185,7 @@ def test_scheduler_dashboard_initial_render_loads_only_selected_tab(
     assert inactive_paths.isdisjoint(requested_paths)
 
 
-def test_scheduler_dashboard_renders_inactive_tabs_as_placeholders(authenticated_client, mock_core_get_endpoints):
+def test_scheduler_dashboard_renders_only_selected_table(authenticated_client, mock_core_get_endpoints):
     with authenticated_client.application.app_context():
         url = url_for("admin.scheduler")
 
@@ -203,10 +194,10 @@ def test_scheduler_dashboard_renders_inactive_tabs_as_placeholders(authenticated
     assert response.status_code == 200
     html = response.get_data(as_text=True)
     assert 'data-testid="scheduled-jobs"' in html
-    assert 'id="active-jobs-table"' in html
-    assert 'id="failed-jobs-table"' in html
-    assert 'id="execution-history"' in html
-    assert html.count("Loading...</p>") == 4
+    assert 'id="active-jobs-table"' not in html
+    assert 'id="failed-jobs-table"' not in html
+    assert 'id="execution-history"' not in html
+    assert "Loading...</p>" not in html
     assert 'data-testid="active-jobs"' not in html
     assert 'data-testid="failed-jobs"' not in html
     assert 'data-testid="execution-history-jobs"' not in html
@@ -241,6 +232,74 @@ def test_scheduler_htmx_partials_use_granular_endpoints(
     assert _requested_core_paths(responses_mock) == expected_paths
     assert "/config/workers/dashboard" not in _requested_core_paths(responses_mock)
     assert expected_text in response.get_data(as_text=True)
+
+
+@pytest.mark.parametrize("started_at, completed", [("2026-10-15T16:27:01Z", True), ("2026-10-15T16:27:03Z", False)])
+def test_active_jobs_refresh_confirms_current_execution(
+    authenticated_client, responses_mock, mock_core_get_endpoints, htmx_header, started_at, completed
+):
+    job_ids = ["pipeline-1"] + [f"pending-{i}" for i in range(50)]
+    observed_jobs = [{"id": job_id, "started_at": started_at} for job_id in job_ids]
+    with authenticated_client.application.app_context():
+        url = url_for("admin.scheduler_active_jobs", search="running", page=3, limit=5)
+
+    response = authenticated_client.post(url, data={"observed_jobs": json.dumps(observed_jobs)}, headers=htmx_header)
+
+    assert response.status_code == 200
+    table = lxml_html.fromstring(response.text).get_element_by_id("active-jobs-table")
+    assert json.loads(table.get("data-completed-jobs")) == (observed_jobs[:1] if completed else [])
+    assert "Running Bot" in response.text
+    queries = [parse_qs(urlparse(call.request.url).query) for call in responses_mock.calls if "/tasks/runs" in call.request.url]
+    assert [len(query["job_ids"]) for query in queries] == [50, 1]
+    assert all(query["page"] == ["1"] and query["limit"] == ["50"] and "search" not in query for query in queries)
+
+
+def test_active_jobs_refresh_retains_active_table_when_completion_lookup_fails(
+    authenticated_client, responses_mock, mock_core_get_endpoints, htmx_header
+):
+    with authenticated_client.application.app_context():
+        url = url_for("admin.scheduler_active_jobs")
+        completed_url = url_for("admin.scheduler_completed_runs")
+    data = {"observed_jobs": json.dumps([{"id": "observed-1", "started_at": "2026-10-22T12:00:00Z"}])}
+
+    for status in (500, 403):
+        responses_mock.replace(
+            responses.GET,
+            f"{Config.TARANIS_CORE_URL}/tasks/runs",
+            json={"error": "private backend detail"},
+            status=status,
+        )
+        response = authenticated_client.post(url, data=data, headers=htmx_header)
+
+        assert response.status_code == 200
+        assert "Running Bot" in response.text
+        assert "private backend detail" not in response.text
+        document = lxml_html.fromstring(response.text)
+        assert json.loads(document.xpath('//*[@id="active-jobs-table"]')[0].get("data-completed-jobs")) == []
+
+    assert authenticated_client.get(completed_url, headers=htmx_header).status_code == 403
+    responses_mock.replace(responses.GET, f"{Config.TARANIS_CORE_URL}/config/workers/active", json={"error": "Access denied"}, status=403)
+    assert authenticated_client.post(url, data=data, headers=htmx_header).status_code == 403
+
+
+@pytest.mark.parametrize(
+    "observed_jobs",
+    [
+        "private malformed value",
+        json.dumps([{"id": "observed-1", "started_at": "2026-10-22T12:00:00Z"}] * (MAX_OBSERVED_JOBS + 1)),
+        json.dumps([{"id": "observed-1", "started_at": "private malformed value"}]),
+    ],
+)
+def test_active_jobs_refresh_rejects_invalid_observations(observed_jobs, authenticated_client, responses_mock, htmx_header):
+    with authenticated_client.application.app_context():
+        url = url_for("admin.scheduler_active_jobs")
+
+    response = authenticated_client.post(url, data={"observed_jobs": observed_jobs}, headers=htmx_header)
+
+    assert response.status_code == 400
+    assert "Invalid observed jobs." in response.text
+    assert "private malformed value" not in response.text
+    assert not responses_mock.calls
 
 
 def test_scheduler_history_displays_worker_type_and_hover_worker_id(

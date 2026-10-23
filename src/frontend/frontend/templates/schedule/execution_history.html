@@ -1,10 +1,5 @@
 {% from "schedule/table.html" import refreshable_table %}
-<div id="execution-history"
-     data-base-url="{{ url_for('admin.scheduler_history') }}"
-     hx-get="{{ url_for('admin.scheduler_history') }}"
-     hx-trigger="scheduler:refresh"
-     hx-select="#execution-history"
-     hx-swap="outerHTML">
+<div id="execution-history">
   {% set columns = [
     {
       "title": "Task",

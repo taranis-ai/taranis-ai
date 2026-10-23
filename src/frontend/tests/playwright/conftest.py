@@ -596,7 +596,14 @@ def forward_console_and_page_errors(request, logged_in_page):
       - collect console messages and page errors
       - at teardown: fail on configured severities, warn on warnings
     """
-    yield from _forward_console_and_page_errors(request, logged_in_page)
+    allow_patterns = []
+    if request.node.name == "test_my_tasks_refreshes_live_status":
+        # This workflow deliberately replaces an in-flight refresh; HTMX logs its expected fetch cancellation.
+        allow_patterns.append(
+            r"\[console\.error\].*/static/vendor/vendor\.bundle\.js:\d+:\d+ :: "
+            r"htmx: htmx:error: signal is aborted without reason AbortError: signal is aborted without reason"
+        )
+    yield from _forward_console_and_page_errors(request, logged_in_page, extra_allow_patterns=allow_patterns)
 
 
 @pytest.fixture
