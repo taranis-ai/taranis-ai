@@ -62,6 +62,9 @@ def sync_enums(db_engine: Engine):
 
 
 def pre_seed_update(db_engine: Engine):
+    from models.types import BOT_TYPES
+
+    from core.managers.db_manager import db
     from core.managers.pre_seed_data import bots, product_types, report_types
     from core.model.bot import Bot
     from core.model.product_type import ProductType
@@ -83,6 +86,16 @@ def pre_seed_update(db_engine: Engine):
     pre_seed_attributes()
 
     pre_seed_default_publisher()
+
+    db.session.execute(
+        db.update(Bot)
+        .where(
+            Bot.type == BOT_TYPES.CYBERSEC_CLASSIFIER_BOT,
+            Bot.name.in_(["Cybersecurity Classifier Bot", "Topic Classifier Bot"]),
+        )
+        .values(name="Topic Classifier")
+    )
+    db.session.commit()
 
     for b in bots:
         b = cast(dict[str, Any], b)
