@@ -18,7 +18,7 @@ Run component commands from that component's directory; CI definitions are in `.
 - For branch-wide validation, run `./dev/testpipeline.sh` from the repository root. It syncs environments and runs audits, lint, unit tests, and the full isolated frontend E2E suite. Narrow targets isolate failures but do not replace signoff.
 - `certifi` and Pillow are exempt from the one-week dependency cooling period so fixes for compromised CA roots and image-decoder advisories can be locked immediately. Upgrade only the affected packages with `uv lock --upgrade-package`; keep audit checks enabled.
 - Lint changed components with `uv run ruff check`; use `--fix` and `uv run ruff format` as appropriate. After Python edits, run `./dev/check_pyrefly.sh` from the repository root.
-- Models has no unit tests. Worker browser-scraping tests require Playwright browsers.
+- Models has no unit tests. Worker browser-scraping tests require Playwright browsers. The spawned-worker lifecycle smoke test uses Docker to create and remove an isolated Redis container; it skips when the Docker CLI is unavailable.
 - Core tests use a per-session temporary SQLite database and in-process Redis fakes to avoid affecting concurrent test runs or running instances. Do not uncomment disabled E2E admin tests on `master` without proving they pass.
 - Project Codex configuration filters inherited `DEBUG` values so the extension's `DEBUG=release` cannot override component boolean settings.
 - `jactionlint` reads `.github/jactionlint.yaml`. It allows version-tagged actions and the release action while keeping other workflow checks enabled.

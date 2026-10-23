@@ -106,9 +106,9 @@ def _persist_and_return_result(
     return result_message
 
 
-@task_started
 @instrument_job
 @http_session_scope()
+@task_started
 def collector_task(osint_source_id: str, manual: bool = False):
     """Collect news from an OSINT source.
 
@@ -297,9 +297,9 @@ def collector_task(osint_source_id: str, manual: bool = False):
     return result_message
 
 
-@task_started
 @instrument_job
 @http_session_scope()
+@task_started
 def collector_preview(osint_source_id: str):
     """Preview collection from an OSINT source without saving.
 
@@ -370,9 +370,9 @@ def collector_preview(osint_source_id: str):
     return preview_result
 
 
-@task_started
 @instrument_job
 @http_session_scope()
+@task_started
 def fetch_single_news_item(parameters: dict[str, Any]):
     job = get_current_job()
     collector = worker.collectors.SimpleWebCollector()

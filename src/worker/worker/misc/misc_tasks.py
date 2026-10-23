@@ -20,9 +20,9 @@ TOKEN_CLEANUP_TASK_ID = "cleanup_token_blacklist"
 TASK_HISTORY_CLEANUP_TASK_ID = "cleanup_task_history"
 
 
-@task_started
 @instrument_job
 @http_session_scope()
+@task_started
 def cleanup_token_blacklist(*_args: object, reschedule: bool = False, **_kwargs: object):
     """Clean up expired tokens from the blacklist.
 
@@ -98,9 +98,9 @@ def _reschedule_cleanup():
         logger.error(f"Failed to reschedule token cleanup: {e}")
 
 
-@task_started
 @instrument_job
 @http_session_scope()
+@task_started
 def gather_word_list(word_list_id: str):
     """Gather and update a word list.
 
@@ -135,9 +135,9 @@ def gather_word_list(word_list_id: str):
     return result
 
 
-@task_started
 @instrument_job
 @http_session_scope()
+@task_started
 def cleanup_task_history():
     logger.info("Cleaning up task history")
     job = get_current_job()

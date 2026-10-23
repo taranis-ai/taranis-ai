@@ -195,7 +195,7 @@ class TestEndToEndAdmin(BaseE2ETest):
         expect(page).to_have_url(url_for("admin.scheduler", _external=True))
         expect(page.locator("#scheduler-dashboard")).to_be_visible()
         expect(page.get_by_test_id("scheduled-jobs")).to_be_visible()
-        expect(page.locator("#scheduled-jobs-table-search")).to_be_visible()
+        expect(page.locator("#scheduler-content-search")).to_be_visible()
         expect(page.locator("#scheduled-jobs-table")).to_contain_text("Page 1 of")
 
         page.goto(
@@ -210,7 +210,7 @@ class TestEndToEndAdmin(BaseE2ETest):
         )
         with_htmx_wait(page, lambda: page.locator('.tab[data-tab="active"]').click())
         expect(page).to_have_url(url_for("admin.scheduler_active_jobs", tab="active", _external=True))
-        expect(page.locator("#active-jobs-table-search")).to_have_value("")
+        expect(page.locator("#scheduler-content-search")).to_have_value("")
         expect(page.locator("#active-jobs-table")).to_contain_text("No jobs currently running")
 
         run_prefix = f"scheduler-run-{uuid.uuid4().hex}"
@@ -229,7 +229,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             )
         with_htmx_wait(page, lambda: page.locator('.tab[data-tab="completed"]').click())
         expect(page.get_by_test_id("completed-runs")).to_be_visible()
-        search = page.locator("#completed-runs-table-search")
+        search = page.locator("#scheduler-content-search")
         with page.expect_response(lambda response: "/scheduler/completed?" in response.url and f"search={run_prefix}" in response.url):
             search.fill(run_prefix)
         expect(page.get_by_test_id("completed-run-row")).to_have_count(3)
@@ -237,7 +237,7 @@ class TestEndToEndAdmin(BaseE2ETest):
         with_htmx_wait(page, lambda: page.locator("#completed-runs-table").get_by_role("button", name="Apply", exact=True).first.click())
         expect(page.get_by_test_id("completed-run-row")).to_have_count(2)
         expect(page.get_by_test_id("completed-run-row")).to_contain_text(["Success", "Success"])
-        expect(page.locator("#completed-runs-table-search")).to_have_value(run_prefix)
+        expect(page.locator("#scheduler-content-search")).to_have_value(run_prefix)
         page.reload()
         expect(page.get_by_test_id("completed-run-status")).to_have_value("SUCCESS")
         expect(page.get_by_test_id("completed-run-row")).to_have_count(2)
@@ -273,7 +273,7 @@ class TestEndToEndAdmin(BaseE2ETest):
         core_request_client.delete(f"/tasks/{extra_run_id}")
         page.evaluate("document.dispatchEvent(new CustomEvent('realtime:resync'))")
         expect(page.locator("#completed-runs-table")).to_contain_text("Page 2 of 2")
-        expect(page.locator("#completed-runs-table-search")).to_have_value(run_prefix)
+        expect(page.locator("#scheduler-content-search")).to_have_value(run_prefix)
         expect(page.get_by_test_id("completed-run-status")).to_have_value("SUCCESS")
         expect(page).to_have_url(completed_url)
         assert page.evaluate("window.schedulerDocument === document")
@@ -288,10 +288,10 @@ class TestEndToEndAdmin(BaseE2ETest):
 
         with_htmx_wait(page, lambda: page.locator('.tab[data-tab="history"]').click())
         expect(page.locator("#execution-history-table")).to_be_visible()
-        expect(page.locator("#history-tab .stats")).to_have_count(1)
+        expect(page.locator("#execution-history .stats")).to_have_count(1)
         with_htmx_wait(page, lambda: page.locator('.tab[data-tab="scheduled"]').click())
         with_htmx_wait(page, lambda: page.locator('.tab[data-tab="history"]').click())
-        expect(page.locator("#history-tab .stats")).to_have_count(1)
+        expect(page.locator("#execution-history .stats")).to_have_count(1)
 
     def test_news_item_creation_methods(self, logged_in_page: Page, core_request_client):
         page = logged_in_page

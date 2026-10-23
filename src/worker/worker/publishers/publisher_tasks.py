@@ -18,9 +18,9 @@ from worker.task_events import task_started
 from worker.telemetry import instrument_job
 
 
-@task_started
 @instrument_job
 @http_session_scope()
+@task_started
 def publisher_task(product_id: str, publisher_id: str):
     """Publish a product to an external system.
 

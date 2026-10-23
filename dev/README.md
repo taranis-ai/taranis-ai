@@ -304,6 +304,8 @@ When you update a source/bot schedule in the database (via the UI or API):
 2. Core updates the cron definition in Redis
 3. The cron scheduler picks up the change on the next poll cycle
 
+Scheduler and My Tasks use current, uncached reads on realtime events. Tab navigation replaces one Scheduler content panel, preserving the current query during refresh. Continuous events are throttled with a final refresh, and acknowledged reconnects recover missed changes. When realtime is unavailable, use the visible Refresh control. Cron sends one task-change notice per batch and renews its leadership lease before each enqueue.
+
 ### RQ Dashboard
 
 The development setup includes [rq-dashboard](https://github.com/Parallels/rq-dashboard) for monitoring RQ workers and jobs. It provides:

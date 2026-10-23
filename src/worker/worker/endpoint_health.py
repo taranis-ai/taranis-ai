@@ -16,9 +16,9 @@ from worker.task_events import task_started
 from worker.telemetry import instrument_job
 
 
-@task_started
 @instrument_job
 @http_session_scope()
+@task_started
 def check_endpoint(kind: str, endpoint_id: str, check_id: str):
     core = CoreApi()
     route = f"/worker/endpoint-health/{kind}/{endpoint_id}"

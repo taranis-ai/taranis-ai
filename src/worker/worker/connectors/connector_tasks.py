@@ -20,9 +20,9 @@ from worker.task_events import task_started
 from worker.telemetry import instrument_job
 
 
-@task_started
 @instrument_job
 @http_session_scope()
+@task_started
 def connector_task(connector_id: str, story_ids: list[str] | None, auto_update: bool = False) -> dict[str, Any]:
     """Push stories to an external connector system.
 

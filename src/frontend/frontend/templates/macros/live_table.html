@@ -1,27 +1,25 @@
-{% macro live_table_refresh(change_event, refresh_event, refresh_url, initial_tab=none, independent_source_id=none) %}
+{% macro live_table_refresh(change_event, refresh_event, refresh_url, target_id) %}
   {# The owner survives table swaps. Track navigation separately because aborting an earlier HTMX request releases its shared queue. #}
   {# djlint:off #}
   x-data='{
-    activeTab: {{ initial_tab | tojson }},
-    independentSourceId: {{ independent_source_id | tojson }},
+    targetId: {{ target_id | tojson }},
     refreshEvent: {{ refresh_event | tojson }},
     navigationRequestId: 0,
     navigationPending: false,
     refreshPending: false,
     prepareRequest(event) {
       const ctx = event.detail.ctx;
+      const table = document.getElementById(this.targetId);
       if (ctx.sourceElement === this.$el) {
         if (this.navigationPending) {
           this.refreshPending = true;
           event.preventDefault();
           return;
         }
-        const selector = this.activeTab ? "#" + this.activeTab + "-tab [data-refresh-url]" : "[data-refresh-url]";
-        const table = this.$el.querySelector(selector);
         ctx.request.action = table.dataset.refreshUrl;
         ctx.target = table;
         ctx.select = "#" + table.id;
-      } else if (ctx.sourceElement.id !== this.independentSourceId) {
+      } else if (table.contains(ctx.target)) {
         this.navigationPending = true;
         ctx.navigationRequestId = ++this.navigationRequestId;
       }
@@ -43,7 +41,7 @@
   @htmx:after:swap="finishNavigation($event.detail.ctx)"
   @htmx:finally:request="finishNavigation($event.detail.ctx)"
   hx-get="{{ refresh_url }}"
-  hx-trigger="{{ change_event }} from:document delay:300ms, realtime:resync from:document delay:300ms, realtime:connected from:document delay:300ms, {{ refresh_event }}"
+  hx-trigger="{{ change_event }} from:document throttle:300ms, realtime:resync from:document throttle:300ms, realtime:connected from:document throttle:300ms, {{ refresh_event }}"
   hx-sync="this:queue last"
   hx-swap="outerHTML"
 {% endmacro %}
