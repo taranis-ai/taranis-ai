@@ -252,6 +252,18 @@ Taranis AI should be reachable on _local.taranis.ai_.
 
 ## Development Tools
 
+### Branch development database
+
+Run `./dev/db.sh EXISTING_LOCAL_BRANCH` outside the application's `taranis` tmux panes; close SQL clients first.
+The script fetches master, refreshes its seeded template, switches branches, and recreates `taranis_dev`.
+It clears the dedicated development Redis container; branch data and pending jobs are disposable.
+Known application panes stop and restart automatically; Core applies branch migrations. Errors stop without rollback.
+Uses the local Compose stack, default PostgreSQL credentials, and Core's `.env`; existing `taranis` data stays untouched.
+Remove `SQLALCHEMY_DATABASE_URI` from Core's `.env` and unset inherited `DB_DATABASE`/`SQLALCHEMY_DATABASE_URI` before running.
+The script rejects these overrides before stopping applications because an explicit URI takes precedence over `DB_DATABASE`.
+Set `CONTAINER_CLI=docker` for Docker (default: Podman); `COMPOSE_PROJECT_NAME` selects the stack.
+Copy `dev/db.sh` outside the checkout if you need to use it on branches without this script.
+
 ### Migration Test Harness
 
 Use the migration harness to reproduce production-like upgrades from the current master schema to the current branch:
