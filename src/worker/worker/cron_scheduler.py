@@ -147,7 +147,6 @@ def _enqueue_due_job(
         pipeline.rpush(_enqueue_key(job_id), rq_job_id)
         pipeline.expire(_enqueue_key(job_id), ENQUEUE_KEY_TTL_SECONDS)
         pipeline.execute()
-    CoreApi().notify_task_change((job_options.get("meta") or {}).get("user_id"))
     return rq_job_id
 
 
@@ -191,8 +190,11 @@ def run_scheduler(
             now_ts = time.time()
             specs = _sync_next_index(redis, now_ts)
             due_ids = _sync_response(redis.zrangebyscore(NEXT_KEY, min=0, max=now_ts, start=0, num=100), "redis.zrangebyscore")
-
+            changed = False
+            user_ids: set[str] = set()
             for raw_job_id in due_ids:
+                if not renew_leader(redis, node_id, ttl_seconds=ttl_seconds):
+                    break
                 job_id = _decode(raw_job_id, "redis.zrangebyscore item")
 
                 spec = specs.get(job_id) or _load_spec(redis, job_id)
@@ -203,11 +205,17 @@ def run_scheduler(
 
                 try:
                     due_ts = float(redis.zscore(NEXT_KEY, job_id) or now_ts)
-                    _enqueue_due_job(redis, queues, job_id, spec, due_ts)
+                    if due_ts <= now_ts and _enqueue_due_job(redis, queues, job_id, spec, due_ts):
+                        changed = True
+                        meta = (spec.get("job_options") or {}).get("meta", spec.get("meta")) or {}
+                        if user_id := meta.get("user_id"):
+                            user_ids.add(user_id)
                 except Exception:
                     # Keep the job alive and retry on next poll cycle.
                     redis.zadd(NEXT_KEY, {job_id: now_ts + poll_interval_seconds})
                     logger.exception(f"Failed processing scheduled job {job_id}")
+            if changed:
+                CoreApi().notify_task_change(*user_ids)
         except RedisError:
             logger.exception("Cron scheduler could not reach Redis; retrying")
 

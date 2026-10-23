@@ -16,7 +16,7 @@
       if (event.defaultPrevented) return;
       const ctx = event.detail.ctx;
       if (ctx.sourceElement.id === "scheduler-dashboard") {
-        if (ctx.target.id === "active-jobs-table") {
+        if (document.getElementById("active-jobs-table")) {
           ctx.request.method = "POST";
           ctx.request.body = new FormData();
           ctx.request.body.set("observed_jobs", JSON.stringify(this.observedJobs));
@@ -66,9 +66,9 @@
       <span x-text="completionMessage(completionCount)"></span>
       <a class="btn btn-primary btn-sm"
          href="{{ url_for('admin.scheduler_completed_runs', tab='completed') }}"
-         hx-boost="select:#completed-runs-table target:#completed-runs-table swap:outerHTML"
+         hx-boost="select:#scheduler-content target:#scheduler-content swap:outerHTML"
          hx-sync="#scheduler-dashboard:replace"
-         @click="activeTab = 'completed'; completionCount = 0">{{ _("View completed runs") }}</a>
+         @click="completionCount = 0">{{ _("View completed runs") }}</a>
       <button type="button" class="btn btn-ghost btn-sm" @click="completionCount = 0">{{ _("Dismiss") }}</button>
     </div>
   </div>

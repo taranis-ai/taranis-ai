@@ -1,22 +1,18 @@
 from typing import Any
 
-from flask import render_template, request
+from flask import abort, render_template, request
 from flask.typing import ResponseReturnValue
-from flask.views import MethodView
 from models.admin import ActiveJob, FailedJob, Job, QueueStatus, WorkerStats
 from models.scheduler import ObservedJob, ObservedJobsRequest
 from models.task import TaskHistoryResponse, TaskRun, TaskRunFilter
 from pydantic import ValidationError
 from werkzeug.exceptions import HTTPException
 
-from frontend.auth import auth_required
 from frontend.cache_models import CacheObject, PagingData
-from frontend.config import Config
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.log import logger
 from frontend.utils.router_helpers import is_htmx_request, parse_paging_data
 from frontend.views.admin_views.admin_base_view import AdminBaseView
-from frontend.views.base_view import BaseView
 
 
 COMPLETION_LOOKUP_BATCH_SIZE = 50
@@ -106,7 +102,6 @@ class SchedulerView(AdminBaseView):
     base_route = "admin.scheduler"
     _read_only = True
     _index = 61
-    allowed_tabs = frozenset({"scheduled", "active", "completed", "failed", "history"})
 
     @classmethod
     def _resolve_tab(cls, initial_tab: str | None) -> str:
@@ -117,22 +112,31 @@ class SchedulerView(AdminBaseView):
             case _:
                 return "scheduled"
 
-    def get(self, initial_tab: str | None = None, **kwargs: Any) -> ResponseReturnValue:
+    def get(self, initial_tab: str | None = None, observed_jobs: list[ObservedJob] | None = None, **kwargs: Any) -> ResponseReturnValue:
         """Read current scheduler state without waiting for list-cache expiry."""
         try:
             selected_tab = self._resolve_tab(initial_tab)
             persistence = DataPersistenceLayer()
-            queues = persistence.get_objects(QueueStatus, use_cache=False)
-            worker_stats = persistence.get_object(WorkerStats, use_cache=False)
+            partial = is_htmx_request()
+            queues = persistence.get_objects(QueueStatus, use_cache=False) if not partial else None
+            worker_stats = persistence.get_object(WorkerStats, use_cache=False) if not partial else None
             jobs = active_jobs = failed_jobs = task_stats = completed_runs = None
             total_successes = total_warnings = total_failures = overall_success_rate = 0
 
+            completed_jobs = []
             paging_data = parse_paging_data()
             match selected_tab:
                 case "scheduled":
                     jobs = persistence.get_objects(Job, paging_data, use_cache=False)
                 case "active":
                     active_jobs = persistence.get_objects(ActiveJob, paging_data, use_cache=False)
+                    if observed_jobs:
+                        try:
+                            completed_jobs = _completed_observed_jobs(observed_jobs, persistence)
+                        except HTTPException:
+                            raise
+                        except Exception:
+                            logger.exception("Failed to check observed job completions")
                 case "completed":
                     completed_runs = _completed_runs_page()
                 case "failed":
@@ -147,7 +151,7 @@ class SchedulerView(AdminBaseView):
                     total_failures = history.totals.failures
                     overall_success_rate = history.totals.overall_success_rate
 
-            context = self._common_context()
+            context = {} if partial else self._common_context()
             context.update(
                 {
                     "jobs": jobs,
@@ -155,6 +159,7 @@ class SchedulerView(AdminBaseView):
                     "worker_stats": worker_stats,
                     "active_jobs": active_jobs,
                     "completed_runs": completed_runs,
+                    "completed_jobs": completed_jobs,
                     "failed_jobs": failed_jobs,
                     "task_stats": task_stats,
                     "total_successes": total_successes,
@@ -165,37 +170,30 @@ class SchedulerView(AdminBaseView):
                 }
             )
 
-            return render_template("schedule/dashboard.html", **context), 200
+            return render_template("schedule/content.html" if partial else "schedule/dashboard.html", **context), 200
 
         except HTTPException:
             raise
         except Exception:
             logger.exception("Failed to load scheduler dashboard")
+            if is_htmx_request():
+                return self.render_response_notification({"error": "Failed to load scheduler dashboard."}), 500
             return render_template("errors/500.html", error="Failed to load scheduler dashboard."), 500
 
-
-class ScheduleJobsAPI(MethodView):
-    """HTMX endpoint for scheduled jobs table"""
-
-    @auth_required()
-    def get(self):
-        if not is_htmx_request():
-            return SchedulerView().get(initial_tab="scheduled")
+    def post(self, initial_tab: str | None = None, **kwargs: Any) -> ResponseReturnValue:
+        if self._resolve_tab(initial_tab) != "active":
+            abort(405)
         try:
-            jobs = DataPersistenceLayer().get_objects(Job, parse_paging_data(), use_cache=False)
-            return render_template("schedule/jobs_table.html", jobs=jobs)
-        except HTTPException:
-            raise
-        except Exception:  # pragma: no cover - defensive rendering path
-            logger.exception("Failed to load jobs")
-            return BaseView.render_response_notification({"error": "Failed to load jobs."}), 500
+            observations = ObservedJobsRequest.model_validate(request.form.to_dict())
+        except ValidationError:
+            return self.render_response_notification({"error": "Invalid observed jobs."}), 400
+        return self.get(initial_tab=initial_tab, observed_jobs=observations.observed_jobs)
 
 
-class ScheduleQueuesAPI(MethodView):
+class ScheduleQueuesAPI(AdminBaseView):
     """HTMX endpoint for queue status cards"""
 
-    @auth_required()
-    def get(self):
+    def get(self, **kwargs: Any) -> ResponseReturnValue:
         if not is_htmx_request():
             return SchedulerView().get(initial_tab="scheduled")
         try:
@@ -207,107 +205,4 @@ class ScheduleQueuesAPI(MethodView):
             raise
         except Exception:  # pragma: no cover - defensive rendering path
             logger.exception("Failed to load queues")
-            return BaseView.render_response_notification({"error": "Failed to load queues."}), 500
-
-
-class ScheduleActiveJobsAPI(MethodView):
-    """HTMX endpoint for active jobs"""
-
-    @auth_required()
-    def get(self):
-        if not is_htmx_request():
-            return SchedulerView().get(initial_tab="active")
-        try:
-            active_jobs = DataPersistenceLayer().get_objects(ActiveJob, parse_paging_data(), use_cache=False)
-            return render_template("schedule/active_jobs.html", active_jobs=active_jobs)
-        except HTTPException:
-            raise
-        except Exception:  # pragma: no cover - defensive rendering path
-            logger.exception("Failed to load active jobs")
-            return BaseView.render_response_notification({"error": "Failed to load active jobs."}), 500
-
-    @auth_required()
-    def post(self):
-        try:
-            observations = ObservedJobsRequest.model_validate(request.form.to_dict())
-        except ValidationError:
-            return BaseView.render_response_notification({"error": "Invalid observed jobs."}), 400
-
-        persistence = DataPersistenceLayer()
-        try:
-            active_jobs = persistence.get_objects(ActiveJob, parse_paging_data(), use_cache=False)
-        except HTTPException:
-            raise
-        except Exception:
-            logger.exception("Failed to load active jobs")
-            return BaseView.render_response_notification({"error": "Failed to load active jobs."}), 500
-
-        try:
-            completed_jobs = _completed_observed_jobs(observations.observed_jobs, persistence)
-        except HTTPException:
-            raise
-        except Exception:
-            logger.exception("Failed to check observed job completions")
-            completed_jobs = []
-        return render_template("schedule/active_jobs.html", active_jobs=active_jobs, completed_jobs=completed_jobs)
-
-
-class ScheduleFailedJobsAPI(MethodView):
-    """HTMX endpoint for failed jobs"""
-
-    @auth_required()
-    def get(self):
-        if not is_htmx_request():
-            return SchedulerView().get(initial_tab="failed")
-        try:
-            failed_jobs = DataPersistenceLayer().get_objects(FailedJob, parse_paging_data(), use_cache=False)
-            return render_template("schedule/failed_jobs.html", failed_jobs=failed_jobs)
-        except HTTPException:
-            raise
-        except Exception:  # pragma: no cover - defensive rendering path
-            logger.exception("Failed to load failed jobs")
-            return BaseView.render_response_notification({"error": "Failed to load failed jobs."}), 500
-
-
-class ScheduleCompletedRunsAPI(MethodView):
-    @auth_required()
-    def get(self):
-        if not is_htmx_request():
-            return SchedulerView().get(initial_tab="completed")
-        return render_template("schedule/completed_runs.html", completed_runs=_completed_runs_page())
-
-
-class ScheduleHistoryAPI(MethodView):
-    """HTMX endpoint for execution history"""
-
-    @auth_required()
-    def get(self):
-        if not is_htmx_request():
-            return SchedulerView().get(initial_tab="history")
-        try:
-            task_history = DataPersistenceLayer().get_object(TaskHistoryResponse, use_cache=False)
-            if task_history is None:
-                raise ValueError("Failed to load task history")
-
-            return render_template(
-                "schedule/execution_history.html",
-                task_stats=_task_stats_page(task_history),
-                total_successes=task_history.totals.successes,
-                total_warnings=task_history.totals.warnings,
-                total_failures=task_history.totals.failures,
-                overall_success_rate=task_history.totals.overall_success_rate,
-            )
-        except HTTPException:
-            raise
-        except Exception:  # pragma: no cover - defensive rendering path
-            logger.exception("Failed to load history")
-            return BaseView.render_response_notification({"error": "Failed to load history."}), 500
-
-
-class ScheduleJobDetailsAPI(MethodView):
-    @auth_required()
-    def get(self, job_id: str):
-        job = DataPersistenceLayer().get_object(Job, job_id)
-        if job is None:
-            return f"Failed to fetch job from: {Config.TARANIS_CORE_URL}", 500
-        return render_template("schedule/job_details.html", job=job)
+            return self.render_response_notification({"error": "Failed to load queues."}), 500

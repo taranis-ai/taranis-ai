@@ -10,7 +10,7 @@
      data-active-jobs="{{ observations.jobs | tojson | forceescape }}"
      data-completed-jobs="{{ completed_jobs | default([]) | tojson | forceescape }}"
      x-data
-     x-init="if (activeTab === 'active') $dispatch('scheduler:jobs-loaded', { active: JSON.parse($el.dataset.activeJobs), completed: JSON.parse($el.dataset.completedJobs) })">
+     x-init="$dispatch('scheduler:jobs-loaded', { active: JSON.parse($el.dataset.activeJobs), completed: JSON.parse($el.dataset.completedJobs) })">
   {% set columns = [
     {
       "title": "Job Name",
@@ -39,8 +39,7 @@
     active_jobs,
     columns,
     url_for('admin.scheduler_active_jobs'),
-    'No jobs currently running',
-    swap_target_id='active-jobs-table'
+    'No jobs currently running'
   ) %}
     <tr class="hover:bg-info">
       <td>

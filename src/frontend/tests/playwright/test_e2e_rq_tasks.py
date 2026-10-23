@@ -364,7 +364,10 @@ def test_my_tasks_refreshes_live_status(logged_in_page, forward_console_and_page
             page.evaluate("document.dispatchEvent(new CustomEvent('realtime:task.changed'))")
         with page.expect_request(lambda request: request.url.startswith(task_base_url)):
             page.locator("#user-tasks-table-container-search").fill(f"{job.id}-missing")
-        page.wait_for_timeout(50)
+        deadline = time.monotonic() + 5
+        while len(held_requests) < 2 and time.monotonic() < deadline:
+            page.wait_for_timeout(10)
+        assert len(held_requests) == 2, "Refresh and navigation requests were not both held"
         held_requests[0].abort()
         navigation_response = held_requests[1].fetch()
         page.evaluate("document.dispatchEvent(new CustomEvent('realtime:task.changed'))")

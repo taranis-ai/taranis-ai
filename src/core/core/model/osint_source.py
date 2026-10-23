@@ -28,6 +28,7 @@ from core.model.settings import Settings
 from core.model.task import Task as TaskModel
 from core.model.word_list import WordList
 from core.service.role_based_access import RBACQuery, RoleBasedAccessService
+from core.service.task_events import batch_task_changes
 from core.service.worker_parameters import configured_parameters, effective_parameters, set_parameters
 
 
@@ -749,6 +750,7 @@ class OSINTSource(BaseModel):
         return {"message": "OSINT Sources deleted", "ids": source_ids}, 200
 
     @classmethod
+    @batch_task_changes()
     def schedule_all_osint_sources(cls):
         """Schedule all enabled OSINT sources using RQ"""
         sources = cls.get_all_for_collector()

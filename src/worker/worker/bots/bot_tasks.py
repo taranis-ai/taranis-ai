@@ -48,9 +48,9 @@ def _retry_timeout(job: Job) -> Retry | None:
     return Retry(max=(job.number_of_retries or 0) + 1, interval=0)
 
 
-@task_started
 @instrument_job
 @http_session_scope()
+@task_started
 def bot_task(bot_id: str, filter: dict | None = None, trigger_dependents: bool = True):
     """Execute a bot to process news items.
 
@@ -291,9 +291,9 @@ def _apply_context(stories: dict[str, dict], aliases: dict[str, str], bot_type: 
             }
 
 
-@task_started
 @instrument_job
 @http_session_scope()
+@task_started
 def bot_pipeline_task(bot_ids: list[str], filter: dict | None = None):
     """Run a configured DAG with one story snapshot and one successful submission."""
     job = get_current_job()

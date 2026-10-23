@@ -1,6 +1,5 @@
 {% from "schedule/table.html" import refreshable_table %}
-<div id="execution-history"
-     data-refresh-url="{{ url_for('admin.scheduler_history') }}{{ request.query_string.decode() and '?' ~ request.query_string.decode() }}">
+<div id="execution-history">
   {% set columns = [
     {
       "title": "Task",
@@ -34,8 +33,7 @@
     task_stats,
     columns,
     url_for('admin.scheduler_history'),
-    'No execution history available',
-    swap_target_id='execution-history'
+    'No execution history available'
   ) %}
     <tr class="hover:bg-info">
       <td>

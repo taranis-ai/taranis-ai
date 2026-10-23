@@ -50,7 +50,21 @@
     }
 
     if (typeof payload?.connect?.client === "string") {
+      const shouldResync = opened && disconnected && !suppressNextResync;
       document.documentElement.dataset.realtimeConnected = "true";
+      self.clearTimeout(outageTimer);
+      outageTimer = undefined;
+      outageNotified = false;
+      reconnectAttempt = 0;
+      suppressNextResync = false;
+      hideStatusNotification();
+      if (shouldResync) {
+        scheduleResync("reconnected");
+      } else {
+        document.dispatchEvent(new CustomEvent("realtime:connected"));
+      }
+      opened = true;
+      disconnected = false;
       return;
     }
 
@@ -217,22 +231,6 @@
 
     eventSource = new EventSource(document.body.dataset.realtimeUrl);
     eventSource.addEventListener("message", handleMessage);
-    eventSource.addEventListener("open", () => {
-      const shouldResync = opened && disconnected && !suppressNextResync;
-      self.clearTimeout(outageTimer);
-      outageTimer = undefined;
-      outageNotified = false;
-      reconnectAttempt = 0;
-      suppressNextResync = false;
-      hideStatusNotification();
-      if (shouldResync) {
-        scheduleResync("reconnected");
-      } else if (!opened) {
-        document.dispatchEvent(new CustomEvent("realtime:connected"));
-      }
-      opened = true;
-      disconnected = false;
-    });
     eventSource.addEventListener("error", () => {
       document.documentElement.dataset.realtimeConnected = "false";
       if (!reconnectAllowed) {

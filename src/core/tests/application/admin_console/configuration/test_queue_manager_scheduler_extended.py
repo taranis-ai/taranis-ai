@@ -2,6 +2,7 @@
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from typing import Any, cast
+from unittest.mock import Mock
 
 import fakeredis
 import pytest
@@ -13,6 +14,7 @@ from rq import Queue
 import core.service.dashboard as dashboard_module
 from core.managers import queue_manager as qm_module
 from core.managers.queue_manager import QueueManager
+from core.managers.realtime_publisher import realtime_publisher
 from core.model.bot import Bot
 from core.model.osint_source import OSINTSource
 from core.model.task import Task as TaskModel
@@ -830,6 +832,9 @@ def test_get_scheduled_jobs_uses_safe_paging_defaults(app, monkeypatch):
 
 
 def test_reschedule_all_prunes_stale_managed_cron_jobs(monkeypatch):
+    publication = Mock(return_value=True)
+    monkeypatch.setattr(realtime_publisher, "publish", publication)
+
     class FakeSpec:
         def __init__(self, job_id: str, task_name: str, queue_name: str):
             self.job_id = job_id
@@ -891,7 +896,8 @@ def test_reschedule_all_prunes_stale_managed_cron_jobs(monkeypatch):
         lambda *, exact_ids=None, prefixes=None: purged_calls.append((exact_ids or set(), prefixes or [])) or (3, 2),
     )
 
-    qm.reschedule_all()
+    assert qm.reschedule_all()
+    publication.assert_called_once_with("global:events", "scheduler.changed", "invalidated")
 
     assert set(qm._redis.hkeys("rq:cron:def")) == {
         b"osint_source_live-source",
@@ -908,3 +914,15 @@ def test_reschedule_all_prunes_stale_managed_cron_jobs(monkeypatch):
         "cron_reconcile_task_failures_",
         "cron_unconfigured_job_",
     }
+
+    # Committed registrations still need one refresh when later cleanup fails.
+    qm._redis.hset("rq:cron:def", "bot_stale", "{}")
+    monkeypatch.setattr(qm, "purge_job_artifacts", Mock(side_effect=RuntimeError("cleanup failed")))
+    publication.reset_mock()
+    assert not qm.reschedule_all()
+    publication.assert_called_once_with("global:events", "scheduler.changed", "invalidated")
+
+    monkeypatch.setattr(qm, "_get_managed_cron_specs", Mock(side_effect=RuntimeError("read failed")))
+    publication.reset_mock()
+    assert not qm.reschedule_all()
+    publication.assert_not_called()

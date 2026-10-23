@@ -1,13 +1,11 @@
 {% extends "base.html" %}
-{% set current_tab = initial_tab if initial_tab in ["scheduled", "active", "completed", "failed", "history"] else "scheduled" %}
-{% from "schedule/table.html" import refreshable_table_placeholder %}
 {% from "macros/live_table.html" import live_table_refresh %}
 {% from "schedule/completion_notice.html" import completion_tracking, completion_notice %}
 {% block content %}
   <div {{ completion_tracking() }}>
     <div class="p-4"
          id="scheduler-dashboard"
-         {{ live_table_refresh('realtime:scheduler.changed', 'scheduler:refresh', url_for('admin.scheduler_jobs_table'), initial_tab=current_tab, independent_source_id='queue-cards') }}>
+         {{ live_table_refresh('realtime:scheduler.changed', 'scheduler:refresh', url_for('admin.scheduler'), 'scheduler-content') }}>
       <div class="flex flex-wrap justify-between items-center gap-3 mb-6">
         <h1 class="text-3xl font-bold">Scheduler Dashboard</h1>
         <div data-realtime-fallback class="flex flex-wrap items-center gap-3">
@@ -15,183 +13,13 @@
           <button id="scheduler-refresh" type="button" class="btn btn-sm" @click="$dispatch('scheduler:refresh')">Refresh</button>
         </div>
       </div>
-
-      {{ completion_notice() }}
-
-      <!-- Queue Status Cards -->
       <div id="queue-cards"
            hx-get="{{ url_for('admin.scheduler_queue_cards') }}"
-           hx-trigger="realtime:scheduler.changed from:document delay:300ms, realtime:resync from:document delay:300ms, realtime:connected from:document delay:300ms, scheduler:refresh from:#scheduler-dashboard"
+           hx-trigger="realtime:scheduler.changed from:document throttle:300ms, realtime:resync from:document throttle:300ms, realtime:connected from:document throttle:300ms, scheduler:refresh from:#scheduler-dashboard"
            hx-sync="this:queue last"
            hx-swap="innerHTML">{% include "schedule/queue_cards.html" %}</div>
-
-      <!-- Tabs for different views -->
-      <div class="tabs tabs-border tabs-boxed mt-6 mb-4">
-        <a class="tab"
-           :class="{ 'tab-active': activeTab === 'scheduled' }"
-           data-tab="scheduled"
-           href="{{ url_for('admin.scheduler_jobs_table', tab='scheduled') }}"
-           hx-boost="select:#scheduled-jobs-table target:#scheduled-jobs-table swap:outerHTML"
-           hx-sync="#scheduler-dashboard:replace"
-           @click="activeTab = 'scheduled'">Scheduled Jobs</a>
-        <a class="tab"
-           :class="{ 'tab-active': activeTab === 'active' }"
-           data-tab="active"
-           href="{{ url_for('admin.scheduler_active_jobs', tab='active') }}"
-           hx-boost="select:#active-jobs-table target:#active-jobs-table swap:outerHTML"
-           hx-sync="#scheduler-dashboard:replace"
-           @click="activeTab = 'active'">Active Jobs</a>
-        <a class="tab"
-           :class="{ 'tab-active': activeTab === 'completed' }"
-           data-tab="completed"
-           href="{{ url_for('admin.scheduler_completed_runs', tab='completed') }}"
-           hx-boost="select:#completed-runs-table target:#completed-runs-table swap:outerHTML"
-           hx-sync="#scheduler-dashboard:replace"
-           @click="activeTab = 'completed'">Completed Runs</a>
-        <a class="tab"
-           :class="{ 'tab-active': activeTab === 'failed' }"
-           data-tab="failed"
-           href="{{ url_for('admin.scheduler_failed_jobs', tab='failed') }}"
-           hx-boost="select:#failed-jobs-table target:#failed-jobs-table swap:outerHTML"
-           hx-sync="#scheduler-dashboard:replace"
-           @click="activeTab = 'failed'">Queue Failures</a>
-        <a class="tab"
-           :class="{ 'tab-active': activeTab === 'history' }"
-           data-tab="history"
-           href="{{ url_for('admin.scheduler_history', tab='history') }}"
-           hx-boost="select:#execution-history target:#execution-history swap:outerHTML"
-           hx-sync="#scheduler-dashboard:replace"
-           @click="activeTab = 'history'">Worker Summary</a>
-      </div>
-
-      <!-- Tab Content -->
-      <div id="tab-content">
-        <!-- Scheduled Jobs Tab -->
-        <div id="scheduled-tab"
-             class="tab-panel"
-             x-show="activeTab === 'scheduled'"
-             {% if current_tab != 'scheduled' %}style="display: none;"{% endif %}>
-          <div class="card bg-base-200 shadow-lg">
-            <div class="card-body">
-              <h2 class="card-title">
-                <svg xmlns="http://www.w3.org/2000/svg"
-                     fill="none"
-                     viewBox="0 0 24 24"
-                     stroke-width="1.5"
-                     stroke="currentColor"
-                     class="w-6 h-6">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
-                </svg>
-                Scheduled Jobs
-              </h2>
-              {% if current_tab == "scheduled" %}
-                {% include "schedule/jobs_table.html" %}
-              {% else %}
-                {{ refreshable_table_placeholder('scheduled-jobs-table', url_for('admin.scheduler_jobs_table')) }}
-              {% endif %}
-            </div>
-          </div>
-        </div>
-
-        <!-- Active Jobs Tab -->
-        <div id="active-tab"
-             class="tab-panel"
-             x-show="activeTab === 'active'"
-             {% if current_tab != 'active' %}style="display: none;"{% endif %}>
-          <div class="card bg-base-200 shadow-lg">
-            <div class="card-body">
-              <h2 class="card-title">
-                <svg xmlns="http://www.w3.org/2000/svg"
-                     fill="none"
-                     viewBox="0 0 24 24"
-                     stroke-width="1.5"
-                     stroke="currentColor"
-                     class="w-6 h-6">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 0 1 0 1.972l-11.54 6.347a1.125 1.125 0 0 1-1.667-.986V5.653Z" />
-                </svg>
-                Currently Running
-              </h2>
-              {% if current_tab == "active" %}
-                {% include "schedule/active_jobs.html" %}
-              {% else %}
-                {{ refreshable_table_placeholder('active-jobs-table', url_for('admin.scheduler_active_jobs')) }}
-              {% endif %}
-            </div>
-          </div>
-        </div>
-
-        <div id="completed-tab"
-             class="tab-panel"
-             x-show="activeTab === 'completed'"
-             {% if current_tab != 'completed' %}style="display: none;"{% endif %}>
-          <div class="card bg-base-200 shadow-lg">
-            <div class="card-body">
-              <h2 class="card-title">Completed Runs</h2>
-              <p class="text-sm opacity-70">Finished jobs and committed pipeline steps, newest first. Successful jobs leave Active Jobs and appear here.</p>
-              {% if current_tab == "completed" %}
-                {% include "schedule/completed_runs.html" %}
-              {% else %}
-                {{ refreshable_table_placeholder('completed-runs-table', url_for('admin.scheduler_completed_runs')) }}
-              {% endif %}
-            </div>
-          </div>
-        </div>
-
-        <!-- Failed Jobs Tab -->
-        <div id="failed-tab"
-             class="tab-panel"
-             x-show="activeTab === 'failed'"
-             {% if current_tab != 'failed' %}style="display: none;"{% endif %}>
-          <div class="card bg-base-200 shadow-lg">
-            <div class="card-body">
-              <h2 class="card-title">
-                <svg xmlns="http://www.w3.org/2000/svg"
-                     fill="none"
-                     viewBox="0 0 24 24"
-                     stroke-width="1.5"
-                     stroke="currentColor"
-                     class="w-6 h-6">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
-                </svg>
-                Queue Failures
-              </h2>
-              <p class="text-sm opacity-70">Jobs currently held in the RQ failed-job registry.</p>
-              {% if current_tab == "failed" %}
-                {% include "schedule/failed_jobs.html" %}
-              {% else %}
-                {{ refreshable_table_placeholder('failed-jobs-table', url_for('admin.scheduler_failed_jobs')) }}
-              {% endif %}
-            </div>
-          </div>
-        </div>
-
-        <!-- Execution History Tab -->
-        <div id="history-tab"
-             class="tab-panel"
-             x-show="activeTab === 'history'"
-             {% if current_tab != 'history' %}style="display: none;"{% endif %}>
-          <div class="card bg-base-200 shadow-lg">
-            <div class="card-body">
-              <h2 class="card-title">
-                <svg xmlns="http://www.w3.org/2000/svg"
-                     fill="none"
-                     viewBox="0 0 24 24"
-                     stroke-width="1.5"
-                     stroke="currentColor"
-                     class="w-6 h-6">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                </svg>
-                Worker Summary
-              </h2>
-              {% if current_tab == "history" %}
-                {% include "schedule/execution_history.html" %}
-              {% else %}
-                {{ refreshable_table_placeholder('execution-history', url_for('admin.scheduler_history')) }}
-              {% endif %}
-            </div>
-          </div>
-        </div>
-      </div>
+      {{ completion_notice() }}
+      {% include "schedule/content.html" %}
     </div>
 
   </div>

@@ -46,8 +46,8 @@ def test_scheduler_deep_link_renders_dashboard(endpoint, expected_tab, authentic
 
     html = response.get_data(as_text=True)
     tree = lxml_html.fromstring(html)
-    assert f'activeTab: "{expected_tab}"' in tree.xpath('//*[@id="scheduler-dashboard"]')[0].get("x-data")
-    assert not tree.xpath(f'//*[@id="{expected_tab}-tab"]')[0].get("style")
+    assert tree.xpath('//a[contains(@class, "tab-active")]/@data-tab') == [expected_tab]
+    assert len(tree.xpath('//*[@id="scheduler-content"]')) == 1
 
 
 def test_scheduler_tab_query_param_overrides_initial(authenticated_client, mock_core_get_endpoints):
@@ -60,8 +60,7 @@ def test_scheduler_tab_query_param_overrides_initial(authenticated_client, mock_
 
     html = response.get_data(as_text=True)
     tree = lxml_html.fromstring(html)
-    assert 'activeTab: "scheduled"' in tree.xpath('//*[@id="scheduler-dashboard"]')[0].get("x-data")
-    assert not tree.xpath('//*[@id="scheduled-tab"]')[0].get("style")
+    assert tree.xpath('//a[contains(@class, "tab-active")]/@data-tab') == ["scheduled"]
 
 
 def test_source_filters_preserve_each_other_and_table_query(authenticated_client, mock_core_get_endpoints):
@@ -185,7 +184,7 @@ def test_scheduler_dashboard_initial_render_loads_only_selected_tab(
     assert inactive_paths.isdisjoint(requested_paths)
 
 
-def test_scheduler_dashboard_renders_inactive_tabs_as_placeholders(authenticated_client, mock_core_get_endpoints):
+def test_scheduler_dashboard_renders_only_selected_table(authenticated_client, mock_core_get_endpoints):
     with authenticated_client.application.app_context():
         url = url_for("admin.scheduler")
 
@@ -194,10 +193,10 @@ def test_scheduler_dashboard_renders_inactive_tabs_as_placeholders(authenticated
     assert response.status_code == 200
     html = response.get_data(as_text=True)
     assert 'data-testid="scheduled-jobs"' in html
-    assert 'id="active-jobs-table"' in html
-    assert 'id="failed-jobs-table"' in html
-    assert 'id="execution-history"' in html
-    assert html.count("Loading...</p>") == 4
+    assert 'id="active-jobs-table"' not in html
+    assert 'id="failed-jobs-table"' not in html
+    assert 'id="execution-history"' not in html
+    assert "Loading...</p>" not in html
     assert 'data-testid="active-jobs"' not in html
     assert 'data-testid="failed-jobs"' not in html
     assert 'data-testid="execution-history-jobs"' not in html

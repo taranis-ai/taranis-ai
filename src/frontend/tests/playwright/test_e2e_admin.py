@@ -12,7 +12,6 @@ from htmx_helpers import reset_htmx_state, with_htmx_wait
 from playwright.sync_api import Page, expect
 from rq import Queue
 from rq.executions import Execution
-from rq.job import JobStatus
 
 from tests.external_e2e import allow_requests_passthru, external_core_api_url
 from tests.playwright.notification_helpers import dismiss_notifications
@@ -199,7 +198,7 @@ class TestEndToEndAdmin(BaseE2ETest):
         expect(page).to_have_url(url_for("admin.scheduler", _external=True))
         expect(page.locator("#scheduler-dashboard")).to_be_visible()
         expect(page.get_by_test_id("scheduled-jobs")).to_be_visible()
-        expect(page.locator("#scheduled-jobs-table-search")).to_be_visible()
+        expect(page.locator("#scheduler-content-search")).to_be_visible()
         expect(page.locator("#scheduled-jobs-table")).to_contain_text("Page 1 of")
 
         page.goto(
@@ -214,7 +213,7 @@ class TestEndToEndAdmin(BaseE2ETest):
         )
         with_htmx_wait(page, lambda: page.locator('.tab[data-tab="active"]').click())
         expect(page).to_have_url(url_for("admin.scheduler_active_jobs", tab="active", _external=True))
-        expect(page.locator("#active-jobs-table-search")).to_have_value("")
+        expect(page.locator("#scheduler-content-search")).to_have_value("")
         expect(page.locator("#active-jobs-table")).to_contain_text("No jobs currently running")
 
         run_prefix = f"scheduler-run-{uuid.uuid4().hex}"
@@ -233,7 +232,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             )
         with_htmx_wait(page, lambda: page.locator('.tab[data-tab="completed"]').click())
         expect(page.get_by_test_id("completed-runs")).to_be_visible()
-        search = page.locator("#completed-runs-table-search")
+        search = page.locator("#scheduler-content-search")
         with page.expect_response(lambda response: "/scheduler/completed?" in response.url and f"search={run_prefix}" in response.url):
             search.fill(run_prefix)
         expect(page.get_by_test_id("completed-run-row")).to_have_count(3)
@@ -241,7 +240,7 @@ class TestEndToEndAdmin(BaseE2ETest):
         with_htmx_wait(page, lambda: page.locator("#completed-runs-table").get_by_role("button", name="Apply", exact=True).first.click())
         expect(page.get_by_test_id("completed-run-row")).to_have_count(2)
         expect(page.get_by_test_id("completed-run-row")).to_contain_text(["Success", "Success"])
-        expect(page.locator("#completed-runs-table-search")).to_have_value(run_prefix)
+        expect(page.locator("#scheduler-content-search")).to_have_value(run_prefix)
         page.reload()
         expect(page.get_by_test_id("completed-run-status")).to_have_value("SUCCESS")
         expect(page.get_by_test_id("completed-run-row")).to_have_count(2)
@@ -277,7 +276,7 @@ class TestEndToEndAdmin(BaseE2ETest):
         core_request_client.delete(f"/tasks/{extra_run_id}")
         page.evaluate("document.dispatchEvent(new CustomEvent('realtime:resync'))")
         expect(page.locator("#completed-runs-table")).to_contain_text("Page 2 of 2")
-        expect(page.locator("#completed-runs-table-search")).to_have_value(run_prefix)
+        expect(page.locator("#scheduler-content-search")).to_have_value(run_prefix)
         expect(page.get_by_test_id("completed-run-status")).to_have_value("SUCCESS")
         expect(page).to_have_url(completed_url)
         assert page.evaluate("window.schedulerDocument === document")
@@ -292,17 +291,16 @@ class TestEndToEndAdmin(BaseE2ETest):
 
         with_htmx_wait(page, lambda: page.locator('.tab[data-tab="history"]').click())
         expect(page.locator("#execution-history-table")).to_be_visible()
-        expect(page.locator("#history-tab .stats")).to_have_count(1)
+        expect(page.locator("#execution-history .stats")).to_have_count(1)
         with_htmx_wait(page, lambda: page.locator('.tab[data-tab="scheduled"]').click())
         with_htmx_wait(page, lambda: page.locator('.tab[data-tab="history"]').click())
-        expect(page.locator("#history-tab .stats")).to_have_count(1)
+        expect(page.locator("#execution-history .stats")).to_have_count(1)
 
     @pytest.mark.skipif(external_core_api_url(), reason="Completion workflow seeds the isolated Redis instance")
     def test_scheduler_completion_notice(
         self, logged_in_page: Page, forward_console_and_page_errors, core_request_client, api_header, docker_services
     ):
         page = logged_in_page
-        page.clock.install()
         allow_requests_passthru(core_request_client.base_url)
         connection = redis.Redis(host="127.0.0.1", port=docker_services.port_for("redis", 6379))
         queue = Queue("bots", connection=connection)
@@ -324,7 +322,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             )
 
         def refresh():
-            with_htmx_wait(page, lambda: page.evaluate("document.dispatchEvent(new CustomEvent('realtime:scheduler.changed'))"))
+            with_htmx_wait(page, lambda: page.locator("#scheduler-refresh").click())
 
         try:
             for job in jobs:
@@ -342,16 +340,11 @@ class TestEndToEndAdmin(BaseE2ETest):
             expect(notice).to_contain_text("1 job you were viewing has finished.")
             expect(page.get_by_test_id("active-jobs")).to_contain_text(jobs[1].id)
 
-            # Keep observing a disappearing row until its saved result arrives.
-            jobs[1].set_status(JobStatus.FINISHED)
-            refresh()
-            expect(notice).to_contain_text("1 job you were viewing has finished.")
             save_result(1, "WARNING")
             refresh()
-            page.clock.fast_forward(11000)
             expect(notice).to_contain_text("2 jobs you were viewing have finished.")
 
-            with_htmx_wait(page, lambda: page.locator("#scheduler-refresh").click())
+            refresh()
             expect(notice).to_contain_text("2 jobs you were viewing have finished.")
             assert len(page.evaluate("taranisNotifications.read()")) == 2
             notice.get_by_role("button", name="Dismiss", exact=True).click()
@@ -362,7 +355,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             expect(notice).to_contain_text("1 job you were viewing has finished.")
             with_htmx_wait(page, lambda: notice.get_by_role("link", name="View completed runs", exact=True).click())
             expect(page.get_by_test_id("completed-runs")).to_be_visible()
-            expect(page.locator("#completed-runs-table-search")).to_have_value("")
+            expect(page.locator("#scheduler-content-search")).to_have_value("")
             expect(page.get_by_test_id("completed-run-status")).to_have_value("")
             expect(notice).not_to_be_visible()
         finally:

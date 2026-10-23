@@ -19,9 +19,9 @@ from worker.task_events import task_started
 from worker.telemetry import instrument_job
 
 
-@task_started
 @instrument_job
 @http_session_scope()
+@task_started
 def presenter_task(product_id: str):
     """Generate a product/report in the specified format.
 

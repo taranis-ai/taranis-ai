@@ -332,6 +332,8 @@ def test_internal_disconnect_does_not_resync_after_recovery(page: Page):
     page.evaluate("""
         () => {
           window.resyncReasons = [];
+          window.connections = 0;
+          document.addEventListener("realtime:connected", () => window.connections++);
           document.addEventListener(
             "realtime:resync",
             event => window.resyncReasons.push(event.detail.reason),
@@ -346,11 +348,14 @@ def test_internal_disconnect_does_not_resync_after_recovery(page: Page):
         }
     """)
     page.wait_for_function("() => EventSource.instances.length === 2")
-    page.evaluate("() => EventSource.instances[1].emit('open')")
+    page.evaluate(
+        "() => { EventSource.instances[1].emit('open'); EventSource.instances[1].emit('message', JSON.stringify({connect: {client: 'recovered'}})); }"
+    )
     page.wait_for_timeout(350)
 
     assert page.evaluate("() => window.resyncReasons") == []
-    expect(page.locator("html")).to_have_attribute("data-realtime-connected", "false")
+    expect(page.locator("html")).to_have_attribute("data-realtime-connected", "true")
+    assert page.evaluate("window.connections") == 2
     assert "hidden" in page.locator("#realtime-data-notification").get_attribute("class").split()
 
 
@@ -525,7 +530,7 @@ def test_outage_notice_appears_once_and_clears_on_recovery(page: Page):
     assert "hidden" in notice.get_attribute("class").split()
     assert page.evaluate("() => window.reconnectDelays") == [1000, 2000]
 
-    page.evaluate("() => EventSource.instances[2].emit('open')")
+    page.evaluate("() => EventSource.instances[2].emit('message', JSON.stringify({connect: {client: 'recovered'}}))")
     page.evaluate("() => EventSource.instances[2].emit('error')")
     page.wait_for_function("() => EventSource.instances.length === 4")
 
@@ -644,3 +649,35 @@ def test_story_bot_refresh_fetches_once_and_preserves_drafts(app, page: Page):
     )
     page.wait_for_function("window.completedRefreshes === 3")
     assert [parse_qs(urlparse(request.url).query)["bot_types"] for request in requests] == [["NLP_BOT"], ["SUMMARY_BOT"], ["NLP_BOT"]]
+
+
+def test_live_table_throttles_continuous_changes_and_keeps_the_final_refresh(app, page: Page):
+    with app.test_request_context():
+        attributes = render_template_string(
+            "{% from 'macros/live_table.html' import live_table_refresh %}"
+            "{{ live_table_refresh('realtime:task.changed', 'tasks:refresh', '/tasks', 'table') }}"
+        )
+    page.route(
+        "https://example.test/",
+        lambda route: route.fulfill(
+            content_type="text/html", body=f'<div id="owner" {attributes}><div id="table" data-refresh-url="/tasks">0</div></div>'
+        ),
+    )
+    requests = []
+
+    def refresh(route):
+        version = page.evaluate("window.version")
+        requests.append(version)
+        route.fulfill(content_type="text/html", body=f'<div id="table" data-refresh-url="/tasks">{version}</div>')
+
+    page.route("https://example.test/tasks", refresh)
+    page.goto("https://example.test/")
+    page.add_script_tag(path=str(VENDOR_JS_PATH))
+    page.evaluate("htmx.process(document.body)")
+    page.evaluate(
+        "window.version = 0; window.changes = setInterval(() => { window.version++; document.dispatchEvent(new CustomEvent('realtime:task.changed')); }, 50)"
+    )
+    page.wait_for_timeout(1000)
+    assert len(requests) >= 2
+    page.evaluate("clearInterval(window.changes); window.version++; document.dispatchEvent(new CustomEvent('realtime:task.changed'))")
+    expect(page.locator("#table")).to_have_text(str(page.evaluate("window.version")))
