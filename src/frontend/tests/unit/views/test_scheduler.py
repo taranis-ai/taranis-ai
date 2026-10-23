@@ -233,6 +233,73 @@ def test_scheduler_htmx_partials_use_granular_endpoints(
     assert expected_text in response.get_data(as_text=True)
 
 
+@pytest.mark.parametrize("started_at, completed", [("2026-10-15T16:27:01Z", True), ("2026-10-15T16:27:03Z", False)])
+def test_active_jobs_refresh_confirms_current_execution(
+    authenticated_client, responses_mock, mock_core_get_endpoints, htmx_header, started_at, completed
+):
+    job_ids = ["pipeline-1"] + [f"pending-{i}" for i in range(50)]
+    observed_jobs = [{"id": job_id, "started_at": started_at} for job_id in job_ids]
+    with authenticated_client.application.app_context():
+        url = url_for("admin.scheduler_active_jobs", search="running", page=3, limit=5)
+
+    response = authenticated_client.post(url, data={"observed_jobs": json.dumps(observed_jobs)}, headers=htmx_header)
+
+    assert response.status_code == 200
+    table = lxml_html.fromstring(response.text).get_element_by_id("active-jobs-table")
+    assert json.loads(table.get("data-completed-jobs")) == (observed_jobs[:1] if completed else [])
+    assert "Running Bot" in response.text
+    queries = [parse_qs(urlparse(call.request.url).query) for call in responses_mock.calls if "/tasks/runs" in call.request.url]
+    assert [len(query["job_ids"]) for query in queries] == [50, 1]
+    assert all(query["page"] == ["1"] and query["limit"] == ["50"] and "search" not in query for query in queries)
+
+
+def test_active_jobs_refresh_retains_active_table_when_completion_lookup_fails(
+    authenticated_client, responses_mock, mock_core_get_endpoints, htmx_header
+):
+    with authenticated_client.application.app_context():
+        url = url_for("admin.scheduler_active_jobs")
+        completed_url = url_for("admin.scheduler_completed_runs")
+    data = {"observed_jobs": json.dumps([{"id": "observed-1", "started_at": "2026-10-22T12:00:00Z"}])}
+
+    for status in (500, 403):
+        responses_mock.replace(
+            responses.GET,
+            f"{Config.TARANIS_CORE_URL}/tasks/runs",
+            json={"error": "private backend detail"},
+            status=status,
+        )
+        response = authenticated_client.post(url, data=data, headers=htmx_header)
+
+        assert response.status_code == 200
+        assert "Running Bot" in response.text
+        assert "private backend detail" not in response.text
+        document = lxml_html.fromstring(response.text)
+        assert json.loads(document.xpath('//*[@id="active-jobs-table"]')[0].get("data-completed-jobs")) == []
+
+    assert authenticated_client.get(completed_url, headers=htmx_header).status_code == 403
+    responses_mock.replace(responses.GET, f"{Config.TARANIS_CORE_URL}/config/workers/active", json={"error": "Access denied"}, status=403)
+    assert authenticated_client.post(url, data=data, headers=htmx_header).status_code == 403
+
+
+@pytest.mark.parametrize(
+    "observed_jobs",
+    [
+        "private malformed value",
+        json.dumps([{"id": "observed-1", "started_at": "private malformed value"}]),
+    ],
+)
+def test_active_jobs_refresh_rejects_invalid_observations(observed_jobs, authenticated_client, responses_mock, htmx_header):
+    with authenticated_client.application.app_context():
+        url = url_for("admin.scheduler_active_jobs")
+
+    response = authenticated_client.post(url, data={"observed_jobs": observed_jobs}, headers=htmx_header)
+
+    assert response.status_code == 400
+    assert "Invalid observed jobs." in response.text
+    assert "private malformed value" not in response.text
+    assert not responses_mock.calls
+
+
 def test_scheduler_history_displays_worker_type_and_hover_worker_id(
     authenticated_client, responses_mock, mock_core_get_endpoints, htmx_header
 ):

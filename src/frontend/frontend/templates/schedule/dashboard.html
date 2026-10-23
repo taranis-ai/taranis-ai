@@ -1,23 +1,28 @@
 {% extends "base.html" %}
 {% from "macros/live_table.html" import live_table_refresh %}
+{% from "schedule/completion_notice.html" import completion_tracking, completion_notice %}
 {% block content %}
-  <div class="p-4"
-       id="scheduler-dashboard"
-       {{ live_table_refresh('realtime:scheduler.changed', 'scheduler:refresh', url_for('admin.scheduler'), 'scheduler-content') }}>
-    <div class="flex flex-wrap justify-between items-center gap-3 mb-6">
-      <h1 class="text-3xl font-bold">Scheduler Dashboard</h1>
-      <div data-realtime-fallback class="flex flex-wrap items-center gap-3">
-        <p class="text-sm text-base-content/70">Live updates are unavailable. Refresh to load the latest status.</p>
-        <button id="scheduler-refresh" type="button" class="btn btn-sm" @click="$dispatch('scheduler:refresh')">Refresh</button>
+  <div {{ completion_tracking() }}>
+    <div class="p-4"
+         id="scheduler-dashboard"
+         {{ live_table_refresh('realtime:scheduler.changed', 'scheduler:refresh', url_for('admin.scheduler'), 'scheduler-content') }}>
+      <div class="flex flex-wrap justify-between items-center gap-3 mb-6">
+        <h1 class="text-3xl font-bold">Scheduler Dashboard</h1>
+        <div data-realtime-fallback class="flex flex-wrap items-center gap-3">
+          <p class="text-sm text-base-content/70">Live updates are unavailable. Refresh to load the latest status.</p>
+          <button id="scheduler-refresh" type="button" class="btn btn-sm" @click="$dispatch('scheduler:refresh')">Refresh</button>
+        </div>
       </div>
+      <div id="queue-cards"
+           hx-get="{{ url_for('admin.scheduler_queue_cards') }}"
+           hx-trigger="realtime:scheduler.changed from:document throttle:300ms, realtime:resync from:document throttle:300ms, realtime:connected from:document throttle:300ms, scheduler:refresh from:#scheduler-dashboard"
+           hx-sync="this:queue last"
+           hx-status:5xx="target:#notification-bar select:#notification-bar swap:outerHTML"
+           hx-swap="innerHTML">{% include "schedule/queue_cards.html" %}</div>
+      {{ completion_notice() }}
+      {% include "schedule/content.html" %}
     </div>
-    <div id="queue-cards"
-         hx-get="{{ url_for('admin.scheduler_queue_cards') }}"
-         hx-trigger="realtime:scheduler.changed from:document throttle:300ms, realtime:resync from:document throttle:300ms, realtime:connected from:document throttle:300ms, scheduler:refresh from:#scheduler-dashboard"
-         hx-sync="this:queue last"
-         hx-status:5xx="target:#notification-bar select:#notification-bar swap:outerHTML"
-         hx-swap="innerHTML">{% include "schedule/queue_cards.html" %}</div>
-    {% include "schedule/content.html" %}
+
   </div>
 
   <dialog id="job-error-modal" class="modal modal-bottom sm:modal-middle">

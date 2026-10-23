@@ -1,16 +1,41 @@
 from typing import Any
 
-from flask import render_template, request
+from flask import abort, render_template, request
 from flask.typing import ResponseReturnValue
 from models.admin import ActiveJob, FailedJob, Job, QueueStatus, WorkerStats
+from models.scheduler import ObservedJob, ObservedJobsRequest
 from models.task import TaskHistoryResponse, TaskRun, TaskRunFilter
-from werkzeug.exceptions import HTTPException
+from pydantic import ValidationError
+from werkzeug.exceptions import Forbidden, HTTPException
 
-from frontend.cache_models import CacheObject
+from frontend.cache_models import CacheObject, PagingData
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.log import logger
 from frontend.utils.router_helpers import is_htmx_request, parse_paging_data
 from frontend.views.admin_views.admin_base_view import AdminBaseView
+
+
+COMPLETION_LOOKUP_BATCH_SIZE = 50
+
+
+def _completed_observed_jobs(observed_jobs: list[ObservedJob], persistence: DataPersistenceLayer) -> list[dict[str, Any]]:
+    job_ids = list(dict.fromkeys(job.id for job in observed_jobs))
+    completed_at = {}
+    for offset in range(0, len(job_ids), COMPLETION_LOOKUP_BATCH_SIZE):
+        paging = PagingData(
+            page=1,
+            limit=COMPLETION_LOOKUP_BATCH_SIZE,
+            query_params={
+                "job_ids": job_ids[offset : offset + COMPLETION_LOOKUP_BATCH_SIZE],
+                "page": "1",
+                "limit": str(COMPLETION_LOOKUP_BATCH_SIZE),
+            },
+        )
+        for run in persistence.get_objects(TaskRun, paging, use_cache=False):
+            completed_at[run.job_id] = run.last_run
+
+    # Reused job IDs can still have a result from before the execution being observed.
+    return [job.model_dump(mode="json") for job in observed_jobs if job.id in completed_at and completed_at[job.id] >= job.started_at]
 
 
 def _task_stats_page(task_history: TaskHistoryResponse) -> CacheObject:
@@ -87,7 +112,7 @@ class SchedulerView(AdminBaseView):
             case _:
                 return "scheduled"
 
-    def get(self, initial_tab: str | None = None, **kwargs: Any) -> ResponseReturnValue:
+    def get(self, initial_tab: str | None = None, observed_jobs: list[ObservedJob] | None = None, **kwargs: Any) -> ResponseReturnValue:
         """Read current scheduler state without waiting for list-cache expiry."""
         try:
             selected_tab = self._resolve_tab(initial_tab)
@@ -98,12 +123,23 @@ class SchedulerView(AdminBaseView):
             jobs = active_jobs = failed_jobs = task_stats = completed_runs = None
             total_successes = total_warnings = total_failures = overall_success_rate = 0
 
+            completed_jobs = []
             paging_data = parse_paging_data()
             match selected_tab:
                 case "scheduled":
                     jobs = persistence.get_objects(Job, paging_data, use_cache=False)
                 case "active":
                     active_jobs = persistence.get_objects(ActiveJob, paging_data, use_cache=False)
+                    if observed_jobs:
+                        try:
+                            completed_jobs = _completed_observed_jobs(observed_jobs, persistence)
+                        except Forbidden:
+                            # Completion history has a separate permission from live worker state.
+                            pass
+                        except HTTPException:
+                            raise
+                        except Exception:
+                            logger.exception("Failed to check observed job completions")
                 case "completed":
                     completed_runs = _completed_runs_page()
                 case "failed":
@@ -126,6 +162,7 @@ class SchedulerView(AdminBaseView):
                     "worker_stats": worker_stats,
                     "active_jobs": active_jobs,
                     "completed_runs": completed_runs,
+                    "completed_jobs": completed_jobs,
                     "failed_jobs": failed_jobs,
                     "task_stats": task_stats,
                     "total_successes": total_successes,
@@ -145,6 +182,15 @@ class SchedulerView(AdminBaseView):
             if is_htmx_request():
                 return self.render_response_notification({"error": "Failed to load scheduler dashboard."}), 500
             return render_template("errors/500.html", error="Failed to load scheduler dashboard."), 500
+
+    def post(self, initial_tab: str | None = None, **kwargs: Any) -> ResponseReturnValue:
+        if self._resolve_tab(initial_tab) != "active":
+            abort(405)
+        try:
+            observations = ObservedJobsRequest.model_validate(request.form.to_dict())
+        except ValidationError:
+            return self.render_response_notification({"error": "Invalid observed jobs."}), 400
+        return self.get(initial_tab=initial_tab, observed_jobs=observations.observed_jobs)
 
 
 class ScheduleQueuesAPI(AdminBaseView):

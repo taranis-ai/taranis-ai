@@ -1,52 +1,66 @@
 {% from "schedule/table.html" import refreshable_table %}
-{% set columns = [
-  {
-    "title": "Job Name",
-    "field": "name",
-    "sortable": true
-  },
-  {
-    "title": "Queue",
-    "field": "queue",
-    "sortable": true
-  },
-  {
-    "title": "Started At",
-    "field": "started_at",
-    "sortable": true
-  },
-  {
-    "title": "Status",
-    "field": "status",
-    "sortable": true
-  }
-] %}
-{% call(job) refreshable_table(
-  'active-jobs-table',
-  'active-jobs',
-  active_jobs,
-  columns,
-  url_for('admin.scheduler_active_jobs'),
-  'No jobs currently running'
-) %}
-  <tr class="hover:bg-info">
-    <td>
-      <div class="font-medium">{{ job.name }}</div>
-      <div class="text-xs opacity-50">{{ job.id }}</div>
-    </td>
-    <td><span class="badge badge-outline badge-sm">{{ job.queue }}</span></td>
-    <td>
-      {% if job.started_at %}
-        <span class="text-sm">{{ job.started_at | format_datetime }}</span>
-      {% else %}
-        <span class="text-xs opacity-50">-</span>
-      {% endif %}
-    </td>
-    <td>
-      <span class="badge badge-success badge-sm">
-        <span class="loading loading-spinner loading-xs"></span>
-        Running
-      </span>
-    </td>
-  </tr>
-{% endcall %}
+{% set observations = namespace(jobs=[]) %}
+{% for job in active_jobs %}
+  {% if job.started_at %}
+    {% set observations.jobs = observations.jobs + [{"id": job.id, "started_at": job.started_at}] %}
+  {% endif %}
+{% endfor %}
+<div id="active-jobs-table"
+     data-refresh-url="{{ url_for('admin.scheduler_active_jobs') }}{{ request.query_string.decode() and '?' ~ request.query_string.decode() }}"
+     data-active-jobs="{{ observations.jobs | tojson | forceescape }}"
+     data-completed-jobs="{{ completed_jobs | default([]) | tojson | forceescape }}"
+     x-data
+     x-init="$dispatch('scheduler:jobs-loaded', { active: JSON.parse($el.dataset.activeJobs), completed: JSON.parse($el.dataset.completedJobs) })">
+  {% set columns = [
+    {
+      "title": "Job Name",
+      "field": "name",
+      "sortable": true
+    },
+    {
+      "title": "Queue",
+      "field": "queue",
+      "sortable": true
+    },
+    {
+      "title": "Started At",
+      "field": "started_at",
+      "sortable": true
+    },
+    {
+      "title": "Status",
+      "field": "status",
+      "sortable": true
+    }
+  ] %}
+  {% call(job) refreshable_table(
+    'active-jobs-content',
+    'active-jobs',
+    active_jobs,
+    columns,
+    url_for('admin.scheduler_active_jobs'),
+    'No jobs currently running'
+  ) %}
+    <tr class="hover:bg-info">
+      <td>
+        <div class="font-medium">{{ job.name }}</div>
+        <div class="text-xs opacity-50">{{ job.id }}</div>
+      </td>
+      <td><span class="badge badge-outline badge-sm">{{ job.queue }}</span></td>
+      <td>
+        {% if job.started_at %}
+          <span class="text-sm">{{ job.started_at | format_datetime }}</span>
+        {% else %}
+          <span class="text-xs opacity-50">-</span>
+        {% endif %}
+      </td>
+      <td>
+        <span class="badge badge-success badge-sm">
+          <span class="loading loading-spinner loading-xs"></span>
+          Running
+        </span>
+      </td>
+    </tr>
+  {% endcall %}
+
+</div>

@@ -2821,6 +2821,16 @@ paths:
       - APIKey: []
       - UserAuth: []
       parameters:
+      - name: job_ids
+        in: query
+        required: false
+        description: Restrict results to exact job IDs before pagination. Repeat the parameter for multiple IDs. Omit it for all jobs; an empty value matches no jobs.
+        style: form
+        explode: true
+        schema:
+          type: array
+          items:
+            type: string
       - name: search
         in: query
         required: false
