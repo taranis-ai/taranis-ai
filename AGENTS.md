@@ -24,7 +24,7 @@ Use the human contributor's known membership or explicit statement, never reposi
 
 ## Tests and Signoff
 
-- Keep tests/docs proportional to risk. For small helpers, default to one focused behavior test and a short update to existing docs; add more only for distinct risks. Do not add a test matrix or standalone memory.
+- Keep tests/docs proportional to risk. For small helpers, when new coverage is needed, prefer one focused behavior test; add more only for distinct risks. Keep any update to existing docs short. Do not add a test matrix or standalone memory.
 - Add coverage only for uncovered behavior or material risks. Prefer extending existing tests; remove duplicates and mock-only tests. Zero new tests is appropriate when coverage suffices.
 - **No new tests, fixtures, helpers, or browser steps for cosmetic changes** (copy, labels, tooltips, icons, colors, spacing, layout). Update affected selectors/assertions only; use existing checks and brief browser inspection.
 - After feature development, commit and run `./dev/test_push_signoff.sh`. On failure, fix, commit, and rerun it. Focused E2E runs do not replace signoff; full E2E runs create and remove fresh isolated Compose stacks. See [the signoff loop](docs/agents/development-workflow.md#feature-signoff-loop).
