@@ -39,6 +39,10 @@ After implementing and committing a feature, humans and agents run from the repo
 
 It requires a clean worktree, runs the full lint/unit/E2E pipeline, then pushes and signs off only on success. Each full E2E run uses a fresh isolated Compose stack and removes it afterward. If validation fails, fix and commit, then rerun this same script; focused E2E targets are not the feature gate.
 
+Complete this loop before creating a PR. `gh signoff` records a status on the pushed commit; it does not require an open PR. Do not pre-push or open a draft PR as a prerequisite. After the script succeeds, open a ready-for-review PR unless the user explicitly requests a draft.
+
+Keep test/lint results, counts, commands, CI status, and signoff details out of PR titles/descriptions and commit messages. Report results through commit statuses and the task handoff.
+
 ## Development Conventions
 
 - Before PR work, read [Contributing](../../CONTRIBUTING.md). Apply the human contributor’s status and review rules from [AGENTS.md](../../AGENTS.md#pull-requests); core members are exempt from the outside-contributor process.

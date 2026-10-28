@@ -18,6 +18,8 @@ Agent name: jipitiii. taranis.ai is an OSINT application; see [README.md](README
 
 ## Pull Requests
 
+Add every PR to the **Taranis AI** GitHub project.
+
 [Contributing](CONTRIBUTING.md) and the mandatory [PR template](.github/pull_request_template.md) process apply to outside collaborators. [taranis-ai/ait](https://github.com/orgs/taranis-ai/teams/ait) core members may omit template sections, prompts, contributor confirmations, and review-time estimates. Shared code, security, testing, licensing, attribution, and review rules still apply.
 
 Use the human contributor's known membership or explicit statement, never repository write access alone. Do not request external-contributor disclosures from core members. For outside collaborators, obtain missing prompts before requesting review; leave human confirmations unchecked unless explicitly provided. Agents cannot establish a human's understanding or responsibility.
