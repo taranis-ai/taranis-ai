@@ -137,3 +137,46 @@ def test_settings_patch_action_sends_only_submitted_fields(app, monkeypatch, met
         )
     ]
     assert '<span id="notification-message">Successfully updated settings</span>' in body
+
+
+def test_llm_model_catalog_proxies_authenticated_request(app, monkeypatch):
+    from frontend.views.admin_views import settings_views
+
+    calls = []
+
+    class FakeResponse:
+        status_code = 401
+
+        @staticmethod
+        def json():
+            return {"error": "OrcaRouter rejected this API key.", "code": "catalog_auth_failed", "models": []}
+
+    class FakeCoreApi:
+        def api_post(self, action_url, json_data=None):
+            calls.append((action_url, json_data))
+            return FakeResponse()
+
+    monkeypatch.setattr(settings_views, "CoreApi", FakeCoreApi)
+
+    with app.test_request_context(
+        "/admin/settings/llm-model-catalog",
+        method="POST",
+        json={"endpoint_id": "saved", "api_format": "chat_completions", "api_key": "typed-key"},
+    ):
+        data, status = settings_views.SettingsView.llm_model_catalog_action()
+
+    assert calls == [
+        (
+            "/settings/llm-model-catalog",
+            {"endpoint_id": "saved", "api_format": "chat_completions", "api_key": "typed-key"},
+        )
+    ]
+    assert status == 401
+    assert data["code"] == "catalog_auth_failed"
+
+    with app.test_request_context("/admin/settings/llm-model-catalog", method="POST", data="not-json", content_type="text/plain"):
+        data, status = settings_views.SettingsView.llm_model_catalog_action()
+
+    assert status == 400
+    assert data["code"] == "invalid_request"
+    assert len(calls) == 1
