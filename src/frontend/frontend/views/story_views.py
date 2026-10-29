@@ -13,6 +13,7 @@ from flask import Response, abort, after_this_request, flash, json, make_respons
 from flask.typing import ResponseReturnValue
 from flask_jwt_extended import current_user
 from models.assess import (
+    ASSESS_ADVANCED_ASSET_FILTER_KEYS,
     ASSESS_FILTER_KEYS,
     ASSESS_FILTER_MULTI_KEYS,
     AssessSearchFilters,
@@ -44,8 +45,9 @@ from frontend.core_api import CoreApi
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.log import logger
 from frontend.utils.form_data_parser import parse_formdata
-from frontend.utils.router_helpers import is_htmx_request, parse_paging_data
+from frontend.utils.router_helpers import get_assess_return_url, is_htmx_request, parse_paging_data
 from frontend.utils.validation_helpers import format_pydantic_errors
+from frontend.views.asset_intelligence_views import load_scan_status
 from frontend.views.base_view import BaseView
 
 
@@ -119,14 +121,25 @@ class StoryView(BaseView):
             filters_url = (
                 cls._build_assess_filters_url(assess_request_args) if assess_request_args else url_for("assess.assess", reset="true")
             )
-            base_context["assess_return_url"] = (
-                filters_url if request.endpoint == "assess.assess" else cls._get_assess_return_url() or filters_url
-            )
+            base_context["assess_return_url"] = filters_url if request.endpoint == "assess.assess" else get_assess_return_url() or filters_url
         else:
-            base_context["assess_return_url"] = cls._get_assess_return_url()
+            base_context["assess_return_url"] = get_assess_return_url()
         if request.headers.get("HX-Target", "").split("#")[-1] != "story-list":
             base_context["bookmark_collections"] = cls._get_bookmark_bar_collections()
         base_context["assess_bookmark_bar_limit"] = ASSESS_BOOKMARK_BAR_LIMIT
+        base_context["asset_filters"] = AssessSearchFilters.model_validate(cls._normalize_assess_filter_payload(assess_request_args))
+        base_context["asset_filter_lists"] = {"assets": [], "groups": [], "tags": []}
+        if request.endpoint == "assess.assess" and "ASSETS_ACCESS" in current_user.permissions:
+            try:
+                api = CoreApi()
+                response = api.session.get(f"{api.api_url}/assess/asset-filter-lists", timeout=api.timeout)
+                if response.ok:
+                    base_context["asset_filter_lists"] = response.json()
+                else:
+                    base_context["asset_filter_error"] = "Unable to load asset filter choices."
+            except RequestException, ValueError:
+                logger.exception("Asset filter choices unavailable")
+                base_context["asset_filter_error"] = "Unable to load asset filter choices."
         base_context["source_filter_select"] = cls._build_source_filter_select(filter_lists, assess_request_args)
         base_context["language_filter_select"] = cls._build_language_filter_select(filter_lists, assess_request_args)
         time_presets = dict(ASSESS_TIME_PRESETS)
@@ -184,22 +197,6 @@ class StoryView(BaseView):
             base_context["stories"] = enhanced_stories
         return base_context
 
-    @staticmethod
-    def _get_assess_return_url() -> str | None:
-        assess_path = url_for("assess.assess")
-        try:
-            current_url = urlparse(request.headers.get("HX-Current-URL", ""))
-            candidate = request.args.get("assess_url", "") or parse_qs(current_url.query).get("assess_url", [""])[0]
-            if not candidate and current_url.path == assess_path:
-                candidate = f"{assess_path}?{current_url.query}"
-            parsed = urlparse(candidate)
-        except ValueError:
-            return None
-        if candidate.startswith("/") and not parsed.scheme and not parsed.netloc and parsed.path == assess_path:
-            query = urlencode(parse_qs(parsed.query), doseq=True)
-            return f"{assess_path}?{query}" if query else assess_path
-        return None
-
     @classmethod
     def model_plural_name(cls) -> str:
         return "stories"
@@ -227,7 +224,7 @@ class StoryView(BaseView):
         else:
             source_ids = list(dict.fromkeys(source_ids))
         story.source_infos = [sources[source_id] for source_id in source_ids]  # type: ignore
-        assess_url = None if request.endpoint == "assess.assess" and request.method == "GET" else StoryView._get_assess_return_url()
+        assess_url = None if request.endpoint == "assess.assess" and request.method == "GET" else get_assess_return_url()
         filter_params = parse_qs(urlparse(assess_url).query) if assess_url else request.args.to_dict(flat=False)
         filter_params = {key: values for key, values in filter_params.items() if key in ASSESS_FILTER_KEYS | {"order", "limit"}}
         story.source_filter_urls = {  # type: ignore
@@ -451,8 +448,11 @@ class StoryView(BaseView):
         params = {
             key: [value for value in values if value not in (None, "")]
             for key, values in (request_params or request.args.to_dict(flat=False)).items()
-            if key in ASSESS_FILTER_KEYS | {"page", "offset", "limit", "order", "reset", "exclude_attr"}
+            if key in ASSESS_FILTER_KEYS | {"page", "offset", "limit", "order", "reset", "exclude_attr", "_asset_filters_form"}
         }
+        if params.pop("_asset_filters_form", None) and params.get("asset_match") != ["true"]:
+            for key in ASSESS_ADVANCED_ASSET_FILTER_KEYS:
+                params.pop(key, None)
         has_reset = "reset" in params
         params.pop("reset", None)
         if has_reset:
@@ -925,8 +925,15 @@ class StoryView(BaseView):
         request_params: dict[str, list[str]],
         selected_story_ids: list[str] | None = None,
     ):
+        normalized_filters = cls._normalize_assess_filter_payload(request_params)
+        asset_match_enabled = normalized_filters.get("asset_match") == "true"
+        scan_run, scan_error = None, None
+        if asset_match_enabled and normalized_filters.get("asset_id") and "ASSETS_ACCESS" in current_user.permissions:
+            # Read status before the list so the last poll includes completed scan results.
+            scan_run, scan_error = load_scan_status(normalized_filters["asset_id"])
         try:
-            items = DataPersistenceLayer().get_objects(cls.model, paging_data=paging_data)
+            cache_options = {"use_cache": False} if asset_match_enabled else {}
+            items = DataPersistenceLayer().get_objects(cls.model, paging_data=paging_data, **cache_options)
         except HTTPException:
             raise
         except Exception:
@@ -945,6 +952,13 @@ class StoryView(BaseView):
         context["pagination"] = cls._build_pagination_context(items, paging_data, request_params)
         context["assess_selection_key"] = cls._build_assess_selection_key(request_params)
         context["selected_story_ids"] = selected_story_ids or []
+        context["asset_match_enabled"] = asset_match_enabled
+        context["asset_filters"] = AssessSearchFilters.model_validate(normalized_filters)
+        context["assess_return_url"] = (
+            cls._build_assess_filters_url(request_params) if request_params else url_for("assess.assess", reset="true")
+        )
+        context["asset_scan_run"] = scan_run
+        context["asset_scan_error"] = scan_error
 
         template = cls.get_list_template()
         if is_htmx_request() and request.headers.get("HX-Target", "").split("#")[-1] == "story-list":
@@ -978,6 +992,44 @@ class StoryView(BaseView):
         if notification and status < 400:
             return make_response(notification + table, status)
         return make_response(table, status)
+
+    @classmethod
+    def _refresh_asset_filtered_assess(cls, notification: str) -> Response | None:
+        if cls._get_current_url_path() != url_for("assess.assess"):
+            return None
+        params = parse_qs(urlparse(request.headers.get("HX-Current-URL", "")).query)
+        if cls._normalize_assess_filter_payload(params).get("asset_match") != "true":
+            return None
+        response = cls.rerender_list(notification)
+        target = "#assess" if response.status_code < 400 else "#notification-bar"
+        response.headers.update({"HX-Retarget": target, "HX-Reselect": target, "HX-Reswap": "outerHTML"})
+        return response
+
+    @classmethod
+    @auth_required("ASSESS_ACCESS")
+    def asset_matches(cls, story_id: str):
+        assess_return_url = get_assess_return_url()
+        params = parse_qs(urlparse(assess_return_url or "").query)
+        params = {key: values for key, values in params.items() if key in ASSESS_FILTER_KEYS}
+        data, error, status = None, None, 200
+        try:
+            api = CoreApi()
+            response = api.session.get(f"{api.api_url}/assess/stories/{story_id}/asset-matches", params=params, timeout=api.timeout)
+            status = response.status_code
+            if response.ok:
+                data = response.json()
+            else:
+                error = "Unable to load asset matches."
+        except RequestException, ValueError:
+            logger.exception("Unable to load asset matches")
+            error, status = "Unable to load asset matches. Please try again.", 502
+        return render_template(
+            "assess/asset_matches.html" if is_htmx_request() else "assess/asset_matches_page.html",
+            data=data,
+            error=error,
+            story_id=story_id,
+            assess_return_url=assess_return_url,
+        ), status
 
     @classmethod
     def list_view(cls) -> ResponseReturnValue:
@@ -1152,7 +1204,7 @@ class StoryView(BaseView):
             template,
             story=story,
             bookmark_id=cls._get_bookmark_id(),
-            assess_return_url=cls._get_assess_return_url(),
+            assess_return_url=get_assess_return_url(),
             delete_target=cls._get_story_action_target([story_id]),
         ), 200
 
@@ -1646,6 +1698,8 @@ class StoryView(BaseView):
                 if not response.ok:
                     return cls.get_notification_from_response(response, oob=False), response.status_code
                 notification_html = cls.get_notification_from_response(response)
+                if response.ok and (refreshed := cls._refresh_asset_filtered_assess(notification_html)) is not None:
+                    return refreshed
                 content = cls._get_action_response_content(story_id)
                 return make_response(notification_html + content, 200)
             except HTTPException:
@@ -1664,7 +1718,7 @@ class StoryView(BaseView):
                         notification=cls.get_notification_from_response(core_response),
                     )
                 cls.add_flash_notification(core_response)
-                return cls.redirect_htmx(url_for("assess.assess"))
+                return cls.redirect_htmx(get_assess_return_url() or url_for("assess.assess"))
             except HTTPException:
                 raise
             except Exception:
@@ -1716,10 +1770,12 @@ class StoryView(BaseView):
             cls.add_flash_notification(response)
             if bookmark_id:
                 return cls.redirect_htmx(url_for("assess.bookmark", bookmark_id=bookmark_id))
-            return cls.redirect_htmx(url_for("assess.story", story_id=story_id, assess_url=cls._get_assess_return_url()))
+            return cls.redirect_htmx(url_for("assess.story", story_id=story_id, assess_url=get_assess_return_url()))
 
         notification_html = cls.get_notification_from_response(response)
 
+        if response.ok and (refreshed := cls._refresh_asset_filtered_assess(notification_html)) is not None:
+            return refreshed
         content = cls._get_action_response_content(story_id)
         return make_response(notification_html + content, 200)
 

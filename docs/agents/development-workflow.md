@@ -20,7 +20,7 @@ Run component commands from that component's directory; CI definitions are in `.
 - For other urgent security fixes, use a temporary package-specific upload cutoff that admits the reviewed fix while excluding later releases. Remove the cutoff once the fixed artifacts satisfy the normal one-week delay. The worker's Brotli cutoffs admit the October 22 fixes for CVE-2026-111497.
 - Lint changed components with `uv run ruff check`; use `--fix` and `uv run ruff format` as appropriate. After Python edits, run `./dev/check_pyrefly.sh` from the repository root.
 - Models has no unit tests. Worker browser-scraping tests require Playwright browsers.
-- Core tests use a per-session temporary SQLite database and in-process Redis fakes to avoid affecting concurrent test runs or running instances. Do not uncomment disabled E2E admin tests on `master` without proving they pass.
+- Core tests use a per-session temporary SQLite database, temporary data directory, and in-process Redis fakes to avoid affecting concurrent test runs or running instances. The data directory also keeps presenter templates separate from files owned by Compose containers. Do not uncomment disabled E2E admin tests on `master` without proving they pass.
 - Project Codex configuration filters inherited `DEBUG` values so the extension's `DEBUG=release` cannot override component boolean settings.
 - `jactionlint` reads `.github/jactionlint.yaml`. It allows version-tagged actions and the release action while keeping other workflow checks enabled.
 - Workflows with `run` steps set `defaults.run.shell: bash` so a failing pipeline command fails the step. Keep exceptions explicit at the step level.

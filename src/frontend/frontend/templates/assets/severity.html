@@ -1,0 +1,19 @@
+{% macro reported_severity(score) -%}
+  {% if score is none %}
+    <span class="badge badge-ghost badge-sm">Unscored</span>
+  {% else %}
+    {% if score >= 9 %}
+      {% set label, color = 'Critical', 'badge-error' %}
+    {% elif score >= 7 %}
+      {% set label, color = 'High', 'badge-error' %}
+    {% elif score >= 4 %}
+      {% set label, color = 'Medium', 'badge-warning' %}
+    {% elif score > 0 %}
+      {% set label, color = 'Low', 'badge-success' %}
+    {% else %}
+      {% set label, color = 'None', 'badge-success' %}
+    {% endif %}
+    <span class="badge badge-sm {{ color }}"
+          title="Highest source-reported CVSS among matching CVEs. This does not confirm that an installed version is vulnerable.">{{ label }} · CVSS {{ score }}</span>
+  {% endif %}
+{%- endmacro %}

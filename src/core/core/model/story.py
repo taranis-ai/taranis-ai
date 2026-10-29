@@ -420,6 +420,9 @@ class Story(BaseModel):
 
         if tags := filter_args.get("tags"):
             for tag in tags:
+                if filter_args.get("asset_match") == "true" and re.fullmatch(r"CVE-\d{4}-\d{4,}", tag.strip(), re.IGNORECASE):
+                    # Asset matching checks normalized CVE associations across visible articles.
+                    continue
                 matching_tags = (
                     db.select(NewsItem.id)
                     .join(NewsItemTag, NewsItem.id == NewsItemTag.news_item_id)
@@ -584,13 +587,25 @@ class Story(BaseModel):
             base_query = cls.visible_query(user, base_query)
 
         query = cls._add_sorting_to_query(filter_args, base_query)
-        query = cls._add_paging_to_query(filter_args, query)
+        matched_assets = None
+        matched_counts = None
+        if str(filter_args.get("asset_match", "false")).lower() == "true":
+            if not user or not {"ASSESS_ACCESS", "ASSETS_ACCESS"}.issubset(user.get_permissions()):
+                raise PermissionError("Asset access is required to filter asset matches.")
+            from core.service.assess_asset_matches import assess_match_page
+
+            matched_assets, matched_counts = assess_match_page(user, query, filter_args)
+            query = base_query.where(cls.id.in_(matched_assets)).order_by(None)
+            if matched_assets:
+                query = query.order_by(db.case({story_id: position for position, story_id in enumerate(matched_assets)}, value=cls.id))
+        else:
+            query = cls._add_paging_to_query(filter_args, query)
 
         if filter_args.get("worker", False) or not user:
             return [s.to_worker_dict() for s in cls.get_filtered(query) or []], None
 
-        story_ids = list(db.session.scalars(query.with_only_columns(cls.id)))
-        if filter_args.get("limit"):
+        story_ids = list(matched_assets) if matched_assets is not None else list(db.session.scalars(query.with_only_columns(cls.id)))
+        if filter_args.get("limit") and matched_assets is None:
             query = base_query.where(cls.id.in_(story_ids)).order_by(None)
             if story_ids:
                 query = query.order_by(db.case({story_id: position for position, story_id in enumerate(story_ids)}, value=cls.id))
@@ -619,6 +634,8 @@ class Story(BaseModel):
             for story in cls.get_filtered(query) or []:
                 story_data = story.to_dict(user=user, writable_sources=writable_sources, bookmarked=story.id in bookmarked_ids)
                 story_data["revision_count"] = story.get_revision_count()
+                if matched_assets is not None:
+                    story_data["matched_assets"] = matched_assets[story.id]
                 stories.append(story_data)
             return stories, None
 
@@ -632,10 +649,12 @@ class Story(BaseModel):
             story_data["revision_count"] = story.get_revision_count()
             story_data["user_vote"] = user_vote
             story_data["in_reports_count"] = report_count
+            if matched_assets is not None:
+                story_data["matched_assets"] = matched_assets[story.id]
             biggest_story = max(biggest_story, len(story_data["news_items"]))
             stories.append(story_data)
 
-        additional_counts = cls.get_additional_counts(base_query)._mapping
+        additional_counts = matched_counts if matched_counts is not None else cls.get_additional_counts(base_query)._mapping
 
         count_dict = {
             "total_count": additional_counts["total_count"],

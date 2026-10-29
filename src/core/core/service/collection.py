@@ -13,6 +13,7 @@ from core.managers.db_manager import db
 from core.model.news_item import NewsItem
 from core.model.osint_source import OSINTSource
 from core.model.story import Story
+from core.service.asset_intelligence import match_news_items
 from core.service.misp_auto_update import refresh_misp_auto_update_jobs
 
 
@@ -37,8 +38,10 @@ class CollectionService:
                     db.session.rollback()
                     error = result
                     break
-                db.session.commit()
                 action = result["action"]
+                if action in ("created", "updated", "grouped"):
+                    match_news_items(result["news_item_ids"])
+                db.session.commit()
                 counts[action] += 1
                 if action in ("created", "updated", "grouped"):
                     story_ids.append(result["story_id"])

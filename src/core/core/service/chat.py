@@ -9,7 +9,7 @@ from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import requests
-from models.assess import AssessSearchFilters
+from models.assess import ASSESS_ADVANCED_ASSET_FILTER_KEYS, AssessSearchFilters
 from redis.exceptions import LockError, RedisError
 
 from core.config import Config
@@ -155,6 +155,8 @@ class ChatClient:
         }
         if search:
             schema = AssessSearchFilters.model_json_schema()
+            for key in ASSESS_ADVANCED_ASSET_FILTER_KEYS:
+                schema["properties"].pop(key, None)
             payload["tools"] = [
                 {
                     "type": "function",
@@ -619,7 +621,10 @@ class ChatService:
     @staticmethod
     def _search_filters(arguments: Any, catalog: dict[str, Any], recent_story_ids: set[str]) -> AssessSearchFilters:
         try:
-            filters = AssessSearchFilters.model_validate_json(arguments)
+            payload = json.loads(arguments)
+            if isinstance(payload, dict) and payload.keys() & ASSESS_ADVANCED_ASSET_FILTER_KEYS:
+                raise ValueError
+            filters = AssessSearchFilters.model_validate(payload)
             for values, allowed in (
                 (filters.source, {item["id"] for item in catalog.get("sources", [])}),
                 (filters.group, {item["id"] for item in catalog.get("groups", [])}),

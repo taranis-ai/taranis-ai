@@ -103,6 +103,9 @@ class TaskService:
 
     @staticmethod
     def cleanup_history() -> tuple[dict[str, Any], int]:
+        from core.service.sbom_upload import expire_uploads
+
+        expire_uploads()
         retention_days = Config.TASK_HISTORY_RETENTION_DAYS
         cutoff = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=retention_days)
         deleted = TaskModel.delete_older_than_last_run(cutoff)

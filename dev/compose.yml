@@ -7,7 +7,7 @@ services:
     shm_size: 4gb
     environment:
       LLAMA_API_KEY: "${LLM_INFERENCE_API_KEY:-}"
-    command: ["--ctx-size", "8192", "--jinja"]
+    command: ["--ctx-size", "8192", "--jinja", "--reasoning", "off"]
     ports:
       - "127.0.0.1:${LLM_INFERENCE_PORT:-8000}:8000"
     healthcheck:

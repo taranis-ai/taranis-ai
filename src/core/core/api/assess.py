@@ -30,6 +30,7 @@ from core.model import bot, connector, news_item, news_item_tag, osint_source, r
 from core.model.filter_data import FilterData
 from core.model.story_conflict import StoryConflict
 from core.service.analyst_review import AnalystReviewService
+from core.service.assess_asset_matches import asset_filter_lists, story_asset_evidence
 from core.service.cache_invalidation import (
     SCOPE_ASSESS_VIEWS,
     SCOPE_REPORT_VIEWS,
@@ -179,21 +180,49 @@ class UpdateNewsItemTags(MethodView):
         return response, status
 
 
+def assess_request_filters() -> AssessSearchFilters:
+    raw_filters: dict[str, str | list[str]] = {}
+    for key in ASSESS_FILTER_KEYS:
+        if key not in request.args:
+            continue
+        if key in ASSESS_FILTER_MULTI_KEYS:
+            values = request.args.getlist(key)
+            raw_filters[key] = [unquote(value) for value in values] if key == "tags" else values
+        else:
+            raw_filters[key] = request.args[key]
+    return AssessSearchFilters.model_validate(raw_filters)
+
+
+class AssetFilterLists(MethodView):
+    @auth_required("ASSESS_ACCESS")
+    def get(self):
+        if "ASSETS_ACCESS" not in current_user.get_permissions():
+            return {"error": "Asset access is required."}, 403
+        return asset_filter_lists(current_user), 200
+
+
+class StoryAssetMatches(MethodView):
+    @auth_required("ASSESS_ACCESS")
+    def get(self, story_id: str):
+        if "ASSETS_ACCESS" not in current_user.get_permissions():
+            return {"error": "Asset access is required."}, 403
+        if not story.Story.get_filtered(story.Story.visible_query(current_user).where(story.Story.id == story_id)):
+            return {"error": "Story not found."}, 404
+        try:
+            filters = assess_request_filters()
+            filters.asset_match = True
+            return story_asset_evidence(current_user, story_id, filters), 200
+        except ValidationError as exc:
+            return _validation_error_response(exc)
+
+
 class Stories(MethodView):
     @auth_required("ASSESS_ACCESS")
     def get(self):
         try:
-            raw_filters: dict[str, str | list[str]] = {}
-            for key in ASSESS_FILTER_KEYS:
-                if key not in request.args:
-                    continue
-                if key in ASSESS_FILTER_MULTI_KEYS:
-                    values = request.args.getlist(key)
-                    raw_filters[key] = [unquote(value) for value in values] if key == "tags" else values
-                elif value := request.args.get(key):
-                    raw_filters[key] = value
-
-            filter_args: dict[str, Any] = AssessSearchFilters.model_validate(raw_filters).to_query_params()
+            filter_args: dict[str, Any] = assess_request_filters().to_query_params()
+            if filter_args.get("asset_match") == "true" and "ASSETS_ACCESS" not in current_user.get_permissions():
+                return {"error": "Asset access is required to filter asset matches."}, 403
             filter_args.update({key: request.args[key] for key in ("no_count", "exclude_attr") if key in request.args})
 
             filter_args["limit"] = min(int(request.args.get("limit", 20)), 400)
@@ -653,6 +682,8 @@ def initialize(app: Flask):
     assess_bp.add_url_rule("/osint-source-group-list", view_func=OSINTSourceGroupsList.as_view("osint_source_groups-list"))
     assess_bp.add_url_rule("/osint-sources-list", view_func=OSINTSourcesList.as_view("osint_sources_list"))
     assess_bp.add_url_rule("/taglist", view_func=StoryTagList.as_view("taglist"))
+    assess_bp.add_url_rule("/asset-filter-lists", view_func=AssetFilterLists.as_view("asset_filter_lists"))
+    assess_bp.add_url_rule("/stories/<string:story_id>/asset-matches", view_func=StoryAssetMatches.as_view("story_asset_matches"))
     assess_bp.add_url_rule("/filter-lists", view_func=FilterLists.as_view("filter_lists"))
     assess_bp.add_url_rule("/import", view_func=AssessImport.as_view("import"))
     assess_bp.add_url_rule("/news-items", view_func=NewsItems.as_view("news_items"))
