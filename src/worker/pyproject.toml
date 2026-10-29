@@ -145,7 +145,8 @@ reportIncompatibleMethodOverride = "none"
 config-settings = { editable_mode = "compat" }
 exclude-newer = "1 week"
 # Allow security updates to the certificate bundle and image decoders without the release delay.
-exclude-newer-package = { "taranis-llm-bot" = false, certifi = false, pillow = false }
+# CVE-2026-111497: allow the October 22 fixes only; remove both Brotli cutoffs once the artifacts are a week old.
+exclude-newer-package = { "taranis-llm-bot" = false, certifi = false, pillow = false, brotli = "2026-10-23T00:00:00Z", brotlicffi = "2026-10-23T00:00:00Z" }
 required-environments = [
   "sys_platform == 'linux' and platform_machine == 'x86_64'",
   "sys_platform == 'linux' and platform_machine == 'aarch64'",

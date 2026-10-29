@@ -17,6 +17,7 @@ Run component commands from that component's directory; CI definitions are in `.
 
 - For branch-wide validation, run `./dev/testpipeline.sh` from the repository root. It syncs environments and runs audits, lint, unit tests, and the full isolated frontend E2E suite. Narrow targets isolate failures but do not replace signoff.
 - `certifi` and Pillow are exempt from the one-week dependency cooling period so fixes for compromised CA roots and image-decoder advisories can be locked immediately. Upgrade only the affected packages with `uv lock --upgrade-package`; keep audit checks enabled.
+- For other urgent security fixes, use a temporary package-specific upload cutoff that admits the reviewed fix while excluding later releases. Remove the cutoff once the fixed artifacts satisfy the normal one-week delay. The worker's Brotli cutoffs admit the October 22 fixes for CVE-2026-111497.
 - Lint changed components with `uv run ruff check`; use `--fix` and `uv run ruff format` as appropriate. After Python edits, run `./dev/check_pyrefly.sh` from the repository root.
 - Models has no unit tests. Worker browser-scraping tests require Playwright browsers.
 - Core tests use a per-session temporary SQLite database and in-process Redis fakes to avoid affecting concurrent test runs or running instances. Do not uncomment disabled E2E admin tests on `master` without proving they pass.
