@@ -98,26 +98,14 @@ application behavior to make the baseline pass.
 
 ## Current baseline state
 
+The full synthetic run and its exclusions are summarized in
+[Core ORM Profiling Findings](orm-performance-findings.md). The report is not
+complete: two batch routes are still marked pending by the coverage rule, and
+204 ORM declarations still need scenarios or evidence-backed exclusions. The
+batch routes have timing samples for all supported batch sizes; the coverage
+rule currently asks them for stress profiles that do not apply to batch cases.
 No sanitized production snapshot or approved production aggregates have been
-supplied. The synthetic manifest is frozen from the reviewed pilot cardinalities
-in `baseline/manifest-v1.json`.
-
-The first canonical slice is run `20261030t110327z-3199488` against the frozen
-normal profile. `assess.stories` completed 30 measured rounds with a 43.5 ms
-median and 49.7 ms p95; its matched uninstrumented control median was 42.2 ms.
-The instrumented samples had a median of 23 SQL statements, 8 relationship
-loads, 15.1 ms cursor execution time, and 2.33 ms of PostgreSQL execution time.
-PostgreSQL reported no shared block reads. The response payload median was
-313,422 bytes. The sample includes the Assess story query and eager relationship
-loads for news items, attributes, tags, sources, roles, and user data.
-
-cProfile and Memray outputs for this path are in the same local run directory;
-they are diagnostic runs and are not comparable to canonical latency. Native
-artifact checksums are in the run's `checksums.json`; raw artifacts remain
-gitignored. The source-state check passed. This is a synthetic, single-path
-result, not a production-wide baseline or an optimization recommendation. The
-report still lists uncovered routes, methods, and entrypoints, so Phase 2 is
-incomplete.
+supplied.
 
 PostgreSQL correctness discovery on the base application found three existing
 failures: product-type search applies `ILIKE` to a PostgreSQL enum, and the
