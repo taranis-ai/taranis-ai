@@ -1,0 +1,72 @@
+services:
+  database:
+    image: postgres:18-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873
+    environment:
+      POSTGRES_DB: orm_profile
+      POSTGRES_USER: orm_profile
+      POSTGRES_PASSWORD: profiling-only
+    command:
+      - postgres
+      - -c
+      - shared_preload_libraries=pg_stat_statements
+      - -c
+      - compute_query_id=on
+      - -c
+      - shared_buffers=64MB
+      - -c
+      - max_connections=100
+      - -c
+      - track_io_timing=on
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U orm_profile -d orm_profile]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+    volumes:
+      - database:/var/lib/postgresql
+    networks: [isolated]
+  redis:
+    image: redis:8-alpine@sha256:6cbef353e480a8a6e7f10ec545f13d7d3fa85a212cdcc5ffaf5a1c818b9d3798
+    command: [redis-server, --save, "", --appendonly, "no"]
+    tmpfs: [/data]
+    networks: [isolated]
+  core:
+    build:
+      context: ../..
+      dockerfile: dev/orm/Containerfile
+    working_dir: /workspace/src/core
+    environment:
+      UV_PROJECT_ENVIRONMENT: /opt/venv
+      SETUPTOOLS_SCM_PRETEND_VERSION: 0.0.dev0
+      DEBUG: "true"
+      SQLALCHEMY_DATABASE_URI: postgresql+psycopg://orm_profile:profiling-only@database/orm_profile
+      ORM_POSTGRES_URI: postgresql+psycopg://orm_profile:profiling-only@database/orm_profile
+      ORM_ARTIFACT_DIR: /artifacts
+      ORM_BASE_COMMIT: ${ORM_BASE_COMMIT:?baseline commit required}
+      REDIS_URL: redis://redis:6379/0
+      API_KEY: test_key
+      JWT_SECRET_KEY: test_key_for_tests_only_do_not_use
+      TARANIS_AUTHENTICATOR: database
+      REALTIME_ENABLED: "false"
+      DATA_FOLDER: /tmp/orm-data
+      TARANIS_CORE_SENTRY_DSN: ""
+      OTEL_EXPORTER_OTLP_ENDPOINT: ""
+      SKIP_INITIAL_USER_ONBOARDING: "false"
+      PRE_SEED_PASSWORD_USER: test
+      ORM_SNAPSHOT: ${ORM_SNAPSHOT:-}
+      UV_CACHE_DIR: /tmp/uv-cache
+      LOGNAME: orm-profiler
+    volumes:
+      - ../..:/workspace:ro
+      - ${ORM_ARTIFACT_DIR:?artifact directory required}:/artifacts
+    depends_on:
+      database:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks: [isolated]
+networks:
+  isolated:
+    internal: true
+volumes:
+  database:

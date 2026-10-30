@@ -76,6 +76,11 @@ dev = [
     "pyright",
     "pyrefly>=1.1.1",
 ]
+performance = [
+    "memray>=1.20.0",
+    "opentelemetry-instrumentation-sqlalchemy>=0.66b1",
+    "pytest-benchmark>=5.3.0",
+]
 
 [project.urls]
 "Source Code" = "https://github.com/taranis-ai/taranis-ai"
@@ -95,6 +100,7 @@ lines-after-imports = 2
 
 [tool.pytest.ini_options]
 pythonpath = [".", "../.."]
+markers = ["orm_performance: manual PostgreSQL-only ORM profiling"]
 filterwarnings = [
     "ignore:.*_app_ctx_stack.*:DeprecationWarning",
     "ignore::DeprecationWarning",

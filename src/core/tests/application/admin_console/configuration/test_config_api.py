@@ -47,11 +47,16 @@ _VALID_GIF_ICON_BYTES = _make_icon_bytes((8, 8), "GIF", mode="P", color=1)
     ("resource", "unique_field", "extra_fields"),
     [("roles", "name", {}), ("users", "username", {"name": "Duplicate user", "organization": None, "roles": []})],
 )
-def test_admin_duplicate_values_allow_retry(client, auth_header, namespace, resource, unique_field, extra_fields):
+def test_admin_duplicate_values_allow_retry(client, auth_header, db, namespace, resource, unique_field, extra_fields):
     url = f"/api/{namespace}/{resource}"
     original_value = f"duplicate-{uuid.uuid4().hex}"
     editable_value = f"editable-{uuid.uuid4().hex}"
     created_ids = []
+    duplicate_error = (
+        f"A unique {unique_field} is required. A record with this {unique_field} already exists."
+        if db.engine.dialect.name == "postgresql"
+        else "A record with these values already exists."
+    )
     try:
         for value in (original_value, editable_value):
             response = client.post(url, json={**extra_fields, unique_field: value}, headers=auth_header)
@@ -61,12 +66,12 @@ def test_admin_duplicate_values_allow_retry(client, auth_header, namespace, reso
         duplicate = {**extra_fields, unique_field: original_value}
         response = client.post(url, json=duplicate, headers=auth_header)
         assert response.status_code == 400
-        assert response.json == {"error": "A record with these values already exists."}
+        assert response.json == {"error": duplicate_error}
 
         edit_url = f"{url}/{created_ids[1]}"
         response = client.put(edit_url, json=duplicate, headers=auth_header)
         assert response.status_code == 400
-        assert response.json == {"error": "A record with these values already exists."}
+        assert response.json == {"error": duplicate_error}
         assert client.get(edit_url, headers=auth_header).json[unique_field] == editable_value
 
         retry_value = f"retry-{uuid.uuid4().hex}"

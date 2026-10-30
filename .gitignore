@@ -44,3 +44,4 @@ screenshot_*.png
 *.sln
 *.sw?
 /.python-version
+/.orm-artifacts/

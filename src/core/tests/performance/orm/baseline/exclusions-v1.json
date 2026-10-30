@@ -1,0 +1,42 @@
+{
+  "GET /api/connectors/conflicts/stories/<string:story_id>": {
+    "reason": "Reads only the process-local conflict dictionary; the scenario with an existing conflict is measured on the same handler and its database resolution branch.",
+    "source": "src/core/core/api/connectors.py:19-23"
+  },
+  "GET /api/static/default_word_lists.json": {
+    "reason": "Serves a packaged JSON file directly from the filesystem.",
+    "source": "src/core/core/api/static.py:12"
+  },
+  "GET /api/static/openapi3_1.yaml": {
+    "reason": "Serves a packaged OpenAPI file directly from the filesystem.",
+    "source": "src/core/core/api/static.py:17"
+  },
+  "GET /static/<path:filename>": {
+    "reason": "Flask's generated static-file handler serves files without entering Core persistence.",
+    "source": "Flask application static route"
+  },
+  "POST /api/assess/news-items/fetch": {
+    "reason": "Successful processing waits for the separate simple-web-collector worker; the isolated Core stack has no Worker process, and this route persists no data itself. Its authenticated rejection path is represented by other Assess scenarios.",
+    "source": "src/core/core/service/story.py:335-345; src/worker/worker/core_api.py:294-313"
+  },
+  "POST /api/connectors/conflicts/clear": {
+    "reason": "Clears only process-local conflict dictionaries; the handler performs no database access.",
+    "source": "src/core/core/api/connectors.py:99-105; src/core/core/model/story_conflict.py:79-81; src/core/core/model/news_item_conflict.py:110-113"
+  },
+  "PUT /api/bots": {
+    "reason": "The registered collection URL omits the required bot_id argument; Flask raises TypeError before the handler or ORM runs.",
+    "source": "src/core/core/api/bots.py:151-161; src/core/core/api/bots.py:167"
+  },
+  "PUT /api/connectors/conflicts/stories": {
+    "reason": "The registered URL omits the required story_id argument, so Flask dispatch raises TypeError before entering the handler.",
+    "source": "src/core/core/api/connectors.py:26-31; src/core/core/api/connectors.py:119-121"
+  },
+  "PUT /api/worker/bots": {
+    "reason": "The registered collection URL omits the required bot_id argument; Flask raises TypeError before the handler or ORM runs.",
+    "source": "src/core/core/api/worker.py:410-424; src/core/core/api/worker.py:493"
+  },
+  "PUT /api/worker/word-lists": {
+    "reason": "The registered collection URL omits the required word_list_id argument; Flask raises TypeError before the handler or ORM runs.",
+    "source": "src/core/core/api/worker.py:447-460; src/core/core/api/worker.py:500"
+  }
+}

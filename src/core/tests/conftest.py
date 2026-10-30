@@ -1,6 +1,7 @@
 import contextlib
 import os
 import sys
+import uuid
 from unittest.mock import patch
 
 import fakeredis
@@ -18,24 +19,84 @@ if not current_path.endswith("src/core"):
 
 load_dotenv(dotenv_path=env_file, override=True)
 
+# Performance scenarios have independent PostgreSQL/session fixtures and are manual.
+collect_ignore = [] if os.environ.get("ORM_RUN") == "1" else ["performance"]
+
+
+def rollback_aborted_test_request(error):
+    """The session-scoped test app context must not retain PostgreSQL's failed transaction."""
+    from psycopg import Connection
+    from psycopg.pq import TransactionStatus
+
+    from core.managers.db_manager import db
+
+    if not db.session.registry.has():
+        return
+    session = db.session()
+    if not session.is_active:
+        session.rollback()
+    elif session.in_transaction():
+        driver = session.connection().connection.driver_connection
+        if isinstance(driver, Connection) and driver.info.transaction_status == TransactionStatus.INERROR:
+            session.rollback()
+
+
+@pytest.fixture
+def isolated_app_database_uri(tmp_path):
+    """Independent app-factory exercises use the explicitly selected database backend."""
+    if not (uri := os.environ.get("ORM_TEST_POSTGRES_URI")):
+        yield f"sqlite:///{tmp_path / 'app.db'}"
+        return
+    from psycopg import sql
+    from sqlalchemy.engine import make_url
+
+    from tests.performance.orm.instrumentation import postgres_connection
+
+    name = f"orm_case_{uuid.uuid4().hex}"
+    with postgres_connection(uri, database="postgres") as connection:
+        connection.execute(sql.SQL("CREATE DATABASE {}").format(sql.Identifier(name)))
+        connection.execute(sql.SQL("COMMENT ON DATABASE {} IS 'taranis-orm-disposable-v1'").format(sql.Identifier(name)))
+    try:
+        yield make_url(uri).set(database=name).render_as_string(hide_password=False)
+    finally:
+        with postgres_connection(uri, database="postgres") as connection:
+            connection.execute(sql.SQL("DROP DATABASE {} WITH (FORCE)").format(sql.Identifier(name)))
+
 
 @pytest.fixture(scope="session")
 def app(tmp_path_factory):
     from core.__init__ import create_app
     from core.config import Config
 
-    database_uri = f"sqlite:///{tmp_path_factory.mktemp('core-db') / 'test.db'}"
+    database_uri = os.environ.get("ORM_TEST_POSTGRES_URI") or f"sqlite:///{tmp_path_factory.mktemp('core-db') / 'test.db'}"
+    if os.environ.get("ORM_TEST_POSTGRES_URI"):
+        from tests.performance.orm.instrumentation import postgres_connection
+
+        with postgres_connection(database_uri):
+            pass
+    data_folder = str(tmp_path_factory.mktemp("core-data"))
+    engine_options = dict(Config.SQLALCHEMY_ENGINE_OPTIONS)
+    if os.environ.get("ORM_TEST_POSTGRES_URI"):
+        engine_options["connect_args"] = {"connect_timeout": Config.SQLALCHEMY_CONNECT_TIMEOUT}
     redis_server = fakeredis.FakeServer()
 
     def isolated_redis_from_url(url, *args, **kwargs):
         return fakeredis.FakeRedis.from_url(url, *args, server=redis_server, **kwargs)
 
     with (
-        patch.dict(os.environ, {"SQLALCHEMY_DATABASE_URI": database_uri}),
-        patch.multiple(Config, SQLALCHEMY_DATABASE_URI=database_uri, SQLALCHEMY_DATABASE_URI_MASK=database_uri),
+        patch.dict(os.environ, {"SQLALCHEMY_DATABASE_URI": database_uri, "DATA_FOLDER": data_folder}),
+        patch.multiple(
+            Config,
+            SQLALCHEMY_DATABASE_URI=database_uri,
+            SQLALCHEMY_DATABASE_URI_MASK=database_uri,
+            DATA_FOLDER=data_folder,
+            SQLALCHEMY_ENGINE_OPTIONS=engine_options,
+        ),
         patch("redis.Redis.from_url", side_effect=isolated_redis_from_url),
     ):
         app = create_app()
+        if os.environ.get("ORM_TEST_POSTGRES_URI"):
+            app.teardown_request(rollback_aborted_test_request)
         # Scheduling workflows opt in explicitly; development seeds stay disabled.
         with app.app_context():
             from core.model.settings import Settings
@@ -95,7 +156,8 @@ def session(db):
     original_session = db.session
     connection = db.engine.connect()
     transaction = connection.begin()
-    test_session = scoped_session(session_factory=sessionmaker(bind=connection))
+    options = {"join_transaction_mode": "create_savepoint"} if connection.dialect.name == "postgresql" else {}
+    test_session = scoped_session(session_factory=sessionmaker(bind=connection, **options))
     db.session = test_session
 
     try:

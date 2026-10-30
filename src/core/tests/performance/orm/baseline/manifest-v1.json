@@ -1,0 +1,76 @@
+{
+  "version": 1,
+  "base_commit": "f4bbd661f11ae7b491be3383dc90924c002e65bf",
+  "seed": "taranis-orm-v1",
+  "timestamp": "2026-10-29T12:00:00",
+  "warmups": 5,
+  "rounds": 30,
+  "profiles": {
+    "empty": {
+      "roots": 0,
+      "children": 0,
+      "tags": 0,
+      "attributes": 0,
+      "text_bytes": 0,
+      "revisions": 0
+    },
+    "single": {
+      "roots": 1,
+      "children": 1,
+      "tags": 1,
+      "attributes": 1,
+      "text_bytes": 512,
+      "revisions": 1
+    },
+    "normal": {
+      "roots": 20,
+      "children": 3,
+      "tags": 3,
+      "attributes": 2,
+      "text_bytes": 4096,
+      "revisions": 3
+    },
+    "stress_roots": {
+      "roots": 200,
+      "children": 3,
+      "tags": 3,
+      "attributes": 2,
+      "text_bytes": 4096,
+      "revisions": 3
+    },
+    "stress_children": {
+      "roots": 20,
+      "children": 30,
+      "tags": 3,
+      "attributes": 2,
+      "text_bytes": 4096,
+      "revisions": 3
+    }
+  },
+  "batch_sizes": [
+    1,
+    10,
+    100,
+    1000
+  ],
+  "profile_status": "frozen",
+  "production_snapshot": null,
+  "historical_task_timestamp": "2026-01-15T12:00:00",
+  "synthetic_profile_review": {
+    "reviewed_at": "2026-10-30",
+    "production_aggregates": "unavailable; no sanitized production snapshot or approved aggregate export was supplied",
+    "profiles": [
+      "empty",
+      "single",
+      "normal",
+      "stress_roots",
+      "stress_children"
+    ],
+    "batch_sizes": [
+      1,
+      10,
+      100,
+      1000
+    ]
+  }
+}

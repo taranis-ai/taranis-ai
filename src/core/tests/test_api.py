@@ -14,8 +14,10 @@ def _reload_external_auth_modules():
     import core.auth.external_authenticator
     import core.config
     import core.managers.auth_manager
+    import core.managers.db_migration_manager
 
     importlib.reload(core.config)
+    importlib.reload(core.managers.db_migration_manager)
     importlib.reload(core.auth.external_authenticator)
     importlib.reload(core.managers.auth_manager)
     importlib.reload(core.api.auth)
@@ -168,13 +170,12 @@ def test_auth_login_updates_last_login(client, app, monkeypatch):
     assert login_activities[0][1:] == ("LOGIN", "Successful")
 
 
-def test_auth_login_external_authenticator(tmp_path, monkeypatch):
-    db_path = tmp_path / "external-auth.sqlite"
+def test_auth_login_external_authenticator(isolated_app_database_uri, monkeypatch):
     env_vars = {
         "API_KEY": "test_key",
         "JWT_SECRET_KEY": "test_key_for_tests_only_do_not_use",
         "DEBUG": "true",
-        "SQLALCHEMY_DATABASE_URI": f"sqlite:///{db_path}",
+        "SQLALCHEMY_DATABASE_URI": isolated_app_database_uri,
         "QUEUE_BROKER_URL": "memory://localhost",
         "PRE_SEED_PASSWORD_USER": "test",
         "REALTIME_ENABLED": "False",

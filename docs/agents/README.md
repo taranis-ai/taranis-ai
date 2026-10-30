@@ -5,6 +5,7 @@ Read matching memories before planning or editing application behavior. Code and
 ## Operational References
 
 - [Development Workflow](development-workflow.md): setup, validation, signoff, and development conventions. Required before application changes or validation.
+- [Core ORM Performance Workflow](orm-performance.md): PostgreSQL profiling scenarios, isolated datasets, and native artifacts.
 - [Architecture and Boundaries](architecture-and-boundaries.md): components, API boundaries, persistence, and datetimes. Required before changes to those areas.
 - [Frontend Development](frontend-development.md): HTMX, Alpine, browser state, and shared UI contracts. Required before frontend changes.
 - [Test Design](test-design.md): coverage and fixture conventions. Required before test changes.

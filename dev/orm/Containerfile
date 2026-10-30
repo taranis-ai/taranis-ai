@@ -1,0 +1,9 @@
+FROM ghcr.io/astral-sh/uv:python3.14-trixie-slim@sha256:93035a1ae478ef905cc75b107bfe1fde62cdebf5b1996206dd4e5089a9f0a6d3
+ENV UV_PROJECT_ENVIRONMENT=/opt/venv SETUPTOOLS_SCM_PRETEND_VERSION=0.0.dev0
+WORKDIR /workspace/src/core
+COPY src/core/pyproject.toml src/core/uv.lock src/core/README.md ./
+COPY src/core/core ./core
+COPY src/models /workspace/src/models
+RUN uv sync --frozen --extra dev --extra performance
+RUN apt-get update && apt-get install --no-install-recommends -y libpq5 && rm -rf /var/lib/apt/lists/*
+CMD ["uv", "run", "--frozen", "--no-sync", "python", "-m", "tests.performance.orm.runner"]

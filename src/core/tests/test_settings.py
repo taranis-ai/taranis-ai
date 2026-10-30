@@ -207,9 +207,9 @@ def test_pool_options_applied_to_actual_engine(app):
         assert db.engine.pool.size() == 20  # type: ignore
 
 
-def test_pool_options_with_custom_values_applied_to_engine(tmp_path, monkeypatch, clear_pool_env_vars):
+def test_pool_options_with_custom_values_applied_to_engine(isolated_app_database_uri, monkeypatch, clear_pool_env_vars):
     """Integration test: verify custom pool timeout and recycle values are applied to the engine via app context."""
-    monkeypatch.setenv("SQLALCHEMY_DATABASE_URI", f"sqlite:///{tmp_path / 'pool-options.db'}")
+    monkeypatch.setenv("SQLALCHEMY_DATABASE_URI", isolated_app_database_uri)
     monkeypatch.setenv("SQLALCHEMY_POOL_TIMEOUT", "25")
     monkeypatch.setenv("SQLALCHEMY_POOL_RECYCLE", "7200")
 
@@ -223,7 +223,7 @@ def test_pool_options_with_custom_values_applied_to_engine(tmp_path, monkeypatch
     from core.config import Config
     from core.managers.db_manager import db
 
-    app = create_app()
+    app = create_app(initial_setup=False)
 
     with app.app_context():
         assert Config.SQLALCHEMY_POOL_TIMEOUT == 25
