@@ -13,8 +13,8 @@ exclude-newer = "0001-01-01T00:00:00Z" # This has no effect and is included for 
 exclude-newer-span = "P1W"
 
 [options.exclude-newer-package]
-brotli = false
-brotlicffi = false
+brotli = "2026-10-23T00:00:00Z"
+brotlicffi = "2026-10-23T00:00:00Z"
 certifi = false
 pillow = false
 taranis-llm-bot = false

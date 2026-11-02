@@ -32,6 +32,7 @@ Load for: `/admin/scheduler`, RQ registries, scheduled/active/failed jobs, execu
 - Core queue/cache and frontend cache Redis clients use redis-py's default RESP3 with `MaintNotificationsConfig(enabled=False)`. Worker/cron connections explicitly use RESP2 as well: RQ drops maintenance settings when rebuilding scheduler and spawned-worker connections, but preserves the protocol. This prevents unsupported maintenance-notification probes on Redis Open Source and leaves managed Redis Smart Client Handoffs unused.
 - `src/models/models/scheduler.py` owns query defaults, UTC normalization, and serialization. Load diagnostic reason allowlists in one query. Never expose RQ exceptions, arbitrary historical messages, result data, provider bodies, or private checkpoints; malformed/missing results fall back to a worker-log reference.
 - Core owns `rq:cron:def`: startup treats current source/bot/housekeeping specs as an allowlist and removes other persisted definitions and artifacts.
+- Artifact cleanup matches exact RQ job IDs or literal cron prefixes in Redis and persisted `Task.job_id`; SQL wildcard characters in prefixes must be escaped.
 - Bulk cron reconciliation and source/bot registration loops batch task notices once per audience, including partial success before an error. Single-item changes still publish immediately.
 - Cron rebuilds empty Redis through authenticated Core recovery without clearing newly queued work; pending jobs are disposable. See [Redis Runtime State](redis-runtime-state.md).
 

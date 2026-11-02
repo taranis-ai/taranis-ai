@@ -386,8 +386,9 @@ class QueueManager:
         from core.managers.db_manager import db
         from core.model.task import Task as TaskModel
 
-        conditions = [TaskModel.job_id.in_(exact_ids)] if exact_ids else []
-        conditions.extend(TaskModel.job_id.like(f"{prefix}%") for prefix in prefixes)
+        conditions = [TaskModel.job_id.startswith(prefix, autoescape=True) for prefix in prefixes]
+        if exact_ids:
+            conditions.append(TaskModel.job_id.in_(exact_ids))
         if not conditions:
             return 0, set()
 
