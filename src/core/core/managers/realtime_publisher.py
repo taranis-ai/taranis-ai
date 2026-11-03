@@ -75,7 +75,7 @@ class RealtimePublisher:
     def scheduler_changed(self) -> bool:
         return self.publish("global:events", "scheduler.changed", "invalidated")
 
-    def task_changed(self, *user_ids: str) -> bool:
+    def task_changed(self, user_ids: list[str]) -> bool:
         return self.publish([f"user:#{user_id}" for user_id in dict.fromkeys(user_ids)], "task.changed", "invalidated")
 
     def broadcast_notification(self, message: str) -> bool:

@@ -24,17 +24,17 @@ def batch_task_changes() -> Iterator[None]:
     finally:
         _pending_changes.reset(token)
         if pending:
-            notify_task_change(*pending)
+            notify_task_change([user_id for user_id in pending if user_id])
 
 
-def notify_task_change(*user_ids: str | None) -> None:
+def notify_task_change(user_ids: list[str] | None = None) -> None:
     """Publish content-free hints; authenticated view reads remain authoritative."""
     if (pending := _pending_changes.get()) is not None:
         pending.update(user_ids or (None,))
         return
     try:
         realtime_publisher.scheduler_changed()
-        if owners := dict.fromkeys(user_id for user_id in user_ids if user_id):
-            realtime_publisher.task_changed(*owners)
+        if user_ids:
+            realtime_publisher.task_changed(user_ids)
     except Exception:
         logger.exception("Could not publish task view changes")

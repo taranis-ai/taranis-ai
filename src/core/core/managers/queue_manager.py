@@ -315,7 +315,7 @@ class QueueManager:
             prefixes=prefixes,
         )
         if removed_jobs or removed_tasks:
-            notify_task_change(*(job_owners | task_owners))
+            notify_task_change(list(job_owners | task_owners))
         return removed_jobs, removed_tasks
 
     def _purge_rq_jobs(self, *, exact_ids: set[str], prefixes: list[str]) -> tuple[int, set[str]]:
@@ -568,7 +568,8 @@ class QueueManager:
 
             user_triggered = self._prepare_user_priority(meta, kwargs)
             job = queue.enqueue(task_func, *args, job_id=job_id, at_front=user_triggered, **kwargs)
-            notify_task_change((meta or {}).get("user_id"))
+            user_id = (meta or {}).get("user_id")
+            notify_task_change([user_id] if user_id else None)
             return job
         except Exception as e:
             logger.error(f"Failed to enqueue task {task_name}: {e}")
@@ -621,7 +622,8 @@ class QueueManager:
             logger.info(f"enqueue_at: queue={queue_name}, func={task_func}, scheduled_time={scheduled_time}, job_id={job_id}")
             job = queue.enqueue_at(scheduled_time, task_func, *args, job_id=job_id, at_front=user_triggered, **kwargs)
             logger.info(f"enqueue_at: created job {job.id} scheduled for {scheduled_time}")
-            notify_task_change((meta or {}).get("user_id"))
+            user_id = (meta or {}).get("user_id")
+            notify_task_change([user_id] if user_id else None)
             return job
         except Exception as e:
             logger.exception(f"Failed to schedule task {task_name}: {e}")
@@ -650,7 +652,8 @@ class QueueManager:
             job = Job.fetch(job_id, connection=self._redis)
             job.cancel()
             job.delete()
-            notify_task_change(job.meta.get("user_id"))
+            user_id = job.meta.get("user_id")
+            notify_task_change([user_id] if user_id else None)
             logger.info(f"Cancelled and deleted job instance {job_id}")
             cancelled = True
         except Exception as e:

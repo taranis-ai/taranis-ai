@@ -750,15 +750,6 @@ class OSINTSource(BaseModel):
             logger.exception("Failed to refresh MISP jobs after deleting OSINT sources")
         return {"message": "OSINT Sources deleted", "ids": source_ids}, 200
 
-    @classmethod
-    @batch_task_changes()
-    def schedule_all_osint_sources(cls):
-        """Schedule all enabled OSINT sources using RQ"""
-        sources = cls.get_all_for_collector()
-        for source in sources:
-            source.schedule_osint_source()
-        logger.info(f"Scheduling for {len(sources)} OSINT Sources completed")
-
     def get_cron_spec(self) -> CronSpec:
         """Get the cron specification for this OSINT source"""
         return CronSpec(

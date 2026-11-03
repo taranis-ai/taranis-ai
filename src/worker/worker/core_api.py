@@ -4,7 +4,7 @@ from urllib.parse import urlencode
 
 import niquests as requests
 from models.product import WorkerProduct as Product
-from models.task import TaskResult, TaskSubmission
+from models.task import TaskChangeNotice, TaskResult, TaskSubmission
 from niquests.typing import MultiPartFilesAltType
 from opentelemetry.propagate import inject
 from pydantic import ValidationError
@@ -158,15 +158,16 @@ class CoreApi:
         response = http_request("DELETE", url=url, headers=self.get_request_headers(), verify=self.verify, timeout=self.timeout)
         return self.check_response(response, url)
 
-    def notify_task_change(self, *user_ids: str | None) -> bool:
+    def notify_task_change(self, user_ids: list[str] | None = None) -> bool:
         """Send a bounded, best-effort invalidation without changing task outcomes."""
         try:
+            notice = TaskChangeNotice(user_ids=list(dict.fromkeys(user_ids or [])))
             response = http_request(
                 "POST",
                 url=f"{self.api_url}/worker/tasks/changed",
                 headers=self.get_request_headers(),
                 verify=self.verify,
-                json={"user_ids": list(dict.fromkeys(user_id for user_id in user_ids if user_id))},
+                json=notice.model_dump(mode="json"),
                 timeout=1,
             )
             response.raise_for_status()

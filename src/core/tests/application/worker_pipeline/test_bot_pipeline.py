@@ -21,7 +21,7 @@ def test_bot_pipeline_uses_one_snapshot_and_commits_only_complete_runs(app, clie
         completed = []
         task_changes = []
         monkeypatch.setattr(realtime_publisher, "story_bot_finished", lambda *args: completed.append(args))
-        monkeypatch.setattr(realtime_publisher, "task_changed", lambda user_id: task_changes.append(user_id))
+        monkeypatch.setattr(realtime_publisher, "task_changed", task_changes.extend)
 
         source = create_osint_source(rank=0)
         first_payload = build_news_item_payload(source.id, title="First story")

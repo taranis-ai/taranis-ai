@@ -33,7 +33,18 @@ class TestWorkerApi:
         assert client.post(path, json=payload).status_code == 401
         assert client.post(path, json=payload, headers=auth_header).status_code == 401
         publication.assert_not_called()
-        assert client.post(path, json={"user_ids": "owner"}, headers=api_header).status_code == 400
+        for invalid_payload in (
+            [],
+            {"user_ids": "owner"},
+            {"user_ids": [123]},
+            {"user_ids": [""]},
+            {"user_ids": ["x" * 37]},
+            {"user_ids": ["owner"] * 101},
+        ):
+            response = client.post(path, json=invalid_payload, headers=api_header)
+            assert response.status_code == 400
+            assert response.get_json() == {"error": "Invalid task change notice"}
+        publication.assert_not_called()
 
         assert client.post(path, json=payload, headers=api_header).status_code == 200
         assert [call.args for call in publication.call_args_list] == [
@@ -41,6 +52,10 @@ class TestWorkerApi:
             (["user:#owner", "user:#second-owner"], "task.changed", "invalidated"),
         ]
         assert all(not call.kwargs for call in publication.call_args_list)
+
+        publication.reset_mock()
+        assert client.post(path, json={}, headers=api_header).status_code == 200
+        publication.assert_called_once_with("global:events", "scheduler.changed", "invalidated")
 
         publication.side_effect = RuntimeError("Realtime unavailable")
         assert client.post(path, json=payload, headers=api_header).status_code == 200

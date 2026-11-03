@@ -3,6 +3,7 @@
 from collections.abc import Callable
 from functools import wraps
 
+from models.task import TASK_CHANGE_MAX_USERS
 from rq import Queue, SpawnWorker, Worker, get_current_job
 from rq.defaults import DEFAULT_LOGGING_DATE_FORMAT, DEFAULT_LOGGING_FORMAT
 from rq.job import Job
@@ -19,7 +20,8 @@ def task_started[**P, R](function: Callable[P, R]) -> Callable[P, R]:
         # SpawnWorker recreates a plain RQ worker in its child. Task entry points
         # run after STARTED has been stored on both fork and spawn platforms.
         if job := get_current_job():
-            CoreApi().notify_task_change(job.meta.get("user_id"))
+            user_id = job.meta.get("user_id")
+            CoreApi().notify_task_change([user_id] if user_id else None)
         return function(*args, **kwargs)
 
     return wrapper
@@ -48,8 +50,8 @@ class TaskEventScheduler(RQScheduler):
             user_ids = list(dict.fromkeys(job.meta.get("user_id") for job in jobs if job and job.meta.get("user_id")))
             api = CoreApi()
             # The internal notice accepts bounded batches, including background-only work.
-            for offset in range(0, max(1, len(user_ids)), 100):
-                api.notify_task_change(*user_ids[offset : offset + 100])
+            for offset in range(0, max(1, len(user_ids)), TASK_CHANGE_MAX_USERS):
+                api.notify_task_change(user_ids[offset : offset + TASK_CHANGE_MAX_USERS])
         self._status = self.Status.STARTED
 
 
@@ -58,7 +60,8 @@ class TaskEventWorker(BaseWorker):
         super().execute_job(job, queue)
         # The parent waits for success, retry, failure, or a killed workhorse.
         # Registries and released dependencies are authoritative by this point.
-        CoreApi().notify_task_change(job.meta.get("user_id"))
+        user_id = job.meta.get("user_id")
+        CoreApi().notify_task_change([user_id] if user_id else None)
 
     def register_birth(self) -> None:
         super().register_birth()

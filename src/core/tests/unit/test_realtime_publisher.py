@@ -108,7 +108,7 @@ def test_product_event_uses_user_limited_channel(enabled_realtime):
 def test_task_events_broadcast_to_unique_owner_channels(enabled_realtime, responses, accepted):
     publisher, session = _publisher(response_payload={"result": {"responses": responses}})
 
-    assert publisher.task_changed("owner", "second-owner", "owner") is accepted
+    assert publisher.task_changed(["owner", "second-owner", "owner"]) is accepted
 
     session.post.assert_called_once()
     publication = session.post.call_args.kwargs["json"]
@@ -116,7 +116,7 @@ def test_task_events_broadcast_to_unique_owner_channels(enabled_realtime, respon
     assert publication["data"]["type"] == "task.changed"
     assert publication["data"]["data"] == {}
     session.post.reset_mock()
-    assert publisher.task_changed() is False
+    assert publisher.task_changed([]) is False
     session.post.assert_not_called()
 
 

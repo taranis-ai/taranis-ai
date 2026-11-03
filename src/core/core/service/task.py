@@ -97,7 +97,7 @@ class TaskService:
         user_id = task.user_id if task else None
         result, status = TaskModel.delete(task_id)
         if status == 200:
-            notify_task_change(user_id)
+            notify_task_change([user_id] if user_id else None)
             cache_invalidation_module.cache_invalidation_service.invalidate_model("admin_menu_badges")
             if task_kind == "collector_task":
                 cache_invalidation_module.cache_invalidation_service.invalidate_model("osint_source", worker_id)
@@ -116,7 +116,7 @@ class TaskService:
         )
         deleted = TaskModel.delete_older_than_last_run(cutoff)
         if deleted:
-            notify_task_change(*user_ids)
+            notify_task_change([user_id for user_id in user_ids if user_id])
         return {
             "message": "Task history cleanup completed",
             "deleted": deleted,
@@ -133,7 +133,7 @@ class TaskService:
 
             result, status, applied = BotPipelineService.submit(submission)
             if applied:
-                notify_task_change(submission.user_id)
+                notify_task_change([submission.user_id] if submission.user_id else None)
                 try:
                     cls._handle_success_result(submission)
                     if submission.user_id:
@@ -175,7 +175,7 @@ class TaskService:
 
         result, _ = TaskModel.add_or_update(payload)
         owner_id = result.get("user_id")
-        notify_task_change(owner_id if isinstance(owner_id, str) else None)
+        notify_task_change([owner_id] if isinstance(owner_id, str) and owner_id else None)
         if task_kind == "collector_task" and submission.worker_id:
             CollectorHTTPState.update_from_task_result(submission.worker_id, result_payload.get("data"))
         if (

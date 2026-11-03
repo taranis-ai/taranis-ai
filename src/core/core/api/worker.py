@@ -2,6 +2,8 @@ from datetime import timedelta
 
 from flask import Blueprint, Flask, Response, jsonify, make_response, request, send_file
 from flask.views import MethodView
+from models.task import TaskChangeNotice
+from pydantic import ValidationError
 from werkzeug.datastructures import FileStorage
 
 from core.config import Config
@@ -135,17 +137,11 @@ class CronJobs(MethodView):
 class TaskChanges(MethodView):
     @api_key_required
     def post(self):
-        payload = request.get_json(silent=True)
-        if not isinstance(payload, dict):
+        try:
+            notice = TaskChangeNotice.model_validate(request.get_json(silent=True))
+        except ValidationError:
             return {"error": "Invalid task change notice"}, 400
-        user_ids = payload.get("user_ids", [])
-        if (
-            not isinstance(user_ids, list)
-            or len(user_ids) > 100
-            or any(not isinstance(user_id, str) or not user_id or len(user_id) > 36 for user_id in user_ids)
-        ):
-            return {"error": "Invalid task change notice"}, 400
-        notify_task_change(*user_ids)
+        notify_task_change(notice.user_ids)
         return {"message": "Task views invalidated"}, 200
 
 

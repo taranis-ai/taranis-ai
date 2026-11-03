@@ -215,7 +215,7 @@ def run_scheduler(
                     redis.zadd(NEXT_KEY, {job_id: now_ts + poll_interval_seconds})
                     logger.exception(f"Failed processing scheduled job {job_id}")
             if changed:
-                CoreApi().notify_task_change(*user_ids)
+                CoreApi().notify_task_change(list(user_ids))
         except RedisError:
             logger.exception("Cron scheduler could not reach Redis; retrying")
 
