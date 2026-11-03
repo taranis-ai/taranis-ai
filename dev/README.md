@@ -45,25 +45,35 @@ git clone git@github.com:taranis-ai/taranis-ai.git
 cd taranis-ai
 ```
 
-Copy env.dev to worker and core
-
-```bash
-cp dev/env.dev src/core/.env
-cp dev/env.dev src/worker/.env
-```
-
-`dev/env.dev` keeps redis-py's default RESP3 protocol. Taranis disables Redis maintenance notifications in its Python clients, so local `REDIS_URL` values no longer need `?protocol=2`. Remove that query parameter from existing component `.env` files; `start_dev.sh` only copies missing `.env` files.
-
-Development Redis disables RDB snapshots and AOF logging and mounts `/data` as
-RAM-backed `tmpfs`. Recreate it with `docker compose -f dev/compose.yml up -d redis`
-to apply the configuration. Frontend caches refill on demand. With
-`WITH_CRON_RQ=1`, cron asks Core to restore recurring schedules after Redis loses
-state; with cron stopped, restart Core to rebuild them. Pending one-off jobs,
-retries, delayed MISP pushes, and unfinished bot chains are lost and must be rerun.
+### Start development 
 
 ```bash
 ./dev/start_dev.sh
 ```
+
+`start_dev.sh` creates missing component `.env` files from `dev/env.dev` but never overwrites existing ones. If you have `.env` files from an older setup, remove any `?protocol=2` query parameter from `REDIS_URL`; it is no longer needed.
+
+### Development Redis
+
+Development Redis disables RDB snapshots and AOF logging and mounts `/data` as RAM-backed `tmpfs`, so queue state is not persisted across restarts. Recreate it with `docker compose -f dev/compose.yml up -d redis` to apply the configuration.
+
+Frontend caches refill on demand. With `WITH_CRON_RQ=1`, cron asks Core to restore recurring schedules after Redis loses state; with cron stopped, restart Core to rebuild them. Pending one-off jobs, retries, delayed MISP pushes, and unfinished bot chains are lost and must be rerun.
+
+### Stop development 
+
+Stop docker container 
+Note to podman users: Use `podman-compose` instead of `docker compose` 
+
+```bash
+docker compose -f dev/compose.yml down -d
+```
+
+Stop all tmux sessions belonging to taranis
+
+```bash
+tmux kill-session -t =taranis
+```
+
 
 ## Hard Mode
 
