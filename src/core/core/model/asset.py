@@ -1,5 +1,6 @@
 from typing import Any
 
+from models.asset import normalize_asset_tags
 from models.cti import normalize_ioc_type, normalize_ioc_value
 from sqlalchemy import or_
 from sqlalchemy.orm import Mapped, relationship
@@ -23,6 +24,8 @@ class Asset(BaseModel):
     asset_group_id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("asset_group.id"))
     asset_group: Mapped["AssetGroup"] = relationship("AssetGroup")
 
+    asset_tags: Mapped[list["AssetTag"]] = relationship("AssetTag", cascade="all, delete-orphan", back_populates="asset")
+
     asset_cpes: Mapped[list["AssetCpe"]] = relationship("AssetCpe", cascade="all, delete-orphan", back_populates="asset")
     asset_observables: Mapped[list["AssetObservable"]] = relationship("AssetObservable", cascade="all, delete-orphan", back_populates="asset")
 
@@ -31,8 +34,11 @@ class Asset(BaseModel):
     )
     vulnerabilities_count: Mapped[int] = db.Column(db.Integer, default=0)
 
-    def __init__(self, name, serial, description, group=None, asset_cpes=None, asset_observables=None, vulnerabilities=None, id=None):
+    def __init__(
+        self, name, serial, description, group=None, asset_cpes=None, asset_observables=None, vulnerabilities=None, id=None, tags=None
+    ):
         self.id = self.normalize_uuid_id(id)
+        self.set_tags([] if tags is None else tags)
         self.name = name
         self.serial = serial
         self.description = description
@@ -43,6 +49,11 @@ class Asset(BaseModel):
         self.asset_cpes = [a for a in (AssetCpe.get(cpe) for cpe in asset_cpes) if a] if asset_cpes else []
         self.asset_observables = self._load_observables(asset_observables)
         self.vulnerabilities = [v for v in (AssetVulnerability.get(vuln) for vuln in vulnerabilities) if v] if vulnerabilities else []
+
+    def set_tags(self, values: list[str]) -> None:
+        names = normalize_asset_tags(values)
+        existing = {tag.name: tag for tag in self.asset_tags}
+        self.asset_tags = [existing[name] if name in existing else AssetTag(name) for name in names]
 
     @staticmethod
     def _load_observables(observables: list[dict[str, Any]] | None) -> list["AssetObservable"]:
@@ -87,10 +98,7 @@ class Asset(BaseModel):
 
     def update_vulnerabilities(self):
         cpes = [cpe.value for cpe in self.asset_cpes if cpe]
-        report_item_ids = ReportItem.get_by_cpe(cpes)
-        if not report_item_ids:
-            return
-
+        report_item_ids = ReportItem.get_by_cpe(cpes) or []
         solved = [vulnerability.report_item_id for vulnerability in self.vulnerabilities if vulnerability.solved is True]
         self.vulnerabilities = []
         self.vulnerabilities_count = 0
@@ -144,6 +152,9 @@ class Asset(BaseModel):
                 .distinct()
             )
 
+        if tag := filter_args.get("tag", "").strip().lower():
+            query = query.filter(Asset.asset_tags.any(AssetTag.name == tag))
+
         if group_id := filter_args.get("group"):
             query = query.filter(Asset.asset_group_id == group_id)
 
@@ -160,6 +171,7 @@ class Asset(BaseModel):
 
     def to_dict(self):
         data = super().to_dict()
+        data["tags"] = sorted(tag.name for tag in self.asset_tags)
         data["asset_cpes"] = [asset_cpe.id for asset_cpe in self.asset_cpes if asset_cpe]
         data["asset_observables"] = [observable.to_dict() for observable in self.asset_observables]
         data["vulnerabilities"] = [vulnerability.id for vulnerability in self.vulnerabilities]
@@ -195,8 +207,12 @@ class Asset(BaseModel):
         if not AssetGroup.access_allowed(organization, asset.asset_group_id):
             return {"error": "Access Denied"}, 403
         try:
+            if "tags" in data:
+                normalize_asset_tags(data["tags"])
             for key, value in data.items():
-                if key == "asset_observables":
+                if key == "tags":
+                    asset.set_tags(value)
+                elif key == "asset_observables":
                     asset.asset_observables = cls._load_observables(value)
                 elif hasattr(asset, key) and key != "id":
                     setattr(asset, key, value)
@@ -219,6 +235,19 @@ class Asset(BaseModel):
         db.session.delete(asset)
         db.session.commit()
         return {"message": "Asset deleted", "id": asset.id}, 200
+
+
+class AssetTag(BaseModel):
+    """Classification labels owned by an asset; membership does not grant access."""
+
+    __tablename__ = "asset_tag"
+
+    asset_id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("asset.id", ondelete="CASCADE"), primary_key=True)
+    name: Mapped[str] = db.Column(db.String(), primary_key=True)
+    asset: Mapped["Asset"] = relationship("Asset", back_populates="asset_tags")
+
+    def __init__(self, name: str):
+        self.name = name
 
 
 class AssetVulnerability(BaseModel):

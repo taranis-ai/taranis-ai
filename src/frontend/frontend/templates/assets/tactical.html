@@ -1,0 +1,211 @@
+{% extends "base.html" %}
+{% block head %}
+  <style>
+    .tactical-map { width: 100%; min-width: 780px; max-height: 570px; }
+    .tactical-map text { fill: var(--color-base-content); font-family: inherit; }
+    .tactical-map .muted { fill: color-mix(in oklab, var(--color-base-content) 60%, transparent); }
+    .tactical-map .lane { fill: color-mix(in oklab, var(--color-base-200) 55%, transparent); }
+    .tactical-map .edge { fill: none; stroke: color-mix(in oklab, var(--color-base-content) 25%, transparent); stroke-width: 2; }
+    .tactical-map .edge-active { stroke: var(--color-warning); stroke-width: 3; }
+    .tactical-map .host-body { fill: var(--color-base-100); stroke: color-mix(in oklab, var(--color-base-content) 25%, transparent); stroke-width: 1.5; }
+    .tactical-map .host-dot { fill: color-mix(in oklab, var(--color-base-content) 45%, transparent); }
+    .tactical-map .host-status { font-size: 12px; }
+    .tactical-map .affected .host-body { fill: color-mix(in oklab, var(--color-error) 8%, var(--color-base-100)); stroke: var(--color-error); }
+    .tactical-map .affected .host-dot { fill: var(--color-error); }
+    .tactical-map .potential .host-body { fill: color-mix(in oklab, var(--color-warning) 8%, var(--color-base-100)); stroke: var(--color-warning); }
+    .tactical-map .potential .host-dot { fill: var(--color-warning); }
+    .tactical-map .focus-ring { fill: none; stroke: transparent; stroke-width: 2; }
+    .tactical-map a { outline: none; }
+    .tactical-map a:hover .focus-ring,
+    .tactical-map a:focus-visible .focus-ring,
+    .tactical-map a[aria-current="true"] .focus-ring { stroke: var(--color-primary); }
+  </style>
+{% endblock head %}
+{% block content %}
+  <section class="p-4 lg:p-6 space-y-5" data-test-id="tactical-preview" data-scenario="{{ scenario_id }}">
+    <div class="flex flex-wrap justify-between items-start gap-4">
+      <div>
+        <div class="flex items-center gap-3 mb-2">
+          <h1 class="text-3xl font-bold">Tactical view</h1>
+          <span class="badge badge-outline badge-warning">Sample data · Preview</span>
+        </div>
+        <p class="text-base-content/70">Explore how an affected host could impact the hosts that depend on it.</p>
+      </div>
+      <a class="btn btn-outline btn-sm" href="{{ url_for('assets.assets') }}">Back to assets</a>
+    </div>
+    <div class="rounded-xl border border-primary/25 bg-primary/5 p-4 flex gap-3 items-start">
+      {{ heroicon_outline("beaker", class="w-5 h-5 shrink-0 text-primary mt-0.5") }}
+      <p class="text-sm">
+        <strong>Fictional hosts and dependencies.</strong> Choose a sample scenario to explore possible service impact.
+        This preview uses no live inventory, CVEs or news. Connections describe dependencies; they do not establish that hosts share a vulnerability.
+      </p>
+    </div>
+    <nav aria-label="Sample scenarios" class="grid md:grid-cols-3 gap-3">
+      {% for key, example in scenarios.items() %}
+        <a class="rounded-xl border p-4 flex items-center gap-3 transition-colors {{ 'border-primary bg-primary/10' if key == scenario_id else 'border-base-300 bg-base-100 hover:border-primary/50' }}"
+           href="{{ url_for('assets.tactical', scenario=key) }}"
+           {% if key == scenario_id %}aria-current="true"{% endif %}>
+          <span class="flex items-center justify-center rounded-lg w-9 h-9 shrink-0 {{ 'bg-primary text-primary-content' if key == scenario_id else 'bg-base-200' }}">{{ loop.index }}</span>
+          <span>
+            <span class="block font-semibold">{{ example.title }}</span>
+            <span class="text-xs text-base-content/60">{{ example.root }} · {{ example.paths | length }} potentially affected</span>
+          </span>
+        </a>
+      {% endfor %}
+    </nav>
+    <div class="grid xl:grid-cols-[minmax(0,1fr)_320px] gap-5 items-start">
+      <div class="min-w-0 rounded-xl bg-base-100 border border-base-300 overflow-hidden">
+        <div class="grid grid-cols-3 divide-x divide-base-300 border-b border-base-300">
+          <div class="p-4">
+            <p class="text-xs text-base-content/65">Affected in scenario</p>
+            <p class="text-3xl font-semibold mt-1 text-error">1</p>
+            <a class="link text-xs" href="{{ url_for('assets.tactical', scenario=scenario_id, host=scenario.root) }}">{{ scenario.root }}</a>
+          </div>
+          <div class="p-4">
+            <p class="text-xs text-base-content/65">Potentially affected</p>
+            <p class="text-3xl font-semibold mt-1" data-test-id="tactical-impact-count">{{ scenario.paths | length }}</p>
+            <p class="text-xs text-base-content/60">Through dependencies</p>
+          </div>
+          <div class="p-4">
+            <p class="text-xs text-base-content/65">Outside impact path</p>
+            <p class="text-3xl font-semibold mt-1">{{ hosts | length - scenario.paths | length - 1 }}</p>
+            <p class="text-xs text-base-content/60">In this sample scenario</p>
+          </div>
+        </div>
+        <div class="px-5 pt-5">
+          <div class="flex flex-wrap justify-between gap-2">
+            <h2 class="font-semibold">Host dependency map</h2>
+            <span class="text-xs text-base-content/60">{{ hosts | length }} sample hosts · {{ dependencies | length }} dependencies</span>
+          </div>
+          <p class="text-sm text-base-content/65 mt-1">Arrows follow potential impact: dependency → dependent host. Select a host to inspect its path.</p>
+        </div>
+        <div class="overflow-x-auto p-3">
+          <svg class="tactical-map"
+               viewBox="0 0 960 555"
+               role="group"
+               aria-labelledby="tactical-map-title"
+               aria-describedby="tactical-map-description">
+            <title id="tactical-map-title">Sample host dependencies: {{ scenario.title }}</title>
+            <desc id="tactical-map-description">{{ scenario.description }} Select any host to read its dependencies and possible impact in the adjacent panel.</desc>
+            <defs>
+            <marker id="dependency-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="context-stroke" />
+            </marker>
+            </defs>
+            <g aria-hidden="true">
+            {% for x, label in [(30, 'SHARED SERVICES'), (370, 'APPLICATION HOSTS'), (710, 'CONSUMERS')] %}
+              <text x="{{ x }}" y="30" class="muted" font-size="11" letter-spacing="1.5">{{ label }}</text>
+              <rect class="lane" x="{{ x - 15 }}" y="48" width="250" height="325" rx="14" />
+            {% endfor %}
+            <rect class="lane" x="15" y="400" width="930" height="145" rx="14" />
+            <text x="30" y="425" class="muted" font-size="11" letter-spacing="1">ISOLATED ENVIRONMENT</text>
+            {% for edge in dependencies %}
+              {% set start, end = hosts[edge.provider], hosts[edge.consumer] %}
+              {% set mid = (start.x + 220 + end.x) / 2 %}
+              {% set active = edge.provider in scenario.paths.get(edge.consumer, []) %}
+              <path class="edge {{ 'edge-active' if active else '' }}" d="M {{ start.x + 220 }} {{ start.y + 48 }} C {{ mid }} {{ start.y + 48 }}, {{ mid }} {{ end.y + 48 }}, {{ end.x - 8 }} {{ end.y + 48 }}" marker-end="url(#dependency-arrow)" />
+            {% endfor %}
+            </g>
+            {% for host_id, host in hosts.items() %}
+              {% set status = 'Affected in scenario' if host_id == scenario.root else 'Potentially affected' if host_id in scenario.paths else 'Outside impact path' %}
+              <a href="{{ url_for('assets.tactical', scenario=scenario_id, host=host_id) }}"
+                 aria-label="Inspect {{ host_id }}: {{ status }}"
+                 aria-current="{{ 'true' if host_id == selected_host else 'false' }}"
+                 class="{{ 'affected' if host_id == scenario.root else 'potential' if host_id in scenario.paths else '' }}"
+                 data-test-id="tactical-host"
+                 data-host-id="{{ host_id }}">
+                <g transform="translate({{ host.x }}, {{ host.y }})">
+                <rect class="focus-ring" x="-5" y="-5" width="230" height="106" rx="15" />
+                <rect class="host-body" width="220" height="96" rx="11" />
+                <text x="18" y="29" font-size="17" font-weight="600">{{ host_id }}</text>
+                <text x="18" y="50" font-size="12" class="muted">{{ host.role }}</text>
+                <circle class="host-dot" cx="22" cy="75" r="4" />
+                <text x="34" y="79" class="host-status">{{ status }}</text>
+                </g>
+              </a>
+            {% endfor %}
+          </svg>
+        </div>
+        <div class="flex flex-wrap gap-x-5 gap-y-2 text-xs px-5 py-3 border-t border-base-300 text-base-content/70">
+          <span class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full bg-error"></span>Affected (assumed)</span>
+          <span class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full bg-warning"></span>Potential dependency impact</span>
+          <span class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full bg-base-content/40"></span>No path in this scenario</span>
+        </div>
+      </div>
+      <aside class="space-y-4" aria-label="Selected host" data-test-id="tactical-inspector" data-host-id="{{ selected_host }}">
+        <div class="rounded-xl border border-base-300 bg-base-100 p-5 space-y-5">
+          <div>
+            <p class="text-xs uppercase tracking-widest text-base-content/60 mb-2">Selected host</p>
+            <h2 class="text-2xl font-semibold">{{ selected_host }}</h2>
+            <p class="text-sm text-base-content/65 mt-1">{{ hosts[selected_host].role }} · {{ hosts[selected_host].zone }}</p>
+          </div>
+          {% if selected_host == scenario.root %}
+            <div class="border-l-2 border-error pl-3">
+              <p class="font-semibold text-sm">Affected in this scenario</p>
+              <p class="text-sm text-base-content/65 mt-1">{{ scenario.description }}</p>
+            </div>
+          {% elif selected_host in scenario.paths %}
+            <div class="border-l-2 border-warning pl-3">
+              <p class="font-semibold text-sm">Potentially affected</p>
+              <p class="text-sm text-base-content/65 mt-1">{{ 'Directly depends on the affected host.' if scenario.paths[selected_host] | length == 2 else 'An intermediate host carries this dependency.' }}</p>
+            </div>
+            <div>
+              <h3 class="font-semibold text-sm mb-3">Potential impact path</h3>
+              <ol class="space-y-2 text-sm">
+                {% for step in scenario.paths[selected_host] %}
+                  <li class="flex gap-2 items-center">
+                    <span class="text-base-content/50" aria-hidden="true">{{ '●' if loop.first else '↳' }}</span>
+                    <a class="link" href="{{ url_for('assets.tactical', scenario=scenario_id, host=step) }}">{{ step }}</a>
+                  </li>
+                {% endfor %}
+              </ol>
+            </div>
+          {% else %}
+            <div class="border-l-2 border-base-content/30 pl-3">
+              <p class="font-semibold text-sm">Outside this impact path</p>
+              <p class="text-sm text-base-content/65 mt-1">No dependency path from {{ scenario.root }} reaches this host in the sample map.</p>
+            </div>
+          {% endif %}
+          <div>
+            <h3 class="font-semibold text-sm mb-2">Depends on</h3>
+            <ul class="space-y-3 text-sm">
+              {% for edge in dependencies if edge.consumer == selected_host %}
+                <li>
+                  <a class="link" href="{{ url_for('assets.tactical', scenario=scenario_id, host=edge.provider) }}">{{ edge.provider }}</a>
+                  <p class="text-xs text-base-content/65 mt-1">{{ edge.reason }}</p>
+                </li>
+              {% else %}
+                <li class="text-base-content/60">No dependencies declared in this sample.</li>
+              {% endfor %}
+            </ul>
+          </div>
+          <div>
+            <h3 class="font-semibold text-sm mb-2">Direct dependents</h3>
+            <ul class="space-y-2 text-sm">
+              {% for edge in dependencies if edge.provider == selected_host %}
+                <li><a class="link"
+   href="{{ url_for('assets.tactical', scenario=scenario_id, host=edge.consumer) }}">{{ edge.consumer }}</a></li>
+              {% else %}
+                <li class="text-base-content/60">No dependent hosts declared in this sample.</li>
+              {% endfor %}
+            </ul>
+          </div>
+        </div>
+        <div class="rounded-xl border border-base-300 bg-base-100 p-5">
+          <h3 class="font-semibold text-sm">Hosts to investigate</h3>
+          <p class="text-xs text-base-content/65 mt-1 mb-3">Potential dependents of {{ scenario.root }}</p>
+          <ul class="space-y-3 text-sm">
+            {% for host_id, path in scenario.paths.items() %}
+              <li class="flex justify-between gap-2">
+                <a class="link" href="{{ url_for('assets.tactical', scenario=scenario_id, host=host_id) }}">{{ host_id }}</a>
+                <span class="text-xs text-base-content/60">{{ 'Direct' if path | length == 2 else 'Via ' ~ path[-2] }}</span>
+              </li>
+            {% else %}
+              <li class="text-base-content/60">No other hosts are connected to this scenario origin.</li>
+            {% endfor %}
+          </ul>
+        </div>
+      </aside>
+    </div>
+  </section>
+{% endblock content %}

@@ -8,6 +8,8 @@ from models.base import TaranisBaseModel
 
 CanonicalIOCType = Literal["cve", "email", "ip", "domain", "url", "hash"]
 
+IOC_VALUE_PUNCTUATION = ".,;:()[]{}<>\"'"
+
 IOC_TYPE_ALIASES: dict[str, CanonicalIOCType] = {
     "cve": "cve",
     "cves": "cve",
@@ -48,7 +50,7 @@ def normalize_ioc_type(raw_type: str | None) -> CanonicalIOCType | None:
 
 
 def normalize_ioc_value(value: str, ioc_type: CanonicalIOCType) -> str:
-    normalized = str(value or "").strip().strip(".,;:()[]{}<>\"'")
+    normalized = str(value or "").strip().strip(IOC_VALUE_PUNCTUATION)
     return normalized.upper() if ioc_type == "cve" else normalized.lower()
 
 
@@ -63,14 +65,43 @@ class CTIEnrichment(TaranisBaseModel):
     updated_at: datetime | None = None
 
 
+class CTIInstalledComponent(TaranisBaseModel):
+    id: str
+    name: str
+    version: str
+    purl: str
+
+
+class CTIAssetFinding(TaranisBaseModel):
+    id: str
+    asset_id: str
+    asset_name: str
+    identifier: str
+    matching_enabled: bool
+    imported_at: str
+    records: list[dict[str, Any]]
+    components: list[CTIInstalledComponent]
+    component_references: dict[str, str] = Field(default_factory=dict)
+    unresolved_references: list[str] = Field(default_factory=list)
+
+
 class CTIItem(TaranisBaseModel):
-    ioc_type: CanonicalIOCType
+    ioc_type: CanonicalIOCType | Literal["vulnerability"]
     value: str
     news_item_ids: list[str] = Field(default_factory=list)
     enrichment: CTIEnrichment | None = None
+    findings: list[CTIAssetFinding] = Field(default_factory=list)
+
+
+class CTIPagination(TaranisBaseModel):
+    page: int
+    pages: int
+    total: int
+    search: str = ""
 
 
 class CTIResponse(TaranisBaseModel):
     item_type: Literal["news_item", "story", "report", "asset"]
     item_id: str
     iocs: list[CTIItem] = Field(default_factory=list)
+    pagination: CTIPagination | None = None

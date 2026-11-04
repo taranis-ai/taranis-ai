@@ -32,6 +32,7 @@ from frontend.auth import user_has_admin_permissions
 from frontend.config import Config
 from frontend.log import logger
 from frontend.onboarding import pending_onboarding_tasks_for_template
+from frontend.utils.router_helpers import get_assess_return_url
 from frontend.views.base_view import BaseView
 
 
@@ -73,6 +74,7 @@ def jinja_setup(app: Flask):
     template_globals = cast(dict[str, Any], app.jinja_env.globals)
     template_globals.update(
         {
+            "get_assess_return_url": get_assess_return_url,
             "heroicon_micro": heroicon_micro,
             "heroicon_mini": heroicon_mini,
             "heroicon_outline": heroicon_outline,

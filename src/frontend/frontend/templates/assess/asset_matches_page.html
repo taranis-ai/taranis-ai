@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block content %}
+  <div class="p-4 space-y-4">
+    {% if assess_return_url %}
+      {% include "assess/back_link.html" %}
+    {% endif %}
+    <h1 class="text-2xl font-bold">Why this matches</h1>
+    {% include "assess/asset_matches.html" %}
+  </div>
+{% endblock content %}

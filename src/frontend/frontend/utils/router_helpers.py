@@ -1,6 +1,7 @@
 from typing import Any, Union, get_args, get_origin
+from urllib.parse import parse_qs, urlencode, urlparse
 
-from flask import request
+from flask import request, url_for
 from pydantic import BaseModel
 from werkzeug.datastructures import MultiDict
 
@@ -9,6 +10,23 @@ from frontend.cache_models import PagingData
 
 def is_htmx_request() -> bool:
     return "HX-Request" in request.headers
+
+
+def get_assess_return_url() -> str | None:
+    """Recover Assess navigation context, accepting only the local Assess route."""
+    assess_path = url_for("assess.assess")
+    try:
+        current_url = urlparse(request.headers.get("HX-Current-URL", ""))
+        candidate = request.args.get("assess_url", "") or parse_qs(current_url.query).get("assess_url", [""])[0]
+        if not candidate and current_url.path == assess_path:
+            candidate = f"{assess_path}?{current_url.query}"
+        parsed = urlparse(candidate)
+    except ValueError:
+        return None
+    if candidate.startswith("/") and not parsed.scheme and not parsed.netloc and parsed.path == assess_path:
+        query = urlencode(parse_qs(parsed.query), doseq=True)
+        return f"{assess_path}?{query}" if query else assess_path
+    return None
 
 
 def convert_query_params(query_params: MultiDict[str, str], model: type[BaseModel]) -> dict[str, Any]:

@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+{% from "macros/table.html" import table_controls %}
+{% set severity_colors = {
+  "critical": "bg-red-600 text-white",
+  "high": "bg-orange-400 text-black",
+  "medium": "bg-amber-300 text-black",
+  "low": "bg-emerald-300 text-black",
+  "none": "bg-sky-200 text-black",
+  "unknown": "bg-slate-500 text-white"
+} %}
+{% block content %}
+  <section id="asset-cves" class="p-4 space-y-5">
+    <nav aria-label="Breadcrumb" class="flex flex-wrap gap-2 text-sm">
+      <a class="link" href="{{ url_for('assets.assets') }}">Assets</a>
+      <span aria-hidden="true">/</span>
+      {% if asset_id %}
+        <a class="link" href="{{ url_for('assets.assets_cves') }}">CVE overview</a>
+        <span aria-hidden="true">/</span>
+        <span>{{ data.asset_name if data else 'Asset CVEs' }}</span>
+      {% else %}
+        <span>CVE overview</span>
+      {% endif %}
+    </nav>
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <h1 class="text-3xl font-bold">{{ data.asset_name ~ ' · CVEs' if asset_id and data else 'Asset CVE overview' }}</h1>
+      {% if asset_id %}
+        <div class="flex flex-wrap gap-2">
+          <a class="btn btn-sm btn-outline" href="{{ url_for('assets.asset', asset_id=asset_id) }}">Asset details</a>
+          <a class="btn btn-sm btn-outline" href="{{ url_for('assets.asset_sbom', asset_id=asset_id) }}">Software inventory</a>
+        </div>
+      {% endif %}
+    </div>
+    <p class="text-sm text-base-content/70">Imported and manually entered CVEs, counted once per asset. Severity uses the highest reported CVSS score, or reported severity when no score is available. Unknown means no rating is recorded.</p>
+    {% if error %}<div role="alert" class="alert alert-error">{{ error }}</div>{% endif %}
+    <form method="get"
+          action="{{ base_url }}"
+          class="flex flex-wrap gap-3 items-end"
+          hx-get="{{ base_url }}"
+          hx-target="#asset-cves"
+          hx-select="#asset-cves"
+          hx-swap="outerHTML"
+          hx-push-url="true">
+      <label>
+        {{ 'CVE ID' if asset_id else 'Asset name' }}
+        <input class="input input-bordered block" name="search" type="search" value="{{ request.args.get('search', '') }}" maxlength="200">
+      </label>
+      {% if asset_id %}
+        <div>
+          <label for="asset-cve-severity">Severity</label>
+          <select id="asset-cve-severity" name="severity" class="select select-bordered block">
+            <option value="">All severities</option>
+            {% for severity in severities %}<option value="{{ severity }}"
+        {% if request.args.get('severity') == severity %}selected{% endif %}>{{ severity | title }}</option>{% endfor %}
+          </select>
+        </div>
+      {% else %}
+        <div>
+          <label for="asset-cve-group">Asset group</label>
+          <select id="asset-cve-group" name="group" class="select select-bordered block">
+            <option value="">All groups</option>
+            {% for group in data.groups if data %}<option value="{{ group.id }}"
+        {% if request.args.get('group') == group.id %}selected{% endif %}>{{ group.name }}</option>{% endfor %}
+          </select>
+        </div>
+        <div>
+          <label for="asset-cve-tag">Tag</label>
+          <select id="asset-cve-tag" name="tag" class="select select-bordered block">
+            <option value="">All tags</option>
+            {% for tag in data.tags if data %}<option value="{{ tag }}"
+        {% if request.args.get('tag', '') | trim | lower == tag %}selected{% endif %}>{{ tag }}</option>{% endfor %}
+          </select>
+        </div>
+      {% endif %}
+      <input type="hidden" name="limit" value="{{ data.limit if data else 20 }}">
+      <button class="btn btn-primary" type="submit">{{ 'Filter CVEs' if asset_id else 'Filter assets' }}</button>
+      <a class="btn btn-ghost" href="{{ base_url }}">Clear filters</a>
+    </form>
+    {% if data %}
+      <p class="text-sm" data-test-id="asset-cve-count">{{ data.total_count }} {{ 'CVEs' if asset_id else 'assets' }}{% if data.items %} · Showing {{ pagination.current_range }}{% endif %}</p>
+      <div class="overflow-x-auto rounded-lg border border-base-300">
+        {% if asset_id %}
+          <table class="table w-full">
+            <caption class="sr-only">Recorded CVEs for {{ data.asset_name }}</caption>
+            <thead class="bg-base-200">
+              <tr>
+                <th scope="col">CVE</th>
+                <th scope="col">Severity</th>
+                <th scope="col">Highest CVSS</th>
+                <th scope="col">Origin</th>
+                <th scope="col">Sources</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for cve in data.items %}
+                <tr data-test-id="asset-cve-row">
+                  <th scope="row" class="font-mono">{{ cve.cve_id }}</th>
+                  <td><span class="badge {{ severity_colors[cve.severity] }}">{{ cve.severity | title }}</span></td>
+                  <td class="tabular-nums">{{ cve.score if cve.score is not none else '—' }}</td>
+                  <td>{{ 'SBOM + manual' if cve.imported and cve.manual else 'SBOM' if cve.imported else 'Manual' }}</td>
+                  <td>{{ cve.sources | join(", ") or '—' }}</td>
+                </tr>
+              {% else %}
+                <tr>
+                  <td colspan="5" class="py-8 text-center">No recorded CVEs match these filters.</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        {% else %}
+          <table class="table w-full">
+            <caption class="sr-only">Recorded CVE severity counts by asset</caption>
+            <thead class="bg-base-200">
+              <tr>
+                <th scope="col">Asset</th>
+                <th scope="col">Group</th>
+                <th scope="col" class="text-right">Total CVEs</th>
+                {% for severity in severities %}<th scope="col" class="text-right">{{ severity | title }}</th>{% endfor %}
+              </tr>
+            </thead>
+            <tbody>
+              {% for asset in data.items %}
+                <tr class="border-base-300" data-test-id="asset-cve-summary" data-asset-id="{{ asset.id }}">
+                  <th scope="row">
+                    <a class="link font-semibold" href="{{ url_for('assets.asset_cves', asset_id=asset.id) }}">{{ asset.name }}</a>
+                    {% if asset.tags %}<div class="mt-1 text-xs font-normal text-base-content/60">{{ asset.tags | join(" · ") }}</div>{% endif %}
+                  </th>
+                  <td>{{ asset.group_name }}</td>
+                  <td class="text-right text-xl font-semibold tabular-nums">
+                    <a class="link"
+                       href="{{ url_for('assets.asset_cves', asset_id=asset.id) }}"
+                       aria-label="{{ asset.name }}: {{ asset.total }} CVEs">{{ asset.total }}</a>
+                  </td>
+                  {% for severity in severities %}
+                    {% set count = asset.counts[severity] %}
+                    <td class="p-0 text-right text-xl font-semibold tabular-nums {{ severity_colors[severity] if count else 'bg-base-200 text-base-content/50' }}">
+                      {% if count %}
+                        <a class="block px-4 py-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px]"
+                           href="{{ url_for('assets.asset_cves', asset_id=asset.id, severity=severity) }}"
+                           aria-label="{{ asset.name }}: {{ count }} {{ severity }} CVEs">{{ count }}</a>
+                      {% else %}
+                        <span class="block px-4 py-4">0</span>
+                      {% endif %}
+                    </td>
+                  {% endfor %}
+                </tr>
+              {% else %}
+                <tr>
+                  <td colspan="9" class="py-8 text-center">No assets match these filters.</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        {% endif %}
+      </div>
+      <div hx-target:inherited="#asset-cves" hx-select:inherited="#asset-cves" hx-swap:inherited="outerHTML">
+        {{ table_controls(base_url, pagination) }}
+      </div>
+    {% endif %}
+  </section>
+{% endblock content %}

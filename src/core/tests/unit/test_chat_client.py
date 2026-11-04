@@ -7,6 +7,7 @@ from threading import Event, Thread
 import fakeredis
 import pytest
 import requests
+from models.assess import ASSESS_ADVANCED_ASSET_FILTER_KEYS
 from urllib3.connection import HTTPConnection
 from urllib3.response import HTTPResponse
 
@@ -116,6 +117,9 @@ def test_story_search_supplies_context_and_saves_answer(configured_chat, db_pers
         assert args[0].endswith("/chat/completions" if configured_chat == "chat_completions" else "/responses")
         requests_sent.append(kwargs["json"])
         if len(requests_sent) == 1:
+            tool = kwargs["json"]["tools"][0]
+            schema = tool["function"]["parameters"] if configured_chat == "chat_completions" else tool["parameters"]
+            assert not ASSESS_ADVANCED_ASSET_FILTER_KEYS.intersection(schema["properties"])
             if configured_chat == "chat_completions":
                 assert "input" not in kwargs["json"] and "store" not in kwargs["json"]
                 assert kwargs["json"]["tools"][0]["function"]["name"] == "search_stories"
@@ -157,6 +161,21 @@ def test_story_search_supplies_context_and_saves_answer(configured_chat, db_pers
         ChatService.delete_conversation(conversation["id"], admin_user)
         db_persistent_session.delete(story)
         db_persistent_session.commit()
+
+
+def test_provider_cannot_submit_unvalidated_asset_filters():
+    for key, value in (
+        ("asset_id", "asset-1"),
+        ("asset_id", None),
+        ("asset_group_id", "group-1"),
+        ("asset_tag", "production"),
+        ("asset_cve_match", "any"),
+        ("asset_software_match", "no"),
+        ("asset_cvss_min", 0),
+        ("asset_cvss_max", 10),
+    ):
+        with pytest.raises(ChatProviderError):
+            ChatService._search_filters(json.dumps({key: value}), {}, set())
 
 
 def test_answer_works_when_provider_does_not_support_streaming(configured_chat, monkeypatch):

@@ -1,0 +1,179 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.7",
+  "serialNumber": "urn:uuid:8bdd7d2c-2b31-4b27-b858-a502bca7b1cb",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2026-10-05T10:00:00Z",
+    "component": {
+      "type": "file",
+      "name": "showcase-host",
+      "bom-ref": "root",
+      "description": "Sanitized showcase host; all findings are illustrative test data.",
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://example.invalid/projects/showcase"
+        }
+      ]
+    },
+    "tools": [
+      {
+        "vendor": "OWASP",
+        "name": "Dependency-Track",
+        "version": "5.1.1"
+      }
+    ]
+  },
+  "components": [
+    {
+      "type": "library",
+      "name": "github.com/moby/buildkit",
+      "version": "v0.32.0",
+      "bom-ref": "buildkit-dockerd",
+      "purl": "pkg:golang/github.com/moby/buildkit@v0.32.0",
+      "cpe": "cpe:2.3:a:moby:buildkit:v0.32.0:*:*:*:*:*:*:*",
+      "properties": [
+        {
+          "name": "syft:location:0:path",
+          "value": "usr/bin/dockerd"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "github.com/moby/buildkit",
+      "version": "v0.32.0",
+      "bom-ref": "buildkit-buildx",
+      "purl": "pkg:golang/github.com/moby/buildkit@v0.32.0",
+      "cpe": "cpe:2.3:a:moby:buildkit:v0.32.0:*:*:*:*:*:*:*",
+      "properties": [
+        {
+          "name": "syft:location:0:path",
+          "value": "usr/libexec/docker/cli-plugins/docker-buildx"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "github.com/moby/buildkit",
+      "version": "v0.32.1",
+      "bom-ref": "buildkit-compose",
+      "purl": "pkg:golang/github.com/moby/buildkit@v0.32.1",
+      "cpe": "cpe:2.3:a:moby:buildkit:v0.32.1:*:*:*:*:*:*:*",
+      "properties": [
+        {
+          "name": "syft:location:0:path",
+          "value": "usr/libexec/docker/cli-plugins/docker-compose"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "curl",
+      "version": "8.5.0",
+      "bom-ref": "curl",
+      "purl": "pkg:generic/curl@8.5.0",
+      "cpe": "cpe:2.3:a:haxx:curl:8.5.0:*:*:*:*:*:*:*"
+    },
+    {
+      "type": "library",
+      "name": "internal-agent",
+      "version": "1.0",
+      "bom-ref": "internal-agent"
+    },
+    {
+      "type": "file",
+      "name": "usr/bin/dockerd",
+      "bom-ref": "dockerd-file"
+    }
+  ],
+  "vulnerabilities": [
+    {
+      "id": "CVE-2026-12345",
+      "source": {
+        "name": "NVD",
+        "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-12345"
+      },
+      "description": "Illustrative build isolation finding.",
+      "ratings": [
+        {
+          "source": {
+            "name": "NVD"
+          },
+          "severity": "high",
+          "score": 8.1,
+          "method": "CVSSv31",
+          "vector": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:H"
+        },
+        {
+          "severity": "medium",
+          "score": 6.0,
+          "method": "CVSSv2",
+          "vector": "AV:N/AC:M/Au:S/C:P/I:P/A:P"
+        }
+      ],
+      "cwes": [
+        78,
+        94
+      ],
+      "created": "2026-10-01T10:00:00Z",
+      "published": "2026-10-02T10:00:00Z",
+      "updated": "2026-10-03T10:00:00Z",
+      "analysis": {
+        "state": "in_triage",
+        "detail": "Exporter assessment; not confirmed exposure."
+      },
+      "affects": [
+        {
+          "ref": "buildkit-dockerd"
+        },
+        {
+          "ref": "buildkit-compose"
+        }
+      ]
+    },
+    {
+      "id": "cve-2026-12345",
+      "source": {
+        "name": "Vendor advisory",
+        "url": "https://example.invalid/advisories/example"
+      },
+      "description": "Independent source assessment.",
+      "ratings": [
+        {
+          "severity": "critical",
+          "score": 9.1,
+          "method": "CVSSv31",
+          "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N"
+        }
+      ],
+      "affects": [
+        {
+          "ref": "curl",
+          "versions": [
+            {
+              "version": "8.5.0",
+              "status": "affected"
+            }
+          ]
+        },
+        {
+          "ref": "unresolved-curl"
+        }
+      ]
+    },
+    {
+      "id": "CVE-2026-12346",
+      "source": {
+        "name": "NVD"
+      },
+      "description": "Illustrative unrelated finding.",
+      "affects": [
+        {
+          "ref": "internal-agent"
+        }
+      ]
+    }
+  ]
+}

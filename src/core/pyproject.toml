@@ -37,6 +37,7 @@ dependencies = [
     "sentry-sdk[flask]",
     "sentry-sdk[sqlalchemy]",
     "fuzzbite",
+    "packageurl-python>=0.17.6",
 ]
 dynamic = ["version"]
 

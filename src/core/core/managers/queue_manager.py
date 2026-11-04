@@ -78,6 +78,8 @@ queue_manager: "QueueManager"
 
 # Task name to full module path mapping
 TASK_MAP = {
+    "sbom_import_task": "worker.misc.sbom_import.sbom_import_task",
+    "asset_match_task": "worker.misc.asset_matching.asset_match_task",
     "check_endpoint": "worker.endpoint_health.check_endpoint",
     "collector_task": "worker.collectors.collector_tasks.collector_task",
     "collector_preview": "worker.collectors.collector_tasks.collector_preview",

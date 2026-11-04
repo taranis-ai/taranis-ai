@@ -1,0 +1,27 @@
+{% from "assets/severity.html" import reported_severity %}
+<section class="rounded-lg bg-base-200/60 p-3 space-y-2" aria-label="Matched assets" data-test-id="story-matched-assets" @click.stop>
+  <div class="flex flex-wrap items-center justify-between gap-2 text-xs">
+    <span class="font-semibold text-base-content/70">{{ story.matched_assets | length }} matched asset{{ 's' if story.matched_assets | length != 1 }}</span>
+    <a class="link link-primary"
+       href="{{ url_for('assess.asset_matches', story_id=story.id, assess_url=assess_return_url | default(None)) }}"
+       hx-get="{{ url_for('assess.asset_matches', story_id=story.id, assess_url=assess_return_url | default(None)) }}"
+       hx-target="#asset-matches-{{ story.id }}"
+       hx-swap="innerHTML"
+       hx-status:4xx="target:#asset-matches-{{ story.id }}"
+       hx-status:5xx="target:#asset-matches-{{ story.id }}">Why this matches</a>
+  </div>
+  <ul class="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+    {% for asset in story.matched_assets %}
+      <li class="min-w-0 rounded-lg border border-base-300 bg-base-100 px-3 py-2 space-y-1">
+        <a class="link link-hover text-xl font-bold break-all"
+           href="{{ url_for('assets.asset', asset_id=asset.id, assess_url=assess_return_url | default(None)) }}">{{ asset.name }}</a>
+        <div class="flex flex-wrap items-center gap-2 text-xs">
+          {{ reported_severity(asset.max_cvss) }}
+          {% if asset.cve_count %}<span>{{ asset.cve_count }} CVE match{{ 'es' if asset.cve_count != 1 }}</span>{% endif %}
+          {% if asset.software_match %}<span>Software match</span>{% endif %}
+        </div>
+      </li>
+    {% endfor %}
+  </ul>
+  <div id="asset-matches-{{ story.id }}" class="text-sm"></div>
+</section>

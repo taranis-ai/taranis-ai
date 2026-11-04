@@ -1387,6 +1387,39 @@ paths:
       description: get stories by filters
       operationId: assess.stories.get
       parameters:
+      - name: asset_match
+        in: query
+        description: Require current asset matches; requires ASSETS_ACCESS. Advanced asset filters enable this automatically.
+        schema: {type: boolean, default: false}
+      - name: asset_id
+        in: query
+        schema: {type: string, maxLength: 64}
+      - name: asset_group_id
+        in: query
+        schema: {type: string, maxLength: 64}
+      - name: asset_tag
+        in: query
+        description: Exact asset classification tag, trimmed and lowercased.
+        schema: {type: string}
+      - name: asset_cve_match
+        in: query
+        schema: {type: string, enum: [any, 'yes', 'no'], default: any}
+      - name: asset_software_match
+        in: query
+        schema: {type: string, enum: [any, 'yes', 'no'], default: any}
+      - name: asset_cvss_min
+        in: query
+        schema: {type: number, minimum: 0, maximum: 10}
+      - name: asset_cvss_max
+        in: query
+        description: Inclusive maximum of the highest matching imported CVSS score, at least asset_cvss_min. Missing scores fail active bounds.
+        schema: {type: number, minimum: 0, maximum: 10}
+      - name: tags
+        in: query
+        style: form
+        explode: true
+        description: Exact tags. In asset-match mode, specific CVEs must all match the same asset across qualifying articles in the story; scores use only selected CVEs.
+        schema: {type: array, items: {type: string}}
       - name: search
         in: query
         description: Filter search string
@@ -6721,6 +6754,84 @@ paths:
           $ref: '#/components/responses/404NotFound'
         '409':
           description: Item membership or order changed; reload before saving
+  /assess/asset-filter-lists:
+    get:
+      security:
+      - UserAuth: []
+      tags: [assess]
+      operationId: assess.asset_filter_lists.get
+      description: Current accessible asset, group and classification-tag choices. Requires ASSESS_ACCESS and ASSETS_ACCESS. Never cached.
+      responses:
+        '200':
+          description: Accessible choices, independent of active story filters.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssessAssetFilterLists'
+        '403':
+          description: Assess and Assets access required.
+  /assess/stories/{story_id}/asset-matches:
+    get:
+      security:
+      - UserAuth: []
+      tags: [assess]
+      operationId: assess.story_asset_matches.get
+      description: >-
+        Current article-by-asset evidence under canonical Assess filters. Requires ASSESS_ACCESS and ASSETS_ACCESS.
+        Rechecks organization/group access, source ACLs, story/article TLP and enabled matching decisions.
+        Match types and scores qualify each article/asset association; several CVE tags must all match one asset
+        across qualifying articles. Returns only qualifying associations, without pagination or caching.
+      parameters:
+      - name: story_id
+        in: path
+        required: true
+        schema: {type: string}
+      - name: asset_match
+        in: query
+        description: Require current asset matches; requires ASSETS_ACCESS. Advanced asset filters enable this automatically.
+        schema: {type: boolean, default: false}
+      - name: asset_id
+        in: query
+        schema: {type: string, maxLength: 64}
+      - name: asset_group_id
+        in: query
+        schema: {type: string, maxLength: 64}
+      - name: asset_tag
+        in: query
+        description: Exact asset classification tag, trimmed and lowercased.
+        schema: {type: string}
+      - name: asset_cve_match
+        in: query
+        schema: {type: string, enum: [any, 'yes', 'no'], default: any}
+      - name: asset_software_match
+        in: query
+        schema: {type: string, enum: [any, 'yes', 'no'], default: any}
+      - name: asset_cvss_min
+        in: query
+        schema: {type: number, minimum: 0, maximum: 10}
+      - name: asset_cvss_max
+        in: query
+        description: Inclusive maximum of the highest matching imported CVSS score, at least asset_cvss_min. Missing scores fail active bounds.
+        schema: {type: number, minimum: 0, maximum: 10}
+      - name: tags
+        in: query
+        style: form
+        explode: true
+        description: Exact tags. In asset-match mode, specific CVEs must all match the same asset across qualifying articles in the story; scores use only selected CVEs.
+        schema: {type: array, items: {type: string}}
+      responses:
+        '200':
+          description: Current matches; articles is empty when no associations qualify.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssessAssetEvidence'
+        '400':
+          description: Invalid filter values.
+        '403':
+          description: Assess and Assets access required.
+        '404':
+          description: Story unavailable.
   /assess/stories/{story_id}/cti:
     parameters:
     - name: story_id
@@ -6903,14 +7014,677 @@ paths:
           description: forbidden
         "404":
           $ref: "#/components/responses/404NotFound"
+  /assets/sbom-uploads/{upload_id}:
+    get:
+      security:
+      - UserAuth: []
+      tags: [assets]
+      operationId: sbom_upload_progress.get
+      description: Private processing status for the importing user and organization. Requires ASSETS_CREATE and current target access.
+      parameters:
+      - name: upload_id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Queued, processing, ready or failed preparation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SbomUploadStatus'
+        '403':
+          description: Forbidden
+        '404':
+          description: Upload unavailable
+  /worker/sbom-uploads/{upload_id}:
+    get:
+      security:
+      - APIKey: []
+      tags: [worker]
+      operationId: worker_sbom_upload.get
+      description: Download staged source bytes and start processing after rechecking the importing user's access. Source is removed on completion or failure.
+      parameters:
+      - name: upload_id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Staged CycloneDX source
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: Upload unavailable
+        '409':
+          description: Source no longer available
+  /worker/sbom-uploads/{upload_id}/{action}:
+    post:
+      security:
+      - APIKey: []
+      tags: [worker]
+      operationId: worker_sbom_upload.post
+      description: Prepare a private preview with a summary, ordered batches of at most 100 components or findings, then complete. Rechecks owner access on each request. Repeated accepted batches are idempotent. Failure discards partial inventory. No asset is changed.
+      parameters:
+      - name: upload_id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: action
+        in: path
+        required: true
+        schema:
+          type: string
+          enum: [begin, components, findings, complete, failure]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+            examples:
+              components:
+                value: {offset: 0, items: [{name: openssl, type: library, version: '3.0'}]}
+              failure:
+                value: {}
+      responses:
+        '200':
+          description: Current preparation status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SbomUploadStatus'
+        '400':
+          description: Invalid prepared data
+        '404':
+          description: Upload unavailable
+        '409':
+          description: Incomplete or out-of-order preparation
+  /assets/sbom-imports:
+    post:
+      security:
+      - UserAuth: []
+      tags:
+      - assets
+      operationId: sbom_upload.post
+      description: Upload CycloneDX JSON 1.5–1.7 (default maximum request 250 MiB). Requires
+        ASSETS_CREATE. Queues worker preparation and returns private upload status.
+        Poll /assets/sbom-uploads/{id} until READY, then read /assets/sbom-imports/{import_id}.
+        Completed previews have no time limit; invalid documents fail asynchronously.
+      parameters:
+      - name: asset_id
+        in: query
+        description: Scope a replacement upload to this readable asset; identical files on other assets are independent imports.
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Existing accessible preview is ready
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SbomUploadStatus'
+        '202':
+          description: Worker preparation queued or in progress
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SbomUploadStatus'
+        '400': &id002
+          description: Request rejected; JSON error contains a curated message.
+        '401': *id002
+        '403': *id002
+        '413': *id002
+        '503':
+          description: SBOM processing could not be queued
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+              - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+  /assets/sbom-imports/{import_id}:
+    get:
+      security:
+      - UserAuth: []
+      tags:
+      - assets
+      operationId: sbom_preview.get
+      description: Read an owned preview with current organization access. Requires
+        ASSETS_CREATE.
+      responses:
+        '200':
+          description: Preview inventory
+          content:
+            application/json:
+              schema: &id001
+                $ref: '#/components/schemas/SbomInventory'
+        '401': *id002
+        '403': *id002
+        '404': *id002
+      parameters:
+      - name: import_id
+        in: path
+        required: true
+        schema:
+          type: string
+      - &id004
+        name: page
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+        description: Page of 50 grouped components.
+      - name: asset_id
+        in: query
+        required: false
+        schema:
+          type: string
+    post:
+      security:
+      - UserAuth: []
+      tags:
+      - assets
+      operationId: sbom_preview.post
+      description: Atomically create one asset from an owned preview. Requires ASSETS_CREATE
+        and access to the destination group. Software-name and CVE matching default to enabled and can be disabled independently. Automatically queues a 30-day historical scan when enabled software rules remain and the importer has ASSETS_ACCESS and ASSESS_ACCESS. Queue failure preserves the asset and records a failed run for retry. Repeated confirmation returns the same
+        asset without queuing another scan.
+      responses:
+        '200':
+          description: Already confirmed
+          content:
+            application/json:
+              schema: &id003
+                type: object
+                required:
+                - id
+                - message
+                properties:
+                  id:
+                    type: string
+                  message:
+                    type: string
+        '201':
+          description: Asset created
+          content:
+            application/json:
+              schema: *id003
+        '400': *id002
+        '401': *id002
+        '403': *id002
+        '404': *id002
+      parameters:
+      - name: import_id
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SbomCreateAsset'
+  /assets/{asset_id}/sbom:
+    get:
+      security:
+      - UserAuth: []
+      tags:
+      - assets
+      operationId: asset_sbom.get
+      description: Read saved SBOM inventory. Requires ASSETS_ACCESS and current asset-group
+        access.
+      responses:
+        '200':
+          description: Saved inventory
+          content:
+            application/json:
+              schema: *id001
+        '401': *id002
+        '403': *id002
+        '404': *id002
+      parameters:
+      - name: asset_id
+        in: path
+        required: true
+        schema:
+          type: string
+      - *id004
+    put:
+      security:
+      - UserAuth: []
+      tags:
+      - assets
+      operationId: asset_sbom.put
+      description: Atomically replace the latest inventory and source-reported findings from an owned preview. Requires ASSETS_CREATE
+        and current asset-group access. expected_sha256 must equal the current snapshot hash, or null for an asset without inventory.
+        Stale previews return 409. Repeating an applied import is idempotent. Asset identity, manual fields, unrelated CPEs, unchanged
+        rules and CVE decisions survive. New versions inherit unanimous package decisions; conflicts require review. Missing vulnerability
+        data clears old findings. Matching options apply only to newly generated rules and newly introduced CVEs; preserved decisions take precedence.
+        Supersedes older scans and queues the normal historical scan after commit only when enabled software rules remain and the user is authorized.
+      parameters:
+      - name: asset_id
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SbomReplaceAsset'
+      responses:
+        '200':
+          description: Snapshot applied or already applied
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  message:
+                    type: string
+        '400':
+          description: Request rejected; JSON error contains a curated message.
+        '401':
+          description: Request rejected; JSON error contains a curated message.
+        '403':
+          description: Request rejected; JSON error contains a curated message.
+        '404':
+          description: Request rejected; JSON error contains a curated message.
+        '409':
+          description: Request rejected; JSON error contains a curated message.
+  /assets/{asset_id}/sbom/cves/{cve_id}:
+    put:
+      security:
+      - UserAuth: []
+      tags:
+      - assets
+      operationId: asset_sbom_cve.put
+      description: Enable or disable live CVE-tag matching across every imported source record for this normalized CVE. Findings
+        remain stored and visible in CTI. Independent of product-name triggers. Requires ASSETS_CREATE and current asset-group access.
+      parameters:
+      - name: asset_id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: cve_id
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SbomCveMatching'
+      responses:
+        '200':
+          description: CVE matching decision saved
+        '400':
+          description: Request rejected; JSON error contains a curated message.
+        '401':
+          description: Request rejected; JSON error contains a curated message.
+        '403':
+          description: Request rejected; JSON error contains a curated message.
+        '404':
+          description: Request rejected; JSON error contains a curated message.
+        '409':
+          description: Request rejected; JSON error contains a curated message.
+  /assets/{asset_id}/triggers:
+    get:
+      security:
+      - UserAuth: []
+      tags:
+      - assets
+      operationId: AssetTriggers.get
+      description: List organization-shared software rules grouped across installed versions with the same local enabled state. Each item includes rule_id, can_edit_rule, versions, component_ids, phrase, context and provenance. Requires
+        ASSETS_ACCESS and current asset-group access. Paginates 50 review groups.
+      parameters:
+      - name: asset_id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: page
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+      - name: search
+        in: query
+        schema:
+          type: string
+      - name: component_id
+        in: query
+        schema:
+          type: string
+      - name: enabled
+        in: query
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Successful operation.
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Request rejected; JSON error contains a curated message.
+        '401':
+          description: Request rejected; JSON error contains a curated message.
+        '403':
+          description: Request rejected; JSON error contains a curated message.
+        '404':
+          description: Request rejected; JSON error contains a curated message.
+    post:
+      security:
+      - UserAuth: []
+      tags:
+      - assets
+      operationId: AssetTriggers.post
+      description: Add a shared analyst phrase across existing and future installations of a package in the importing organization.
+        Other assets enable the alias only for components already participating in matching. Requires ASSETS_CREATE, current asset-group access,
+        and membership in the importing organization.
+      parameters:
+      - name: asset_id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '201':
+          description: Successful operation.
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Request rejected; JSON error contains a curated message.
+        '401':
+          description: Request rejected; JSON error contains a curated message.
+        '403':
+          description: Request rejected; JSON error contains a curated message.
+        '404':
+          description: Request rejected; JSON error contains a curated message.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TriggerCreate'
+  /assets/{asset_id}/triggers/{trigger_id}:
+    put:
+      security:
+      - UserAuth: []
+      tags:
+      - assets
+      operationId: AssetTriggerEdit.put
+      description: Replace phrase, optional context (any phrase in the same article)
+        across the importing organization’s installations of this package, and activation state only across the displayed asset/package-version group. Only the importing organization may edit shared wording. Shared wording changes remove evidence across all installations using the rule; scan history
+        to refresh. Requires ASSETS_CREATE.
+      parameters:
+      - name: asset_id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: trigger_id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Successful operation.
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Request rejected; JSON error contains a curated message.
+        '401':
+          description: Request rejected; JSON error contains a curated message.
+        '403':
+          description: Request rejected; JSON error contains a curated message.
+        '404':
+          description: Request rejected; JSON error contains a curated message.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TriggerInput'
+  /assets/{asset_id}/triggers/selection:
+    post:
+      security:
+      - UserAuth: []
+      tags:
+      - assets
+      operationId: AssetTriggerSelection.post
+      description: Enable or disable up to 100 selected rules belonging to this asset, independently of other assets sharing their phrase/context.
+        Disabling removes evidence. Requires ASSETS_CREATE.
+      parameters:
+      - name: asset_id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Successful operation.
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Request rejected; JSON error contains a curated message.
+        '401':
+          description: Request rejected; JSON error contains a curated message.
+        '403':
+          description: Request rejected; JSON error contains a curated message.
+        '404':
+          description: Request rejected; JSON error contains a curated message.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TriggerSelection'
+  /assets/{asset_id}/triggers/suggestions:
+    post:
+      security:
+      - UserAuth: []
+      tags:
+      - assets
+      operationId: AssetTriggerSuggestions.post
+      description: Generate missing suggestions with product-name matching defaults without overwriting analyst
+        decisions. Requires ASSETS_CREATE.
+      parameters:
+      - name: asset_id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Successful operation.
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Request rejected; JSON error contains a curated message.
+        '401':
+          description: Request rejected; JSON error contains a curated message.
+        '403':
+          description: Request rejected; JSON error contains a curated message.
+        '404':
+          description: Request rejected; JSON error contains a curated message.
+  /assets/{asset_id}/match-runs:
+    get:
+      security:
+      - UserAuth: []
+      tags:
+      - assets
+      operationId: AssetMatchRuns.get
+      description: Read the requesting user's latest scan status, accessible processed
+        article count, or null. Requires ASSETS_ACCESS and ASSESS_ACCESS.
+      parameters:
+      - name: asset_id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Successful operation.
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Request rejected; JSON error contains a curated message.
+        '401':
+          description: Request rejected; JSON error contains a curated message.
+        '403':
+          description: Request rejected; JSON error contains a curated message.
+        '404':
+          description: Request rejected; JSON error contains a curated message.
+    post:
+      security:
+      - UserAuth: []
+      tags:
+      - assets
+      operationId: AssetMatchRuns.post
+      description: Queue historical matching of articles collected in the last N days
+        (default 30; 0 is all history). Requires ASSETS_CREATE and ASSESS_ACCESS. Worker
+        batches recheck requesting user access.
+      parameters:
+      - name: asset_id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '202':
+          description: Successful operation.
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Request rejected; JSON error contains a curated message.
+        '401':
+          description: Request rejected; JSON error contains a curated message.
+        '403':
+          description: Request rejected; JSON error contains a curated message.
+        '404':
+          description: Request rejected; JSON error contains a curated message.
+        '503':
+          description: Request rejected; JSON error contains a curated message.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MatchRunInput'
+  /worker/asset-match-runs/{run_id}/batch:
+    post:
+      security:
+      - APIKey: []
+      tags:
+      - assets
+      operationId: asset_match_batch.post
+      description: Process up to 200 historical articles and persist the scan cursor
+        atomically. Requires worker API key. Terminal runs are idempotent; failed=true
+        records a curated failure.
+      parameters:
+      - name: run_id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Successful operation.
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Request rejected; JSON error contains a curated message.
+        '401':
+          description: Request rejected; JSON error contains a curated message.
+        '403':
+          description: Request rejected; JSON error contains a curated message.
+        '404':
+          description: Request rejected; JSON error contains a curated message.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                failed:
+                  type: boolean
+                  default: false
+  /assets/tags:
+    get:
+      security:
+      - UserAuth: []
+      tags: [assets]
+      operationId: asset_tags.get
+      description: List distinct sorted classification tags on assets accessible through the current organization or default group. Requires ASSETS_ACCESS.
+      responses:
+        '200':
+          description: Accessible asset tags
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [tags]
+                properties:
+                  tags:
+                    type: array
+                    items: {type: string}
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: forbidden
   /assets:
     get:
       security:
       - UserAuth: []
       tags:
       - assets
-      description: get assets
+      description: Get assets with classification tags; filters combine before pagination.
       operationId: assets.get
+      parameters:
+      - name: tag
+        in: query
+        description: Exact classification tag, trimmed and lowercased.
+        schema: {type: string}
       responses:
         '200':
           description: success
@@ -7006,21 +7780,120 @@ paths:
           description: forbidden
         '404':
           $ref: '#/components/responses/404NotFound'
+  /assets/cves:
+    get:
+      security:
+      - UserAuth: []
+      tags: [assets]
+      operationId: assets_cves.get
+      description: >-
+        Count distinct current imported and manually entered CVEs per accessible
+        asset, including assets with zero CVEs. Requires ASSETS_ACCESS and current
+        group access; does not require Assess access or load article/report data.
+        Counts include disabled findings and unresolved component references.
+        Severity uses the highest valid reported CVSS score, falling back to the
+        highest recognized reported severity, otherwise unknown.
+      parameters:
+      - name: search
+        in: query
+        description: Literal case-insensitive asset name substring.
+        schema: {type: string, maxLength: 200}
+      - name: group
+        in: query
+        schema: {type: string}
+      - name: tag
+        in: query
+        description: Exact trimmed lowercase asset classification tag.
+        schema: {type: string, maxLength: 200}
+      - name: page
+        in: query
+        schema: {type: integer, minimum: 1, default: 1}
+      - name: limit
+        in: query
+        schema: {type: integer, minimum: 1, maximum: 100, default: 20}
+      responses:
+        '200':
+          description: Assets ordered by name and ID, with accessible filter choices.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssetCveOverview'
+        '400':
+          description: Invalid filters.
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: ASSETS_ACCESS is required.
+  /assets/{asset_id}/cves:
+    parameters:
+    - name: asset_id
+      in: path
+      required: true
+      schema: {type: string}
+    get:
+      security:
+      - UserAuth: []
+      tags: [assets]
+      operationId: asset_cves.get
+      description: >-
+        List distinct current imported and manually entered CVEs for an accessible
+        asset. Requires ASSETS_ACCESS. Uses only asset inventory and observables;
+        matching participation has no effect. Manual-only CVEs have unknown severity.
+      parameters:
+      - name: search
+        in: query
+        description: Case-insensitive CVE ID substring.
+        schema: {type: string, maxLength: 200}
+      - name: severity
+        in: query
+        schema: {type: string, enum: ['', critical, high, medium, low, none, unknown]}
+      - name: page
+        in: query
+        schema: {type: integer, minimum: 1, default: 1}
+      - name: limit
+        in: query
+        schema: {type: integer, minimum: 1, maximum: 100, default: 20}
+      responses:
+        '200':
+          description: CVEs ordered by severity, descending score, then ID.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssetCveList'
+        '400':
+          description: Invalid filters.
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: ASSETS_ACCESS is required.
+        '404':
+          description: Asset does not exist or is inaccessible.
   /assets/cti:
     get:
       security:
       - UserAuth: []
       tags:
       - assets
-      description: get CTI information for all readable assets
+      description: Read current imported findings, cached IOC enrichment, manual observables and readable report CTI. Paginates 50 distinct IDs with CVE/component search. CVE article associations use existing tags and current access/matching decisions; no new extraction or external enrichment is requested.
       operationId: assets_cti.get
+      parameters:
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+      - name: search
+        in: query
+        required: false
+        schema:
+          type: string
       responses:
         '200':
           description: CTI information for all readable assets
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/cti_response'
+                $ref: '#/components/schemas/asset_cti_response'
         '401':
           $ref: '#/components/responses/401Unauthorized'
         '403':
@@ -7114,15 +7987,26 @@ paths:
       - UserAuth: []
       tags:
       - assets
-      description: get CTI information for readable vulnerability reports linked to the asset
+      description: Read current imported findings, cached IOC enrichment, manual observables and readable report CTI. Paginates 50 distinct IDs with CVE/component search. CVE article associations use existing tags and current access/matching decisions; no new extraction or external enrichment is requested.
       operationId: asset_cti.get
+      parameters:
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+      - name: search
+        in: query
+        required: false
+        schema:
+          type: string
       responses:
         '200':
           description: CTI information for the asset
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/cti_response'
+                $ref: '#/components/schemas/asset_cti_response'
         '401':
           $ref: '#/components/responses/401Unauthorized'
         '403':
@@ -10252,6 +11136,925 @@ paths:
           $ref: '#/components/responses/404NotFound'
 components:
   schemas:
+    AssessAssetFilterLists:
+      type: object
+      required: [assets, groups, tags]
+      properties:
+        assets:
+          type: array
+          items:
+            type: object
+            required: [id, name, group_id]
+            properties:
+              id: {type: string}
+              name: {type: string}
+              group_id: {type: string}
+        groups:
+          type: array
+          items:
+            type: object
+            properties:
+              id: {type: string}
+              name: {type: string}
+        tags:
+          type: array
+          items: {type: string}
+    AssessAssetEvidence:
+      type: object
+      required: [story_id, articles]
+      properties:
+        story_id: {type: string}
+        articles:
+          type: array
+          items:
+            type: object
+            required: [id, title, cve_count, hosts]
+            properties:
+              id: {type: string}
+              title: {type: string}
+              cve_count: {type: integer}
+              hosts:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AssetIntelligenceHost'
+    AssetCveOverview:
+      type: object
+      required: [items, total_count, page, limit, groups, tags]
+      properties:
+        total_count: {type: integer}
+        page: {type: integer}
+        limit: {type: integer}
+        tags:
+          type: array
+          items: {type: string}
+        groups:
+          type: array
+          items:
+            type: object
+            required: [id, name]
+            properties:
+              id: {type: string}
+              name: {type: string}
+        items:
+          type: array
+          items:
+            type: object
+            required: [id, name, group_name, tags, total, counts]
+            properties:
+              id: {type: string}
+              name: {type: string}
+              group_name: {type: string}
+              tags:
+                type: array
+                items: {type: string}
+              total: {type: integer}
+              counts:
+                type: object
+                required: [critical, high, medium, low, none, unknown]
+                properties:
+                  critical: {type: integer}
+                  high: {type: integer}
+                  medium: {type: integer}
+                  low: {type: integer}
+                  none: {type: integer}
+                  unknown: {type: integer}
+    AssetCveList:
+      type: object
+      required: [asset_id, asset_name, items, total_count, page, limit]
+      properties:
+        asset_id: {type: string}
+        asset_name: {type: string}
+        total_count: {type: integer}
+        page: {type: integer}
+        limit: {type: integer}
+        items:
+          type: array
+          items:
+            type: object
+            required: [cve_id, severity, imported, manual, sources]
+            properties:
+              cve_id: {type: string}
+              severity: {type: string, enum: [critical, high, medium, low, none, unknown]}
+              score: {type: number, minimum: 0, maximum: 10}
+              imported: {type: boolean}
+              manual: {type: boolean}
+              sources:
+                type: array
+                items: {type: string}
+    AssetIntelligenceHost:
+      allOf:
+      - $ref: '#/components/schemas/AssetIntelligenceArticle'
+      - type: object
+        required: [asset_id, asset_name, group_name, software_match, max_cvss]
+        properties:
+          asset_id: {type: string}
+          asset_name: {type: string}
+          group_name: {type: string}
+          software_match: {type: boolean}
+          max_cvss:
+            type: [number, 'null']
+            description: Highest reported CVSS score for this article/asset association and selected CVEs.
+    AssetIntelligenceRating:
+      type: object
+      required: [score, method, vector, source, component_ids]
+      properties:
+        score: {type: number, minimum: 0, maximum: 10}
+        method: {type: string, enum: [CVSSv2, CVSSv3, CVSSv31, CVSSv4]}
+        vector: {type: string}
+        source:
+          type: object
+          properties:
+            name: {type: string}
+            url: {type: string}
+        component_ids:
+          type: array
+          description: Selected installed components referenced by this rating's source record.
+          items: {type: string}
+    AssetIntelligenceArticle:
+      type: object
+      required: [id, title, software, evidence, cve_matches]
+      properties:
+        id:
+          type: string
+          description: News item ID; titles do not determine article identity.
+        title:
+          type: string
+        software:
+          type: array
+          items:
+            $ref: '#/components/schemas/AssetIntelligenceSoftware'
+        evidence:
+          type: array
+          description: Each exact field and excerpt pair appears once in this article.
+          items:
+            $ref: '#/components/schemas/AssetIntelligenceEvidence'
+        cve_matches:
+          type: array
+          description: Current CVE tag evidence linked to imported findings. These associations have no textual excerpt.
+          items:
+            type: object
+            required:
+            - cve_id
+            - finding_id
+            - component_ids
+            properties:
+              cve_id:
+                type: string
+              finding_id:
+                type: string
+              ratings:
+                type: array
+                description: Source-reported CVSS ratings for these selected components in both intelligence views.
+                items:
+                  $ref: '#/components/schemas/AssetIntelligenceRating'
+              component_ids:
+                type: array
+                items:
+                  type: string
+    AssetIntelligenceSoftware:
+      type: object
+      required: [id, name, versions, components, software_match, cve_match]
+      properties:
+        software_match: {type: boolean}
+        cve_match: {type: boolean}
+        id:
+          type: string
+          description: Representative component ID, referenced by evidence in this response.
+        name:
+          type: string
+        versions:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+        components:
+          type: array
+          description: Matching installed components sharing the existing package identity.
+          items:
+            type: object
+            required: [id, name, version, purl, software_match, cve_match]
+            properties:
+              software_match: {type: boolean}
+              cve_match: {type: boolean}
+              id:
+                type: string
+              name:
+                type: string
+              version:
+                type: string
+              purl:
+                type: string
+    AssetIntelligenceEvidence:
+      type: object
+      required: [field, excerpt, matches]
+      properties:
+        field:
+          type: string
+          enum: [title, content]
+        excerpt:
+          type: string
+        matches:
+          type: array
+          items:
+            $ref: '#/components/schemas/AssetIntelligenceEvidenceMatch'
+    AssetIntelligenceEvidenceMatch:
+      type: object
+      required: [software_id, phrase, matched_text, context, triggers]
+      properties:
+        software_id:
+          type: string
+          description: References a software group in the same article.
+        phrase:
+          type: string
+        matched_text:
+          type: string
+        context:
+          type: array
+          description: Context phrases actually matched in this article.
+          items:
+            type: string
+        triggers:
+          type: array
+          description: Exact matching rules and installed components supporting this evidence.
+          items:
+            type: object
+            required: [id, component_id, version]
+            properties:
+              id:
+                type: string
+              component_id:
+                type: string
+              version:
+                type: string
+    SbomUploadStatus:
+      type: object
+      required: [id, filename, status]
+      properties:
+        id:
+          type: string
+        filename:
+          type: string
+        status:
+          type: string
+          enum: [QUEUED, PROCESSING, READY, FAILED]
+        error:
+          type: string
+        import_id:
+          type: [string, 'null']
+        target_asset_id:
+          type: [string, 'null']
+        components_received:
+          type: integer
+        findings_received:
+          type: integer
+    SbomComparison:
+      properties:
+        asset_id:
+          title: Asset Id
+          type: string
+        asset_name:
+          title: Asset Name
+          type: string
+        expected_sha256:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Expected Sha256
+        components_added:
+          title: Components Added
+          type: integer
+        components_removed:
+          title: Components Removed
+          type: integer
+        findings_added:
+          title: Findings Added
+          type: integer
+        findings_removed:
+          title: Findings Removed
+          type: integer
+        cves_added:
+          title: Cves Added
+          type: integer
+        cves_removed:
+          title: Cves Removed
+          type: integer
+        clears_findings:
+          title: Clears Findings
+          type: boolean
+      required:
+      - asset_id
+      - asset_name
+      - expected_sha256
+      - components_added
+      - components_removed
+      - findings_added
+      - findings_removed
+      - cves_added
+      - cves_removed
+      - clears_findings
+      title: SbomComparison
+      type: object
+    SbomReplaceAsset:
+      properties:
+        enable_software_matching:
+          type: boolean
+          default: true
+          description: Enable eligible newly generated software-name rules; preserved and inherited decisions take precedence.
+        enable_cve_matching:
+          type: boolean
+          default: true
+          description: Enable matching for newly introduced CVEs; existing CVE decisions take precedence. Findings remain stored when disabled.
+        import_id:
+          title: Import Id
+          type: string
+        expected_sha256:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Expected Sha256
+      required:
+      - import_id
+      - expected_sha256
+      title: SbomReplaceAsset
+      type: object
+    SbomCveMatching:
+      properties:
+        enabled:
+          title: Enabled
+          type: boolean
+      required:
+      - enabled
+      title: SbomCveMatching
+      type: object
+    CTIAssetFinding:
+      additionalProperties: true
+      properties:
+        id:
+          title: Id
+          type: string
+        asset_id:
+          title: Asset Id
+          type: string
+        asset_name:
+          title: Asset Name
+          type: string
+        identifier:
+          title: Identifier
+          type: string
+        matching_enabled:
+          title: Matching Enabled
+          type: boolean
+        imported_at:
+          title: Imported At
+          type: string
+        records:
+          items:
+            additionalProperties: true
+            type: object
+          title: Records
+          type: array
+        components:
+          items:
+            $ref: '#/components/schemas/CTIInstalledComponent'
+          title: Components
+          type: array
+        component_references:
+          additionalProperties:
+            type: string
+          title: Component References
+          type: object
+        unresolved_references:
+          items:
+            type: string
+          title: Unresolved References
+          type: array
+      required:
+      - id
+      - asset_id
+      - asset_name
+      - identifier
+      - matching_enabled
+      - imported_at
+      - records
+      - components
+      title: CTIAssetFinding
+      type: object
+    CTIEnrichment:
+      additionalProperties: true
+      properties:
+        ioc_type:
+          enum:
+          - cve
+          - email
+          - ip
+          - domain
+          - url
+          - hash
+          title: Ioc Type
+          type: string
+        value:
+          title: Value
+          type: string
+        status:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+          title: Status
+        analyzers:
+          items:
+            additionalProperties: true
+            type: object
+          title: Analyzers
+          type: array
+        errors:
+          items:
+            additionalProperties: true
+            type: object
+          title: Errors
+          type: array
+        submitted_at:
+          anyOf:
+          - format: date-time
+            type: string
+          - type: 'null'
+          default: null
+          title: Submitted At
+        completed_at:
+          anyOf:
+          - format: date-time
+            type: string
+          - type: 'null'
+          default: null
+          title: Completed At
+        updated_at:
+          anyOf:
+          - format: date-time
+            type: string
+          - type: 'null'
+          default: null
+          title: Updated At
+      required:
+      - ioc_type
+      - value
+      title: CTIEnrichment
+      type: object
+    CTIInstalledComponent:
+      additionalProperties: true
+      properties:
+        id:
+          title: Id
+          type: string
+        name:
+          title: Name
+          type: string
+        version:
+          title: Version
+          type: string
+        purl:
+          title: Purl
+          type: string
+      required:
+      - id
+      - name
+      - version
+      - purl
+      title: CTIInstalledComponent
+      type: object
+    CTIItem:
+      additionalProperties: true
+      properties:
+        ioc_type:
+          anyOf:
+          - enum:
+            - cve
+            - email
+            - ip
+            - domain
+            - url
+            - hash
+            type: string
+          - const: vulnerability
+            type: string
+          title: Ioc Type
+        value:
+          title: Value
+          type: string
+        news_item_ids:
+          items:
+            type: string
+          title: News Item Ids
+          type: array
+        enrichment:
+          anyOf:
+          - $ref: '#/components/schemas/CTIEnrichment'
+          - type: 'null'
+          default: null
+        findings:
+          items:
+            $ref: '#/components/schemas/CTIAssetFinding'
+          title: Findings
+          type: array
+      required:
+      - ioc_type
+      - value
+      title: CTIItem
+      type: object
+    CTIPagination:
+      additionalProperties: true
+      properties:
+        page:
+          title: Page
+          type: integer
+        pages:
+          title: Pages
+          type: integer
+        total:
+          title: Total
+          type: integer
+        search:
+          default: ''
+          title: Search
+          type: string
+      required:
+      - page
+      - pages
+      - total
+      title: CTIPagination
+      type: object
+    asset_cti_response:
+      additionalProperties: true
+      properties:
+        item_type:
+          enum:
+          - news_item
+          - story
+          - report
+          - asset
+          title: Item Type
+          type: string
+        item_id:
+          title: Item Id
+          type: string
+        iocs:
+          items:
+            $ref: '#/components/schemas/CTIItem'
+          title: Iocs
+          type: array
+        pagination:
+          anyOf:
+          - $ref: '#/components/schemas/CTIPagination'
+          - type: 'null'
+          default: null
+      required:
+      - item_type
+      - item_id
+      title: CTIResponse
+      type: object
+    SbomComponent:
+      properties:
+        id:
+          default: ''
+          title: Id
+          type: string
+        name:
+          title: Name
+          type: string
+        version:
+          default: ''
+          title: Version
+          type: string
+        type:
+          title: Type
+          type: string
+        group:
+          default: ''
+          title: Group
+          type: string
+        purl:
+          default: ''
+          title: Purl
+          type: string
+        suppliers:
+          items:
+            type: string
+          title: Suppliers
+          type: array
+        cpes:
+          items:
+            type: string
+          title: Cpes
+          type: array
+        invalid_cpes:
+          items:
+            type: string
+          title: Invalid Cpes
+          type: array
+        occurrences:
+          items:
+            $ref: '#/components/schemas/SbomOccurrence'
+          title: Occurrences
+          type: array
+        suggestions:
+          items:
+            $ref: '#/components/schemas/TriggerSuggestion'
+          title: Suggestions
+          type: array
+        review_conflicts:
+          items:
+            type: string
+          title: Review Conflicts
+          type: array
+      required:
+      - name
+      - type
+      title: SbomComponent
+      type: object
+    SbomOccurrence:
+      properties:
+        reference:
+          title: Reference
+          type: string
+        locations:
+          items:
+            type: string
+          title: Locations
+          type: array
+      required:
+      - reference
+      title: SbomOccurrence
+      type: object
+    SbomSummary:
+      properties:
+        spec_version:
+          title: Spec Version
+          type: string
+        serial_number:
+          default: ''
+          title: Serial Number
+          type: string
+        document_version:
+          title: Document Version
+          type: integer
+        generated_at:
+          default: ''
+          title: Generated At
+          type: string
+        source_name:
+          type: string
+          description: Original metadata component name from the uploaded SBOM.
+        suggested_name:
+          default: ''
+          title: Suggested Name
+          type: string
+        software_records:
+          title: Software Records
+          type: integer
+        excluded_files:
+          title: Excluded Files
+          type: integer
+        component_count:
+          title: Component Count
+          type: integer
+        components_with_cpes:
+          title: Components With Cpes
+          type: integer
+        invalid_cpe_count:
+          title: Invalid Cpe Count
+          type: integer
+        parser_version:
+          default: 3
+          title: Parser Version
+          type: integer
+        description:
+          default: ''
+          title: Description
+          type: string
+        tools:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - items: {}
+            type: array
+          title: Tools
+        external_references:
+          items:
+            additionalProperties: true
+            type: object
+          title: External References
+          type: array
+        vulnerabilities_supplied:
+          default: false
+          title: Vulnerabilities Supplied
+          type: boolean
+        finding_count:
+          default: 0
+          title: Finding Count
+          type: integer
+        cve_count:
+          default: 0
+          title: Cve Count
+          type: integer
+        affected_component_count:
+          default: 0
+          title: Affected Component Count
+          type: integer
+        unresolved_reference_count:
+          default: 0
+          title: Unresolved Reference Count
+          type: integer
+      required:
+      - spec_version
+      - document_version
+      - software_records
+      - excluded_files
+      - component_count
+      - components_with_cpes
+      - invalid_cpe_count
+      title: SbomSummary
+      type: object
+    TriggerSuggestion:
+      properties:
+        phrase:
+          maxLength: 200
+          minLength: 1
+          title: Phrase
+          type: string
+        context:
+          items:
+            type: string
+          maxItems: 10
+          title: Context
+          type: array
+        enabled:
+          default: false
+          title: Enabled
+          type: boolean
+        sources:
+          items:
+            type: string
+          title: Sources
+          type: array
+      required:
+      - phrase
+      - sources
+      title: TriggerSuggestion
+      type: object
+    SbomInventory:
+      properties:
+        id:
+          title: Id
+          type: string
+        asset_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+          title: Asset Id
+        filename:
+          title: Filename
+          type: string
+        sha256:
+          title: Sha256
+          type: string
+        imported_at:
+          title: Imported At
+          type: string
+        summary:
+          $ref: '#/components/schemas/SbomSummary'
+        components:
+          items:
+            $ref: '#/components/schemas/SbomComponent'
+          title: Components
+          type: array
+        page:
+          title: Page
+          type: integer
+        pages:
+          title: Pages
+          type: integer
+        comparison:
+          anyOf:
+          - $ref: '#/components/schemas/SbomComparison'
+          - type: 'null'
+          default: null
+      required:
+      - id
+      - filename
+      - sha256
+      - imported_at
+      - summary
+      - components
+      - page
+      - pages
+      title: SbomInventory
+      type: object
+    SbomCreateAsset:
+      properties:
+        enable_software_matching:
+          type: boolean
+          default: true
+          description: Enable eligible product-name rules. When false, retain all generated rules disabled for review.
+        enable_cve_matching:
+          type: boolean
+          default: true
+          description: Enable live matching of imported CVEs to article tags. Findings remain stored when disabled.
+        name:
+          maxLength: 255
+          minLength: 1
+          title: Name
+          type: string
+        asset_group_id:
+          minLength: 1
+          title: Asset Group Id
+          type: string
+        tags:
+          type: array
+          items: {type: string}
+          description: Manually assigned asset classification tags; trimmed, lowercased and deduplicated.
+        description:
+          default: ''
+          maxLength: 10000
+          title: Description
+          type: string
+      required:
+      - name
+      - asset_group_id
+      title: SbomCreateAsset
+      type: object
+    TriggerInput:
+      properties:
+        phrase:
+          maxLength: 200
+          minLength: 1
+          title: Phrase
+          type: string
+        context:
+          items:
+            type: string
+          maxItems: 10
+          title: Context
+          type: array
+        enabled:
+          default: false
+          title: Enabled
+          type: boolean
+      required:
+      - phrase
+      title: TriggerInput
+      type: object
+    TriggerCreate:
+      properties:
+        phrase:
+          maxLength: 200
+          minLength: 1
+          title: Phrase
+          type: string
+        context:
+          items:
+            type: string
+          maxItems: 10
+          title: Context
+          type: array
+        enabled:
+          default: false
+          title: Enabled
+          type: boolean
+        component_id:
+          title: Component Id
+          type: string
+      required:
+      - phrase
+      - component_id
+      title: TriggerCreate
+      type: object
+    TriggerSelection:
+      properties:
+        trigger_ids:
+          items:
+            type: string
+          maxItems: 100
+          minItems: 1
+          title: Trigger Ids
+          type: array
+        enabled:
+          title: Enabled
+          type: boolean
+      required:
+      - trigger_ids
+      - enabled
+      title: TriggerSelection
+      type: object
+    MatchRunInput:
+      properties:
+        days:
+          default: 30
+          maximum: 36500
+          minimum: 0
+          title: Days
+          type: integer
+      title: MatchRunInput
+      type: object
     chat_turn_request:
       type: object
       additionalProperties: false
@@ -11270,6 +13073,27 @@ components:
     story:
       type: object
       properties:
+        matched_assets:
+          type: array
+          description: Deduplicated qualifying asset summaries across matching articles, present in asset-filtered responses. Detailed evidence is fetched separately.
+          items:
+            type: object
+            required: [id, name]
+            properties:
+              id: {type: string}
+              name: {type: string}
+              max_cvss:
+                type: [number, 'null']
+                minimum: 0
+                maximum: 10
+                description: Highest source-reported CVSS among qualifying article matches; null when none is scored. Does not confirm exposure.
+              cve_count:
+                type: integer
+                minimum: 0
+                description: Distinct matching CVE identifiers across qualifying articles for this asset.
+              software_match:
+                type: boolean
+                description: Whether any qualifying article matches an enabled software phrase for this asset.
         tlp_level:
           type: string
           readOnly: true
@@ -11515,6 +13339,10 @@ components:
           type: string
         asset_group_id:
           type: string
+        tags:
+          type: array
+          items: {type: string}
+          description: Classification tags. Omission preserves tags on update; an empty list clears them. Tags do not grant access.
         asset_cpes:
           type: array
           items:

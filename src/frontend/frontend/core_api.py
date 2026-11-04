@@ -83,6 +83,15 @@ class CoreApi:
             logger.error(f"API connection failed: {e}")
         return False
 
+    def upload_sbom(self, upload, *, asset_id: str | None = None) -> requests.Response:
+        return self.session.post(
+            url=f"{self.api_url}/assets/sbom-imports",
+            params={"asset_id": asset_id} if asset_id else None,
+            headers={"Content-type": None},
+            files={"file": (upload.filename, upload.stream, "application/json")},
+            timeout=self.timeout,
+        )
+
     def api_put(self, endpoint: str, json_data=None) -> requests.Response:
         if json_data is None:
             json_data = {}

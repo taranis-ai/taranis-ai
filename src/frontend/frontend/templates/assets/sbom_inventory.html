@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+{% from "assets/navigation.html" import asset_navigation with context %}
+{% block content %}
+  <div class="p-4 space-y-4" data-test-id="sbom-inventory">
+    {% set target_id = inventory.comparison.asset_id if inventory.comparison else none %}
+    {% if target_id or inventory.asset_id %}
+      {{ asset_navigation(target_id or inventory.asset_id, 'update' if preview else 'inventory', asset_name) }}
+    {% else %}
+      <a href="{{ url_for('assets.assets') }}" class="link">Assets</a>
+    {% endif %}
+    <h1 class="text-2xl font-bold">{{ 'Review SBOM import' if preview else 'Software inventory' }}</h1>
+    <p>Software, versions, identifiers, and installation locations supplied by the SBOM.</p>
+    {% if error %}<div role="alert" class="alert alert-error">{{ error }}</div>{% endif %}
+    <p>{{ inventory.filename }} · CycloneDX {{ inventory.summary.spec_version }} · {{ inventory.imported_at }}</p>
+    <details>
+      <summary class="cursor-pointer">Import provenance</summary>
+      <dl class="break-all">
+        <dt>SHA-256</dt>
+        <dd>
+          {{ inventory.sha256 }}
+        </dd>
+        <dt>Document serial</dt>
+        <dd>
+          {{ inventory.summary.serial_number or 'Not supplied' }}
+        </dd>
+        <dt>Document version</dt>
+        <dd>
+          {{ inventory.summary.document_version }}
+        </dd>
+        <dt>Generated</dt>
+        <dd>
+          {{ inventory.summary.generated_at or 'Not supplied' }}
+        </dd>
+        {% if inventory.summary.description %}<dt>Subject description</dt><dd class="whitespace-pre-line">{{ inventory.summary.description }}</dd>{% endif %}
+        {% if inventory.summary.tools %}<dt>Exporter</dt><dd><pre class="text-xs whitespace-pre-wrap">{{ inventory.summary.tools | tojson(indent=2) }}</pre></dd>{% endif %}
+        {% for reference in inventory.summary.external_references %}
+          {% if reference.get("url", "").lower().startswith(("http://", "https://")) %}<dt>{{ reference.get("comment") or reference.get('type') }}</dt><dd><a class="link" href="{{ reference.url }}" target="_blank" rel="noopener">{{ reference.url }}</a></dd>{% endif %}
+        {% endfor %}
+      </dl>
+    </details>
+    <p>
+      {{ inventory.summary.software_records }} software records grouped into {{ inventory.summary.component_count }} components.
+      {{ inventory.summary.excluded_files }} individual file records excluded.
+    </p>
+    <p>
+      {{ inventory.summary.components_with_cpes }} components have valid CPEs;
+      {{ inventory.summary.component_count - inventory.summary.components_with_cpes }} have none.
+      {{ inventory.summary.invalid_cpe_count }} invalid CPE values excluded.
+    </p>
+    {% if inventory.summary.vulnerabilities_supplied %}
+      <p data-test-id="sbom-findings-summary">{{ inventory.summary.cve_count }} distinct CVEs · {{ inventory.summary.finding_count }} imported findings · {{ inventory.summary.affected_component_count }} affected components reported by the source.</p>
+      <p class="text-sm">Imported findings describe the export’s assessment; they do not confirm exposure.</p>
+    {% else %}
+      <p data-test-id="sbom-findings-summary">No vulnerability data supplied.</p>
+    {% endif %}
+    {% if inventory.summary.unresolved_reference_count %}<p role="alert" class="alert alert-warning">{{ inventory.summary.unresolved_reference_count }} finding references could not be linked to imported software.</p>{% endif %}
+    {% if inventory.comparison %}
+      <section class="card bg-base-200 p-4" data-test-id="sbom-comparison">
+        <h2 class="text-lg font-bold">Update {{ inventory.comparison.asset_name }}</h2>
+        <p>{{ inventory.comparison.components_added }} components added · {{ inventory.comparison.components_removed }} removed.</p>
+        <p>{{ inventory.comparison.findings_added }} finding IDs added · {{ inventory.comparison.findings_removed }} removed.</p>
+        <p>{{ inventory.comparison.cves_added }} CVEs added · {{ inventory.comparison.cves_removed }} removed.</p>
+        {% if inventory.comparison.clears_findings %}<p role="alert" class="alert alert-warning">This file supplies no vulnerability data. Updating will remove the previously imported findings and their CVE intelligence associations.</p>{% endif %}
+        <p>The current snapshot will be replaced. Applicable matching decisions and manually maintained asset details are preserved.</p>
+      </section>
+    {% endif %}
+    {% if preview %}
+      <p>Suggested matching defaults identify eligible product names, including components without CPEs. Choose whether to enable them in the confirmation form below. Broad vendor, supplier, and ambiguous phrases start disabled.</p>
+    {% else %}
+      <p>Open Matching rules to review software-name matching. Imported vulnerability findings and CVE matching are available in Findings &amp; indicators.</p>
+    {% endif %}
+    <div class="overflow-x-auto">
+      <table class="table table-zebra">
+        <thead>
+          <tr>
+            <th>Component</th>
+            <th>Version</th>
+            <th>CPE coverage</th>
+            <th>Occurrences</th>
+            <th>{{ 'Suggested matching defaults' if preview else 'Matching rules' }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for component in inventory.components %}
+            <tr>
+              <td>
+                <strong>{{ component.name }}</strong>
+                <div>{{ component.type }}</div>
+                {% if component.review_conflicts %}<p class="text-warning">Matching decisions differ between previous versions. Review inherited rules.</p>{% endif %}
+                {% if component.purl %}<div class="text-xs break-all">{{ component.purl }}</div>{% endif %}
+                {% if component.suppliers %}<div>{{ component.suppliers | join(", ") }}</div>{% endif %}
+              </td>
+              <td>{{ component.version or 'Not supplied' }}</td>
+              <td>
+                {% if component.cpes %}
+                  <details>
+                    <summary>{{ component.cpes | length }} valid CPEs</summary>
+                    <ul>{% for cpe in component.cpes %}<li class="break-all">{{ cpe }}</li>{% endfor %}</ul>
+                  </details>
+          {% else %}<span class="badge badge-warning">No valid CPE</span>{% endif %}
+          {% if component.invalid_cpes %}
+            <details>
+              <summary class="text-warning">{{ component.invalid_cpes | length }} invalid CPEs</summary>
+              <ul>{% for cpe in component.invalid_cpes %}<li class="break-all">{{ cpe }}</li>{% endfor %}</ul>
+            </details>
+          {% endif %}
+            </td>
+            <td>
+              <details>
+                <summary>{{ component.occurrences | length }} occurrences</summary>
+                {% for occurrence in component.occurrences %}
+                  <div class="text-xs break-all my-2">
+                    {{ occurrence.reference }}
+                    <ul>{% for location in occurrence.locations %}<li>{{ location }}</li>{% endfor %}</ul>
+                  </div>
+                {% endfor %}
+              </details>
+            </td>
+            <td>
+              {% if preview %}
+                <ul>{% for suggestion in component.suggestions %}<li>{{ suggestion.phrase }} · {{ 'Eligible for automatic matching' if suggestion.enabled else 'Disabled by default' }} · {{ suggestion.sources | join(", ") }}{% if suggestion.context %} · context: {{ suggestion.context | join(", ") }}{% endif %}</li>{% endfor %}</ul>
+              {% else %}
+                <a class="link"
+                   href="{{ url_for('assets.asset_triggers', asset_id=inventory.asset_id, component_id=component.id, assess_url=get_assess_return_url()) }}">Review rules</a>
+              {% endif %}
+            </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <nav aria-label="Component pages" class="flex gap-4 items-center">
+      {% if inventory.page > 1 %}<a class="btn btn-sm"
+   href="{{ url_for('assets.sbom_preview', import_id=inventory.id, page=inventory.page - 1, asset_id=target_id, assess_url=get_assess_return_url()) if preview else url_for('assets.asset_sbom', asset_id=inventory.asset_id, page=inventory.page - 1, assess_url=get_assess_return_url()) }}">Previous</a>{% endif %}
+      <span>Page {{ inventory.page }} of {{ inventory.pages }}</span>
+      {% if inventory.page < inventory.pages %}<a class="btn btn-sm"
+   href="{{ url_for('assets.sbom_preview', import_id=inventory.id, page=inventory.page + 1, asset_id=target_id, assess_url=get_assess_return_url()) if preview else url_for('assets.asset_sbom', asset_id=inventory.asset_id, page=inventory.page + 1, assess_url=get_assess_return_url()) }}">Next</a>{% endif %}
+    </nav>
+    {% if preview %}
+      <form method="post"
+            action="{{ url_for('assets.sbom_preview', import_id=inventory.id, page=inventory.page, asset_id=target_id, assess_url=get_assess_return_url()) }}"
+            class="space-y-4 max-w-xl">
+        <input type="hidden" name="csrf_token" value="{{ request.cookies.get(config['JWT_ACCESS_CSRF_COOKIE_NAME'], '') }}">
+        <fieldset class="space-y-3">
+          <legend class="font-semibold">Matching defaults{{ ' for new rules and CVEs' if target_id else '' }}</legend>
+          <label class="flex items-center gap-2">
+            <input type="checkbox" class="checkbox" name="enable_software_matching" {% if enable_software_matching %}checked{% endif %}>
+            Enable software-name matching
+          </label>
+          <p class="text-sm">Enable eligible product phrases. Broad vendor, supplier, and ambiguous phrases start disabled. Uncheck to keep new rules disabled for review.</p>
+          <label class="flex items-center gap-2">
+            <input type="checkbox" class="checkbox" name="enable_cve_matching" {% if enable_cve_matching %}checked{% endif %}>
+            Enable CVE matching
+          </label>
+          <p class="text-sm">Match imported CVEs to tagged articles. Findings remain available when matching is disabled.</p>
+          {% if target_id %}<p class="text-sm">Existing rules, inherited decisions, and CVE decisions are preserved. These choices apply only to newly generated rules and newly introduced CVEs.</p>{% endif %}
+          {% if "ASSESS_ACCESS" in current_user.permissions %}<p class="text-sm">When software rules are enabled, an initial scan checks articles collected in the last 30 days. CVE matching uses existing article tags without a scan.</p>{% endif %}
+        </fieldset>
+        {% if target_id %}
+          <input type="hidden" name="expected_sha256" value="{{ inventory.comparison.expected_sha256 or '' }}">
+          <button class="btn btn-primary" type="submit" data-test-id="sbom-update">Update asset</button>
+        {% else %}
+          <label class="block" for="asset-name">Asset name</label>
+          <input id="asset-name"
+                 name="name"
+                 value="{{ name }}"
+                 maxlength="255"
+                 required
+                 class="input input-bordered w-full"
+                 data-test-id="sbom-asset-name">
+          <p class="text-sm">Confirm the application or host name. The SBOM scan target may not be a hostname.</p>
+          {% if inventory.summary.source_name %}<p class="text-sm">Source name: {{ inventory.summary.source_name }}</p>{% endif %}
+          <label class="block" for="sbom-tags">Tags</label>
+          <textarea id="sbom-tags"
+                    name="tags_text"
+                    class="textarea textarea-bordered w-full"
+                    data-test-id="sbom-asset-tags">{{ tags_text }}</textarea>
+          <p class="text-sm">Optional classification tags, one per line.</p>
+          <label class="block" for="asset-group">Destination group</label>
+          <select id="asset-group" name="asset_group_id" required class="select select-bordered w-full">
+            <option value="">Select a group</option>
+            {% for group in groups %}<option value="{{ group.id }}"
+        {% if group.id == group_id %}selected{% endif %}>{{ group.name }}</option>{% endfor %}
+          </select>
+          <label class="block" for="asset-description">Description</label>
+          <textarea id="asset-description"
+                    name="description"
+                    maxlength="10000"
+                    class="textarea textarea-bordered w-full">{{ description }}</textarea>
+          <p class="text-sm">Create one asset with the complete software inventory and the matching defaults selected above.</p>
+          <button class="btn btn-primary" type="submit" data-test-id="sbom-create">Create asset</button>
+        {% endif %}
+      </form>
+    {% endif %}
+  </div>
+{% endblock content %}

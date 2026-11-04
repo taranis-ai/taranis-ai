@@ -16,6 +16,8 @@ db: SQLAlchemy = SQLAlchemy()
 
 
 def initial_database_setup(engine: Engine):
+    import_module("core.model.asset_sbom")
+    import_module("core.model.asset_intelligence")
     import_module("core.model.chat")
     import_module("core.model.ioc")
 

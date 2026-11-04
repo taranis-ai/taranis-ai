@@ -76,6 +76,64 @@ Chat is enabled in the local E2E servers. The fixture temporarily assigns the de
 The demo is skipped against external instances, so recording cannot reconfigure their providers. Successful runs remove their demo conversation and stories.
 Chat uses the same highlight helper and instant form filling as the other segments: `--highlight-delay=0` adds no typing or reading delays; a positive delay highlights the controls, answer bubbles, evidence link, and source content for that duration. Headless CI also runs this workflow without highlights or pauses.
 
+### Record the SBOM PoC walkthrough
+
+`test_e2e_asset_sbom.py` has two independent workflows. The first reviews software-name
+matching and narrows the PHP rule to `security` or `critical` context, excluding incidental
+mentions such as a meetup. The second creates a fresh three-host scenario and demonstrates
+imported CVEs, the `production`/`staging` tags, source details, CVE controls, and retiring a
+legacy PHP installation through SBOM replacement. Record the second workflow alone for a
+continuous showcase; its assets and articles are created and removed within that run.
+
+The walkthrough uses only repository fixtures in a fresh isolated Compose stack:
+
+- `tests/playwright/testdata/sbom/scenario.json`: the three SBOM filenames, asset names,
+  and `production`/`staging` classification tags. Each CycloneDX 1.7 document stands alone;
+  the production portal includes duplicate PHP 8.4.26 installations, legacy PHP 8.3.35,
+  valid CPEs, a private CPE-free component, and one excluded file record.
+- `tests/playwright/testdata/sbom-news-items.json`: dated PHP and CERT-EU advisory summaries,
+  a clearly fictional CVE-only follow-up, and software-only, community, and partial-name
+  examples. News is ingested before import so the automatic historical scan is exercised.
+
+The PHP findings record CVE-2026-109618 and CVE-2026-109619 as a 21 October 2026
+snapshot. PHP reported CVSS 4.0 scores of 9.2; its advance notice did not yet establish
+exact affected or fixed versions. The fictional assets illustrate source-reported potential
+exposure, not confirmed vulnerability. The second workflow checks exact component references,
+source details, Assess asset/tag/CVSS filters, on-demand evidence, shared software rules,
+CVE decisions, return navigation, and replacement preservation.
+Generated pagination stress data remains in the core application tests.
+
+From `src/frontend`, record with readable pauses and highlighted controls:
+
+```bash
+uv run pytest tests/playwright/test_e2e_asset_sbom.py -k findings_cti \
+  --e2e-user-workflow --record-video --highlight-delay=1.5 --e2e-timeout=15000 -s
+```
+
+This opens Chromium. On Linux without a display, prefix `uv run` with
+`xvfb-run -a -s '-screen 0 1920x1080x24'`. Leave `TARANIS_E2E_EXTERNAL_*` variables unset
+so the harness uses its isolated services. No local database, external SBOM, or collected
+advisory is needed. The test removes its three assets and articles, and the harness removes the stack.
+
+Each workflow saves its 1920×1080 recording and screenshots under
+`tests/playwright/videos/sbom-showcase-<suffix>/`, with the video named `sbom-showcase.webm`.
+The recording prints its path. Remove `-k findings_cti` to record both independent
+workflows as separate clips. Artifacts stay ignored by Git.
+
+To make an MP4 for manual sharing, run this inside the printed recording directory
+(requires FFmpeg):
+
+```bash
+ffmpeg -i sbom-showcase.webm -c:v libx264 -crf 20 -pix_fmt yuv420p \
+  -movflags +faststart sbom-showcase.mp4
+```
+
+For a quick run without recording or presentation pauses:
+
+```bash
+uv run pytest tests/playwright/test_e2e_asset_sbom.py --e2e-ci
+```
+
 ### Run only the RQ/Redis integration E2E suite
 
 From `src/frontend` folder run:

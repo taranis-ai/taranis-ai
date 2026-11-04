@@ -5,7 +5,7 @@
   {% set news_items = (story.news_items | default([])) | list %}
   {% set news_count = news_items | length %}
   {% set compact_view = false if detail_view else current_user.profile.compact_view %}
-  {% set line_clamp = "" if detail_view else "line-clamp-1" if compact_view else "line-clamp-4" %}
+  {% set line_clamp = "" if detail_view else "line-clamp-1" if compact_view else "line-clamp-2" if story.matched_assets else "line-clamp-4" %}
   {% set summary_content = story.model_extra.summary_content %}
   {% set selected_story_ids = selected_story_ids | default([]) %}
   {% set is_selected = (not detail_view) and story_id in selected_story_ids %}
@@ -47,6 +47,9 @@
            {% if not detail_view %}x-init="$dispatch('story-card-updated')" @click="toggleSelection('{{ story_id }}')"{% endif %}
            aria-selected="{{ 'true' if is_selected else 'false' }}">
     <div class="{{ 'px-2 py-1.5' if compact_view else 'p-2 space-y-2' }} w-full max-w-full" id="story-card-content-{{ story_id }}">
+      {% if story.matched_assets %}
+        {% include "assess/asset_summary.html" %}
+      {% endif %}
       <div class="grid {{ 'grid-cols-[minmax(0,1fr)_auto] gap-1 gap-x-2' if compact_view else 'grid-cols-[min(16rem,32%)_minmax(0,1fr)] gap-2 gap-x-4 @min-[80rem]:grid-cols-[16rem_minmax(0,1fr)_20rem]' }} w-full max-w-full">
 
         <!-- status and metadata column -->

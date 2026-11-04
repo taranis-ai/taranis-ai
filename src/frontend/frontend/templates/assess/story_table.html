@@ -27,6 +27,7 @@
     <a :href="previousSearch" class="btn btn-sm btn-primary">Restore last search</a>
     <button type="button" class="btn btn-sm btn-ghost" @click="dismiss()">Dismiss</button>
   </div>
+  {% include "assess/asset_scan.html" %}
   {% include "assess/page_controls.html" %}
   {% include "assess/assess_top_bar.html" %}
   {% if pagination.infinite_scroll and pagination.has_previous %}

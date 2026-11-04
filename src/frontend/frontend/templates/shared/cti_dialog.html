@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "assets/navigation.html" import asset_navigation with context %}
 
 {% macro status_badge(status) %}
   {% set normalized = status | default('', true) | lower %}
@@ -256,9 +257,15 @@
 
 {% block content %}
   <section id="cti-view" class="p-4 space-y-4" data-testid="cti-view">
+    {% if cti.item_type == "asset" and cti.item_id != "all" %}
+      {{ asset_navigation(cti.item_id, 'findings', asset_name) }}
+    {% elif cti.item_type == "asset" %}
+      <a class="link" href="{{ url_for('assets.assets') }}">Assets</a>
+    {% endif %}
     <div class="flex flex-wrap items-start gap-3">
       <div class="min-w-0 flex-1">
-        <h1 class="text-2xl font-bold">CTI information</h1>
+        <h1 class="text-2xl font-bold">{{ 'Findings & indicators' if cti.item_type == 'asset' else 'CTI information' }}</h1>
+        {% if cti.item_type == "asset" %}<p>Imported vulnerability findings, asset indicators, and available enrichment. Findings remain visible when matching is disabled; source assessments do not confirm exposure.</p>{% endif %}
         <p class="mt-1 text-sm text-base-content/70">
           {{ cti.item_type | replace('_', ' ') | title }}:
           <span class="font-mono break-all">{{ cti.item_id }}</span>
@@ -267,6 +274,18 @@
       <button type="button" onclick="window.history.back()" class="btn btn-outline btn-sm" data-testid="cti-back-link">Back</button>
     </div>
 
+    {% if error %}<p role="alert" class="alert alert-error">{{ error }}</p>{% endif %}
+    {% if cti.pagination %}
+      <form method="get" action="{{ cti_url }}" class="flex gap-2 items-end">
+        {% if get_assess_return_url() %}<input type="hidden" name="assess_url" value="{{ get_assess_return_url() }}">{% endif %}
+        <label>
+          CVE or component<input class="input input-bordered" name="search" value="{{ cti.pagination.search }}">
+        </label>
+        <button class="btn btn-primary"
+                type="submit">{{ 'Search findings & indicators' if cti.item_type == 'asset' else 'Search CTI' }}</button>
+      </form>
+      <p>{{ cti.pagination.total }} distinct indicators or finding IDs</p>
+    {% endif %}
     {% if cti.iocs %}
       <div class="space-y-4">
         {% for ioc in cti.iocs %}
@@ -284,9 +303,12 @@
             </header>
 
             <div class="mt-4 space-y-3">
+              {% for finding in ioc.findings %}
+                {% include "assets/cti_finding.html" %}
+              {% endfor %}
               {% if enrichment and enrichment.analyzers %}
                 {% for analyzer in enrichment.analyzers %}{{ render_analyzer(analyzer) }}{% endfor %}
-              {% else %}
+              {% elif not ioc.findings %}
                 <div class="alert">No analyzer results available for this IOC.</div>
               {% endif %}
             </div>
@@ -294,7 +316,16 @@
         {% endfor %}
       </div>
     {% else %}
-      <div class="alert">No CTI information available.</div>
+      <div class="alert">{{ 'No findings or indicators available.' if cti.item_type == 'asset' else 'No CTI information available.' }}</div>
+    {% endif %}
+    {% if cti.pagination %}
+      <nav aria-label="CTI pages" class="flex gap-4 items-center">
+        {% if cti.pagination.page > 1 %}<a class="btn btn-sm"
+   href="{{ cti_url }}?{{ {'page': cti.pagination.page - 1, 'search': cti.pagination.search, 'assess_url': get_assess_return_url() or ''} | urlencode }}">Previous</a>{% endif %}
+        <span>Page {{ cti.pagination.page }} of {{ cti.pagination.pages }}</span>
+        {% if cti.pagination.page < cti.pagination.pages %}<a class="btn btn-sm"
+   href="{{ cti_url }}?{{ {'page': cti.pagination.page + 1, 'search': cti.pagination.search, 'assess_url': get_assess_return_url() or ''} | urlencode }}">Next</a>{% endif %}
+      </nav>
     {% endif %}
   </section>
 {% endblock content %}
