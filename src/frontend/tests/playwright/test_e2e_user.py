@@ -1002,11 +1002,8 @@ class TestEndToEndUser(BaseE2ETest):
         possible_story_titles = {expected_title, f"{expected_title} edited title"}
         expected_news_item_title = expected_story["title"]
 
-        page.goto(url_for("assess.assess", _external=True))
+        page.goto(url_for("assess.assess", search=expected_title, _external=True))
         expect(page.get_by_test_id("assess")).to_be_visible()
-
-        page.get_by_placeholder("Search stories").fill(expected_title)
-        with_htmx_wait(page, lambda: page.get_by_placeholder("Search stories").press("Enter"))
 
         story = page.locator("article", has=page.get_by_test_id("story-title").filter(has_text=expected_title)).first
         expect(story).to_be_visible()
