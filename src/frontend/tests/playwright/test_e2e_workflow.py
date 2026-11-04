@@ -528,7 +528,7 @@ class TestUserWorkflow(BaseE2ETest):
             self.highlight_element(page.get_by_role("button", name="Add to Report")).click()
 
             # First dialog
-            self.highlight_element(page.get_by_test_id("select-report-input")).select_option(label="Test Report")
+            self.highlight_element(page.get_by_test_id("select-report-input")).select_option(label="Test Report — CERT Report")
             self.highlight_element(page.get_by_test_id("share-to-report-dialog-button")).click()
             expect(page.get_by_test_id("share-story-to-report-dialog")).to_have_count(0)
 
@@ -539,7 +539,9 @@ class TestUserWorkflow(BaseE2ETest):
             expect(story_card).to_have_attribute("aria-selected", "true")
             self.highlight_element(page.get_by_role("button", name="Add to Report")).click()
 
-            self.highlight_element(page.get_by_test_id("select-report-input")).select_option(label="Test Disinformation Title")
+            self.highlight_element(page.get_by_test_id("select-report-input")).select_option(
+                label="Test Disinformation Title — Disinformation"
+            )
             self.highlight_element(page.get_by_test_id("share-to-report-dialog-button")).click()
             expect(page.get_by_test_id("share-story-to-report-dialog")).to_have_count(0)
             return selected_story_ids
