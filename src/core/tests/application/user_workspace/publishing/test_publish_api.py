@@ -349,6 +349,36 @@ class TestPublishApi(BaseTest):
         assert public_response.headers["Content-Security-Policy"] == "sandbox allow-scripts allow-downloads"
         assert public_response.headers["X-Content-Type-Options"] == "nosniff"
 
+    def test_product_list_contains_distinct_story_count(self, client, session, auth_header):
+        from core.model.product import Product
+        from core.model.product_type import ProductType
+        from core.model.report_item import ReportItem
+        from core.model.story import Story
+
+        prefix = uuid4().hex
+        product_type = ProductType.filter_by_title("Default PDF Presenter")
+        stories = [Story(title=f"{prefix} Story {i}") for i in range(3)]
+        session.add_all(stories)
+        session.flush()
+
+        report_a = ReportItem(f"{prefix} Report A", None)
+        report_b = ReportItem(f"{prefix} Report B", None)
+        report_a.stories = [stories[0], stories[1]]
+        report_b.stories = [stories[1], stories[2]]  # stories[1] is shared
+        session.add_all([report_a, report_b])
+        session.flush()
+
+        with_stories = Product(f"{prefix} with", product_type.id)
+        with_stories.report_items = [report_a, report_b]
+        without_stories = Product(f"{prefix} without", product_type.id)
+        session.add_all([with_stories, without_stories])
+        session.flush()
+
+        data = self.assert_get_ok(client, f"products?search={prefix}&order=story_count_desc", auth_header).get_json()
+        counts = {item["id"]: item["story_count"] for item in data["items"]}
+        assert counts == {with_stories.id: 3, without_stories.id: 0}
+        assert data["items"][0]["id"] == with_stories.id
+
     def test_failed_taranis_publish_keeps_previous_url(self, app, monkeypatch, pdf_product, tmp_path):
         from core.managers.db_manager import db
         from core.service.product import ProductService

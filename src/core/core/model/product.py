@@ -17,6 +17,7 @@ from core.model.base_model import UUID_STR_LENGTH, BaseModel
 from core.model.product_type import ProductType
 from core.model.report_item import ReportItem
 from core.model.report_item_type import ReportItemType
+from core.model.story import ReportItemStory
 from core.model.role_based_access import ItemType
 from core.model.user import User
 from core.service.role_based_access import RBACQuery, RoleBasedAccessService
@@ -38,6 +39,7 @@ class Product(BaseModel):
     product_type: Mapped["ProductType"] = relationship("ProductType")
 
     report_items: Mapped[list["ReportItem"]] = relationship("ReportItem", secondary="product_report_item")
+    story_count: int | None = None
     default_publisher: Mapped[str | None] = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("publisher_preset.id"), nullable=True)
     last_rendered: Mapped[datetime | None] = db.Column(db.DateTime)
     last_published_url: Mapped[str | None] = db.Column(db.Text, nullable=True)
@@ -154,6 +156,15 @@ class Product(BaseModel):
             column = db.select(func.count()).where(ProductReportItem.product_id == cls.id).correlate(cls).scalar_subquery()
         elif order in {"type_asc", "type_desc"}:
             column = cast(ProductType.type, String)
+        elif order in {"story_count_asc", "story_count_desc"}:
+            column = (
+                db.select(func.count(func.distinct(ReportItemStory.story_id)))
+                .select_from(ProductReportItem)
+                .join(ReportItemStory, ReportItemStory.report_item_id == ProductReportItem.report_item_id)
+                .where(ProductReportItem.product_id == cls.id)
+                .correlate(cls)
+                .scalar_subquery()
+            )
         else:
             return super()._add_sorting_to_query({"order": order}, query).order_by(cls.id.desc() if descending else cls.id.asc())
         return query.order_by(None).order_by(column.desc() if descending else column.asc(), cls.id.desc() if descending else cls.id.asc())
@@ -167,7 +178,13 @@ class Product(BaseModel):
             contains_eager(cls.product_type).load_only(ProductType.type),
             selectinload(cls.report_items).load_only(ReportItem.id).lazyload(ReportItem.attributes),
         )
-        response: dict[str, Any] = {"items": cls.to_list(cls.get_filtered(query) or [])}
+        products = cls.get_filtered(query) or []
+        items = cls.to_list(products)
+        story_counts = cls.get_story_counts([product.id for product in products])
+        for item in items:
+            item["story_count"] = story_counts.get(item["id"], 0)
+
+        response: dict[str, Any] = {"items": items}
         if with_count:
             response["total_count"] = cls.get_filtered_count(base_query)
         return response, 200
@@ -354,6 +371,19 @@ class Product(BaseModel):
         if item := cls.get(item_id):
             return item.to_worker_dict(), 200
         return {"error": f"{cls.__name__} not found"}, 404
+
+    @classmethod
+    def get_story_counts(cls, product_ids: list[str]) -> dict[str, int]:
+        """Number of distinct stories across all reports linked to each product."""
+        if not product_ids:
+            return {}
+        query = (
+            db.select(ProductReportItem.product_id, func.count(func.distinct(ReportItemStory.story_id)))
+            .join(ReportItemStory, ReportItemStory.report_item_id == ProductReportItem.report_item_id)
+            .where(ProductReportItem.product_id.in_(product_ids))
+            .group_by(ProductReportItem.product_id)
+        )
+        return dict(db.session.execute(query).tuples().all())
 
 
 class ProductReportItem(BaseModel):

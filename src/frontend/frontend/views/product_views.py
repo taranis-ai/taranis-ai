@@ -62,6 +62,13 @@ class ProductView(BaseView):
                 "renderer": render_count,
                 "render_args": {"field": "report_items"},
             },
+            {
+                "title": "Stories",
+                "field": "story_count",
+                "sortable": True,
+                "renderer": render_count,
+                "render_args": {"field": "story_count"},
+            },
         ]
 
     @classmethod

@@ -91,8 +91,11 @@ def human_readable_trigger(trigger):
 
 
 def render_count(item, field: str) -> int:
-    if hasattr(item, field) and isinstance(getattr(item, field), list):
-        return len(getattr(item, field))
+    value = getattr(item, field, None)
+    if isinstance(value, list):
+        return len(value)
+    if isinstance(value, int):
+        return value
     return 0
 
 
