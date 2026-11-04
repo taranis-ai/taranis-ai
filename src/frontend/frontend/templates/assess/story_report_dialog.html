@@ -3,7 +3,7 @@
         x-init="$nextTick(() => $el.showModal ? $el.showModal() : $el.setAttribute('open', 'open'))"
         x-on:close="$el.remove()"
         data-testid="share-story-to-report-dialog">
-  <div class="modal-box">
+  <div class="modal-box max-w-xl">
     <form method="dialog">
       <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
     </form>
@@ -11,16 +11,16 @@
     <form>
       <label class="select w-full mb-5">
         <span class="label">Report</span>
-        <select id="report" name="report" required class="validator select w-full" data-testid="select-report-input">
+        <select id="report" name="report" required class="w-full" data-testid="select-report-input">
           <option selected disabled>Add Stories to report</option>
-          {% for report in reports %}<option value="{{ report.id }}">{{ report.title }}</option>{% endfor %}
+          {% for report in reports %}<option value="{{ report.id }}">{{ report.title }}{% if report.report_item_type %} — {{ report.report_item_type }}{% endif %}</option>{% endfor %}
         </select>
       </label>
       {% for story_id in story_ids %}<input type="hidden" name="story_ids" value="{{ story_id }}">{% endfor %}
       {% if bookmark_id %}<input type="hidden" name="bookmark_id" value="{{ bookmark_id }}">{% endif %}
-      <div class="join gap-4">
+      <div class="flex w-full gap-4">
         <button type="button"
-                class="btn btn-outline btn-wide"
+                class="btn btn-outline flex-1"
                 hx-post="{{ url_for('assess.submit_report_story') }}"
                 hx-target="{{ target | default('#assess') }}"
                 hx-status:400="target:#notification-bar"
@@ -29,7 +29,7 @@
                 hx-on::after:request="if (ctx.response.status < 400) document.getElementById('share_story_to_report_dialog')?.close()"
                 data-testid="share-to-report-dialog-button">Add to report</button>
         <a type="button"
-           class="btn btn-outline btn-wide"
+           class="btn btn-outline flex-1"
            href="{{ url_for('analyze.report', report_id='0') }}?{% for story_id in story_ids %}story_ids={{ story_id }}&{% endfor %}"
            data-testid="new-report-button-dialog">New Report</a>
       </div>
