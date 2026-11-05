@@ -13,6 +13,7 @@ Read matching memories before planning or editing application behavior. Code and
 
 ## Feature Memories
 
+- [Branch Development Database](named-development-databases.md): explicit branch switching with a disposable local database and Redis reset.
 - [Redis Runtime State](redis-runtime-state.md): disposable Redis/RQ state, persistence settings, and restart recovery.
 - [Story Export](story-export.md): Settings and Assess downloads, metadata, import contracts, dates, and access checks.
 - [Telemetry](telemetry.md): Sentry initialization, OTLP traces and metrics, RQ trace propagation, and the optional Grafana LGTM Compose profile.
