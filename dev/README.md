@@ -10,7 +10,7 @@ See the [Playwright recording guide](../src/frontend/tests/playwright/README.md#
 
 ## Optional local signoff
 
-This repo accepts either a successful `test and lint` workflow run or a successful local `gh signoff` on the current PR head commit. See [basecamp/gh-signoff](https://github.com/basecamp/gh-signoff/blob/main/README.md) for upstream details.
+This repo accepts either a successful `test and lint` workflow run or a successful local `gh signoff` on the pushed commit. An open PR is not required for signoff. See [basecamp/gh-signoff](https://github.com/basecamp/gh-signoff/blob/main/README.md) for upstream details.
 
 Setup:
 
@@ -24,7 +24,8 @@ Workflow:
 1. Commit the completed feature so the worktree is clean.
 2. Run `./dev/test_push_signoff.sh` from the repository root. It prepares component environments, runs the complete local lint, unit test, and E2E pipeline, then pushes and calls `gh signoff` after validation passes.
 3. If validation fails, fix and commit the problem, then run `./dev/test_push_signoff.sh` again. Every E2E run uses a fresh isolated Compose stack.
-4. If you do not use local signoff, the normal `test and lint` GitHub Actions workflow remains the fallback path.
+4. After successful signoff, create a ready-for-review PR; follow the [feature signoff loop](../docs/agents/development-workflow.md#feature-signoff-loop) for PR ordering and description rules.
+5. If you do not use local signoff, the normal `test and lint` GitHub Actions workflow remains the fallback path.
 
 On macOS, the pipeline and worker startup script add Homebrew's library directory to `DYLD_FALLBACK_LIBRARY_PATH` so WeasyPrint can load GLib and Pango. For manual worker commands or `uv run pytest`, set it in the same terminal first:
 
