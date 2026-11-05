@@ -71,6 +71,7 @@ class ReportStorySyncService:
         user: User | None,
         revision_note: str,
     ) -> None:
+        """Keep report links when stories are merged and record a revision in every affected report."""
         if not source_stories:
             return
 

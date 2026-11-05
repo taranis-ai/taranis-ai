@@ -163,6 +163,9 @@ class StoryOperationsService:
         user: User | None = None,
         revision_note: str,
     ) -> set[Story]:
+        # Local import: report_story_sync imports core.model.story, which imports this module.
+        from core.service.report_story_sync import ReportStorySyncService
+
         processed_stories = {target_story, *source_stories}
         absorbed_story_ids: list[str] = []
         absorbed_overrides = [target_story.relevance_override or 0]
@@ -174,8 +177,6 @@ class StoryOperationsService:
 
         target_story.relevance_override = max(absorbed_overrides)
         cls.merge_votes_into_story(target_story, absorbed_story_ids)
-        from core.service.report_story_sync import ReportStorySyncService
-
         # Absorbed stories are deleted below; ON DELETE CASCADE would otherwise drop their report links.
         ReportStorySyncService.keep_memberships_after_merge(target_story, source_stories, absorbed_story_ids, user, revision_note)
         type(target_story).update_stories(processed_stories, actor=actor)
