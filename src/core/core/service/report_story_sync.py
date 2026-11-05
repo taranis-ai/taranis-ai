@@ -4,6 +4,7 @@ from collections.abc import Iterable
 from typing import TYPE_CHECKING, Literal
 
 from core.managers.db_manager import db
+from core.model.story import ReportItemStory
 from core.service.misp_auto_update import refresh_misp_auto_update_jobs
 from core.service.story import StoryService
 
@@ -75,8 +76,8 @@ class ReportStorySyncService:
         if not source_stories:
             return
 
+        # Local import: core.model.report_item imports this module at module level.
         from core.model.report_item import ReportItem
-        from core.model.story import ReportItemStory
 
         story_ids = [target_story.id, *(story.id for story in source_stories)]
         query = (
