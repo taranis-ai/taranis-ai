@@ -23,6 +23,7 @@ Load for: Playwright stack setup, `--e2e-ci`, Compose service selection, RQ read
 - Services/readiness: `src/frontend/tests/playwright/compose.e2e.yml`, `src/frontend/tests/playwright/rq_e2e_fixtures.py`
 - Helpers: `src/frontend/tests/playwright/playwright_helpers.py`
 - HTMX waits: `htmx_helpers.py` tracks requests through `htmx:finally:request`, after HTMX 4 processes swapped content. `test_user_assess` covers Share after card replacement and asserts the dialog opens without navigation. Do not gate settlement on swap/process timestamp ordering: swaps without new elements need no process event.
+- Use filtered Assess URLs when search interaction is setup rather than the behavior under test. Filling search and immediately pressing Enter schedules both the native search event and a delayed input request; the second card replacement can invalidate focus or open menus after the first request settles.
 - Commands: `src/frontend/tests/playwright/README.md`; CI: `.github/workflows/linting.yaml`
 
 ## Harness Diagnostics

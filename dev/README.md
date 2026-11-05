@@ -45,7 +45,7 @@ git clone git@github.com:taranis-ai/taranis-ai.git
 cd taranis-ai
 ```
 
-### Start development 
+### Start development
 
 ```bash
 ./dev/start_dev.sh
@@ -59,10 +59,10 @@ Development Redis disables RDB snapshots and AOF logging and mounts `/data` as R
 
 Frontend caches refill on demand. With `WITH_CRON_RQ=1`, cron asks Core to restore recurring schedules after Redis loses state; with cron stopped, restart Core to rebuild them. Pending one-off jobs, retries, delayed MISP pushes, and unfinished bot chains are lost and must be rerun.
 
-### Stop development 
+### Stop development
 
-Stop docker container 
-Note to podman users: Use `podman-compose` instead of `docker compose` 
+Stop docker container
+Note to podman users: Use `podman-compose` instead of `docker compose`
 
 ```bash
 docker compose -f dev/compose.yml down -d
@@ -119,7 +119,7 @@ This starts local Redis without authentication and a pinned Centrifugo instance.
 Centrifugo uses host port `8001` to leave `8000` available for local LLM inference. If you override `TARANIS_CENTRIFUGO_PORT`, update the realtime upstream in your installed Nginx configuration too. Existing setups must recopy `dev/nginx.conf`, validate with `nginx -t`, and reload Nginx after updating the Compose service.
 Queue state is not persisted across local Redis restarts in this dev setup.
 Browsers connect through the local NGINX ingress at `http://local.taranis.ai/sse`.
-Centrifugo reaches Core through Podman's `host.containers.internal` address; set `TARANIS_CORE_PORT` when Core does not use port `5001`.
+Centrifugo reaches Core through `host.containers.internal`, explicitly mapped to the host gateway for Docker and Podman; set `TARANIS_CORE_PORT` when Core does not use port `5001`.
 When `/sse` is unavailable, the browser retries eight times with exponential backoff and then requires a page reload; an internal connect-proxy error does not display a data-change notice.
 
 To start the optional Grafana LGTM telemetry stack as well:
@@ -313,6 +313,10 @@ When you update a source/bot schedule in the database (via the UI or API):
 1. The change is immediately saved to the database
 2. Core updates the cron definition in Redis
 3. The cron scheduler picks up the change on the next poll cycle
+
+Scheduler and My Tasks use current, uncached reads on realtime events. Tab navigation replaces one Scheduler content panel, preserving the current query during refresh. Continuous events are throttled with a final refresh, and acknowledged reconnects recover missed changes. Failed refreshes show an error notification while retaining the current table/cards. When realtime is unavailable, use the visible Refresh control. Cron sends one task-change notice per batch and renews its leadership lease before each enqueue. Core also batches notices during bulk cron reconciliation, source/bot registration, source import/curated loading/deletion, Collect All, and word-list gathering, so publisher outages do not add a network timeout for every item.
+
+Core broadcasts task hints to all affected owner channels in one request, alongside one scheduler broadcast. Queue Failures batches Redis job reads. Scheduler completion notices exclude endpoint probes and retain the newest 500 observations per tab; older unresolved observations are discarded without announcing completion.
 
 ### RQ Dashboard
 

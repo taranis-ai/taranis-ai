@@ -4,7 +4,7 @@ Load for: HTTP clients, connection pooling, service/source request policies, fro
 
 ## Contracts
 
-- Worker-owned HTTP uses Niquests. Every RQ task entry point and failure hook opens `http_session_scope()`. Nested scopes reuse the outer scope; all sessions close on success or exception. No live sessions are created at module import or worker startup. Standalone HTTP calls create and close a temporary scope.
+- Worker-owned HTTP uses Niquests. Every RQ task entry point and failure hook opens `http_session_scope()`. Task-start notices run inside that scope and reuse the task service connection. Nested scopes reuse the outer scope; all sessions close on success or exception. No live sessions are created at module import or worker startup. Standalone HTTP calls create and close a temporary scope.
 - Service calls and external fetches use separate pools within that scope. Authorization, TLS verification, and proxies are passed per request; never put a source or bot credential in shared session defaults. SDK-owned transports (Mastodon.py, PyMISP, PyIntelOwl, TAXII) remain untouched.
 - Service calls do not follow redirects and reject 3xx responses. Configure the final service endpoint, including any base path. HTTP/3 is disabled for service calls; external requests honor `DISABLE_HTTP3`. Neither policy retries automatically, including publishing or result submission.
 - External requests follow redirects and retain cookies only within that redirect chain. Clear cookies after every fetch, including failures, preserving the previous isolation between article/icon/feed requests. Retain explicit source proxies and existing environment-proxy/`NO_PROXY` behavior.

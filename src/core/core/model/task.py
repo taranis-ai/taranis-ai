@@ -166,8 +166,11 @@ class Task(BaseModel):
         query = db.select(cls).where(cls.status.in_(cls.USER_TASK_TERMINAL_STATUSES), cls.last_run.is_not(None))
         if user_id is not None:
             query = query.where(cls.user_id == user_id)
-        if isinstance(filters, TaskRunFilter) and filters.status:
-            query = query.where(cls.status == filters.status)
+        if isinstance(filters, TaskRunFilter):
+            if filters.status:
+                query = query.where(cls.status == filters.status)
+            if filters.job_ids is not None:
+                query = query.where(cls.job_id.in_(filters.job_ids))
 
         if filters.search:
             pattern = f"%{filters.search}%"
