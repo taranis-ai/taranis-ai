@@ -8,7 +8,7 @@ The story editor offers drag handles, keyboard move buttons, and a separate Save
 
 The story edit route and its order-save/reload route require ASSESS_UPDATE. Ordering controls exist only in the editor and use Core's user-specific `can_edit` flag. Core uses the ASSESS_UPDATE route decorator. Story.update and reorder share Story.allowed_to_update: the user must have ASSESS_UPDATE, satisfy the story TLP, have write ACL access to every linked item, and the story must have no `rt_id` attribute. Trusted bot updates without a user retain their existing path. Single-item and RT-managed stories hide ordering controls.
 
-Saved order survives import and conflict resolution. The grouping dialog defaults to descending news-item count, retaining selection order for ties; users can still drag another story into the primary position. Submitted order determines the destination. Grouping keeps destination order and appends source items in their source order. Ungrouped items use their own titles; removal of an item whose title matches the parent promotes the first remaining item's title. Other parent titles remain unchanged.
+Saved order survives import and conflict resolution. The grouping dialog defaults to descending news-item count, retaining selection order for ties; users can still drag another story into the primary position. Submitted order determines the destination. Grouping keeps destination order and appends source items in their source order. Ungrouped items use their own titles; removal of an item whose title matches the parent promotes the first remaining item's title. Other parent titles remain unchanged. Ungrouping news items returns 400 before any change when it would empty a report-assigned story (the `report_item_story` cascade would drop it silently); partial ungrouping records an `ungroup_news_items` revision in each affected report.
 
 ## Code Paths
 
@@ -26,7 +26,7 @@ The DOM and form-associated hidden inputs hold the proposed order. HTMX posts to
 
 ## Coverage
 
-Coverage: Core `test_assess_api.py`, worker integration, revision/removal, conflict normalization, and RBAC PUT/PATCH/reorder cases. Frontend story-edit tests cover permissions and safe connection errors; `TestEndToEndUser.test_news_item_order` covers drag/keyboard saves, persistence, drafts, and stale recovery.
+Coverage: Core `test_assess_api.py`, `test_story_ungroup_report_membership.py`, worker integration, revision/removal, conflict normalization, and RBAC PUT/PATCH/reorder cases. Frontend story-edit tests cover permissions and safe connection errors; `TestEndToEndUser.test_news_item_order` covers drag/keyboard saves, persistence, drafts, and stale recovery.
 
 ## Pitfalls
 

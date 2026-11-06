@@ -1312,9 +1312,7 @@ class Story(BaseModel):
     ):
         actor = cls.resolve_actor(user=user, actor=actor)
         try:
-            processed_stories = set()
-            new_stories_ids = []
-            removed_titles_by_story: dict[Story, set[str]] = {}
+            removable_items: dict[str, tuple[NewsItem, Story]] = {}
             for item in newsitem_ids:
                 news_item = NewsItem.get(item)
                 if not news_item or not user:
@@ -1324,6 +1322,17 @@ class Story(BaseModel):
                 story = Story.get(news_item.story_id)
                 if not story:
                     continue
+                removable_items[news_item.id] = (news_item, story)
+
+            # Check before any change: an emptied story is deleted, and ON DELETE CASCADE would silently drop its report links.
+            for story in {story for _, story in removable_items.values()}:
+                if all(item.id in removable_items for item in story.news_items) and ReportItemStory.is_assigned(story.id):
+                    return {"error": "Story is assigned to a report"}, 400
+
+            processed_stories = set()
+            new_stories_ids = []
+            removed_titles_by_story: dict[Story, set[str]] = {}
+            for news_item, story in removable_items.values():
                 removed_titles_by_story.setdefault(story, set()).add(news_item.title)
                 story.news_items.remove(news_item)
                 processed_stories.add(story)
@@ -1334,6 +1343,11 @@ class Story(BaseModel):
                 story.update_status(change=actor)
             for story in processed_stories:
                 story.record_revision(user, note="ungroup_news_items")
+
+            # Local import: core.model.report_item imports this module at module level.
+            from core.model.report_item import ReportItem
+
+            ReportItem.record_revision_for_stories([story.id for story in processed_stories], user, note="ungroup_news_items")
             db.session.commit()
             return {"message": f"Successfully ungrouped {len(newsitem_ids)} items from their story", "new_stories_ids": new_stories_ids}, 200
         except Exception:
