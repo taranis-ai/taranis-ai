@@ -125,6 +125,7 @@ class AssessSearchFilters(TaranisBaseModel):
     asset_tag: str = ""
     asset_cve_match: Literal["any", "yes", "no"] = "any"
     asset_software_match: Literal["any", "yes", "no"] = "any"
+    asset_cvss_missing: bool = False
     asset_cvss_min: float | None = Field(default=None, ge=0, le=10, allow_inf_nan=False)
     asset_cvss_max: float | None = Field(default=None, ge=0, le=10, allow_inf_nan=False)
     classification: Classification | None = None
@@ -165,6 +166,9 @@ class AssessSearchFilters(TaranisBaseModel):
 
     @model_validator(mode="after")
     def validate_asset_filters(self) -> Self:
+        if self.asset_cvss_missing:
+            self.asset_cve_match = "yes"
+            self.asset_cvss_min = self.asset_cvss_max = None
         if self.asset_cvss_min is not None and self.asset_cvss_max is not None and self.asset_cvss_min > self.asset_cvss_max:
             raise ValueError("The minimum CVSS score must not exceed the maximum")
         if self.advanced_asset_filters:

@@ -1013,7 +1013,13 @@ def test_assess_filters_support_htmx_and_native_form_submission(authenticated_cl
 
     response = authenticated_client.get(
         url_for(
-            "assess.assess", _asset_filters_form="true", asset_tag="production", asset_cvss_min="7", search="incident", tags="CVE-2026-12345"
+            "assess.assess",
+            _asset_filters_form="true",
+            asset_tag="production",
+            asset_cvss_min="7",
+            asset_cvss_missing="true",
+            search="incident",
+            tags="CVE-2026-12345",
         )
     )
     assert response.status_code == 200
@@ -1057,17 +1063,21 @@ def test_asset_filtered_assess_refreshes_matches_after_story_actions(authenticat
     responses_mock.get(f"{Config.TARANIS_CORE_URL}/assess/bookmarks", json={"items": []})
     endpoint = f"{Config.TARANIS_CORE_URL}/assess/stories"
     responses_mock.get(endpoint, json={"items": [story], "counts": {"total_count": 21}})
-    assess_url = url_for("assess.assess", asset_match="true", asset_tag="production", asset_cvss_min="7", asset_cve_match="yes", limit=1)
+    assess_url = url_for("assess.assess", asset_match="true", asset_tag="production", asset_cvss_missing="true", limit=1)
     response = authenticated_client.get(assess_url)
     tree = html.fromstring(response.text)
     assert tree.xpath('//input[@name="asset_match" and @checked]')
+    assert tree.xpath('//input[@name="asset_cvss_missing" and @checked]')
+    assert tree.xpath('//select[@name="asset_cve_match" and @disabled]/option[@value="yes" and @selected]')
+    assert tree.xpath('//input[@name="asset_cvss_min" and @disabled and @value=""]')
+    assert tree.xpath('//input[@name="asset_cvss_max" and @disabled and @value=""]')
     asset_url = tree.xpath('//*[@data-test-id="story-matched-assets"]//a/@href')[0]
     assert urlparse(asset_url).path == url_for("assess.asset_matches", story_id="story-1")
     return_url = parse_qs(urlparse(asset_url).query)["assess_url"][0]
     assert parse_qs(urlparse(return_url).query) == parse_qs(urlparse(assess_url).query)
     next_url = tree.xpath('//*[@id="story-pagination"]//a[contains(@href, "page=1")]/@href')[0]
     assert parse_qs(urlparse(next_url).query)["asset_match"] == ["true"]
-    assert parse_qs(urlparse(next_url).query)["asset_cvss_min"] == ["7"]
+    assert parse_qs(urlparse(next_url).query)["asset_cvss_missing"] == ["true"]
 
     story["matched_assets"].append({"id": "asset-2", "name": "Replacement host"})
     responses_mock.replace("GET", endpoint, json={"items": [story], "counts": {"total_count": 1}})
@@ -1080,6 +1090,7 @@ def test_asset_filtered_assess_refreshes_matches_after_story_actions(authenticat
     assert "Replacement host" in updated.text and "Current host" in updated.text
     returned_url = html.fromstring(updated.text).xpath('//*[@id="assess"]/@data-assess-url')[0]
     assert parse_qs(urlparse(returned_url).query)["asset_match"] == ["true"]
+    assert parse_qs(urlparse(returned_url).query)["asset_cvss_missing"] == ["true"]
 
     responses_mock.replace("GET", endpoint, json={"items": [], "counts": {"total_count": 0}})
     refreshed = authenticated_client.get(assess_url)
@@ -1359,6 +1370,7 @@ def test_assess_save_saved_filter_posts_selected_filters_to_profile(authenticate
                 ("asset_match", "true"),
                 ("asset_tag", "production"),
                 ("asset_cvss_min", "0"),
+                ("asset_cvss_missing", "true"),
                 ("important", "false"),
                 ("sort", "date_desc"),
                 ("range", "week"),
@@ -1389,7 +1401,8 @@ def test_assess_save_saved_filter_posts_selected_filters_to_profile(authenticate
             "read": "true",
             "asset_match": "true",
             "asset_tag": "production",
-            "asset_cvss_min": "0.0",
+            "asset_cvss_missing": "true",
+            "asset_cve_match": "yes",
             "important": "false",
             "sort": "date_desc",
             "range": "week",

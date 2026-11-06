@@ -50,11 +50,14 @@ def qualify_article_asset(item, asset, matches, findings, filters: AssessSearchF
         findings = [finding for finding in findings if finding.cve_id in filters.asset_cve_ids]
         if not findings:
             return None
+    ratings = {finding.id: finding_cvss_ratings(finding) for finding in findings}
+    if filters.asset_cvss_missing:
+        findings = [finding for finding in findings if not ratings[finding.id]]
+        ratings = {finding.id: ratings[finding.id] for finding in findings}
     if not matches and not findings:
         return None
     if not matches_choice(filters.asset_cve_match, bool(findings)) or not matches_choice(filters.asset_software_match, bool(matches)):
         return None
-    ratings = {finding.id: finding_cvss_ratings(finding) for finding in findings}
     highest_cvss = max((r["score"] for scores in ratings.values() for r in scores), default=None)
     if filters.asset_cvss_min is not None and (highest_cvss is None or highest_cvss < filters.asset_cvss_min):
         return None

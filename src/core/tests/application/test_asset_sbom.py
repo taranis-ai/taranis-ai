@@ -950,6 +950,7 @@ def test_assess_asset_filters_and_evidence_preserve_host_scope_and_scores(
     cases = [
         ({"asset_cvss_min": 7}, {both.id: [first.id]}),
         ({"asset_cvss_min": 0, "asset_cvss_max": 0}, {tagged.id: [second.id]}),
+        ({"asset_cvss_missing": True}, {tagged.id: [first.id]}),
         ({"asset_cve_match": "yes", "asset_software_match": "no"}, {tagged.id: [first.id, second.id]}),
         ({"asset_cve_match": "no", "asset_software_match": "yes"}, {both.id: [second.id], product.id: [first.id, second.id]}),
         ({"asset_cve_match": "no", "asset_software_match": "no"}, {}),
@@ -994,6 +995,24 @@ def test_assess_asset_filters_and_evidence_preserve_host_scope_and_scores(
         first_summary | {"max_cvss": None, "cve_count": 1, "software_match": False},
         second_summary | {"software_match": False},
     ]
+
+    # An unscored CVE still qualifies when the same article also matches a scored CVE.
+    unscored_tag = NewsItemTag("CVE-2026-12346", "CVE")
+    both.tags.append(unscored_tag)
+    db.session.commit()
+    unscored_filters = {"asset_cvss_missing": True, "asset_cve_match": "no", "asset_cvss_min": 7, "asset_cvss_max": 9}
+    unscored = client.get(endpoint, headers=auth_header, query_string=unscored_filters).json
+    assert unscored["counts"]["total_count"] == 1
+    assert unscored["items"][0]["matched_assets"] == [first_summary | {"max_cvss": None, "cve_count": 1}]
+    evidence = client.get(evidence_url, headers=auth_header, query_string=unscored_filters).json
+    assert {article["id"] for article in evidence["articles"]} == {both.id, tagged.id}
+    for article in evidence["articles"]:
+        assert [host["asset_id"] for host in article["hosts"]] == [first.id]
+        assert [cve["cve_id"] for cve in article["hosts"][0]["cve_matches"]] == ["CVE-2026-12346"]
+        assert article["hosts"][0]["max_cvss"] is None
+    assert client.get(endpoint, headers=auth_header, query_string={**unscored_filters, "tags": "CVE-2026-12345"}).json["items"] == []
+    db.session.delete(unscored_tag)
+    db.session.commit()
 
     client.put(first_base + "/sbom/cves/CVE-2026-12346", headers=auth_header, json={"enabled": False})
     assert client.get(endpoint, headers=auth_header, query_string=cve_filters).json["items"] == []

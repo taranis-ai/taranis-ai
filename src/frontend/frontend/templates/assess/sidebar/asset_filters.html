@@ -1,4 +1,4 @@
-<div x-data="{}">
+<div x-data="{ cvssMissing: {{ asset_filters.asset_cvss_missing | tojson }} }">
   <input type="hidden" name="_asset_filters_form" value="true">
   <label class="peer/asset-match label cursor-pointer justify-start gap-3">
     <input type="checkbox"
@@ -7,7 +7,7 @@
            class="checkbox checkbox-sm"
            x-ref="assetMatch"
            {% if asset_filters.asset_match %}checked{% endif %}
-           @change="if (!$el.checked) { $refs.advanced.querySelectorAll('input, select').forEach(input => { input.value = input.tagName === 'SELECT' && input.querySelector('option[value=any]') ? 'any' : ''; }); }">
+           @change="if (!$el.checked) { cvssMissing = false; $refs.advanced.querySelectorAll('input, select').forEach(input => { if (input.type === 'checkbox') input.checked = false; else input.value = input.tagName === 'SELECT' && input.querySelector('option[value=any]') ? 'any' : ''; }); }">
     <span class="label-text">Asset matches only</span>
   </label>
   <details class="hidden peer-has-checked/asset-match:block"
@@ -40,12 +40,22 @@
       {% for key, label in [('asset_cve_match', 'CVE match'), ('asset_software_match', 'Software-name match')] %}
         <div class="form-control block">
           <label class="label-text" for="assess-{{ key }}">{{ label }}</label>
-          <select id="assess-{{ key }}" name="{{ key }}" class="select select-bordered select-sm w-full">
+          <select id="assess-{{ key }}" name="{{ key }}" x-ref="{{ key }}" {% if key == 'asset_cve_match' %}:disabled="cvssMissing" {% if asset_filters.asset_cvss_missing %}disabled{% endif %}{% endif %} class="select select-bordered select-sm w-full">
             {% for value in ['any', 'yes', 'no'] %}<option value="{{ value }}"
         {% if asset_filters[key] == value %}selected{% endif %}>{{ value | capitalize }}</option>{% endfor %}
           </select>
         </div>
       {% endfor %}
+      <label class="label cursor-pointer justify-start gap-3">
+        <input type="checkbox"
+               name="asset_cvss_missing"
+               value="true"
+               class="checkbox checkbox-sm"
+               x-model="cvssMissing"
+               {% if asset_filters.asset_cvss_missing %}checked{% endif %}
+               @change="if ($el.checked) { $refs.asset_cve_match.value = 'yes'; $refs.advanced.querySelectorAll('input[type=number]').forEach(input => { input.value = ''; }); }">
+        <span class="label-text">Only CVE matches without CVSS</span>
+      </label>
       {% for key, label in [('asset_cvss_min', 'Minimum CVSS'), ('asset_cvss_max', 'Maximum CVSS')] %}
         <label class="form-control block">
           <span class="label-text">{{ label }}</span>
@@ -54,6 +64,8 @@
                  min="0"
                  max="10"
                  step="0.1"
+                 :disabled="cvssMissing"
+                 {% if asset_filters.asset_cvss_missing %}disabled{% endif %}
                  class="input input-bordered input-sm w-full"
                  value="{{ asset_filters[key] if asset_filters[key] is not none else '' }}">
         </label>

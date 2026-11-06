@@ -1407,6 +1407,12 @@ paths:
       - name: asset_software_match
         in: query
         schema: {type: string, enum: [any, 'yes', 'no'], default: any}
+      - name: asset_cvss_missing
+        in: query
+        description: >-
+          Keep only matching CVE findings without a valid reported CVSS score, including in articles with other scored CVEs.
+          Forces asset_cve_match=yes and clears asset_cvss_min/max. Zero is a valid score and is excluded.
+        schema: {type: boolean, default: false}
       - name: asset_cvss_min
         in: query
         schema: {type: number, minimum: 0, maximum: 10}
@@ -6806,6 +6812,12 @@ paths:
       - name: asset_software_match
         in: query
         schema: {type: string, enum: [any, 'yes', 'no'], default: any}
+      - name: asset_cvss_missing
+        in: query
+        description: >-
+          Keep only matching CVE findings without a valid reported CVSS score, including in articles with other scored CVEs.
+          Forces asset_cve_match=yes and clears asset_cvss_min/max. Zero is a valid score and is excluded.
+        schema: {type: boolean, default: false}
       - name: asset_cvss_min
         in: query
         schema: {type: number, minimum: 0, maximum: 10}
