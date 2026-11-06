@@ -71,6 +71,14 @@ class ProductView(BaseView):
             },
         ]
 
+    @staticmethod
+    def _supported_report_row(report: dict[str, Any]) -> dict[str, Any]:
+        row = dict(report)
+        if isinstance(created := row.get("created"), str):
+            row["created"] = created[:19]
+        row["story_count"] = len(row.get("stories") or [])
+        return row
+
     @classmethod
     def get_extra_context(cls, base_context: dict[str, Any]) -> dict[str, Any]:
         if cls.model_name() not in base_context:
@@ -123,7 +131,7 @@ class ProductView(BaseView):
                 supported_reports.append(report.model_dump(mode="json"))
 
         base_context["selected_report_items"] = selected_report_items
-        base_context["supported_reports"] = supported_reports
+        base_context["supported_reports"] = [cls._supported_report_row(report) for report in supported_reports]
 
         report_ids = [] if report_access_warning else sorted(set(selected_report_items))
         product_types: list[ProductTypeChoice] = []

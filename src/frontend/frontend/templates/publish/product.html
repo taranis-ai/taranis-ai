@@ -11,7 +11,7 @@
 {% set rendered_mime_type = product.mime_type %}
 {% set report_access_warning = report_access_warning | default(product.report_access_warning | default(none)) %}
 
-{% set columns = [{'title': 'id', 'field': 'id', 'sortable': True, 'searchable': True}, {'title': 'title', 'field': 'title', 'sortable': True, 'searchable': True}, {'title': 'created', 'field': 'created', 'sortable': True, 'searchable': False}, {'title': 'completed', 'field': 'completed', 'sortable': True, 'searchable': False}] %}
+{% set columns = [{'title': 'id', 'field': 'id', 'sortable': True, 'searchable': True}, {'title': 'title', 'field': 'title', 'sortable': True, 'searchable': True}, {'title': 'created', 'field': 'created', 'sortable': True, 'searchable': False}, {'title': 'stories', 'field': 'story_count', 'sortable': True, 'searchable': False}, {'title': 'completed', 'field': 'completed', 'sortable': True, 'searchable': False}] %}
 
 {# djlint:off #}
 <div class="p-4"

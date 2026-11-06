@@ -17,7 +17,7 @@ from core.model.base_model import UUID_STR_LENGTH, BaseModel
 from core.model.product_type import ProductType
 from core.model.report_item import ReportItem
 from core.model.report_item_type import ReportItemType
-from core.model.story import ReportItemStory
+from core.model.story import ReportItemStory, Story
 from core.model.role_based_access import ItemType
 from core.model.user import User
 from core.service.role_based_access import RBACQuery, RoleBasedAccessService
@@ -80,7 +80,7 @@ class Product(BaseModel):
         return RoleBasedAccessService.filter_query_with_acl(query, rbac)
 
     def get_supported_reports(self, user: User | None = None) -> list[ReportItem]:
-        """Returns list of ReportItems that are have the correct 'report_item_type' of that is set by the 'product_type' of the current 'product'"""
+        """Returns list of ReportItems that have the correct 'report_item_type' which is set by the 'product_type' of the current 'product'"""
         if not self.product_type or not self.product_type.report_types:
             return []
 
@@ -96,6 +96,7 @@ class Product(BaseModel):
                 lazyload(ReportItem.attributes),
                 load_only(ReportItem.id, ReportItem.title, ReportItem.created, ReportItem.report_item_type_id),
                 joinedload(ReportItem.report_item_type).load_only(ReportItemType.title),
+                selectinload(ReportItem.stories).load_only(Story.id),
             )
         )
         return list(db.session.execute(query).scalars().all())
