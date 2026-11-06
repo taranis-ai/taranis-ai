@@ -1,5 +1,6 @@
 import base64
 from datetime import UTC, datetime
+from unittest.mock import Mock
 from urllib.parse import quote
 from uuid import uuid4
 
@@ -350,6 +351,7 @@ class TestPublishApi(BaseTest):
         assert public_response.headers["X-Content-Type-Options"] == "nosniff"
 
     def test_product_list_contains_distinct_story_count(self, client, session, auth_header):
+        """Product lists count each story once and sort by that count."""
         from core.model.product import Product
         from core.model.product_type import ProductType
         from core.model.report_item import ReportItem
@@ -378,6 +380,58 @@ class TestPublishApi(BaseTest):
         counts = {item["id"]: item["story_count"] for item in data["items"]}
         assert counts == {with_stories.id: 3, without_stories.id: 0}
         assert data["items"][0]["id"] == with_stories.id
+
+    def test_product_story_counts_exclude_inaccessible_reports(self, app):
+        """Stories only linked through reports hidden by report type ACL are not counted for that user."""
+        from core.managers.db_manager import db
+        from core.model.product import Product
+        from core.model.product_type import ProductType
+        from core.model.report_item import ReportItem
+        from core.model.report_item_type import ReportItemType
+        from core.model.role import Role, TLPLevel
+        from core.model.role_based_access import ItemType, RoleBasedAccess
+        from core.model.story import Story
+        from tests.application.support.rbac import grant_acl
+
+        with app.app_context():
+            prefix = uuid4().hex
+            visible_type = ReportItemType.get_by_title("OSINT Report")
+            hidden_type = ReportItemType.get_by_title("CERT Report")
+            product_type = ProductType.filter_by_title("Default PDF Presenter")
+            user_role = Role.filter_by_name("User")
+            assert visible_type and hidden_type and product_type and user_role
+
+            stories = [Story(title=f"{prefix} Story {i}") for i in range(3)]
+            db.session.add_all(stories)
+            db.session.flush()
+            visible_report = ReportItem(f"{prefix} visible", visible_type.id)
+            visible_report.stories = stories[:2]
+            hidden_report = ReportItem(f"{prefix} hidden", hidden_type.id)
+            hidden_report.stories = stories[1:]
+            db.session.add_all([visible_report, hidden_report])
+            db.session.flush()
+            product = Product(f"{prefix} product", product_type.id)
+            product.report_items = [visible_report, hidden_report]
+            db.session.add(product)
+            db.session.commit()
+            product_id, report_ids, story_ids = product.id, [visible_report.id, hidden_report.id], [story.id for story in stories]
+            acl_id = grant_acl(user_role, ItemType.REPORT_ITEM_TYPE, visible_type.id).id
+
+            user = Mock(roles=[user_role])
+            user.get_permissions.return_value = []
+            user.get_highest_tlp.return_value = TLPLevel.RED
+            try:
+                assert Product.get_story_counts([product_id]) == {product_id: 3}
+                assert Product.get_story_counts([product_id], user) == {product_id: 2}
+            finally:
+                RoleBasedAccess.delete(acl_id)
+                Product.delete(product_id)
+                for report_id in report_ids:
+                    ReportItem.delete(report_id)
+                for story_id in story_ids:
+                    if story := Story.get(story_id):
+                        db.session.delete(story)
+                db.session.commit()
 
     def test_failed_taranis_publish_keeps_previous_url(self, app, monkeypatch, pdf_product, tmp_path):
         from core.managers.db_manager import db

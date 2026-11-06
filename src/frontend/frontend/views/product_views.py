@@ -73,6 +73,7 @@ class ProductView(BaseView):
 
     @staticmethod
     def _supported_report_row(report: dict[str, Any]) -> dict[str, Any]:
+        """Return a Report Items table row with the story count and the created timestamp cut to seconds."""
         row = dict(report)
         if isinstance(created := row.get("created"), str):
             row["created"] = created[:19]
@@ -81,6 +82,7 @@ class ProductView(BaseView):
 
     @classmethod
     def get_extra_context(cls, base_context: dict[str, Any]) -> dict[str, Any]:
+        """Add publishers, selectable report rows, and compatible product types to the product editor context."""
         if cls.model_name() not in base_context:
             return base_context
         dpl = DataPersistenceLayer()

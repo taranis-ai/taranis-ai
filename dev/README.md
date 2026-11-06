@@ -21,9 +21,10 @@ cd taranis-ai
 
 ### Create sample data
 
-Whether as a user or admin, go to **Settings** → **OSINT Sources** → **Curated sources**. Select your preferred sources and go back to **OSINT Sources**. Hit the button **Collect all**. 
+Sign in as an administrator (the default User role cannot manage OSINT sources) and go to **Settings** → **OSINT Sources** → **Curated sources**. Select your preferred lists and click **Add selected lists**, then go back to **OSINT Sources** and hit the button **Collect all**.
 
 ### Stop development
+
 
 Stop docker container
 Note to podman users: Use `podman-compose` instead of `docker compose`
@@ -230,7 +231,8 @@ Dependency updates use [Renovate](https://docs.renovatebot.com/) with [`.github/
 
 ## Development Redis
 
-Development Redis disables RDB snapshots and AOF logging and mounts `/data` as RAM-backed `tmpfs`, so queue state is not persisted across restarts. Recreate it with `docker compose -f dev/compose.yml up -d redis` to apply the configuration.
+
+Development Redis disables RDB snapshots and AOF logging and mounts `/data` as RAM-backed `tmpfs`, so queue state is not persisted across restarts. Recreate it with `docker compose -f dev/compose.yml up -d redis` (Podman: `podman-compose -f dev/compose.yml up -d redis`) to apply the configuration.
 
 Frontend caches refill on demand. With `WITH_CRON_RQ=1`, cron asks Core to restore recurring schedules after Redis loses state; with cron stopped, restart Core to rebuild them. Pending one-off jobs, retries, delayed MISP pushes, and unfinished bot chains are lost and must be rerun.
 
