@@ -46,11 +46,11 @@
           </select>
         </div>
       {% endfor %}
-      <label class="label cursor-pointer justify-start gap-3">
+      <label class="label w-full cursor-pointer items-start justify-start gap-3 whitespace-normal">
         <input type="checkbox"
                name="asset_cvss_missing"
                value="true"
-               class="checkbox checkbox-sm"
+               class="checkbox checkbox-sm shrink-0"
                x-model="cvssMissing"
                {% if asset_filters.asset_cvss_missing %}checked{% endif %}
                @change="if ($el.checked) { $refs.asset_cve_match.value = 'yes'; $refs.advanced.querySelectorAll('input[type=number]').forEach(input => { input.value = ''; }); }">
