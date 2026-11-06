@@ -12,6 +12,13 @@ Read before component, API, workflow, background-job, persistence, migration, or
 
 `src/core/core/managers/queue_manager.py` owns Redis-backed RQ scheduling and cron expressions.
 
+## Shared Validation
+
+- Put intrinsic input types, defaults, required fields, constraints, normalization, and payload-only cross-field rules in `src/models/` Pydantic contracts. Prefer built-in types and `Field` constraints before custom validators; reuse those models at API/worker input boundaries.
+- Keep permissions, database references/uniqueness, transactions, and runtime checks in services and persistence. Shared validators must not perform database/network I/O or import application code.
+- Distinguish creation, partial-update, and response requirements when needed; do not tighten a response model to enforce creation rules.
+- [Worker Parameters](worker-parameters.md) is the existing example of model-owned rules and schema-derived forms. Reuse supported schema constraints for frontend feedback; server-side validation remains authoritative for custom validators.
+
 ## API Boundaries
 
 - User-facing frontend views must not import `models.admin` or use admin/config endpoints. Publishing reference data belongs in user-scoped `src/core/core/api/publish.py` endpoints and `src/models/models/product.py` models.

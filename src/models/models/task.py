@@ -1,6 +1,6 @@
 import json
-from datetime import datetime
-from typing import Any, Literal
+from datetime import UTC, datetime
+from typing import Annotated, Any, Literal
 
 from pydantic import AliasChoices, ConfigDict, Field, ValidationInfo, field_validator, model_validator
 from pydantic import BaseModel as PydanticBaseModel
@@ -24,6 +24,17 @@ FAILURE_MESSAGES = {
     "work_horse_killed": "The worker process ended before completing the job.",
     "job_failed": "The background job failed. Check worker logs for details.",
 }
+
+
+TASK_CHANGE_MAX_USERS = 100
+
+
+class TaskChangeNotice(TaranisBaseModel):
+    """Owners whose task views changed; an empty list refreshes only the scheduler."""
+
+    model_config = ConfigDict(extra="ignore", strict=True)
+
+    user_ids: list[Annotated[str, Field(min_length=1, max_length=36)]] = Field(default_factory=list, max_length=TASK_CHANGE_MAX_USERS)
 
 
 class CronTaskSpec(TaranisBaseModel):
@@ -173,9 +184,16 @@ class TaskRun(UserTask):
     _model_name = "task_run"
     _pretty_name = "Completed Run"
 
+    @field_validator("last_run")
+    @classmethod
+    def mark_persisted_timestamp_as_utc(cls, value: datetime) -> datetime:
+        # Persisted timestamps are UTC even when SQL omits timezone metadata.
+        return value.replace(tzinfo=UTC)
+
 
 class TaskRunFilter(UserTaskFilter):
     status: Literal["SUCCESS", "FAILURE", "WARNING", "NOT_MODIFIED", "PREVIEW"] | None = None
+    job_ids: list[str] | None = None
 
     @field_validator("limit", mode="after")
     @classmethod

@@ -8,8 +8,8 @@
     "npm:@codemirror/state@^6.7.6": "6.7.6",
     "npm:@codemirror/view@^6.43.15": "6.43.15",
     "npm:@tailwindcss/cli@4.3.0": "4.3.0",
-    "npm:alpinejs@*": "3.17.4",
-    "npm:alpinejs@^3.17.4": "3.17.4",
+    "npm:alpinejs@*": "3.17.5",
+    "npm:alpinejs@^3.17.5": "3.17.5",
     "npm:choices.js@*": "11.2.4",
     "npm:choices.js@^11.2.4": "11.2.4",
     "npm:codemirror@^6.0.2": "6.0.2",
@@ -339,17 +339,17 @@
         "@tailwindcss/oxide-win32-x64-msvc"
       ]
     },
-    "@vue/reactivity@3.5.42": {
-      "integrity": "sha512-TzNNfKpb7hDxbQltwAut8VDQA5YP+BuRlxntHUuRjyKwlMvmAPbs3unhCvieijifY6vFfVBwsS7wG/C7uq+bEQ==",
+    "@vue/reactivity@3.5.43": {
+      "integrity": "sha512-G/c9GyOZNI2jVaaS6OX1EF1SSFSv7H0ERqNTl4+DTFMlZmB5eVAB53aLQNam/7NL2NPtaDD7RdVrzf8uJzMuOA==",
       "dependencies": [
         "@vue/shared"
       ]
     },
-    "@vue/shared@3.5.42": {
-      "integrity": "sha512-2rPxex1jQf4jvl9MOHl6YaXCPcrNqz/FstMOEh3QWY+/OME9nQTvl9WYeCwhW7AFjaR0SnngZGlp/wkR6rkI6g=="
+    "@vue/shared@3.5.43": {
+      "integrity": "sha512-uksS7YGMR5NZyr4JNq0Rp+QyLns0ueaz20KwzIPW9R0LH1Vnt4E+XUM29PNseEbf1www2gOuhuDi5AKOIXag9Q=="
     },
-    "alpinejs@3.17.4": {
-      "integrity": "sha512-N2gsr+58XVUt7OAPKnUGiKPDtkd+xbSGTae8C8IJxeRdkkhBJPIautkJ+qcwb7lcjJ/QK3/CPVIbN20JPvtK7A==",
+    "alpinejs@3.17.5": {
+      "integrity": "sha512-XewMqRC6zjy8iaUPn86dxjvooAsNai3hUtQbdn0A5H2w7Jt10xHGZ1SczN5+Dvp3UKkuSEt9moy/UaUWOwKdnQ==",
       "dependencies": [
         "@vue/reactivity"
       ]
@@ -540,7 +540,7 @@
       "npm:@codemirror/state@^6.7.6",
       "npm:@codemirror/view@^6.43.15",
       "npm:@tailwindcss/cli@4.3.0",
-      "npm:alpinejs@^3.17.4",
+      "npm:alpinejs@^3.17.5",
       "npm:choices.js@^11.2.4",
       "npm:codemirror@^6.0.2",
       "npm:daisyui@^5.7.50",

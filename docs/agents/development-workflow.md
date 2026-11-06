@@ -19,7 +19,7 @@ Run component commands from that component's directory; CI definitions are in `.
 - `certifi` and Pillow are exempt from the one-week dependency cooling period so fixes for compromised CA roots and image-decoder advisories can be locked immediately. Upgrade only the affected packages with `uv lock --upgrade-package`; keep audit checks enabled.
 - For other urgent security fixes, use a temporary package-specific upload cutoff that admits the reviewed fix while excluding later releases. Remove the cutoff once the fixed artifacts satisfy the normal one-week delay. The worker's Brotli cutoffs admit the October 22 fixes for CVE-2026-111497.
 - Lint changed components with `uv run ruff check`; use `--fix` and `uv run ruff format` as appropriate. After Python edits, run `./dev/check_pyrefly.sh` from the repository root.
-- Models has no unit tests. Worker browser-scraping tests require Playwright browsers.
+- Models has no unit tests. Worker browser-scraping tests require Playwright browsers. The spawned-worker lifecycle smoke test uses Docker to create and remove an isolated Redis container; it skips when the Docker CLI is unavailable.
 - Core tests use a per-session temporary SQLite database and in-process Redis fakes to avoid affecting concurrent test runs or running instances. Do not uncomment disabled E2E admin tests on `master` without proving they pass.
 - Project Codex configuration filters inherited `DEBUG` values so the extension's `DEBUG=release` cannot override component boolean settings.
 - `jactionlint` reads `.github/jactionlint.yaml`. It allows version-tagged actions and the release action while keeping other workflow checks enabled.
@@ -39,6 +39,10 @@ After implementing and committing a feature, humans and agents run from the repo
 ```
 
 It requires a clean worktree, runs the full lint/unit/E2E pipeline, then pushes and signs off only on success. Each full E2E run uses a fresh isolated Compose stack and removes it afterward. If validation fails, fix and commit, then rerun this same script; focused E2E targets are not the feature gate.
+
+Complete this loop before creating a PR. `gh signoff` records a status on the pushed commit; it does not require an open PR. Do not pre-push or open a draft PR as a prerequisite. After the script succeeds, open a ready-for-review PR unless the user explicitly requests a draft.
+
+Keep test/lint results, counts, commands, CI status, and signoff details out of PR titles/descriptions and commit messages. Report results through commit statuses and the task handoff.
 
 ## Development Conventions
 

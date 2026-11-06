@@ -205,3 +205,35 @@ def test_enqueue_due_job_skips_missing_func_path_without_crashing(monkeypatch: p
     assert rq_job_id is None
     assert fake_queue.enqueued_calls == []
     assert redis_conn.zscore(NEXT_KEY, "job-invalid") is not None
+
+
+def test_scheduler_batches_notices_after_enqueuing_and_stops_when_leadership_is_lost(requests_mock, monkeypatch):
+    connection = fakeredis.FakeRedis()
+    monkeypatch.setattr(cron_scheduler, "get_redis_connection", lambda *_args: connection)
+    monkeypatch.setattr(cron_scheduler.time, "time", lambda: 1000.0)
+    monkeypatch.setattr(cron_scheduler.time, "sleep", Mock(side_effect=RuntimeError("stop scheduler")))
+    for number in range(100):
+        job_id = f"source-{number:03}"
+        spec = {"queue_name": "misc", "func_path": "cleanup_token_blacklist", "interval": 3600, "meta": {"user_id": "owner"}}
+        connection.hset(DEFS_KEY, job_id, json.dumps(spec))
+        connection.zadd(NEXT_KEY, {job_id: 999.0})
+
+    def observe_change(request, _context):
+        assert Queue("misc", connection=connection).count == 100
+        assert connection.zcount(NEXT_KEY, 0, 1000) == 0
+        assert request.json() == {"user_ids": ["owner"]}
+        return {"message": "Task views invalidated"}
+
+    notices = requests_mock.post(f"{Config.TARANIS_CORE_URL}/worker/tasks/changed", json=observe_change)
+    with pytest.raises(RuntimeError, match="stop scheduler"):
+        cron_scheduler.run_scheduler()
+    assert notices.call_count == 1
+
+    # A stale due-job snapshot must not enqueue work after another cron takes leadership.
+    connection.zadd(NEXT_KEY, {"source-000": 999.0, "source-001": 999.0})
+    requests_mock.post(f"{Config.TARANIS_CORE_URL}/worker/tasks/changed", json={"message": "Task views invalidated"})
+    monkeypatch.setattr(cron_scheduler, "renew_leader", Mock(side_effect=[True, True, False]))
+    with pytest.raises(RuntimeError, match="stop scheduler"):
+        cron_scheduler.run_scheduler()
+    assert Queue("misc", connection=connection).count == 101
+    assert connection.zscore(NEXT_KEY, "source-001") == 999.0

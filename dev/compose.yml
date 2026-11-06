@@ -63,6 +63,8 @@ services:
 
   centrifugo:
     image: "centrifugo/centrifugo:v6.9"
+    extra_hosts:
+      - "host.containers.internal:host-gateway"
     depends_on:
       redis:
         condition: service_healthy

@@ -8,7 +8,7 @@ from frontend.cache_models import PagingData
 
 
 def is_htmx_request() -> bool:
-    return "HX-Request" in request.headers
+    return "HX-Request" in request.headers and request.headers.get("HX-History-Restore-Request") != "true"
 
 
 def convert_query_params(query_params: MultiDict[str, str], model: type[BaseModel]) -> dict[str, Any]:
