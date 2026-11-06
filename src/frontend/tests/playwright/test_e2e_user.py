@@ -1732,10 +1732,33 @@ class TestEndToEndUser(BaseE2ETest):
             page.get_by_placeholder("Description").fill("This is a test product.")
             self.highlight_element(page.get_by_test_id("save-product")).click()
 
+        def create_report_with_stories() -> tuple[str, str, int]:
+            report_types = core_request_client.json_request("GET", "/analyze/report-types")["items"]
+            report_type_id = next(report_type["id"] for report_type in report_types if report_type["title"] == "OSINT Report")
+            story_ids = [story["id"] for story in core_request_client.json_request("GET", "/assess/stories")["items"][:2]]
+            title = f"{product_title} report"
+            response = core_request_client.post(
+                "/analyze/report-items", json_data={"title": title, "report_item_type_id": report_type_id, "stories": story_ids}
+            )
+            response.raise_for_status()
+            return response.json()["id"], title, len(story_ids)
+
+        def check_report_items_table(report_title: str, story_count: int):
+            report_items = page.locator("[data-product-report-items-enhanced]")
+            expect(report_items.locator("thead")).to_contain_text("Stories")
+            report_items.get_by_placeholder("Search...").fill(report_title)
+            cells = report_items.locator("tbody tr", has_text=report_title).locator("td")
+            expect(cells.nth(3)).to_have_text(re.compile(r"^\s*\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\s*$"))
+            expect(cells.nth(4)).to_have_text(str(story_count))
+            report_items.get_by_placeholder("Search...").fill("")
+
+        report_id, report_title, report_story_count = create_report_with_stories()
         load_product_list()
         add_product()
         expect(page.get_by_test_id("copy-product")).to_be_visible()
         expect(page.locator("[data-product-report-items-enhanced]")).to_be_visible()
+        check_report_items_table(report_title, report_story_count)
+        core_request_client.delete(f"/analyze/report-items/{report_id}")
         source_url = page.url
         product_type = page.locator("#product_type_id").input_value()
 
