@@ -19,6 +19,7 @@ Taranis uses HTMX 4:
 
 - Attributes apply only to their element unless explicitly marked `:inherited`.
 - Lifecycle names use colons (`htmx:config:request`, `htmx:after:swap`); request/swap context is `event.detail.ctx`, and the swap target is `ctx.target`.
+- htmx 4 silently ignores htmx 2 attribute names. Disable elements during a request with `hx-disable` (htmx 2 `hx-disabled-elt`); `hx-ignore` stops htmx processing. `tests/unit/test_htmx_attribute_names.py` rejects renamed or removed names.
 - Authenticated pages swap 400 validation responses into the normal target and suppress other 4xx/5xx swaps. Intentional error rendering needs local `hx-status:400`, `hx-status:4xx`, and `hx-status:5xx` target rules, plus compatible select/swap rules.
 - Complete table-container responses require `outerHTML` on that container; notification-only actions must receive only notifications. Error responses must not inherit an append or table-selection swap.
 
