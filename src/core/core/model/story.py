@@ -1333,7 +1333,12 @@ class Story(BaseModel):
             affected_stories = {story for _, story in removable_items.values()}
             emptied_stories = [story for story in affected_stories if all(item.id in removable_items for item in story.news_items)]
             emptied_reports = ReportItem.get_for_stories([story.id for story in emptied_stories])
-            if any(not report.access_allowed(user, True) for report in emptied_reports):
+            # access_allowed checks ACL and TLP only, so detaching from reports also needs the report-edit role.
+            if emptied_reports and (
+                not user
+                or "ANALYZE_UPDATE" not in user.get_permissions()
+                or any(not report.access_allowed(user, True) for report in emptied_reports)
+            ):
                 return {"error": "User is not allowed to update report"}, 403
             if emptied_reports and not confirm:
                 return {
@@ -1343,8 +1348,8 @@ class Story(BaseModel):
 
             # Collect before detaching: afterwards the emptied stories are no longer linked to their reports.
             reports_to_revise = ReportItem.get_for_stories([story.id for story in affected_stories])
-            # An emptied story is deleted, and ON DELETE CASCADE would drop its report links without cleaning up
-            # report attributes, so detach it from its reports explicitly first.
+            # An emptied story is deleted, and ON DELETE CASCADE would drop its report links silently,
+            # so detach it from its reports explicitly first. This does not clear its ID from report STORY attributes.
             for report in emptied_reports:
                 stories_to_detach = [story for story in emptied_stories if story in report.stories]
                 report.stories = [story for story in report.stories if story not in stories_to_detach]

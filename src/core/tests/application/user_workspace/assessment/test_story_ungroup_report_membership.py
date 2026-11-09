@@ -133,6 +133,39 @@ def test_confirmed_ungroup_without_report_write_access_changes_nothing(
 
 
 @pytest.mark.usefixtures("app")
+def test_confirmed_ungroup_without_analyze_update_changes_nothing(
+    session,
+    story_relevance_news_item_payload_factory,
+    story_relevance_story_payload_factory,
+    story_relevance_report_payload_factory,
+):
+    from core.model.permission import Permission
+    from core.model.role import Role
+
+    report_story = _story(story_relevance_news_item_payload_factory, story_relevance_story_payload_factory, "Report story")
+    report = _report_with_stories(story_relevance_report_payload_factory, [report_story])
+    user = User.find_by_name("user")
+    assert user is not None
+    assert report.access_allowed(user, True)  # ACL and TLP allow writing, only the role is missing
+    user_role = Role.filter_by_name("User")
+    assert user_role is not None
+    for permission in Permission.get_bulk(["ANALYZE_UPDATE"]):
+        user_role.permissions.remove(permission)
+    db.session.flush()
+    assert "ANALYZE_UPDATE" not in user.get_permissions()
+    item_ids = _news_item_ids(report_story.id)
+    notes_before = _report_revision_notes(report.id)
+
+    response, status = Story.ungroup_news_items_from_story(item_ids, user=user, confirm=True)
+
+    assert status == 403, response
+    assert response == {"error": "User is not allowed to update report"}
+    assert _news_item_ids(report_story.id) == item_ids
+    assert _report_story_ids(report.id) == [report_story.id]
+    assert _report_revision_notes(report.id) == notes_before
+
+
+@pytest.mark.usefixtures("app")
 def test_partial_ungroup_keeps_report_stories_and_records_one_revision(
     session,
     story_relevance_news_item_payload_factory,

@@ -1898,3 +1898,21 @@ def test_confirmed_ungroup_news_item_error_only_returns_notification(authenticat
     assert notification.get("id") == "notification-bar"
     assert notification.get("hx-swap-oob") is None
     assert "User is not allowed to update report" in notification.text_content()
+
+
+def test_confirmed_ungroup_news_item_connection_error_returns_server_error(authenticated_client, responses_mock, htmx_header):
+    responses_mock.put(
+        f"{Config.TARANIS_CORE_URL}/assess/news-items/ungroup?confirm=true",
+        body=RequestException("private transport detail"),
+    )
+
+    response = authenticated_client.post(
+        url_for("assess.ungroup", story_id="story-1"),
+        headers=htmx_header,
+        data={"news_item_ids[]": ["news-1"], "confirm": "true"},
+    )
+
+    # A non-2xx status routes the error to the notification bar instead of being swapped as a success.
+    assert response.status_code == 500
+    assert "Failed to ungroup news item." in response.text
+    assert "private transport detail" not in response.text

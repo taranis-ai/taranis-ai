@@ -1660,7 +1660,7 @@ class StoryView(BaseView):
                 raise
             except Exception:
                 logger.exception("Failed to ungroup news item.")
-                return cls.render_response_notification({"error": "Failed to ungroup news item."})
+                return cls.render_response_notification({"error": "Failed to ungroup news item."}), 500
         else:
             try:
                 core_response = CoreApi().api_put("/assess/stories/ungroup", json_data=[story_id])
