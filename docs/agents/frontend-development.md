@@ -13,6 +13,8 @@ Shared controls own selection, accessibility, styling, and shortcut behavior acr
 Shared row actions have accessible names. Delete actions retain native CSRF-protected POST forms and explicitly target notifications on HTMX 400/4xx/5xx failures.
 Native delete dispatch rejects create placeholder IDs with 405 before contacting Core.
 
+The navbar's debug badge uses Frontend's effective Flask debug setting or Core's `/isalive` status (`models.dashboard.CoreStatus`, cached for five seconds through `DataPersistenceLayer`). Its lazy Jinja helper runs only when the authenticated navbar renders and Frontend debug is off; missing or unavailable Core status falls back to Frontend's flag. Worker debug is excluded.
+
 ## HTMX and Forms
 
 Taranis uses HTMX 4:

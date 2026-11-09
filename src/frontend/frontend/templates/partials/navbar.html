@@ -1,4 +1,4 @@
-<div class="flex items-center space-x-4">
+<div class="flex min-w-0 items-center space-x-4">
   {% if _show_sidebar and templates and templates.get("sidebar_template") %}
     <button @click="sidebarOpen = !sidebarOpen" class="btn btn-ghost btn-square mr-4" aria-label="{{ _('Toggle sidebar') }}">
       {{ heroicon_outline("bars-3") }}
@@ -11,6 +11,9 @@
          width="auto"
          class="h-8">
   </a>
+  {% if current_user and (config["DEBUG"] or core_debug_enabled()) %}
+    <span class="badge badge-warning badge-sm shrink-0 whitespace-nowrap" data-test-id="debug-mode-badge">{{ _("Debug mode") }}</span>
+  {% endif %}
   {% include "partials/omnisearch/omni_search.html" %}
 </div>
 

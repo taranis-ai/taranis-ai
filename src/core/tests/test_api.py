@@ -22,9 +22,12 @@ def _reload_external_auth_modules():
     importlib.reload(core)
 
 
-def test_is_alive(client):
+@pytest.mark.parametrize("debug", [False, True])
+def test_is_alive(client, app, monkeypatch, debug):
+    monkeypatch.setitem(app.config, "DEBUG", debug)
     response = client.get("/api/isalive")
-    assert {"isalive": True} == response.json
+    assert response.status_code == 200
+    assert {"isalive": True, "debug": debug} == response.json
 
 
 def test_task_enqueue_uses_isolated_functional_redis(client, auth_header, app, redis_client):

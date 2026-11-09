@@ -152,6 +152,11 @@ paths:
                     type: boolean
                     examples:
                     - true
+                  debug:
+                    type: boolean
+                    description: whether Core's effective Flask debug setting is enabled
+                    examples:
+                    - false
   /health:
     get:
       tags:

@@ -14,6 +14,7 @@ from heroicons.jinja import (
     heroicon_outline,
     heroicon_solid,
 )
+from models.dashboard import CoreStatus
 from models.user import UserProfile
 from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
@@ -30,6 +31,7 @@ import frontend.filters as filters_module
 from frontend import i18n
 from frontend.auth import user_has_admin_permissions
 from frontend.config import Config
+from frontend.data_persistence import DataPersistenceLayer
 from frontend.log import logger
 from frontend.onboarding import pending_onboarding_tasks_for_template
 from frontend.views.base_view import BaseView
@@ -62,6 +64,15 @@ def index_redirect():
     return redirect(Config.APPLICATION_ROOT, code=302)
 
 
+def core_debug_enabled() -> bool:
+    try:
+        status = DataPersistenceLayer().get_object(CoreStatus)
+        return status.debug if status else False
+    except Exception:
+        logger.warning("Could not retrieve Core debug status; continuing without it")
+        return False
+
+
 def jinja_setup(app: Flask):
     for name in filters_module.__all__:
         app.jinja_env.filters[name] = getattr(filters_module, name)
@@ -83,6 +94,7 @@ def jinja_setup(app: Flask):
             "get_timezone": get_timezone,
             "pending_onboarding_tasks_for_template": pending_onboarding_tasks_for_template,
             "chat_enabled": app.config["CHAT_ENABLED"],
+            "core_debug_enabled": core_debug_enabled,
         }
     )
 
