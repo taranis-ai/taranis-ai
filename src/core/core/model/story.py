@@ -586,8 +586,15 @@ class Story(BaseModel):
         query = cls._add_sorting_to_query(filter_args, base_query)
         query = cls._add_paging_to_query(filter_args, query)
 
+        serialization_options = (
+            selectinload(cls.attributes),
+            selectinload(cls.misp_auto_update),
+            selectinload(cls.news_items).selectinload(NewsItem.attributes),
+            selectinload(cls.news_items).selectinload(NewsItem.tags),
+            selectinload(cls.news_items).selectinload(NewsItem.osint_source),
+        )
         if filter_args.get("worker", False) or not user:
-            return [s.to_worker_dict() for s in cls.get_filtered(query) or []], None
+            return [s.to_worker_dict() for s in cls.get_filtered(query.options(*serialization_options)) or []], None
 
         story_ids = list(db.session.scalars(query.with_only_columns(cls.id)))
         if filter_args.get("limit"):
@@ -595,13 +602,7 @@ class Story(BaseModel):
             if story_ids:
                 query = query.order_by(db.case({story_id: position for position, story_id in enumerate(story_ids)}, value=cls.id))
 
-        query = query.options(
-            selectinload(cls.attributes),
-            selectinload(cls.misp_auto_update),
-            selectinload(cls.news_items).selectinload(NewsItem.attributes),
-            selectinload(cls.news_items).selectinload(NewsItem.tags),
-            selectinload(cls.news_items).selectinload(NewsItem.osint_source),
-        )
+        query = query.options(*serialization_options)
         writable_sources = set(
             db.session.scalars(
                 RoleBasedAccessService.filter_query_with_acl(
