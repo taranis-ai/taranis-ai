@@ -1856,3 +1856,45 @@ def test_handle_news_item_response_returns_notification_and_content(app, monkeyp
 
     assert result.status_code == 200  # type: ignore
     assert result.get_data(as_text=True) == "notification<div>content</div>"  # type: ignore
+
+
+def test_ungroup_news_item_conflict_opens_confirmation_dialog(authenticated_client, responses_mock, htmx_header):
+    responses_mock.put(
+        f"{Config.TARANIS_CORE_URL}/assess/news-items/ungroup",
+        json={"error": "Ungrouping removes the story from reports", "reports": [{"id": "report-1", "title": "Weekly <CERT> report"}]},
+        status=409,
+    )
+
+    response = authenticated_client.post(
+        url_for("assess.ungroup", story_id="story-1"), headers=htmx_header, data={"news_item_ids[]": ["news-1"]}
+    )
+
+    assert response.status_code == 200
+    assert response.headers["HX-Retarget"] == "body"
+    assert response.headers["HX-Reswap"] == "beforeend"
+    assert response.headers["HX-Reselect"] == "#ungroup_confirm_dialog"
+    dialog = html.fromstring(response.text).xpath('//dialog[@id="ungroup_confirm_dialog"]')[0]
+    assert dialog.xpath('.//*[@data-test-id="affected-reports"]//li')[0].text_content().strip() == "Weekly <CERT> report"
+    confirm_button = dialog.xpath('.//*[@data-test-id="ungroup-confirm"]')[0]
+    assert json.loads(confirm_button.get("hx-vals")) == {"news_item_ids[]": ["news-1"], "confirm": "true"}
+
+
+def test_confirmed_ungroup_news_item_error_only_returns_notification(authenticated_client, responses_mock, htmx_header):
+    responses_mock.put(
+        f"{Config.TARANIS_CORE_URL}/assess/news-items/ungroup?confirm=true",
+        json={"error": "User is not allowed to update report"},
+        status=403,
+    )
+
+    response = authenticated_client.post(
+        url_for("assess.ungroup", story_id="story-1"),
+        headers=htmx_header,
+        data={"news_item_ids[]": ["news-1"], "confirm": "true"},
+    )
+
+    assert response.status_code == 403
+    assert parse_qs(urlparse(responses_mock.calls[0].request.url).query) == {"confirm": ["true"]}
+    notification = html.fromstring(response.text)
+    assert notification.get("id") == "notification-bar"
+    assert notification.get("hx-swap-oob") is None
+    assert "User is not allowed to update report" in notification.text_content()

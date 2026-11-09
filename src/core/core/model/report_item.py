@@ -254,18 +254,18 @@ class ReportItem(BaseModel):
         return ReportRevision.create_from_report(self, created_by_id=created_by_id, note=note)
 
     @classmethod
-    def record_revision_for_stories(cls, story_ids: list[str], user: User | None, note: str) -> None:
-        """Record one revision in every report that contains any of the given stories."""
+    def get_for_stories(cls, story_ids: list[str]) -> list[ReportItem]:
+        """Return every report that contains any of the given stories."""
         if not story_ids:
-            return
+            return []
         query = (
             db.select(cls)
             .join(ReportItemStory, ReportItemStory.report_item_id == cls.id)
             .where(ReportItemStory.story_id.in_(story_ids))
             .distinct()
+            .order_by(cls.id)
         )
-        for report in db.session.execute(query).scalars():
-            report.record_revision(user, note=note)
+        return list(db.session.execute(query).scalars())
 
     def get_revision_count(self) -> int:
         """Get the number of revisions for this report"""

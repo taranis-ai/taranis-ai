@@ -1,0 +1,35 @@
+<dialog id="ungroup_confirm_dialog"
+        class="modal"
+        x-init="$nextTick(() => $el.showModal ? $el.showModal() : $el.setAttribute('open', 'open'))"
+        x-on:close="$el.remove()">
+  <div class="modal-box">
+    <form method="dialog">
+      <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" aria-label="Close">✕</button>
+    </form>
+    <h3 class="font-bold text-lg mt-1 mb-2">Ungroup News Item</h3>
+    <p class="text-sm text-base-content/70">
+      This removes the last news item from the story. The story will be removed from the following reports:
+    </p>
+    {% include "partials/affected_reports.html" %}
+    <p class="text-sm text-base-content/70 mb-4">The ungrouped news items become separate stories and are not added to these reports.</p>
+    <div class="modal-action">
+      <form method="dialog">
+        <button class="btn btn-outline" data-test-id="ungroup-cancel">Cancel</button>
+      </form>
+      <button type="button"
+              class="btn btn-error"
+              data-test-id="ungroup-confirm"
+              hx-disable="this"
+              hx-post="{{ url_for('assess.ungroup', story_id=story_id) }}"
+              hx-vals='{{ {"news_item_ids[]": news_item_ids, "confirm": "true"} | tojson }}'
+              hx-target="#story-{{ story_id }}"
+              hx-select="#story-{{ story_id }}"
+              hx-status:400="target:#notification-bar swap:outerHTML select:#notification-bar"
+              hx-status:4xx="target:#notification-bar swap:outerHTML select:#notification-bar"
+              hx-status:5xx="target:#notification-bar swap:outerHTML select:#notification-bar"
+              hx-on::after:request="if (ctx.response.status < 400) document.getElementById('ungroup_confirm_dialog')?.close()">
+        Ungroup and remove from report
+      </button>
+    </div>
+  </div>
+</dialog>

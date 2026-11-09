@@ -989,6 +989,74 @@ class TestEndToEndUser(BaseE2ETest):
             for created_id in created_ids:
                 core_request_client.delete(f"/assess/stories/{created_id}", raise_for_status=False)
 
+    def test_ungroup_last_news_item_of_report_story_requires_confirmation(
+        self, non_admin_logged_in_page, forward_console_and_page_errors_non_admin, core_request_client
+    ):
+        page = non_admin_logged_in_page
+        allow_requests_passthru()
+        marker = uuid.uuid4().hex
+        news_item_ids = []
+        report_id = None
+        try:
+            story_ids = []
+            for index in range(2):
+                result = core_request_client.json_request(
+                    "POST",
+                    "/assess/news-items",
+                    json_data={
+                        "title": f"Ungroup item {index} {marker}",
+                        "content": f"Ungroup test {marker}",
+                        "source": "manual",
+                        "osint_source_id": "manual",
+                        "link": f"https://example.invalid/{marker}/{index}",
+                    },
+                )
+                story_ids.append(result["story_id"])
+            core_request_client.post("/assess/stories/group", json_data=story_ids)
+            story_id = story_ids[0]
+            news_item_ids = [item["id"] for item in core_request_client.json_request("GET", f"/assess/stories/{story_id}")["news_items"]]
+            report_title = f"Ungroup report {marker}"
+            report_type_id = core_request_client.json_request("GET", "/analyze/report-types")["items"][0]["id"]
+            report_id = core_request_client.json_request(
+                "POST",
+                "/analyze/report-items",
+                json_data={"title": report_title, "report_item_type_id": report_type_id, "stories": [story_id]},
+            )["id"]
+
+            page.goto(url_for("assess.story", story_id=story_id, _external=True))
+            expect(page.get_by_test_id(f"ungroup-newsitem-{news_item_ids[1]}")).to_be_visible()
+            # Another session ungroups the first item, so this page still offers ungrouping the story's last item.
+            core_request_client.put("/assess/news-items/ungroup", json_data=[news_item_ids[0]])
+
+            dialog = page.locator("#ungroup_confirm_dialog")
+            for confirm in (False, True):
+                with_htmx_wait(page, page.get_by_test_id(f"ungroup-newsitem-{news_item_ids[1]}").click)
+                expect(dialog.locator('[data-test-id="affected-reports"]')).to_have_text(report_title)
+                if not confirm:
+                    dialog.locator('[data-test-id="ungroup-cancel"]').click()
+                    expect(dialog).to_have_count(0)
+                    report = core_request_client.json_request("GET", f"/analyze/report-items/{report_id}")
+                    assert [story["id"] for story in report["stories"]] == [story_id]
+            ungroup_posts = []
+            page.on(
+                "request",
+                lambda request: ungroup_posts.append(request.url) if request.method == "POST" and "/ungroup/" in request.url else None,
+            )
+            with page.expect_navigation(url=re.compile(r"/assess(\?|$)")):
+                dialog.locator('[data-test-id="ungroup-confirm"]').dblclick()
+            assert len(ungroup_posts) == 1, ungroup_posts
+            expect(page.locator("#notification-message")).to_contain_text("Successfully ungrouped")
+
+            report = core_request_client.json_request("GET", f"/analyze/report-items/{report_id}")
+            assert report["stories"] == []
+            assert core_request_client.get(f"/assess/stories/{story_id}", raise_for_status=False).status_code == 404
+        finally:
+            allow_requests_passthru()
+            if report_id:
+                core_request_client.delete(f"/analyze/report-items/{report_id}", raise_for_status=False)
+            for news_item_id in news_item_ids:
+                core_request_client.delete(f"/assess/news-items/{news_item_id}", raise_for_status=False)
+
     def test_story_export(
         self,
         non_admin_logged_in_page: Page,

@@ -10,6 +10,8 @@ from tests.application.support.builders import create_report, create_story
 
 # Issue #1236: ungrouping news items must not silently drop a story from a report.
 
+CONFIRM_ERROR = "Ungrouping removes the story from reports"
+
 
 def _admin() -> User:
     admin = User.find_by_name("admin")
@@ -52,7 +54,7 @@ def _news_item_ids(story_id: str) -> list[str]:
 
 
 @pytest.mark.usefixtures("app")
-def test_ungroup_endpoint_rejects_emptying_report_story(
+def test_ungroup_endpoint_requires_confirmation_then_detaches_report_story(
     client,
     auth_header,
     session,
@@ -67,11 +69,19 @@ def test_ungroup_endpoint_rejects_emptying_report_story(
 
     response = client.put("/api/assess/news-items/ungroup", json=item_ids, headers=auth_header)
 
-    assert response.status_code == 400, response.json
-    assert response.json == {"error": "Story is assigned to a report"}
+    assert response.status_code == 409, response.json
+    assert response.json == {"error": CONFIRM_ERROR, "reports": [{"id": report.id, "title": report.title}]}
     assert _report_story_ids(report.id) == [report_story.id]
     assert _news_item_ids(report_story.id) == item_ids
     assert _report_revision_notes(report.id) == notes_before
+
+    response = client.put("/api/assess/news-items/ungroup?confirm=true", json=item_ids, headers=auth_header)
+
+    assert response.status_code == 200, response.json
+    assert _report_story_ids(report.id) == []
+    assert Story.get(report_story.id) is None
+    assert len(response.json["new_stories_ids"]) == 2
+    assert _report_revision_notes(report.id) == [*notes_before, "ungroup_news_items"]
 
 
 @pytest.mark.usefixtures("app")
@@ -90,10 +100,36 @@ def test_mixed_request_emptying_report_story_changes_nothing(
     # The unrelated story comes first, so a check inside the mutation loop would already have changed it.
     response, status = Story.ungroup_news_items_from_story([other_item_ids[0], *report_item_ids], user=_admin())
 
-    assert status == 400, response
+    assert status == 409, response
+    assert response["reports"] == [{"id": report.id, "title": report.title}]
     assert _news_item_ids(other_story.id) == other_item_ids
     assert _news_item_ids(report_story.id) == report_item_ids
     assert _report_story_ids(report.id) == [report_story.id]
+
+
+@pytest.mark.usefixtures("app")
+def test_confirmed_ungroup_without_report_write_access_changes_nothing(
+    session,
+    report_items,
+    story_relevance_news_item_payload_factory,
+    story_relevance_story_payload_factory,
+):
+    report_story = _story(story_relevance_news_item_payload_factory, story_relevance_story_payload_factory, "Report story")
+    _, _, report, _ = report_items  # TLP:RED, not writable for the TLP:CLEAR seed user
+    response, status = ReportItem.add_stories(report.id, [report_story.id], _admin())
+    assert status == 200, response
+    user = User.find_by_name("user")
+    assert user is not None
+    item_ids = _news_item_ids(report_story.id)
+    notes_before = _report_revision_notes(report.id)
+
+    response, status = Story.ungroup_news_items_from_story(item_ids, user=user, confirm=True)
+
+    assert status == 403, response
+    assert response == {"error": "User is not allowed to update report"}
+    assert _news_item_ids(report_story.id) == item_ids
+    assert _report_story_ids(report.id) == [report_story.id]
+    assert _report_revision_notes(report.id) == notes_before
 
 
 @pytest.mark.usefixtures("app")
