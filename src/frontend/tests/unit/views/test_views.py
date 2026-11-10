@@ -916,17 +916,17 @@ def test_osint_source_form_disables_rank_for_manual_source(app):
     [
         (False, False, True, False),
         (False, True, True, True),
-        (True, False, True, True),
+        (True, False, True, False),
         (True, True, True, True),
         (False, None, True, False),
         (False, None, False, False),
-        (True, None, False, True),
+        (True, None, False, False),
     ],
 )
 def test_admin_dashboard_renders_health_card(
     authenticated_client, auth_user, responses_mock, monkeypatch, frontend_debug, core_debug, health_available, badge_visible
 ):
-    """Reuse dashboard health for the badge, with Frontend config as the fallback."""
+    """Show Core's configured debug state independently of Frontend debug settings."""
     cache.clear()
     add_user_to_cache(auth_user.model_dump(mode="json"))
 
