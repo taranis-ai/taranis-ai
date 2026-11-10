@@ -27,7 +27,6 @@ class AdminDashboardView(AdminBaseView):
 
     @classmethod
     def static_view(cls):
-        """Render admin status and its debug badge from the existing dashboard snapshot."""
         error = None
         data_persistence = DataPersistenceLayer()
         try:

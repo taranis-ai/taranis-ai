@@ -14,7 +14,6 @@ HealthStatus = Literal["up", "down", "n/a"]
 
 
 def get_health_response() -> tuple[dict[str, bool | dict[str, HealthStatus]], int]:
-    """Report dependency health and Core's configured application debug state."""
     database_status = check_database()
     services: dict[str, HealthStatus] = {
         "database": database_status,

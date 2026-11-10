@@ -63,7 +63,6 @@ def index_redirect():
 
 
 def jinja_setup(app: Flask):
-    """Register template utilities and shared navigation metadata."""
     for name in filters_module.__all__:
         app.jinja_env.filters[name] = getattr(filters_module, name)
     app.jinja_env.trim_blocks = True
