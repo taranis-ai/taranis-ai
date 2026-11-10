@@ -208,12 +208,14 @@ class ReportItem(BaseModel):
         return data
 
     def to_supported_products_dict(self):
+        """Serialize the fields the product editor's Report Items table needs, including linked story IDs."""
         return {
             "id": self.id,
             "title": self.title,
             "type": self.report_item_type.title if self.report_item_type else "",
             "report_item_type_id": self.report_item_type_id,
             "created": self.serialize_datetime(self.created),
+            "stories": [story.id for story in self.stories],
         }
 
     def to_product_dict(self):
