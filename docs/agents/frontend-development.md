@@ -13,7 +13,7 @@ Shared controls own selection, accessibility, styling, and shortcut behavior acr
 Shared row actions have accessible names. Delete actions retain native CSRF-protected POST forms and explicitly target notifications on HTMX 400/4xx/5xx failures.
 Native delete dispatch rejects create placeholder IDs with 405 before contacting Core.
 
-The navbar's debug badge uses Frontend's effective Flask debug setting or Core's `/isalive` status (`models.dashboard.CoreStatus`, cached for five seconds through `DataPersistenceLayer`). Its lazy Jinja helper runs only when the authenticated navbar renders and Frontend debug is off; missing or unavailable Core status falls back to Frontend's flag. Worker debug is excluded.
+The navbar's debug badge appears only on the admin dashboard. `AdminDashboardView` supplies `debug_mode` from Frontend's `Config.DEBUG` or the existing dashboard's `health_status.debug` (Core's `Config.DEBUG`); missing health data contributes false. It adds no HTTP requests and uses the dashboard's existing 30-second cache. Flask CLI overrides and Worker debug do not contribute.
 
 ## HTMX and Forms
 

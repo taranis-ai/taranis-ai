@@ -11,7 +11,7 @@
          width="auto"
          class="h-8">
   </a>
-  {% if current_user and (config["DEBUG"] or core_debug_enabled()) %}
+  {% if current_user and debug_mode | default(false) %}
     <span class="badge badge-warning badge-sm shrink-0 whitespace-nowrap" data-test-id="debug-mode-badge">{{ _("Debug mode") }}</span>
   {% endif %}
   {% include "partials/omnisearch/omni_search.html" %}

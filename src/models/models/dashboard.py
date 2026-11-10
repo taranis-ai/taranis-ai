@@ -21,14 +21,6 @@ class DashboardHealthServices(BaseModel):
 class DashboardHealth(BaseModel):
     healthy: bool
     services: DashboardHealthServices
-
-
-class CoreStatus(TaranisBaseModel):
-    _core_endpoint = "/isalive"
-    _model_name = "core_status"
-    _cache_timeout = 5
-
-    isalive: bool
     debug: bool = False
 
 
@@ -40,6 +32,7 @@ class CoreHealth(TaranisBaseModel):
 
     healthy: bool
     services: DashboardHealthServices
+    debug: bool = False
 
 
 class TaskStatusTotals(BaseModel):

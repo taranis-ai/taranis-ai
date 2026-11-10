@@ -152,11 +152,6 @@ paths:
                     type: boolean
                     examples:
                     - true
-                  debug:
-                    type: boolean
-                    description: whether Core's effective Flask debug setting is enabled
-                    examples:
-                    - false
   /health:
     get:
       tags:
@@ -176,6 +171,11 @@ paths:
                     type: boolean
                     examples:
                     - true
+                  debug:
+                    type: boolean
+                    description: whether Core's configured application DEBUG setting is enabled
+                    examples:
+                    - false
                   services:
                     type: object
                     properties:
@@ -209,6 +209,11 @@ paths:
                 properties:
                   healthy:
                     type: boolean
+                    examples:
+                    - false
+                  debug:
+                    type: boolean
+                    description: whether Core's configured application DEBUG setting is enabled
                     examples:
                     - false
                   services:

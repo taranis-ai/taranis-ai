@@ -1,13 +1,12 @@
-from flask import Flask, current_app
+from flask import Flask
 from flask.views import MethodView
-from models.dashboard import CoreStatus
 
 from core.config import Config
 
 
 class IsAlive(MethodView):
     def get(self):
-        return CoreStatus(isalive=True, debug=current_app.debug).model_dump()
+        return {"isalive": True}
 
 
 def initialize(app: Flask):
