@@ -1,6 +1,10 @@
 CREATE EXTENSION IF NOT EXISTS unaccent;
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
+-- Support literal substring matching for tag autocomplete without changing its ranking or visibility query.
+CREATE INDEX IF NOT EXISTS ix_news_item_tag_name_trgm
+  ON news_item_tag USING GIN (name gin_trgm_ops);
+
 -- Ensure Story has a tsvector column for full-text search
 ALTER TABLE story ADD COLUMN IF NOT EXISTS search_vector tsvector DEFAULT ''::tsvector;
 ALTER TABLE story ALTER COLUMN search_vector DROP NOT NULL;
