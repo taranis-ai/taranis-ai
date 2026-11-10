@@ -424,6 +424,131 @@ class TestAnalyzeApi(BaseTest):
             assert story.find_attribute_by_key(f"report_{report_payload['id']}") is None
             assert story.relevance_feedback == 0
 
+    def test_removing_stories_cleans_story_attributes_and_revisions(self, app, client, auth_header, stories):
+        from core.managers.db_manager import db
+        from core.model.attribute import Attribute, AttributeType
+        from core.model.report_item import ReportItem
+        from core.model.report_item_type import ReportItemType
+        from core.model.revision import ReportRevision
+        from core.model.user import User
+
+        assert len(stories) >= 2
+        suffix = uuid4().hex
+        story_a, story_b = stories[0], stories[1]
+        report_id = str(uuid7())
+        report_type_id = None
+        attribute_id = None
+
+        with app.app_context():
+            admin_user = User.find_by_name("admin")
+            assert admin_user is not None
+
+            story_attr_def = Attribute(
+                name=f"story_ref_{suffix}",
+                description="Referenced stories attribute",
+                attribute_type=AttributeType.STORY,
+            )
+            db.session.add(story_attr_def)
+            db.session.flush()
+            attribute_id = story_attr_def.id
+
+            report_type = ReportItemType(
+                title=f"Story Attr Report Type {suffix}",
+                description="Report type with STORY attribute",
+                attribute_groups=[
+                    {
+                        "index": 0,
+                        "title": "Analysis",
+                        "description": "Analysis attributes",
+                        "attribute_group_items": [
+                            {
+                                "index": 0,
+                                "attribute_id": attribute_id,
+                                "title": "Referenced Stories",
+                                "description": "Referenced stories",
+                                "required": False,
+                            }
+                        ],
+                    }
+                ],
+            )
+            db.session.add(report_type)
+            db.session.commit()
+            report_type_id = report_type.id
+
+            report, status = ReportItem.add(
+                {
+                    "id": report_id,
+                    "title": f"Story Attribute Cleanup {suffix}",
+                    "completed": False,
+                    "report_item_type_id": report_type_id,
+                    "stories": [story_a, story_b],
+                },
+                admin_user,
+            )
+            assert status == 200
+            assert not isinstance(report, dict)
+
+            story_attr = next(attr for attr in report.attributes if attr.attribute_type == AttributeType.STORY)
+            updated, update_status = ReportItem.update_report_item(
+                report_id,
+                {"attributes": {story_attr.id: f"{story_a},{story_b}"}},
+                admin_user,
+            )
+            assert update_status == 200
+            assert updated["used_story_ids"] == [story_a, story_b]
+
+        try:
+            with app.app_context():
+                admin_user = User.find_by_name("admin")
+                assert admin_user is not None
+                remove_result, remove_status = ReportItem.remove_stories(report_id, [story_a], admin_user)
+                assert remove_status == 200
+                assert remove_result["message"] == "Successfully removed stories"
+
+                report = ReportItem.get(report_id)
+                assert report is not None
+                story_attr = next(attr for attr in report.attributes if attr.attribute_type == AttributeType.STORY)
+                assert story_attr.value == story_b
+                assert report.to_detail_dict()["used_story_ids"] == [story_b]
+                assert report.to_product_dict()["attributes"]["Analysis"]["Referenced Stories"] == story_b
+
+                latest_revision = db.session.execute(
+                    db.select(ReportRevision).where(ReportRevision.report_item_id == report_id).order_by(ReportRevision.revision.desc())
+                ).scalar_one()
+                assert latest_revision.data["used_story_ids"] == [story_b]
+
+            editor_response = self.assert_get_ok(client, f"report-editors/{report_id}", auth_header=auth_header)
+            assert editor_response.get_json()["used_story_ids"] == [story_b]
+
+            deselect_response = self.assert_put_ok(
+                client,
+                f"report-items/{report_id}",
+                json_data={"stories": []},
+                auth_header=auth_header,
+            )
+            assert deselect_response.get_json()["report"]["used_story_ids"] == []
+
+            with app.app_context():
+                report = ReportItem.get(report_id)
+                assert report is not None
+                story_attr = next(attr for attr in report.attributes if attr.attribute_type == AttributeType.STORY)
+                assert story_attr.value == ""
+                assert report.to_product_dict()["attributes"]["Analysis"]["Referenced Stories"] == ""
+                latest_revision = db.session.execute(
+                    db.select(ReportRevision).where(ReportRevision.report_item_id == report_id).order_by(ReportRevision.revision.desc())
+                ).scalar_one()
+                assert latest_revision.data["used_story_ids"] == []
+        finally:
+            with app.app_context():
+                if ReportItem.get(report_id):
+                    ReportItem.delete(report_id)
+                if report_type_id and ReportItemType.get(report_type_id):
+                    db.session.delete(ReportItemType.get(report_type_id))
+                if attribute_id and Attribute.get(attribute_id):
+                    db.session.delete(Attribute.get(attribute_id))
+                db.session.commit()
+
     def test_create_report_and_publish_product_workflow(self, app, client, auth_header, stories, workflow_publish_resources, monkeypatch):
         from core.model.product import Product
         from core.model.report_item import ReportItem
