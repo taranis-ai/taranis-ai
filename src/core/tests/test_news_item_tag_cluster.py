@@ -8,6 +8,8 @@ insert phase is now an upsert, so re-inserting a materialized key must
 update in place instead of raising.
 """
 
+from datetime import datetime
+
 import pytest
 
 from core.model.news_item import NewsItem
@@ -56,25 +58,41 @@ def test_insert_current_keys_upserts_materialized_cluster(session, story_with_ta
 
     row = session.get(NewsItemTagCluster, ("Apple", "CVE_VENDOR"))
     assert row is not None
-    assert row.get_count() >= 1
+    assert row.news_item_count == 1
+    assert row.story_count == 1
+    assert row.last_story_created == story_with_tag_cluster.created
 
 
-def test_refresh_twice_keeps_cluster_row(session, story_with_tag_cluster):
-    """A full re-refresh of a materialized key keeps exactly one row (GH #1135)."""
-    NewsItemTagCluster.refresh_for_keys({("Apple", "CVE_VENDOR")}, session=session)
-    session.flush()
+def test_story_add_refreshes_existing_cluster(session):
+    first_created = datetime(2026, 1, 1)
+    second_created = datetime(2026, 1, 2)
+    key = ("Apple", "CVE_VENDOR")
 
-    rows = (
-        session.query(NewsItemTagCluster)
-        .filter(NewsItemTagCluster.name == "Apple", NewsItemTagCluster.tag_type_key == "CVE_VENDOR")
-        .all()
-    )
-    assert len(rows) == 1
+    for number, created in enumerate((first_created, second_created), start=1):
+        _, status = Story.add(
+            {
+                "title": f"Tagged story {number}",
+                "created": created,
+                "news_items": [
+                    {
+                        "title": f"Tagged item {number}",
+                        "content": "body",
+                        "tags": [{"name": key[0], "tag_type": key[1]}],
+                    }
+                ],
+            }
+        )
+        assert status == 200
+
+        row = session.query(NewsItemTagCluster).filter_by(name=key[0], tag_type_key=key[1]).one()
+        assert row.news_item_count == number
+        assert row.story_count == number
+        assert row.last_story_created == created
 
 
 def test_stale_key_removed_when_source_tags_gone(session, story_with_tag_cluster):
     """Keys without source tags stay deleted after a refresh (issue acceptance)."""
-    session.query(NewsItemTag).delete()
+    session.query(NewsItemTag).filter_by(name="Apple", tag_type="CVE_VENDOR").delete()
 
     NewsItemTagCluster.refresh_for_keys({("Apple", "CVE_VENDOR")}, session=session)
     session.flush()
