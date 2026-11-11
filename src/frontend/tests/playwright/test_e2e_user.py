@@ -1037,6 +1037,26 @@ class TestEndToEndUser(BaseE2ETest):
                     expect(dialog).to_have_count(0)
                     report = core_request_client.json_request("GET", f"/analyze/report-items/{report_id}")
                     assert [story["id"] for story in report["stories"]] == [story_id]
+            ungroup_url = url_for("assess.ungroup", story_id=story_id, _external=True)
+            page.route(
+                ungroup_url,
+                lambda route: route.fulfill(
+                    status=403,
+                    content_type="text/html",
+                    body='<section id="notification-bar"><div role="alert">User is not allowed to update report</div></section>',
+                ),
+                times=1,
+            )
+            confirm_button = dialog.locator('[data-test-id="ungroup-confirm"]')
+            with page.expect_response(lambda response: response.url == ungroup_url and response.status == 403):
+                confirm_button.click()
+            with pytest.raises(AssertionError, match=r"HTMX response error .* for POST .*/ungroup/.* returned 403"):
+                wait_for_htmx_settled(page)
+            reset_htmx_state(page)
+            expect(dialog).to_be_visible()
+            expect(confirm_button).to_be_enabled()
+            report = core_request_client.json_request("GET", f"/analyze/report-items/{report_id}")
+            assert [story["id"] for story in report["stories"]] == [story_id]
             ungroup_posts = []
             page.on(
                 "request",
