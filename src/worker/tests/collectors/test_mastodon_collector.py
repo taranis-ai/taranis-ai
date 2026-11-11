@@ -4,6 +4,7 @@ from typing import Any
 import pytest
 import requests
 
+from tests.support.api_payloads import collection_result
 from worker.collectors.base_collector import NoChangeError
 from worker.collectors.mastodon_collector import MastodonCollector, MastodonCollectorError
 from worker.config import Config
@@ -53,6 +54,7 @@ def status(
 ) -> dict[str, Any]:
     media_attachments = [] if media_description is None else [{"description": media_description}]
     return {
+        "osint_source_id": "manual",
         "id": str(status_id),
         "created_at": "2026-08-27T10:00:00.000Z",
         "content": content,
@@ -86,8 +88,14 @@ def test_hashtag_collection_maps_boost_and_media_and_advances_cursor(requests_mo
     )
     responses = [status("opaque-b", reblog=original), status("opaque-a", content="", media_description="Network diagram")]
 
-    requests_mock.get(re.compile(rf"{INSTANCE_URL}/api/v1/timelines/tag/security.*"), json=responses)
-    requests_mock.post(f"{Config.TARANIS_CORE_URL}/worker/news-items", json={"message": "Added 2 items"})
+    requests_mock.get(
+        re.compile(rf"{INSTANCE_URL}/api/v1/timelines/tag/security.*"), headers={"Content-Type": "application/json"}, json=responses
+    )
+    requests_mock.post(
+        f"{Config.TARANIS_CORE_URL}/worker/news-items",
+        headers={"Content-Type": "application/json"},
+        json=collection_result(message="Added 2 items"),
+    )
 
     collector = MastodonCollector()
     assert collector.collect(source("hashtag", access_token="")) == "Added 2 items"
@@ -105,7 +113,9 @@ def test_hashtag_collection_maps_boost_and_media_and_advances_cursor(requests_mo
 
 
 def test_complete_home_collection_catches_up_without_gaps(requests_mock):
-    requests_mock.get(f"{INSTANCE_URL}/api/v1/accounts/verify_credentials", json={"id": "account-1"})
+    requests_mock.get(
+        f"{INSTANCE_URL}/api/v1/accounts/verify_credentials", headers={"Content-Type": "application/json"}, json={"id": "account-1"}
+    )
 
     def home_response(request, _context):
         if request.qs.get("min_id") == ["100"]:
@@ -114,8 +124,12 @@ def test_complete_home_collection_catches_up_without_gaps(requests_mock):
             return [status(142), status(141)]
         return []
 
-    requests_mock.get(re.compile(rf"{INSTANCE_URL}/api/v1/timelines/home.*"), json=home_response)
-    requests_mock.post(f"{Config.TARANIS_CORE_URL}/worker/news-items", json={"message": "Added"})
+    requests_mock.get(
+        re.compile(rf"{INSTANCE_URL}/api/v1/timelines/home.*"), headers={"Content-Type": "application/json"}, json=home_response
+    )
+    requests_mock.post(
+        f"{Config.TARANIS_CORE_URL}/worker/news-items", headers={"Content-Type": "application/json"}, json=collection_result(message="Added")
+    )
     cursor = {"timeline": f"{INSTANCE_URL}|home|account-1", "last_status_id": "100"}
 
     collector = MastodonCollector()
@@ -149,8 +163,12 @@ def test_latest_collection_warns_only_when_skipping(requests_mock, returned_ids,
             return [status(oldest_id)]
         return []
 
-    requests_mock.get(re.compile(rf"{INSTANCE_URL}/api/v1/timelines/tag/security.*"), json=hashtag_response)
-    requests_mock.post(f"{Config.TARANIS_CORE_URL}/worker/news-items", json={"message": "Added"})
+    requests_mock.get(
+        re.compile(rf"{INSTANCE_URL}/api/v1/timelines/tag/security.*"), headers={"Content-Type": "application/json"}, json=hashtag_response
+    )
+    requests_mock.post(
+        f"{Config.TARANIS_CORE_URL}/worker/news-items", headers={"Content-Type": "application/json"}, json=collection_result(message="Added")
+    )
     cursor = {"timeline": f"{INSTANCE_URL}|hashtag|security", "last_status_id": "100"}
 
     collector = MastodonCollector()
@@ -165,8 +183,10 @@ def test_latest_collection_warns_only_when_skipping(requests_mock, returned_ids,
 
 
 def test_account_collection_resolves_configured_account(requests_mock):
-    requests_mock.get(f"{INSTANCE_URL}/api/v1/accounts/lookup", json={"id": "account-9"})
-    requests_mock.get(re.compile(rf"{INSTANCE_URL}/api/v1/accounts/account-9/statuses.*"), json=[])
+    requests_mock.get(f"{INSTANCE_URL}/api/v1/accounts/lookup", headers={"Content-Type": "application/json"}, json={"id": "account-9"})
+    requests_mock.get(
+        re.compile(rf"{INSTANCE_URL}/api/v1/accounts/account-9/statuses.*"), headers={"Content-Type": "application/json"}, json=[]
+    )
 
     collector = MastodonCollector()
     with pytest.raises(NoChangeError, match="No new Mastodon statuses"):
@@ -178,8 +198,12 @@ def test_account_collection_resolves_configured_account(requests_mock):
 
 def test_bootstrap_reads_only_newest_page(requests_mock):
     first_page = [status(status_id) for status_id in range(100, 60, -1)]
-    requests_mock.get(re.compile(rf"{INSTANCE_URL}/api/v1/timelines/tag/security.*"), json=first_page)
-    requests_mock.post(f"{Config.TARANIS_CORE_URL}/worker/news-items", json={"message": "Added"})
+    requests_mock.get(
+        re.compile(rf"{INSTANCE_URL}/api/v1/timelines/tag/security.*"), headers={"Content-Type": "application/json"}, json=first_page
+    )
+    requests_mock.post(
+        f"{Config.TARANIS_CORE_URL}/worker/news-items", headers={"Content-Type": "application/json"}, json=collection_result(message="Added")
+    )
 
     collector = MastodonCollector()
     collector.collect(source("hashtag", access_token=""))
@@ -191,7 +215,9 @@ def test_bootstrap_reads_only_newest_page(requests_mock):
 
 
 def test_preview_ignores_and_preserves_cursor(requests_mock):
-    requests_mock.get(re.compile(rf"{INSTANCE_URL}/api/v1/timelines/tag/security.*"), json=[status(200)])
+    requests_mock.get(
+        re.compile(rf"{INSTANCE_URL}/api/v1/timelines/tag/security.*"), headers={"Content-Type": "application/json"}, json=[status(200)]
+    )
     cursor = {"timeline": f"{INSTANCE_URL}|hashtag|security", "last_status_id": "100"}
 
     collector = MastodonCollector()
@@ -204,8 +230,12 @@ def test_preview_ignores_and_preserves_cursor(requests_mock):
 
 
 def test_changed_timeline_identity_bootstraps_and_replaces_cursor(requests_mock):
-    requests_mock.get(re.compile(rf"{INSTANCE_URL}/api/v1/timelines/tag/security.*"), json=[status(200)])
-    requests_mock.post(f"{Config.TARANIS_CORE_URL}/worker/news-items", json={"message": "Added"})
+    requests_mock.get(
+        re.compile(rf"{INSTANCE_URL}/api/v1/timelines/tag/security.*"), headers={"Content-Type": "application/json"}, json=[status(200)]
+    )
+    requests_mock.post(
+        f"{Config.TARANIS_CORE_URL}/worker/news-items", headers={"Content-Type": "application/json"}, json=collection_result(message="Added")
+    )
     cursor = {"timeline": f"{INSTANCE_URL}|hashtag|old-target", "last_status_id": "100"}
 
     collector = MastodonCollector()
@@ -220,8 +250,14 @@ def test_changed_timeline_identity_bootstraps_and_replaces_cursor(requests_mock)
 
 
 def test_duplicate_only_publication_advances_cursor(requests_mock):
-    requests_mock.get(re.compile(rf"{INSTANCE_URL}/api/v1/timelines/tag/security.*"), json=[status(101)])
-    requests_mock.post(f"{Config.TARANIS_CORE_URL}/worker/news-items", json={"message": "All news items were skipped"})
+    requests_mock.get(
+        re.compile(rf"{INSTANCE_URL}/api/v1/timelines/tag/security.*"), headers={"Content-Type": "application/json"}, json=[status(101)]
+    )
+    requests_mock.post(
+        f"{Config.TARANIS_CORE_URL}/worker/news-items",
+        headers={"Content-Type": "application/json"},
+        json=collection_result(message="All news items were skipped"),
+    )
     cursor = {"timeline": f"{INSTANCE_URL}|hashtag|security", "last_status_id": "100"}
 
     collector = MastodonCollector()
@@ -232,8 +268,15 @@ def test_duplicate_only_publication_advances_cursor(requests_mock):
 
 
 def test_core_publication_failure_preserves_cursor(requests_mock):
-    requests_mock.get(re.compile(rf"{INSTANCE_URL}/api/v1/timelines/tag/security.*"), json=[status(101)])
-    requests_mock.post(f"{Config.TARANIS_CORE_URL}/worker/news-items", status_code=503, json={"error": "internal details"})
+    requests_mock.get(
+        re.compile(rf"{INSTANCE_URL}/api/v1/timelines/tag/security.*"), headers={"Content-Type": "application/json"}, json=[status(101)]
+    )
+    requests_mock.post(
+        f"{Config.TARANIS_CORE_URL}/worker/news-items",
+        status_code=503,
+        headers={"Content-Type": "application/json"},
+        json={"error": "internal details"},
+    )
     cursor = {"timeline": f"{INSTANCE_URL}|hashtag|security", "last_status_id": "100"}
 
     collector = MastodonCollector()
@@ -257,8 +300,12 @@ def test_access_token_transport_rules(requests_mock):
     assert exception.value.reason == "mastodon_https_required"
     assert collector.client is None
 
-    requests_mock.get(re.compile(r"http://mastodon.example/api/v1/timelines/tag/security.*"), json=[status(1)])
-    requests_mock.post(f"{Config.TARANIS_CORE_URL}/worker/news-items", json={"message": "Added"})
+    requests_mock.get(
+        re.compile(r"http://mastodon.example/api/v1/timelines/tag/security.*"), headers={"Content-Type": "application/json"}, json=[status(1)]
+    )
+    requests_mock.post(
+        f"{Config.TARANIS_CORE_URL}/worker/news-items", headers={"Content-Type": "application/json"}, json=collection_result(message="Added")
+    )
     insecure_source["parameters"]["ACCESS_TOKEN"] = "   "
 
     collector = MastodonCollector()
@@ -284,6 +331,7 @@ def test_api_errors_are_replaced_with_curated_messages(requests_mock, monkeypatc
     requests_mock.get(
         re.compile(rf"{INSTANCE_URL}/api/v1/timelines/tag/security.*"),
         status_code=status_code,
+        headers={"Content-Type": "application/json"},
         json={"error": "token secret-token-value was rejected"},
     )
 

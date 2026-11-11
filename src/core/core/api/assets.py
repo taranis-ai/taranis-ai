@@ -1,7 +1,8 @@
-from flask import Flask, jsonify, request
+from flask import Flask, g, jsonify
 from flask.views import MethodView
 from flask_jwt_extended import current_user
 
+from core.api.contracts import validate_request
 from core.config import Config
 from core.managers.auth_manager import auth_required
 from core.managers.decorators import extract_args
@@ -13,6 +14,7 @@ from core.service.cti import CTIService
 class AssetGroups(MethodView):
     @auth_required("ASSETS_ACCESS")
     @extract_args("search", "page", "limit", "order", "fetch_all")
+    @validate_request
     def get(self, group_id=None, filter_args=None):
         if group_id:
             return asset.AssetGroup.get_for_api(group_id, current_user.organization)
@@ -22,8 +24,9 @@ class AssetGroups(MethodView):
         return asset.AssetGroup.get_all_for_api(filter_args=filter_args, with_count=True, user=current_user)
 
     @auth_required("ASSETS_CONFIG")
+    @validate_request
     def post(self):
-        data = request.json
+        data = g.api_json
         if not data:
             return {"error": "No data provided"}, 400
         data["organization"] = current_user.organization
@@ -32,6 +35,7 @@ class AssetGroups(MethodView):
         return jsonify({"message": "Asset Group added", "id": asset_result.id}), 201
 
     @auth_required("ASSETS_CONFIG")
+    @validate_request
     def delete(self, group_id: str | None = None):
         if not group_id:
             return {"error": "No group_id provided"}, 400
@@ -40,10 +44,11 @@ class AssetGroups(MethodView):
         return response, status
 
     @auth_required("ASSETS_CONFIG")
+    @validate_request
     def put(self, group_id: str | None = None):
         if not group_id:
             return {"error": "No group_id provided"}, 400
-        response, status = asset.AssetGroup.update(current_user.organization, group_id, request.json)
+        response, status = asset.AssetGroup.update(current_user.organization, group_id, g.api_json)
         invalidate_frontend_cache_on_success(status, models=("asset_group",))
         return response, status
 
@@ -51,6 +56,7 @@ class AssetGroups(MethodView):
 class Assets(MethodView):
     @auth_required("ASSETS_ACCESS")
     @extract_args("search", "vulnerable", "group", "page", "limit", "order", "fetch_all")
+    @validate_request
     def get(self, asset_id=None, filter_args=None):
         if asset_id:
             return asset.Asset.get_for_api(asset_id, current_user.organization)
@@ -59,22 +65,25 @@ class Assets(MethodView):
         return asset.Asset.get_all_for_api(filter_args=filter_args, with_count=True, user=current_user)
 
     @auth_required("ASSETS_CREATE")
+    @validate_request
     def post(self):
-        if not (data := request.json):
+        if not (data := g.api_json):
             return {"error": "No data provided"}, 400
         response, status = asset.Asset.add(current_user.organization, data)
         invalidate_frontend_cache_on_success(status, models=("asset",))
         return jsonify(response), status
 
     @auth_required("ASSETS_CREATE")
+    @validate_request
     def put(self, asset_id: str | None = None):
         if asset_id is None:
             return {"error": "No asset_id provided"}, 400
-        response, status = asset.Asset.update(current_user.organization, asset_id, request.json)
+        response, status = asset.Asset.update(current_user.organization, asset_id, g.api_json)
         invalidate_frontend_cache_on_success(status, models=("asset",), object_ids={"asset": asset_id})
         return response, status
 
     @auth_required("ASSETS_CREATE")
+    @validate_request
     def delete(self, asset_id: str | None = None):
         if asset_id is None:
             return {"error": "No asset_id provided"}, 400
@@ -85,20 +94,23 @@ class Assets(MethodView):
 
 class AssetCTI(MethodView):
     @auth_required("ASSETS_ACCESS")
+    @validate_request
     def get(self, asset_id: str):
         return CTIService.get_asset_cti(asset_id, current_user)
 
 
 class AssetsCTI(MethodView):
     @auth_required("ASSETS_ACCESS")
+    @validate_request
     def get(self):
         return CTIService.get_assets_cti(current_user)
 
 
 class AssetVulnerability(MethodView):
     @auth_required("ASSETS_CREATE")
+    @validate_request
     def put(self, asset_id, vulnerability_id):
-        data = request.json or {}
+        data = g.api_json or {}
         if "solved" not in data:
             return {"message": "Missing solved field"}, 400
         response, status = asset.Asset.solve_vulnerability(current_user.organization, asset_id, vulnerability_id, data["solved"])

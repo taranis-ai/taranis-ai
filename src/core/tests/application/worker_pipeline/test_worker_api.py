@@ -306,21 +306,30 @@ class TestWorkerApi:
         ],
     )
     def test_news_item_ingestion_notifies_only_when_items_are_added(self, client, api_header, monkeypatch, add_result, should_notify):
+        add_result["counts"] = {"created": len(add_result["news_item_ids"]), "updated": 0, "grouped": 0, "unchanged": 0, "stale": 0}
         assess_changed = Mock()
         monkeypatch.setattr("core.api.worker.Story.add_news_items", lambda _, **kwargs: (add_result, 200))
         monkeypatch.setattr("core.api.worker.realtime_publisher.assess_changed", assess_changed)
 
-        response = client.post(f"{self.base_uri}/news-items", json=[{"id": "news-1"}], headers=api_header)
+        response = client.post(
+            f"{self.base_uri}/news-items",
+            json=[{"id": "news-1", "title": "News", "content": "Content", "osint_source_id": "manual"}],
+            headers=api_header,
+        )
 
         assert response.status_code == 200
         assert response.get_json() == add_result
         assert assess_changed.call_count == int(should_notify)
 
         assess_changed.reset_mock()
-        monkeypatch.setattr("core.api.worker.Story.add_news_items", lambda _, **kwargs: (add_result, 400))
-        response = client.post(f"{self.base_uri}/news-items", json=[{"id": "news-1"}], headers=api_header)
+        monkeypatch.setattr("core.api.worker.Story.add_news_items", lambda _, **kwargs: ({"error": "Failed to add news items"}, 400))
+        response = client.post(
+            f"{self.base_uri}/news-items",
+            json=[{"id": "news-1", "title": "News", "content": "Content", "osint_source_id": "manual"}],
+            headers=api_header,
+        )
         assert response.status_code == 400
-        assert assess_changed.call_count == int(should_notify)
+        assert assess_changed.call_count == 0
 
     def test_rss_source_includes_global_entry_limit(self, client, api_header, fake_source, monkeypatch):
         monkeypatch.setattr(

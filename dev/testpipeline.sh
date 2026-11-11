@@ -42,7 +42,7 @@ sync_worker() {
 
 run_audit() {
   component=$1
-  UV_FROZEN=false uv audit --preview-features audit-command --locked \
+  UV_FROZEN=false uv audit --locked \
     --python-version "$(<"${component}/.python-version")" \
     --python-platform linux \
     --directory "${component}"
@@ -52,6 +52,7 @@ run_models() {
   run_step "src/models"
   run_audit "src/models"
   run_in_dir src/models uv run --frozen --no-sync ruff check
+  run_in_dir src/models uv run --frozen --no-sync pytest
 }
 
 run_core() {

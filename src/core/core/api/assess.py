@@ -1,7 +1,7 @@
 from typing import Any
 from urllib.parse import unquote, urlparse
 
-from flask import Blueprint, Flask, request
+from flask import Blueprint, Flask, g, request
 from flask.views import MethodView
 from flask_jwt_extended import current_user
 from models.assess import (
@@ -19,12 +19,13 @@ from models.assess import (
 )
 from pydantic import ValidationError
 
+from core.api.contracts import validate_request
 from core.api.utils import request_id_list
 from core.config import Config
 from core.log import logger
 from core.managers import queue_manager
 from core.managers.auth_manager import auth_required
-from core.managers.decorators import extract_args, validate_json
+from core.managers.decorators import extract_args
 from core.managers.realtime_publisher import realtime_publisher
 from core.model import bot, connector, news_item, news_item_tag, osint_source, report_item, story
 from core.model.filter_data import FilterData
@@ -50,18 +51,21 @@ def _validation_error_response(exc: ValidationError) -> tuple[dict[str, str], in
 
 class OSINTSourceGroupsList(MethodView):
     @auth_required("ASSESS_ACCESS")
+    @validate_request
     def get(self):
         return osint_source.OSINTSourceGroup.get_all_for_assess_api(user=current_user)
 
 
 class OSINTSourcesList(MethodView):
     @auth_required("ASSESS_ACCESS")
+    @validate_request
     def get(self):
         return osint_source.OSINTSource.get_all_for_assess_api(user=current_user)
 
 
 class NewsItems(MethodView):
     @auth_required("ASSESS_ACCESS")
+    @validate_request
     def get(self):
         filter_keys = ["search", "read", "important", "relevant", "in_analyze", "range", "sort"]
         filter_args: dict[str, str | int] = {k: v for k, v in request.args.items() if k in filter_keys}
@@ -72,9 +76,9 @@ class NewsItems(MethodView):
         return news_item.NewsItem.get_all_for_api(filter_args, user=current_user)
 
     @auth_required("ASSESS_CREATE")
-    @validate_json
+    @validate_request
     def post(self):
-        data_json = request.json
+        data_json = g.api_json
         if not data_json:
             return {"error": "No NewsItems in JSON Body"}, 422
 
@@ -93,8 +97,9 @@ class NewsItemFetch(MethodView):
         return parsed_url.scheme in {"http", "https"} and bool(parsed_url.netloc)
 
     @auth_required("ASSESS_CREATE")
+    @validate_request
     def post(self):
-        request_payload = request.get_json(silent=True)
+        request_payload = g.api_json
         if not isinstance(request_payload, dict):
             return {"error": "Couldn't create News Item"}, 400
 
@@ -112,28 +117,30 @@ class NewsItemFetch(MethodView):
 
 class NewsItem(MethodView):
     @auth_required("ASSESS_ACCESS")
+    @validate_request
     def get(self, item_id: str):
         return news_item.NewsItem.get_for_api(item_id, current_user)
 
     @auth_required("ASSESS_UPDATE")
-    @validate_json
+    @validate_request
     def put(self, item_id: str):
-        response, code = NewsItemService.update(item_id, request.json, current_user)
+        response, code = NewsItemService.update(item_id, g.api_json, current_user)
         if 200 <= code < 300:
             realtime_publisher.assess_changed()
         invalidate_frontend_cache_on_success(code, scopes=(SCOPE_ASSESS_VIEWS, SCOPE_STORY_REPORT_VIEWS), object_ids={"news_item": item_id})
         return response, code
 
     @auth_required("ASSESS_UPDATE")
-    @validate_json
+    @validate_request
     def patch(self, item_id: str):
-        response, code = NewsItemService.update(item_id, request.json, current_user)
+        response, code = NewsItemService.update(item_id, g.api_json, current_user)
         if 200 <= code < 300:
             realtime_publisher.assess_changed()
         invalidate_frontend_cache_on_success(code, scopes=(SCOPE_ASSESS_VIEWS, SCOPE_STORY_REPORT_VIEWS), object_ids={"news_item": item_id})
         return response, code
 
     @auth_required("ASSESS_DELETE")
+    @validate_request
     def delete(self, item_id: str):
         response, code = NewsItemService.delete(item_id, current_user)
         if 200 <= code < 300:
@@ -144,23 +151,24 @@ class NewsItem(MethodView):
 
 class NewsItemCTI(MethodView):
     @auth_required("ASSESS_ACCESS")
+    @validate_request
     def get(self, item_id: str):
         return CTIService.get_news_item_cti(item_id, current_user)
 
 
 class UpdateNewsItemAttributes(MethodView):
     @auth_required("ASSESS_UPDATE")
-    @validate_json
+    @validate_request
     def put(self, news_item_id: str):
         actor = story.Story.last_change_for_user(current_user)
-        response, status = NewsItemService.update_attributes(news_item_id, request.json, actor=actor, user=current_user)
+        response, status = NewsItemService.update_attributes(news_item_id, g.api_json, actor=actor, user=current_user)
         invalidate_frontend_cache_on_success(status, scopes=(SCOPE_ASSESS_VIEWS,), object_ids={"news_item": news_item_id})
         return response, status
 
 
 class UpdateNewsItemTags(MethodView):
     @auth_required("ASSESS_UPDATE")
-    @validate_json
+    @validate_request
     def put(self, news_item_id: str):
         item = news_item.NewsItem.get(news_item_id)
         if not item:
@@ -170,7 +178,7 @@ class UpdateNewsItemTags(MethodView):
         ):
             return {"error": "User does not have write access to this news item"}, 403
 
-        tags = request.json
+        tags = g.api_json
         if not isinstance(tags, (list, dict)):
             return {"error": "Tags must be a list or object"}, 400
 
@@ -181,6 +189,7 @@ class UpdateNewsItemTags(MethodView):
 
 class Stories(MethodView):
     @auth_required("ASSESS_ACCESS")
+    @validate_request
     def get(self):
         try:
             raw_filters: dict[str, str | list[str]] = {}
@@ -209,8 +218,9 @@ class Stories(MethodView):
             return {"error": "Failed to get Stories"}, 400
 
     @auth_required("ASSESS_UPDATE")
+    @validate_request
     def post(self):
-        data_json = request.get_json(silent=True)
+        data_json = g.api_json
         if not isinstance(data_json, dict) or not data_json:
             return {"error": "No story ids provided"}, 400
         story_ids = data_json.get("story_ids")
@@ -239,6 +249,7 @@ class Stories(MethodView):
 
 class StoryExport(MethodView):
     @auth_required("ASSESS_ACCESS")
+    @validate_request
     def get(self):
         try:
             return StoryService.export_selected(request.args.getlist("story_ids"), current_user)
@@ -249,16 +260,17 @@ class StoryExport(MethodView):
 
 class AnalystReviewSnapshot(MethodView):
     @auth_required("ASSESS_ACCESS")
+    @validate_request
     def get(self):
         return {"story_ids": story.Story.get_analyst_review_snapshot(current_user)}, 200
 
 
 class AnalystReviewAction(MethodView):
     @auth_required("ASSESS_UPDATE")
-    @validate_json
+    @validate_request
     def post(self):
         try:
-            payload = AnalystReviewActionPayload.model_validate(request.json)
+            payload = AnalystReviewActionPayload.model_validate(g.api_json)
         except ValidationError as exc:
             return _validation_error_response(exc)
 
@@ -279,6 +291,7 @@ class AnalystReviewAction(MethodView):
 
 class StoryTagList(MethodView):
     @auth_required("ASSESS_ACCESS")
+    @validate_request
     def get(self):
         try:
             search = request.args.get("search", "")
@@ -293,14 +306,15 @@ class StoryTagList(MethodView):
 
 class Story(MethodView):
     @auth_required("ASSESS_ACCESS")
+    @validate_request
     def get(self, story_id: str):
         return story.Story.get_for_api(story_id, current_user)
 
     @auth_required("ASSESS_UPDATE")
-    @validate_json
+    @validate_request
     def put(self, story_id):
         try:
-            payload = StoryUpdatePayload.model_validate(request.json).model_dump(mode="json", exclude_unset=True)
+            payload = StoryUpdatePayload.model_validate(g.api_json).model_dump(mode="json", exclude_unset=True)
         except ValidationError as exc:
             return _validation_error_response(exc)
         response, code = StoryService.update(story_id, payload, current_user)
@@ -310,6 +324,7 @@ class Story(MethodView):
         return response, code
 
     @auth_required("ASSESS_DELETE")
+    @validate_request
     def delete(self, story_id):
         response, code = StoryService.delete(story_id, current_user)
         if 200 <= code < 300:
@@ -320,10 +335,10 @@ class Story(MethodView):
         return response, code
 
     @auth_required("ASSESS_UPDATE")
-    @validate_json
+    @validate_request
     def patch(self, story_id):
         try:
-            payload = StoryUpdatePayload.model_validate(request.json).model_dump(mode="json", exclude_unset=True)
+            payload = StoryUpdatePayload.model_validate(g.api_json).model_dump(mode="json", exclude_unset=True)
         except ValidationError as exc:
             return _validation_error_response(exc)
         response, code = StoryService.update(story_id, payload, current_user)
@@ -335,10 +350,10 @@ class Story(MethodView):
 
 class StoryNewsItemOrder(MethodView):
     @auth_required("ASSESS_UPDATE")
-    @validate_json
+    @validate_request
     def put(self, story_id: str):
         try:
-            payload = StoryNewsItemOrderPayload.model_validate(request.json)
+            payload = StoryNewsItemOrderPayload.model_validate(g.api_json)
         except ValidationError as exc:
             return _validation_error_response(exc)
         response, code = StoryService.order_news_items(story_id, payload.news_item_ids, payload.expected_news_item_ids, current_user)
@@ -350,15 +365,16 @@ class StoryNewsItemOrder(MethodView):
 
 class StoryCTI(MethodView):
     @auth_required("ASSESS_ACCESS")
+    @validate_request
     def get(self, story_id: str):
         return CTIService.get_story_cti(story_id, current_user)
 
 
 class UnGroupNewsItem(MethodView):
     @auth_required("ASSESS_UPDATE")
-    @validate_json
+    @validate_request
     def put(self):
-        if not (newsitem_ids := request.json):
+        if not (newsitem_ids := g.api_json):
             return {"error": "No news item ids provided"}, 400
         actor = story.Story.last_change_for_user(current_user)
         response, code = StoryService.ungroup_news_items(newsitem_ids, current_user, actor=actor)
@@ -370,9 +386,9 @@ class UnGroupNewsItem(MethodView):
 
 class UnGroupStories(MethodView):
     @auth_required("ASSESS_UPDATE")
-    @validate_json
+    @validate_request
     def put(self):
-        if not (story_ids := request.json):
+        if not (story_ids := g.api_json):
             return {"error": "No story ids provided"}, 400
         response, code = StoryService.ungroup_stories(story_ids, current_user)
         if 200 <= code < 300:
@@ -383,9 +399,9 @@ class UnGroupStories(MethodView):
 
 class GroupAction(MethodView):
     @auth_required("ASSESS_UPDATE")
-    @validate_json
+    @validate_request
     def put(self):
-        if not (story_ids := request.json):
+        if not (story_ids := g.api_json):
             return {"error": "No story ids provided"}, 400
         actor = story.Story.last_change_for_user(current_user)
         response, code = StoryService.group_stories(story_ids, current_user, actor=actor)
@@ -395,9 +411,9 @@ class GroupAction(MethodView):
         return response, code
 
     @auth_required("ASSESS_UPDATE")
-    @validate_json
+    @validate_request
     def post(self):
-        if not (story_ids := request.json):
+        if not (story_ids := g.api_json):
             return {"error": "No story ids provided"}, 400
         actor = story.Story.last_change_for_user(current_user)
         response, code = StoryService.group_stories(story_ids, current_user, actor=actor)
@@ -409,15 +425,15 @@ class GroupAction(MethodView):
 
 class BotActions(MethodView):
     @auth_required("ASSESS_UPDATE")
-    @validate_json
+    @validate_request
     def post(self):
-        if not request.json:
+        if not g.api_json:
             return {"error": "Please provide bot_id and at least one story_id or report_id"}, 400
-        bot_id = request.json.get("bot_id")
+        bot_id = g.api_json.get("bot_id")
         if not bot_id:
             return {"error": "No bot_id provided"}, 400
-        story_ids = request_id_list(request.json, "story_id", "story_ids")
-        report_ids = request_id_list(request.json, "report_id", "report_ids")
+        story_ids = request_id_list(g.api_json, "story_id", "story_ids")
+        report_ids = request_id_list(g.api_json, "report_id", "report_ids")
         if not story_ids and not report_ids:
             return {"error": "No story_id or report_id provided"}, 400
         for story_id in story_ids:
@@ -452,21 +468,22 @@ class BotActions(MethodView):
 class Connectors(MethodView):
     @auth_required("CONNECTOR_USER_ACCESS")
     @extract_args("search", "page", "limit", "offset", "sort", "order", "fetch_all")
+    @validate_request
     def get(self, connector_id: str | None = None, filter_args: dict | None = None):
         if connector_id:
             return connector.Connector.get_for_api(connector_id)
         return connector.Connector.get_all_for_user_api(filter_args, user=current_user)
 
     @auth_required("CONNECTOR_USER_ACCESS")
-    @validate_json
+    @validate_request
     def post(self, connector_id: str | None = None):
         """Send stories to an external system."""
         if not connector_id:
             return {"error": "No connector_id provided"}, 400
-        if not request.json:
+        if not g.api_json:
             return {"error": "Invalid JSON payload"}, 400
 
-        story_ids = request.json.get("story_ids")
+        story_ids = g.api_json.get("story_ids")
         if not story_ids:
             return {"error": "No story_id provided"}, 400
 
@@ -482,22 +499,24 @@ class Connectors(MethodView):
 
 class FilterLists(MethodView):
     @auth_required("ASSESS_ACCESS")
+    @validate_request
     def get(self):
         return FilterData.get_assess_filterlists(user=current_user), 200
 
 
 class StoryBookmarks(MethodView):
     @auth_required("ASSESS_ACCESS")
+    @validate_request
     def get(self):
         filter_keys = {"search", "page", "limit", "offset", "sort", "order", "fetch_all"}
         filter_args: dict[str, str] = {key: value for key, value in request.args.items() if key in filter_keys}
         return story.StoryBookmark.get_all_for_api(filter_args, current_user)
 
     @auth_required("ASSESS_ACCESS")
-    @validate_json
+    @validate_request
     def post(self):
         try:
-            payload = StoryBookmarkCreatePayload.model_validate(request.json or {})
+            payload = StoryBookmarkCreatePayload.model_validate(g.api_json or {})
         except ValidationError as exc:
             return _validation_error_response(exc)
 
@@ -508,14 +527,15 @@ class StoryBookmarks(MethodView):
 
 class StoryBookmark(MethodView):
     @auth_required("ASSESS_ACCESS")
+    @validate_request
     def get(self, bookmark_id: str):
         return story.StoryBookmark.get_for_api(bookmark_id, current_user)
 
     @auth_required("ASSESS_ACCESS")
-    @validate_json
+    @validate_request
     def patch(self, bookmark_id: str):
         try:
-            payload = StoryBookmarkUpdatePayload.model_validate(request.json or {})
+            payload = StoryBookmarkUpdatePayload.model_validate(g.api_json or {})
         except ValidationError as exc:
             return _validation_error_response(exc)
 
@@ -524,6 +544,7 @@ class StoryBookmark(MethodView):
         return response, status
 
     @auth_required("ASSESS_ACCESS")
+    @validate_request
     def delete(self, bookmark_id: str):
         response, status = story.StoryBookmark.delete_for_api(bookmark_id, current_user)
         invalidate_frontend_cache_on_success(
@@ -534,10 +555,10 @@ class StoryBookmark(MethodView):
 
 class StoryBookmarkOrder(MethodView):
     @auth_required("ASSESS_ACCESS")
-    @validate_json
+    @validate_request
     def patch(self):
         try:
-            payload = StoryBookmarkOrderPayload.model_validate(request.json or {})
+            payload = StoryBookmarkOrderPayload.model_validate(g.api_json or {})
         except ValidationError as exc:
             return _validation_error_response(exc)
 
@@ -548,10 +569,10 @@ class StoryBookmarkOrder(MethodView):
 
 class StoryBookmarkQuickSave(MethodView):
     @auth_required("ASSESS_ACCESS")
-    @validate_json
+    @validate_request
     def post(self):
         try:
-            payload = StoryBookmarkStoryPayload.model_validate(request.json or {})
+            payload = StoryBookmarkStoryPayload.model_validate(g.api_json or {})
         except ValidationError as exc:
             return _validation_error_response(exc)
         response, status = story.StoryBookmark.quick_save(payload.story_ids, current_user)
@@ -561,10 +582,10 @@ class StoryBookmarkQuickSave(MethodView):
 
 class StoryBookmarkMemberships(MethodView):
     @auth_required("ASSESS_ACCESS")
-    @validate_json
+    @validate_request
     def post(self):
         try:
-            payload = StoryBookmarkMembershipPayload.model_validate(request.json or {})
+            payload = StoryBookmarkMembershipPayload.model_validate(g.api_json or {})
         except ValidationError as exc:
             return _validation_error_response(exc)
         response, status = story.StoryBookmark.update_memberships(payload.model_dump(mode="json"), current_user)
@@ -574,10 +595,10 @@ class StoryBookmarkMemberships(MethodView):
 
 class StoryBookmarkStories(MethodView):
     @auth_required("ASSESS_ACCESS")
-    @validate_json
+    @validate_request
     def post(self, bookmark_id: str):
         try:
-            payload = StoryBookmarkStoryPayload.model_validate(request.json or {})
+            payload = StoryBookmarkStoryPayload.model_validate(g.api_json or {})
         except ValidationError as exc:
             return _validation_error_response(exc)
 
@@ -588,10 +609,10 @@ class StoryBookmarkStories(MethodView):
 
 class StoryBookmarkStoryRemoval(MethodView):
     @auth_required("ASSESS_ACCESS")
-    @validate_json
+    @validate_request
     def post(self, bookmark_id: str):
         try:
-            payload = StoryBookmarkStoryPayload.model_validate(request.json or {})
+            payload = StoryBookmarkStoryPayload.model_validate(g.api_json or {})
         except ValidationError as exc:
             return _validation_error_response(exc)
 
@@ -602,27 +623,30 @@ class StoryBookmarkStoryRemoval(MethodView):
 
 class Proposals(MethodView):
     @auth_required("CONNECTOR_USER_ACCESS")
+    @validate_request
     def get(self):
         return {"count": StoryConflict.get_proposal_count()}, 200
 
 
 class StoryRevisions(MethodView):
     @auth_required("ASSESS_ACCESS")
+    @validate_request
     def get(self, story_id: str):
         return StoryService.get_story_revisions(story_id)
 
 
 class StoryRevisionData(MethodView):
     @auth_required("ASSESS_ACCESS")
+    @validate_request
     def get(self, story_id: str, revision_number: int):
         return StoryService.get_story_revision_data(story_id, revision_number)
 
 
 class AssessImport(MethodView):
     @auth_required("ASSESS_CREATE")
-    @validate_json
+    @validate_request
     def post(self):
-        if not (data_json := request.json):
+        if not (data_json := g.api_json):
             return {"error": "No data provided"}, 400
 
         imported_stories = StoryService.import_stories(data_json, current_user)

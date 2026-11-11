@@ -1,16 +1,19 @@
 from flask import Blueprint, Flask, send_from_directory
 from flask.views import MethodView
 
+from core.api.contracts import validate_request
 from core.config import Config
 from core.managers.data_manager import get_default_json
 
 
 class DefaultWordLists(MethodView):
+    @validate_request
     def get(self):
         return send_from_directory(get_default_json("default_word_lists.json"), "default_word_lists.json")
 
 
 class OpenAPI3(MethodView):
+    @validate_request
     def get(self):
         return send_from_directory("static", "openapi3_1.yaml")
 

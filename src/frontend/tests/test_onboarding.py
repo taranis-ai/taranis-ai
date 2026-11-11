@@ -64,7 +64,7 @@ def test_onboarding_completion_posts_profile_task(authenticated_client, response
     monkeypatch.setattr(user_views, "update_current_user_cache", lambda: None)
     responses.post(
         f"{Config.TARANIS_CORE_URL}/users/profile",
-        json={"message": "Profile updated", "user_profile": {"onboarding_tasks": {ADMIN_WELCOME_TOUR_ID: "completed"}}},
+        json={"id": "user-1", "message": "Profile updated", "user_profile": {"onboarding_tasks": {ADMIN_WELCOME_TOUR_ID: "completed"}}},
         status=200,
         content_type="application/json",
     )
@@ -87,7 +87,7 @@ def test_user_onboarding_reset_posts_empty_profile_tasks(authenticated_client, r
     monkeypatch.setattr(user_views, "update_current_user_cache", lambda: None)
     responses.post(
         f"{Config.TARANIS_CORE_URL}/users/profile",
-        json={"message": "Profile updated", "user_profile": {"onboarding_tasks": {}}},
+        json={"id": "user-1", "message": "Profile updated", "user_profile": {"onboarding_tasks": {}}},
         status=200,
         content_type="application/json",
     )
@@ -112,7 +112,7 @@ def test_user_settings_update_preserves_onboarding_task_status(authenticated_cli
     )
     responses.post(
         f"{Config.TARANIS_CORE_URL}/users/profile",
-        json={"message": "Profile updated", "user_profile": {"compact_view": True}},
+        json={"id": "user-1", "message": "Profile updated", "user_profile": {"compact_view": True}},
         status=200,
         content_type="application/json",
     )

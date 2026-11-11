@@ -56,3 +56,13 @@ class UserProfile(TaranisBaseModel):
     permissions: list[str] = ...
     roles: list[dict[str, Any]] = ...
     pending_onboarding_tasks: list[OnboardingTask] = ...
+
+class ProfileOrganization(TaranisBaseModel):
+    id: str
+    name: str
+
+class ProfileRole(TaranisBaseModel):
+    id: str
+    name: str
+
+UserProfileResponse: type[UserProfile]

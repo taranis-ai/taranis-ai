@@ -1,7 +1,8 @@
-from flask import Blueprint, Flask, request
+from flask import Blueprint, Flask, g
 from flask.views import MethodView
 from flask_jwt_extended import current_user, jwt_required
 
+from core.api.contracts import validate_request
 from core.config import Config
 from core.model.user import User
 from core.service.cache_invalidation import SCOPE_TRENDING_CLUSTERS, invalidate_frontend_cache_on_success
@@ -9,18 +10,21 @@ from core.service.cache_invalidation import SCOPE_TRENDING_CLUSTERS, invalidate_
 
 class UserInfo(MethodView):
     @jwt_required()
+    @validate_request
     def get(self):
         return current_user.to_detail_dict(), 200
 
 
 class UserProfile(MethodView):
     @jwt_required()
+    @validate_request
     def get(self):
         return current_user.get_profile_dict(), 200
 
     @jwt_required()
+    @validate_request
     def put(self):
-        if not (json_data := request.json):
+        if not (json_data := g.api_json):
             return {"error": "No input data provided"}, 400
         response, status = User.update_profile(current_user, json_data)
         invalidate_frontend_cache_on_success(
@@ -29,8 +33,9 @@ class UserProfile(MethodView):
         return response, status
 
     @jwt_required()
+    @validate_request
     def post(self):
-        if not (json_data := request.json):
+        if not (json_data := g.api_json):
             return {"error": "No input data provided"}, 400
         response, status = User.update_profile(current_user, json_data)
         invalidate_frontend_cache_on_success(

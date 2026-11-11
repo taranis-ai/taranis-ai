@@ -1,10 +1,12 @@
 from flask import Flask
 from flask.views import MethodView
 
+from core.api.contracts import validate_request
 from core.config import Config
 
 
 class IsAlive(MethodView):
+    @validate_request
     def get(self):
         return {"isalive": True}
 

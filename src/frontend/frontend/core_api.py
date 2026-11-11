@@ -3,6 +3,9 @@ from typing import Any
 
 import requests
 from flask import Flask, Response, request
+from models.api import OperationContract
+from models.api_operations import validate_outgoing_request
+from pydantic import ValidationError
 from werkzeug.exceptions import Forbidden, HTTPException
 
 from frontend.config import Config
@@ -72,8 +75,7 @@ class CoreApi:
 
     def check_if_core_connected(self):
         try:
-            url = f"{self.api_url}/isalive"
-            response = self.session.get(url=url, timeout=self.timeout)
+            response = self._request("GET", "/isalive", timeout=self.timeout)
             if response.ok and response.json().get("isalive") is True:
                 return True
 
@@ -83,37 +85,72 @@ class CoreApi:
             logger.error(f"API connection failed: {e}")
         return False
 
+    def _request(self, method: str, endpoint: str, **kwargs) -> requests.Response:
+        operation = validate_outgoing_request(method, endpoint, kwargs.get("json"), kwargs.get("params"), headers=kwargs.get("headers"))
+        response = getattr(self.session, method.lower())(url=f"{self.api_url}{endpoint}", **kwargs)
+        self._validate_response(response, operation)
+        return response
+
+    @staticmethod
+    def _validate_response(response: requests.Response, operation: OperationContract) -> None:
+        try:
+            contract = operation.response(response.status_code)
+            if (
+                contract.json_body is not None
+                and response.headers.get("Content-Type", "").split(";", 1)[0] == "application/json"
+                and not response.headers.get("Content-Disposition")
+            ):
+                contract.json_body.validate_python(response.json())
+                return
+            payload = (
+                None
+                if contract.body is None
+                else (
+                    {
+                        "content_type": response.headers.get("Content-Type", ""),
+                        "content_length": response.headers.get("Content-Length"),
+                        "content_disposition": response.headers.get("Content-Disposition"),
+                    }
+                    if contract.download
+                    else response.json()
+                )
+            )
+            contract.validate(payload, content_type=response.headers.get("Content-Type", ""))
+        except ValueError, ValidationError:
+            response.close()
+            logger.error(f"Core returned an invalid API response (status {response.status_code})")
+            raise requests.RequestException("Invalid Core API response") from None
+
     def api_put(self, endpoint: str, json_data=None) -> requests.Response:
         if json_data is None:
             json_data = {}
-        return self.session.put(url=f"{self.api_url}{endpoint}", headers=self.headers, json=json_data, timeout=self.timeout)
+        return self._request("PUT", endpoint, headers=self.headers, json=json_data, timeout=self.timeout)
 
     def api_post(self, endpoint: str, json_data=None, timeout: float | tuple[float, float] | None = None) -> requests.Response:
         if json_data is None:
             json_data = {}
-        return self.session.post(url=f"{self.api_url}{endpoint}", headers=self.headers, json=json_data, timeout=timeout or self.timeout)
+        return self._request("POST", endpoint, headers=self.headers, json=json_data, timeout=timeout or self.timeout)
 
     def api_patch(self, endpoint: str, json_data=None) -> requests.Response:
         if json_data is None:
             json_data = {}
-        return self.session.patch(url=f"{self.api_url}{endpoint}", headers=self.headers, json=json_data, timeout=self.timeout)
+        return self._request("PATCH", endpoint, headers=self.headers, json=json_data, timeout=self.timeout)
 
     def api_delete(self, endpoint: str, params: dict[str, Any] | None = None) -> requests.Response:
-        return self.session.delete(url=f"{self.api_url}{endpoint}", headers=self.headers, params=params, timeout=self.timeout)
+        return self._request("DELETE", endpoint, headers=self.headers, params=params, timeout=self.timeout)
 
     def api_get(self, endpoint: str, params: dict | None = None):
         url = f"{self.api_url}{endpoint}"
         try:
-            response = self.session.get(url=url, headers=self.headers, timeout=self.timeout, params=params)
+            response = self._request("GET", endpoint, headers=self.headers, timeout=self.timeout, params=params)
         except requests.RequestException as e:
             logger.error(f"Call to {url} failed {e}")
             return None
         return self.check_response(response, url)
 
     def get_health(self) -> dict[str, Any] | None:
-        url = f"{self.api_url}/health"
         try:
-            response = self.session.get(url=url, headers=self.headers, timeout=self.timeout)
+            response = self._request("GET", "/health", headers=self.headers, timeout=self.timeout)
             payload = response.json()
         except (requests.exceptions.RequestException, ValueError) as e:
             logger.error(f"Health check failed: {e}")
@@ -121,11 +158,13 @@ class CoreApi:
         return payload if isinstance(payload, dict) else None
 
     def api_download(self, endpoint: str, params: dict | None = None) -> requests.Response:
+        operation = validate_outgoing_request("GET", endpoint, params=params)
         url = f"{self.api_url}{endpoint}"
         # Downloads may outlive the request and therefore own a separate session.
         with ExitStack() as resources:
             session = resources.enter_context(self._new_session())
             response = resources.enter_context(session.get(url=url, timeout=self.timeout, params=params, stream=True))
+            self._validate_response(response, operation)
             request.environ.setdefault("taranis.core_downloads", {})[id(response)] = resources.pop_all()
             return response
 
@@ -260,13 +299,13 @@ class CoreApi:
         return self.api_post("/auth/login", json_data=data)
 
     def external_login(self, headers: dict[str, Any]):
-        return self.session.post(url=f"{self.api_url}/auth/login", headers=headers, timeout=self.timeout)
+        return self._request("POST", "/auth/login", headers=headers, timeout=self.timeout)
 
     def get_login_data(self):
         return self.api_get("/auth/method")
 
     def refresh(self):
-        return self.session.get(url=f"{self.api_url}/auth/refresh", headers=self.headers, timeout=self.timeout)
+        return self._request("GET", "/auth/refresh", headers=self.headers, timeout=self.timeout)
 
     def logout(self):
         return self.api_delete("/auth/logout")

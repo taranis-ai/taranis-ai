@@ -4,7 +4,7 @@ import io
 from sqlite3 import IntegrityError as SQLiteIntegrityError
 from typing import Any, ClassVar
 
-from flask import Blueprint, Flask, jsonify, make_response, request, send_file
+from flask import Blueprint, Flask, g, jsonify, make_response, request, send_file
 from flask.views import MethodView
 from flask_jwt_extended import current_user
 from models.admin import BotCreate, BotUpdate, CuratedOSINTSourceSelection, OSINTSourceGroupOptions
@@ -16,6 +16,7 @@ from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
+from core.api.contracts import validate_request
 from core.config import Config
 from core.log import logger
 from core.managers import queue_manager
@@ -90,6 +91,7 @@ def _invalidate_admin_cache(status_code: int) -> int:
 
 class DictionariesReload(MethodView):
     @auth_required("CONFIG_ATTRIBUTE_UPDATE")
+    @validate_request
     def post(self, dictionary_type: str):
         attribute.Attribute.load_dictionaries(dictionary_type)
         return {"message": "success"}, 200
@@ -98,26 +100,30 @@ class DictionariesReload(MethodView):
 class ACLEntries(MethodView):
     @auth_required("CONFIG_ACL_ACCESS")
     @extract_args("search", "page", "limit", "sort", "order", "fetch_all")
+    @validate_request
     def get(self, acl_id: str | None = None, filter_args: dict[str, Any] | None = None):
         if acl_id:
             return role_based_access.RoleBasedAccess.get_for_api(acl_id)
         return role_based_access.RoleBasedAccess.get_all_for_api(filter_args, True)
 
     @auth_required("CONFIG_ACL_CREATE")
+    @validate_request
     def post(self):
-        acl = role_based_access.RoleBasedAccess.add(request.json)
+        acl = role_based_access.RoleBasedAccess.add(g.api_json)
         _invalidate_admin_cache(201)
         return jsonify({"message": "ACL created", "id": acl.id}), 201
 
     @auth_required("CONFIG_ACL_UPDATE")
+    @validate_request
     def put(self, acl_id: str | None = None):
         if acl_id is None:
             return {"error": "No acl_id provided"}, 400
-        response, status = role_based_access.RoleBasedAccess.update(acl_id, request.json)
+        response, status = role_based_access.RoleBasedAccess.update(acl_id, g.api_json)
         _invalidate_admin_cache(status)
         return response, status
 
     @auth_required("CONFIG_ACL_DELETE")
+    @validate_request
     def delete(self, acl_id: str | None = None):
         if acl_id is None:
             return {"error": "No acl_id provided"}, 400
@@ -129,6 +135,7 @@ class ACLEntries(MethodView):
 class Attributes(MethodView):
     @auth_required(["CONFIG_ATTRIBUTE_ACCESS"])
     @extract_args("search", "page", "limit", "sort", "order", "fetch_all")
+    @validate_request
     def get(self, attribute_id: str | None = None, filter_args: dict[str, Any] | None = None):
         if attribute_id:
             return attribute.Attribute.get_for_api(attribute_id)
@@ -136,20 +143,23 @@ class Attributes(MethodView):
         return attribute.Attribute.get_all_for_api(filter_args, True)
 
     @auth_required("CONFIG_ATTRIBUTE_CREATE")
+    @validate_request
     def post(self):
-        attribute_result = attribute.Attribute.add(request.json)
+        attribute_result = attribute.Attribute.add(g.api_json)
         _invalidate_admin_cache(201)
         return jsonify({"message": "Attribute added", "id": attribute_result.id}), 201
 
     @auth_required("CONFIG_ATTRIBUTE_UPDATE")
+    @validate_request
     def put(self, attribute_id: str | None = None):
         if attribute_id is None:
             return {"error": "No attribute_id provided"}, 400
-        response, status = attribute.Attribute.update(attribute_id, request.json)
+        response, status = attribute.Attribute.update(attribute_id, g.api_json)
         _invalidate_admin_cache(status)
         return response, status
 
     @auth_required("CONFIG_ATTRIBUTE_DELETE")
+    @validate_request
     def delete(self, attribute_id: str | None = None):
         if attribute_id is None:
             return {"error": "No attribute_id provided"}, 400
@@ -160,6 +170,7 @@ class Attributes(MethodView):
 
 class ReportItemTypesImport(MethodView):
     @auth_required("CONFIG_REPORT_TYPE_CREATE")
+    @validate_request
     def post(self):
         return {"error": "Not implemented"}, 400
         # if file := request.files.get("file"):
@@ -171,6 +182,7 @@ class ReportItemTypesImport(MethodView):
 
 class ReportItemTypesExport(MethodView):
     @auth_required("CONFIG_REPORT_TYPE_ACCESS")
+    @validate_request
     def get(self):
         source_ids = request.args.getlist("ids")
         data = report_item_type.ReportItemType.export(source_ids)
@@ -187,15 +199,17 @@ class ReportItemTypesExport(MethodView):
 class ReportItemTypes(MethodView):
     @auth_required("CONFIG_REPORT_TYPE_ACCESS")
     @extract_args("search", "page", "limit", "sort", "order", "fetch_all")
+    @validate_request
     def get(self, type_id: str | None = None, filter_args: dict[str, Any] | None = None):
         if type_id:
             return report_item_type.ReportItemType.get_for_api(type_id)
         return report_item_type.ReportItemType.get_all_for_api(filter_args, True)
 
     @auth_required("CONFIG_REPORT_TYPE_CREATE")
+    @validate_request
     def post(self):
         try:
-            item = report_item_type.ReportItemType.add(request.json)
+            item = report_item_type.ReportItemType.add(g.api_json)
             _invalidate_admin_cache(201)
             return jsonify({"message": "Report item type added", "id": item.id}), 201
         except (IntegrityError, ValidationError):
@@ -205,15 +219,17 @@ class ReportItemTypes(MethodView):
             return {"error": "Failed to add report item type"}, 500
 
     @auth_required("CONFIG_REPORT_TYPE_UPDATE")
+    @validate_request
     def put(self, type_id: str | None = None):
         if type_id is None:
             return {"error": "No type_id provided"}, 400
-        if item := report_item_type.ReportItemType.update(type_id, request.json):
+        if item := report_item_type.ReportItemType.update(type_id, g.api_json):
             _invalidate_admin_cache(200)
             return jsonify({"message": "Report item type updated", "id": f"{item.id}"}), 200
         return {"error": "Report item type not found"}, 404
 
     @auth_required("CONFIG_REPORT_TYPE_DELETE")
+    @validate_request
     def delete(self, type_id: str | None = None):
         if type_id is None:
             return {"error": "No type_id provided"}, 400
@@ -225,15 +241,17 @@ class ReportItemTypes(MethodView):
 class ProductTypes(MethodView):
     @auth_required("CONFIG_PRODUCT_TYPE_ACCESS")
     @extract_args("search", "page", "limit", "sort", "order", "fetch_all")
+    @validate_request
     def get(self, type_id: str | None = None, filter_args: dict[str, Any] | None = None):
         if type_id:
             return product_type.ProductType.get_for_api(type_id)
         return product_type.ProductType.get_all_for_api(filter_args, True)
 
     @auth_required("CONFIG_PRODUCT_TYPE_CREATE")
+    @validate_request
     def post(self):
         try:
-            product = product_type.ProductType.add(request.json)
+            product = product_type.ProductType.add(g.api_json)
             _invalidate_admin_cache(201)
             return jsonify({"message": "Product type created", "id": product.id}), 201
         except InvalidPresenterTemplatePathError as e:
@@ -252,11 +270,12 @@ class ProductTypes(MethodView):
             return {"error": "Failed to create product type"}, 500
 
     @auth_required("CONFIG_PRODUCT_TYPE_UPDATE")
+    @validate_request
     def put(self, type_id: str | None = None):
         if type_id is None:
             return {"error": "No type_id provided"}, 400
         try:
-            response, status = product_type.ProductType.update(type_id, request.json)
+            response, status = product_type.ProductType.update(type_id, g.api_json)
             _invalidate_admin_cache(status)
             return response, status
         except InvalidPresenterTemplatePathError as e:
@@ -275,11 +294,12 @@ class ProductTypes(MethodView):
             return {"error": "Failed to update product type"}, 500
 
     @auth_required("CONFIG_PRODUCT_TYPE_UPDATE")
+    @validate_request
     def patch(self, type_id: str | None = None):
         if type_id is None:
             return {"error": "No type_id provided"}, 400
         try:
-            response, status = product_type.ProductType.update(type_id, request.json or {}, patch=True)
+            response, status = product_type.ProductType.update(type_id, g.api_json or {}, patch=True)
             _invalidate_admin_cache(status)
             return response, status
         except (InvalidPresenterTemplatePathError, ValueError) as exc:
@@ -288,6 +308,7 @@ class ProductTypes(MethodView):
             return {"error": "Invalid product type payload"}, 400
 
     @auth_required("CONFIG_PRODUCT_TYPE_DELETE")
+    @validate_request
     def delete(self, type_id: str | None = None):
         if type_id is None:
             return {"error": "No type_id provided"}, 400
@@ -305,6 +326,7 @@ class ProductTypes(MethodView):
 class Permissions(MethodView):
     @auth_required("CONFIG_ACCESS")
     @extract_args("search", "page", "limit", "sort", "order", "fetch_all")
+    @validate_request
     def get(self, filter_args: dict[str, Any] | None = None):
         return Permission.get_all_for_api(filter_args, True)
 
@@ -312,28 +334,32 @@ class Permissions(MethodView):
 class Roles(MethodView):
     @auth_required("CONFIG_ROLE_ACCESS")
     @extract_args("search", "page", "limit", "sort", "order", "fetch_all")
+    @validate_request
     def get(self, role_id: str | None = None, filter_args: dict[str, Any] | None = None):
         if role_id:
             return role.Role.get_for_api(role_id)
         return role.Role.get_all_for_api(filter_args, True)
 
     @auth_required("CONFIG_ROLE_CREATE")
+    @validate_request
     def post(self):
-        new_role = role.Role.add(request.json)
+        new_role = role.Role.add(g.api_json)
         _invalidate_admin_cache(201)
         return jsonify({"message": "Role created", "id": new_role.id}), 201
 
     @auth_required("CONFIG_ROLE_UPDATE")
+    @validate_request
     def put(self, role_id: str | None = None):
         if role_id is None:
             return {"error": "No role_id provided"}, 400
-        if data := request.json:
+        if data := g.api_json:
             response, status = role.Role.update(role_id, data)
             _invalidate_admin_cache(status)
             return response, status
         return {"error": "No data provided"}, 400
 
     @auth_required("CONFIG_ROLE_DELETE")
+    @validate_request
     def delete(self, role_id: str | None = None):
         if role_id is None:
             return {"error": "No role_id provided"}, 400
@@ -347,6 +373,7 @@ class Roles(MethodView):
 
 class Templates(MethodView):
     @auth_required("CONFIG_PRODUCT_TYPE_ACCESS")
+    @validate_request
     def get(self, template_path: str | None = None):
         if template_path:
             return jsonify(build_template_response(template_path).model_dump()), 200
@@ -356,29 +383,32 @@ class Templates(MethodView):
         return jsonify({"items": items, "total_count": len(items)}), 200
 
     @auth_required("CONFIG_PRODUCT_TYPE_CREATE")
+    @validate_request
     def post(self, template_path: str | None = None):
         # Use shared logic for create/update
-        if not request.json:
+        if not g.api_json:
             return {"error": "No data provided"}, 400
-        template_name = request.json.get("name")
-        base64_content = request.json.get("content")
+        template_name = g.api_json.get("name")
+        base64_content = g.api_json.get("content")
         response, status = create_or_update_template(template_name, base64_content)
         _invalidate_admin_cache(status)
         return make_response(jsonify(response), status)
 
     @auth_required("CONFIG_PRODUCT_TYPE_CREATE")
+    @validate_request
     def put(self, template_path: str | None = None):
         if not template_path:
             return {"error": "No template_path provided"}, 400
         # Use shared logic for create/update
-        if not request.json:
+        if not g.api_json:
             return {"error": "No data provided"}, 400
-        base64_content = request.json.get("content")
+        base64_content = g.api_json.get("content")
         response, status = create_or_update_template(template_path, base64_content)
         _invalidate_admin_cache(status)
         return make_response(jsonify(response), status)
 
     @auth_required("CONFIG_PRODUCT_TYPE_DELETE")
+    @validate_request
     def delete(self, template_path: str | None = None):
         if not template_path:
             return {"error": "No template_path provided"}, 400
@@ -397,18 +427,19 @@ class TemplateValidation(MethodView):
     """Endpoint for validating Jinja2 templates without saving them."""
 
     @auth_required("CONFIG_PRODUCT_TYPE_ACCESS")
+    @validate_request
     def post(self):
         """Validate a Jinja2 template without saving it."""
-        if not request.json:
+        if not g.api_json:
             return {"error": "No data provided"}, 400
 
-        template_content = request.json.get("content")
+        template_content = g.api_json.get("content")
         if not template_content:
             return {"error": "No template content provided"}, 400
 
         try:
             # Decode base64 content if needed
-            if request.json.get("is_base64", False):
+            if g.api_json.get("is_base64", False):
                 try:
                     template_content = base64.b64decode(template_content, validate=True).decode("utf-8")
                 except (binascii.Error, UnicodeDecodeError) as e:
@@ -431,26 +462,30 @@ class TemplateValidation(MethodView):
 class Organizations(MethodView):
     @auth_required("CONFIG_ORGANIZATION_ACCESS")
     @extract_args("search", "page", "limit", "sort", "order", "fetch_all")
+    @validate_request
     def get(self, organization_id: str | None = None, filter_args: dict[str, Any] | None = None):
         if organization_id:
             return organization.Organization.get_for_api(organization_id)
         return organization.Organization.get_all_for_api(filter_args, True)
 
     @auth_required("CONFIG_ORGANIZATION_CREATE")
+    @validate_request
     def post(self):
-        org = organization.Organization.add(request.json)
+        org = organization.Organization.add(g.api_json)
         _invalidate_admin_cache(201)
         return jsonify({"message": "Organization created", "id": org.id}), 201
 
     @auth_required("CONFIG_ORGANIZATION_UPDATE")
+    @validate_request
     def put(self, organization_id: str | None = None):
         if organization_id is None:
             return {"error": "No organization_id provided"}, 400
-        response, status = organization.Organization.update(organization_id, request.json)
+        response, status = organization.Organization.update(organization_id, g.api_json)
         _invalidate_admin_cache(status)
         return response, status
 
     @auth_required("CONFIG_ORGANIZATION_DELETE")
+    @validate_request
     def delete(self, organization_id: str | None = None):
         if organization_id is None:
             return {"error": "No organization_id provided"}, 400
@@ -461,8 +496,9 @@ class Organizations(MethodView):
 
 class UsersImport(MethodView):
     @auth_required("CONFIG_USER_UPDATE")
+    @validate_request
     def post(self):
-        user_list = request.json
+        user_list = g.api_json
         if not isinstance(user_list, list):
             return {"error": "Invalid data format"}, 400
         result = user.User.import_users(user_list)
@@ -473,6 +509,7 @@ class UsersImport(MethodView):
 
 class UsersExport(MethodView):
     @auth_required("CONFIG_USER_ACCESS")
+    @validate_request
     def get(self):
         user_ids = request.args.getlist("ids")
         data = user.User.export(user_ids)
@@ -489,15 +526,17 @@ class UsersExport(MethodView):
 class Users(MethodView):
     @auth_required("CONFIG_USER_ACCESS")
     @extract_args("search", "page", "limit", "sort", "order", "fetch_all")
+    @validate_request
     def get(self, user_id: str | None = None, filter_args: dict[str, Any] | None = None):
         if user_id:
             return user.User.get_for_api(user_id)
         return user.User.get_all_for_api(filter_args, True)
 
     @auth_required("CONFIG_USER_CREATE")
+    @validate_request
     def post(self):
         try:
-            new_user = user.User.add(request.json)
+            new_user = user.User.add(g.api_json)
             _invalidate_admin_cache(201)
             return jsonify({"message": "User created", "id": new_user.id}), 201
         except (IntegrityError, ValidationError):
@@ -507,11 +546,12 @@ class Users(MethodView):
             return {"error": "Could not create user"}, 400
 
     @auth_required("CONFIG_USER_UPDATE")
+    @validate_request
     def put(self, user_id: str | None = None):
         if user_id is None:
             return {"error": "No user_id provided"}, 400
         try:
-            response, status = user.User.update(user_id, request.json)
+            response, status = user.User.update(user_id, g.api_json)
             _invalidate_admin_cache(status)
             return response, status
         except (IntegrityError, ValidationError):
@@ -521,6 +561,7 @@ class Users(MethodView):
             return {"error": "Could not update user"}, 400
 
     @auth_required("CONFIG_USER_DELETE")
+    @validate_request
     def delete(self, user_id: str | None = None):
         if user_id is None:
             return {"error": "No user_id provided"}, 400
@@ -538,16 +579,18 @@ class Users(MethodView):
 class Bots(MethodView):
     @auth_required("CONFIG_BOT_ACCESS")
     @extract_args("search", "page", "limit", "sort", "order", "fetch_all", "state")
+    @validate_request
     def get(self, bot_id: str | None = None, filter_args: dict[str, Any] | None = None):
         if bot_id:
             return bot.Bot.get_for_api(bot_id)
         return bot.Bot.get_all_for_api(filter_args, True)
 
     @auth_required("CONFIG_BOT_UPDATE")
+    @validate_request
     def put(self, bot_id: str | None = None):
         if bot_id is None:
             return {"error": "No bot_id provided"}, 400
-        if not (update_data := request.json):
+        if not (update_data := g.api_json):
             return {"error": "No update data passed"}, 400
         try:
             update_data = BotUpdate.model_validate(update_data).model_dump(exclude_unset=True, exclude_none=False)
@@ -564,11 +607,12 @@ class Bots(MethodView):
         return {"error": "Bot not found"}, 404
 
     @auth_required("CONFIG_BOT_UPDATE")
+    @validate_request
     def patch(self, bot_id: str | None = None):
         if bot_id is None:
             return {"error": "No bot_id provided"}, 400
         try:
-            update_data = request.json if request.json is not None else {}
+            update_data = g.api_json if g.api_json is not None else {}
             update_data = BotUpdate.model_validate(update_data).model_dump(exclude_unset=True, exclude_none=False)
             if updated_bot := bot.Bot.update(bot_id, update_data, patch=True):
                 _invalidate_admin_cache(200)
@@ -582,8 +626,9 @@ class Bots(MethodView):
         return {"error": "Bot not found"}, 404
 
     @auth_required("CONFIG_BOT_CREATE")
+    @validate_request
     def post(self):
-        data = request.json or {}
+        data = g.api_json or {}
         index = None
         try:
             data = BotCreate.model_validate(data).model_dump()
@@ -602,6 +647,7 @@ class Bots(MethodView):
             return {"error": "Invalid bot create payload"}, 400
 
     @auth_required("CONFIG_BOT_DELETE")
+    @validate_request
     def delete(self, bot_id: str | None = None):
         if bot_id is None:
             return {"error": "No bot_id provided"}, 400
@@ -612,15 +658,17 @@ class Bots(MethodView):
 
 class BotExecute(MethodView):
     @auth_required("BOT_EXECUTE")
+    @validate_request
     def post(self, bot_id: str):
         return queue_manager.queue_manager.execute_bot_task(bot_id, user_id=current_user.id)
 
 
 class BotDagPreview(MethodView):
     @auth_required("CONFIG_BOT_ACCESS")
+    @validate_request
     def post(self):
         try:
-            return bot.Bot.get_dag_preview(request.json or {}), 200
+            return bot.Bot.get_dag_preview(g.api_json or {}), 200
         except (TypeError, ValueError) as exc:
             logger.warning("Invalid bot DAG preview payload: %s", exc)
             return {"error": "Invalid bot DAG preview payload"}, 400
@@ -628,12 +676,14 @@ class BotDagPreview(MethodView):
 
 class QueueStatus(MethodView):
     @auth_required("CONFIG_WORKER_ACCESS")
+    @validate_request
     def get(self):
         return queue_manager.queue_manager.get_queue_status()
 
 
 class QueueTasks(MethodView):
     @auth_required("CONFIG_WORKER_ACCESS")
+    @validate_request
     def get(self):
         return queue_manager.queue_manager.get_queued_tasks()
 
@@ -641,6 +691,7 @@ class QueueTasks(MethodView):
 class ActiveJobs(MethodView):
     @auth_required("CONFIG_WORKER_ACCESS")
     @extract_args("search", "page", "limit", "order")
+    @validate_request
     def get(self, filter_args: dict[str, Any]):
         return queue_manager.queue_manager.get_active_jobs(filter_args)
 
@@ -648,18 +699,21 @@ class ActiveJobs(MethodView):
 class FailedJobs(MethodView):
     @auth_required("CONFIG_WORKER_ACCESS")
     @extract_args("search", "page", "limit", "order")
+    @validate_request
     def get(self, filter_args: dict[str, Any]):
         return queue_manager.queue_manager.get_failed_jobs(filter_args)
 
 
 class WorkerStats(MethodView):
     @auth_required("CONFIG_WORKER_ACCESS")
+    @validate_request
     def get(self):
         return queue_manager.queue_manager.get_worker_stats()
 
 
 class AdminMenuBadges(MethodView):
     @auth_required("CONFIG_ACCESS")
+    @validate_request
     def get(self):
         response = jsonify(task.Task.get_admin_menu_badges())
         response.cache_control.private = True
@@ -669,6 +723,7 @@ class AdminMenuBadges(MethodView):
 
 class CronJobs(MethodView):
     @auth_required("CONFIG_WORKER_ACCESS")
+    @validate_request
     def get(self):
         return queue_manager.queue_manager.get_cron_job_configs()
 
@@ -676,6 +731,7 @@ class CronJobs(MethodView):
 class Schedule(MethodView):
     @auth_required("CONFIG_WORKER_ACCESS")
     @extract_args("search", "page", "limit", "order")
+    @validate_request
     def get(self, filter_args: dict[str, Any], task_id: str | None = None):
         try:
             if task_id:
@@ -690,15 +746,17 @@ class Schedule(MethodView):
 class Connectors(MethodView):
     @auth_required("CONFIG_CONNECTOR_ACCESS")
     @extract_args("search", "page", "limit", "sort", "order", "fetch_all")
+    @validate_request
     def get(self, connector_id: str | None = None, filter_args: dict[str, Any] | None = None):
         if connector_id:
             return connector.Connector.get_for_api(connector_id)
         return connector.Connector.get_all_for_api(filter_args=filter_args, with_count=True)
 
     @auth_required("CONFIG_CONNECTOR_CREATE")
+    @validate_request
     def post(self):
         try:
-            if source := connector.Connector.add(request.json):
+            if source := connector.Connector.add(g.api_json):
                 _invalidate_admin_cache(201)
                 return jsonify({"id": source.id, "message": "Connector created successfully"}), 201
         except ValueError as exc:
@@ -707,10 +765,11 @@ class Connectors(MethodView):
         return {"error": "Connector could not be created"}, 400
 
     @auth_required("CONFIG_CONNECTOR_UPDATE")
+    @validate_request
     def put(self, connector_id: str | None = None):
         if connector_id is None:
             return {"error": "No connector_id provided"}, 400
-        if not (update_data := request.json):
+        if not (update_data := g.api_json):
             return {"error": "No update data passed"}, 400
         try:
             if source := connector.Connector.update(connector_id, update_data):
@@ -723,6 +782,7 @@ class Connectors(MethodView):
         return {"error": "Connector not found"}, 404
 
     @auth_required("CONFIG_CONNECTOR_DELETE")
+    @validate_request
     def delete(self, connector_id: str | None = None):
         if connector_id is None:
             return {"error": "No connector_id provided"}, 400
@@ -732,15 +792,16 @@ class Connectors(MethodView):
         return response, status
 
     @auth_required("CONFIG_CONNECTOR_UPDATE")
+    @validate_request
     def patch(self, connector_id: str | None = None):
         if connector_id is None:
             return {"error": "No connector_id provided"}, 400
-        if not request.json:
+        if not g.api_json:
             return {"error": "No data provided"}, 400
-        if state := request.json.get("state"):
+        if state := g.api_json.get("state"):
             update_data = {"state": state}
         else:
-            update_data = request.json
+            update_data = g.api_json
         try:
             if source := connector.Connector.update(connector_id, update_data, patch=True):
                 _invalidate_admin_cache(200)
@@ -754,6 +815,7 @@ class Connectors(MethodView):
 
 class ConnectorsPull(MethodView):
     @auth_required("CONFIG_CONNECTOR_UPDATE")
+    @validate_request
     def post(self, connector_id: str):
         """Trigger collection of stories from the external system."""
         try:
@@ -766,6 +828,7 @@ class ConnectorsPull(MethodView):
 class OSINTSources(MethodView):
     @auth_required("CONFIG_OSINT_SOURCE_ACCESS")
     @extract_args("search", "page", "limit", "sort", "order", "type", "fetch_all", "filter_manual", "state", "period")
+    @validate_request
     def get(self, source_id: str | None = None, filter_args: dict[str, Any] | None = None):
         filter_args = filter_args or {}
         if source_id:
@@ -777,9 +840,10 @@ class OSINTSources(MethodView):
         return osint_source.OSINTSource.get_all_for_api(filter_args=filter_args, with_count=True)
 
     @auth_required("CONFIG_OSINT_SOURCE_CREATE")
+    @validate_request
     def post(self):
         try:
-            if source := osint_source.OSINTSource.add(request.json):
+            if source := osint_source.OSINTSource.add(g.api_json):
                 _invalidate_admin_cache(201)
                 return {"id": source.id, "message": "OSINT source created successfully"}, 201
         except ValidationError as exc:
@@ -794,10 +858,11 @@ class OSINTSources(MethodView):
         return {"error": "OSINT source could not be created"}, 400
 
     @auth_required("CONFIG_OSINT_SOURCE_UPDATE")
+    @validate_request
     def put(self, source_id: str | None = None):
         if source_id is None:
             return {"error": "No source_id provided"}, 400
-        if not (update_data := request.json):
+        if not (update_data := g.api_json):
             return {"error": "No update data passed"}, 400
         try:
             if source := osint_source.OSINTSource.update(source_id, update_data):
@@ -815,6 +880,7 @@ class OSINTSources(MethodView):
         return {"error": "OSINT Source not found"}, 404
 
     @auth_required("CONFIG_OSINT_SOURCE_DELETE")
+    @validate_request
     def delete(self, source_id: str | None = None):
         source_ids = [source_id] if source_id is not None else request.args.getlist("ids")
         if not source_ids:
@@ -834,10 +900,11 @@ class OSINTSources(MethodView):
         return response, status
 
     @auth_required("CONFIG_OSINT_SOURCE_UPDATE")
+    @validate_request
     def patch(self, source_id: str | None = None):
         if source_id is None:
             return {"error": "No source_id provided"}, 400
-        data = dict(request.json or {})
+        data = dict(g.api_json or {})
         state = data.pop("state", None)
         if state is not None and state not in {"enabled", "disabled"}:
             return {"error": "Invalid state"}, 400
@@ -861,6 +928,7 @@ class OSINTSources(MethodView):
 
 class OSINTSourceCollect(MethodView):
     @auth_required("CONFIG_OSINT_SOURCE_UPDATE")
+    @validate_request
     def post(self, source_id: str | None = None):
         if error := queue_manager.queue_manager.queue_action_error():
             return error
@@ -873,6 +941,7 @@ class OSINTSourceCollect(MethodView):
 
 class OSINTSourcePreview(MethodView):
     @auth_required("CONFIG_OSINT_SOURCE_UPDATE")
+    @validate_request
     def get(self, source_id: str):
         return self.get_osint_source_preview_response(source_id, user_id=current_user.id)
 
@@ -890,12 +959,14 @@ class OSINTSourcePreview(MethodView):
         return queue_manager.queue_manager.preview_osint_source(source_id, user_id=user_id)
 
     @auth_required("CONFIG_OSINT_SOURCE_UPDATE")
+    @validate_request
     def post(self, source_id: str):
         return queue_manager.queue_manager.preview_osint_source(source_id, user_id=current_user.id)
 
 
 class OSINTSourcesExport(MethodView):
     @auth_required("CONFIG_OSINT_SOURCE_ACCESS")
+    @validate_request
     def get(self):
         source_ids = request.args.getlist("ids")
         with_groups = request.args.get("groups", default=False, type=bool)
@@ -914,13 +985,10 @@ class OSINTSourcesExport(MethodView):
 
 class OSINTSourcesImport(MethodView):
     @auth_required("CONFIG_OSINT_SOURCE_CREATE")
+    @validate_request
     def post(self):
         try:
-            sources = None
-            if file := request.files.get("file"):
-                sources = osint_source.OSINTSource.import_osint_sources(file)
-            if json_data := request.get_json(silent=True):
-                sources = osint_source.OSINTSource.import_osint_sources_from_json(json_data)
+            sources = osint_source.OSINTSource.import_osint_sources_from_json(g.api_json)
         except ValidationError as exc:
             return {"error": OSINTSourceModel.format_validation_errors(exc)}, 400
         except (KeyError, TypeError, ValueError):
@@ -935,6 +1003,7 @@ class OSINTSourcesImport(MethodView):
 
 class CuratedOSINTSourceLists(MethodView):
     @auth_required("CONFIG_OSINT_SOURCE_ACCESS")
+    @validate_request
     def get(self):
         try:
             return {"items": osint_source.OSINTSource.get_curated_list_summaries()}
@@ -943,9 +1012,10 @@ class CuratedOSINTSourceLists(MethodView):
             return {"error": "Curated OSINT source catalog is unavailable"}, 500
 
     @auth_required("CONFIG_OSINT_SOURCE_CREATE")
+    @validate_request
     def post(self):
         try:
-            selection = CuratedOSINTSourceSelection.model_validate(request.get_json(silent=True) or {})
+            selection = CuratedOSINTSourceSelection.model_validate(g.api_json or {})
             response = osint_source.OSINTSource.load_curated_lists(selection.list_names)
         except ValidationError:
             return {"error": "Select at least one valid curated source list"}, 400
@@ -975,6 +1045,7 @@ class OSINTSourceGroupOptionsView(MethodView):
     @auth_required("CONFIG_OSINT_SOURCE_GROUP_ACCESS")
     @auth_required("CONFIG_OSINT_SOURCE_ACCESS")
     @auth_required("CONFIG_WORD_LIST_ACCESS")
+    @validate_request
     def get(self):
         sources = db.session.execute(
             select(osint_source.OSINTSource.id, osint_source.OSINTSource.name)
@@ -995,28 +1066,32 @@ class OSINTSourceGroupOptionsView(MethodView):
 class OSINTSourceGroups(MethodView):
     @auth_required("CONFIG_OSINT_SOURCE_GROUP_ACCESS")
     @extract_args("search", "page", "limit", "sort", "order", "fetch_all")
+    @validate_request
     def get(self, group_id: str | None = None, filter_args: dict[str, Any] | None = None):
         if group_id:
             return osint_source.OSINTSourceGroup.get_for_api(group_id)
         return osint_source.OSINTSourceGroup.get_all_for_api(filter_args=filter_args, with_count=True)
 
     @auth_required("CONFIG_OSINT_SOURCE_GROUP_CREATE")
+    @validate_request
     def post(self):
-        source_group = osint_source.OSINTSourceGroup.add(request.json)
+        source_group = osint_source.OSINTSourceGroup.add(g.api_json)
         _invalidate_admin_cache(200)
         return jsonify({"id": source_group.id, "message": "OSINT source group created successfully"}), 200
 
     @auth_required("CONFIG_OSINT_SOURCE_GROUP_UPDATE")
+    @validate_request
     def put(self, group_id: str | None = None):
         if group_id is None:
             return {"error": "No group_id provided"}, 400
-        if not (data := request.json):
+        if not (data := g.api_json):
             return {"error": "No data provided"}, 400
         response, status = osint_source.OSINTSourceGroup.update(group_id, data)
         _invalidate_admin_cache(status)
         return response, status
 
     @auth_required("CONFIG_OSINT_SOURCE_GROUP_DELETE")
+    @validate_request
     def delete(self, group_id: str | None = None):
         if group_id is None:
             return {"error": "No group_id provided"}, 400
@@ -1028,15 +1103,17 @@ class OSINTSourceGroups(MethodView):
 class PublisherPresets(MethodView):
     @auth_required("CONFIG_PUBLISHER_ACCESS")
     @extract_args("search", "page", "limit", "sort", "order", "fetch_all")
+    @validate_request
     def get(self, preset_id: str | None = None, filter_args: dict[str, Any] | None = None):
         if preset_id:
             return publisher_preset.PublisherPreset.get_for_api(preset_id)
         return publisher_preset.PublisherPreset.get_all_for_api(filter_args, True)
 
     @auth_required("CONFIG_PUBLISHER_CREATE")
+    @validate_request
     def post(self):
         try:
-            pub_result = publisher_preset.PublisherPreset.add(request.json)
+            pub_result = publisher_preset.PublisherPreset.add(g.api_json)
             _invalidate_admin_cache(200)
             return jsonify({"id": pub_result.id, "message": "Publisher preset created successfully"}), 200
         except (IntegrityError, ValidationError):
@@ -1047,11 +1124,12 @@ class PublisherPresets(MethodView):
             return {"error": "Invalid publisher preset payload"}, 400
 
     @auth_required("CONFIG_PUBLISHER_UPDATE")
+    @validate_request
     def put(self, preset_id: str | None = None):
         if preset_id is None:
             return {"error": "No preset_id provided"}, 400
         try:
-            response, status = publisher_preset.PublisherPreset.update(preset_id, request.json)
+            response, status = publisher_preset.PublisherPreset.update(preset_id, g.api_json)
             _invalidate_admin_cache(status)
             return response, status
         except (IntegrityError, ValidationError):
@@ -1062,11 +1140,12 @@ class PublisherPresets(MethodView):
             return {"error": "Invalid publisher preset payload"}, 400
 
     @auth_required("CONFIG_PUBLISHER_UPDATE")
+    @validate_request
     def patch(self, preset_id: str | None = None):
         if preset_id is None:
             return {"error": "No preset_id provided"}, 400
         try:
-            response, status = publisher_preset.PublisherPreset.update(preset_id, request.json or {}, patch=True)
+            response, status = publisher_preset.PublisherPreset.update(preset_id, g.api_json or {}, patch=True)
             _invalidate_admin_cache(status)
             return response, status
         except (IntegrityError, ValidationError):
@@ -1077,6 +1156,7 @@ class PublisherPresets(MethodView):
             return {"error": "Invalid publisher preset payload"}, 400
 
     @auth_required("CONFIG_PUBLISHER_DELETE")
+    @validate_request
     def delete(self, preset_id: str | None = None):
         if preset_id is None:
             return {"error": "No preset_id provided"}, 400
@@ -1088,18 +1168,21 @@ class PublisherPresets(MethodView):
 class WordLists(MethodView):
     @auth_required("CONFIG_WORD_LIST_ACCESS")
     @extract_args("search", "usage", "with_entries", "page", "limit", "sort", "order", "fetch_all")
+    @validate_request
     def get(self, word_list_id: str | None = None, filter_args: dict[str, Any] | None = None):
         if word_list_id:
             return word_list.WordList.get_for_api(word_list_id)
         return word_list.WordList.get_all_for_api(filter_args=filter_args, with_count=True)
 
     @auth_required("CONFIG_WORD_LIST_CREATE")
+    @validate_request
     def post(self):
-        wordlist = word_list.WordList.add(request.json)
+        wordlist = word_list.WordList.add(g.api_json)
         _invalidate_admin_cache(200)
         return jsonify({"id": wordlist.id, "message": "Word list created successfully"}), 200
 
     @auth_required("CONFIG_WORD_LIST_DELETE")
+    @validate_request
     def delete(self, word_list_id: str | None = None):
         if word_list_id is None:
             return {"error": "No word_list_id provided"}, 400
@@ -1114,10 +1197,11 @@ class WordLists(MethodView):
             return {"error": "Could not delete word list"}, 400
 
     @auth_required("CONFIG_WORD_LIST_UPDATE")
+    @validate_request
     def put(self, word_list_id: str | None = None):
         if word_list_id is None:
             return {"error": "No word_list_id provided"}, 400
-        if data := request.json:
+        if data := g.api_json:
             response, status = word_list.WordList.update(word_list_id, data)
             _invalidate_admin_cache(status)
             return response, status
@@ -1126,13 +1210,10 @@ class WordLists(MethodView):
 
 class WordListImport(MethodView):
     @auth_required("CONFIG_WORD_LIST_UPDATE")
+    @validate_request
     def post(self):
         try:
-            wls = None
-            if file := request.files.get("file"):
-                wls = word_list.WordList.import_word_lists(file)
-            if json_data := request.get_json(silent=True):
-                wls = word_list.WordList.import_word_lists_from_json(json_data)
+            wls = word_list.WordList.import_word_lists_from_json(g.api_json)
             if wls is None:
                 logger.error("Failed to import Word Lists")
                 return {"error": "Unable to import Word Lists"}, 400
@@ -1154,6 +1235,7 @@ class WordListImport(MethodView):
 
 class WordListExport(MethodView):
     @auth_required("CONFIG_WORD_LIST_UPDATE")
+    @validate_request
     def get(self):
         word_list_ids = request.args.getlist("ids")
         data = word_list.WordList.export(word_list_ids)
@@ -1169,6 +1251,7 @@ class WordListExport(MethodView):
 
 class WordListGather(MethodView):
     @auth_required("CONFIG_WORD_LIST_UPDATE")
+    @validate_request
     def post(self, word_list_id: str | None = None):
         if not word_list_id:
             return queue_manager.queue_manager.gather_all_word_lists(user_id=current_user.id)
@@ -1177,6 +1260,7 @@ class WordListGather(MethodView):
 
 class WorkerInstances(MethodView):
     @auth_required("CONFIG_WORKER_ACCESS")
+    @validate_request
     def get(self):
         return queue_manager.queue_manager.ping_workers()
 
@@ -1199,6 +1283,7 @@ class ParameterSecrets(MethodView):
             "CONFIG_PUBLISHER_UPDATE",
         ]
     )
+    @validate_request
     def post(self, resource: str, resource_id: str, parameter: str):
         if not (resource_config := self._RESOURCES.get(resource)):
             return {"error": "Unknown parameter resource"}, 404

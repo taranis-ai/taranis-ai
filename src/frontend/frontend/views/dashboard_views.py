@@ -3,13 +3,14 @@ from typing import Any
 
 import pandas as pd
 import plotly.express as px
-from flask import abort, make_response, render_template, request, url_for
+from flask import abort, g, make_response, render_template, request, url_for
 from flask.typing import ResponseReturnValue
 from flask_jwt_extended import current_user
 from models.dashboard import Cluster, Dashboard, NewsItemConflict, PizzintStatus, StoryConflict, TrendingCluster
 from models.user import ProfileSettingsDashboard
 from werkzeug.exceptions import HTTPException
 
+from frontend.api_contracts import validate_request
 from frontend.auth import auth_required, update_current_user_cache
 from frontend.core_api import CoreApi
 from frontend.data_persistence import DataPersistenceLayer
@@ -334,22 +335,16 @@ class DashboardView(BaseView):
 
     @classmethod
     @auth_required("ASSESS_UPDATE")
+    @validate_request
     def resolve_story_conflict(cls, story_id: str):
-        resolved = request.form.get("resolved_story")
-        incoming_original = request.form.get("incoming_original")
+        resolved = g.frontend_api_json.get("resolved_story")
+        incoming_original = g.frontend_api_json.get("incoming_original")
 
         if not resolved:
             return make_response("Missing resolved_story", 400)
 
-        try:
-            resolved_json = json.loads(resolved)
-        except Exception:
-            return make_response("Invalid JSON in resolved_story", 400)
-
-        try:
-            incoming_json = json.loads(incoming_original) if incoming_original else {}
-        except Exception:
-            incoming_json = {}
+        resolved_json = resolved
+        incoming_json = incoming_original or {}
 
         api = CoreApi()
         resp = api.resolve_story_conflict(
@@ -380,9 +375,7 @@ class DashboardView(BaseView):
         Accepts JSON or standard form submissions.
         """
         try:
-            payload = request.get_json(silent=True)
-            if not isinstance(payload, dict):
-                payload = parse_formdata(request.form)
+            payload = g.frontend_api_json
             if not isinstance(payload, dict):
                 return make_response("Invalid payload", 400)
 
@@ -446,7 +439,7 @@ class DashboardView(BaseView):
     @auth_required("ASSESS_UPDATE")
     def resolve_news_item_conflict_put(cls):
         try:
-            payload = cls._extract_request_payload()
+            payload = g.frontend_api_json
 
             incoming_story = cls._normalize_incoming_story(payload.get("incoming_story"))
             if not incoming_story:

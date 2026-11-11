@@ -1,7 +1,10 @@
 from flask import jsonify, request
 from flask_cors import CORS
+from models.api import ErrorResponse
+from werkzeug.exceptions import HTTPException
 
 import core.api as core_api
+from core.api.contracts import initialize as initialize_contracts
 from core.audit import init_app as init_audit
 from core.log import logger
 
@@ -10,6 +13,7 @@ def initialize(app):
     CORS(app)
 
     app.url_map.strict_slashes = False
+    app.register_error_handler(HTTPException, handle_http_error)
     app.register_error_handler(400, handle_bad_request)
     app.register_error_handler(401, handle_unauthorized)
     app.register_error_handler(404, handle_not_found)
@@ -33,6 +37,7 @@ def initialize(app):
     core_api.worker.initialize(app)
     core_api.static.initialize(app)
     init_audit(app)
+    initialize_contracts(app)
 
 
 def handle_bad_request(e):
@@ -52,3 +57,10 @@ def handle_not_found(e):
     if hasattr(e, "item"):
         return jsonify(error=f"{e.item} not found"), 404
     return jsonify(error="Not found"), 404
+
+
+def handle_http_error(error):
+    response = error.get_response()
+    response.set_data(jsonify(ErrorResponse(error=error.name).model_dump()).get_data())
+    response.mimetype = "application/json"
+    return response

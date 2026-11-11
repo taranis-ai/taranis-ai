@@ -7,7 +7,8 @@ from worker.misc.wordlist_update import update_wordlist
 def test_update_wordlist_rejects_empty_csv(requests_mock):
     requests_mock.get(
         f"{Config.TARANIS_CORE_URL}/worker/word-list/word-list-1",
-        json={"name": "Empty list", "link": "https://wordlists.test/empty.csv"},
+        headers={"Content-Type": "application/json"},
+        json={"id": "word-list-1", "name": "Empty list", "link": "https://wordlists.test/empty.csv"},
     )
     requests_mock.get("https://wordlists.test/empty.csv", text="", headers={"content-type": "text/csv"})
 

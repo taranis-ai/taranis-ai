@@ -3,6 +3,7 @@ from typing import Any
 from urllib.parse import urlencode
 
 import niquests as requests
+from models.api_operations import validate_outgoing_request
 from models.product import WorkerProduct as Product
 from models.task import TaskChangeNotice, TaskResult, TaskSubmission
 from niquests.typing import MultiPartFilesAltType
@@ -114,55 +115,108 @@ class CoreApi:
         inject(headers)
         return headers
 
-    def check_response(self, response: requests.Response, url: str):
+    def _request(self, method: str, url: str, **kwargs):
+        path = url.removeprefix(self.api_url)
+        headers = kwargs.get("headers", {})
+        operation = validate_outgoing_request(
+            method,
+            path,
+            kwargs.get("json", kwargs.get("data")),
+            kwargs.get("params"),
+            content_type=headers.get("Content-Type", headers.get("Content-type", "application/json")),
+            files=kwargs.get("files"),
+            headers=headers,
+        )
+        response = http_request(method, url=url, **kwargs)
         try:
-            if response.ok:
-                return response.json()
-        except requests.exceptions.JSONDecodeError:
-            logger.error(f"Call to {url} failed {response.status_code}: {response.text}")
-        logger.error(f"Call to {url} failed {response.status_code}: {response.text}")
+            contract = operation.response(response.status_code or 0)
+            if contract.body is None:
+                payload = None
+            elif contract.download:
+                payload = {
+                    "content_type": response.headers.get("Content-Type", ""),
+                    "content_length": response.headers.get("Content-Length"),
+                    "content_disposition": response.headers.get("Content-Disposition"),
+                }
+            else:
+                payload = response.json()
+            contract.validate(payload, content_type=response.headers.get("Content-Type", ""))
+        except (ValueError, ValidationError):
+            response.close()
+            logger.error(f"Core returned an invalid API response (status {response.status_code})")
+            raise requests.exceptions.RequestException("Invalid Core API response") from None
+        return response
+
+    def check_response(self, response: requests.Response, url: str, method: str = "GET"):
+        if response.ok:
+            return response.json()
+        logger.error(f"Core API call failed (status {response.status_code})")
         return None
 
     def api_put(self, url: str, json_data=None):
         url = f"{self.api_url}{url}"
-        if not json_data:
+        if json_data is None:
             json_data = {}
-        response = http_request("PUT", url=url, headers=self.get_request_headers(), verify=self.verify, json=json_data, timeout=self.timeout)
-        return self.check_response(response, url)
+        validate_outgoing_request("PUT", url.removeprefix(self.api_url), json_data)
+        try:
+            response = self._request(
+                "PUT", url=url, headers=self.get_request_headers(), verify=self.verify, json=json_data, timeout=self.timeout
+            )
+            return self.check_response(response, url, "PUT")
+        except requests.exceptions.RequestException:
+            return None
 
     def api_patch(self, url, json_data=None):
         url = f"{self.api_url}{url}"
-        if not json_data:
+        if json_data is None:
             json_data = {}
-        response = http_request(
-            "PATCH", url=url, headers=self.get_request_headers(), verify=self.verify, json=json_data, timeout=self.timeout
-        )
-        return self.check_response(response, url)
+        validate_outgoing_request("PATCH", url.removeprefix(self.api_url), json_data)
+        try:
+            response = self._request(
+                "PATCH", url=url, headers=self.get_request_headers(), verify=self.verify, json=json_data, timeout=self.timeout
+            )
+            return self.check_response(response, url, "PATCH")
+        except requests.exceptions.RequestException:
+            return None
 
     def api_post(self, url, json_data=None):
         url = f"{self.api_url}{url}"
-        if not json_data:
+        if json_data is None:
             json_data = {}
-        response = http_request("POST", url=url, headers=self.get_request_headers(), verify=self.verify, json=json_data, timeout=self.timeout)
-        return self.check_response(response, url)
+        validate_outgoing_request("POST", url.removeprefix(self.api_url), json_data)
+        try:
+            response = self._request(
+                "POST", url=url, headers=self.get_request_headers(), verify=self.verify, json=json_data, timeout=self.timeout
+            )
+            return self.check_response(response, url, "POST")
+        except requests.exceptions.RequestException:
+            return None
 
     def api_get(self, url: str, params=None):
+        validate_outgoing_request("GET", url, params=params)
         url = f"{self.api_url}{url}"
         if params:
             url += f"?{urlencode(params, doseq=True)}"
-        response = http_request("GET", url=url, headers=self.get_request_headers(), verify=self.verify, timeout=self.timeout)
-        return self.check_response(response, url)
+        try:
+            response = self._request("GET", url=url, headers=self.get_request_headers(), verify=self.verify, timeout=self.timeout)
+            return self.check_response(response, url)
+        except requests.exceptions.RequestException:
+            return None
 
     def api_delete(self, url: str):
+        validate_outgoing_request("DELETE", url)
         url = f"{self.api_url}{url}"
-        response = http_request("DELETE", url=url, headers=self.get_request_headers(), verify=self.verify, timeout=self.timeout)
-        return self.check_response(response, url)
+        try:
+            response = self._request("DELETE", url=url, headers=self.get_request_headers(), verify=self.verify, timeout=self.timeout)
+            return self.check_response(response, url, "DELETE")
+        except requests.exceptions.RequestException:
+            return None
 
     def notify_task_change(self, user_ids: list[str] | None = None) -> bool:
         """Send a bounded, best-effort invalidation without changing task outcomes."""
         try:
             notice = TaskChangeNotice(user_ids=list(dict.fromkeys(user_ids or [])))
-            response = http_request(
+            response = self._request(
                 "POST",
                 url=f"{self.api_url}/worker/tasks/changed",
                 headers=self.get_request_headers(),
@@ -312,7 +366,7 @@ class CoreApi:
     def cleanup_task_history(self) -> dict | None:
         url = f"{self.api_url}/worker/tasks/history/cleanup"
         try:
-            response = http_request("POST", url=url, headers=self.get_request_headers(), verify=self.verify, json={}, timeout=self.timeout)
+            response = self._request("POST", url=url, headers=self.get_request_headers(), verify=self.verify, json={}, timeout=self.timeout)
         except requests.exceptions.RequestException:
             logger.exception("Can't cleanup task history")
             return None
@@ -349,7 +403,7 @@ class CoreApi:
     def get_product_render(self, product_id: str) -> Product | None:
         try:
             url = f"{self.api_url}/worker/products/{product_id}/render"
-            response = http_request("GET", url=url, headers=self.get_request_headers(), verify=self.verify, timeout=self.timeout)
+            response = self._request("GET", url=url, headers=self.get_request_headers(), verify=self.verify, timeout=self.timeout)
             if not response.ok:
                 logger.error(f"Call to {url} failed {response.status_code}")
                 return None
@@ -369,7 +423,7 @@ class CoreApi:
 
     def get_template(self, presenter_id: str) -> str | None:
         url = f"{self.api_url}/worker/presenters/{presenter_id}"
-        response = http_request("GET", url=url, headers=self.get_request_headers(), verify=self.verify, timeout=self.timeout)
+        response = self._request("GET", url=url, headers=self.get_request_headers(), verify=self.verify, timeout=self.timeout)
         return response.text if response.ok else None
 
     def get_word_list(self, word_list_id: str) -> dict | None:
@@ -393,9 +447,9 @@ class CoreApi:
             headers = {**self.get_request_headers(), "Content-Type": content_type}
 
             if content_type == "application/json":
-                response = http_request("PUT", url=url, headers=headers, json=content, verify=self.verify, timeout=self.timeout)
+                response = self._request("PUT", url=url, headers=headers, json=content, verify=self.verify, timeout=self.timeout)
             elif content_type == "text/csv":
-                response = http_request(
+                response = self._request(
                     "PUT",
                     url=url,
                     headers=headers,
@@ -407,8 +461,8 @@ class CoreApi:
                 logger.error(f"Unsupported content type: {content_type}")
                 return None
 
-            return self.check_response(response, url)
-        except requests.exceptions.RequestException as e:
+            return self.check_response(response, url, "PUT")
+        except (ValueError, requests.exceptions.RequestException) as e:
             logger.exception(f"Failed to update word list {word_list_id}: {e}")
             return None
 
@@ -495,14 +549,14 @@ class CoreApi:
             headers.pop("Content-type", None)
             files: MultiPartFilesAltType = {"file": (filename, content)}
             return self.check_response(
-                http_request("PUT", url=url, files=files, headers=headers, verify=self.verify, timeout=self.timeout), url
+                self._request("PUT", url=url, files=files, headers=headers, verify=self.verify, timeout=self.timeout), url, "PUT"
             )
         except (TypeError, ValueError, requests.exceptions.RequestException):
             return None
 
     def news_items_grouping(self, data):
         try:
-            response = http_request(
+            response = self._request(
                 "PUT",
                 f"{self.api_url}/bots/stories/group",
                 json=data,
@@ -515,7 +569,7 @@ class CoreApi:
 
     def news_items_grouping_multiple(self, data):
         try:
-            response = http_request(
+            response = self._request(
                 "PUT",
                 f"{self.api_url}/bots/stories/group-multiple",
                 json=data,
@@ -527,14 +581,17 @@ class CoreApi:
             return None
 
     def add_news_items(self, news_items) -> dict | None:
-        response = http_request(
-            "POST",
-            url=f"{self.api_url}/worker/news-items",
-            headers=self.get_request_headers(),
-            verify=self.verify,
-            json=news_items,
-            timeout=self.timeout,
-        )
+        try:
+            response = self._request(
+                "POST",
+                url=f"{self.api_url}/worker/news-items",
+                headers=self.get_request_headers(),
+                verify=self.verify,
+                json=news_items,
+                timeout=self.timeout,
+            )
+        except requests.exceptions.RequestException:
+            raise RuntimeError("Cannot add news items") from None
         try:
             result = response.json()
         except requests.exceptions.JSONDecodeError:

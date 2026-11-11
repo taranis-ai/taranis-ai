@@ -29,16 +29,46 @@
       }
     ],
     "tags": {
-      "Microsoft": {"name": "Microsoft", "tag_type": "Vendor"},
-      "security": {"name": "security", "tag_type": "MISC"},
-      "CVE-2020-1234": {"name": "CVE-2020-1234", "tag_type": "CVE"},
-      "Google": {"name": "Google", "tag_type": "Vendor"},
-      "vulnerabilities": {"name": "vulnerabilities", "tag_type": "CySec"},
-      "Linux": {"name": "Linux", "tag_type": "Product"},
-      "Cisco": {"name": "Cisco", "tag_type": "Vendor"},
-      "protocols": {"name": "protocols", "tag_type": "MISC"},
-      "breaches": {"name": "breaches", "tag_type": "CySec"},
-      "community": {"name": "community", "tag_type": "MISC"}
+      "Microsoft": {
+        "name": "Microsoft",
+        "tag_type": "Vendor"
+      },
+      "security": {
+        "name": "security",
+        "tag_type": "MISC"
+      },
+      "CVE-2020-1234": {
+        "name": "CVE-2020-1234",
+        "tag_type": "CVE"
+      },
+      "Google": {
+        "name": "Google",
+        "tag_type": "Vendor"
+      },
+      "vulnerabilities": {
+        "name": "vulnerabilities",
+        "tag_type": "CySec"
+      },
+      "Linux": {
+        "name": "Linux",
+        "tag_type": "Product"
+      },
+      "Cisco": {
+        "name": "Cisco",
+        "tag_type": "Vendor"
+      },
+      "protocols": {
+        "name": "protocols",
+        "tag_type": "MISC"
+      },
+      "breaches": {
+        "name": "breaches",
+        "tag_type": "CySec"
+      },
+      "community": {
+        "name": "community",
+        "tag_type": "MISC"
+      }
     },
     "id": "1"
   },
@@ -72,17 +102,47 @@
       }
     ],
     "tags": {
-        "Intel": {"name": "Intel", "tag_type": "Vendor"},
-        "Oracle": {"name": "Oracle", "tag_type": "Vendor"},
-        "CVE-2021-5678": {"name": "CVE-2021-5678", "tag_type": "CVE"},
-        "vulnerabilities": {"name": "vulnerabilities", "tag_type": "MISC"},
-        "cloud": {"name": "cloud", "tag_type": "MISC"},
-        "infrastructures": {"name": "infrastructures", "tag_type": "MISC"},
-        "Apple": {"name": "Apple", "tag_type": "Vendor"},
-        "security": {"name": "security", "tag_type": "MISC"},
-        "Windows": {"name": "Windows", "tag_type": "Product"},
-        "systems": {"name": "systems", "tag_type": "MISC"}
-  },
+      "Intel": {
+        "name": "Intel",
+        "tag_type": "Vendor"
+      },
+      "Oracle": {
+        "name": "Oracle",
+        "tag_type": "Vendor"
+      },
+      "CVE-2021-5678": {
+        "name": "CVE-2021-5678",
+        "tag_type": "CVE"
+      },
+      "vulnerabilities": {
+        "name": "vulnerabilities",
+        "tag_type": "MISC"
+      },
+      "cloud": {
+        "name": "cloud",
+        "tag_type": "MISC"
+      },
+      "infrastructures": {
+        "name": "infrastructures",
+        "tag_type": "MISC"
+      },
+      "Apple": {
+        "name": "Apple",
+        "tag_type": "Vendor"
+      },
+      "security": {
+        "name": "security",
+        "tag_type": "MISC"
+      },
+      "Windows": {
+        "name": "Windows",
+        "tag_type": "Product"
+      },
+      "systems": {
+        "name": "systems",
+        "tag_type": "MISC"
+      }
+    },
     "id": "2"
   },
   {
@@ -115,16 +175,46 @@
       }
     ],
     "tags": {
-        "IBM": {"name": "IBM", "tag_type": "Vendor"},
-        "NVIDIA": {"name": "NVIDIA", "tag_type": "Vendor"},
-        "vulnerabilities": {"name": "vulnerabilities", "tag_type": "MISC"},
-        "AI": {"name": "AI", "tag_type": "MISC"},
-        "modules": {"name": "modules", "tag_type": "MISC"},
-        "Amazon": {"name": "Amazon", "tag_type": "Vendor"},
-        "security": {"name": "security", "tag_type": "MISC"},
-        "cyber": {"name": "cyber", "tag_type": "MISC"},
-        "attacks": {"name": "attacks", "tag_type": "MISC"},
-        "AWS": {"name": "AWS", "tag_type": "Vendor"}
+      "IBM": {
+        "name": "IBM",
+        "tag_type": "Vendor"
+      },
+      "NVIDIA": {
+        "name": "NVIDIA",
+        "tag_type": "Vendor"
+      },
+      "vulnerabilities": {
+        "name": "vulnerabilities",
+        "tag_type": "MISC"
+      },
+      "AI": {
+        "name": "AI",
+        "tag_type": "MISC"
+      },
+      "modules": {
+        "name": "modules",
+        "tag_type": "MISC"
+      },
+      "Amazon": {
+        "name": "Amazon",
+        "tag_type": "Vendor"
+      },
+      "security": {
+        "name": "security",
+        "tag_type": "MISC"
+      },
+      "cyber": {
+        "name": "cyber",
+        "tag_type": "MISC"
+      },
+      "attacks": {
+        "name": "attacks",
+        "tag_type": "MISC"
+      },
+      "AWS": {
+        "name": "AWS",
+        "tag_type": "Vendor"
+      }
     },
     "id": "3"
   },
@@ -151,24 +241,57 @@
         "story_id": "4",
         "hash": "d250dgfg45gh09824j59h56jk7k82l0m53o4p91q5rst9u809v567wx8910y234",
         "title": "Test News Item",
-        "content": "Breaking: Local tech wizard claims to have found the solution to the world's biggest cybersecurity threat \u2013 turning it off and then back on again! Industries are flabbergasted by the simplicity of the remedy. Next he will fly to the moon with his rocket called 'Thunderbird 3'. His wife, Lady Penelope, a DevOps engineer, will accompany him.",
+        "content": "Breaking: Local tech wizard claims to have found the solution to the world's biggest cybersecurity threat – turning it off and then back on again! Industries are flabbergasted by the simplicity of the remedy. Next he will fly to the moon with his rocket called 'Thunderbird 3'. His wife, Lady Penelope, a DevOps engineer, will accompany him.",
         "collected": "2023-08-05T23:11:04.801886",
         "published": "2023-08-05T23:11:04.801870",
         "updated": "2023-08-05T23:10:39.893435"
       }
     ],
     "tags": {
-      "tech wizard": {"name": "tech wizard", "tag_type": "MISC"},
-      "cybersecurity": {"name": "cybersecurity", "tag_type": "CySec"},
-      "remedy": {"name": "remedy", "tag_type": "MISC"},
-      "Industries": {"name": "Industries", "tag_type": "MISC"},
-      "solution": {"name": "solution", "tag_type": "MISC"},
-      "wizard": {"name": "wizard", "tag_type": "MISC"},
-      "rocket": {"name": "rocket", "tag_type": "MISC"},
-      "Thunderbird 3": {"name": "Thunderbird 3", "tag_type": "Product"},
-      "moon": {"name": "moon", "tag_type": "MISC"},
-      "Lady Penelope": {"name": "Lady Penelope", "tag_type": "MISC"},
-      "DevOps": {"name": "DevOps", "tag_type": "MISC"}
+      "tech wizard": {
+        "name": "tech wizard",
+        "tag_type": "MISC"
+      },
+      "cybersecurity": {
+        "name": "cybersecurity",
+        "tag_type": "CySec"
+      },
+      "remedy": {
+        "name": "remedy",
+        "tag_type": "MISC"
+      },
+      "Industries": {
+        "name": "Industries",
+        "tag_type": "MISC"
+      },
+      "solution": {
+        "name": "solution",
+        "tag_type": "MISC"
+      },
+      "wizard": {
+        "name": "wizard",
+        "tag_type": "MISC"
+      },
+      "rocket": {
+        "name": "rocket",
+        "tag_type": "MISC"
+      },
+      "Thunderbird 3": {
+        "name": "Thunderbird 3",
+        "tag_type": "Product"
+      },
+      "moon": {
+        "name": "moon",
+        "tag_type": "MISC"
+      },
+      "Lady Penelope": {
+        "name": "Lady Penelope",
+        "tag_type": "MISC"
+      },
+      "DevOps": {
+        "name": "DevOps",
+        "tag_type": "MISC"
+      }
     },
     "id": "4"
   },
@@ -202,16 +325,46 @@
       }
     ],
     "tags": {
-        "Facebook": {"name": "Facebook", "tag_type": "Vendor"},
-        "countermeasures": {"name": "countermeasures", "tag_type": "MISC"},
-        "phishing": {"name": "phishing", "tag_type": "MISC"},
-        "attacks": {"name": "attacks", "tag_type": "MISC"},
-        "user": {"name": "user", "tag_type": "MISC"},
-        "data": {"name": "data", "tag_type": "MISC"},
-        "Salesforce": {"name": "Salesforce", "tag_type": "Vendor"},
-        "encryption": {"name": "encryption", "tag_type": "MISC"},
-        "technologies": {"name": "technologies", "tag_type": "MISC"},
-        "customer": {"name": "customer", "tag_type": "MISC"}
+      "Facebook": {
+        "name": "Facebook",
+        "tag_type": "Vendor"
+      },
+      "countermeasures": {
+        "name": "countermeasures",
+        "tag_type": "MISC"
+      },
+      "phishing": {
+        "name": "phishing",
+        "tag_type": "MISC"
+      },
+      "attacks": {
+        "name": "attacks",
+        "tag_type": "MISC"
+      },
+      "user": {
+        "name": "user",
+        "tag_type": "MISC"
+      },
+      "data": {
+        "name": "data",
+        "tag_type": "MISC"
+      },
+      "Salesforce": {
+        "name": "Salesforce",
+        "tag_type": "Vendor"
+      },
+      "encryption": {
+        "name": "encryption",
+        "tag_type": "MISC"
+      },
+      "technologies": {
+        "name": "technologies",
+        "tag_type": "MISC"
+      },
+      "customer": {
+        "name": "customer",
+        "tag_type": "MISC"
+      }
     },
     "id": "5"
   },
@@ -245,16 +398,46 @@
       }
     ],
     "tags": {
-        "Adobe": {"name": "Adobe", "tag_type": "MISC"},
-        "SAP": {"name": "SAP", "tag_type": "MISC"},
-        "CVE-2023-7891": {"name": "CVE-2023-7891", "tag_type": "CVE"},
-        "vulnerabilities": {"name": "vulnerabilities", "tag_type": "MISC"},
-        "enterprise": {"name": "enterprise", "tag_type": "MISC"},
-        "solutions": {"name": "solutions", "tag_type": "MISC"},
-        "Twitter": {"name": "Twitter", "tag_type": "MISC"},
-        "mechanisms": {"name": "mechanisms", "tag_type": "MISC"},
-        "malware": {"name": "malware", "tag_type": "MISC"},
-        "infrastructure": {"name": "infrastructure", "tag_type": "MISC"}
+      "Adobe": {
+        "name": "Adobe",
+        "tag_type": "MISC"
+      },
+      "SAP": {
+        "name": "SAP",
+        "tag_type": "MISC"
+      },
+      "CVE-2023-7891": {
+        "name": "CVE-2023-7891",
+        "tag_type": "CVE"
+      },
+      "vulnerabilities": {
+        "name": "vulnerabilities",
+        "tag_type": "MISC"
+      },
+      "enterprise": {
+        "name": "enterprise",
+        "tag_type": "MISC"
+      },
+      "solutions": {
+        "name": "solutions",
+        "tag_type": "MISC"
+      },
+      "Twitter": {
+        "name": "Twitter",
+        "tag_type": "MISC"
+      },
+      "mechanisms": {
+        "name": "mechanisms",
+        "tag_type": "MISC"
+      },
+      "malware": {
+        "name": "malware",
+        "tag_type": "MISC"
+      },
+      "infrastructure": {
+        "name": "infrastructure",
+        "tag_type": "MISC"
+      }
     },
     "id": "6"
   },
@@ -288,16 +471,46 @@
       }
     ],
     "tags": {
-        "HP": {"name": "HP", "tag_type": "Vendor"},
-        "Qualcomm": {"name": "Qualcomm", "tag_type": "MISC"},
-        "firewall": {"name": "firewall", "tag_type": "MISC"},
-        "systems": {"name": "systems", "tag_type": "MISC"},
-        "CVE-2023-1234": {"name": "CVE-2023-1234", "tag_type": "CVE"},
-        "vulnerabilities": {"name": "vulnerabilities", "tag_type": "MISC"},
-        "mobile": {"name": "mobile", "tag_type": "MISC"},
-        "devices": {"name": "devices", "tag_type": "MISC"},
-        "LinkedIn": {"name": "LinkedIn", "tag_type": "Vendor"},
-        "data": {"name": "data", "tag_type": "MISC"}
+      "HP": {
+        "name": "HP",
+        "tag_type": "Vendor"
+      },
+      "Qualcomm": {
+        "name": "Qualcomm",
+        "tag_type": "MISC"
+      },
+      "firewall": {
+        "name": "firewall",
+        "tag_type": "MISC"
+      },
+      "systems": {
+        "name": "systems",
+        "tag_type": "MISC"
+      },
+      "CVE-2023-1234": {
+        "name": "CVE-2023-1234",
+        "tag_type": "CVE"
+      },
+      "vulnerabilities": {
+        "name": "vulnerabilities",
+        "tag_type": "MISC"
+      },
+      "mobile": {
+        "name": "mobile",
+        "tag_type": "MISC"
+      },
+      "devices": {
+        "name": "devices",
+        "tag_type": "MISC"
+      },
+      "LinkedIn": {
+        "name": "LinkedIn",
+        "tag_type": "Vendor"
+      },
+      "data": {
+        "name": "data",
+        "tag_type": "MISC"
+      }
     },
     "id": "7"
   },
@@ -331,16 +544,46 @@
       }
     ],
     "tags": {
-        "Dell": {"name": "Dell", "tag_type": "Vendor"},
-        "VMware": {"name": "VMware", "tag_type": "Vendor"},
-        "security": {"name": "security", "tag_type": "MISC"},
-        "threats": {"name": "threats", "tag_type": "MISC"},
-        "CVE-2023-5678": {"name": "CVE-2023-5678", "tag_type": "CVE"},
-        "GitHub": {"name": "GitHub", "tag_type": "Vendor"},
-        "stance": {"name": "stance", "tag_type": "MISC"},
-        "phishing": {"name": "phishing", "tag_type": "MISC"},
-        "scams": {"name": "scams", "tag_type": "MISC"},
-        "platform": {"name": "platform", "tag_type": "MISC"}
+      "Dell": {
+        "name": "Dell",
+        "tag_type": "Vendor"
+      },
+      "VMware": {
+        "name": "VMware",
+        "tag_type": "Vendor"
+      },
+      "security": {
+        "name": "security",
+        "tag_type": "MISC"
+      },
+      "threats": {
+        "name": "threats",
+        "tag_type": "MISC"
+      },
+      "CVE-2023-5678": {
+        "name": "CVE-2023-5678",
+        "tag_type": "CVE"
+      },
+      "GitHub": {
+        "name": "GitHub",
+        "tag_type": "Vendor"
+      },
+      "stance": {
+        "name": "stance",
+        "tag_type": "MISC"
+      },
+      "phishing": {
+        "name": "phishing",
+        "tag_type": "MISC"
+      },
+      "scams": {
+        "name": "scams",
+        "tag_type": "MISC"
+      },
+      "platform": {
+        "name": "platform",
+        "tag_type": "MISC"
+      }
     },
     "id": "8"
   },
@@ -374,9 +617,18 @@
       }
     ],
     "tags": {
-        "Software": {"name": "Software", "tag_type": "MISC"},
-        "CVE": {"name": "CVE", "tag_type": "MISC"},
-        "vulnerability": {"name": "vulnerability", "tag_type": "MISC"}
+      "Software": {
+        "name": "Software",
+        "tag_type": "MISC"
+      },
+      "CVE": {
+        "name": "CVE",
+        "tag_type": "MISC"
+      },
+      "vulnerability": {
+        "name": "vulnerability",
+        "tag_type": "MISC"
+      }
     },
     "id": "9"
   },
@@ -410,9 +662,18 @@
       }
     ],
     "tags": {
-        "Cybersecurity": {"name": "Cybersecurity", "tag_type": "MISC"},
-        "blog": {"name": "blog", "tag_type": "MISC"},
-        "vulnerability": {"name": "vulnerability", "tag_type": "MISC"}
+      "Cybersecurity": {
+        "name": "Cybersecurity",
+        "tag_type": "MISC"
+      },
+      "blog": {
+        "name": "blog",
+        "tag_type": "MISC"
+      },
+      "vulnerability": {
+        "name": "vulnerability",
+        "tag_type": "MISC"
+      }
     },
     "id": "10"
   },
@@ -446,88 +707,94 @@
       }
     ],
     "tags": {
-        "Cybersecurity": {"name": "Cybersecurity", "tag_type": "MISC"},
-        "blog": {"name": "blog", "tag_type": "MISC"},
-        "vulnerability": {"name": "vulnerability", "tag_type": "MISC"}
+      "Cybersecurity": {
+        "name": "Cybersecurity",
+        "tag_type": "MISC"
+      },
+      "blog": {
+        "name": "blog",
+        "tag_type": "MISC"
+      },
+      "vulnerability": {
+        "name": "vulnerability",
+        "tag_type": "MISC"
+      }
     },
     "id": "11"
-
   },
   {
-  "attributes": {
-    "test_key":{
-      "key": "test_key",
-      "value": "test_value"
+    "attributes": {
+      "test_key": {
+        "key": "test_key",
+        "value": "test_value"
+      },
+      "TLP": {
+        "key": "TLP",
+        "value": "clear"
+      },
+      "cybersecurity": {
+        "key": "cybersecurity",
+        "value": "yes"
+      }
     },
-    "TLP": {
-      "key": "TLP",
-      "value": "clear"
+    "comments": "This is a story comment",
+    "created": "2025-06-03T07:36:00+00:00",
+    "description": "",
+    "detail_view": true,
+    "dislikes": 0,
+    "id": "ed13a0b1-4f5f-4c43-bdf2-820ee0d43448",
+    "important": false,
+    "last_change": "internal",
+    "likes": 0,
+    "links": [
+      {
+        "link": "https://www.hohoho.at/news/special-case-with-attributes.html",
+        "news_item_id": "06cc6fd0-a775-4923-bdef-8cd5381164ce"
+      }
+    ],
+    "news_items": [
+      {
+        "attributes": [
+          {
+            "key": "TLP",
+            "value": "clear"
+          },
+          {
+            "key": "cybersecurity_human",
+            "value": "yes"
+          }
+        ],
+        "author": "Author attributes",
+        "collected": "2025-06-03T08:01:11.369743+00:00",
+        "content": "Title attributes",
+        "hash": "b050dbdd99a5645e286ba20324afad2ec35e8a3bbdfa6721b6c9e3f74b8d0ed4",
+        "id": "06cc6fd0-a775-4923-bdef-8cd5381164ce",
+        "language": "",
+        "last_change": "internal",
+        "link": "https://www.hohoho.at/news/special-case-with-attributes.html",
+        "osint_source_id": "2fe06fdc-46a6-4688-ba01-3f0931aab7a5",
+        "published": "2025-06-03T07:36:00+00:00",
+        "review": "",
+        "source": "https://www.test.at/security/rss/news.xml",
+        "story_id": "ed13a0b1-4f5f-4c43-bdf2-820ee0d43448",
+        "title": "Title news item with attributes",
+        "updated": "2025-06-03T06:54:55.220906+00:00"
+      }
+    ],
+    "read": false,
+    "relevance": 0,
+    "summary": "This is a story summary",
+    "tags": {
+      "TAG": {
+        "name": "TAG",
+        "tag_type": "ORG"
+      },
+      "tag2": {
+        "name": "tag2",
+        "tag_type": "misc"
+      }
     },
-    "cybersecurity": {
-      "key": "cybersecurity",
-      "value": "yes"
-    }
-  },
-  "comments": "This is a story comment",
-  "created": "2025-06-03T07:36:00+00:00",
-  "description": "",
-  "detail_view": true,
-  "dislikes": 0,
-  "id": "ed13a0b1-4f5f-4c43-bdf2-820ee0d43448",
-  "important": false,
-  "last_change": "internal",
-  "likes": 0,
-  "links": [
-    {
-      "link": "https://www.hohoho.at/news/special-case-with-attributes.html",
-      "news_item_id": "06cc6fd0-a775-4923-bdef-8cd5381164ce"
-    }
-  ],
-  "news_items": [
-    {
-      "attributes": {
-        "TLP": {
-          "key": "TLP",
-          "value": "clear"
-        },
-        "cybersecurity_human": {
-          "key": "cybersecurity_human",
-          "value": "yes"
-        }
-    },
-      "author": "Author attributes",
-      "collected": "2025-06-03T08:01:11.369743+00:00",
-      "content": "Title attributes",
-      "hash": "b050dbdd99a5645e286ba20324afad2ec35e8a3bbdfa6721b6c9e3f74b8d0ed4",
-      "id": "06cc6fd0-a775-4923-bdef-8cd5381164ce",
-      "language": "",
-      "last_change": "internal",
-      "link": "https://www.hohoho.at/news/special-case-with-attributes.html",
-      "osint_source_id": "2fe06fdc-46a6-4688-ba01-3f0931aab7a5",
-      "published": "2025-06-03T07:36:00+00:00",
-      "review": "",
-      "source": "https://www.test.at/security/rss/news.xml",
-      "story_id": "ed13a0b1-4f5f-4c43-bdf2-820ee0d43448",
-      "title": "Title news item with attributes",
-      "updated": "2025-06-03T06:54:55.220906+00:00"
-    }
-  ],
-  "read": false,
-  "relevance": 0,
-  "summary": "This is a story summary",
-  "tags": {
-    "TAG": {
-      "name": "TAG",
-      "tag_type": "ORG"
-    },
-    "tag2":{
-      "name": "tag2",
-      "tag_type": "misc"
-    }
-  },
-  "title": "Title",
-  "updated": "2025-06-03T12:37:53.360510+00:00"
-}
-
-
+    "title": "Title",
+    "updated": "2025-06-03T12:37:53.360510+00:00"
+  }
 ]

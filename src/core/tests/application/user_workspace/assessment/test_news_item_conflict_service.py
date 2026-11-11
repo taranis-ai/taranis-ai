@@ -80,7 +80,7 @@ def test_inbound_resolution_only_cancels_deleted_candidates(
     monkeypatch.setattr(
         Story,
         "add",
-        lambda incoming_story: ({"message": "Story added successfully", "story_id": incoming_story["id"]}, 200),
+        lambda incoming_story: ({"message": "Story added successfully", "story_id": incoming_story["id"], "news_item_ids": []}, 200),
     )
     monkeypatch.setattr("core.service.news_item_conflict.cancel_misp_auto_update_jobs", cancelled.extend)
     monkeypatch.setattr("core.service.story.refresh_misp_auto_update_jobs", refreshed.extend)
@@ -97,7 +97,7 @@ def test_inbound_resolution_only_cancels_deleted_candidates(
     )
 
     assert response.status_code == 200
-    assert response.get_json() == {"message": "Story added successfully", "story_id": surviving_story.id}
+    assert response.get_json() == {"message": "Story added successfully", "story_id": surviving_story.id, "news_item_ids": []}
     assert cancelled == [deleted_story.id]
     assert refreshed == []
     assert ungrouped_by == [admin_user.id]

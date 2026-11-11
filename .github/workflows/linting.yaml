@@ -91,11 +91,14 @@ jobs:
         env:
           UV_FROZEN: false
         run: |
-          uv audit --preview-features audit-command --locked
-          uv audit --preview-features audit-command --locked --directory ../models
+          uv audit --locked
+          uv audit --locked --directory ../models
 
       - name: Install the project
         run: uv sync --all-extras
+
+      - name: Test shared models
+        run: uv run pytest ../models/tests
 
       - name: Lint with ruff
         run: uv run ruff check --output-format=github .
@@ -138,7 +141,7 @@ jobs:
       - name: Audit frontend dependencies
         env:
           UV_FROZEN: false
-        run: uv audit --preview-features audit-command --locked
+        run: uv audit --locked
 
       - name: Install the project
         run: uv sync --all-extras
@@ -277,7 +280,7 @@ jobs:
       - name: Audit worker dependencies
         env:
           UV_FROZEN: false
-        run: uv audit --preview-features audit-command --locked
+        run: uv audit --locked
 
       - name: Install worker
         run: uv sync --all-extras

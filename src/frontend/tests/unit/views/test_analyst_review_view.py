@@ -45,6 +45,8 @@ def test_start_creates_fixed_review_snapshot(authenticated_client, auth_user, re
     responses_mock.post(
         f"{Config.TARANIS_CORE_URL}/analyze/report-items",
         json={
+            "message": "Report created",
+            "id": "report-1",
             "report": {
                 "id": "report-1",
                 "title": "Shift Report",
@@ -52,7 +54,7 @@ def test_start_creates_fixed_review_snapshot(authenticated_client, auth_user, re
                 "report_item_type_id": "type-1",
                 "stories": [],
                 "grouped_attributes": [],
-            }
+            },
         },
     )
     responses_mock.get(

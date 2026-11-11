@@ -16,22 +16,35 @@ from worker.core_api import CoreApi
 def misp_connector_core_mock(requests_mock, stories):
     from tests.misp_connector_test_data import misp_connector
 
-    requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/stories?story_id=ed13a0b1-4f5f-4c43-bdf2-820ee0d43448", json=[stories[11]])
-    requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/connectors/74981521-4ba7-4216-b9ca-ebc00ffec29c", json=misp_connector)
+    requests_mock.get(
+        f"{Config.TARANIS_CORE_URL}/worker/stories?story_id=ed13a0b1-4f5f-4c43-bdf2-820ee0d43448",
+        headers={"Content-Type": "application/json"},
+        json=[stories[11]],
+    )
+    requests_mock.get(
+        f"{Config.TARANIS_CORE_URL}/worker/connectors/74981521-4ba7-4216-b9ca-ebc00ffec29c",
+        headers={"Content-Type": "application/json"},
+        json=misp_connector,
+    )
 
 
 @pytest.fixture
 def misp_api_mock(requests_mock):
-    requests_mock.get("https://test.misp.test/servers/getVersion", json={"version": "2.5.10"})
-    requests_mock.get("https://test.misp.test/servers/getPyMISPVersion.json", json={"version": "2.5.10"})
+    requests_mock.get("https://test.misp.test/servers/getVersion", headers={"Content-Type": "application/json"}, json={"version": "2.5.10"})
+    requests_mock.get(
+        "https://test.misp.test/servers/getPyMISPVersion.json", headers={"Content-Type": "application/json"}, json={"version": "2.5.10"}
+    )
     requests_mock.get(
         "https://test.misp.test/users/view/me",
+        headers={"Content-Type": "application/json"},
         json={
             "Role": {},
             "UserSetting": {"items": "test"},
         },
     )
-    requests_mock.post("https://test.misp.test/events/add", json={"Event": {"id": "49", "info": "Test Event"}})
+    requests_mock.post(
+        "https://test.misp.test/events/add", headers={"Content-Type": "application/json"}, json={"Event": {"id": "49", "info": "Test Event"}}
+    )
 
 
 def test_news_item_object_keys_completeness(news_item_template):
@@ -147,13 +160,17 @@ def test_connector_story_processing(misp_connector_core_mock, misp_api_mock, cap
 def test_connector_task_execution_failure_is_persisted_safely(requests_mock, mock_job, monkeypatch, caplog):
     requests_mock.get(
         f"{Config.TARANIS_CORE_URL}/worker/connectors/connector-1",
+        headers={"Content-Type": "application/json"},
         json={
+            "name": "Connector",
             "id": "connector-1",
             "type": "misp_connector",
             "parameters": {"URL": "https://misp.test", "API_KEY": "secret", "ORGANISATION_ID": "1"},
         },
     )
-    requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
+    requests_mock.post(
+        f"{Config.TARANIS_CORE_URL}/tasks", json=lambda request, context: request.json(), headers={"Content-Type": "application/json"}
+    )
     monkeypatch.setattr(connector_tasks, "get_current_job", lambda: mock_job)
     monkeypatch.setattr(connector_tasks, "_get_connector_data", lambda *args: {"story": [{"id": "story-1"}]})
 
@@ -187,12 +204,15 @@ def test_connector_task_execution_failure_is_persisted_safely(requests_mock, moc
 def test_connector_task_unknown_type_persists_failure(requests_mock, mock_job, monkeypatch):
     requests_mock.get(
         f"{Config.TARANIS_CORE_URL}/worker/connectors/connector-1",
-        json={"id": "connector-1", "type": "unknown_connector"},
+        headers={"Content-Type": "application/json"},
+        json={"name": "Connector", "id": "connector-1", "type": "unknown_connector"},
     )
-    requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
+    requests_mock.post(
+        f"{Config.TARANIS_CORE_URL}/tasks", json=lambda request, context: request.json(), headers={"Content-Type": "application/json"}
+    )
     monkeypatch.setattr(connector_tasks, "get_current_job", lambda: mock_job)
 
-    with pytest.raises(ConnectorError, match="Connector type is not supported"):
+    with pytest.raises(ConnectorError, match="Connector not found"):
         connector_tasks.connector_task("connector-1", ["story-1"])
 
     post_calls = [req for req in requests_mock.request_history if req.method == "POST" and req.url.endswith("/tasks")]
@@ -201,10 +221,10 @@ def test_connector_task_unknown_type_persists_failure(requests_mock, mock_job, m
         "id": "test-job-123",
         "task": "connector_task",
         "worker_id": "connector-1",
-        "worker_type": "unknown_connector",
+        "worker_type": "connector_task",
         "result": {
-            "message": "Connector type is not supported",
-            "reason": "connector_not_implemented",
+            "message": "Connector not found",
+            "reason": "connector_not_found",
             "retryable": False,
             "data": {"connector_id": "connector-1", "story_ids": ["story-1"]},
         },
@@ -215,9 +235,12 @@ def test_connector_task_unknown_type_persists_failure(requests_mock, mock_job, m
 def test_connector_task_invalid_parameters_persists_distinct_failure(requests_mock, mock_job, monkeypatch):
     requests_mock.get(
         f"{Config.TARANIS_CORE_URL}/worker/connectors/connector-1",
-        json={"id": "connector-1", "type": "misp_connector", "parameters": {"URL": "https://misp.test"}},
+        headers={"Content-Type": "application/json"},
+        json={"name": "Connector", "id": "connector-1", "type": "misp_connector", "parameters": {"URL": "https://misp.test"}},
     )
-    requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
+    requests_mock.post(
+        f"{Config.TARANIS_CORE_URL}/tasks", json=lambda request, context: request.json(), headers={"Content-Type": "application/json"}
+    )
     monkeypatch.setattr(connector_tasks, "get_current_job", lambda: mock_job)
 
     with pytest.raises(ConnectorError, match="Invalid connector parameters"):
@@ -243,9 +266,12 @@ def test_connector_task_invalid_parameters_persists_distinct_failure(requests_mo
 def test_connector_task_missing_type_persists_distinct_failure(requests_mock, mock_job, monkeypatch):
     requests_mock.get(
         f"{Config.TARANIS_CORE_URL}/worker/connectors/connector-1",
-        json={"id": "connector-1"},
+        headers={"Content-Type": "application/json"},
+        json={"name": "Connector", "id": "connector-1"},
     )
-    requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
+    requests_mock.post(
+        f"{Config.TARANIS_CORE_URL}/tasks", json=lambda request, context: request.json(), headers={"Content-Type": "application/json"}
+    )
     monkeypatch.setattr(connector_tasks, "get_current_job", lambda: mock_job)
 
     with pytest.raises(ConnectorError, match="Connector type is missing"):
@@ -271,13 +297,17 @@ def test_connector_task_missing_type_persists_distinct_failure(requests_mock, mo
 def test_connector_task_story_load_failure_persists_failure(requests_mock, mock_job, monkeypatch):
     requests_mock.get(
         f"{Config.TARANIS_CORE_URL}/worker/connectors/connector-1",
+        headers={"Content-Type": "application/json"},
         json={
+            "name": "Connector",
             "id": "connector-1",
             "type": "misp_connector",
             "parameters": {"URL": "https://misp.test", "API_KEY": "secret", "ORGANISATION_ID": "1"},
         },
     )
-    requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
+    requests_mock.post(
+        f"{Config.TARANIS_CORE_URL}/tasks", json=lambda request, context: request.json(), headers={"Content-Type": "application/json"}
+    )
     monkeypatch.setattr(connector_tasks, "get_current_job", lambda: mock_job)
     monkeypatch.setattr(connector_tasks, "_get_connector", lambda connector_type: object())
 

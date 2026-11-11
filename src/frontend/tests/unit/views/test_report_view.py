@@ -18,7 +18,7 @@ def test_report_create_preserves_selected_stories_outside_first_page(
 ):
     story_ids = [f"00000000-0000-0000-0000-{index:012d}" for index in range(123, 0, -1)]
     requested_batches = []
-    responses_mock.get(f"{Config.TARANIS_CORE_URL}/analyze/report-types", json={"items": []})
+    responses_mock.get(f"{Config.TARANIS_CORE_URL}/analyze/report-types", json={"items": [], "total_count": 0})
 
     def selected_stories_response(core_request):
         params = parse_qs(urlsplit(core_request.url).query)
@@ -28,13 +28,13 @@ def test_report_create_preserves_selected_stories_outside_first_page(
         assert params["no_count"] == ["true"]
         requested_batches.append(batch)
         if story_ids[-1] in batch and unavailable_status in (403, 503):
-            return unavailable_status, {}, json.dumps({"error": "Stories unavailable"})
+            return unavailable_status, {"Content-Type": "application/json"}, json.dumps({"error": "Stories unavailable"})
         items = [
             {"id": story_id, "title": story_id}
             for story_id in reversed(batch)
             if not (unavailable_status == 404 and story_id == story_ids[-1])
         ]
-        return 200, {}, json.dumps({"items": items})
+        return 200, {"Content-Type": "application/json"}, json.dumps({"items": items})
 
     responses_mock.add_callback("GET", f"{Config.TARANIS_CORE_URL}/assess/stories", callback=selected_stories_response)
 
@@ -308,7 +308,7 @@ def test_report_create_post_renders_saved_report_when_core_response_only_contain
 
     responses_mock.post(
         f"{Config.TARANIS_CORE_URL}/analyze/report-items",
-        json={"id": saved_report_id, "message": "Report item created"},
+        json={"report": {"id": saved_report_id, "title": "test title"}, "id": saved_report_id, "message": "Report item created"},
         status=200,
         content_type="application/json",
     )

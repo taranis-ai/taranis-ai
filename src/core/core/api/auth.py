@@ -1,9 +1,8 @@
-from flask import Blueprint, Flask, request
+from flask import Blueprint, Flask, g, request
 from flask.views import MethodView
 from flask_jwt_extended import current_user, get_jwt, jwt_required
-from models.user import LoginCredentials
-from pydantic import ValidationError
 
+from core.api.contracts import validate_request
 from core.auth.base_authenticator import BaseAuthenticator
 from core.auth.external_authenticator import ExternalAuthenticator
 from core.config import Config
@@ -11,31 +10,31 @@ from core.log import logger
 from core.managers import auth_manager
 
 
+def _login_payload():
+    if Config.TARANIS_AUTHENTICATOR == "external":
+        return ExternalAuthenticator.get_credentials(request.headers)
+    data = request.get_json(silent=True) if request.is_json else request.form.to_dict()
+    return data if isinstance(data, dict) and data else None
+
+
 class Login(MethodView):
+    @validate_request(load_body=_login_payload)
     def post(self):
-        if Config.TARANIS_AUTHENTICATOR == "external":
-            return auth_manager.authenticate(ExternalAuthenticator.get_credentials(request.headers))
-
-        data = request.get_json(silent=True) if request.is_json else request.form.to_dict()
-        if not isinstance(data, dict) or not data:
+        if g.api_body is None:
             return {"error": "No data provided"}, 400
-
-        try:
-            credentials = LoginCredentials.model_validate(dict(data))
-        except ValidationError:
-            return {"error": "Missing username or password"}, 400
-
-        return auth_manager.authenticate(credentials.model_dump())
+        return auth_manager.authenticate(g.api_json)
 
 
 class Refresh(MethodView):
     @jwt_required(locations=["headers"])
+    @validate_request
     def get(self):
         return BaseAuthenticator.issue_access_token(current_user)
 
 
 class Logout(MethodView):
     @jwt_required()
+    @validate_request
     def delete(self):
         jti = get_jwt()["jti"]
         auth_manager.logout(jti)
@@ -43,6 +42,7 @@ class Logout(MethodView):
 
 
 class AuthMethod(MethodView):
+    @validate_request
     def get(self):
         if Config.TARANIS_AUTHENTICATOR == "external":
             return {
@@ -59,9 +59,10 @@ class AuthMethod(MethodView):
 
 class UserChangePassword(MethodView):
     @jwt_required()
+    @validate_request
     def post(self):
         logger.debug("Received request to change password")
-        if not (json_data := request.json):
+        if not (json_data := g.api_body.model_dump(exclude_unset=True)):
             return {"error": "No input data provided"}, 400
         return auth_manager.change_password(
             json_data.get("current_password", ""), json_data.get("new_password", ""), json_data.get("confirm_password", "")

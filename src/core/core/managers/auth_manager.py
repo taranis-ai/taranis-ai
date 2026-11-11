@@ -182,3 +182,8 @@ def user_identity_lookup(user: "User") -> str:
 def check_if_token_is_revoked(_jwt_header, jwt_payload: dict):
     jti = jwt_payload["jti"]
     return TokenBlacklist.invalid(jti)
+
+
+@jwt.invalid_token_loader
+def invalid_token_callback(_reason):
+    return {"msg": "Invalid token"}, 422

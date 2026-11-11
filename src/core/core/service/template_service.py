@@ -1,10 +1,9 @@
 import base64
 import binascii
-from typing import TypedDict
 
 from jinja2 import DebugUndefined, TemplateSyntaxError, UndefinedError
 from jinja2.sandbox import ImmutableSandboxedEnvironment
-from pydantic import BaseModel
+from models.config_api import TemplateResponse, ValidationStatus
 
 from core.log import logger
 from core.managers.data_manager import (
@@ -16,18 +15,6 @@ from core.managers.data_manager import (
 
 
 type TemplateContent = str | bytes | bytearray | memoryview | None
-
-
-class ValidationStatus(TypedDict):
-    is_valid: bool
-    error_message: str
-    error_type: str
-
-
-class TemplateResponse(BaseModel):
-    name: str
-    content: str | None
-    validation_status: ValidationStatus
 
 
 def create_or_update_template(template_name, base64_content):

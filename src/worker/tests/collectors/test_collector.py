@@ -87,7 +87,7 @@ def test_rss_collector(rss_collector_mock, rss_collector):
 
     result = rss_collector.collect(rss_collector_source_data)
 
-    assert result is None
+    assert result == ""
 
 
 def test_collection_preserves_inherited_and_explicit_item_classification(rss_collector):
@@ -168,9 +168,12 @@ def test_rss_publish_error_propagates(rss_collector, requests_mock):
     requests_mock.post(
         f"{Config.TARANIS_CORE_URL}/worker/news-items",
         status_code=400,
+        headers={"Content-Type": "application/json"},
         json={"error": "Later item failed", "story_ids": ["committed-story"]},
     )
-    bots = requests_mock.put(f"{Config.TARANIS_CORE_URL}/worker/post-collection-bots", json={})
+    bots = requests_mock.put(
+        f"{Config.TARANIS_CORE_URL}/worker/post-collection-bots", headers={"Content-Type": "application/json"}, json={"message": "Updated"}
+    )
     with pytest.raises(RuntimeError, match="Cannot add news items"):
         rss_collector.publish([NewsItem(osint_source_id="source-1", title="Item")], {"id": "source-1", "parameters": {}})
     assert rss_collector.affected_story_ids == {"committed-story"}
@@ -274,7 +277,11 @@ def test_rss_discovers_apple_touch_icon_when_feed_image_fails(rss_collector, req
         text='<link rel="icon" href="/favicon.ico"><link rel="apple-touch-icon" href="icons/touch.png">',
     )
     requests_mock.get("https://example.com/icons/touch.png", content=b"touch-icon", headers={"Content-Type": "image/png"})
-    upload = requests_mock.put(f"{Config.TARANIS_CORE_URL}/worker/osint-sources/source-1/icon", json={})
+    upload = requests_mock.put(
+        f"{Config.TARANIS_CORE_URL}/worker/osint-sources/source-1/icon",
+        headers={"Content-Type": "application/json"},
+        json={"message": "Updated"},
+    )
 
     rss_collector.update_favicon_from_feed(feedparser.FeedParserDict(feed.feed), "source-1")
 
@@ -325,7 +332,7 @@ def test_rss_collector_with_additional_headers(rss_collector_mock, rss_collector
     rss_collector_source_data["parameters"]["ADDITIONAL_HEADERS"] = {"Authorization": "Bearer Token1234"}
     result = rss_collector.collect(rss_collector_source_data)
 
-    assert result is None
+    assert result == ""
     assert "Authorization" in rss_collector.headers
     assert rss_collector.headers["Authorization"] == "Bearer Token1234"
 
@@ -349,7 +356,7 @@ def test_rss_collector_with_multiple_additional_headers(rss_collector_mock, rss_
     }
     result = rss_collector.collect(rss_collector_source_data)
 
-    assert result is None
+    assert result == ""
     assert "Authorization" in rss_collector.headers
     assert rss_collector.headers["Authorization"] == "Bearer Token1234"
     assert "X-Custom-Header" in rss_collector.headers
@@ -361,7 +368,7 @@ def test_rss_collector_with_complex(rss_collector_mock, rss_collector):
 
     result = rss_collector.collect(rss_collector_source_data_complex)
 
-    assert result is None
+    assert result == ""
     assert "User-Agent" in rss_collector.headers
     assert rss_collector.headers["User-Agent"] == "Mozilla/5.0"
     assert rss_collector.headers["Authorization"] == "Bearer Token1234"
@@ -376,7 +383,7 @@ def test_simple_web_collector_basic(simple_web_collector_mock, simple_web_collec
 
     result = simple_web_collector.collect(web_collector_source_data)
 
-    assert result is None
+    assert result == ""
     assert any(request.method == "GET" and request.url == web_collector_url for request in requests_mock.request_history)
     assert all(request.method != "HEAD" for request in requests_mock.request_history)
 
@@ -422,7 +429,7 @@ def test_simple_web_collector_xpath(simple_web_collector_mock, simple_web_collec
     web_collector_source_data["parameters"]["XPATH"] = web_collector_source_xpath
     result = simple_web_collector.collect(web_collector_source_data)
 
-    assert result is None
+    assert result == ""
 
 
 def test_simple_web_collector_with_additional_headers(simple_web_collector_mock, simple_web_collector):
@@ -431,7 +438,7 @@ def test_simple_web_collector_with_additional_headers(simple_web_collector_mock,
     web_collector_source_data["parameters"]["ADDITIONAL_HEADERS"] = {"Authorization": "Bearer Token1234"}
     result = simple_web_collector.collect(web_collector_source_data)
 
-    assert result is None
+    assert result == ""
     assert "Authorization" in simple_web_collector.headers
     assert simple_web_collector.headers["Authorization"] == "Bearer Token1234"
 
@@ -454,7 +461,7 @@ def test_simple_web_collector_digest_splitting(simple_web_collector_mock, simple
     web_collector_source_data["parameters"]["DIGEST_SPLITTING_LIMIT"] = 2
     result = simple_web_collector.collect(web_collector_source_data)
 
-    assert result is None
+    assert result == ""
 
 
 def test_rt_collector_collect(rt_mock, rt_collector, requests_mock):

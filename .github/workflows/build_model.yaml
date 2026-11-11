@@ -46,6 +46,12 @@ jobs:
       - name: Set up Python
         run: uv python install
 
+      - name: Install test dependencies
+        run: uv sync --all-extras
+
+      - name: Test shared models
+        run: uv run pytest
+
       - name: build
         run: uv build
 

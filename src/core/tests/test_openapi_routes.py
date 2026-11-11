@@ -2,13 +2,27 @@ import re
 from collections import Counter, defaultdict
 from pathlib import Path
 
+import pytest
 import yaml
+from flask import Flask
+from models.api_operations import OPERATIONS, find_operation
 
-from core.__init__ import create_app
+from core.config import Config
+from core.managers import api_manager
 
 
 OPENAPI_PATH = Path(__file__).resolve().parents[1] / "core" / "static" / "openapi3_1.yaml"
-IGNORED_PATHS = {"/"}
+IGNORED_PATHS = set()
+
+
+@pytest.fixture(params=["/", "/taranis/"])
+def route_app(request, monkeypatch):
+    monkeypatch.setattr(Config, "APPLICATION_ROOT", request.param)
+    monkeypatch.setattr("core.api.auth.Config.APPLICATION_ROOT", request.param)
+    app = Flask(__name__, static_url_path=f"{Config.APPLICATION_ROOT}static")
+    app.config.from_object(Config)
+    api_manager.initialize(app)
+    return app
 
 
 def _canonical_path(path: str) -> str:
@@ -56,14 +70,16 @@ def _load_openapi_operations() -> tuple[dict[tuple[str, str], str], list[str], l
 
 def _load_routes(app) -> dict[str, set[str]]:
     routes: dict[str, set[str]] = defaultdict(set)
+    prefix = f"{app.config['APPLICATION_ROOT']}api"
     for rule in app.url_map.iter_rules():
-        if not rule.rule.startswith("/api/"):
+        if rule.endpoint == "static":
             continue
-        if rule.rule.startswith("/api/static/"):
-            continue
-        if rule.rule.startswith("/api/admin/"):
-            continue
-        canonical = _canonical_path(rule.rule.removeprefix("/api"))
+        path = (
+            rule.rule.removeprefix(prefix)
+            if rule.rule.startswith(f"{prefix}/")
+            else "/" + rule.rule.removeprefix(app.config["APPLICATION_ROOT"])
+        )
+        canonical = _canonical_path(path)
         if canonical in IGNORED_PATHS:
             continue
 
@@ -77,14 +93,16 @@ def _load_routes(app) -> dict[str, set[str]]:
 
 def _load_route_endpoints(app) -> dict[tuple[str, str], str]:
     endpoints: dict[tuple[str, str], str] = {}
+    prefix = f"{app.config['APPLICATION_ROOT']}api"
     for rule in app.url_map.iter_rules():
-        if not rule.rule.startswith("/api/"):
+        if rule.endpoint == "static":
             continue
-        if rule.rule.startswith("/api/static/"):
-            continue
-        if rule.rule.startswith("/api/admin/"):
-            continue
-        canonical = _canonical_path(rule.rule.removeprefix("/api"))
+        path = (
+            rule.rule.removeprefix(prefix)
+            if rule.rule.startswith(f"{prefix}/")
+            else "/" + rule.rule.removeprefix(app.config["APPLICATION_ROOT"])
+        )
+        canonical = _canonical_path(path)
         if canonical in IGNORED_PATHS:
             continue
 
@@ -96,8 +114,8 @@ def _load_route_endpoints(app) -> dict[tuple[str, str], str]:
     return endpoints
 
 
-def test_openapi_covers_app_routes():
-    app = create_app(initial_setup=False)
+def test_openapi_covers_app_routes(route_app):
+    app = route_app
     spec_paths = _load_openapi_paths()
     app_routes = _load_routes(app)
 
@@ -118,8 +136,8 @@ def test_openapi_covers_app_routes():
     )
 
 
-def test_openapi_operation_ids_match_view_funcs():
-    app = create_app(initial_setup=False)
+def test_openapi_operation_ids_match_view_funcs(route_app):
+    app = route_app
     spec_operations, operation_ids, missing_operation_ids = _load_openapi_operations()
     route_endpoints = _load_route_endpoints(app)
 
@@ -184,3 +202,52 @@ def _format_operation_id_failure(
     if missing_operation_ids:
         lines.extend(f"  - {method} {path}" for path, method in missing_operation_ids)
     return "\n".join(lines)
+
+
+def test_declared_operation_contracts_are_executable(route_app):
+    prefix = f"{Config.APPLICATION_ROOT}api"
+    found = set()
+    for rule in route_app.url_map.iter_rules():
+        if rule.endpoint == "static":
+            continue
+        relative = (
+            rule.rule.removeprefix(prefix)
+            if rule.rule.startswith(f"{prefix}/")
+            else "/" + rule.rule.removeprefix(route_app.config["APPLICATION_ROOT"])
+        )
+        path = re.sub(r"<(?:[^:<>]+:)?([^<>]+)>", r"{\1}", relative)
+        view = route_app.view_functions[rule.endpoint]
+        for method in rule.methods - {"HEAD", "OPTIONS"}:
+            operation = find_operation(method, path)
+            assert operation is not None, f"Missing executable contract: {method} {rule.rule}"
+            handler = getattr(getattr(view, "view_class", None), method.lower(), view)
+            assert getattr(handler, "api_request_validated", False), (method, rule.rule)
+            operation.query.model_json_schema()
+            assert set(operation.parameters.model_fields) == set(re.findall(r"\{(\w+)\}", operation.path))
+            operation.parameters.model_json_schema()
+            operation.headers.model_json_schema()
+            if operation.uploads is not None:
+                operation.uploads.model_json_schema()
+            for adapter in operation.alternate_bodies.values():
+                adapter.json_schema()
+            if operation.body is not None:
+                operation.body.json_schema()
+            for response in operation.responses.values():
+                if response.body is not None:
+                    response.body.json_schema()
+                if response.json_body is not None:
+                    response.json_body.json_schema()
+            found.add((operation.method, operation.path))
+    assert found == {(operation.method, operation.path) for operation in OPERATIONS}
+
+
+def test_inventory_lists_all_routes_including_admin(route_app):
+    report = Path(__file__).resolve().parents[3] / "docs" / "api-contract-review.md"
+    inventory = set(re.findall(r"^\| `(\w+) ([^`]+)`", report.read_text(), flags=re.MULTILINE))
+    prefix = f"{Config.APPLICATION_ROOT}api"
+    actual = set()
+    for rule in route_app.url_map.iter_rules():
+        path = rule.rule.removeprefix(prefix) if rule.rule.startswith(f"{prefix}/") else f"/{rule.rule.removeprefix(Config.APPLICATION_ROOT)}"
+        path = re.sub(r"<(?:[^:<>]+:)?([^<>]+)>", r"{\1}", path) if rule.endpoint != "static" else path
+        actual.update((method, path) for method in rule.methods - {"HEAD", "OPTIONS"})
+    assert inventory == actual

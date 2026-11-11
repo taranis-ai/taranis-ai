@@ -1,11 +1,10 @@
 from typing import Any
 
-from flask import Blueprint, Flask, g, request
+from flask import Blueprint, Flask, g
 from flask.views import MethodView
 from flask_jwt_extended import current_user
-from models.task import TaskRunFilter, TaskSubmission, UserTaskFilter
-from pydantic import ValidationError
 
+from core.api.contracts import validate_request
 from core.config import Config
 from core.log import logger
 from core.managers.auth_manager import api_key_or_auth_required, api_key_required, auth_required
@@ -16,26 +15,21 @@ from core.service.task import TaskService
 class Task(MethodView):
     @api_key_or_auth_required("CONFIG_OSINT_SOURCE_ACCESS")
     @extract_args("search", "page", "limit", "sort", "order", "fetch_all")
+    @validate_request
     def get(self, task_id: str | None = None, filter_args: dict[str, Any] | None = None):
         if task_id:
             return TaskService.get_task(task_id)
-        return TaskService.get_tasks(filter_args=filter_args, user=getattr(g, "authenticated_user", None))
+        return TaskService.get_tasks(filter_args=g.api_query.model_dump(exclude_unset=True), user=getattr(g, "authenticated_user", None))
 
     @api_key_required
+    @validate_request
     def post(self):
-        payload = request.get_json(silent=True)
-        if not isinstance(payload, dict):
-            return {"error": "No data provided"}, 400
-
-        try:
-            submission = TaskSubmission.model_validate(payload)
-        except ValidationError as exc:
-            return {"error": TaskSubmission.format_validation_errors(exc)}, 400
-
+        submission = g.api_body
         logger.debug(f"Received task result with id {submission.id} and status {submission.status}")
         return TaskService.save_task_result(submission)
 
     @api_key_or_auth_required("CONFIG_OSINT_SOURCE_UPDATE")
+    @validate_request
     def delete(self, task_id: str | None = None):
         if not task_id:
             return {"error": "No task_id provided"}, 400
@@ -45,19 +39,17 @@ class Task(MethodView):
 class UserTasks(MethodView):
     @auth_required()
     @extract_args("search", "page", "limit", "order")
+    @validate_request
     def get(self, filter_args: dict[str, Any] | None = None):
-        filters = UserTaskFilter.model_validate(filter_args or {})
-        return TaskService.get_user_tasks(current_user.id, filters)
+        return TaskService.get_user_tasks(current_user.id, g.api_query)
 
 
 class CompletedRuns(MethodView):
     @api_key_or_auth_required("CONFIG_OSINT_SOURCE_ACCESS")
     @extract_args("search", "page", "limit", "order", "status")
+    @validate_request
     def get(self, filter_args: dict[str, Any] | None = None):
-        filter_args = dict(filter_args or {})
-        if "job_ids" in request.args:
-            filter_args["job_ids"] = request.args.getlist("job_ids")
-        return TaskService.get_completed_runs(TaskRunFilter.model_validate(filter_args))
+        return TaskService.get_completed_runs(g.api_query)
 
 
 def initialize(app: Flask):

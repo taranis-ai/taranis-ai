@@ -1,11 +1,13 @@
 from datetime import timedelta
 
-from flask import Blueprint, Flask, Response, jsonify, make_response, request, send_file
+from flask import Blueprint, Flask, Response, g, jsonify, make_response, request, send_file
 from flask.views import MethodView
+from models.content_api import TagPayload
 from models.task import TaskChangeNotice
-from pydantic import ValidationError
+from pydantic import TypeAdapter, ValidationError
 from werkzeug.datastructures import FileStorage
 
+from core.api.contracts import validate_request
 from core.config import Config
 from core.log import logger
 from core.managers import queue_manager
@@ -42,8 +44,9 @@ from core.service.task_events import notify_task_change
 
 class AddNewsItems(MethodView):
     @api_key_required
+    @validate_request
     def post(self):
-        json_data = request.json
+        json_data = g.api_json
 
         if not isinstance(json_data, list):
             logger.debug(f"Received invalid news items payload type: {type(json_data).__name__}")
@@ -60,12 +63,14 @@ class AddNewsItems(MethodView):
 
 class Products(MethodView):
     @api_key_required
+    @validate_request
     def get(self, product_id: str):
         return Product.get_for_worker(product_id)
 
 
 class ProductsRender(MethodView):
     @api_key_required
+    @validate_request
     def get(self, product_id: str):
         if product_data := Product.get_render(product_id):
             return Response(product_data["blob"], headers={"Content-Type": product_data["mime_type"]}, status=200)
@@ -74,6 +79,7 @@ class ProductsRender(MethodView):
 
 class ProductsPublish(MethodView):
     @api_key_required
+    @validate_request
     def post(self, product_id: str):
         response, status = ProductService.publish_to_taranis(product_id)
         invalidate_frontend_cache_on_success(status, scopes=(SCOPE_PUBLISH_VIEWS,), object_ids={"product": product_id})
@@ -82,6 +88,7 @@ class ProductsPublish(MethodView):
 
 class Presenters(MethodView):
     @api_key_required
+    @validate_request
     def get(self, presenter: str):
         try:
             if (pres := ProductType.get(presenter)) and (tmpl := pres.get_template()):
@@ -94,6 +101,7 @@ class Presenters(MethodView):
 
 class Publishers(MethodView):
     @api_key_required
+    @validate_request
     def get(self, publisher: str):
         if preset := PublisherPreset.get(publisher):
             return preset.to_worker_dict(), 200
@@ -102,6 +110,7 @@ class Publishers(MethodView):
 
 class Sources(MethodView):
     @api_key_required
+    @validate_request
     def get(self, source_id: str | None = None):
         try:
             # Get all sources (for cron scheduler)
@@ -124,10 +133,12 @@ class Sources(MethodView):
 
 class CronJobs(MethodView):
     @api_key_required
+    @validate_request
     def get(self):
         return queue_manager.queue_manager.get_cron_job_configs()
 
     @api_key_required
+    @validate_request
     def post(self):
         if queue_manager.queue_manager.restore_runtime_state():
             return {"message": "Queue runtime state restored"}, 200
@@ -136,9 +147,10 @@ class CronJobs(MethodView):
 
 class TaskChanges(MethodView):
     @api_key_required
+    @validate_request
     def post(self):
         try:
-            notice = TaskChangeNotice.model_validate(request.get_json(silent=True))
+            notice = TaskChangeNotice.model_validate(g.api_json)
         except ValidationError:
             return {"error": "Invalid task change notice"}, 400
         notify_task_change(notice.user_ids)
@@ -147,6 +159,7 @@ class TaskChanges(MethodView):
 
 class EndpointHealth(MethodView):
     @api_key_required
+    @validate_request
     def get(self, kind: str, endpoint_id: str):
         from core.service.endpoint_health import endpoint_config, fingerprint, read_state
 
@@ -165,10 +178,11 @@ class EndpointHealth(MethodView):
         return response
 
     @api_key_required
+    @validate_request
     def post(self, kind: str, endpoint_id: str):
         from core.service.endpoint_health import record_result
 
-        data = request.get_json(silent=True)
+        data = g.api_json
         if not isinstance(data, dict) or not isinstance(data.get("check_id"), str) or not isinstance(data.get("healthy"), bool):
             return {"error": "Invalid endpoint check result"}, 400
         accepted = record_result(kind, endpoint_id, data["check_id"], data["healthy"])
@@ -177,12 +191,14 @@ class EndpointHealth(MethodView):
 
 class TaskHistoryCleanup(MethodView):
     @api_key_required
+    @validate_request
     def post(self):
         return TaskService.cleanup_history()
 
 
 class SourceIcon(MethodView):
     @api_key_required
+    @validate_request
     def put(self, source_id: str):
         try:
             if source := OSINTSource.get(source_id):
@@ -212,6 +228,7 @@ def _cancel_deleted_misp_story_jobs(story_ids: set[str]) -> None:
 
 class Stories(MethodView):
     @api_key_required
+    @validate_request
     def get(self):
         filter_keys = [
             "search",
@@ -245,17 +262,19 @@ class Stories(MethodView):
         return {"error": "No stories found"}, 404
 
     @api_key_required
+    @validate_request
     def post(self):
         configured_story_ids = _configured_misp_story_ids()
-        response, status = Story.add_or_update(request.json)
+        response, status = Story.add_or_update(g.api_json)
         _cancel_deleted_misp_story_jobs(configured_story_ids)
         return make_response(jsonify(response), status)
 
 
 class BotPipelineStories(MethodView):
     @api_key_required
+    @validate_request
     def post(self):
-        payload = request.get_json(silent=True)
+        payload = g.api_json
         filters = payload.get("filters") if isinstance(payload, dict) else None
         if not isinstance(filters, dict) or not filters or any(not isinstance(item, dict) for item in filters.values()):
             return {"error": "Invalid bot pipeline filters"}, 400
@@ -308,8 +327,9 @@ class BotPipelineStories(MethodView):
 
 class MISPStories(MethodView):
     @api_key_required
+    @validate_request
     def post(self):
-        if not (data := request.json):
+        if not (data := g.api_json):
             return {"error": "No data provided"}, 400
         if not isinstance(data, list):
             return {"error": "Expected a list of stories"}, 400
@@ -321,8 +341,9 @@ class MISPStories(MethodView):
         return make_response(jsonify(result), status)
 
     @api_key_required
+    @validate_request
     def put(self):
-        data = request.json
+        data = g.api_json
         if not data:
             return {"error": "Missing story_ids or news_item_ids"}, 400
         result, code = {"error": "Couldn't get last changed"}, 500
@@ -337,14 +358,16 @@ class MISPStories(MethodView):
 
 class Tags(MethodView):
     @api_key_required
+    @validate_request
     def get(self):
         if tags := NewsItemTag.get_all_for_collector():
             return {tag.name: tag.to_dict() for tag in tags}, 200
         return {"error": "No tags found"}, 404
 
     @api_key_required
+    @validate_request
     def put(self):
-        if not (data := request.json):
+        if not (data := g.api_json):
             return {"error": "No data provided"}, 400
 
         errors = {}
@@ -357,6 +380,12 @@ class Tags(MethodView):
         for news_item_id, tags in data.items():
             if not isinstance(tags, (list, dict)) or not tags:
                 errors[news_item_id] = f"Invalid tags for news item {news_item_id}"
+                continue
+
+            try:
+                TypeAdapter(TagPayload).validate_python(tags)
+            except ValidationError:
+                errors[news_item_id] = "Invalid tags"
                 continue
 
             news_item = NewsItem.get(news_item_id)
@@ -379,14 +408,16 @@ class Tags(MethodView):
 
 class DropTags(MethodView):
     @api_key_required
+    @validate_request
     def post(self):
         return NewsItemTagService.delete_all()
 
 
 class IOCs(MethodView):
     @api_key_required
+    @validate_request
     def post(self):
-        payload = request.json or {}
+        payload = g.api_json or {}
         iocs = payload.get("iocs", [])
         if not isinstance(iocs, list):
             return {"error": "Expected iocs list"}, 400
@@ -407,6 +438,7 @@ class BotInfo(MethodView):
 
     @api_key_required
     @extract_args("search", "fetch_all")
+    @validate_request
     def get(self, bot_id=None, filter_args=None):
         if not bot_id:
             response, status = Bot.get_all_for_api(filter_args)
@@ -422,8 +454,11 @@ class BotInfo(MethodView):
         return {"error": "Bot not found"}, 404
 
     @api_key_required
-    def put(self, bot_id):
-        data = request.json
+    @validate_request
+    def put(self, bot_id=None):
+        if not bot_id:
+            return {"error": "No bot_id provided"}, 400
+        data = g.api_json
         if not isinstance(data, dict) or not data:
             return {"error": "No data provided"}, 400
         try:
@@ -438,8 +473,9 @@ class BotInfo(MethodView):
 
 class PostCollectionBots(MethodView):
     @api_key_required
+    @validate_request
     def put(self):
-        if not (data := request.json):
+        if not (data := g.api_json):
             return {"error": "No data provided"}, 400
         if source_id := data.get("source_id", None):
             story_ids = data.get("story_ids")
@@ -452,30 +488,33 @@ class PostCollectionBots(MethodView):
 class WordLists(MethodView):
     @api_key_required
     @extract_args("search", "usage", "with_entries", "fetch_all")
+    @validate_request
     def get(self, word_list_id=None, filter_args=None):
         if word_list_id:
             return WordList.get_for_api(word_list_id)
         return WordList.get_all_for_api(filter_args)
 
     @api_key_required
-    def put(self, word_list_id):
-        if request.content_type == "application/json":
-            content = request.json
-        elif request.content_type == "text/csv":
-            content = request.data.decode("utf-8")
+    @validate_request
+    def put(self, word_list_id=None):
+        if not word_list_id:
+            return {"error": "No word_list_id provided"}, 400
+        if request.content_type == "application/json" or request.content_type == "text/csv":
+            content = g.api_json
         else:
             return {"error": "Unsupported content type"}, 400
 
         if not content:
             return {"error": "No content provided"}, 400
 
-        if wls := WordList.update_word_list(content=content, content_type=request.content_type, word_list_id=word_list_id):
+        if wls := WordList.update_word_list(content=content, content_type="application/json", word_list_id=word_list_id):
             return {"word_lists": f"{wls.id}", "message": "Successfully updated wordlist"}
         return {"error": "Unable to import"}, 400
 
 
 class Connectors(MethodView):
     @api_key_required
+    @validate_request
     def get(self, connector_id: str):
         if connector := Connector.get(connector_id):
             return connector.to_worker_dict(), 200
@@ -484,6 +523,7 @@ class Connectors(MethodView):
 
 class Reports(MethodView):
     @api_key_required
+    @validate_request
     def get(self, report_id: str):
         return ReportItem.get_for_api(report_id)
 

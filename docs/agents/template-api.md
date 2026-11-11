@@ -4,7 +4,7 @@ Load for: Template service, presenter template administration, template response
 
 ## Contracts
 
-Detail/list responses contain `name`, nullable base64 `content`, and `validation_status`. Creation requests use `name`; update/delete routes use the filename. Sorting uses `name_asc` and `name_desc` case-insensitively. Missing or unreadable templates retain their validation status and null content.
+`models/config_api.py` owns the shared template response and validation-status contracts; the Core service retains dictionary statuses for its helper callers. Detail/list responses contain `name`, nullable base64 `content`, and `validation_status`. Creation requests use `name`; update/delete routes use the filename. Sorting uses `name_asc` and `name_desc` case-insensitively. Missing or unreadable templates retain their validation status and null content.
 
 ## Code Paths
 

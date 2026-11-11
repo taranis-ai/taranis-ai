@@ -77,7 +77,7 @@ def test_story_transfer_partial_guards_future_export_dates(authenticated_client,
     user = auth_user.model_copy(deep=True)
     user.profile.timezone = "Europe/Vienna"
     add_user_to_cache(user.model_dump(mode="json"))
-    responses.get(f"{Config.TARANIS_CORE_URL}/settings/settings", json={"items": [{"settings": {}}]})
+    responses.get(f"{Config.TARANIS_CORE_URL}/settings/settings", json={"_links": {}, "total_count": 1, "items": [{"settings": {}}]})
     body = authenticated_client.get("/admin/settings/").get_data(as_text=True)
 
     assert 'data-testid="story-export-time-from"' in body

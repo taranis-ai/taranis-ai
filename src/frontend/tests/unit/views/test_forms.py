@@ -87,7 +87,7 @@ def test_users_import_success_redirects_without_rendering_nested_form(
         json={
             "users": [],
             "count": 0,
-            "skipped_users": [{"username": "external-user"}],
+            "skipped_users": [{"username": "external-user", "reason": "Already exists"}],
             "skipped_count": 1,
             "message": "Imported 0 user(s); skipped 1 user(s)",
         },

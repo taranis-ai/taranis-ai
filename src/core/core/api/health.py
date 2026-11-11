@@ -1,11 +1,13 @@
 from flask import Flask
 from flask.views import MethodView
 
+from core.api.contracts import validate_request
 from core.config import Config
 from core.service import health as health_service
 
 
 class Health(MethodView):
+    @validate_request
     def get(self):
         return health_service.get_health_response()
 

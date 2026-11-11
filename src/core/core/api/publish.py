@@ -1,7 +1,8 @@
-from flask import Blueprint, Flask, jsonify, request
+from flask import Blueprint, Flask, g, jsonify, request
 from flask.views import MethodView
 from flask_jwt_extended import current_user
 
+from core.api.contracts import validate_request
 from core.config import Config
 from core.managers import queue_manager
 from core.managers.auth_manager import auth_required
@@ -13,24 +14,28 @@ from core.service.product import ProductService
 
 class ProductTypes(MethodView):
     @auth_required("PUBLISH_ACCESS")
+    @validate_request
     def get(self):
         return product_type.ProductType.get_all_for_api(None, with_count=False, user=current_user)
 
 
 class ProductChoices(MethodView):
     @auth_required("PUBLISH_ACCESS")
+    @validate_request
     def get(self):
         return product.Product.get_choices_for_api(current_user)
 
 
 class ProductTypeChoices(MethodView):
     @auth_required("PUBLISH_ACCESS")
+    @validate_request
     def get(self):
         return product_type.ProductType.get_choices_for_api(current_user, request.args.getlist("report_ids"))
 
 
 class ProductMetadata(MethodView):
     @auth_required("PUBLISH_ACCESS")
+    @validate_request
     def get(self, product_id: str):
         return product.Product.get_for_api(product_id, current_user, include_render=False)
 
@@ -38,6 +43,7 @@ class ProductMetadata(MethodView):
 class PublisherPresets(MethodView):
     @auth_required("PUBLISH_ACCESS")
     @extract_args("search", "page", "limit", "sort", "order", "fetch_all")
+    @validate_request
     def get(self, preset_id: str | None = None, filter_args: dict | None = None):
         if preset_id:
             return publisher_preset.PublisherPreset.get_for_publish_api(preset_id)
@@ -46,6 +52,7 @@ class PublisherPresets(MethodView):
 
 class Products(MethodView):
     @auth_required("PUBLISH_ACCESS")
+    @validate_request
     def get(self, product_id: str | None = None):
         if product_id:
             return product.Product.get_for_api(product_id, current_user)
@@ -56,8 +63,9 @@ class Products(MethodView):
         return product.Product.get_all_for_api(filter_args=filter_args, with_count=True, user=current_user)
 
     @auth_required("PUBLISH_CREATE")
+    @validate_request
     def post(self):
-        data = request.json or {}
+        data = g.api_json or {}
         selected_type = product_type.ProductType.get(data.get("product_type_id"))
         if selected_type is None:
             return {"error": "Product type not found"}, 404
@@ -76,14 +84,16 @@ class Products(MethodView):
         ), 201
 
     @auth_required("PUBLISH_UPDATE")
+    @validate_request
     def put(self, product_id: str | None = None):
         if not product_id:
             return {"error": "No product_id provided"}, 400
-        response, status = product.Product.update(product_id, request.json, user=current_user)
+        response, status = product.Product.update(product_id, g.api_json, user=current_user)
         invalidate_frontend_cache_on_success(status, scopes=(SCOPE_PUBLISH_VIEWS,), object_ids={"product": product_id})
         return response, status
 
     @auth_required("PUBLISH_DELETE")
+    @validate_request
     def delete(self, product_id: str | None = None):
         if not product_id:
             return {"error": "No product_id provided"}, 400
@@ -99,6 +109,7 @@ class Products(MethodView):
 
 class PublishProduct(MethodView):
     @auth_required("PUBLISH_PRODUCT")
+    @validate_request
     def post(self, product_id: str, publisher_id: str):
         response, status = queue_manager.queue_manager.publish_product(product_id, publisher_id, user_id=current_user.id)
         invalidate_frontend_cache_on_success(status, scopes=(SCOPE_PUBLISH_VIEWS,), object_ids={"product": product_id})
@@ -107,12 +118,14 @@ class PublishProduct(MethodView):
 
 class ProductsRender(MethodView):
     @auth_required("PUBLISH_ACCESS")
+    @validate_request
     def post(self, product_id: str):
         response, status = queue_manager.queue_manager.generate_product(product_id, user_id=current_user.id)
         invalidate_frontend_cache_on_success(status, scopes=(SCOPE_PUBLISH_VIEWS,), object_ids={"product": product_id})
         return response, status
 
     @auth_required("PUBLISH_ACCESS")
+    @validate_request
     def get(self, product_id: str):
         selected_product = product.Product.get(product_id)
         if selected_product is None:
@@ -124,6 +137,7 @@ class ProductsRender(MethodView):
 
 class AutoRenderProducts(MethodView):
     @auth_required("PUBLISH_ACCESS")
+    @validate_request
     def get(self, report_item_id: str):
         products = ProductService.autopublish_product(report_item_id, user_id=current_user.id)
         product_list = [product.to_dict() for product in products]
@@ -131,6 +145,7 @@ class AutoRenderProducts(MethodView):
 
 
 class PublishedReports(MethodView):
+    @validate_request
     def get(self, product_id: str):
         return ProductService.get_published_report(product_id)
 

@@ -33,10 +33,23 @@ def get_items_from_factory(view_name, model):
         return [model(settings={"default_collector_proxy": "http://proxy.test", "default_timezone": "UTC"}).model_dump(mode="json")]
 
     factory = ModelFactory.create_factory(model=model)
+    factory.__use_defaults__ = True
 
     try:
         instance = factory.build(factory_use_construct=True)
-        items = [instance.model_dump(mode="json")]
+        item = instance.model_dump(mode="json")
+        if "id" in model.model_fields:
+            item["id"] = "test-1"
+        if view_name == "User":
+            item["organization"] = "organization-1"
+            item["roles"] = ["role-1"]
+            item["permissions"] = []
+        if view_name == "Scheduler":
+            item["type"] = "scheduled"
+        if view_name == "Template":
+            item["content"] = None
+            item["validation_status"] = {"is_valid": True, "error_message": "", "error_type": ""}
+        items = [item]
     except ParameterException as e:
         logger.warning(f"PolyFactory couldn’t build {model.__name__} for view {view_name}: {e}\nFalling back to a minimal stub.")
         items = [{"id": "test-1", "name": f"test_{view_name.lower()}"}]
@@ -141,6 +154,8 @@ def form_formats_from_models(worker_parameter_data: dict[str, Any]):
             if field_required:
                 required_keys.add(key)
 
+        if view_name == "Product Type":
+            allowed_keys.add("parameters[TEMPLATE_PATH]")
         if view_name == "OSINT Source":
             allowed_keys.add("delete_icon")
             allowed_keys.add("rank")
@@ -178,6 +193,7 @@ def mock_core_get_endpoints(responses_mock, core_payloads):
             json={
                 "items": data["items"],
                 "total_count": data["total_count"],
+                "_links": {},
             },
             status=200,
             content_type="application/json",
@@ -276,7 +292,7 @@ def mock_core_get_endpoints(responses_mock, core_payloads):
     )
     responses_mock.get(
         f"{Config.TARANIS_CORE_URL}/config/workers/stats",
-        json={"total_workers": 2, "busy_workers": 1, "idle_workers": 1},
+        json={"total_workers": 2, "busy_workers": 1, "idle_workers": 1, "workers": []},
         status=200,
         content_type="application/json",
     )
@@ -374,6 +390,7 @@ def mock_core_get_item_endpoints(responses_mock, core_payloads, mock_core_get_it
             json={
                 "items": data["items"],
                 "total_count": data["total_count"],
+                "_links": {},
             },
             status=200,
             content_type="application/json",
@@ -384,7 +401,7 @@ def mock_core_get_item_endpoints(responses_mock, core_payloads, mock_core_get_it
         data_id = view_data.get("id", view_data.get("name"))
         if not url or not data_id:
             continue
-        responses_mock.get(f"{url}/{data_id}", json=view_data)
+        responses_mock.get(f"{url}/{data_id}", json={**view_data, "message": "Saved"})
 
     yield mock_core_get_item_endpoint_data
 
@@ -396,7 +413,10 @@ def mock_core_delete_endpoints(responses_mock, mock_core_get_item_endpoint_data)
         data_id = view_data.get("id", view_data.get("name"))
         if not url or not data_id:
             continue
-        responses_mock.delete(f"{url}/{data_id}", json={"message": "Successfully deleted"})
+        responses_mock.delete(
+            f"{url}/{data_id}",
+            json={"message": "Successfully deleted", "id": data_id} if "/connectors" in url else {"message": "Successfully deleted"},
+        )
     yield mock_core_get_item_endpoint_data
 
 
@@ -407,7 +427,7 @@ def mock_core_create_endpoints(responses_mock, mock_core_get_item_endpoint_data)
         data_id = view_data.get("id", view_data.get("name"))
         if not url or not data_id:
             continue
-        responses_mock.post(f"{url}", json=view_data)
+        responses_mock.post(f"{url}", json={**view_data, "message": "Saved"})
     yield mock_core_get_item_endpoint_data
 
 
@@ -418,7 +438,7 @@ def mock_core_update_endpoints(responses_mock, mock_core_get_item_endpoint_data)
         data_id = view_data.get("id", view_data.get("name"))
         if not url or not data_id:
             continue
-        responses_mock.put(f"{url}/{data_id}", json=view_data)
+        responses_mock.put(f"{url}/{data_id}", json={**view_data, "message": "Saved"})
     yield mock_core_get_item_endpoint_data
 
 
@@ -430,6 +450,7 @@ def settings_get_mock(responses_mock):
     mock_data = {
         "items": [{"settings": {"default_collector_proxy": "", "onboarding_enabled": True}}],
         "total_count": 1,
+        "_links": {},
     }
     responses_mock.get(f"{Config.TARANIS_CORE_URL}/settings/settings", json=mock_data)
     yield mock_data
@@ -503,6 +524,7 @@ def organizations_get_mock(responses_mock):
             },
         ],
         "total_count": 1,
+        "_links": {},
     }
 
     responses_mock.get(f"{Config.TARANIS_CORE_URL}/config/organizations", json=mock_data)
@@ -577,7 +599,7 @@ def users_delete_mock(responses_mock):
 
 @pytest.fixture
 def users_put_mock(responses_mock):
-    responses_mock.put(f"{Config.TARANIS_CORE_URL}/config/users/user-1", json={"message": "Success"})
+    responses_mock.put(f"{Config.TARANIS_CORE_URL}/config/users/user-1", json={"message": "Success", "id": "updated-id"})
 
 
 @pytest.fixture
@@ -589,8 +611,8 @@ def organizations_delete_mock(responses_mock):
 
 @pytest.fixture
 def organizations_put_mock(responses_mock):
-    responses_mock.put(f"{Config.TARANIS_CORE_URL}/config/organizations", json={"message": "Success"})
-    responses_mock.put(f"{Config.TARANIS_CORE_URL}/config/organizations/organization-1", json={"message": "Success"})
+    responses_mock.put(f"{Config.TARANIS_CORE_URL}/config/organizations", json={"message": "Success", "id": "updated-id"})
+    responses_mock.put(f"{Config.TARANIS_CORE_URL}/config/organizations/organization-1", json={"message": "Success", "id": "updated-id"})
 
 
 @pytest.fixture
@@ -602,7 +624,7 @@ def roles_delete_mock(responses_mock):
 
 @pytest.fixture
 def roles_put_mock(responses_mock):
-    responses_mock.put(f"{Config.TARANIS_CORE_URL}/config/roles/role-1", json={"message": "Success"})
+    responses_mock.put(f"{Config.TARANIS_CORE_URL}/config/roles/role-1", json={"message": "Success", "id": "updated-id"})
 
 
 @pytest.fixture
