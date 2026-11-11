@@ -66,6 +66,52 @@ def test_absorbed_report_story_is_replaced_by_surviving_story(
     assert _report_revision_notes(report.id)[-1] == "group_stories"
 
 
+@pytest.mark.parametrize(
+    ("method", "path", "header_fixture", "api_module", "multiple"),
+    [
+        ("put", "/api/assess/stories/group", "auth_header", "core.api.assess", False),
+        ("post", "/api/assess/stories/group", "auth_header", "core.api.assess", False),
+        ("put", "/api/bots/stories/group", "api_header", "core.api.bots", False),
+        ("put", "/api/bots/stories/group-multiple", "api_header", "core.api.bots", True),
+    ],
+    ids=["assess-put", "assess-post", "bot-group", "bot-group-multiple"],
+)
+def test_grouping_endpoints_invalidate_report_views(
+    request,
+    session,
+    client,
+    monkeypatch,
+    story_relevance_news_item_payload_factory,
+    story_relevance_story_payload_factory,
+    story_relevance_report_payload_factory,
+    method,
+    path,
+    header_fixture,
+    api_module,
+    multiple,
+):
+    report_story = _story(story_relevance_news_item_payload_factory, story_relevance_story_payload_factory, "Report story")
+    other_story = _story(story_relevance_news_item_payload_factory, story_relevance_story_payload_factory, "Other story")
+    report = _report_with_stories(story_relevance_report_payload_factory, [report_story])
+    invalidations = []
+
+    def capture_invalidation(status, **kwargs):
+        invalidations.append((status, kwargs))
+
+    monkeypatch.setattr(f"{api_module}.invalidate_frontend_cache_on_success", capture_invalidation)
+    story_ids = [other_story.id, report_story.id]
+
+    response = getattr(client, method)(
+        path,
+        json=[story_ids] if multiple else story_ids,
+        headers=request.getfixturevalue(header_fixture),
+    )
+
+    assert response.status_code == 200, response.get_json()
+    assert _report_story_ids(report.id) == [other_story.id]
+    assert invalidations == [(200, {"scopes": ("story_views", "report_views")})]
+
+
 @pytest.mark.usefixtures("app")
 def test_surviving_report_story_stays_and_records_revision(
     session,
