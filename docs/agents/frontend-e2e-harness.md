@@ -4,7 +4,7 @@ Load for: Playwright stack setup, `--e2e-ci`, Compose service selection, RQ read
 
 ## Harness Contracts
 
-- Ordinary stack-backed tests start Core, Redis, and the internal scripted demo chat provider. A selected, non-skipped `e2e_full_stack` test activates the `rq` profile (worker, cron, testdata server, pgvector PostgreSQL and Neo4j). Minimal stacks keep SQLite; full stacks use PostgreSQL and enable HRAG. Mark every worker/cron-dependent test accordingly.
+- Ordinary stack-backed tests start Core, Redis, and the internal scripted demo chat provider. A selected, non-skipped `e2e_full_stack` test activates the `rq` profile (worker, cron, testdata server, pgvector PostgreSQL and Neo4j). Minimal stacks keep SQLite; full stacks use PostgreSQL with C collation and enable HRAG. The stack pins the default RQ timeout to 1800 seconds so bind-mounted local environment files cannot alter validation limits. Mark every worker/cron-dependent test accordingly.
 - Local sessions create and remove an isolated Compose project with fresh database/Redis state and random host ports. Core readiness uses `/isalive`; full-stack startup additionally waits for authenticated RQ worker registration. Endpoint probes can degrade `/health`, so it does not gate stack readiness. RQ fixtures also check cron leadership.
 - HTTP test services use matching `DEBUG=true` / `FLASK_DEBUG=1` so production Secure cookies and HSTS do not interfere with the isolated HTTP stack. Production cookie/header behavior has dedicated request-level coverage.
 - The frontend runs in a session-scoped spawned Werkzeug process. `pytest-flask`'s fork-based live server is unsafe with native threads on Python 3.14; the separate process also isolates Core requests from per-test HTTP mocks.

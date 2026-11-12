@@ -220,13 +220,12 @@ def test_turn_deadline_closes_continuously_streaming_response(configured_chat, m
 
 
 def test_hrag_turn_switching_partial_retrieval_and_live_history(configured_chat, db_persistent_session, admin_user, monkeypatch):
-    from core.config import Config
     from core.managers.db_manager import db
     from core.model.hrag import HragGeneration, HragMessage, HragWork
     from core.service.hrag import retrieval
     from core.service.hrag.indexing import fingerprint
 
-    monkeypatch.setattr(Config, "HRAG_ENABLED", True)
+    monkeypatch.setattr(retrieval.Config, "HRAG_ENABLED", True)
     story = create_story(news_items=[build_news_item_payload(content="Acme reported an incident.")])
     item = story.news_items[0]
     settings = Settings.get_settings()

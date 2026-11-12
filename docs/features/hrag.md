@@ -12,7 +12,7 @@ Core creates new indexing tables and runs `CREATE EXTENSION IF NOT EXISTS vector
 
 In **Admin Settings > LLM Endpoints**, enable an **Embeddings** format on an OpenAI-compatible endpoint. Assign **HRAG embeddings**, **HRAG entity and relationship extraction**, and **HRAG graph planning**. These require realtime processing in v1. Chat's existing endpoint synthesizes and streams answers. Set `HRAG_EMBEDDING_DIMENSIONS` to the embedding model's output dimension (default 1536). Provider changes create a separate generation; do not silently replace the model behind an unchanged model identifier.
 
-Core and worker currently pin the companion llm-bot evidence-task implementation to an immutable source archive until its next release. Core installs the transport-free library; workers install its `inference` extra. This avoids mixing Requests and Niquests transport packages in Core.
+Core and worker currently pin the companion llm-bot evidence tasks, backported onto release 0.1.6, to an immutable source archive. This retains the existing generative sentiment API; adopting a later library release also requires reviewing its sentiment transport change. Core installs the transport-free library; workers install its `inference` extra. This avoids mixing Requests and Niquests transport packages in Core.
 
 ## Inputs and indexing
 

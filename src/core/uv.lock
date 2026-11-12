@@ -1912,7 +1912,7 @@ requires-dist = [
     { name = "setuptools" },
     { name = "setuptools-scm", marker = "extra == 'dev'" },
     { name = "sqlalchemy" },
-    { name = "taranis-llm-bot", url = "https://github.com/taranis-ai/llm-bot/archive/1cf826b877e55ebc93b8156bc018e572437d9ae4.tar.gz" },
+    { name = "taranis-llm-bot", url = "https://github.com/taranis-ai/llm-bot/archive/aa37cdfe43ee3e74820a6b478cf5fbdcba30c71b.tar.gz" },
     { name = "taranis-models", editable = "../models" },
     { name = "wheel", marker = "extra == 'dev'" },
     { name = "yoyo-migrations" },
@@ -1922,13 +1922,13 @@ provides-extras = ["dev"]
 [[package]]
 name = "taranis-llm-bot"
 version = "0.0.0"
-source = { url = "https://github.com/taranis-ai/llm-bot/archive/1cf826b877e55ebc93b8156bc018e572437d9ae4.tar.gz" }
+source = { url = "https://github.com/taranis-ai/llm-bot/archive/aa37cdfe43ee3e74820a6b478cf5fbdcba30c71b.tar.gz" }
 dependencies = [
     { name = "langcodes", extra = ["data"] },
     { name = "pydantic" },
     { name = "pydantic-settings" },
 ]
-sdist = { hash = "sha256:bb0ca670f8f93c1359e2b84fc62679664f115fa39984d757d575de51856b5e35" }
+sdist = { hash = "sha256:f106723cfb6eb3da7ccf4c94bc65cad3f86be2fffc497b5a461eb4854375f4f6" }
 
 [package.metadata]
 requires-dist = [

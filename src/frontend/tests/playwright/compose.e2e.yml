@@ -24,6 +24,7 @@ services:
       PRESERVE_CONTEXT_ON_EXCEPTION: "false"
       REALTIME_ENABLED: "false"
       CHAT_ENABLED: "true"
+      RQ_DEFAULT_JOB_TIMEOUT: "1800"
       SERVER_NAME: localhost
       TARANIS_CORE_SENTRY_DSN: ""
       APPLICATION_ROOT: /
@@ -67,6 +68,7 @@ services:
       POSTGRES_USER: taranis
       POSTGRES_PASSWORD: test
       POSTGRES_DB: taranis
+      POSTGRES_INITDB_ARGS: "--locale=C --encoding=UTF8"
     tmpfs:
       - /var/lib/postgresql
     healthcheck:
