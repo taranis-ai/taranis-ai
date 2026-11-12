@@ -43,58 +43,19 @@
     "relevance": 0,
     "summary": "",
     "tags": {
-      "Andreas Klauser.": {
-        "name": "Andreas Klauser.",
-        "tag_type": "PER"
-      },
-      "BASIS": {
-        "name": "BASIS",
-        "tag_type": "CVE_PRODUCT"
-      },
-      "Fuschl": {
-        "name": "Fuschl",
-        "tag_type": "LOC"
-      },
-      "G\u00fcnther Bessinger": {
-        "name": "G\u00fcnther Bessinger",
-        "tag_type": "PER"
-      },
-      "Hochmair.\nHochsaison": {
-        "name": "Hochmair.\nHochsaison",
-        "tag_type": "PER"
-      },
-      "Hubertus Weinberger": {
-        "name": "Hubertus Weinberger",
-        "tag_type": "PER"
-      },
-      "Marianne Wille": {
-        "name": "Marianne Wille",
-        "tag_type": "PER"
-      },
-      "M\u00fcnchen": {
-        "name": "M\u00fcnchen",
-        "tag_type": "LOC"
-      },
-      "M\u00fcnchen.": {
-        "name": "M\u00fcnchen.",
-        "tag_type": "LOC"
-      },
-      "Palfinger": {
-        "name": "Palfinger",
-        "tag_type": "PER"
-      },
-      "Philipp Hochmair": {
-        "name": "Philipp Hochmair",
-        "tag_type": "PER"
-      },
-      "Salzburg": {
-        "name": "Salzburg",
-        "tag_type": "LOC"
-      },
-      "Sulzau-Werfen.": {
-        "name": "Sulzau-Werfen.",
-        "tag_type": "ORG"
-      }
+      "Andreas Klauser.": {"name": "Andreas Klauser.", "tag_type": "PER"},
+      "BASIS": {"name": "BASIS", "tag_type": "CVE_PRODUCT"},
+      "Fuschl": {"name": "Fuschl", "tag_type": "LOC"},
+      "G\u00fcnther Bessinger": {"name": "G\u00fcnther Bessinger", "tag_type": "PER"},
+      "Hochmair.\nHochsaison": {"name": "Hochmair.\nHochsaison", "tag_type": "PER"},
+      "Hubertus Weinberger": {"name": "Hubertus Weinberger", "tag_type": "PER"},
+      "Marianne Wille": {"name": "Marianne Wille", "tag_type": "PER"},
+      "M\u00fcnchen": {"name": "M\u00fcnchen", "tag_type": "LOC"},
+      "M\u00fcnchen.": {"name": "M\u00fcnchen.", "tag_type": "LOC"},
+      "Palfinger": {"name": "Palfinger", "tag_type": "PER"},
+      "Philipp Hochmair": {"name": "Philipp Hochmair", "tag_type": "PER"},
+      "Salzburg": {"name": "Salzburg", "tag_type": "LOC"},
+      "Sulzau-Werfen.": {"name": "Sulzau-Werfen.", "tag_type": "ORG"}
     },
     "title": "Hochsaison f\u00fcr Gesellschaftsl\u00f6wen",
     "updated": "2024-07-29T20:50:53.291351"
@@ -143,62 +104,20 @@
     "relevance": 0,
     "summary": "",
     "tags": {
-      "Bregenz": {
-        "name": "Bregenz",
-        "tag_type": "LOC"
-      },
-      "Bregenzerwald": {
-        "name": "Bregenzerwald",
-        "tag_type": "LOC"
-      },
-      "Christian Gantner": {
-        "name": "Christian Gantner",
-        "tag_type": "PER"
-      },
-      "Erik Schmid": {
-        "name": "Erik Schmid",
-        "tag_type": "PER"
-      },
-      "Janine G.": {
-        "name": "Janine G.",
-        "tag_type": "PER"
-      },
-      "Josef Moosbrugger": {
-        "name": "Josef Moosbrugger",
-        "tag_type": "PER"
-      },
-      "Moosbrugger": {
-        "name": "Moosbrugger",
-        "tag_type": "PER"
-      },
-      "Moosbrugger.": {
-        "name": "Moosbrugger.",
-        "tag_type": "PER"
-      },
-      "Schmid": {
-        "name": "Schmid",
-        "tag_type": "PER"
-      },
-      "Vorarlberg": {
-        "name": "Vorarlberg",
-        "tag_type": "LOC"
-      },
-      "WWF": {
-        "name": "WWF",
-        "tag_type": "ORG"
-      },
-      "Wolf": {
-        "name": "Wolf",
-        "tag_type": "PER"
-      },
-      "\u00d6sterreich": {
-        "name": "\u00d6sterreich",
-        "tag_type": "Country"
-      },
-      "\u00d6sterreich:": {
-        "name": "\u00d6sterreich:",
-        "tag_type": "LOC"
-      }
+      "Bregenz": {"name": "Bregenz", "tag_type": "LOC"},
+      "Bregenzerwald": {"name": "Bregenzerwald", "tag_type": "LOC"},
+      "Christian Gantner": {"name": "Christian Gantner", "tag_type": "PER"},
+      "Erik Schmid": {"name": "Erik Schmid", "tag_type": "PER"},
+      "Janine G.": {"name": "Janine G.", "tag_type": "PER"},
+      "Josef Moosbrugger": {"name": "Josef Moosbrugger", "tag_type": "PER"},
+      "Moosbrugger": {"name": "Moosbrugger", "tag_type": "PER"},
+      "Moosbrugger.": {"name": "Moosbrugger.", "tag_type": "PER"},
+      "Schmid": {"name": "Schmid", "tag_type": "PER"},
+      "Vorarlberg": {"name": "Vorarlberg", "tag_type": "LOC"},
+      "WWF": {"name": "WWF", "tag_type": "ORG"},
+      "Wolf": {"name": "Wolf", "tag_type": "PER"},
+      "\u00d6sterreich": {"name": "\u00d6sterreich", "tag_type": "Country"},
+      "\u00d6sterreich:": {"name": "\u00d6sterreich:", "tag_type": "LOC"}
     },
     "title": "Wolf in Vorarlberg: Bedrohung oder Bereicherung?",
     "updated": "2024-07-29T20:50:53.306228"
@@ -247,42 +166,15 @@
     "relevance": 0,
     "summary": "",
     "tags": {
-      "Arriach": {
-        "name": "Arriach",
-        "tag_type": "LOC"
-      },
-      "Dagmar": {
-        "name": "Dagmar",
-        "tag_type": "PER"
-      },
-      "Eva": {
-        "name": "Eva",
-        "tag_type": "CVE_PRODUCT"
-      },
-      "K\u00e4rnten": {
-        "name": "K\u00e4rnten",
-        "tag_type": "LOC"
-      },
-      "Perau": {
-        "name": "Perau",
-        "tag_type": "PER"
-      },
-      "Perau.\u201c": {
-        "name": "Perau.\u201c",
-        "tag_type": "LOC"
-      },
-      "Villach": {
-        "name": "Villach",
-        "tag_type": "LOC"
-      },
-      "Villach/Perau": {
-        "name": "Villach/Perau",
-        "tag_type": "LOC"
-      },
-      "Wolfgang Faller,": {
-        "name": "Wolfgang Faller,",
-        "tag_type": "PER"
-      }
+      "Arriach": {"name": "Arriach", "tag_type": "LOC"},
+      "Dagmar": {"name": "Dagmar", "tag_type": "PER"},
+      "Eva": {"name": "Eva", "tag_type": "CVE_PRODUCT"},
+      "K\u00e4rnten": {"name": "K\u00e4rnten", "tag_type": "LOC"},
+      "Perau": {"name": "Perau", "tag_type": "PER"},
+      "Perau.\u201c": {"name": "Perau.\u201c", "tag_type": "LOC"},
+      "Villach": {"name": "Villach", "tag_type": "LOC"},
+      "Villach/Perau": {"name": "Villach/Perau", "tag_type": "LOC"},
+      "Wolfgang Faller,": {"name": "Wolfgang Faller,", "tag_type": "PER"}
     },
     "title": "\u201eUrban Gardening\u201c mit Demenzkranken",
     "updated": "2024-07-29T20:50:53.313917"
@@ -331,122 +223,35 @@
     "relevance": 0,
     "summary": "",
     "tags": {
-      "Alexander Petschnig": {
-        "name": "Alexander Petschnig",
-        "tag_type": "PER"
-      },
-      "Andreas Babler": {
-        "name": "Andreas Babler",
-        "tag_type": "PER"
-      },
-      "Burgenland": {
-        "name": "Burgenland",
-        "tag_type": "LOC"
-      },
-      "Christian Drobits": {
-        "name": "Christian Drobits",
-        "tag_type": "PER"
-      },
-      "Christoph Schneider": {
-        "name": "Christoph Schneider",
-        "tag_type": "PER"
-      },
-      "Christoph Zarits": {
-        "name": "Christoph Zarits",
-        "tag_type": "PER"
-      },
-      "Doskozil": {
-        "name": "Doskozil",
-        "tag_type": "PER"
-      },
-      "FP\u00d6": {
-        "name": "FP\u00d6",
-        "tag_type": "ORG"
-      },
-      "Gr\u00fcne": {
-        "name": "Gr\u00fcne",
-        "tag_type": "ORG"
-      },
-      "Gr\u00fcnen": {
-        "name": "Gr\u00fcnen",
-        "tag_type": "ORG"
-      },
-      "Hofer": {
-        "name": "Hofer",
-        "tag_type": "Company"
-      },
-      "Jasmin Puchwein": {
-        "name": "Jasmin Puchwein",
-        "tag_type": "PER"
-      },
-      "J\u00fcrgen Schabh\u00fcttl.": {
-        "name": "J\u00fcrgen Schabh\u00fcttl.",
-        "tag_type": "PER"
-      },
-      "KP\u00d6": {
-        "name": "KP\u00d6",
-        "tag_type": "ORG"
-      },
-      "Manfred K\u00f6lly": {
-        "name": "Manfred K\u00f6lly",
-        "tag_type": "PER"
-      },
-      "Maximilian K\u00f6llner": {
-        "name": "Maximilian K\u00f6llner",
-        "tag_type": "PER"
-      },
-      "NEOS": {
-        "name": "NEOS",
-        "tag_type": "ORG"
-      },
-      "Nikolaus Berlakovich.": {
-        "name": "Nikolaus Berlakovich.",
-        "tag_type": "PER"
-      },
-      "ORF": {
-        "name": "ORF",
-        "tag_type": "ORG"
-      },
-      "Partricia Spie\u00df": {
-        "name": "Partricia Spie\u00df",
-        "tag_type": "PER"
-      },
-      "Patricia Spie\u00df": {
-        "name": "Patricia Spie\u00df",
-        "tag_type": "PER"
-      },
-      "Petschnig": {
-        "name": "Petschnig",
-        "tag_type": "PER"
-      },
-      "Philip Juranich": {
-        "name": "Philip Juranich",
-        "tag_type": "PER"
-      },
-      "SP\u00d6": {
-        "name": "SP\u00d6",
-        "tag_type": "ORG"
-      },
-      "Schabh\u00fcttl": {
-        "name": "Schabh\u00fcttl",
-        "tag_type": "PER"
-      },
-      "Social Media": {
-        "name": "Social Media",
-        "tag_type": "ORG"
-      },
-      "Spie\u00df": {
-        "name": "Spie\u00df",
-        "tag_type": "PER"
-      },
-      "Zarits": {
-        "name": "Zarits",
-        "tag_type": "PER"
-      },
-      "\u00d6VP": {
-        "name": "\u00d6VP",
-        "tag_type": "ORG"
-      }
+      "Alexander Petschnig": {"name": "Alexander Petschnig", "tag_type": "PER"},
+      "Andreas Babler": {"name": "Andreas Babler", "tag_type": "PER"},
+      "Burgenland": {"name": "Burgenland", "tag_type": "LOC"},
+      "Christian Drobits": {"name": "Christian Drobits", "tag_type": "PER"},
+      "Christoph Schneider": {"name": "Christoph Schneider", "tag_type": "PER"},
+      "Christoph Zarits": {"name": "Christoph Zarits", "tag_type": "PER"},
+      "Doskozil": {"name": "Doskozil", "tag_type": "PER"},
+      "FP\u00d6": {"name": "FP\u00d6", "tag_type": "ORG"},
+      "Gr\u00fcne": {"name": "Gr\u00fcne", "tag_type": "ORG"},
+      "Gr\u00fcnen": {"name": "Gr\u00fcnen", "tag_type": "ORG"},
+      "Hofer": {"name": "Hofer", "tag_type": "Company"},
+      "Jasmin Puchwein": {"name": "Jasmin Puchwein", "tag_type": "PER"},
+      "J\u00fcrgen Schabh\u00fcttl.": {"name": "J\u00fcrgen Schabh\u00fcttl.", "tag_type": "PER"},
+      "KP\u00d6": {"name": "KP\u00d6", "tag_type": "ORG"},
+      "Manfred K\u00f6lly": {"name": "Manfred K\u00f6lly", "tag_type": "PER"},
+      "Maximilian K\u00f6llner": {"name": "Maximilian K\u00f6llner", "tag_type": "PER"},
+      "NEOS": {"name": "NEOS", "tag_type": "ORG"},
+      "Nikolaus Berlakovich.": {"name": "Nikolaus Berlakovich.", "tag_type": "PER"},
+      "ORF": {"name": "ORF", "tag_type": "ORG"},
+      "Partricia Spie\u00df": {"name": "Partricia Spie\u00df", "tag_type": "PER"},
+      "Patricia Spie\u00df": {"name": "Patricia Spie\u00df", "tag_type": "PER"},
+      "Petschnig": {"name": "Petschnig", "tag_type": "PER"},
+      "Philip Juranich": {"name": "Philip Juranich", "tag_type": "PER"},
+      "SP\u00d6": {"name": "SP\u00d6", "tag_type": "ORG"},
+      "Schabh\u00fcttl": {"name": "Schabh\u00fcttl", "tag_type": "PER"},
+      "Social Media": {"name": "Social Media", "tag_type": "ORG"},
+      "Spie\u00df": {"name": "Spie\u00df", "tag_type": "PER"},
+      "Zarits": {"name": "Zarits", "tag_type": "PER"},
+      "\u00d6VP": {"name": "\u00d6VP", "tag_type": "ORG"}
     },
     "title": "Weichen f\u00fcr Nationalratswahl sind gestellt",
     "updated": "2024-07-29T20:50:53.321091"
@@ -489,18 +294,9 @@
     "relevance": 0,
     "summary": "",
     "tags": {
-      "Feldkirch": {
-        "name": "Feldkirch",
-        "tag_type": "LOC"
-      },
-      "Fidelis-Stra\u00dfe": {
-        "name": "Fidelis-Stra\u00dfe",
-        "tag_type": "LOC"
-      },
-      "Levis.": {
-        "name": "Levis.",
-        "tag_type": "LOC"
-      }
+      "Feldkirch": {"name": "Feldkirch", "tag_type": "LOC"},
+      "Fidelis-Stra\u00dfe": {"name": "Fidelis-Stra\u00dfe", "tag_type": "LOC"},
+      "Levis.": {"name": "Levis.", "tag_type": "LOC"}
     },
     "title": "E-Scooter-Fahrer beging Fahrerflucht",
     "updated": "2024-07-29T20:50:53.327767"
@@ -535,46 +331,16 @@
       }
     ],
     "tags": {
-      "Dell": {
-        "name": "Dell",
-        "tag_type": "Vendor"
-      },
-      "VMware": {
-        "name": "VMware",
-        "tag_type": "Vendor"
-      },
-      "security": {
-        "name": "security",
-        "tag_type": "MISC"
-      },
-      "threats": {
-        "name": "threats",
-        "tag_type": "MISC"
-      },
-      "CVE-2023-5678": {
-        "name": "CVE-2023-5678",
-        "tag_type": "CVE"
-      },
-      "GitHub": {
-        "name": "GitHub",
-        "tag_type": "Vendor"
-      },
-      "stance": {
-        "name": "stance",
-        "tag_type": "MISC"
-      },
-      "phishing": {
-        "name": "phishing",
-        "tag_type": "MISC"
-      },
-      "scams": {
-        "name": "scams",
-        "tag_type": "MISC"
-      },
-      "platform": {
-        "name": "platform",
-        "tag_type": "MISC"
-      }
+      "Dell": {"name": "Dell", "tag_type": "Vendor"},
+      "VMware": {"name": "VMware", "tag_type": "Vendor"},
+      "security": {"name": "security", "tag_type": "MISC"},
+      "threats": {"name": "threats", "tag_type": "MISC"},
+      "CVE-2023-5678": {"name": "CVE-2023-5678", "tag_type": "CVE"},
+      "GitHub": {"name": "GitHub", "tag_type": "Vendor"},
+      "stance": {"name": "stance", "tag_type": "MISC"},
+      "phishing": {"name": "phishing", "tag_type": "MISC"},
+      "scams": {"name": "scams", "tag_type": "MISC"},
+      "platform": {"name": "platform", "tag_type": "MISC"}
     },
     "id": "8"
   },
@@ -616,50 +382,17 @@
     "relevance": 0,
     "summary": "",
     "tags": {
-      "Graz": {
-        "name": "Graz",
-        "tag_type": "LOC"
-      },
-      "Hollabrunn)": {
-        "name": "Hollabrunn)",
-        "tag_type": "LOC"
-      },
-      "Krems": {
-        "name": "Krems",
-        "tag_type": "LOC"
-      },
-      "Krems.": {
-        "name": "Krems.",
-        "tag_type": "LOC"
-      },
-      "Lilian Klebow": {
-        "name": "Lilian Klebow",
-        "tag_type": "PER"
-      },
-      "Martin Gruber": {
-        "name": "Martin Gruber",
-        "tag_type": "PER"
-      },
-      "Max Herzog.": {
-        "name": "Max Herzog.",
-        "tag_type": "PER"
-      },
-      "Penny Lanz": {
-        "name": "Penny Lanz",
-        "tag_type": "PER"
-      },
-      "Riemerplatz": {
-        "name": "Riemerplatz",
-        "tag_type": "LOC"
-      },
-      "St. P\u00f6lten": {
-        "name": "St. P\u00f6lten",
-        "tag_type": "LOC"
-      },
-      "Wien": {
-        "name": "Wien",
-        "tag_type": "LOC"
-      }
+      "Graz": {"name": "Graz", "tag_type": "LOC"},
+      "Hollabrunn)": {"name": "Hollabrunn)", "tag_type": "LOC"},
+      "Krems": {"name": "Krems", "tag_type": "LOC"},
+      "Krems.": {"name": "Krems.", "tag_type": "LOC"},
+      "Lilian Klebow": {"name": "Lilian Klebow", "tag_type": "PER"},
+      "Martin Gruber": {"name": "Martin Gruber", "tag_type": "PER"},
+      "Max Herzog.": {"name": "Max Herzog.", "tag_type": "PER"},
+      "Penny Lanz": {"name": "Penny Lanz", "tag_type": "PER"},
+      "Riemerplatz": {"name": "Riemerplatz", "tag_type": "LOC"},
+      "St. P\u00f6lten": {"name": "St. P\u00f6lten", "tag_type": "LOC"},
+      "Wien": {"name": "Wien", "tag_type": "LOC"}
     },
     "title": "St. P\u00f6lten wird f\u00fcr SOKO Donau zu Tatort",
     "updated": "2024-07-29T20:50:53.342361"
@@ -702,14 +435,8 @@
     "relevance": 0,
     "summary": "",
     "tags": {
-      "Barbara Klien": {
-        "name": "Barbara Klien",
-        "tag_type": "PER"
-      },
-      "Feldkirch": {
-        "name": "Feldkirch",
-        "tag_type": "LOC"
-      }
+      "Barbara Klien": {"name": "Barbara Klien", "tag_type": "PER"},
+      "Feldkirch": {"name": "Feldkirch", "tag_type": "LOC"}
     },
     "title": "Tausende Kr\u00f6ten und Fr\u00f6sche gerettet",
     "updated": "2024-07-29T20:50:53.348841"
@@ -752,26 +479,11 @@
     "relevance": 0,
     "summary": "",
     "tags": {
-      "Dietz.\nHochschulwochen:": {
-        "name": "Dietz.\nHochschulwochen:",
-        "tag_type": "PER"
-      },
-      "D\u00fcrnberger.": {
-        "name": "D\u00fcrnberger.",
-        "tag_type": "PER"
-      },
-      "Europas,": {
-        "name": "Europas,",
-        "tag_type": "LOC"
-      },
-      "Martin D\u00fcrnberger": {
-        "name": "Martin D\u00fcrnberger",
-        "tag_type": "PER"
-      },
-      "Thorsten Dietz": {
-        "name": "Thorsten Dietz",
-        "tag_type": "PER"
-      }
+      "Dietz.\nHochschulwochen:": {"name": "Dietz.\nHochschulwochen:", "tag_type": "PER"},
+      "D\u00fcrnberger.": {"name": "D\u00fcrnberger.", "tag_type": "PER"},
+      "Europas,": {"name": "Europas,", "tag_type": "LOC"},
+      "Martin D\u00fcrnberger": {"name": "Martin D\u00fcrnberger", "tag_type": "PER"},
+      "Thorsten Dietz": {"name": "Thorsten Dietz", "tag_type": "PER"}
     },
     "title": "Hochschulwochen: Kampf gegen br\u00f6ckelndes Vertrauen",
     "updated": "2024-07-29T20:50:53.354806"
@@ -814,26 +526,11 @@
     "relevance": 0,
     "summary": "",
     "tags": {
-      "Aflenz.": {
-        "name": "Aflenz.",
-        "tag_type": "LOC"
-      },
-      "Agnes Angerer": {
-        "name": "Agnes Angerer",
-        "tag_type": "PER"
-      },
-      "Hierzberger.\n\u201eWas": {
-        "name": "Hierzberger.\n\u201eWas",
-        "tag_type": "PER"
-      },
-      "Sebastian Hierzberger": {
-        "name": "Sebastian Hierzberger",
-        "tag_type": "PER"
-      },
-      "Th\u00f6rl": {
-        "name": "Th\u00f6rl",
-        "tag_type": "LOC"
-      }
+      "Aflenz.": {"name": "Aflenz.", "tag_type": "LOC"},
+      "Agnes Angerer": {"name": "Agnes Angerer", "tag_type": "PER"},
+      "Hierzberger.\n\u201eWas": {"name": "Hierzberger.\n\u201eWas", "tag_type": "PER"},
+      "Sebastian Hierzberger": {"name": "Sebastian Hierzberger", "tag_type": "PER"},
+      "Th\u00f6rl": {"name": "Th\u00f6rl", "tag_type": "LOC"}
     },
     "title": "Erleichterung dank Bundesheerhilfe in Th\u00f6rl",
     "updated": "2024-07-29T20:50:53.360921"
@@ -868,46 +565,16 @@
       }
     ],
     "tags": {
-      "HP": {
-        "name": "HP",
-        "tag_type": "Vendor"
-      },
-      "Qualcomm": {
-        "name": "Qualcomm",
-        "tag_type": "MISC"
-      },
-      "firewall": {
-        "name": "firewall",
-        "tag_type": "MISC"
-      },
-      "systems": {
-        "name": "systems",
-        "tag_type": "MISC"
-      },
-      "CVE-2023-1234": {
-        "name": "CVE-2023-1234",
-        "tag_type": "CVE"
-      },
-      "vulnerabilities": {
-        "name": "vulnerabilities",
-        "tag_type": "MISC"
-      },
-      "mobile": {
-        "name": "mobile",
-        "tag_type": "MISC"
-      },
-      "devices": {
-        "name": "devices",
-        "tag_type": "MISC"
-      },
-      "LinkedIn": {
-        "name": "LinkedIn",
-        "tag_type": "Vendor"
-      },
-      "data": {
-        "name": "data",
-        "tag_type": "MISC"
-      }
+      "HP": {"name": "HP", "tag_type": "Vendor"},
+      "Qualcomm": {"name": "Qualcomm", "tag_type": "MISC"},
+      "firewall": {"name": "firewall", "tag_type": "MISC"},
+      "systems": {"name": "systems", "tag_type": "MISC"},
+      "CVE-2023-1234": {"name": "CVE-2023-1234", "tag_type": "CVE"},
+      "vulnerabilities": {"name": "vulnerabilities", "tag_type": "MISC"},
+      "mobile": {"name": "mobile", "tag_type": "MISC"},
+      "devices": {"name": "devices", "tag_type": "MISC"},
+      "LinkedIn": {"name": "LinkedIn", "tag_type": "Vendor"},
+      "data": {"name": "data", "tag_type": "MISC"}
     },
     "id": "7"
   },
@@ -949,22 +616,10 @@
     "relevance": 0,
     "summary": "",
     "tags": {
-      "Johannes Rauch": {
-        "name": "Johannes Rauch",
-        "tag_type": "PER"
-      },
-      "NEOS": {
-        "name": "NEOS",
-        "tag_type": "ORG"
-      },
-      "Rauch": {
-        "name": "Rauch",
-        "tag_type": "PER"
-      },
-      "Vorarlberg": {
-        "name": "Vorarlberg",
-        "tag_type": "LOC"
-      }
+      "Johannes Rauch": {"name": "Johannes Rauch", "tag_type": "PER"},
+      "NEOS": {"name": "NEOS", "tag_type": "ORG"},
+      "Rauch": {"name": "Rauch", "tag_type": "PER"},
+      "Vorarlberg": {"name": "Vorarlberg", "tag_type": "LOC"}
     },
     "title": "Weiter warten auf neues Epidemie-Gesetz",
     "updated": "2024-07-29T20:50:53.374716"
@@ -1013,42 +668,15 @@
     "relevance": 0,
     "summary": "",
     "tags": {
-      "Hermann Trinker": {
-        "name": "Hermann Trinker",
-        "tag_type": "PER"
-      },
-      "Kapsch Holding": {
-        "name": "Kapsch Holding",
-        "tag_type": "ORG"
-      },
-      "Plane": {
-        "name": "Plane",
-        "tag_type": "CVE_VENDOR"
-      },
-      "Schladming": {
-        "name": "Schladming",
-        "tag_type": "LOC"
-      },
-      "Talbach": {
-        "name": "Talbach",
-        "tag_type": "LOC"
-      },
-      "Talbach,": {
-        "name": "Talbach,",
-        "tag_type": "LOC"
-      },
-      "Talbachklamm": {
-        "name": "Talbachklamm",
-        "tag_type": "LOC"
-      },
-      "Untertal": {
-        "name": "Untertal",
-        "tag_type": "LOC"
-      },
-      "Verbund": {
-        "name": "Verbund",
-        "tag_type": "Company"
-      }
+      "Hermann Trinker": {"name": "Hermann Trinker", "tag_type": "PER"},
+      "Kapsch Holding": {"name": "Kapsch Holding", "tag_type": "ORG"},
+      "Plane": {"name": "Plane", "tag_type": "CVE_VENDOR"},
+      "Schladming": {"name": "Schladming", "tag_type": "LOC"},
+      "Talbach": {"name": "Talbach", "tag_type": "LOC"},
+      "Talbach,": {"name": "Talbach,", "tag_type": "LOC"},
+      "Talbachklamm": {"name": "Talbachklamm", "tag_type": "LOC"},
+      "Untertal": {"name": "Untertal", "tag_type": "LOC"},
+      "Verbund": {"name": "Verbund", "tag_type": "Company"}
     },
     "title": "Aufregung um Kraftwerkspl\u00e4ne in Schladming",
     "updated": "2024-07-29T20:50:53.381049"
@@ -1083,46 +711,16 @@
       }
     ],
     "tags": {
-      "Adobe": {
-        "name": "Adobe",
-        "tag_type": "MISC"
-      },
-      "SAP": {
-        "name": "SAP",
-        "tag_type": "MISC"
-      },
-      "CVE-2023-7891": {
-        "name": "CVE-2023-7891",
-        "tag_type": "CVE"
-      },
-      "vulnerabilities": {
-        "name": "vulnerabilities",
-        "tag_type": "MISC"
-      },
-      "enterprise": {
-        "name": "enterprise",
-        "tag_type": "MISC"
-      },
-      "solutions": {
-        "name": "solutions",
-        "tag_type": "MISC"
-      },
-      "Twitter": {
-        "name": "Twitter",
-        "tag_type": "MISC"
-      },
-      "mechanisms": {
-        "name": "mechanisms",
-        "tag_type": "MISC"
-      },
-      "malware": {
-        "name": "malware",
-        "tag_type": "MISC"
-      },
-      "infrastructure": {
-        "name": "infrastructure",
-        "tag_type": "MISC"
-      }
+      "Adobe": {"name": "Adobe", "tag_type": "MISC"},
+      "SAP": {"name": "SAP", "tag_type": "MISC"},
+      "CVE-2023-7891": {"name": "CVE-2023-7891", "tag_type": "CVE"},
+      "vulnerabilities": {"name": "vulnerabilities", "tag_type": "MISC"},
+      "enterprise": {"name": "enterprise", "tag_type": "MISC"},
+      "solutions": {"name": "solutions", "tag_type": "MISC"},
+      "Twitter": {"name": "Twitter", "tag_type": "MISC"},
+      "mechanisms": {"name": "mechanisms", "tag_type": "MISC"},
+      "malware": {"name": "malware", "tag_type": "MISC"},
+      "infrastructure": {"name": "infrastructure", "tag_type": "MISC"}
     },
     "id": "6"
   },
@@ -1170,66 +768,21 @@
     "relevance": 0,
     "summary": "",
     "tags": {
-      "Abwerzger": {
-        "name": "Abwerzger",
-        "tag_type": "PER"
-      },
-      "Anton Mattle": {
-        "name": "Anton Mattle",
-        "tag_type": "PER"
-      },
-      "Europ\u00e4ische Gerichtshof": {
-        "name": "Europ\u00e4ische Gerichtshof",
-        "tag_type": "ORG"
-      },
-      "FP\u00d6": {
-        "name": "FP\u00d6",
-        "tag_type": "ORG"
-      },
-      "Innsbruck": {
-        "name": "Innsbruck",
-        "tag_type": "LOC"
-      },
-      "Kroatien": {
-        "name": "Kroatien",
-        "tag_type": "Country"
-      },
-      "ORF": {
-        "name": "ORF",
-        "tag_type": "ORG"
-      },
-      "ORF2": {
-        "name": "ORF2",
-        "tag_type": "ORG"
-      },
-      "Slowenien": {
-        "name": "Slowenien",
-        "tag_type": "Country"
-      },
-      "Tirol": {
-        "name": "Tirol",
-        "tag_type": "LOC"
-      },
-      "Tschechien": {
-        "name": "Tschechien",
-        "tag_type": "Country"
-      },
-      "Tschechien,": {
-        "name": "Tschechien,",
-        "tag_type": "LOC"
-      },
-      "Ungarn": {
-        "name": "Ungarn",
-        "tag_type": "Country"
-      },
-      "\u00d6VP": {
-        "name": "\u00d6VP",
-        "tag_type": "ORG"
-      },
-      "\u00d6sterreich": {
-        "name": "\u00d6sterreich",
-        "tag_type": "Country"
-      }
+      "Abwerzger": {"name": "Abwerzger", "tag_type": "PER"},
+      "Anton Mattle": {"name": "Anton Mattle", "tag_type": "PER"},
+      "Europ\u00e4ische Gerichtshof": {"name": "Europ\u00e4ische Gerichtshof", "tag_type": "ORG"},
+      "FP\u00d6": {"name": "FP\u00d6", "tag_type": "ORG"},
+      "Innsbruck": {"name": "Innsbruck", "tag_type": "LOC"},
+      "Kroatien": {"name": "Kroatien", "tag_type": "Country"},
+      "ORF": {"name": "ORF", "tag_type": "ORG"},
+      "ORF2": {"name": "ORF2", "tag_type": "ORG"},
+      "Slowenien": {"name": "Slowenien", "tag_type": "Country"},
+      "Tirol": {"name": "Tirol", "tag_type": "LOC"},
+      "Tschechien": {"name": "Tschechien", "tag_type": "Country"},
+      "Tschechien,": {"name": "Tschechien,", "tag_type": "LOC"},
+      "Ungarn": {"name": "Ungarn", "tag_type": "Country"},
+      "\u00d6VP": {"name": "\u00d6VP", "tag_type": "ORG"},
+      "\u00d6sterreich": {"name": "\u00d6sterreich", "tag_type": "Country"}
     },
     "title": "Abwerzger: FP\u00d6 will Nummer Eins werden",
     "updated": "2024-07-29T20:50:53.393506"
@@ -1278,14 +831,8 @@
     "relevance": 0,
     "summary": "",
     "tags": {
-      "Alter": {
-        "name": "Alter",
-        "tag_type": "CVE_VENDOR"
-      },
-      "Feldkirchen": {
-        "name": "Feldkirchen",
-        "tag_type": "LOC"
-      }
+      "Alter": {"name": "Alter", "tag_type": "CVE_VENDOR"},
+      "Feldkirchen": {"name": "Feldkirchen", "tag_type": "LOC"}
     },
     "title": "Pfefferspray nach gef\u00e4hrlicher Drohung",
     "updated": "2024-07-29T20:50:53.399989"
@@ -1320,46 +867,16 @@
       }
     ],
     "tags": {
-      "Intel": {
-        "name": "Intel",
-        "tag_type": "Vendor"
-      },
-      "Oracle": {
-        "name": "Oracle",
-        "tag_type": "Vendor"
-      },
-      "CVE-2021-5678": {
-        "name": "CVE-2021-5678",
-        "tag_type": "CVE"
-      },
-      "vulnerabilities": {
-        "name": "vulnerabilities",
-        "tag_type": "MISC"
-      },
-      "cloud": {
-        "name": "cloud",
-        "tag_type": "MISC"
-      },
-      "infrastructures": {
-        "name": "infrastructures",
-        "tag_type": "MISC"
-      },
-      "Apple": {
-        "name": "Apple",
-        "tag_type": "Vendor"
-      },
-      "security": {
-        "name": "security",
-        "tag_type": "MISC"
-      },
-      "Windows": {
-        "name": "Windows",
-        "tag_type": "Product"
-      },
-      "systems": {
-        "name": "systems",
-        "tag_type": "MISC"
-      }
+      "Intel": {"name": "Intel", "tag_type": "Vendor"},
+      "Oracle": {"name": "Oracle", "tag_type": "Vendor"},
+      "CVE-2021-5678": {"name": "CVE-2021-5678", "tag_type": "CVE"},
+      "vulnerabilities": {"name": "vulnerabilities", "tag_type": "MISC"},
+      "cloud": {"name": "cloud", "tag_type": "MISC"},
+      "infrastructures": {"name": "infrastructures", "tag_type": "MISC"},
+      "Apple": {"name": "Apple", "tag_type": "Vendor"},
+      "security": {"name": "security", "tag_type": "MISC"},
+      "Windows": {"name": "Windows", "tag_type": "Product"},
+      "systems": {"name": "systems", "tag_type": "MISC"}
     },
     "id": "2"
   },
@@ -1407,118 +924,34 @@
     "relevance": 0,
     "summary": "",
     "tags": {
-      "Austria": {
-        "name": "Austria",
-        "tag_type": "Country"
-      },
-      "Basra": {
-        "name": "Basra",
-        "tag_type": "LOC"
-      },
-      "Belgien": {
-        "name": "Belgien",
-        "tag_type": "Country"
-      },
-      "Belgien,": {
-        "name": "Belgien,",
-        "tag_type": "LOC"
-      },
-      "Dirk Schulz": {
-        "name": "Dirk Schulz",
-        "tag_type": "PER"
-      },
-      "Frankreich": {
-        "name": "Frankreich",
-        "tag_type": "Country"
-      },
-      "Gr\u00f6nland": {
-        "name": "Gr\u00f6nland",
-        "tag_type": "Country"
-      },
-      "Holland,": {
-        "name": "Holland,",
-        "tag_type": "LOC"
-      },
-      "Irak": {
-        "name": "Irak",
-        "tag_type": "Country"
-      },
-      "Irak,": {
-        "name": "Irak,",
-        "tag_type": "LOC"
-      },
-      "Klagenfurt": {
-        "name": "Klagenfurt",
-        "tag_type": "LOC"
-      },
-      "Mauritius": {
-        "name": "Mauritius",
-        "tag_type": "Country"
-      },
-      "Mogadischu,": {
-        "name": "Mogadischu,",
-        "tag_type": "LOC"
-      },
-      "Neusiedl": {
-        "name": "Neusiedl",
-        "tag_type": "LOC"
-      },
-      "Nordkorea": {
-        "name": "Nordkorea",
-        "tag_type": "Country"
-      },
-      "SC Neusiedl": {
-        "name": "SC Neusiedl",
-        "tag_type": "ORG"
-      },
-      "SK Austria": {
-        "name": "SK Austria",
-        "tag_type": "ORG"
-      },
-      "Schulz": {
-        "name": "Schulz",
-        "tag_type": "PER"
-      },
-      "Schulz.": {
-        "name": "Schulz.",
-        "tag_type": "PER"
-      },
-      "Schulz.\n19": {
-        "name": "Schulz.\n19",
-        "tag_type": "PER"
-      },
-      "Schweiz": {
-        "name": "Schweiz",
-        "tag_type": "Country"
-      },
-      "Seychellen": {
-        "name": "Seychellen",
-        "tag_type": "Country"
-      },
-      "Somalia": {
-        "name": "Somalia",
-        "tag_type": "Country"
-      },
-      "Somalia,": {
-        "name": "Somalia,",
-        "tag_type": "LOC"
-      },
-      "S\u00fcdsudan": {
-        "name": "S\u00fcdsudan",
-        "tag_type": "Country"
-      },
-      "S\u00fcdsudan.": {
-        "name": "S\u00fcdsudan.",
-        "tag_type": "LOC"
-      },
-      "USA,": {
-        "name": "USA,",
-        "tag_type": "LOC"
-      },
-      "\u00d6sterreich": {
-        "name": "\u00d6sterreich",
-        "tag_type": "Country"
-      }
+      "Austria": {"name": "Austria", "tag_type": "Country"},
+      "Basra": {"name": "Basra", "tag_type": "LOC"},
+      "Belgien": {"name": "Belgien", "tag_type": "Country"},
+      "Belgien,": {"name": "Belgien,", "tag_type": "LOC"},
+      "Dirk Schulz": {"name": "Dirk Schulz", "tag_type": "PER"},
+      "Frankreich": {"name": "Frankreich", "tag_type": "Country"},
+      "Gr\u00f6nland": {"name": "Gr\u00f6nland", "tag_type": "Country"},
+      "Holland,": {"name": "Holland,", "tag_type": "LOC"},
+      "Irak": {"name": "Irak", "tag_type": "Country"},
+      "Irak,": {"name": "Irak,", "tag_type": "LOC"},
+      "Klagenfurt": {"name": "Klagenfurt", "tag_type": "LOC"},
+      "Mauritius": {"name": "Mauritius", "tag_type": "Country"},
+      "Mogadischu,": {"name": "Mogadischu,", "tag_type": "LOC"},
+      "Neusiedl": {"name": "Neusiedl", "tag_type": "LOC"},
+      "Nordkorea": {"name": "Nordkorea", "tag_type": "Country"},
+      "SC Neusiedl": {"name": "SC Neusiedl", "tag_type": "ORG"},
+      "SK Austria": {"name": "SK Austria", "tag_type": "ORG"},
+      "Schulz": {"name": "Schulz", "tag_type": "PER"},
+      "Schulz.": {"name": "Schulz.", "tag_type": "PER"},
+      "Schulz.\n19": {"name": "Schulz.\n19", "tag_type": "PER"},
+      "Schweiz": {"name": "Schweiz", "tag_type": "Country"},
+      "Seychellen": {"name": "Seychellen", "tag_type": "Country"},
+      "Somalia": {"name": "Somalia", "tag_type": "Country"},
+      "Somalia,": {"name": "Somalia,", "tag_type": "LOC"},
+      "S\u00fcdsudan": {"name": "S\u00fcdsudan", "tag_type": "Country"},
+      "S\u00fcdsudan.": {"name": "S\u00fcdsudan.", "tag_type": "LOC"},
+      "USA,": {"name": "USA,", "tag_type": "LOC"},
+      "\u00d6sterreich": {"name": "\u00d6sterreich", "tag_type": "Country"}
     },
     "title": "800 Kilometer f\u00fcr ein Fu\u00dfballmatch",
     "updated": "2024-07-29T20:50:53.413744"
@@ -1567,30 +1000,12 @@
     "relevance": 0,
     "summary": "",
     "tags": {
-      "Balkan": {
-        "name": "Balkan",
-        "tag_type": "LOC"
-      },
-      "Italien": {
-        "name": "Italien",
-        "tag_type": "Country"
-      },
-      "Italien.": {
-        "name": "Italien.",
-        "tag_type": "LOC"
-      },
-      "Osteuropa,": {
-        "name": "Osteuropa,",
-        "tag_type": "LOC"
-      },
-      "Simone Schmiedbauer": {
-        "name": "Simone Schmiedbauer",
-        "tag_type": "PER"
-      },
-      "Steiermark": {
-        "name": "Steiermark",
-        "tag_type": "LOC"
-      }
+      "Balkan": {"name": "Balkan", "tag_type": "LOC"},
+      "Italien": {"name": "Italien", "tag_type": "Country"},
+      "Italien.": {"name": "Italien.", "tag_type": "LOC"},
+      "Osteuropa,": {"name": "Osteuropa,", "tag_type": "LOC"},
+      "Simone Schmiedbauer": {"name": "Simone Schmiedbauer", "tag_type": "PER"},
+      "Steiermark": {"name": "Steiermark", "tag_type": "LOC"}
     },
     "title": "Warnung vor Einfuhr von Rohfleischprodukten",
     "updated": "2024-07-29T20:50:53.419960"
@@ -1625,46 +1040,16 @@
       }
     ],
     "tags": {
-      "Microsoft": {
-        "name": "Microsoft",
-        "tag_type": "Vendor"
-      },
-      "security": {
-        "name": "security",
-        "tag_type": "MISC"
-      },
-      "CVE-2020-1234": {
-        "name": "CVE-2020-1234",
-        "tag_type": "CVE"
-      },
-      "Google": {
-        "name": "Google",
-        "tag_type": "Vendor"
-      },
-      "vulnerabilities": {
-        "name": "vulnerabilities",
-        "tag_type": "CySec"
-      },
-      "Linux": {
-        "name": "Linux",
-        "tag_type": "Product"
-      },
-      "Cisco": {
-        "name": "Cisco",
-        "tag_type": "Vendor"
-      },
-      "protocols": {
-        "name": "protocols",
-        "tag_type": "MISC"
-      },
-      "breaches": {
-        "name": "breaches",
-        "tag_type": "CySec"
-      },
-      "community": {
-        "name": "community",
-        "tag_type": "MISC"
-      }
+      "Microsoft": {"name": "Microsoft", "tag_type": "Vendor"},
+      "security": {"name": "security", "tag_type": "MISC"},
+      "CVE-2020-1234": {"name": "CVE-2020-1234", "tag_type": "CVE"},
+      "Google": {"name": "Google", "tag_type": "Vendor"},
+      "vulnerabilities": {"name": "vulnerabilities", "tag_type": "CySec"},
+      "Linux": {"name": "Linux", "tag_type": "Product"},
+      "Cisco": {"name": "Cisco", "tag_type": "Vendor"},
+      "protocols": {"name": "protocols", "tag_type": "MISC"},
+      "breaches": {"name": "breaches", "tag_type": "CySec"},
+      "community": {"name": "community", "tag_type": "MISC"}
     },
     "id": "1"
   }

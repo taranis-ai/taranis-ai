@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from typing import Any
 from urllib.parse import urlsplit
 
-from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, create_model
+from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, ValidationError, create_model
 
 from models.base import TaranisBaseModel
 
@@ -155,6 +155,21 @@ class OperationContract:
                 raise ValueError("This operation has no request body")
             return None
         return self.body.validate_python(payload)
+
+    def validation_error_response(self, exc: ValidationError) -> dict[str, str]:
+        for error in exc.errors():
+            location = ".".join(str(part) for part in error["loc"])
+            if (
+                message := self.field_error_messages.get(f"{location}:{error['type']}")
+                or self.field_error_messages.get(location)
+                or self.field_error_messages.get(".".join("*" if isinstance(part, int) else str(part) for part in error["loc"]))
+            ):
+                return {"error": message}
+        if self.validation_error_message is not None:
+            return {"error": self.validation_error_message}
+        if self.validation_error_model is not None:
+            return {"error": self.validation_error_model.format_validation_errors(exc)}
+        return TaranisBaseModel.validation_error_response(exc, prefix=self.invalid_request_message)
 
     def response(self, status: int) -> ResponseContract:
         if response := self.responses.get(status):

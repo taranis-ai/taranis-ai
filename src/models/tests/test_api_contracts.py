@@ -1,7 +1,11 @@
-import pytest
-from pydantic import ValidationError
+from dataclasses import replace
 
+import pytest
+from pydantic import TypeAdapter, ValidationError
+
+from models.api import OperationContract
 from models.api_operations import OPERATIONS, find_operation, validate_outgoing_request
+from models.base import TaranisBaseModel
 
 
 def test_operation_resolution_and_task_payload():
@@ -37,6 +41,31 @@ def test_bodyless_health_response_and_content_type():
         operation.response(503).validate({"healthy": False}, content_type="application/json")
     with pytest.raises(ValueError):
         operation.response(200).validate({}, content_type="text/html")
+
+
+def test_validation_error_messages_preserve_precedence():
+    operation = OperationContract(
+        "POST",
+        "/example",
+        {},
+        field_error_messages={"0:int_parsing": "Specific error", "0": "Field error", "*": "Item error"},
+        validation_error_message="Invalid payload",
+        validation_error_model=TaranisBaseModel,
+    )
+    with pytest.raises(ValidationError) as error:
+        TypeAdapter(list[int]).validate_python(["invalid"])
+
+    assert operation.validation_error_response(error.value) == {"error": "Specific error"}
+    operation = replace(operation, field_error_messages={"0": "Field error", "*": "Item error"})
+    assert operation.validation_error_response(error.value) == {"error": "Field error"}
+    operation = replace(operation, field_error_messages={"*": "Item error"})
+    assert operation.validation_error_response(error.value) == {"error": "Item error"}
+    operation = replace(operation, field_error_messages={})
+    assert operation.validation_error_response(error.value) == {"error": "Invalid payload"}
+    operation = replace(operation, validation_error_message=None)
+    assert operation.validation_error_response(error.value)["error"].startswith("Validation failed for model 'TaranisBaseModel':")
+    operation = replace(operation, validation_error_model=None)
+    assert operation.validation_error_response(error.value)["error"].startswith("Invalid request: 0:")
 
 
 def test_partial_updates_csv_and_required_client_contracts():

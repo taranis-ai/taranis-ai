@@ -1,6 +1,5 @@
 """Flask boundaries for the frontend's structured data endpoints."""
 
-import json
 import re
 from functools import wraps
 
@@ -20,36 +19,36 @@ def operation():
     return next((op for op in OPERATIONS if op.match("GET" if request.method == "HEAD" else request.method, path) is not None), None)
 
 
-def validate_request(handler):
-    @wraps(handler)
-    def validated(*args, **kwargs):
-        contract = operation()
-        if contract is None:
-            raise RuntimeError("Missing frontend API contract")
-        try:
-            contract.parameters.model_validate(request.view_args or {})
-            contract.query.model_validate(request.args.to_dict())
-            contract.headers.model_validate(dict(request.headers))
-            payload = request.get_json(silent=True) if request.is_json else parse_formdata(request.form)
-            if contract.body is not None:
-                payload = payload or {}
-                for key in ("resolved_story", "incoming_original", "news_items", "incoming_story"):
-                    if isinstance(payload.get(key), str):
-                        payload[key] = json.loads(payload[key])
-                # The UI can omit the snapshot and load it from its current conflict cache.
-                if contract.method == "PUT" and not payload.get("incoming_story"):
-                    from frontend.views.dashboard_views import DashboardView
+def validate_request(*, load_body=None):
+    def decorate(handler):
+        @wraps(handler)
+        def validated(*args, **kwargs):
+            contract = operation()
+            if contract is None:
+                raise RuntimeError("Missing frontend API contract")
+            try:
+                contract.parameters.model_validate(request.view_args or {})
+                contract.query.model_validate(request.args.to_dict())
+                contract.headers.model_validate(dict(request.headers))
+                if load_body is not None:
+                    payload = load_body()
+                elif request.is_json:
+                    payload = request.get_json(silent=True)
+                else:
+                    payload = parse_formdata(request.form)
+                if contract.body is not None:
+                    payload = payload or {}
+                    g.frontend_api_json = contract.body.dump_python(contract.body.validate_python(payload), mode="json", exclude_unset=True)
+                else:
+                    contract.validate_body(payload or None)
+            except ValidationError, ValueError, TypeError, AttributeError:
+                return "Invalid request payload", 400
+            return handler(*args, **kwargs)
 
-                    payload["incoming_story"] = DashboardView._load_incoming_story_snapshot(str(payload.get("incoming_story_id")))
-                g.frontend_api_json = contract.body.dump_python(contract.body.validate_python(payload), mode="json", exclude_unset=True)
-            else:
-                contract.validate_body(payload or None)
-        except ValidationError, ValueError, TypeError, AttributeError:
-            return "Invalid request payload", 400
-        return handler(*args, **kwargs)
+        validated.__dict__["api_request_validated"] = True
+        return validated
 
-    validated.__dict__["api_request_validated"] = True
-    return validated
+    return decorate
 
 
 def validate_response(response):

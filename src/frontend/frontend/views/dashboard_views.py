@@ -22,6 +22,17 @@ from frontend.views.base_view import BaseView
 from frontend.views.story_views import StoryView
 
 
+def load_conflict_payload():
+    payload = (request.get_json(silent=True) if request.is_json else parse_formdata(request.form)) or {}
+    for key in ("resolved_story", "incoming_original", "news_items", "incoming_story"):
+        if isinstance(payload.get(key), str):
+            payload[key] = json.loads(payload[key])
+    # Conflict forms can omit the snapshot already held in the conflict cache.
+    if request.method == "PUT" and not payload.get("incoming_story"):
+        payload["incoming_story"] = DashboardView._load_incoming_story_snapshot(str(payload.get("incoming_story_id")))
+    return payload
+
+
 class DashboardView(BaseView):
     model = Dashboard
     icon = "home"
@@ -335,7 +346,7 @@ class DashboardView(BaseView):
 
     @classmethod
     @auth_required("ASSESS_UPDATE")
-    @validate_request
+    @validate_request(load_body=load_conflict_payload)
     def resolve_story_conflict(cls, story_id: str):
         resolved = g.frontend_api_json.get("resolved_story")
         incoming_original = g.frontend_api_json.get("incoming_original")

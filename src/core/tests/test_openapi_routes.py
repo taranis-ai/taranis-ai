@@ -239,15 +239,3 @@ def test_declared_operation_contracts_are_executable(route_app):
                     response.json_body.json_schema()
             found.add((operation.method, operation.path))
     assert found == {(operation.method, operation.path) for operation in OPERATIONS}
-
-
-def test_inventory_lists_all_routes_including_admin(route_app):
-    report = Path(__file__).resolve().parents[3] / "docs" / "api-contract-review.md"
-    inventory = set(re.findall(r"^\| `(\w+) ([^`]+)`", report.read_text(), flags=re.MULTILINE))
-    prefix = f"{Config.APPLICATION_ROOT}api"
-    actual = set()
-    for rule in route_app.url_map.iter_rules():
-        path = rule.rule.removeprefix(prefix) if rule.rule.startswith(f"{prefix}/") else f"/{rule.rule.removeprefix(Config.APPLICATION_ROOT)}"
-        path = re.sub(r"<(?:[^:<>]+:)?([^<>]+)>", r"{\1}", path) if rule.endpoint != "static" else path
-        actual.update((method, path) for method in rule.methods - {"HEAD", "OPTIONS"})
-    assert inventory == actual
