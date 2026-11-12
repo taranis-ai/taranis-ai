@@ -6,12 +6,12 @@ from pydantic import BaseModel, ConfigDict, Field, JsonValue, create_model
 
 from models import admin
 from models.api import (
+    ApiEndpointModels,
     ErrorResponse,
     FileUpload,
     IdMessageResponse,
     ItemsResponse,
     MessageResponse,
-    OperationContract,
     PageResponse,
     download_response,
     json_response,
@@ -309,7 +309,7 @@ class ReportTypeInput(TaranisBaseModel):
     attribute_groups: list[ReportTypeGroupInput] | None = Field(default_factory=list)
 
 
-def _crud_operations() -> list[OperationContract]:
+def _crud_operations() -> list[ApiEndpointModels]:
     operations = []
     resources = (
         ("acls", "acl_id", admin.ACL, admin.ACL, None, False, True, ListQuery),
@@ -337,21 +337,21 @@ def _crud_operations() -> list[OperationContract]:
             detail = f"{path}/{{{identifier}}}"
             operations.extend(
                 (
-                    OperationContract("GET", path, {200: json_response(PageResponse[response])}, query=query),
-                    OperationContract(
+                    ApiEndpointModels("GET", path, {200: json_response(PageResponse[response])}, query=query),
+                    ApiEndpointModels(
                         "POST",
                         path,
                         {200: json_response(IdMessageResponse), 201: json_response(IdMessageResponse)},
                         body=creation,
                     ),
-                    OperationContract("GET", detail, {200: json_response(detail_response)}, query=query),
-                    OperationContract(
+                    ApiEndpointModels("GET", detail, {200: json_response(detail_response)}, query=query),
+                    ApiEndpointModels(
                         "PUT",
                         detail,
                         {200: json_response(IdMessageResponse), 201: json_response(IdMessageResponse)},
                         body=update,
                     ),
-                    OperationContract(
+                    ApiEndpointModels(
                         "DELETE",
                         detail,
                         {
@@ -364,18 +364,18 @@ def _crud_operations() -> list[OperationContract]:
                 )
             )
             if patch:
-                operations.append(OperationContract("PATCH", detail, {200: json_response(IdMessageResponse)}, body=update))
+                operations.append(ApiEndpointModels("PATCH", detail, {200: json_response(IdMessageResponse)}, body=update))
             if collection_crud:
-                operations.extend((OperationContract("PUT", path, {}, body=update), OperationContract("DELETE", path, {})))
+                operations.extend((ApiEndpointModels("PUT", path, {}, body=update), ApiEndpointModels("DELETE", path, {})))
     return operations
 
 
-def _utility_operations() -> list[OperationContract]:
+def _utility_operations() -> list[ApiEndpointModels]:
     operations = []
     for prefix in ("config", "admin"):
 
         def op(method: str, path: str, responses: dict[int, Any], *, prefix=prefix, **kwargs):
-            operations.append(OperationContract(method, f"/{prefix}{path}", responses, **kwargs))
+            operations.append(ApiEndpointModels(method, f"/{prefix}{path}", responses, **kwargs))
 
         op("GET", "/permissions", {200: json_response(PageResponse[admin.Permission])}, query=ListQuery)
         op("GET", "/templates", {200: json_response(PageResponse[TemplateResponse])}, query=ListQuery)

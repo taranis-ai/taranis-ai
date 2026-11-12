@@ -3,7 +3,7 @@
 from pydantic import BaseModel, Field
 
 from models import dashboard
-from models.api import ItemsResponse, MessageResponse, OperationContract, json_response
+from models.api import ApiEndpointModels, ItemsResponse, MessageResponse, json_response
 from models.content_api import ContentError, ManualNewsInput, MispError, MispResult, StoryAdded, StoryInput
 
 
@@ -50,11 +50,11 @@ class StorySummary(BaseModel):
 
 OPERATIONS = (
     *(
-        OperationContract("GET", path, {200: json_response(StoryConflicts | dashboard.StoryConflict)})
+        ApiEndpointModels("GET", path, {200: json_response(StoryConflicts | dashboard.StoryConflict)})
         for path in ("/connectors/conflicts/stories", "/connectors/conflicts/stories/{story_id}")
     ),
     *(
-        OperationContract(
+        ApiEndpointModels(
             "PUT",
             path,
             {
@@ -65,16 +65,16 @@ OPERATIONS = (
         )
         for path in ("/connectors/conflicts/stories", "/connectors/conflicts/stories/{story_id}")
     ),
-    OperationContract("GET", "/connectors/conflicts/news-items", {200: json_response(ItemsResponse[dashboard.NewsItemConflict])}),
-    OperationContract(
+    ApiEndpointModels("GET", "/connectors/conflicts/news-items", {200: json_response(ItemsResponse[dashboard.NewsItemConflict])}),
+    ApiEndpointModels(
         "POST", "/connectors/conflicts/news-items", {200: json_response(AddedNews), 207: json_response(AddedNews)}, body=AddNews
     ),
-    OperationContract(
+    ApiEndpointModels(
         "PUT",
         "/connectors/conflicts/news-items",
         {200: json_response(StoryAdded), **{status: json_response(ContentError) for status in (400, 409, 500)}},
         body=UngroupIncoming,
     ),
-    OperationContract("GET", "/connectors/story-summary/{story_id}", {200: json_response(StorySummary)}),
-    OperationContract("POST", "/connectors/conflicts/clear", {200: json_response(MessageResponse)}),
+    ApiEndpointModels("GET", "/connectors/story-summary/{story_id}", {200: json_response(StorySummary)}),
+    ApiEndpointModels("POST", "/connectors/conflicts/clear", {200: json_response(MessageResponse)}),
 )

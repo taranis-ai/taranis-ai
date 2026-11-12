@@ -7,11 +7,11 @@ from pydantic import AfterValidator, AnyUrl, BaseModel, BeforeValidator, ConfigD
 
 from models import admin, product
 from models.api import (
+    ApiEndpointModels,
     ErrorResponse,
     IdMessageResponse,
     ItemsResponse,
     MessageResponse,
-    OperationContract,
     PageResponse,
     ResponseContract,
     download_response,
@@ -170,17 +170,17 @@ PROFILE_UPDATE = partial_model(ProfileSettings)
 
 
 OPERATIONS = (
-    OperationContract(
+    ApiEndpointModels(
         "POST",
         "/auth/login",
         {200: json_response(TokenResponse)},
         body=Annotated[LoginCredentials | ExternalLogin, Field(union_mode="left_to_right")] | None,
         request_media_types=("application/json", "application/x-www-form-urlencoded", "multipart/form-data"),
     ),
-    OperationContract("GET", "/users/", {200: json_response(UserProfileResponse)}),
-    OperationContract("GET", "/users/profile", {200: json_response(ProfileSettings)}),
+    ApiEndpointModels("GET", "/users/", {200: json_response(UserProfileResponse)}),
+    ApiEndpointModels("GET", "/users/profile", {200: json_response(ProfileSettings)}),
     *(
-        OperationContract(
+        ApiEndpointModels(
             method,
             "/users/profile",
             {200: json_response(ProfileUpdated)},
@@ -188,14 +188,14 @@ OPERATIONS = (
         )
         for method in ("POST", "PUT")
     ),
-    OperationContract("GET", "/dashboard", {200: json_response(ItemsResponse[Dashboard])}),
-    OperationContract("GET", "/dashboard/pizzint", {200: json_response(PizzintStatus)}),
-    OperationContract("GET", "/dashboard/cluster-names", {200: json_response(ItemsResponse[str])}),
-    OperationContract("GET", "/dashboard/trending-clusters", {200: json_response(ItemsResponse[TrendingCluster])}, query=ClusterQuery),
-    OperationContract("GET", "/dashboard/story-clusters", {200: json_response(list[StoryCluster])}, query=ClusterQuery),
-    OperationContract("GET", "/dashboard/cluster/{tag_type}", {200: json_response(PageResponse[Cluster])}, query=ClusterQuery),
-    OperationContract("DELETE", "/dashboard/delete-tag/{tag_name}", {200: json_response(MessageResponse)}),
-    OperationContract(
+    ApiEndpointModels("GET", "/dashboard", {200: json_response(ItemsResponse[Dashboard])}),
+    ApiEndpointModels("GET", "/dashboard/pizzint", {200: json_response(PizzintStatus)}),
+    ApiEndpointModels("GET", "/dashboard/cluster-names", {200: json_response(ItemsResponse[str])}),
+    ApiEndpointModels("GET", "/dashboard/trending-clusters", {200: json_response(ItemsResponse[TrendingCluster])}, query=ClusterQuery),
+    ApiEndpointModels("GET", "/dashboard/story-clusters", {200: json_response(list[StoryCluster])}, query=ClusterQuery),
+    ApiEndpointModels("GET", "/dashboard/cluster/{tag_type}", {200: json_response(PageResponse[Cluster])}, query=ClusterQuery),
+    ApiEndpointModels("DELETE", "/dashboard/delete-tag/{tag_name}", {200: json_response(MessageResponse)}),
+    ApiEndpointModels(
         "GET",
         "/dashboard/build-info",
         {200: json_response(Annotated[BuildInfo, BeforeValidator(TypeAdapter(dict[str, str]).validate_python)])},
@@ -207,63 +207,63 @@ OPERATIONS = (
             ("/asset-groups", "group_id", AssetGroupInput, AssetGroupResponse),
         )
         for operation in (
-            OperationContract("GET", path, {200: json_response(PageResponse[response_model])}, query=AssetQuery),
-            OperationContract("POST", path, {201: json_response(IdMessageResponse)}, body=input_model),
-            OperationContract("PUT", path, {}, body=partial_model(input_model)),
-            OperationContract("DELETE", path, {}),
-            OperationContract("GET", f"{path}/{{{identifier}}}", {200: json_response(response_model)}, query=AssetQuery),
-            OperationContract(
+            ApiEndpointModels("GET", path, {200: json_response(PageResponse[response_model])}, query=AssetQuery),
+            ApiEndpointModels("POST", path, {201: json_response(IdMessageResponse)}, body=input_model),
+            ApiEndpointModels("PUT", path, {}, body=partial_model(input_model)),
+            ApiEndpointModels("DELETE", path, {}),
+            ApiEndpointModels("GET", f"{path}/{{{identifier}}}", {200: json_response(response_model)}, query=AssetQuery),
+            ApiEndpointModels(
                 "PUT",
                 f"{path}/{{{identifier}}}",
                 {200: json_response(MessageResponse | IdMessageResponse), 201: json_response(IdMessageResponse)},
                 body=partial_model(input_model),
             ),
-            OperationContract("DELETE", f"{path}/{{{identifier}}}", {200: json_response(MessageResponse | IdMessageResponse)}),
+            ApiEndpointModels("DELETE", f"{path}/{{{identifier}}}", {200: json_response(MessageResponse | IdMessageResponse)}),
         )
     ),
-    OperationContract("GET", "/assets/cti", {200: json_response(CTIResponse)}),
-    OperationContract("GET", "/assets/{asset_id}/cti", {200: json_response(CTIResponse)}),
-    OperationContract(
+    ApiEndpointModels("GET", "/assets/cti", {200: json_response(CTIResponse)}),
+    ApiEndpointModels("GET", "/assets/{asset_id}/cti", {200: json_response(CTIResponse)}),
+    ApiEndpointModels(
         "PUT",
         "/assets/{asset_id}/vulnerabilities/{vulnerability_id}",
         {200: json_response(MessageResponse), 400: json_response(ErrorResponse | MessageResponse)},
         body=SolvedRequest,
     ),
-    OperationContract("GET", "/publish/product-types", {200: json_response(ItemsResponse[admin.ProductType])}),
-    OperationContract("GET", "/publish/product-choices", {200: json_response(ItemsResponse[product.ProductChoice])}),
-    OperationContract(
+    ApiEndpointModels("GET", "/publish/product-types", {200: json_response(ItemsResponse[admin.ProductType])}),
+    ApiEndpointModels("GET", "/publish/product-choices", {200: json_response(ItemsResponse[product.ProductChoice])}),
+    ApiEndpointModels(
         "GET",
         "/publish/product-type-choices",
         {200: json_response(ItemsResponse[product.ProductTypeChoice])},
         query=ProductTypeQuery,
         repeated_query=("report_ids",),
     ),
-    OperationContract("GET", "/publish/product-metadata/{product_id}", {200: json_response(PRODUCT_RESPONSE)}),
-    OperationContract("GET", "/publish/publisher-presets", {200: json_response(PageResponse[product.PublisherPreset])}, query=ListQuery),
-    OperationContract("GET", "/publish/publisher-presets/{preset_id}", {200: json_response(product.PublisherPreset)}, query=ListQuery),
-    OperationContract("GET", "/publish/products", {200: json_response(PageResponse[PRODUCT_RESPONSE])}, query=ProductQuery),
-    OperationContract("GET", "/publish/products/{product_id}", {200: json_response(PRODUCT_RESPONSE)}),
-    OperationContract("POST", "/publish/products", {201: json_response(ProductWritten)}, body=ProductInput),
-    OperationContract("PUT", "/publish/products/{product_id}", {200: json_response(ProductWritten)}, body=partial_model(ProductInput)),
-    OperationContract("DELETE", "/publish/products/{product_id}", {200: json_response(MessageResponse)}),
-    OperationContract("POST", "/publish/products/{product_id}/render", {200: json_response(QueueNotice)}),
-    OperationContract(
+    ApiEndpointModels("GET", "/publish/product-metadata/{product_id}", {200: json_response(PRODUCT_RESPONSE)}),
+    ApiEndpointModels("GET", "/publish/publisher-presets", {200: json_response(PageResponse[product.PublisherPreset])}, query=ListQuery),
+    ApiEndpointModels("GET", "/publish/publisher-presets/{preset_id}", {200: json_response(product.PublisherPreset)}, query=ListQuery),
+    ApiEndpointModels("GET", "/publish/products", {200: json_response(PageResponse[PRODUCT_RESPONSE])}, query=ProductQuery),
+    ApiEndpointModels("GET", "/publish/products/{product_id}", {200: json_response(PRODUCT_RESPONSE)}),
+    ApiEndpointModels("POST", "/publish/products", {201: json_response(ProductWritten)}, body=ProductInput),
+    ApiEndpointModels("PUT", "/publish/products/{product_id}", {200: json_response(ProductWritten)}, body=partial_model(ProductInput)),
+    ApiEndpointModels("DELETE", "/publish/products/{product_id}", {200: json_response(MessageResponse)}),
+    ApiEndpointModels("POST", "/publish/products/{product_id}/render", {200: json_response(QueueNotice)}),
+    ApiEndpointModels(
         "GET",
         "/publish/products/{product_id}/render",
         {200: download_response(json_body=RenderFailure), 206: download_response(), 304: ResponseContract(None, media_type=None)},
     ),
-    OperationContract("POST", "/publish/products/{product_id}/publishers/{publisher_id}", {200: json_response(QueueNotice)}),
-    OperationContract("GET", "/publish/products/auto-render/{report_item_id}", {200: json_response(ProductList)}),
+    ApiEndpointModels("POST", "/publish/products/{product_id}/publishers/{publisher_id}", {200: json_response(QueueNotice)}),
+    ApiEndpointModels("GET", "/publish/products/auto-render/{report_item_id}", {200: json_response(ProductList)}),
     *(
-        OperationContract("POST", f"/settings/{action}", {200: json_response(MessageResponse)})
+        ApiEndpointModels("POST", f"/settings/{action}", {200: json_response(MessageResponse)})
         for action in ("delete-tags", "delete-stories", "clear-queues")
     ),
-    *(OperationContract("POST", f"/settings/{action}", {}) for action in ("ungroup-stories", "reset-database")),
-    OperationContract("POST", "/settings/rebuild-story-search-vectors", {200: json_response(RebuildResponse)}),
-    OperationContract("GET", "/settings/export-stories", {200: download_response("application/json")}, query=admin.ExportStoriesQuery),
-    OperationContract("GET", "/settings/settings", {200: json_response(SettingsResponse)}),
+    *(ApiEndpointModels("POST", f"/settings/{action}", {}) for action in ("ungroup-stories", "reset-database")),
+    ApiEndpointModels("POST", "/settings/rebuild-story-search-vectors", {200: json_response(RebuildResponse)}),
+    ApiEndpointModels("GET", "/settings/export-stories", {200: download_response("application/json")}, query=admin.ExportStoriesQuery),
+    ApiEndpointModels("GET", "/settings/settings", {200: json_response(SettingsResponse)}),
     *(
-        OperationContract(
+        ApiEndpointModels(
             method,
             "/settings/settings",
             {200: json_response(SettingsUpdated)},
@@ -272,7 +272,7 @@ OPERATIONS = (
         for method in ("PUT", "PATCH", "POST")
     ),
     *(
-        OperationContract(
+        ApiEndpointModels(
             "POST",
             path,
             {200: json_response(IdMessageResponse)},
@@ -280,8 +280,8 @@ OPERATIONS = (
         )
         for path in ("/settings/llm-endpoints", "/settings/llm-endpoints/{endpoint_id}")
     ),
-    OperationContract("POST", "/settings/llm-endpoints/{endpoint_id}/delete", {200: json_response(IdMessageResponse)}),
-    OperationContract(
+    ApiEndpointModels("POST", "/settings/llm-endpoints/{endpoint_id}/delete", {200: json_response(IdMessageResponse)}),
+    ApiEndpointModels(
         "POST",
         "/admin/cache/invalidate",
         {200: json_response(CacheResponse)},

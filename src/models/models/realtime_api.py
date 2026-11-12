@@ -4,7 +4,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
-from models.api import MessageResponse, OperationContract, json_response
+from models.api import ApiEndpointModels, MessageResponse, json_response
 from models.base import TaranisBaseModel
 
 
@@ -65,14 +65,14 @@ class Connected(BaseModel):
 
 
 OPERATIONS = (
-    OperationContract(
+    ApiEndpointModels(
         "POST",
         "/realtime/broadcast",
         {200: json_response(MessageResponse)},
         body=Broadcast,
     ),
-    OperationContract("GET", "/realtime/clients", {200: json_response(Clients)}),
-    OperationContract(
+    ApiEndpointModels("GET", "/realtime/clients", {200: json_response(Clients)}),
+    ApiEndpointModels(
         "POST", "/realtime/connect", {200: json_response(Connected | Disconnected)}, body=Callback | None, headers=ProxyHeaders
     ),
 )

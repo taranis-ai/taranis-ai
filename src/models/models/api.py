@@ -90,7 +90,7 @@ ERROR_RESPONSES = {
 
 
 @dataclass(frozen=True)
-class OperationContract:
+class ApiEndpointModels:
     method: str
     path: str
     responses: dict[int, ResponseContract]

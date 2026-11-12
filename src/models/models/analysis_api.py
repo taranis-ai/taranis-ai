@@ -4,7 +4,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, JsonValue, StrictBool, create_model
 
-from models.api import ErrorResponse, IdMessageResponse, ItemsResponse, MessageResponse, OperationContract, PageResponse, json_response
+from models.api import ApiEndpointModels, ErrorResponse, IdMessageResponse, ItemsResponse, MessageResponse, PageResponse, json_response
 from models.base import TaranisBaseModel
 from models.config_api import QueueNotice
 from models.content_api import (
@@ -100,23 +100,23 @@ class WorkflowResponse(MessageResponse):
 
 
 OPERATIONS = (
-    OperationContract("GET", "/analyze/report-types", {200: json_response(ItemsResponse[ReportTypes])}),
-    OperationContract("GET", "/analyze/report-editors/{report_item_id}", {200: json_response(ReportEditor)}),
+    ApiEndpointModels("GET", "/analyze/report-types", {200: json_response(ItemsResponse[ReportTypes])}),
+    ApiEndpointModels("GET", "/analyze/report-editors/{report_item_id}", {200: json_response(ReportEditor)}),
     *(
-        OperationContract("GET", path, {200: json_response(PageResponse[ReportResponse])}, query=ContentQuery, repeated_query=("group",))
+        ApiEndpointModels("GET", path, {200: json_response(PageResponse[ReportResponse])}, query=ContentQuery, repeated_query=("group",))
         for path in ("/analyze/report-items", "/analyze/reports")
     ),
     *(
-        OperationContract("POST", path, {200: json_response(ReportWritten)}, body=ReportCreate)
+        ApiEndpointModels("POST", path, {200: json_response(ReportWritten)}, body=ReportCreate)
         for path in ("/analyze/report-items", "/analyze/reports")
     ),
-    *(OperationContract(method, path, {}) for path in ("/analyze/report-items", "/analyze/reports") for method in ("PUT", "DELETE")),
+    *(ApiEndpointModels(method, path, {}) for path in ("/analyze/report-items", "/analyze/reports") for method in ("PUT", "DELETE")),
     *(
-        OperationContract("GET", path, {200: json_response(ReportResponse)})
+        ApiEndpointModels("GET", path, {200: json_response(ReportResponse)})
         for path in ("/analyze/report-items/{report_item_id}", "/analyze/report/{report_item_id}")
     ),
     *(
-        OperationContract(
+        ApiEndpointModels(
             "PUT",
             path,
             {
@@ -128,14 +128,14 @@ OPERATIONS = (
         for path in ("/analyze/report-items/{report_item_id}", "/analyze/report/{report_item_id}")
     ),
     *(
-        OperationContract("DELETE", path, {200: json_response(MessageResponse)})
+        ApiEndpointModels("DELETE", path, {200: json_response(MessageResponse)})
         for path in ("/analyze/report-items/{report_item_id}", "/analyze/report/{report_item_id}")
     ),
-    OperationContract("GET", "/analyze/report-items/{report_item_id}/cti", {200: json_response(CTIResponse)}),
-    OperationContract("POST", "/analyze/report-items/{report_item_id}/clone", {200: json_response(ReportWritten)}),
-    OperationContract("GET", "/analyze/report-items/{report_item_id}/stories", {200: json_response(ReportStories)}),
+    ApiEndpointModels("GET", "/analyze/report-items/{report_item_id}/cti", {200: json_response(CTIResponse)}),
+    ApiEndpointModels("POST", "/analyze/report-items/{report_item_id}/clone", {200: json_response(ReportWritten)}),
+    ApiEndpointModels("GET", "/analyze/report-items/{report_item_id}/stories", {200: json_response(ReportStories)}),
     *(
-        OperationContract(
+        ApiEndpointModels(
             method,
             "/analyze/report-items/{report_item_id}/stories",
             {
@@ -146,20 +146,20 @@ OPERATIONS = (
         )
         for method in ("PUT", "POST")
     ),
-    OperationContract(
+    ApiEndpointModels(
         "POST",
         "/analyze/report-items/publish-product",
         {201: json_response(WorkflowResponse), 400: json_response(ContentError), 500: json_response(WorkflowResponse | ErrorResponse)},
         body=WorkflowRequest,
     ),
-    OperationContract("POST", "/analyze/report-items/botactions", {200: json_response(QueueNotice)}, body=BotAction),
-    OperationContract("GET", "/analyze/report-items/{report_item_id}/locks", {200: json_response(ReportLock)}),
+    ApiEndpointModels("POST", "/analyze/report-items/botactions", {200: json_response(QueueNotice)}, body=BotAction),
+    ApiEndpointModels("GET", "/analyze/report-items/{report_item_id}/locks", {200: json_response(ReportLock)}),
     *(
-        OperationContract(method, "/analyze/report-items/{report_item_id}/lock", {200: json_response(ReportLock)})
+        ApiEndpointModels(method, "/analyze/report-items/{report_item_id}/lock", {200: json_response(ReportLock)})
         for method in ("PUT", "DELETE")
     ),
-    OperationContract("GET", "/analyze/report-items/{report_item_id}/revisions", {200: json_response(PageResponse[Revision])}),
-    OperationContract(
+    ApiEndpointModels("GET", "/analyze/report-items/{report_item_id}/revisions", {200: json_response(PageResponse[Revision])}),
+    ApiEndpointModels(
         "GET",
         "/analyze/report-items/{report_item_id}/revisions/{revision_number}",
         {200: json_response(RevisionData)},

@@ -9,7 +9,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 from models.analysis_api import OPERATIONS as ANALYSIS_OPERATIONS
-from models.api import ErrorResponse, MessageResponse, OperationContract, json_response
+from models.api import ApiEndpointModels, ErrorResponse, MessageResponse, json_response
 from models.assessment_api import OPERATIONS as ASSESSMENT_OPERATIONS
 from models.base import TaranisBaseModel
 from models.bot_api import OPERATIONS as BOT_OPERATIONS
@@ -113,34 +113,34 @@ class ChangePasswordRequest(BaseModel):
 
 _OPERATIONS = (
     (
-        OperationContract("GET", "/", {200: json_response(IsAliveResponse)}),
-        OperationContract("GET", "/isalive", {200: json_response(IsAliveResponse)}),
-        OperationContract("GET", "/health", {200: json_response(CoreHealth), 503: json_response(CoreHealth)}),
-        OperationContract("GET", "/tasks", {200: json_response(TaskListResponse)}, query=TaskQuery),
-        OperationContract("POST", "/tasks", {200: json_response(TaskResponse)}, body=TaskSubmission),
-        OperationContract("DELETE", "/tasks", {}),
-        OperationContract(
+        ApiEndpointModels("GET", "/", {200: json_response(IsAliveResponse)}),
+        ApiEndpointModels("GET", "/isalive", {200: json_response(IsAliveResponse)}),
+        ApiEndpointModels("GET", "/health", {200: json_response(CoreHealth), 503: json_response(CoreHealth)}),
+        ApiEndpointModels("GET", "/tasks", {200: json_response(TaskListResponse)}, query=TaskQuery),
+        ApiEndpointModels("POST", "/tasks", {200: json_response(TaskResponse)}, body=TaskSubmission),
+        ApiEndpointModels("DELETE", "/tasks", {}),
+        ApiEndpointModels(
             "GET",
             "/tasks/{task_id}",
             {200: json_response(TaskResponse), 404: json_response(PendingTaskResponse | ErrorResponse)},
             parameters=TaskPath,
         ),
-        OperationContract("DELETE", "/tasks/{task_id}", {200: json_response(MessageResponse)}, parameters=TaskPath),
-        OperationContract("GET", "/tasks/user", {200: json_response(UserTaskListResponse)}, query=UserTaskFilter),
-        OperationContract("GET", "/tasks/runs", {200: json_response(UserTaskListResponse)}, query=TaskRunFilter, repeated_query=("job_ids",)),
-        OperationContract("GET", "/auth/refresh", {200: json_response(AccessTokenResponse)}),
-        OperationContract("DELETE", "/auth/logout", {200: json_response(MessageResponse)}),
-        OperationContract("GET", "/auth/method", {200: json_response(AuthMethodResponse)}),
-        OperationContract("POST", "/auth/change_password", {200: json_response(MessageResponse)}, body=ChangePasswordRequest),
-        OperationContract("GET", "/chat/conversations", {200: json_response(ConversationListResponse)}),
-        OperationContract("POST", "/chat/conversations", {201: json_response(TurnResponse)}, body=ChatTurnRequest),
-        OperationContract(
+        ApiEndpointModels("DELETE", "/tasks/{task_id}", {200: json_response(MessageResponse)}, parameters=TaskPath),
+        ApiEndpointModels("GET", "/tasks/user", {200: json_response(UserTaskListResponse)}, query=UserTaskFilter),
+        ApiEndpointModels("GET", "/tasks/runs", {200: json_response(UserTaskListResponse)}, query=TaskRunFilter, repeated_query=("job_ids",)),
+        ApiEndpointModels("GET", "/auth/refresh", {200: json_response(AccessTokenResponse)}),
+        ApiEndpointModels("DELETE", "/auth/logout", {200: json_response(MessageResponse)}),
+        ApiEndpointModels("GET", "/auth/method", {200: json_response(AuthMethodResponse)}),
+        ApiEndpointModels("POST", "/auth/change_password", {200: json_response(MessageResponse)}, body=ChangePasswordRequest),
+        ApiEndpointModels("GET", "/chat/conversations", {200: json_response(ConversationListResponse)}),
+        ApiEndpointModels("POST", "/chat/conversations", {201: json_response(TurnResponse)}, body=ChatTurnRequest),
+        ApiEndpointModels(
             "GET", "/chat/conversations/{conversation_id}", {200: json_response(ConversationResponse)}, parameters=ConversationPath
         ),
-        OperationContract(
+        ApiEndpointModels(
             "DELETE", "/chat/conversations/{conversation_id}", {200: json_response(MessageResponse)}, parameters=ConversationPath
         ),
-        OperationContract(
+        ApiEndpointModels(
             "POST",
             "/chat/conversations/{conversation_id}/messages",
             {201: json_response(TurnResponse)},

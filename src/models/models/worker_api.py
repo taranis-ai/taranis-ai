@@ -5,7 +5,7 @@ from datetime import datetime
 from pydantic import BaseModel, Field, JsonValue, StrictBool, create_model
 
 from models import admin, assess
-from models.api import FileUpload, ItemsResponse, MessageResponse, OperationContract, download_response, json_response
+from models.api import ApiEndpointModels, FileUpload, ItemsResponse, MessageResponse, download_response, json_response
 from models.base import TaranisBaseModel
 from models.config_api import BotQuery, CronJobsResponse, QueueNotice, WordListQuery, WordListResponse
 from models.content_api import (
@@ -125,49 +125,49 @@ class TaranisPublished(MessageResponse):
 
 
 OPERATIONS = (
-    OperationContract("GET", "/worker/osint-sources", {200: json_response(SourcesResponse)}),
-    OperationContract("GET", "/worker/osint-sources/{source_id}", {200: json_response(SourceResponse)}),
-    OperationContract(
+    ApiEndpointModels("GET", "/worker/osint-sources", {200: json_response(SourcesResponse)}),
+    ApiEndpointModels("GET", "/worker/osint-sources/{source_id}", {200: json_response(SourceResponse)}),
+    ApiEndpointModels(
         "PUT",
         "/worker/osint-sources/{source_id}/icon",
         {200: json_response(MessageResponse)},
         uploads=FileUpload,
         request_media_types=("multipart/form-data",),
     ),
-    OperationContract("GET", "/worker/cron-jobs", {200: json_response(CronJobsResponse)}),
-    OperationContract("POST", "/worker/cron-jobs", {200: json_response(MessageResponse)}),
-    OperationContract(
+    ApiEndpointModels("GET", "/worker/cron-jobs", {200: json_response(CronJobsResponse)}),
+    ApiEndpointModels("POST", "/worker/cron-jobs", {200: json_response(MessageResponse)}),
+    ApiEndpointModels(
         "POST",
         "/worker/tasks/changed",
         {200: json_response(MessageResponse)},
         body=TaskChangeNotice,
     ),
-    OperationContract("POST", "/worker/tasks/history/cleanup", {200: json_response(CleanupResult)}),
-    OperationContract("GET", "/worker/products/{product_id}", {200: json_response(WorkerProduct)}),
-    OperationContract("GET", "/worker/products/{product_id}/render", {200: download_response()}),
-    OperationContract("GET", "/worker/presenters/{presenter}", {200: download_response()}),
-    OperationContract("POST", "/worker/products/{product_id}/publish", {200: json_response(TaranisPublished)}),
-    OperationContract("GET", "/worker/publishers/{publisher}", {200: json_response(WorkerPublisher)}),
-    OperationContract("GET", "/worker/connectors/{connector_id}", {200: json_response(WorkerConnector)}),
-    OperationContract(
+    ApiEndpointModels("POST", "/worker/tasks/history/cleanup", {200: json_response(CleanupResult)}),
+    ApiEndpointModels("GET", "/worker/products/{product_id}", {200: json_response(WorkerProduct)}),
+    ApiEndpointModels("GET", "/worker/products/{product_id}/render", {200: download_response()}),
+    ApiEndpointModels("GET", "/worker/presenters/{presenter}", {200: download_response()}),
+    ApiEndpointModels("POST", "/worker/products/{product_id}/publish", {200: json_response(TaranisPublished)}),
+    ApiEndpointModels("GET", "/worker/publishers/{publisher}", {200: json_response(WorkerPublisher)}),
+    ApiEndpointModels("GET", "/worker/connectors/{connector_id}", {200: json_response(WorkerConnector)}),
+    ApiEndpointModels(
         "POST",
         "/worker/news-items",
         {200: json_response(CollectionResult), **{status: json_response(ContentError | CollectionError) for status in (400, 409, 500)}},
         body=list[assess.NewsItem],
     ),
-    OperationContract(
+    ApiEndpointModels(
         "GET", "/worker/endpoint-health/{kind}/{endpoint_id}", {200: json_response(EndpointSkipped | EndpointConfig)}, query=CheckQuery
     ),
-    OperationContract(
+    ApiEndpointModels(
         "POST",
         "/worker/endpoint-health/{kind}/{endpoint_id}",
         {200: json_response(EndpointAccepted)},
         body=EndpointResult,
     ),
-    OperationContract("GET", "/worker/bots", {200: json_response(ItemsResponse[WorkerBot])}, query=BotQuery),
-    OperationContract("GET", "/worker/bots/{bot_id}", {200: json_response(WorkerBot)}),
+    ApiEndpointModels("GET", "/worker/bots", {200: json_response(ItemsResponse[WorkerBot])}, query=BotQuery),
+    ApiEndpointModels("GET", "/worker/bots/{bot_id}", {200: json_response(WorkerBot)}),
     *(
-        OperationContract(
+        ApiEndpointModels(
             "PUT",
             path,
             {200: json_response(WorkerBot)},
@@ -175,24 +175,24 @@ OPERATIONS = (
         )
         for path in ("/worker/bots", "/worker/bots/{bot_id}")
     ),
-    OperationContract("GET", "/worker/tags", {200: json_response(dict[str, Tag])}),
-    OperationContract(
+    ApiEndpointModels("GET", "/worker/tags", {200: json_response(dict[str, Tag])}),
+    ApiEndpointModels(
         "PUT",
         "/worker/tags",
         {200: json_response(MessageResponse), 207: json_response(PartialTags)},
         body=dict[str, JsonValue],
         query=ReplaceQuery,
     ),
-    OperationContract("POST", "/worker/iocs", {200: json_response(ItemsResponse[CTIItem])}, body=IOCQuery),
-    OperationContract("PUT", "/worker/post-collection-bots", {200: json_response(QueueNotice)}, body=PostCollection),
-    OperationContract(
+    ApiEndpointModels("POST", "/worker/iocs", {200: json_response(ItemsResponse[CTIItem])}, body=IOCQuery),
+    ApiEndpointModels("PUT", "/worker/post-collection-bots", {200: json_response(QueueNotice)}, body=PostCollection),
+    ApiEndpointModels(
         "GET",
         "/worker/stories",
         {200: json_response(list[StoryResponse])},
         query=ContentQuery,
         repeated_query=("source", "group", "story_ids"),
     ),
-    OperationContract(
+    ApiEndpointModels(
         "POST",
         "/worker/stories",
         {
@@ -201,14 +201,14 @@ OPERATIONS = (
         },
         body=StoryInput,
     ),
-    OperationContract(
+    ApiEndpointModels(
         "POST",
         "/worker/bot-pipeline/stories",
         {200: json_response(PipelineResponse)},
         body=PipelineRequest,
     ),
     *(
-        OperationContract(
+        ApiEndpointModels(
             "POST",
             path,
             {200: json_response(MispResult | MispError), **{status: json_response(ContentError | MispError) for status in (400, 409, 500)}},
@@ -217,11 +217,11 @@ OPERATIONS = (
         for path in ("/worker/misp/stories", "/worker/misp/last-change")
     ),
     *(
-        OperationContract("PUT", path, {200: json_response(MessageResponse)}, body=LastChangeRequest)
+        ApiEndpointModels("PUT", path, {200: json_response(MessageResponse)}, body=LastChangeRequest)
         for path in ("/worker/misp/stories", "/worker/misp/last-change")
     ),
     *(
-        OperationContract(
+        ApiEndpointModels(
             "GET",
             path,
             {200: json_response(ItemsResponse[WorkerWordList] if path.endswith("word-lists") else WorkerWordList)},
@@ -230,7 +230,7 @@ OPERATIONS = (
         for path in ("/worker/word-lists", "/worker/word-list/{word_list_id}")
     ),
     *(
-        OperationContract(
+        ApiEndpointModels(
             "PUT",
             path,
             {200: json_response(WordListUpdated)},
@@ -240,5 +240,5 @@ OPERATIONS = (
         )
         for path in ("/worker/word-lists", "/worker/word-list/{word_list_id}")
     ),
-    OperationContract("GET", "/worker/report-items/{report_id}", {200: json_response(WorkerReport)}),
+    ApiEndpointModels("GET", "/worker/report-items/{report_id}", {200: json_response(WorkerReport)}),
 )
