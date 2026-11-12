@@ -17,10 +17,14 @@ db: SQLAlchemy = SQLAlchemy()
 
 def initial_database_setup(engine: Engine):
     import_module("core.model.chat")
+    import_module("core.model.hrag")
     import_module("core.model.ioc")
 
     is_empty = is_db_empty(engine)
     db.metadata.create_all(bind=engine)
+    from core.service.hrag.stores import initialize_vectors
+
+    initialize_vectors(engine)
     setup_fts(engine)
     if is_empty:
         logger.debug("Create new Database")

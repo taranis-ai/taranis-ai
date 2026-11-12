@@ -44,3 +44,7 @@ Load for: Shared provider settings, Chat configuration, LLM bot execution, or en
 - Health: Core `service/endpoint_health.py`, worker `endpoint_health.py`, `/worker/endpoint-health/<kind>/<id>`.
 - Coverage: Core settings/admin API and health lifecycle workflows; Chat client suite; worker bot and endpoint-check workflows; frontend admin settings and full-stack RQ tests. Extend these workflows rather than adding duplicate orchestration tests.
 - Coverage: worker `tests/bots/test_bots.py` (requests, batch correlation, revisions), `tests/bots/test_bot_tasks.py` (mixed stages, checkpoints, final submission), and `tests/unit/test_endpoint_health.py` (multi-format models/probes, batch plus realtime Decisions). Admin E2E covers format/model/override persistence and assigned-format removal rejection. These do not establish live provider quality/availability.
+
+## HRAG capabilities
+
+The Embeddings API format is separate from generative/Decisions capabilities and cannot serve Chat or NER. `embedding`, `extraction`, and `graph_planning` assignments serve HRAG; v1 runs them in realtime. Endpoint probes validate finite nonzero embedding output. Index generations freeze the configured model, destination, format, dimensions and content limit, while endpoint credentials can rotate. New generation backfills require explicit activation; see [Hybrid Retrieval](../features/hrag.md). The companion library is temporarily pinned to an immutable source archive for the evidence-task API; Core installs the transport-free base and worker the `inference` extra.

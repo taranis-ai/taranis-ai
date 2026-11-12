@@ -87,6 +87,8 @@ TASK_MAP = {
     "presenter_task": "worker.presenters.presenter_tasks.presenter_task",
     "publisher_task": "worker.publishers.publisher_tasks.publisher_task",
     "connector_task": "worker.connectors.connector_tasks.connector_task",
+    "hrag_reconcile": "worker.hrag.reconcile_index",
+    "hrag_index": "worker.hrag.index_item",
     "gather_word_list": "worker.misc.misc_tasks.gather_word_list",
     "cleanup_token_blacklist": "worker.misc.misc_tasks.cleanup_token_blacklist",
     "cleanup_task_history": "worker.misc.misc_tasks.cleanup_task_history",
@@ -176,6 +178,8 @@ class QueueManager:
             from core.service.endpoint_health import schedule_all
 
             schedule_all()
+            if Config.HRAG_ENABLED:
+                self.enqueue_task("misc", "hrag_reconcile", job_timeout=720)
             return True
         except Exception:
             logger.exception("Failed to restore queue runtime state")
@@ -285,6 +289,8 @@ class QueueManager:
                 queue_name="misc",
             ),
         )
+        if Config.HRAG_ENABLED:
+            specs += (CronSpec(job_id="hrag_reconcile", cron="* * * * *", func_path="hrag_reconcile", queue_name="misc"),)
         return {spec.job_id: spec for spec in specs}
 
     def _get_registered_cron_job_ids(self) -> set[str]:
@@ -1611,6 +1617,17 @@ class QueueManager:
                     "name": "Cleanup Task History",
                 }
             )
+            if Config.HRAG_ENABLED:
+                cron_jobs.append(
+                    {
+                        "task": "hrag_reconcile",
+                        "queue": "misc",
+                        "task_id": "hrag_reconcile",
+                        "cron": "* * * * *",
+                        "args": [],
+                        "name": "Reconcile HRAG index",
+                    }
+                )
             return {"cron_jobs": cron_jobs}, 200
         except Exception:
             logger.exception("Failed to get cron job configurations")

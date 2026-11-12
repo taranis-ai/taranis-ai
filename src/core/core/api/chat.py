@@ -61,7 +61,7 @@ class ChatConversations(MethodView):
         if isinstance(payload := _parse_turn(), tuple):
             return payload
         try:
-            return {"conversation": ChatService.create_turn(current_user, payload.content, str(payload.turn_id))}, 201
+            return {"conversation": ChatService.create_turn(current_user, payload.content, str(payload.turn_id), mode=payload.mode)}, 201
         except Exception as exc:
             return _turn_error(exc)
 
@@ -86,7 +86,11 @@ class ChatMessages(MethodView):
         if isinstance(payload := _parse_turn(), tuple):
             return payload
         try:
-            return {"conversation": ChatService.create_turn(current_user, payload.content, str(payload.turn_id), conversation_id)}, 201
+            return {
+                "conversation": ChatService.create_turn(
+                    current_user, payload.content, str(payload.turn_id), conversation_id, mode=payload.mode
+                )
+            }, 201
         except Exception as exc:
             return _turn_error(exc)
 

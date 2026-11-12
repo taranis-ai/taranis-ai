@@ -5,6 +5,7 @@ from typing import Any, Literal
 from pydantic import ConfigDict, Field, field_validator
 
 from models.base import TaranisBaseModel
+from models.hrag import HragResult
 
 
 CHAT_MESSAGE_MAX_LENGTH = 4000
@@ -26,6 +27,8 @@ class ChatMessage(TaranisBaseModel):
     content: str
     created: datetime
     search_result: ChatSearchResult | None = None
+    mode: Literal["chat", "hrag"] = "chat"
+    hrag_result: HragResult | None = None
 
 
 class ChatConversationSummary(TaranisBaseModel):
@@ -46,6 +49,7 @@ class ChatConversationList(TaranisBaseModel):
 class ChatTurnRequest(TaranisBaseModel):
     model_config = ConfigDict(extra="forbid")
 
+    mode: Literal["chat", "hrag"] = "chat"
     content: str = Field(min_length=1, max_length=CHAT_MESSAGE_MAX_LENGTH)
     turn_id: uuid.UUID = Field(default_factory=_uuid7)
 

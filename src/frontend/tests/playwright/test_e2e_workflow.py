@@ -1,7 +1,7 @@
 import re
 import time
 from datetime import UTC, datetime, timedelta
-from urllib.parse import urlparse
+from urllib.parse import urlencode, urlparse
 from uuid import uuid4
 
 import pytest
@@ -22,12 +22,22 @@ def demo_chat_provider(core_request_client):
     endpoint = core_request_client.json_request(
         "POST",
         "/settings/llm-endpoints",
-        json_data={"name": "Landing page demo", "base_url": "http://demo-llm:8080/v1", "enabled": True, "api_format": "responses"},
+        json_data={
+            "name": "Landing page demo",
+            "base_url": "http://demo-llm:8080/v1",
+            "enabled": True,
+            "api_formats": {"responses": {}, "embeddings": {"model": "demo"}},
+        },
     )
     news_item_ids = []
     story_ids = []
     try:
-        core_request_client.patch("/settings/settings", json_data={"settings": {"llm_chat_endpoint": endpoint["id"]}})
+        core_request_client.patch(
+            "/settings/settings",
+            json_data={
+                "settings": {f"llm_{feature}_endpoint": endpoint["id"] for feature in ("chat", "graph_planning", "extraction", "embedding")}
+            },
+        )
         for index, title in enumerate(
             [
                 "Ransomware campaign targets European hospitals",
@@ -53,11 +63,29 @@ def demo_chat_provider(core_request_client):
             news_item_ids.extend(created["news_item_ids"])
             story_ids.append(created["story_id"])
             core_request_client.patch(f"/assess/stories/{created['story_id']}", json_data={"read": index == 2})
+        core_request_client.post("/settings/hrag", json_data={"action": "backfill"})
+        deadline = time.monotonic() + 120
+        while time.monotonic() < deadline:
+            state = core_request_client.json_request("GET", "/settings/hrag?" + urlencode({"news_item_id": news_item_ids}, doseq=True))
+            if len(state["generations"]) >= 2 and all(
+                g["scanned"] and g["counts"].get("ready", 0) == len(news_item_ids) and set(g["counts"]) <= {"ready"}
+                for g in state["generations"]
+            ):
+                break
+            time.sleep(0.5)
+        else:
+            pytest.fail("HRAG backfill did not complete")
         yield story_ids
     finally:
         try:
             core_request_client.patch(
-                "/settings/settings", json_data={"settings": {"llm_chat_endpoint": settings.get("llm_chat_endpoint", "")}}
+                "/settings/settings",
+                json_data={
+                    "settings": {
+                        f"llm_{feature}_endpoint": settings.get(f"llm_{feature}_endpoint", "")
+                        for feature in ("chat", "graph_planning", "extraction", "embedding")
+                    }
+                },
             )
         finally:
             try:
@@ -386,6 +414,7 @@ class TestUserWorkflow(BaseE2ETest):
         self.wait_for_htmx_settled(page)
 
     @pytest.mark.e2e_ci
+    @pytest.mark.e2e_full_stack
     def test_chat(
         self,
         demo_chat_provider: list[str],
@@ -431,6 +460,26 @@ class TestUserWorkflow(BaseE2ETest):
             expect(answer).to_have_count(2)
             expect(page.get_by_test_id("chat-message-user")).to_have_count(2)
             expect(timestamps).to_have_text(saved_timestamps)
+
+            page.get_by_test_id("chat-mode").select_option("hrag")
+            page.get_by_test_id("chat-input").fill("Find demo ransomware evidence.")
+            page.get_by_test_id("chat-send").click()
+            expect(answer).to_have_count(3)
+            expect(answer.last).to_contain_text("[G1]")
+            expect(answer.last).to_contain_text("[V1]")
+            panels = answer.last.get_by_test_id("chat-hrag-evidence")
+            expect(panels).to_have_count(2)
+            expect(panels.first).not_to_have_attribute("open", "")
+            panels.first.locator("summary").click()
+            expect(panels.first.get_by_test_id("chat-hrag-citation").first).to_be_visible()
+            page.reload()
+            expect(answer).to_have_count(3)
+            expect(answer.last).to_contain_text("[G1]")
+            page.get_by_test_id("chat-mode").select_option("chat")
+            page.get_by_test_id("chat-input").fill("Which ransomware stories are unread?")
+            page.get_by_test_id("chat-send").click()
+            expect(answer).to_have_count(4)
+            expect(answer.last).to_contain_text("unread ransomware")
 
             self.highlight_element(page.get_by_test_id("chat-assess-link").last).click()
             expect(page.get_by_test_id("assess")).to_be_visible()

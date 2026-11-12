@@ -25,6 +25,7 @@ ENQUEUE_KEY_PREFIX = "rq:cron:enqueue:"
 ENQUEUE_KEY_TTL_SECONDS = 300
 
 TASK_FUNCTION_MAP = {
+    "hrag_reconcile": "worker.hrag.reconcile_index",
     "collector_task": "worker.collectors.collector_tasks.collector_task",
     "bot_task": "worker.bots.bot_tasks.bot_task",
     "cleanup_token_blacklist": "worker.misc.misc_tasks.cleanup_token_blacklist",

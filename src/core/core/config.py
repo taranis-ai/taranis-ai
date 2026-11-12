@@ -39,6 +39,16 @@ class Settings(BaseSettings):
     DEBUG: bool = False
     AUDIT_LOG_ENABLED: bool = True
     CHAT_ENABLED: bool = False
+    HRAG_ENABLED: bool = False
+    HRAG_NEO4J_URI: str = "bolt://neo4j:7687"
+    HRAG_NEO4J_USER: str = "neo4j"
+    HRAG_NEO4J_PASSWORD: str = Field(default="", repr=False)
+    HRAG_NEO4J_DATABASE: str = "neo4j"
+    HRAG_EXTRACTION_LIMIT: int = Field(default=20_000, ge=1, le=200_000)
+    HRAG_EMBEDDING_LIMIT: int = Field(default=4_000, ge=1, le=200_000)
+    HRAG_EMBEDDING_DIMENSIONS: int = Field(default=1536, ge=1, le=16000)
+    HRAG_GRAPH_LIMIT: int = Field(default=50, ge=1, le=50)
+    HRAG_VECTOR_LIMIT: int = Field(default=12, ge=1, le=100)
 
     JWT_SECRET_KEY: str = "supersecret"
     JWT_IDENTITY_CLAIM: str = "sub"

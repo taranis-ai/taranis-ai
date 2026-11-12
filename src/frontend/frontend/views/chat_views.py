@@ -3,7 +3,7 @@ from typing import Any
 from urllib.parse import urlencode
 
 import requests
-from flask import abort, make_response, render_template, request, url_for
+from flask import abort, current_app, make_response, render_template, request, url_for
 from flask.typing import ResponseReturnValue
 from models.chat import ChatConversation, ChatConversationList, ChatConversationSummary, ChatTurnRequest, ChatTurnResponse
 from pydantic import ValidationError
@@ -43,6 +43,9 @@ class ChatView(BaseView):
                 query_string = urlencode(result.filters, doseq=True)
                 assess_url = url_for("assess.assess")
                 data["assess_url"] = f"{assess_url}?{query_string}" if query_string else assess_url
+            if message.hrag_result:
+                for evidence in data["hrag_result"]["evidence"]:
+                    evidence["assess_url"] = url_for("assess.assess") + "?" + urlencode({"story_ids": evidence["story_id"]})
             messages.append(data)
         return messages
 
@@ -63,6 +66,8 @@ class ChatView(BaseView):
             "message_views": cls._message_views(conversation),
             "notification": notification,
             "draft": draft,
+            "hrag_enabled": current_app.config.get("HRAG_ENABLED", False),
+            "mode": request.form.get("mode") or (conversation.messages[-1].mode if conversation and conversation.messages else "chat"),
             "turn_id": turn_id or str(uuid.uuid7()),
         }
 

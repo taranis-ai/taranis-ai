@@ -53,6 +53,26 @@
               <time datetime="{{ message.created }}" class="text-xs opacity-60">{{ message.created | format_datetime }}</time>
             </div>
             <div class="chat-bubble whitespace-pre-wrap break-words {% if message.role == 'user' %}chat-bubble-primary{% endif %}">{{ message.content }}</div>
+            {% if message.hrag_result and message.role == "assistant" %}
+              <div class="chat-footer mt-2 space-y-2 text-sm">
+                {% for notice in message.hrag_result.notices %}<p>{{ notice }}</p>{% endfor %}
+                {% for branch, label in [('graph', _('Graph evidence')), ('vector', _('Similar passages'))] %}
+                  <details class="rounded-box border border-base-300 p-2" data-testid="chat-hrag-evidence">
+                    <summary class="cursor-pointer font-semibold">{{ label }}</summary>
+                    {% for evidence in message.hrag_result.evidence if evidence.branch == branch %}
+                      <div class="mt-3" data-testid="chat-hrag-citation">
+                        <a class="link link-primary" href="{{ evidence.assess_url }}">[{{ evidence.citation }}] {{ evidence.title }}</a>
+                        {% if evidence.description %}<p>{{ evidence.description }} ({{ evidence.assertion }})</p>{% endif %}
+                        <blockquote class="mt-1 whitespace-pre-wrap border-l-2 border-base-300 pl-2">
+                          {{ evidence.quote }}
+                        </blockquote>
+                        {% if evidence.truncated %}<p class="text-xs">{{ _("Only the beginning of this item was indexed.") }}</p>{% endif %}
+                      </div>
+                    {% endfor %}
+                  </details>
+                {% endfor %}
+              </div>
+            {% endif %}
             {% if message.search_result %}
               <div class="chat-footer mt-2">
                 <a class="link link-primary text-sm"
@@ -128,6 +148,15 @@
           hx-on::before:request="window.taranisChat?.begin(this)"
           data-testid="chat-form">
       <input type="hidden" name="turn_id" value="{{ turn_id }}">
+      {% if hrag_enabled %}
+        <label class="mb-2 flex items-center gap-2 text-sm" for="chat-mode">
+          {{ _("Mode") }}
+          <select id="chat-mode" name="mode" class="select select-bordered select-sm" data-testid="chat-mode">
+            <option value="chat" {% if mode == 'chat' %}selected{% endif %}>{{ _("Chat") }}</option>
+            <option value="hrag" {% if mode == 'hrag' %}selected{% endif %}>{{ _("HRAG") }}</option>
+          </select>
+        </label>
+      {% endif %}
       <label class="sr-only" for="chat-message-input">{{ _("Message") }}</label>
       <div class="flex items-end gap-2">
         <textarea id="chat-message-input"

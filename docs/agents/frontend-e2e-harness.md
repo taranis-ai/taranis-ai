@@ -4,8 +4,8 @@ Load for: Playwright stack setup, `--e2e-ci`, Compose service selection, RQ read
 
 ## Harness Contracts
 
-- Ordinary stack-backed tests start Core, Redis, and the internal scripted demo chat provider. A selected, non-skipped `e2e_full_stack` test activates the `rq` profile (worker, cron, testdata server). Mark every worker/cron-dependent test accordingly.
-- Local sessions create and remove an isolated Compose project with fresh SQLite/Redis state and random host ports. Core readiness uses `/isalive`; full-stack startup additionally waits for authenticated RQ worker registration. Endpoint probes can degrade `/health`, so it does not gate stack readiness. RQ fixtures also check cron leadership.
+- Ordinary stack-backed tests start Core, Redis, and the internal scripted demo chat provider. A selected, non-skipped `e2e_full_stack` test activates the `rq` profile (worker, cron, testdata server, pgvector PostgreSQL and Neo4j). Minimal stacks keep SQLite; full stacks use PostgreSQL and enable HRAG. Mark every worker/cron-dependent test accordingly.
+- Local sessions create and remove an isolated Compose project with fresh database/Redis state and random host ports. Core readiness uses `/isalive`; full-stack startup additionally waits for authenticated RQ worker registration. Endpoint probes can degrade `/health`, so it does not gate stack readiness. RQ fixtures also check cron leadership.
 - HTTP test services use matching `DEBUG=true` / `FLASK_DEBUG=1` so production Secure cookies and HSTS do not interfere with the isolated HTTP stack. Production cookie/header behavior has dedicated request-level coverage.
 - The frontend runs in a session-scoped spawned Werkzeug process. `pytest-flask`'s fork-based live server is unsafe with native threads on Python 3.14; the separate process also isolates Core requests from per-test HTTP mocks.
 - Worker prepares the shared RQ environment once; cron waits for `.e2e-ready`.
@@ -29,3 +29,5 @@ Load for: Playwright stack setup, `--e2e-ci`, Compose service selection, RQ read
 ## Harness Diagnostics
 
 From `src/frontend`, minimal-stack smoke targets `tests/playwright/test_e2e_admin.py::TestEndToEndAdmin::test_login`; full-stack smoke targets `tests/playwright/test_e2e_rq_tasks.py`. Run with `uv run pytest <target> --e2e-ci`. Render `tests/playwright/compose.e2e.yml` both with and without `--profile rq` when changing service selection. Feature signoff remains the [full pipeline](development-workflow.md#feature-signoff-loop).
+
+The Chat workflow backfills synthetic content with the scripted provider, switches Chat/HRAG within one conversation, checks both citation panels and reloads history against the real graph/vector stores. Provider fixtures contain no private articles.

@@ -14,6 +14,7 @@ def main() -> None:
             "SERVER_NAME": os.environ["TARANIS_E2E_SERVER_NAME"],
             "TESTING": True,
             "CHAT_ENABLED": True,
+            "HRAG_ENABLED": os.environ.get("TARANIS_E2E_HRAG_ENABLED") == "true",
         }
     )
     server = make_server("127.0.0.1", 0, app, threaded=True, fd=socket_fd)
