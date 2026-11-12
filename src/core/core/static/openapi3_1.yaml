@@ -6385,6 +6385,13 @@ paths:
       - assess
       description: update news items ungroup
       operationId: assess.ungroup_news_items.put
+      parameters:
+      - name: confirm
+        in: query
+        required: false
+        description: Confirm removing stories that this request would empty from their reports
+        schema:
+          type: boolean
       requestBody:
         required: true
         content:
@@ -6403,9 +6410,33 @@ paths:
         '401':
           $ref: '#/components/responses/401Unauthorized'
         '403':
-          description: forbidden
+          description: forbidden, or "User is not allowed to update report" when an emptied story belongs to a report the user cannot update
         '404':
           $ref: '#/components/responses/404NotFound'
+        '409':
+          description: the request would empty stories assigned to reports; repeat with confirm=true to remove them from these reports
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - error
+                - reports
+                properties:
+                  error:
+                    type: string
+                  reports:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                      - id
+                      - title
+                      properties:
+                        id:
+                          type: string
+                        title:
+                          type: string
   /assess/news-items/{news_item_id}/attributes:
     parameters:
     - name: news_item_id

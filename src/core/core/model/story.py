@@ -1309,12 +1309,15 @@ class Story(BaseModel):
         newsitem_ids: list,
         user: User | None = None,
         actor: str | None = None,
+        confirm: bool = False,
     ):
+        # Local imports: core.model.report_item imports this module at module level.
+        from core.model.report_item import ReportItem
+        from core.service.report_story_sync import ReportStorySyncService
+
         actor = cls.resolve_actor(user=user, actor=actor)
         try:
-            processed_stories = set()
-            new_stories_ids = []
-            removed_titles_by_story: dict[Story, set[str]] = {}
+            removable_items: dict[str, tuple[NewsItem, Story]] = {}
             for item in newsitem_ids:
                 news_item = NewsItem.get(item)
                 if not news_item or not user:
@@ -1324,6 +1327,38 @@ class Story(BaseModel):
                 story = Story.get(news_item.story_id)
                 if not story:
                     continue
+                removable_items[news_item.id] = (news_item, story)
+
+            # Check every story before any change, so a rejected request never leaves other stories partially ungrouped.
+            affected_stories = {story for _, story in removable_items.values()}
+            emptied_stories = [story for story in affected_stories if all(item.id in removable_items for item in story.news_items)]
+            emptied_reports = ReportItem.get_for_stories([story.id for story in emptied_stories])
+            # access_allowed checks ACL and TLP only, so detaching from reports also needs the report-edit role.
+            if emptied_reports and (
+                not user
+                or "ANALYZE_UPDATE" not in user.get_permissions()
+                or any(not report.access_allowed(user, True) for report in emptied_reports)
+            ):
+                return {"error": "User is not allowed to update report"}, 403
+            if emptied_reports and not confirm:
+                return {
+                    "error": "Ungrouping removes the story from reports",
+                    "reports": [{"id": report.id, "title": report.title} for report in emptied_reports],
+                }, 409
+
+            # Collect before detaching: afterwards the emptied stories are no longer linked to their reports.
+            reports_to_revise = ReportItem.get_for_stories([story.id for story in affected_stories])
+            # An emptied story is deleted, and ON DELETE CASCADE would drop its report links silently,
+            # so detach it from its reports explicitly first. This does not clear its ID from report STORY attributes.
+            for report in emptied_reports:
+                stories_to_detach = [story for story in emptied_stories if story in report.stories]
+                report.stories = [story for story in report.stories if story not in stories_to_detach]
+                ReportStorySyncService.sync_report_membership(report, stories_to_detach, "detach")
+
+            processed_stories = set()
+            new_stories_ids = []
+            removed_titles_by_story: dict[Story, set[str]] = {}
+            for news_item, story in removable_items.values():
                 removed_titles_by_story.setdefault(story, set()).add(news_item.title)
                 story.news_items.remove(news_item)
                 processed_stories.add(story)
@@ -1334,6 +1369,8 @@ class Story(BaseModel):
                 story.update_status(change=actor)
             for story in processed_stories:
                 story.record_revision(user, note="ungroup_news_items")
+            for report in reports_to_revise:
+                report.record_revision(user, note="ungroup_news_items")
             db.session.commit()
             return {"message": f"Successfully ungrouped {len(newsitem_ids)} items from their story", "new_stories_ids": new_stories_ids}, 200
         except Exception:

@@ -1641,10 +1641,18 @@ class StoryView(BaseView):
     @auth_required()
     def ungroup(cls, story_id: str):
         if news_item_ids := request.form.getlist("news_item_ids[]"):
+            confirm = request.form.get("confirm") == "true"
             try:
-                response = CoreApi().api_put("/assess/news-items/ungroup", json_data=news_item_ids)
+                endpoint = "/assess/news-items/ungroup?confirm=true" if confirm else "/assess/news-items/ungroup"
+                response = CoreApi().api_put(endpoint, json_data=news_item_ids)
+                if response.status_code == 409 and (reports := (cls._response_payload(response) or {}).get("reports")):
+                    return cls._ungroup_confirm_dialog(story_id, news_item_ids, reports)
                 if not response.ok:
+                    # Ungroup buttons route error statuses to the notification bar, never into the story card.
                     return cls.get_notification_from_response(response, oob=False), response.status_code
+                if confirm:
+                    # The confirmed ungroup emptied and deleted the story, so there is no card left to refresh.
+                    return cls._after_story_removed(response)
                 notification_html = cls.get_notification_from_response(response)
                 content = cls._get_action_response_content(story_id)
                 return make_response(notification_html + content, 200)
@@ -1652,24 +1660,43 @@ class StoryView(BaseView):
                 raise
             except Exception:
                 logger.exception("Failed to ungroup news item.")
-                return cls.render_response_notification({"error": "Failed to ungroup news item."})
+                return cls.render_response_notification({"error": "Failed to ungroup news item."}), 500
         else:
             try:
                 core_response = CoreApi().api_put("/assess/stories/ungroup", json_data=[story_id])
                 if not core_response.ok:
                     return cls.get_notification_from_response(core_response, oob=False), core_response.status_code
-                if bookmark_id := cls._get_bookmark_id():
-                    return cls._render_bookmark_after_story_change(
-                        bookmark_id,
-                        notification=cls.get_notification_from_response(core_response),
-                    )
-                cls.add_flash_notification(core_response)
-                return cls.redirect_htmx(url_for("assess.assess"))
+                return cls._after_story_removed(core_response)
             except HTTPException:
                 raise
             except Exception:
                 logger.exception("Failed to ungroup story.")
                 return cls.render_response_notification({"error": "Failed to ungroup story."})
+
+    @classmethod
+    def _after_story_removed(cls, core_response: Any) -> ResponseReturnValue:
+        if bookmark_id := cls._get_bookmark_id():
+            return cls._render_bookmark_after_story_change(
+                bookmark_id,
+                notification=cls.get_notification_from_response(core_response),
+            )
+        cls.add_flash_notification(core_response)
+        return cls.redirect_htmx(url_for("assess.assess"))
+
+    @classmethod
+    def _ungroup_confirm_dialog(cls, story_id: str, news_item_ids: list[str], reports: list[dict[str, Any]]) -> ResponseReturnValue:
+        dialog = render_template(
+            "assess/ungroup_confirm_dialog.html",
+            story_id=story_id,
+            news_item_ids=news_item_ids,
+            reports=reports,
+        )
+        response = make_response(dialog, 200)
+        # Error statuses are not swapped, and the ungroup button selects its story card, so redirect the dialog explicitly.
+        response.headers["HX-Retarget"] = "body"
+        response.headers["HX-Reswap"] = "beforeend"
+        response.headers["HX-Reselect"] = "#ungroup_confirm_dialog"
+        return response
 
     @classmethod
     @auth_required("ASSESS_ACCESS")
