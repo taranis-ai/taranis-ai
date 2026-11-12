@@ -2,7 +2,7 @@
 
 The 510 Core application operations below have executable request, path, query, application-header and response contracts. Both configuration aliases and public reports are included. Authentication executes before request validation; the response boundary also validates authentication failures. Framework HEAD uses GET contracts; generated OPTIONS and Flask static files are explicit framework exclusions. Downloads validate metadata without consuming file iterators. Historical revision snapshots and provider parameter maps remain intentional extension maps.
 
-Regenerate this table and OpenAPI after route changes with `cd src/core && uv run python ../../dev/update_api_contracts.py`. The mandatory route test checks completeness, handler wiring and resolvable schemas under both application prefixes.
+Maintain this table and the OpenAPI document alongside route changes. Preserve existing descriptions, examples, security requirements and response metadata; update only affected operations and schemas. The mandatory route test checks completeness, handler wiring and resolvable schemas under both application prefixes.
 
 | Operation | Endpoint | Request body | Query | Path | Application headers | Explicit responses | OpenAPI | Boundary |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
