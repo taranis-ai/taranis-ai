@@ -51,7 +51,7 @@ def test_rq_transitions_publish_after_state_is_visible(requests_mock, outcome):
         observed.append((request.json(), job.get_status()))
         return {"message": "Task views invalidated"}
 
-    requests_mock.post(f"{Config.TARANIS_CORE_URL}/worker/tasks/changed", headers={"Content-Type": "application/json"}, json=observe_change)
+    requests_mock.post(f"{Config.TARANIS_CORE_URL}/worker/tasks/changed", json=observe_change)
     scheduler = TaskEventScheduler([queue], connection=connection)
     scheduler._acquired_locks = {queue.name}
     scheduler.enqueue_scheduled_jobs()

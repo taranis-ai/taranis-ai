@@ -158,7 +158,7 @@ def test_product_view_uses_core_choices_cached_by_report_selection(app, response
         items = [{"id": "common", "title": "Common"}]
         if report_ids[-1] not in selected:
             items.append({"id": "partial", "title": "Supports only part of the selection"})
-        return 200, {"Content-Type": "application/json"}, json.dumps({"items": items})
+        return 200, {}, json.dumps({"items": items})
 
     responses_mock.add_callback("GET", f"{Config.TARANIS_CORE_URL}/publish/product-type-choices", callback=choices)
     product = Product(title="Large product", product_type_id="common", id="0", report_items=[*report_ids, report_ids[0]])
@@ -190,7 +190,7 @@ def test_product_with_restricted_reports_opens_saves_and_explains_locked_actions
     }
     responses_mock.get(f"{Config.TARANIS_CORE_URL}/publish/products/product-1", json=product)
     responses_mock.get(f"{Config.TARANIS_CORE_URL}/publish/product-metadata/product-1", json=product)
-    responses_mock.get(f"{Config.TARANIS_CORE_URL}/publish/publisher-presets", json={"items": [], "total_count": 0})
+    responses_mock.get(f"{Config.TARANIS_CORE_URL}/publish/publisher-presets", json={"items": []})
     responses_mock.get(
         f"{Config.TARANIS_CORE_URL}/publish/product-type-choices",
         match=[matchers.query_param_matcher({"fetch_all": "true"})],

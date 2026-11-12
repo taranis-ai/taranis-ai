@@ -42,7 +42,7 @@ sync_worker() {
 
 run_audit() {
   component=$1
-  UV_FROZEN=false uv audit --locked \
+  UV_FROZEN=false uv audit --preview-features audit-command --locked \
     --python-version "$(<"${component}/.python-version")" \
     --python-platform linux \
     --directory "${component}"

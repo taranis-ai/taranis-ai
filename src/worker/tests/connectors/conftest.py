@@ -46,9 +46,7 @@ def story_template():
 @pytest.fixture
 def story_get_by_id_mock(requests_mock, stories):
     # stories_json = json.dumps(stories[10])
-    requests_mock.get(
-        f"{Config.TARANIS_CORE_URL}/worker/stories?story_id=11", headers={"Content-Type": "application/json"}, json=[stories[10]]
-    )
+    requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/stories?story_id=11", json=[stories[10]])
 
 
 # Connector task fixture is no longer needed as we use functions directly

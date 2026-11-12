@@ -147,7 +147,7 @@ def test_quick_save_updates_card_and_offers_undo_only_for_new_membership(
     for added in (True, False):
         responses_mock.post(
             f"{Config.TARANIS_CORE_URL}/assess/bookmarks/quick-save",
-            json={"message": "Story bookmarked", "bookmark": _bookmark_payload(), "added_story_ids": ["story-1"] if added else []},
+            json={"bookmark": _bookmark_payload(), "added_story_ids": ["story-1"] if added else []},
         )
         responses_mock.get(f"{Config.TARANIS_CORE_URL}/assess/bookmarks", json={"items": [_bookmark_payload()], "total_count": 1})
         response = authenticated_client_basic.post(
@@ -377,7 +377,7 @@ def test_bookmark_story_action_keeps_bookmark_card_behavior(
 ) -> None:
     responses_mock.patch(
         f"{Config.TARANIS_CORE_URL}/assess/stories/story-1",
-        json={"id": "story-1", "story": {"id": "story-1"}, "message": "Story updated"},
+        json={"message": "Story updated"},
     )
     responses_mock.get(f"{Config.TARANIS_CORE_URL}/assess/stories/story-1", json=_story_payload())
     responses_mock.get(
@@ -445,7 +445,7 @@ def test_story_edit_from_bookmark_returns_to_bookmark(
     responses_mock.get(f"{Config.TARANIS_CORE_URL}/assess/bookmarks", json={"items": [], "total_count": 0})
     responses_mock.patch(
         f"{Config.TARANIS_CORE_URL}/assess/stories/story-1",
-        json={"id": "story-1", "story": {"id": "story-1"}, "message": "Story updated"},
+        json={"message": "Story updated"},
     )
 
     edit_response = authenticated_client_basic.get(url_for("assess.story_edit", story_id="story-1", bookmark_id="bookmark-1"))

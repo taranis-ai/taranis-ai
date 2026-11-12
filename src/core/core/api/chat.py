@@ -1,8 +1,9 @@
-from flask import Blueprint, Flask, g
+from flask import Blueprint, Flask, request
 from flask.views import MethodView
 from flask_jwt_extended import current_user
+from models.chat import ChatTurnRequest
+from pydantic import ValidationError
 
-from core.api.contracts import validate_request
 from core.config import Config
 from core.log import logger
 from core.managers.auth_manager import auth_required
@@ -44,14 +45,21 @@ def _turn_error(exc: Exception) -> tuple[dict[str, str], int]:
     return {"error": "Chat request failed"}, 500
 
 
+def _parse_turn() -> ChatTurnRequest | tuple[dict[str, str], int]:
+    try:
+        return ChatTurnRequest.model_validate(request.get_json(silent=True))
+    except ValidationError as exc:
+        message = exc.errors()[0].get("msg", "Invalid chat message") if exc.errors() else "Invalid chat message"
+        return {"error": str(message)}, 400
+
+
 class ChatConversations(MethodView):
-    @validate_request
     def get(self):
         return ChatService.list_conversations(current_user), 200
 
-    @validate_request
     def post(self):
-        payload = g.api_body
+        if isinstance(payload := _parse_turn(), tuple):
+            return payload
         try:
             return {"conversation": ChatService.create_turn(current_user, payload.content, str(payload.turn_id))}, 201
         except Exception as exc:
@@ -59,14 +67,12 @@ class ChatConversations(MethodView):
 
 
 class ChatConversation(MethodView):
-    @validate_request
     def get(self, conversation_id: str):
         try:
             return ChatService.get_conversation(conversation_id, current_user), 200
         except ChatConversationNotFoundError:
             return {"error": "Chat conversation not found"}, 404
 
-    @validate_request
     def delete(self, conversation_id: str):
         try:
             ChatService.delete_conversation(conversation_id, current_user)
@@ -76,9 +82,9 @@ class ChatConversation(MethodView):
 
 
 class ChatMessages(MethodView):
-    @validate_request
     def post(self, conversation_id: str):
-        payload = g.api_body
+        if isinstance(payload := _parse_turn(), tuple):
+            return payload
         try:
             return {"conversation": ChatService.create_turn(current_user, payload.content, str(payload.turn_id), conversation_id)}, 201
         except Exception as exc:

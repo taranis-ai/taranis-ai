@@ -1,8 +1,7 @@
-from flask import Blueprint, Flask, abort, g, jsonify, make_response, request
+from flask import Blueprint, Flask, abort, jsonify, make_response, request
 from flask.views import MethodView
 from flask_jwt_extended import current_user
 
-from core.api.contracts import validate_request
 from core.api.utils import request_id_list
 from core.config import Config
 from core.log import logger
@@ -20,28 +19,24 @@ from core.service.report_publish_workflow import ReportPublishWorkflowService
 
 class ReportTypes(MethodView):
     @auth_required("ANALYZE_ACCESS")
-    @validate_request
     def get(self):
         return report_item_type.ReportItemType.get_all_for_user_api(user=current_user)
 
 
 class ReportEditor(MethodView):
     @auth_required("ANALYZE_ACCESS")
-    @validate_request
     def get(self, report_item_id: str):
         return report_item.ReportItem.get_editor_for_api(report_item_id, current_user)
 
 
 class ReportStories(MethodView):
     @auth_required("ANALYZE_ACCESS")
-    @validate_request
     def get(self, report_item_id: str):
         return report_item.ReportItem.get_story_ids(report_item_id)
 
     @auth_required("ANALYZE_UPDATE")
-    @validate_request
     def put(self, report_item_id: str):
-        request_data = g.api_json
+        request_data = request.json
         if not isinstance(request_data, list):
             logger.warning("No data in request")
             return {"error": "No data in request"}, 400
@@ -54,9 +49,8 @@ class ReportStories(MethodView):
         return make_response(jsonify(response), status)
 
     @auth_required("ANALYZE_UPDATE")
-    @validate_request
     def post(self, report_item_id: str):
-        request_data = g.api_json
+        request_data = request.json
         if not isinstance(request_data, list):
             logger.warning("No data in request")
             return {"error": "No data in request"}, 400
@@ -71,7 +65,6 @@ class ReportStories(MethodView):
 
 class ReportItem(MethodView):
     @auth_required("ANALYZE_ACCESS")
-    @validate_request
     def get(self, report_item_id: str | None = None):
         if report_item_id:
             return report_item.ReportItem.get_for_api(report_item_id, current_user)
@@ -81,13 +74,12 @@ class ReportItem(MethodView):
         return report_item.ReportItem.get_all_for_api(filter_args=filter_args, with_count=True, user=current_user)
 
     @auth_required("ANALYZE_CREATE")
-    @validate_request
     def post(self):
         try:
-            if not g.api_json:
+            if not request.json:
                 logger.debug("No data in request")
                 return {"error": "No data in request"}, 400
-            new_report_item, status = report_item.ReportItem.add(g.api_json, current_user)
+            new_report_item, status = report_item.ReportItem.add(request.json, current_user)
             if status != 200 or not isinstance(new_report_item, report_item.ReportItem):
                 return make_response(jsonify(new_report_item), status)
         except Exception as ex:
@@ -105,11 +97,10 @@ class ReportItem(MethodView):
         )
 
     @auth_required("ANALYZE_UPDATE")
-    @validate_request
     def put(self, report_item_id: str | None = None):
         if not report_item_id:
             return {"error": "No report_item_id provided"}, 400
-        request_data = g.api_json
+        request_data = request.json
         if not request_data:
             logger.debug("No data in request")
             return {"error": "No data in request"}, 400
@@ -126,7 +117,6 @@ class ReportItem(MethodView):
         return make_response(jsonify({"message": "Report item updated", "id": updated_report.get("id"), "report": updated_report}), status)
 
     @auth_required("ANALYZE_DELETE")
-    @validate_request
     def delete(self, report_item_id: str | None = None):
         if not report_item_id:
             return {"error": "No report_item_id provided"}, 400
@@ -148,28 +138,25 @@ class ReportItem(MethodView):
 
 class ReportItemCTI(MethodView):
     @auth_required("ANALYZE_ACCESS")
-    @validate_request
     def get(self, report_item_id: str):
         return CTIService.get_report_cti(report_item_id, current_user)
 
 
 class ReportItemPublishProduct(MethodView):
     @auth_required(["ANALYZE_CREATE", "PUBLISH_CREATE", "PUBLISH_PRODUCT"])
-    @validate_request
     def post(self):
         required_permissions = {"ANALYZE_CREATE", "PUBLISH_CREATE", "PUBLISH_PRODUCT"}
         user_permissions = set(current_user.get_permissions()) if current_user else set()
         if not required_permissions.issubset(user_permissions):
             return {"error": "forbidden"}, 403
-        response, status = ReportPublishWorkflowService.create_and_publish(g.api_json, current_user)
+        response, status = ReportPublishWorkflowService.create_and_publish(request.json, current_user)
         return make_response(jsonify(response), status)
 
 
 class ReportBotActions(MethodView):
     @auth_required("ANALYZE_UPDATE")
-    @validate_request
     def post(self):
-        payload = g.api_json or {}
+        payload = request.get_json(silent=True) or {}
         bot_id = payload.get("bot_id")
         if not bot_id:
             return {"error": "No bot_id provided"}, 400
@@ -192,7 +179,6 @@ class ReportBotActions(MethodView):
 
 class CloneReportItem(MethodView):
     @auth_required("ANALYZE_CREATE")
-    @validate_request
     def post(self, report_item_id: str):
         try:
             result, status = report_item.ReportItem.clone(report_item_id, current_user)
@@ -208,14 +194,12 @@ class CloneReportItem(MethodView):
 
 class ReportItemLocks(MethodView):
     @auth_required("ANALYZE_UPDATE")
-    @validate_request
     def get(self, report_item_id: str):
         return jsonify(report_item_lock_service.to_report_item_json(report_item_id))
 
 
 class ReportItemLock(MethodView):
     @auth_required("ANALYZE_UPDATE")
-    @validate_request
     def put(self, report_item_id: str):
         user = current_user
         if not user:
@@ -228,7 +212,6 @@ class ReportItemLock(MethodView):
             return {"error": "Failed to lock report item"}, 500
 
     @auth_required("ANALYZE_UPDATE")
-    @validate_request
     def delete(self, report_item_id: str):
         user = current_user
         if not user:
@@ -243,7 +226,6 @@ class ReportItemLock(MethodView):
 
 class ReportItemRevisions(MethodView):
     @auth_required("ANALYZE_ACCESS")
-    @validate_request
     def get(self, report_item_id: str):
         """Get all revisions for a report item"""
         from core.managers.db_manager import db
@@ -278,7 +260,6 @@ class ReportItemRevisions(MethodView):
 
 class ReportItemRevisionData(MethodView):
     @auth_required("ANALYZE_ACCESS")
-    @validate_request
     def get(self, report_item_id: str, revision_number: int):
         """Get data for a specific revision"""
         from core.managers.db_manager import db

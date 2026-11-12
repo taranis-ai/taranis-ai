@@ -1,7 +1,6 @@
-from flask import Blueprint, Flask, g, jsonify, request, url_for
+from flask import Blueprint, Flask, jsonify, request, url_for
 from flask.views import MethodView
 
-from core.api.contracts import validate_request
 from core.config import Config
 from core.managers import queue_manager
 from core.managers.auth_manager import auth_required
@@ -14,7 +13,6 @@ from core.service.story import StoryService
 
 class DeleteTags(MethodView):
     @auth_required("ADMIN_OPERATIONS")
-    @validate_request
     def post(self):
         response, status = NewsItemTagService.delete_all()
         invalidate_frontend_cache_on_success(status, full=True)
@@ -23,7 +21,6 @@ class DeleteTags(MethodView):
 
 class DeleteStories(MethodView):
     @auth_required("ADMIN_OPERATIONS")
-    @validate_request
     def post(self):
         response, status = StoryService.delete_all()
         invalidate_frontend_cache_on_success(status, full=True)
@@ -32,21 +29,18 @@ class DeleteStories(MethodView):
 
 class UngroupStories(MethodView):
     @auth_required("ADMIN_OPERATIONS")
-    @validate_request
     def post(self):
         return {"error": "TODO IMPLEMENT"}, 501
 
 
 class ResetDatabase(MethodView):
     @auth_required("ADMIN_OPERATIONS")
-    @validate_request
     def post(self):
         return {"error": "TODO IMPLEMENT"}, 501
 
 
 class ClearQueues(MethodView):
     @auth_required("ADMIN_OPERATIONS")
-    @validate_request
     def post(self):
         queue_manager.queue_manager.clear_queues()
         return {"message": "All queues cleared"}, 200
@@ -54,9 +48,8 @@ class ClearQueues(MethodView):
 
 class CacheInvalidate(MethodView):
     @auth_required("ADMIN_OPERATIONS")
-    @validate_request
     def post(self):
-        payload = g.api_json or {}
+        payload = request.get_json(silent=True) or {}
         mode = payload.get("mode")
 
         if mode == "all":
@@ -82,7 +75,6 @@ class CacheInvalidate(MethodView):
 
 class RebuildStorySearchVectors(MethodView):
     @auth_required("ADMIN_OPERATIONS")
-    @validate_request
     def post(self):
         count = StoryService.rebuild_search_vectors()
         return {"message": f"Rebuilt search vectors for {count} stories", "updated": count}, 200
@@ -90,14 +82,12 @@ class RebuildStorySearchVectors(MethodView):
 
 class ExportStories(MethodView):
     @auth_required("ADMIN_OPERATIONS")
-    @validate_request
     def get(self):
         return AdminService.export_stories(request.args)
 
 
 class SettingsView(MethodView):
     @auth_required("ADMIN_OPERATIONS")
-    @validate_request
     def get(self):
         settings_data, return_code = Settings.get_all_for_api({})
         settings_data["_links"] = {
@@ -114,9 +104,8 @@ class SettingsView(MethodView):
         return settings_data, return_code
 
     @auth_required("ADMIN_OPERATIONS")
-    @validate_request
     def put(self):
-        if data := g.api_json:
+        if data := request.json:
             response, status = Settings.update(data)
             invalidate_frontend_cache_on_success(
                 status, models=("settings", "bot", "core_health", "dashboard", "admin_menu_badges"), user_profiles=("*",)
@@ -125,9 +114,8 @@ class SettingsView(MethodView):
         return {"error": "No data provided"}, 400
 
     @auth_required("ADMIN_OPERATIONS")
-    @validate_request
     def post(self):
-        if data := g.api_json:
+        if data := request.json:
             response, status = Settings.update(data)
             invalidate_frontend_cache_on_success(
                 status, models=("settings", "bot", "core_health", "dashboard", "admin_menu_badges"), user_profiles=("*",)
@@ -136,9 +124,8 @@ class SettingsView(MethodView):
         return {"error": "No data provided"}, 400
 
     @auth_required("ADMIN_OPERATIONS")
-    @validate_request
     def patch(self):
-        if data := g.api_json:
+        if data := request.json:
             response, status = Settings.update(data)
             invalidate_frontend_cache_on_success(
                 status, models=("settings", "bot", "core_health", "dashboard", "admin_menu_badges"), user_profiles=("*",)
@@ -149,16 +136,14 @@ class SettingsView(MethodView):
 
 class LLMEndpoints(MethodView):
     @auth_required("ADMIN_OPERATIONS")
-    @validate_request
     def post(self, endpoint_id: str | None = None):
-        response, status = Settings.save_llm_endpoint(g.api_json, endpoint_id)
+        response, status = Settings.save_llm_endpoint(request.get_json(silent=True), endpoint_id)
         invalidate_frontend_cache_on_success(status, models=("settings", "bot", "core_health", "dashboard", "admin_menu_badges"))
         return jsonify(response), status
 
 
 class DeleteLLMEndpoint(MethodView):
     @auth_required("ADMIN_OPERATIONS")
-    @validate_request
     def post(self, endpoint_id: str):
         response, status = Settings.save_llm_endpoint({}, endpoint_id, delete=True)
         invalidate_frontend_cache_on_success(status, models=("settings", "bot", "core_health", "dashboard", "admin_menu_badges"))

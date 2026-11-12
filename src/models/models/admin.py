@@ -31,20 +31,6 @@ from models.types import (
 )
 
 
-def settings_integer(value: Any) -> int:
-    if isinstance(value, bool):
-        raise ValueError("Invalid non-negative integer")  # noqa: TRY004 - Pydantic requires ValueError for validation errors.
-    if isinstance(value, int):
-        result = value
-    elif isinstance(value, str) and value.strip().isdecimal():
-        result = int(value.strip())
-    else:
-        raise ValueError("Invalid non-negative integer")
-    if result < 0:
-        raise ValueError("Invalid non-negative integer")
-    return result
-
-
 def _utcnow() -> datetime:
     return datetime.now(UTC).replace(tzinfo=None)
 
@@ -241,10 +227,10 @@ class User(TaranisBaseModel):
 class TaranisConfig(TaranisBaseModel):
     default_collector_proxy: AnyUrl | Literal[""] = ""
     default_collector_interval: str = ""
-    rss_collector_max_entries: Annotated[int, BeforeValidator(settings_integer)] = Field(default=42, ge=1)
-    collection_group_threshold: Annotated[int, BeforeValidator(settings_integer)] = Field(default=85, ge=1, le=100)
-    collection_lookback_days: Annotated[int, BeforeValidator(settings_integer)] = Field(default=30, ge=1, le=36500)
-    default_bot_lookback_days: Annotated[int, BeforeValidator(settings_integer)] = Field(default=7, ge=0)
+    rss_collector_max_entries: int = Field(default=42, ge=1)
+    collection_group_threshold: int = Field(default=85, ge=1, le=100)
+    collection_lookback_days: int = Field(default=30, ge=1, le=36500)
+    default_bot_lookback_days: int = Field(default=7, ge=0)
     default_tlp_level: TLPLevel = TLPLevel.CLEAR
     default_story_conflict_retention: str = "200"
     default_news_item_conflict_retention: str = "200"
@@ -297,7 +283,7 @@ class WordList(TaranisBaseModel):
     name: str
     description: str | None = ""
     usage: list[str] = Field(default_factory=list)
-    link: str | None = ""
+    link: str = ""
     entries: list[WordListEntry] | None = Field(default_factory=list)
 
 

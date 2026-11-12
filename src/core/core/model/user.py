@@ -3,7 +3,6 @@ from collections.abc import Sequence
 from datetime import datetime
 from typing import Any
 
-from models.config_api import UserInput
 from models.user import (
     ADMIN_ADVANCED_TOUR_ID,
     ADMIN_WELCOME_TOUR_ID,
@@ -318,11 +317,6 @@ class User(BaseModel):
             logger.warning(f"Skipped user import for {username}: missing or invalid name")
             return None, cls._skipped_import_user(username, "missing or invalid name")
 
-        try:
-            validated_user = UserInput.model_validate(user).model_dump(mode="json", exclude_unset=True, exclude_none=False)
-        except ValidationError:
-            return None, cls._skipped_import_user(username, "invalid user data")
-
         username = username.strip()
         if cls.find_by_name(username):
             logger.warning(f"User {username} already exists")
@@ -331,7 +325,7 @@ class User(BaseModel):
             logger.warning(f"Skipped user import for {username}: duplicate username in import file")
             return None, cls._skipped_import_user(username, "duplicate username in import file")
 
-        import_user = validated_user
+        import_user = dict(user)
         import_user["username"] = username
         import_user.setdefault("organization", None)
         import_user.setdefault("roles", [])

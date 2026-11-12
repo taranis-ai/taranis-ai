@@ -1,9 +1,12 @@
-"""Reviewed executable operation definitions; paths are relative to the Core API."""
+"""Static Core API inventory; paths are relative to the configured API prefix.
 
-from typing import Any, Literal
-from urllib.parse import parse_qs, urlsplit
+This module does not match URLs or validate HTTP traffic. Shared error payloads
+are in models.api.ERROR_RESPONSES; endpoint-specific responses take precedence.
+"""
 
-from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
+from typing import Literal
+
+from pydantic import BaseModel, ConfigDict, Field
 
 from models.analysis_api import OPERATIONS as ANALYSIS_OPERATIONS
 from models.api import ErrorResponse, MessageResponse, OperationContract, json_response
@@ -108,13 +111,13 @@ class ChangePasswordRequest(BaseModel):
     confirm_password: str = ""
 
 
-OPERATIONS = (
+_OPERATIONS = (
     (
         OperationContract("GET", "/", {200: json_response(IsAliveResponse)}),
         OperationContract("GET", "/isalive", {200: json_response(IsAliveResponse)}),
         OperationContract("GET", "/health", {200: json_response(CoreHealth), 503: json_response(CoreHealth)}),
         OperationContract("GET", "/tasks", {200: json_response(TaskListResponse)}, query=TaskQuery),
-        OperationContract("POST", "/tasks", {200: json_response(TaskResponse)}, body=TypeAdapter(TaskSubmission)),
+        OperationContract("POST", "/tasks", {200: json_response(TaskResponse)}, body=TaskSubmission),
         OperationContract("DELETE", "/tasks", {}),
         OperationContract(
             "GET",
@@ -128,9 +131,9 @@ OPERATIONS = (
         OperationContract("GET", "/auth/refresh", {200: json_response(AccessTokenResponse)}),
         OperationContract("DELETE", "/auth/logout", {200: json_response(MessageResponse)}),
         OperationContract("GET", "/auth/method", {200: json_response(AuthMethodResponse)}),
-        OperationContract("POST", "/auth/change_password", {200: json_response(MessageResponse)}, body=TypeAdapter(ChangePasswordRequest)),
+        OperationContract("POST", "/auth/change_password", {200: json_response(MessageResponse)}, body=ChangePasswordRequest),
         OperationContract("GET", "/chat/conversations", {200: json_response(ConversationListResponse)}),
-        OperationContract("POST", "/chat/conversations", {201: json_response(TurnResponse)}, body=TypeAdapter(ChatTurnRequest)),
+        OperationContract("POST", "/chat/conversations", {201: json_response(TurnResponse)}, body=ChatTurnRequest),
         OperationContract(
             "GET", "/chat/conversations/{conversation_id}", {200: json_response(ConversationResponse)}, parameters=ConversationPath
         ),
@@ -141,7 +144,7 @@ OPERATIONS = (
             "POST",
             "/chat/conversations/{conversation_id}/messages",
             {201: json_response(TurnResponse)},
-            body=TypeAdapter(ChatTurnRequest),
+            body=ChatTurnRequest,
             parameters=ConversationPath,
         ),
     )
@@ -156,51 +159,5 @@ OPERATIONS = (
 )
 
 
-def find_operation(method: str, path: str) -> OperationContract | None:
-    # Literal routes must win over identifier routes such as /tasks/{task_id}.
-    for operation in sorted(OPERATIONS, key=lambda operation: "{" in operation.path):
-        if operation.match(method, path) is not None:
-            return operation
-    return None
-
-
-def validate_outgoing_request(
-    method: str,
-    path: str,
-    payload: Any = None,
-    params: dict | None = None,
-    *,
-    content_type: str = "application/json",
-    files: dict | None = None,
-    headers: dict | None = None,
-) -> OperationContract:
-    operation = find_operation(method, path)
-    if operation is None:
-        raise ValueError("Missing API operation contract")
-    if files is not None:
-        if operation.uploads is None:
-            raise ValueError("Unexpected upload")
-        metadata = {
-            name: {
-                "filename": item[0],
-                "content_type": item[2] if len(item) > 2 else None,
-                "content_length": len(item[1]) if isinstance(item[1], (str, bytes)) else None,
-            }
-            for name, item in files.items()
-        }
-        operation.uploads.model_validate(metadata)
-    elif content_type in operation.alternate_bodies:
-        operation.alternate_bodies[content_type].validate_python(payload.decode("utf-8") if isinstance(payload, bytes) else payload)
-    else:
-        operation.validate_body(payload)
-    values = parse_qs(urlsplit(path).query, keep_blank_values=True)
-    for key, value in (params or {}).items():
-        entries = value if isinstance(value, (list, tuple)) else [value]
-        entries = [entry for entry in entries if entry is not None]
-        if entries:
-            values.setdefault(key, []).extend(str(entry) for entry in entries)
-    query = {key: value if key in operation.repeated_query else value[0] for key, value in values.items()}
-    operation.query.model_validate(query)
-    operation.parameters.model_validate(operation.match(method, path))
-    operation.headers.model_validate(headers or {})
-    return operation
+# Keys are exact contract templates, not URL matching rules.
+OPERATIONS = {(operation.method, operation.path): operation for operation in _OPERATIONS}

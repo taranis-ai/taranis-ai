@@ -1,14 +1,12 @@
 import time
-from functools import wraps
 from hmac import compare_digest
 
-from flask import Blueprint, Flask, g, request
+from flask import Blueprint, Flask, request
 from flask.views import MethodView
 from flask_jwt_extended import decode_token
 from flask_jwt_extended.exceptions import JWTExtendedException
 from jwt.exceptions import PyJWTError
 
-from core.api.contracts import validate_request
 from core.config import Config
 from core.log import logger
 from core.managers.auth_manager import auth_required
@@ -22,9 +20,8 @@ AUTHENTICATION_DISCONNECT = {"disconnect": {"code": 4501, "reason": "unauthorize
 
 class BroadcastNotification(MethodView):
     @auth_required("ADMIN_OPERATIONS")
-    @validate_request
     def post(self):
-        payload = g.api_json
+        payload = request.get_json(silent=True)
         message = payload.get("message") if isinstance(payload, dict) else None
         if not isinstance(message, str) or not message.strip():
             return {"error": "Message is required"}, 400
@@ -37,7 +34,6 @@ class BroadcastNotification(MethodView):
 
 class ConnectedClients(MethodView):
     @auth_required("ADMIN_OPERATIONS")
-    @validate_request
     def get(self):
         clients = realtime_publisher.connected_clients()
         if clients is None:
@@ -52,7 +48,7 @@ class ConnectedClients(MethodView):
         }, 200
 
 
-def _authorize_connect():
+def connect():
     provided_secret = request.headers.get("X-Realtime-Proxy-Key", "")
     expected_secret = Config.CENTRIFUGO_CONNECT_PROXY_SECRET.get_secret_value()
     if not provided_secret or not compare_digest(provided_secret, expected_secret):
@@ -83,26 +79,6 @@ def _authorize_connect():
     if expire_at <= now:
         return AUTHENTICATION_DISCONNECT, 200
 
-    g.realtime_user = user
-    g.realtime_expiry = expire_at
-    return None
-
-
-def connect_authorized(handler):
-    @wraps(handler)
-    def wrapped(*args, **kwargs):
-        if rejection := _authorize_connect():
-            return rejection
-        return handler(*args, **kwargs)
-
-    return wrapped
-
-
-@connect_authorized
-@validate_request
-def connect():
-    user = g.realtime_user
-    expire_at = g.realtime_expiry
     channels = ["global:events"]
     if user.organization_id:
         channels.append(f"org:{user.organization_id}")

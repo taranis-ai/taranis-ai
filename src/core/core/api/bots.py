@@ -1,7 +1,6 @@
-from flask import Blueprint, Flask, g
+from flask import Blueprint, Flask, request
 from flask.views import MethodView
 
-from core.api.contracts import validate_request
 from core.config import Config
 from core.log import logger
 from core.managers.auth_manager import api_key_required
@@ -25,9 +24,8 @@ def _bot_actor() -> str:
 
 class BotGroupAction(MethodView):
     @api_key_required
-    @validate_request
     def put(self):
-        payload = g.api_json
+        payload = request.json
         story_ids = payload.get("story_ids") if isinstance(payload, dict) else payload
         if not story_ids:
             return {"error": "No story ids provided"}, 400
@@ -40,9 +38,8 @@ class BotGroupAction(MethodView):
 
 class BotGroupMultipleAction(MethodView):
     @api_key_required
-    @validate_request
     def put(self):
-        payload = g.api_json
+        payload = request.json
         story_ids = payload.get("story_ids") if isinstance(payload, dict) else payload
         if not story_ids:
             return {"error": "No stories provided"}, 400
@@ -55,9 +52,8 @@ class BotGroupMultipleAction(MethodView):
 
 class BotUnGroupAction(MethodView):
     @api_key_required
-    @validate_request
     def put(self):
-        payload = g.api_json
+        payload = request.json
         newsitem_ids = payload.get("newsitem_ids") if isinstance(payload, dict) else payload
         if not newsitem_ids:
             return {"error": "No news items provided"}, 400
@@ -70,7 +66,6 @@ class BotUnGroupAction(MethodView):
 
 class NewsItem(MethodView):
     @api_key_required
-    @validate_request
     def get(self, news_item_id: str):
         try:
             return news_item.NewsItem.get_for_api(news_item_id)
@@ -79,12 +74,11 @@ class NewsItem(MethodView):
             return {"error": "Failed to get news item data"}, 400
 
     @api_key_required
-    @validate_request
     def put(self, news_item_id):
         try:
-            if not g.api_json:
+            if not request.json:
                 return {"error": "No update data provided"}, 400
-            if language := g.api_json.get("language"):
+            if language := request.json.get("language"):
                 response, status = NewsItemService.update_language(news_item_id, language, actor=_bot_actor())
                 invalidate_frontend_cache_on_success(status, scopes=(SCOPE_ASSESS_VIEWS,), object_ids={"news_item": news_item_id})
                 return response, status
@@ -96,9 +90,8 @@ class NewsItem(MethodView):
 
 class UpdateNewsItemAttributes(MethodView):
     @api_key_required
-    @validate_request
     def put(self, news_item_id):
-        response, status = NewsItemService.update_attributes(news_item_id, g.api_json, actor=_bot_actor())
+        response, status = NewsItemService.update_attributes(news_item_id, request.json, actor=_bot_actor())
         invalidate_frontend_cache_on_success(
             status,
             scopes=(SCOPE_ASSESS_VIEWS, SCOPE_STORY_REPORT_VIEWS),
@@ -109,17 +102,15 @@ class UpdateNewsItemAttributes(MethodView):
 
 class StoryAttributes(MethodView):
     @api_key_required
-    @validate_request
     def get(self, story_id):
         if current_story := story.Story.get(story_id):
-            return [attribute.to_small_dict() for attribute in current_story.attributes]
+            return current_story.attributes
         return {"message": "Story not found"}, 404
 
     @api_key_required
-    @validate_request
     def patch(self, story_id):
         if current_story := story.Story.get(story_id):
-            if input_data := g.api_json:
+            if input_data := request.json:
                 if isinstance(input_data, dict):
                     input_data = input_data.get("attributes", input_data)
                 StoryService.update_attributes(current_story, input_data, actor=_bot_actor())
@@ -133,16 +124,14 @@ class StoryAttributes(MethodView):
 
 class UpdateStory(MethodView):
     @api_key_required
-    @validate_request
     def get(self, story_id: str):
         return story.Story.get_for_api(story_id, None)
 
     @api_key_required
-    @validate_request
     def put(self, story_id: str):
-        if not isinstance(g.api_json, dict):
+        if not isinstance(request.json, dict):
             return {"error": "Invalid update data"}, 400
-        payload = g.api_json.copy()
+        payload = request.json.copy()
         payload.pop("misp_auto_update", None)
         result = StoryService.update(story_id, payload, actor=_bot_actor())
         if 200 <= result[1] < 300:
@@ -154,19 +143,15 @@ class UpdateStory(MethodView):
 class BotsInfo(MethodView):
     @api_key_required
     @extract_args("search")
-    @validate_request
     def get(self, bot_id=None, filter_args=None):
         if bot_id:
             return bot.Bot.get_for_api(bot_id)
         return bot.Bot.get_all_for_api(filter_args)
 
     @api_key_required
-    @validate_request
-    def put(self, bot_id=None):
-        if not bot_id:
-            return {"error": "No bot_id provided"}, 400
+    def put(self, bot_id):
         try:
-            if bot_result := bot.Bot.update(bot_id, g.api_json):
+            if bot_result := bot.Bot.update(bot_id, request.json):
                 invalidate_frontend_cache_on_success(200, models=("bot",), scopes=(SCOPE_SCHEDULE,), object_ids={"bot": bot_id})
                 return {"message": "Bot updated", "id": bot_result.id}, 200
         except bot.BotIndexConflictError:

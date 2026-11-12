@@ -2,13 +2,11 @@ from flask import Blueprint, Flask, Response, jsonify, redirect, render_template
 from flask.views import MethodView
 from models.assess import FilterLists
 
-from frontend.api_contracts import validate_request
 from frontend.auth import auth_required, logout
 from frontend.cache import get_cache_keys, get_cached_users
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.omnisearch import build_omnisearch_context, build_omnisearch_navigation, needs_assess_filter_lists
 from frontend.views import AuthView, DashboardView, OnboardingPromptView
-from frontend.views.dashboard_views import load_conflict_payload
 from frontend.views.story_views import StoryView
 
 
@@ -34,7 +32,6 @@ class ListCacheKeys(MethodView):
 
 class ListUserCache(MethodView):
     @auth_required("ADMIN_OPERATIONS")
-    @validate_request()
     def get(self):
         return jsonify(get_cached_users())
 
@@ -132,12 +129,10 @@ class NewsItemConflictsView(MethodView):
         return DashboardView.news_item_conflict_view()
 
     @auth_required("ASSESS_UPDATE")
-    @validate_request(load_body=load_conflict_payload)
     def post(self):
         return DashboardView.resolve_news_item_conflict_post()
 
     @auth_required("ASSESS_UPDATE")
-    @validate_request(load_body=load_conflict_payload)
     def put(self):
         return DashboardView.resolve_news_item_conflict_put()
 

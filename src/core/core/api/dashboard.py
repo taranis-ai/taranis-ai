@@ -2,7 +2,6 @@ from flask import Blueprint, Flask, request
 from flask.views import MethodView
 from flask_jwt_extended import current_user
 
-from core.api.contracts import validate_request
 from core.config import Config
 from core.managers.auth_manager import auth_required
 from core.model.news_item_tag import NewsItemTag
@@ -14,21 +13,18 @@ from core.service.story import StoryService
 
 class Dashboard(MethodView):
     @auth_required()
-    @validate_request
     def get(self):
         return DashboardService.get_dashboard_data(current_user), 200
 
 
 class ClusterNames(MethodView):
     @auth_required()
-    @validate_request
     def get(self):
         return {"items": NewsItemTagService.get_tag_types()}, 200
 
 
 class TrendingClusters(MethodView):
     @auth_required()
-    @validate_request
     def get(self):
         dashboard_settings = current_user.profile.get("dashboard", {})
 
@@ -46,14 +42,12 @@ class TrendingClusters(MethodView):
 
 class Pizzint(MethodView):
     @auth_required()
-    @validate_request
     def get(self):
         return get_pizzint_status().model_dump(mode="json", exclude_none=False), 200
 
 
 class StoryClusters(MethodView):
     @auth_required()
-    @validate_request
     def get(self):
         days = int(request.args.get("days", 7))
         limit = int(request.args.get("limit", 12))
@@ -62,7 +56,6 @@ class StoryClusters(MethodView):
 
 class ClusterByType(MethodView):
     @auth_required()
-    @validate_request
     def get(self, tag_type: str):
         limit = min(request.args.get("limit", default=20, type=int), 100)
         page = request.args.get("page", default=1, type=int)
@@ -75,7 +68,6 @@ class ClusterByType(MethodView):
 
 class DeleteTag(MethodView):
     @auth_required()
-    @validate_request
     def delete(self, tag_name: str):
         NewsItemTagService.delete_tags_by_name(tag_name)
         return {"message": "Cluster deleted"}, 200
@@ -83,7 +75,6 @@ class DeleteTag(MethodView):
 
 class BuildInfo(MethodView):
     @auth_required()
-    @validate_request
     def get(self):
         result = {"build_date": Config.BUILD_DATE.isoformat()}
         if Config.GIT_INFO:

@@ -2,12 +2,12 @@
 
 from datetime import datetime
 
-from pydantic import BaseModel, Field, JsonValue, StrictBool, TypeAdapter, create_model
+from pydantic import BaseModel, Field, JsonValue, StrictBool, create_model
 
 from models import admin, assess
 from models.api import FileUpload, ItemsResponse, MessageResponse, OperationContract, download_response, json_response
 from models.base import TaranisBaseModel
-from models.config_api import BotQuery, CronJobsResponse, QueueNotice, WordListQuery
+from models.config_api import BotQuery, CronJobsResponse, QueueNotice, WordListQuery, WordListResponse
 from models.content_api import (
     CollectionError,
     CollectionResult,
@@ -24,7 +24,7 @@ from models.content_api import (
     Tag,
 )
 from models.cti import CTIItem
-from models.imports import CSV_WORD_LIST, WordListImport
+from models.imports import WordListImport
 from models.llm import LLMEndpoint, LLMProvider
 from models.report import ReportItem
 from models.task import TaskChangeNotice
@@ -40,7 +40,7 @@ class SourcesResponse(BaseModel):
 WorkerBot = create_model("WorkerBotResponse", __base__=admin.Bot, id=(str, ...), llm_endpoint=(LLMEndpoint | None, None))
 WorkerConnector = create_model("WorkerConnectorResponse", __base__=admin.Connector, id=(str, ...))
 WorkerPublisher = create_model("WorkerPublisherResponse", __base__=admin.PublisherPreset, id=(str, ...))
-WorkerWordList = create_model("WorkerWordListResponse", __base__=admin.WordList, id=(str, ...))
+WorkerWordList = create_model("WorkerWordListResponse", __base__=WordListResponse, id=(str, ...))
 WorkerReport = create_model("WorkerReportResponse", __base__=ReportItem, id=(str, ...), stories=(list[StoryResponse | str] | None, None))
 WorkerProductReport = create_model(
     "WorkerProductReport", __base__=WorkerReport, attributes=(dict[str, dict[str, JsonValue]], Field(default_factory=dict))
@@ -140,8 +140,7 @@ OPERATIONS = (
         "POST",
         "/worker/tasks/changed",
         {200: json_response(MessageResponse)},
-        body=TypeAdapter(TaskChangeNotice),
-        validation_error_message="Invalid task change notice",
+        body=TaskChangeNotice,
     ),
     OperationContract("POST", "/worker/tasks/history/cleanup", {200: json_response(CleanupResult)}),
     OperationContract("GET", "/worker/products/{product_id}", {200: json_response(WorkerProduct)}),
@@ -154,8 +153,7 @@ OPERATIONS = (
         "POST",
         "/worker/news-items",
         {200: json_response(CollectionResult), **{status: json_response(ContentError | CollectionError) for status in (400, 409, 500)}},
-        body=TypeAdapter(list[assess.NewsItem]),
-        invalid_request_message="Invalid news item data",
+        body=list[assess.NewsItem],
     ),
     OperationContract(
         "GET", "/worker/endpoint-health/{kind}/{endpoint_id}", {200: json_response(EndpointSkipped | EndpointConfig)}, query=CheckQuery
@@ -164,8 +162,7 @@ OPERATIONS = (
         "POST",
         "/worker/endpoint-health/{kind}/{endpoint_id}",
         {200: json_response(EndpointAccepted)},
-        body=TypeAdapter(EndpointResult),
-        validation_error_message="Invalid endpoint check result",
+        body=EndpointResult,
     ),
     OperationContract("GET", "/worker/bots", {200: json_response(ItemsResponse[WorkerBot])}, query=BotQuery),
     OperationContract("GET", "/worker/bots/{bot_id}", {200: json_response(WorkerBot)}),
@@ -174,8 +171,7 @@ OPERATIONS = (
             "PUT",
             path,
             {200: json_response(WorkerBot)},
-            body=TypeAdapter(admin.BotUpdate),
-            validation_error_message="Invalid bot update payload",
+            body=admin.BotUpdate,
         )
         for path in ("/worker/bots", "/worker/bots/{bot_id}")
     ),
@@ -184,11 +180,11 @@ OPERATIONS = (
         "PUT",
         "/worker/tags",
         {200: json_response(MessageResponse), 207: json_response(PartialTags)},
-        body=TypeAdapter(dict[str, JsonValue]),
+        body=dict[str, JsonValue],
         query=ReplaceQuery,
     ),
-    OperationContract("POST", "/worker/iocs", {200: json_response(ItemsResponse[CTIItem])}, body=TypeAdapter(IOCQuery)),
-    OperationContract("PUT", "/worker/post-collection-bots", {200: json_response(QueueNotice)}, body=TypeAdapter(PostCollection)),
+    OperationContract("POST", "/worker/iocs", {200: json_response(ItemsResponse[CTIItem])}, body=IOCQuery),
+    OperationContract("PUT", "/worker/post-collection-bots", {200: json_response(QueueNotice)}, body=PostCollection),
     OperationContract(
         "GET",
         "/worker/stories",
@@ -203,26 +199,25 @@ OPERATIONS = (
             200: json_response(StoryAdded | StoryUpdated),
             **{status: json_response(ContentError | NewsConflictError) for status in (400, 409, 500)},
         },
-        body=TypeAdapter(StoryInput),
+        body=StoryInput,
     ),
     OperationContract(
         "POST",
         "/worker/bot-pipeline/stories",
         {200: json_response(PipelineResponse)},
-        body=TypeAdapter(PipelineRequest),
-        validation_error_message="Invalid bot pipeline filters",
+        body=PipelineRequest,
     ),
     *(
         OperationContract(
             "POST",
             path,
             {200: json_response(MispResult | MispError), **{status: json_response(ContentError | MispError) for status in (400, 409, 500)}},
-            body=TypeAdapter(list[StoryInput]),
+            body=list[StoryInput],
         )
         for path in ("/worker/misp/stories", "/worker/misp/last-change")
     ),
     *(
-        OperationContract("PUT", path, {200: json_response(MessageResponse)}, body=TypeAdapter(LastChangeRequest))
+        OperationContract("PUT", path, {200: json_response(MessageResponse)}, body=LastChangeRequest)
         for path in ("/worker/misp/stories", "/worker/misp/last-change")
     ),
     *(
@@ -239,8 +234,8 @@ OPERATIONS = (
             "PUT",
             path,
             {200: json_response(WordListUpdated)},
-            body=TypeAdapter(WordListImport),
-            alternate_bodies={"text/csv": CSV_WORD_LIST},
+            body=WordListImport,
+            alternate_bodies={"text/csv": str},
             request_media_types=("application/json", "text/csv"),
         )
         for path in ("/worker/word-lists", "/worker/word-list/{word_list_id}")

@@ -405,7 +405,7 @@ class TestSourceView:
     def test_native_delete_redirects_with_notification(self, authenticated_client, responses_mock, status):
         core_url = f"{Config.TARANIS_CORE_URL}/config/osint-sources/source-1"
         message = "Source deleted" if status == 200 else "Source has related news items"
-        responses_mock.delete(core_url, json={"message": message, "id": "source-1"} if status == 200 else {"error": message}, status=status)
+        responses_mock.delete(core_url, json={"message" if status == 200 else "error": message}, status=status)
 
         response = authenticated_client.post(SourceView.get_edit_route(osint_source_id="source-1"), data={"_action": "delete"})
 
@@ -538,7 +538,7 @@ class TestSourceView:
 
         responses_mock.post(
             f"{Config.TARANIS_CORE_URL}/config/import-osint-sources",
-            json={"sources": [], "count": 0, "message": "Sources imported successfully"},
+            json={"message": "Sources imported successfully"},
             status=200,
             content_type="application/json",
         )
@@ -1072,7 +1072,7 @@ def test_admin_dashboard_renders_frontend_release_info_when_core_build_info_fail
     )
     responses_mock.get(
         f"{Config.TARANIS_CORE_URL}{AdminDashboardView.model._core_endpoint}/build-info",
-        json={"error": "unavailable"},
+        json={"message": "unavailable"},
         status=503,
         content_type="application/json",
     )

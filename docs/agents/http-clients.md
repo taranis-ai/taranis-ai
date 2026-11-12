@@ -23,5 +23,3 @@ Worker: `src/worker/worker/http_client.py`, `core_api.py`, `bot_api.py`, `collec
 Extend collector HTTP coverage in `src/worker/tests/collectors/test_collector.py`, frontend downloads in `src/frontend/tests/unit/views/test_product_view.py`, and bearer-token/cache coverage in `src/frontend/tests/unit/test_data_persistence.py`. Auth tests own repeated `Set-Cookie` forwarding. Do not add standalone client suites or HTTP-server fixtures for this refactor.
 
 Worker tests alias Requests to Niquests for `requests-mock` and bridge async requests through its synchronous transport. These mocks do not prove async transport or SDK compatibility; verify changes to cancellation/redirect transport against a real HTTP server. Pooling does not automatically parallelize sequential collection.
-
-Taranis Core transports require an executable operation from `models/api_operations.py`, validate outgoing structured inputs and remote outputs before use/caching, and retain existing return/failure handling without retries. Uploads and downloads validate metadata without extending stream lifetimes.

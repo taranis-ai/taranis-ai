@@ -1,10 +1,8 @@
 """Existing versioned transfer formats and their intrinsic validation."""
 
-import csv
-import io
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, BeforeValidator, Field, JsonValue, TypeAdapter, ValidationInfo
+from pydantic import BaseModel, Field, JsonValue
 
 from models.admin import OSINTSource, WordListEntry
 from models.base import TaranisBaseModel
@@ -75,7 +73,6 @@ class SourceImportV4(BaseModel):
 
 
 SourceImport = Annotated[SourceImportV1 | SourceImportV2 | SourceImportV3 | SourceImportV4, Field(discriminator="version")]
-SOURCE_IMPORT = TypeAdapter(SourceImport)
 
 
 class WordListImportRow(TaranisBaseModel):
@@ -89,21 +86,6 @@ class WordListImportRow(TaranisBaseModel):
 class WordListImport(BaseModel):
     version: Literal[1]
     data: list[WordListImportRow] = Field(min_length=1)
-
-
-def csv_word_list(value: str, info: ValidationInfo):
-    try:
-        reader = csv.reader(io.StringIO(value), csv.Sniffer().sniff(value))
-        headers = [header.lower() for header in next(reader)]
-        if not 2 <= len(headers) <= 3:
-            raise ValueError("Invalid CSV file")
-        entries = [dict(zip(headers, row, strict=True)) for row in reader]
-    except (csv.Error, StopIteration):
-        raise ValueError("Invalid CSV file") from None
-    return {"version": 1, "data": [{"name": (info.context or {}).get("filename", ""), "entries": entries}]}
-
-
-CSV_WORD_LIST = TypeAdapter(Annotated[WordListImport, BeforeValidator(csv_word_list, json_schema_input_type=str)])
 
 
 class SourcesImported(BaseModel):

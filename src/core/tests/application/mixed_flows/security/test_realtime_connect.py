@@ -118,8 +118,6 @@ def test_broadcast_rejects_invalid_messages(client, auth_header, monkeypatch, me
     )
 
     assert response.status_code == 400
-    expected = "Message must not exceed 500 characters" if isinstance(message, str) and len(message) > 500 else "Message is required"
-    assert response.get_json() == {"error": expected}
     publish.assert_not_called()
 
 

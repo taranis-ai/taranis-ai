@@ -25,11 +25,7 @@ def test_update_osint_source_icon_skips_empty_file(requests_mock):
 
 
 def test_update_osint_source_icon_sends_multipart_file(requests_mock):
-    requests_mock.put(
-        f"{Config.TARANIS_CORE_URL}/worker/osint-sources/source-1/icon",
-        headers={"Content-Type": "application/json"},
-        json={"message": "Icon uploaded"},
-    )
+    requests_mock.put(f"{Config.TARANIS_CORE_URL}/worker/osint-sources/source-1/icon", json={"message": "Icon uploaded"})
 
     result = CoreApi().update_osint_source_icon("source-1", {"file": ("favicon.ico", b"icon")})
 
@@ -38,20 +34,10 @@ def test_update_osint_source_icon_sends_multipart_file(requests_mock):
 
 
 def test_run_post_collection_bots_forwards_current_job_user(requests_mock, monkeypatch):
-    requests_mock.put(
-        f"{Config.TARANIS_CORE_URL}/worker/post-collection-bots", headers={"Content-Type": "application/json"}, json={"message": "scheduled"}
-    )
+    requests_mock.put(f"{Config.TARANIS_CORE_URL}/worker/post-collection-bots", json={"message": "scheduled"})
     monkeypatch.setattr(CoreApi, "_get_current_job_user_id", staticmethod(lambda: "user-1"))
 
     result = CoreApi().run_post_collection_bots("source-1", story_ids=["changed-story"])
 
     assert result == {"message": "scheduled"}
     assert requests_mock.request_history[0].json() == {"source_id": "source-1", "user_id": "user-1", "story_ids": ["changed-story"]}
-
-
-def test_task_transport_rejects_malformed_response_without_retry(requests_mock):
-    upstream = requests_mock.post(
-        f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "wrong envelope"}, headers={"Content-Type": "application/json"}
-    )
-    assert CoreApi().api_post("/tasks", {"id": "job", "status": "SUCCESS", "result": {"message": "Done"}}) is None
-    assert upstream.call_count == 1

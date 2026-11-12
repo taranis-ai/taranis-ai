@@ -61,15 +61,14 @@ def test_worker_task_failure_keeps_error_notification(app: Any, monkeypatch: Any
 
 
 def test_core_api_health_parses_degraded_response(app: Any, responses_mock: Any):
-    payload = {"healthy": False, "services": {"database": "up", "seed_data": "up", "broker": "up", "workers": "down"}}
     responses_mock.get(
         f"{Config.TARANIS_CORE_URL}/health",
-        json=payload,
+        json={"healthy": False, "services": {"workers": "down"}},
         status=503,
     )
 
     with app.test_request_context("/"):
-        assert CoreApi().get_health() == payload
+        assert CoreApi().get_health() == {"healthy": False, "services": {"workers": "down"}}
 
 
 def test_worker_task_health_warning_uses_cached_health(app: Any, responses_mock: Any, test_cache_backend: Any):

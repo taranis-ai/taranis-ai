@@ -94,17 +94,16 @@ OPERATIONS = (
     OperationContract("GET", "/assess/taglist", {200: json_response(list[TagSuggestion])}, query=ListQuery),
     OperationContract("GET", "/assess/filter-lists", {200: json_response(assess.FilterLists)}),
     OperationContract("GET", "/assess/news-items", {200: json_response(ItemsResponse[NewsItemResponse])}, query=ContentQuery),
-    OperationContract("POST", "/assess/news-items", {200: json_response(StoryAdded), **CONTENT_ERRORS}, body=TypeAdapter(ManualNewsInput)),
+    OperationContract("POST", "/assess/news-items", {200: json_response(StoryAdded), **CONTENT_ERRORS}, body=ManualNewsInput),
     OperationContract(
         "POST",
         "/assess/news-items/fetch",
         {200: json_response(QueueNotice)},
-        body=TypeAdapter(FetchInput),
-        validation_error_message="A valid http or https URL is required",
+        body=FetchInput,
     ),
     OperationContract("GET", "/assess/news-items/{item_id}", {200: json_response(NewsItemResponse)}),
     *(
-        OperationContract(method, "/assess/news-items/{item_id}", {200: json_response(NewsUpdated)}, body=TypeAdapter(NewsUpdate))
+        OperationContract(method, "/assess/news-items/{item_id}", {200: json_response(NewsUpdated)}, body=NewsUpdate)
         for method in ("PUT", "PATCH")
     ),
     OperationContract("DELETE", "/assess/news-items/{item_id}", {200: json_response(NewsDeleted)}),
@@ -113,9 +112,9 @@ OPERATIONS = (
         "PUT",
         "/assess/news-items/{news_item_id}/attributes",
         {200: json_response(MessageResponse)},
-        body=TypeAdapter(AttributeEnvelope | AttributePayload),
+        body=AttributeEnvelope | AttributePayload,
     ),
-    OperationContract("PUT", "/assess/news-items/{news_item_id}/tags", {200: json_response(MessageResponse)}, body=TypeAdapter(TagPayload)),
+    OperationContract("PUT", "/assess/news-items/{news_item_id}/tags", {200: json_response(MessageResponse)}, body=TagPayload),
     *(
         OperationContract("GET", path, {200: json_response(StoryPage)}, query=StoryFilters, repeated_query=MULTI)
         for path in ("/assess/stories", "/assess/stories/bulk_action")
@@ -125,12 +124,7 @@ OPERATIONS = (
             "POST",
             path,
             {200: json_response(BulkResponse)},
-            body=TypeAdapter(BulkWrite),
-            field_error_messages={
-                "story_ids": "No story ids provided",
-                "payload": "Invalid payload provided",
-                "story_ids.*": "Story ids must be strings",
-            },
+            body=BulkWrite,
         )
         for path in ("/assess/stories", "/assess/stories/bulk_action")
     ),
@@ -142,14 +136,14 @@ OPERATIONS = (
         "POST",
         "/assess/analyst-review/actions",
         {200: json_response(ReviewActionResponse)},
-        body=TypeAdapter(assess.AnalystReviewActionPayload),
+        body=assess.AnalystReviewActionPayload,
     ),
     *(
         OperationContract("GET", path, {200: json_response(StoryResponse)})
         for path in ("/assess/stories/{story_id}", "/assess/story/{story_id}")
     ),
     *(
-        OperationContract(method, path, {200: json_response(StoryUpdated)}, body=TypeAdapter(assess.StoryUpdatePayload))
+        OperationContract(method, path, {200: json_response(StoryUpdated)}, body=assess.StoryUpdatePayload)
         for path in ("/assess/stories/{story_id}", "/assess/story/{story_id}")
         for method in ("PUT", "PATCH")
     ),
@@ -162,10 +156,10 @@ OPERATIONS = (
         "PUT",
         "/assess/stories/{story_id}/news-item-order",
         {200: json_response(MessageResponse)},
-        body=TypeAdapter(assess.StoryNewsItemOrderPayload),
+        body=assess.StoryNewsItemOrderPayload,
     ),
     *(
-        OperationContract(method, path, {200: json_response(MessageResponse | IdMessageResponse | Ungrouped)}, body=TypeAdapter(list[str]))
+        OperationContract(method, path, {200: json_response(MessageResponse | IdMessageResponse | Ungrouped)}, body=list[str])
         for path, methods in (
             ("/assess/stories/group", ("PUT", "POST")),
             ("/assess/stories/ungroup", ("PUT",)),
@@ -173,13 +167,13 @@ OPERATIONS = (
         )
         for method in methods
     ),
-    OperationContract("POST", "/assess/stories/botactions", {200: json_response(QueueNotice)}, body=TypeAdapter(BotAction | None)),
+    OperationContract("POST", "/assess/stories/botactions", {200: json_response(QueueNotice)}, body=BotAction | None),
     *(
         OperationContract("GET", path, {200: json_response(ItemsResponse[ConnectorReference])}, query=ListQuery)
         for path in ("/assess/connectors", "/assess/story/{connector_id}/share")
     ),
     *(
-        OperationContract("POST", path, {200: json_response(QueueNotice)}, body=TypeAdapter(ShareInput))
+        OperationContract("POST", path, {200: json_response(QueueNotice)}, body=ShareInput)
         for path in ("/assess/connectors", "/assess/story/{connector_id}/share")
     ),
     OperationContract("GET", "/assess/connectors/proposals", {200: json_response(CountResponse)}),
@@ -191,39 +185,33 @@ OPERATIONS = (
         "POST",
         "/assess/import",
         {200: json_response(ImportedStories | ImportedNews)},
-        body=TypeAdapter(Annotated[JsonValue, BeforeValidator(validate_import)]),
+        body=Annotated[JsonValue, BeforeValidator(validate_import)],
     ),
     OperationContract("GET", "/assess/bookmarks", {200: json_response(PageResponse[assess.StoryBookmark])}, query=ListQuery),
-    OperationContract(
-        "POST", "/assess/bookmarks", {201: json_response(BookmarkWritten)}, body=TypeAdapter(assess.StoryBookmarkCreatePayload)
-    ),
+    OperationContract("POST", "/assess/bookmarks", {201: json_response(BookmarkWritten)}, body=assess.StoryBookmarkCreatePayload),
     OperationContract("GET", "/assess/bookmarks/{bookmark_id}", {200: json_response(assess.StoryBookmark)}),
     OperationContract(
-        "PATCH", "/assess/bookmarks/{bookmark_id}", {200: json_response(BookmarkWritten)}, body=TypeAdapter(assess.StoryBookmarkUpdatePayload)
+        "PATCH", "/assess/bookmarks/{bookmark_id}", {200: json_response(BookmarkWritten)}, body=assess.StoryBookmarkUpdatePayload
     ),
     OperationContract("DELETE", "/assess/bookmarks/{bookmark_id}", {200: json_response(MessageResponse)}),
-    OperationContract(
-        "PATCH", "/assess/bookmarks/order", {200: json_response(MessageResponse)}, body=TypeAdapter(assess.StoryBookmarkOrderPayload)
-    ),
-    OperationContract(
-        "POST", "/assess/bookmarks/quick-save", {200: json_response(BookmarkSaved)}, body=TypeAdapter(assess.StoryBookmarkStoryPayload)
-    ),
+    OperationContract("PATCH", "/assess/bookmarks/order", {200: json_response(MessageResponse)}, body=assess.StoryBookmarkOrderPayload),
+    OperationContract("POST", "/assess/bookmarks/quick-save", {200: json_response(BookmarkSaved)}, body=assess.StoryBookmarkStoryPayload),
     OperationContract(
         "POST",
         "/assess/bookmarks/memberships",
         {200: json_response(MessageResponse)},
-        body=TypeAdapter(assess.StoryBookmarkMembershipPayload),
+        body=assess.StoryBookmarkMembershipPayload,
     ),
     OperationContract(
         "POST",
         "/assess/bookmarks/{bookmark_id}/stories",
         {200: json_response(BookmarkAdded)},
-        body=TypeAdapter(assess.StoryBookmarkStoryPayload),
+        body=assess.StoryBookmarkStoryPayload,
     ),
     OperationContract(
         "POST",
         "/assess/bookmarks/{bookmark_id}/stories/remove",
         {200: json_response(BookmarkRemoved)},
-        body=TypeAdapter(assess.StoryBookmarkStoryPayload),
+        body=assess.StoryBookmarkStoryPayload,
     ),
 )

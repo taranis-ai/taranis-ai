@@ -20,12 +20,6 @@ repos:
 
   - repo: local
     hooks:
-      - id: api-contract-coverage
-        name: API contract coverage
-        language: system
-        files: ^(src/(core/core|frontend/frontend|models/models)/.*\.py$|src/core/tests/test_openapi_routes\.py$|src/frontend/tests/unit/test_api_contracts\.py$|dev/check_api_contracts\.sh$|\.pre-commit-config\.yaml$)
-        pass_filenames: false
-        entry: dev/check_api_contracts.sh
       - id: djlint-reformat-jinja
         name: djlint
         language: system

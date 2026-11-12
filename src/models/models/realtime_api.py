@@ -2,7 +2,7 @@
 
 from typing import Literal
 
-from pydantic import BaseModel, Field, TypeAdapter, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 from models.api import MessageResponse, OperationContract, json_response
 from models.base import TaranisBaseModel
@@ -69,12 +69,10 @@ OPERATIONS = (
         "POST",
         "/realtime/broadcast",
         {200: json_response(MessageResponse)},
-        body=TypeAdapter(Broadcast),
-        invalid_request_message="Message is required",
-        field_error_messages={"message": "Message is required", "message:string_too_long": "Message must not exceed 500 characters"},
+        body=Broadcast,
     ),
     OperationContract("GET", "/realtime/clients", {200: json_response(Clients)}),
     OperationContract(
-        "POST", "/realtime/connect", {200: json_response(Connected | Disconnected)}, body=TypeAdapter(Callback | None), headers=ProxyHeaders
+        "POST", "/realtime/connect", {200: json_response(Connected | Disconnected)}, body=Callback | None, headers=ProxyHeaders
     ),
 )

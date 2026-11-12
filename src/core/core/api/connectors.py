@@ -1,11 +1,11 @@
-from flask import Blueprint, Flask, g
+from flask import Blueprint, Flask, request
 from flask.views import MethodView
 from flask_jwt_extended import current_user
 
-from core.api.contracts import validate_request
 from core.config import Config
 from core.log import logger
 from core.managers.auth_manager import auth_required
+from core.managers.decorators import validate_json
 from core.managers.realtime_publisher import realtime_publisher
 from core.model.news_item_conflict import NewsItemConflict
 from core.model.story import Story
@@ -16,7 +16,6 @@ from core.service.news_item_conflict import NewsItemConflictService
 
 class StoryConflicts(MethodView):
     @auth_required("ASSESS_ACCESS")
-    @validate_request
     def get(self, story_id=None):
         if story_id and (conflict := StoryConflict.conflict_store.get(story_id)):
             return conflict.to_dict(), 200
@@ -24,14 +23,14 @@ class StoryConflicts(MethodView):
         return {"conflicts": conflicts}, 200
 
     @auth_required("ASSESS_UPDATE")
-    @validate_request
-    def put(self, story_id=None):
-        if not g.api_json:
+    @validate_json
+    def put(self, story_id):
+        if not request.json:
             return {"error": "Invalid JSON payload"}, 400
         if not story_id:
             return {"error": "No story_id provided"}, 400
-        resolved_story = g.api_json.get("resolution", {})
-        incoming_story_original = g.api_json.get("incoming_story_original", {})
+        resolved_story = request.json.get("resolution", {})
+        incoming_story_original = request.json.get("incoming_story_original", {})
         conflict = StoryConflict.conflict_store.get(story_id)
         if conflict is None:
             logger.error(f"No conflict found for story {story_id}")
@@ -48,15 +47,14 @@ class StoryConflicts(MethodView):
 
 class NewsItemConflicts(MethodView):
     @auth_required("ASSESS_ACCESS")
-    @validate_request
     def get(self):
         conflicts = [conflict.to_dict() for conflict in NewsItemConflict.conflict_store.values()]
         return {"items": conflicts}, 200
 
     @auth_required("ASSESS_CREATE")
-    @validate_request
+    @validate_json
     def post(self):
-        data_json = g.api_json
+        data_json = request.json
         if not data_json:
             return {"error": "No NewsItems in JSON Body"}, 422
 
@@ -69,9 +67,9 @@ class NewsItemConflicts(MethodView):
         return result, 200
 
     @auth_required("ASSESS_UPDATE")
-    @validate_request
+    @validate_json
     def put(self):
-        data = g.api_json
+        data = request.json
         if not data:
             return {"error": "Missing story_ids or news_item_ids"}, 400
         result, code = NewsItemConflictService.ingest_incoming_ungroup_internal_clear_store(data, current_user)
@@ -83,7 +81,6 @@ class NewsItemConflicts(MethodView):
 
 class StoryInfo(MethodView):
     @auth_required("ASSESS_ACCESS")
-    @validate_request
     def get(self, story_id):
         if story := Story.get(story_id):
             is_misp_story = any(attribute.key == "misp_event_uuid" for attribute in story.attributes)
@@ -101,7 +98,6 @@ class StoryInfo(MethodView):
 
 class ConflictStore(MethodView):
     @auth_required("ASSESS_UPDATE")
-    @validate_request
     def post(self):
         StoryConflict.flush_store()
         NewsItemConflict.flush_store()

@@ -31,7 +31,6 @@ def test_intelowl_bot_submits_unique_tagged_observables_before_polling(monkeypat
             "id": "story-1",
             "news_items": [
                 {
-                    "osint_source_id": "manual",
                     "id": "news-1",
                     "content": "1.2.3.4 is not an IOC until tagged",
                     "tags": [

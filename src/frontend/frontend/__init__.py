@@ -2,7 +2,7 @@ from typing import Any
 
 from flask import Flask
 
-from frontend import api_contracts, auth, cache, core_api, router, setup
+from frontend import auth, cache, core_api, router, setup
 from frontend.config import Config, build_config_overrides
 from frontend.security import init_app as init_security
 
@@ -26,4 +26,3 @@ def init(app: Flask):
     auth.init(app)
     setup.init(app)
     router.init(app)
-    app.after_request(api_contracts.validate_response)

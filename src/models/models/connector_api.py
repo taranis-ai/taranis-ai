@@ -1,6 +1,6 @@
 """Connector conflict review operations."""
 
-from pydantic import BaseModel, Field, TypeAdapter
+from pydantic import BaseModel, Field
 
 from models import dashboard
 from models.api import ItemsResponse, MessageResponse, OperationContract, json_response
@@ -61,19 +61,19 @@ OPERATIONS = (
                 200: json_response(MispResult | MispError),
                 **{status: json_response(ContentError | MispError) for status in (400, 404, 409, 500)},
             },
-            body=TypeAdapter(Resolution),
+            body=Resolution,
         )
         for path in ("/connectors/conflicts/stories", "/connectors/conflicts/stories/{story_id}")
     ),
     OperationContract("GET", "/connectors/conflicts/news-items", {200: json_response(ItemsResponse[dashboard.NewsItemConflict])}),
     OperationContract(
-        "POST", "/connectors/conflicts/news-items", {200: json_response(AddedNews), 207: json_response(AddedNews)}, body=TypeAdapter(AddNews)
+        "POST", "/connectors/conflicts/news-items", {200: json_response(AddedNews), 207: json_response(AddedNews)}, body=AddNews
     ),
     OperationContract(
         "PUT",
         "/connectors/conflicts/news-items",
         {200: json_response(StoryAdded), **{status: json_response(ContentError) for status in (400, 409, 500)}},
-        body=TypeAdapter(UngroupIncoming),
+        body=UngroupIncoming,
     ),
     OperationContract("GET", "/connectors/story-summary/{story_id}", {200: json_response(StorySummary)}),
     OperationContract("POST", "/connectors/conflicts/clear", {200: json_response(MessageResponse)}),

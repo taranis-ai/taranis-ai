@@ -40,9 +40,7 @@ def test_ioc_bot(stories, story_get_mock, requests_mock):
     from worker import bots
 
     ioc_bot = bots.IOCBot()
-    uploads = requests_mock.put(
-        f"{Config.TARANIS_CORE_URL}/worker/tags?replace=false", headers={"Content-Type": "application/json"}, json={"message": "Tags updated"}
-    )
+    uploads = requests_mock.put(f"{Config.TARANIS_CORE_URL}/worker/tags?replace=false", json={"message": "Tags updated"})
     result = ioc_bot.execute()
 
     item = next(item for story in stories for item in story["news_items"] if "CVE-2023-5678" in item["content"])
@@ -67,7 +65,7 @@ def test_story_bot_clusters_via_library(stories, requests_mock, monkeypatch, ena
         {**stories[0], "summary": "Short summary", "tags": {"security": {"name": "security", "tag_type": "misc"}}},
         {**stories[1], "summary": None, "tags": {}},
     ]
-    requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/stories", headers={"Content-Type": "application/json"}, json=input_stories)
+    requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/stories", json=input_stories)
     parameters = {"llm_endpoint": endpoint, "REQUESTS_TIMEOUT": 17}
 
     with patch.object(LLMClient, "create_response", autospec=True) as provider:
@@ -121,7 +119,7 @@ def test_story_bot_clusters_via_library(stories, requests_mock, monkeypatch, ena
         assert provider.call_args.args[0].api_key == ""
 
         provider.reset_mock()
-        requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/stories", headers={"Content-Type": "application/json"}, json=[])
+        requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/stories", json=[])
         assert bots.StoryBot().execute(parameters) == {"message": "No new stories found"}
         provider.assert_not_awaited()
 
@@ -152,12 +150,7 @@ def test_wordlist_bot_respects_false_override(monkeypatch):
     monkeypatch.setattr(
         wordlist_bot,
         "get_stories",
-        lambda _: [
-            {
-                "id": "story-1",
-                "news_items": [{"osint_source_id": "manual", "id": "item-1", "content": "malware", "tags": {"malware": "existing"}}],
-            }
-        ],
+        lambda _: [{"id": "story-1", "news_items": [{"id": "item-1", "content": "malware", "tags": {"malware": "existing"}}]}],
     )
 
     result = wordlist_bot.execute({"OVERRIDE_EXISTING_TAGS": False})
@@ -169,9 +162,7 @@ def test_nlp_bot(stories, story_get_mock, requests_mock):
     from worker import bots
 
     endpoint = {"name": "NER", "base_url": "https://llm.test/v1", "timeout": 42}
-    uploads = requests_mock.put(
-        f"{Config.TARANIS_CORE_URL}/worker/tags?replace=false", headers={"Content-Type": "application/json"}, json={"message": "Tags updated"}
-    )
+    uploads = requests_mock.put(f"{Config.TARANIS_CORE_URL}/worker/tags?replace=false", json={"message": "Tags updated"})
     with patch.object(LLMClient, "create_response", autospec=True) as provider:
         provider.return_value = {"output_text": '{"Microsoft": "ORG"}'}
         result = bots.NLPBot().execute({"llm_endpoint": endpoint, "REQUESTS_TIMEOUT": 17})
@@ -184,8 +175,8 @@ def test_nlp_bot(stories, story_get_mock, requests_mock):
         assert provider.call_args.args[2] == _news_item_content_for_tagging(stories[-1]["news_items"][-1], separator="\n")
         assert "Cybersecurity mode is disabled" in provider.call_args.args[1]
 
-        cyber_story = {**stories[-1], "attributes": {"classification": {"key": "classification", "value": "security incident"}}}
-        requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/stories", headers={"Content-Type": "application/json"}, json=[cyber_story])
+        cyber_story = {**stories[-1], "attributes": {"classification": {"value": "security incident"}}}
+        requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/stories", json=[cyber_story])
         bots.NLPBot().execute({"llm_endpoint": endpoint})
         assert "Cybersecurity mode is enabled" in provider.call_args.args[1]
         assert provider.call_args.args[0].timeout == 42
@@ -198,7 +189,7 @@ def test_summary_bot_uses_library(stories, requests_mock, multiple_items):
     story = {**stories[0], "news_items": [stories[0]["news_items"][0]]}
     if multiple_items:
         story["news_items"].append(stories[1]["news_items"][0])
-    requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/stories", headers={"Content-Type": "application/json"}, json=[story])
+    requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/stories", json=[story])
     endpoint = {
         "name": "Summary",
         "base_url": "https://summary.test/v1",
@@ -237,7 +228,7 @@ def test_classification_bot(stories, requests_mock):
         {"key": "classification_scores", "value": '{"vulnerability": 1.0}'},
     ]
     selected = [{**stories[0], "news_items": items}]
-    requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/stories", headers={"Content-Type": "application/json"}, json=selected)
+    requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/stories", json=selected)
     endpoint = {
         "name": "Classification",
         "base_url": "https://llm.test/v1/systemone",
@@ -277,26 +268,19 @@ def test_sentiment_analysis_bot(stories, requests_mock, mock_job, monkeypatch, b
     mock_job.meta = {}
     monkeypatch.setattr("worker.bots.bot_tasks.get_current_job", lambda: mock_job)
     stories = [{**story, "revision": index} for index, story in enumerate(stories)]
-    story_get_mock = requests_mock.get(
-        f"{Config.TARANIS_CORE_URL}/worker/stories", headers={"Content-Type": "application/json"}, json=stories
-    )
+    story_get_mock = requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/stories", json=stories)
     if batch:
         endpoint["processing_mode"] = "openrouter_batch"
     config = requests_mock.get(
         f"{Config.TARANIS_CORE_URL}/worker/bots/sentiment",
-        headers={"Content-Type": "application/json"},
-        json={"name": "Test", "id": "sentiment", "type": "sentiment_analysis_bot", "parameters": {}, "llm_endpoint": endpoint},
+        json={"id": "sentiment", "type": "sentiment_analysis_bot", "parameters": {}, "llm_endpoint": endpoint},
     )
-    submission = requests_mock.post(
-        f"{Config.TARANIS_CORE_URL}/tasks", json=lambda request, context: request.json(), headers={"Content-Type": "application/json"}
-    )
+    submission = requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"status": "SUCCESS"})
     items = [item for story in stories for item in story["news_items"] if item["content"].strip()]
     outputs = [{"output_text": json.dumps({"sentiment": {"label": "neutral", "score": index / 100}})} for index in range(len(items))]
     expected_scores = {item["id"]: str(index / 100) for index, item in enumerate(items)}
     if batch:
-        submitted = requests_mock.post(
-            f"{endpoint['base_url']}/batches", headers={"Content-Type": "application/json"}, json={"id": "batch_items"}, status_code=202
-        )
+        submitted = requests_mock.post(f"{endpoint['base_url']}/batches", json={"id": "batch_items"}, status_code=202)
         assert isinstance(bot_task("sentiment"), Retry)
         assert submission.call_count == 0
         requests = submitted.last_request.json()["requests"]
@@ -305,7 +289,6 @@ def test_sentiment_analysis_bot(stories, requests_mock, mock_job, monkeypatch, b
         assert [request["body"]["input"][1]["content"] for request in requests] == [item["content"] for item in items]
         requests_mock.get(
             f"{endpoint['base_url']}/batches/batch_items",
-            headers={"Content-Type": "application/json"},
             json={
                 "status": "completed",
                 "results": [

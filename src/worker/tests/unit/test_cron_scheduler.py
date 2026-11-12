@@ -89,8 +89,8 @@ def test_scheduler_restores_empty_redis_and_retries_core_failure(requests_mock, 
     requests_mock.post(
         f"{Config.TARANIS_CORE_URL}/worker/cron-jobs",
         [
-            {"headers": {"Content-Type": "application/json"}, "status_code": 503, "json": {"error": "Core unavailable"}},
-            {"headers": {"Content-Type": "application/json"}, "json": restored_response},
+            {"status_code": 503, "json": {"error": "Core unavailable"}},
+            {"json": restored_response},
         ],
     )
     with pytest.raises(RuntimeError, match="stop scheduler"):
@@ -224,20 +224,14 @@ def test_scheduler_batches_notices_after_enqueuing_and_stops_when_leadership_is_
         assert request.json() == {"user_ids": ["owner"]}
         return {"message": "Task views invalidated"}
 
-    notices = requests_mock.post(
-        f"{Config.TARANIS_CORE_URL}/worker/tasks/changed", headers={"Content-Type": "application/json"}, json=observe_change
-    )
+    notices = requests_mock.post(f"{Config.TARANIS_CORE_URL}/worker/tasks/changed", json=observe_change)
     with pytest.raises(RuntimeError, match="stop scheduler"):
         cron_scheduler.run_scheduler()
     assert notices.call_count == 1
 
     # A stale due-job snapshot must not enqueue work after another cron takes leadership.
     connection.zadd(NEXT_KEY, {"source-000": 999.0, "source-001": 999.0})
-    requests_mock.post(
-        f"{Config.TARANIS_CORE_URL}/worker/tasks/changed",
-        headers={"Content-Type": "application/json"},
-        json={"message": "Task views invalidated"},
-    )
+    requests_mock.post(f"{Config.TARANIS_CORE_URL}/worker/tasks/changed", json={"message": "Task views invalidated"})
     monkeypatch.setattr(cron_scheduler, "renew_leader", Mock(side_effect=[True, True, False]))
     with pytest.raises(RuntimeError, match="stop scheduler"):
         cron_scheduler.run_scheduler()

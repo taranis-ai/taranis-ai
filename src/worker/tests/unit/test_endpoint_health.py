@@ -27,12 +27,11 @@ def test_batch_endpoint_check_waits_for_inference(requests_mock, monkeypatch, ap
     }
     decisions = requests_mock.post(
         "https://batch.test/api/classify",
-        headers={"Content-Type": "application/json"},
         json={"answers": {"probe": {"type": "choice", "choice": "OK", "probabilities": {"OK": 1.0, "other": 0.0}}}},
     )
     route = f"{Config.TARANIS_CORE_URL}/worker/endpoint-health/llm/test-id"
-    requests_mock.get(route, headers={"Content-Type": "application/json"}, json={"config": config})
-    saved = requests_mock.post(route, headers={"Content-Type": "application/json"}, json={"accepted": True})
+    requests_mock.get(route, json={"config": config})
+    saved = requests_mock.post(route, json={"accepted": True})
     submitted = requests_mock.post(
         f"{config['base_url']}/batches",
         [
@@ -49,12 +48,8 @@ def test_batch_endpoint_check_waits_for_inference(requests_mock, monkeypatch, ap
     assert decisions.call_count == 1
     request_id = submitted.request_history[0].json()["requests"][0]["custom_id"]
     other_id = submitted.request_history[1].json()["requests"][0]["custom_id"]
-    requests_mock.get(
-        f"{config['base_url']}/batches/batch_probe", headers={"Content-Type": "application/json"}, json={"status": "in_progress"}
-    )
-    requests_mock.get(
-        f"{config['base_url']}/batches/batch_other", headers={"Content-Type": "application/json"}, json={"status": "in_progress"}
-    )
+    requests_mock.get(f"{config['base_url']}/batches/batch_probe", json={"status": "in_progress"})
+    requests_mock.get(f"{config['base_url']}/batches/batch_other", json={"status": "in_progress"})
     job = Job.fetch(job.id, connection=job.connection)
     assert isinstance(check_endpoint("llm", "test-id", "current-check"), Retry)
     assert saved.call_count == 0
@@ -64,7 +59,6 @@ def test_batch_endpoint_check_waits_for_inference(requests_mock, monkeypatch, ap
     other_body = responses_body if api_format == "chat_completions" else chat_body
     completed = requests_mock.get(
         f"{config['base_url']}/batches/batch_probe",
-        headers={"Content-Type": "application/json"},
         json={"status": "completed", "results": [{"custom_id": request_id, "response": {"status_code": 200, "body": body}}]},
     )
     assert isinstance(check_endpoint("llm", "test-id", "current-check"), Retry)
@@ -75,7 +69,6 @@ def test_batch_endpoint_check_waits_for_inference(requests_mock, monkeypatch, ap
     job.save_meta()
     requests_mock.get(
         f"{config['base_url']}/batches/batch_other",
-        headers={"Content-Type": "application/json"},
         json={"status": "completed", "results": [{"custom_id": other_id, "response": {"status_code": 200, "body": other_body}}]},
     )
     check_endpoint("llm", "test-id", "current-check")
@@ -92,32 +85,25 @@ def test_batch_endpoint_check_waits_for_inference(requests_mock, monkeypatch, ap
     [
         (
             "llm",
-            {
-                "name": "Test",
-                "base_url": "http://model.test/v1",
-                "api_format": "responses",
-                "model": "test-model",
-                "api_key": "test-secret",
-                "timeout": 10,
-            },
+            {"base_url": "http://model.test/v1", "api_format": "responses", "model": "test-model", "api_key": "test-secret", "timeout": 10},
             "http://model.test/v1/responses",
             {"status": "completed", "error": None, "output": [{"type": "message", "content": [{"type": "output_text", "text": "OK"}]}]},
         ),
         (
             "llm",
-            {"name": "Test", "base_url": "http://model.test/v1", "api_format": "chat_completions", "timeout": 10},
+            {"base_url": "http://model.test/v1", "api_format": "chat_completions", "timeout": 10},
             "http://model.test/v1/chat/completions",
             {"choices": [{"message": {"role": "assistant", "content": "OK"}, "finish_reason": "stop"}]},
         ),
         (
             "llm",
-            {"name": "Test", "base_url": "http://model.test/v1/systemone", "api_format": "systemone", "timeout": 10},
+            {"base_url": "http://model.test/v1/systemone", "api_format": "systemone", "timeout": 10},
             "http://model.test/v1/systemone",
             {"answers": {"probe": {"type": "choice", "choice": "OK", "probabilities": {"OK": 1.0, "other": 0.0}}}},
         ),
         (
             "llm",
-            {"name": "Test", "base_url": "http://model.test/v1/decisions", "api_format": "openai_decisions", "timeout": 10},
+            {"base_url": "http://model.test/v1/decisions", "api_format": "openai_decisions", "timeout": 10},
             "http://model.test/v1/decisions",
             {
                 "answers": [
@@ -134,8 +120,8 @@ def test_batch_endpoint_check_waits_for_inference(requests_mock, monkeypatch, ap
 )
 def test_endpoint_check_failure_and_recovery(requests_mock, kind, config, url, result):
     route = f"{Config.TARANIS_CORE_URL}/worker/endpoint-health/{kind}/test-id"
-    requests_mock.get(route, headers={"Content-Type": "application/json"}, json={"config": config})
-    saved = requests_mock.post(route, headers={"Content-Type": "application/json"}, json={"accepted": True})
+    requests_mock.get(route, json={"config": config})
+    saved = requests_mock.post(route, json={"accepted": True})
     upstream = requests_mock.post(
         url,
         [
@@ -149,18 +135,17 @@ def test_endpoint_check_failure_and_recovery(requests_mock, kind, config, url, r
         with pytest.raises(RuntimeError, match="^Endpoint check failed$"):
             check_endpoint(kind, "test-id", "current-check")
         assert saved.last_request.json() == {"check_id": "current-check", "healthy": False}
-    requests_mock.get(route, headers={"Content-Type": "application/json"}, json={"config": {}})
-    saved_count = saved.call_count
-    with pytest.raises(RuntimeError, match="^Could not load endpoint check configuration$"):
+    requests_mock.get(route, json={"config": {}})
+    with pytest.raises(RuntimeError, match="^Endpoint check failed$"):
         check_endpoint(kind, "test-id", "current-check")
-    assert saved.call_count == saved_count
-    requests_mock.get(route, headers={"Content-Type": "application/json"}, json={"config": config})
+    assert saved.last_request.json() == {"check_id": "current-check", "healthy": False}
+    requests_mock.get(route, json={"config": config})
     check_endpoint(kind, "test-id", "current-check")
     assert saved.last_request.json()["healthy"] is True
     if config.get("api_key"):
         assert upstream.last_request.headers["Authorization"] == "Bearer test-secret"
         assert upstream.last_request.json()["model"] == "test-model"
-    requests_mock.get(route, headers={"Content-Type": "application/json"}, json={"skip": True})
+    requests_mock.get(route, json={"skip": True})
     check_endpoint(kind, "test-id", "old-check")
     assert upstream.call_count == 4
     extra_format = "responses" if config["api_format"] in {"systemone", "openai_decisions"} else "systemone"
@@ -170,9 +155,7 @@ def test_endpoint_check_failure_and_recovery(requests_mock, kind, config, url, r
         if extra_format == "responses"
         else {"answers": {"probe": {"type": "choice", "choice": "OK", "probabilities": {"OK": 1.0, "other": 0.0}}}}
     )
-    extra = requests_mock.post(
-        extra_url + ("/responses" if extra_format == "responses" else ""), headers={"Content-Type": "application/json"}, json=extra_result
-    )
+    extra = requests_mock.post(extra_url + ("/responses" if extra_format == "responses" else ""), json=extra_result)
     combined = {
         **config,
         "api_formats": {
@@ -180,7 +163,7 @@ def test_endpoint_check_failure_and_recovery(requests_mock, kind, config, url, r
             extra_format: {"model": "other-model", "base_url": extra_url},
         },
     }
-    requests_mock.get(route, headers={"Content-Type": "application/json"}, json={"config": combined})
+    requests_mock.get(route, json={"config": combined})
     check_endpoint(kind, "test-id", "combined-check")
     assert saved.last_request.json()["healthy"] is True
     assert extra.last_request.json()["model"] == "other-model"

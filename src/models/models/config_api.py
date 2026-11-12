@@ -1,9 +1,8 @@
 """Configuration HTTP contracts, shared by both administrative route prefixes."""
 
-from dataclasses import replace
 from typing import Any, Literal, TypedDict
 
-from pydantic import BaseModel, ConfigDict, Field, JsonValue, TypeAdapter, create_model
+from pydantic import BaseModel, ConfigDict, Field, JsonValue, create_model
 
 from models import admin
 from models.api import (
@@ -19,11 +18,32 @@ from models.api import (
     partial_model,
 )
 from models.base import TaranisBaseModel
-from models.imports import CSV_WORD_LIST, SOURCE_IMPORT, SourcesImported, UsersImported, WordListImport, WordListsImported
+from models.imports import SourceImport, SourcesImported, UsersImported, WordListImport, WordListsImported
 from models.scheduler import JobFilter, ScheduledJob
 from models.task import Task
 from models.types import OSINTState
-from models.user import ProfileSettings, UserProfileResponse
+from models.user import ProfileSettings, UserProfile
+
+
+class ProfileOrganization(TaranisBaseModel):
+    id: str
+    name: str
+
+
+class ProfileRole(TaranisBaseModel):
+    id: str
+    name: str
+
+
+UserProfileResponse = create_model(
+    "UserProfileResponse",
+    __base__=UserProfile,
+    id=(str, ...),
+    username=(str, ...),
+    permissions=(list[str], ...),
+    organization=(ProfileOrganization | None, None),
+    roles=(list[ProfileRole], Field(default_factory=list)),
+)
 
 
 class ListQuery(BaseModel):
@@ -63,6 +83,9 @@ class SourceExportQuery(IdsQuery):
 
 class SourceDeleteQuery(IdsQuery):
     force: Literal["true", "false"] | None = None
+
+
+WordListResponse = create_model("WordListResponse", __base__=admin.WordList, link=(str | None, ""))
 
 
 class WordListInput(TaranisBaseModel):
@@ -294,7 +317,7 @@ def _crud_operations() -> list[OperationContract]:
         ("organizations", "organization_id", admin.Organization, admin.Organization, None, False, True, ListQuery),
         ("roles", "role_id", admin.Role, admin.Role, None, False, True, ListQuery),
         ("users", "user_id", UserResponse, UserInput, None, False, True, ListQuery),
-        ("word-lists", "word_list_id", admin.WordList, WordListInput, None, False, True, WordListQuery),
+        ("word-lists", "word_list_id", WordListResponse, WordListInput, None, False, True, WordListQuery),
         ("osint-source-groups", "group_id", admin.OSINTSourceGroup, admin.OSINTSourceGroup, None, False, True, ListQuery),
         ("report-item-types", "type_id", admin.ReportItemType, ReportTypeInput, None, False, True, ListQuery),
         ("bots", "bot_id", admin.Bot, admin.BotCreate, admin.BotUpdate, True, False, BotQuery),
@@ -319,14 +342,14 @@ def _crud_operations() -> list[OperationContract]:
                         "POST",
                         path,
                         {200: json_response(IdMessageResponse), 201: json_response(IdMessageResponse)},
-                        body=TypeAdapter(creation),
+                        body=creation,
                     ),
                     OperationContract("GET", detail, {200: json_response(detail_response)}, query=query),
                     OperationContract(
                         "PUT",
                         detail,
                         {200: json_response(IdMessageResponse), 201: json_response(IdMessageResponse)},
-                        body=TypeAdapter(update),
+                        body=update,
                     ),
                     OperationContract(
                         "DELETE",
@@ -341,9 +364,9 @@ def _crud_operations() -> list[OperationContract]:
                 )
             )
             if patch:
-                operations.append(OperationContract("PATCH", detail, {200: json_response(IdMessageResponse)}, body=TypeAdapter(update)))
+                operations.append(OperationContract("PATCH", detail, {200: json_response(IdMessageResponse)}, body=update))
             if collection_crud:
-                operations.extend((OperationContract("PUT", path, {}, body=TypeAdapter(update)), OperationContract("DELETE", path, {})))
+                operations.extend((OperationContract("PUT", path, {}, body=update), OperationContract("DELETE", path, {})))
     return operations
 
 
@@ -358,16 +381,15 @@ def _utility_operations() -> list[OperationContract]:
         op("GET", "/templates", {200: json_response(PageResponse[TemplateResponse])}, query=ListQuery)
         op("GET", "/templates/{template_path}", {200: json_response(TemplateResponse)})
         for path in ("/templates", "/templates/{template_path}"):
-            op("POST", path, {200: json_response(TemplateWriteResponse)}, body=TypeAdapter(TemplateWrite))
-            op("PUT", path, {200: json_response(TemplateWriteResponse)}, body=TypeAdapter(TemplateWrite))
+            op("POST", path, {200: json_response(TemplateWriteResponse)}, body=TemplateWrite)
+            op("PUT", path, {200: json_response(TemplateWriteResponse)}, body=TemplateWrite)
             op("DELETE", path, {200: json_response(TemplateDeleteResponse)})
-        op("POST", "/templates/validate", {200: json_response(TemplateValidationResponse)}, body=TypeAdapter(TemplateValidationRequest))
+        op("POST", "/templates/validate", {200: json_response(TemplateValidationResponse)}, body=TemplateValidationRequest)
         op(
             "POST",
             "/bots/dag-preview",
             {200: json_response(DagResponse)},
-            body=TypeAdapter(DagRequest),
-            validation_error_message="Invalid bot DAG preview payload",
+            body=DagRequest,
         )
         op("POST", "/dictionaries-reload/{dictionary_type}", {200: json_response(MessageResponse)})
         for path in (
@@ -391,7 +413,7 @@ def _utility_operations() -> list[OperationContract]:
             "POST",
             "/curated-osint-source-lists",
             {200: json_response(CuratedLoadResponse)},
-            body=TypeAdapter(admin.CuratedOSINTSourceSelection),
+            body=admin.CuratedOSINTSourceSelection,
         )
         op("DELETE", "/osint-sources", {200: json_response(SourceDeleteResponse)}, query=SourceDeleteQuery, repeated_query=("ids",))
         op("GET", "/workers", {200: json_response(list[WorkerInstance])})
@@ -416,51 +438,30 @@ def _utility_operations() -> list[OperationContract]:
             "POST",
             "/import-osint-sources",
             {200: json_response(SourcesImported)},
-            body=SOURCE_IMPORT,
+            body=SourceImport,
             uploads=FileUpload,
             file_body=True,
             request_media_types=("application/json", "multipart/form-data"),
-            validation_error_message="Invalid source import",
         )
         op(
             "POST",
             "/import-word-lists",
             {200: json_response(WordListsImported)},
-            body=TypeAdapter(WordListImport),
+            body=WordListImport,
             uploads=FileUpload,
             file_body=True,
-            alternate_bodies={"text/csv": CSV_WORD_LIST},
+            alternate_bodies={"text/csv": str},
             request_media_types=("application/json", "multipart/form-data"),
-            validation_error_message="Invalid word list import payload",
         )
         # Malformed rows are deliberately skipped individually by the import service.
         op(
             "POST",
             "/users-import",
             {200: json_response(UsersImported)},
-            body=TypeAdapter(list[JsonValue]),
-            validation_error_message="Invalid data format",
+            body=list[JsonValue],
         )
         op("POST", "/import-report-item-types", {})
     return operations
 
 
-def _compatible_errors(operation: OperationContract) -> OperationContract:
-    resource = operation.path.split("/")[2]
-    if resource == "bots" and operation.body is not None and not operation.path.endswith("dag-preview"):
-        message = "Invalid bot create payload" if operation.method == "POST" else "Invalid bot update payload"
-        return replace(operation, validation_error_message=message)
-    if resource in {"sources", "osint-sources"}:
-        return replace(
-            operation,
-            validation_error_model=admin.OSINTSource,
-            field_error_messages={
-                "state": "Invalid state",
-                "period": "The period parameter must be day, week, or month",
-                "force": "The force parameter must be true or false",
-            },
-        )
-    return operation
-
-
-OPERATIONS = tuple(_compatible_errors(operation) for operation in _crud_operations() + _utility_operations())
+OPERATIONS = tuple(_crud_operations() + _utility_operations())

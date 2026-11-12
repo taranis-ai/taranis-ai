@@ -2,7 +2,7 @@
 
 from typing import Literal
 
-from pydantic import BaseModel, Field, JsonValue, StrictBool, TypeAdapter, create_model
+from pydantic import BaseModel, Field, JsonValue, StrictBool, create_model
 
 from models.api import ErrorResponse, IdMessageResponse, ItemsResponse, MessageResponse, OperationContract, PageResponse, json_response
 from models.base import TaranisBaseModel
@@ -107,7 +107,7 @@ OPERATIONS = (
         for path in ("/analyze/report-items", "/analyze/reports")
     ),
     *(
-        OperationContract("POST", path, {200: json_response(ReportWritten)}, body=TypeAdapter(ReportCreate))
+        OperationContract("POST", path, {200: json_response(ReportWritten)}, body=ReportCreate)
         for path in ("/analyze/report-items", "/analyze/reports")
     ),
     *(OperationContract(method, path, {}) for path in ("/analyze/report-items", "/analyze/reports") for method in ("PUT", "DELETE")),
@@ -123,7 +123,7 @@ OPERATIONS = (
                 200: json_response(ReportWritten),
                 **{status: json_response(ReportWriteError | ErrorResponse) for status in (400, 403, 404, 409, 500)},
             },
-            body=TypeAdapter(ReportUpdate),
+            body=ReportUpdate,
         )
         for path in ("/analyze/report-items/{report_item_id}", "/analyze/report/{report_item_id}")
     ),
@@ -142,7 +142,7 @@ OPERATIONS = (
                 200: json_response(MessageResponse | ReportStoriesWritten),
                 **{status: json_response(ReportStoriesWritten | ErrorResponse) for status in (400, 403, 404, 409, 500)},
             },
-            body=TypeAdapter(list[str]),
+            body=list[str],
         )
         for method in ("PUT", "POST")
     ),
@@ -150,9 +150,9 @@ OPERATIONS = (
         "POST",
         "/analyze/report-items/publish-product",
         {201: json_response(WorkflowResponse), 400: json_response(ContentError), 500: json_response(WorkflowResponse | ErrorResponse)},
-        body=TypeAdapter(WorkflowRequest),
+        body=WorkflowRequest,
     ),
-    OperationContract("POST", "/analyze/report-items/botactions", {200: json_response(QueueNotice)}, body=TypeAdapter(BotAction)),
+    OperationContract("POST", "/analyze/report-items/botactions", {200: json_response(QueueNotice)}, body=BotAction),
     OperationContract("GET", "/analyze/report-items/{report_item_id}/locks", {200: json_response(ReportLock)}),
     *(
         OperationContract(method, "/analyze/report-items/{report_item_id}/lock", {200: json_response(ReportLock)})

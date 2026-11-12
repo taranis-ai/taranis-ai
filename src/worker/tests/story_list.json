@@ -485,7 +485,16 @@
   ],
   "news_items": [
     {
-      "attributes": [{"key": "TLP", "value": "clear"}, {"key": "cybersecurity_human", "value": "yes"}],
+      "attributes": {
+        "TLP": {
+          "key": "TLP",
+          "value": "clear"
+        },
+        "cybersecurity_human": {
+          "key": "cybersecurity_human",
+          "value": "yes"
+        }
+    },
       "author": "Author attributes",
       "collected": "2025-06-03T08:01:11.369743+00:00",
       "content": "Title attributes",

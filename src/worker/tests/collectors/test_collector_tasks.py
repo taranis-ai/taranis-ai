@@ -3,7 +3,6 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from tests.support.api_payloads import collection_result
 from worker.collectors import collector_tasks
 from worker.config import Config
 
@@ -20,12 +19,9 @@ def test_collector_task_missing_source_is_recorded_as_failure(current_job, reque
     requests_mock.get(
         f"{Config.TARANIS_CORE_URL}/worker/osint-sources/source-missing",
         status_code=404,
-        headers={"Content-Type": "application/json"},
         json={"error": "not found"},
     )
-    requests_mock.post(
-        f"{Config.TARANIS_CORE_URL}/tasks", json=lambda request, context: request.json(), headers={"Content-Type": "application/json"}
-    )
+    requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
 
     result = collector_tasks.collector_task("source-missing", False)
 
@@ -73,9 +69,7 @@ def test_mastodon_failure_result_uses_curated_message_and_recovers(current_job, 
             {"json": []},
         ],
     )
-    requests_mock.post(
-        f"{Config.TARANIS_CORE_URL}/tasks", json=lambda request, context: request.json(), headers={"Content-Type": "application/json"}
-    )
+    requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
 
     with pytest.raises(RuntimeError, match="Mastodon authentication failed or access was denied"):
         collector_tasks.collector_task("source-1", False)
@@ -113,9 +107,7 @@ def test_collector_task_no_change_persists_not_modified_status(current_job, requ
 
     monkeypatch.setattr(collector_tasks.Collector, "get_source", lambda self, osint_source_id: source)
     monkeypatch.setattr(collector_tasks.Collector, "get_collector", lambda self, source_data: FakeCollector())
-    requests_mock.post(
-        f"{Config.TARANIS_CORE_URL}/tasks", json=lambda request, context: request.json(), headers={"Content-Type": "application/json"}
-    )
+    requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
 
     result = collector_tasks.collector_task("source-1", False)
 
@@ -172,9 +164,7 @@ def test_empty_rss_feed_result_is_preserved_after_not_modified_response(current_
     )
     for path in ("", "apple-touch-icon.png", "apple-touch-icon-precomposed.png", "favicon.ico"):
         requests_mock.get(f"https://example.com/{path}", status_code=404)
-    requests_mock.post(
-        f"{Config.TARANIS_CORE_URL}/tasks", json=lambda request, context: request.json(), headers={"Content-Type": "application/json"}
-    )
+    requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
 
     result = collector_tasks.collector_task("source-1", False)
     first_payload = [request.json() for request in requests_mock.request_history if request.method == "POST"][-1]
@@ -232,18 +222,13 @@ def test_rss_entry_limit_warning_and_recovery(
     for path in ("", "apple-touch-icon.png", "apple-touch-icon-precomposed.png", "favicon.ico"):
         requests_mock.get(f"https://example.com/{path}", status_code=404)
     source_endpoint = f"{Config.TARANIS_CORE_URL}/worker/osint-sources/source-1"
-    requests_mock.get(source_endpoint, headers={"Content-Type": "application/json"}, json=source)
+    requests_mock.get(source_endpoint, json=source)
     requests_mock.post(
         f"{Config.TARANIS_CORE_URL}/worker/news-items",
-        headers={"Content-Type": "application/json"},
-        json=collection_result(message=publish_message, story_ids=["story-1"] if expected_bot_runs else []),
+        json={"message": publish_message, "story_ids": ["story-1"] if expected_bot_runs else []},
     )
-    bots = requests_mock.put(
-        f"{Config.TARANIS_CORE_URL}/worker/post-collection-bots", headers={"Content-Type": "application/json"}, json={"message": "Updated"}
-    )
-    requests_mock.post(
-        f"{Config.TARANIS_CORE_URL}/tasks", json=lambda request, context: request.json(), headers={"Content-Type": "application/json"}
-    )
+    bots = requests_mock.put(f"{Config.TARANIS_CORE_URL}/worker/post-collection-bots", json={})
+    requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
 
     warning = (
         "Only 2 entries were considered, in the order provided by the feed (starting at the top). "
@@ -268,13 +253,13 @@ def test_rss_entry_limit_warning_and_recovery(
     for _ in range(2):
         source["status"] = payload
         source["http_validators"] = payload["result"]["data"]["http_validators"]
-        requests_mock.get(source_endpoint, headers={"Content-Type": "application/json"}, json=source)
+        requests_mock.get(source_endpoint, json=source)
         assert collector_tasks.collector_task("source-1") == expected_message
         payload = requests_mock.request_history[-1].json()
         assert payload["status"] == "WARNING"
 
     source["status"] = payload
-    requests_mock.get(source_endpoint, headers={"Content-Type": "application/json"}, json=source)
+    requests_mock.get(source_endpoint, json=source)
     collector_tasks.collector_task("source-1", manual=True)
     payload = requests_mock.request_history[-1].json()
     assert payload["status"] == recovered_status
@@ -301,9 +286,7 @@ def test_rss_parse_failure_cleans_up_persists_failure_and_skips_bots(
     monkeypatch.setattr(rss_collector, "parse_feed_entry", MagicMock(side_effect=ValueError("RSS parsing failed")))
     monkeypatch.setattr(collector_tasks.Collector, "get_source", lambda self, osint_source_id: source)
     monkeypatch.setattr(collector_tasks.Collector, "get_collector", lambda self, source_data: rss_collector)
-    requests_mock.post(
-        f"{Config.TARANIS_CORE_URL}/tasks", json=lambda request, context: request.json(), headers={"Content-Type": "application/json"}
-    )
+    requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
 
     with pytest.raises(RuntimeError, match="RSS parsing failed"):
         collector_tasks.collector_task(source["id"], False)
@@ -332,9 +315,7 @@ def test_rss_parse_failure_is_not_reclassified_as_not_modified(current_job, requ
             {"status_code": 304},
         ],
     )
-    requests_mock.post(
-        f"{Config.TARANIS_CORE_URL}/tasks", json=lambda request, context: request.json(), headers={"Content-Type": "application/json"}
-    )
+    requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
 
     with pytest.raises(RuntimeError, match="No parseable RSS or Atom feed was detected"):
         collector_tasks.collector_task("source-1", False)
@@ -359,11 +340,7 @@ def test_rss_parse_failure_is_not_reclassified_as_not_modified(current_job, requ
         feed_url,
         text="<rss version='2.0'><channel><title>Recovered</title><item><title>Existing item</title></item></channel></rss>",
     )
-    requests_mock.post(
-        f"{Config.TARANIS_CORE_URL}/worker/news-items",
-        headers={"Content-Type": "application/json"},
-        json=collection_result(message="All news items were skipped"),
-    )
+    requests_mock.post(f"{Config.TARANIS_CORE_URL}/worker/news-items", json={"message": "All news items were skipped"})
 
     collector_tasks.collector_task("source-1", manual=True)
 
@@ -379,9 +356,7 @@ def test_fetch_single_news_item_accepts_simple_web_source_payload_and_persists_s
 ):
     from tests.testdata import web_collector_result_title, web_collector_url
 
-    requests_mock.post(
-        f"{Config.TARANIS_CORE_URL}/tasks", json=lambda request, context: request.json(), headers={"Content-Type": "application/json"}
-    )
+    requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
     result = collector_tasks.fetch_single_news_item(
         {
             "id": "manual",
@@ -418,9 +393,7 @@ def test_fetch_single_news_item_accepts_simple_web_source_payload_and_persists_s
 
 def test_fetch_single_news_item_persists_failure_result(current_job, requests_mock):
     requests_mock.get("https://example.com/story", status_code=500, reason="private connection details")
-    requests_mock.post(
-        f"{Config.TARANIS_CORE_URL}/tasks", json=lambda request, context: request.json(), headers={"Content-Type": "application/json"}
-    )
+    requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
     with pytest.raises(RuntimeError, match="Failed to fetch news items") as error:
         collector_tasks.fetch_single_news_item(
             {"id": "manual", "type": "simple_web_collector", "parameters": {"WEB_URL": "https://example.com/story"}}
@@ -452,9 +425,7 @@ def test_collector_preview_persists_with_preview_status(current_job, requests_mo
 
     monkeypatch.setattr(collector_tasks.Collector, "get_source", lambda self, osint_source_id: source)
     monkeypatch.setattr(collector_tasks.Collector, "get_collector", lambda self, source_data: FakeCollector())
-    requests_mock.post(
-        f"{Config.TARANIS_CORE_URL}/tasks", json=lambda request, context: request.json(), headers={"Content-Type": "application/json"}
-    )
+    requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
 
     result = collector_tasks.collector_preview("source-1")
 
@@ -491,9 +462,7 @@ def test_collector_preview_persists_failure_on_exception(current_job, requests_m
 
     monkeypatch.setattr(collector_tasks.Collector, "get_source", lambda self, osint_source_id: source)
     monkeypatch.setattr(collector_tasks.Collector, "get_collector", lambda self, source_data: FakeCollector())
-    requests_mock.post(
-        f"{Config.TARANIS_CORE_URL}/tasks", json=lambda request, context: request.json(), headers={"Content-Type": "application/json"}
-    )
+    requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
 
     with pytest.raises(RuntimeError):
         collector_tasks.collector_preview("source-1")

@@ -1,7 +1,5 @@
 from unittest.mock import Mock
 
-import pytest
-import requests
 import responses
 from models.admin import ActiveJob, OSINTSource
 from models.types import COLLECTOR_TYPES
@@ -10,20 +8,19 @@ import frontend.data_persistence as data_persistence_module
 from frontend.cache import cache, get_cache_keys
 from frontend.cache_models import PagingData
 from frontend.config import Config
-from frontend.core_api import CoreApi
 from frontend.data_persistence import DataPersistenceLayer
 
 
 def test_get_objects_by_endpoint_caches_empty_results(app, monkeypatch, test_cache_backend):
     with responses.RequestsMock() as upstream, app.app_context():
-        upstream.get(f"{Config.TARANIS_CORE_URL}/config/workers/active", json={"items": [], "total_count": 0})
+        upstream.get(f"{Config.TARANIS_CORE_URL}/config/empty", json={"items": [], "total_count": 0})
         monkeypatch.setattr(data_persistence_module, "get_jwt_identity", lambda: "user1")
 
         persistence = DataPersistenceLayer(jwt_token="token")
-        cache_key = persistence.make_list_cache_key(ActiveJob, "/config/workers/active")
+        cache_key = persistence.make_list_cache_key(ActiveJob, "/config/empty")
 
-        first_result = persistence.get_objects_by_endpoint(ActiveJob, "/config/workers/active")
-        second_result = persistence.get_objects_by_endpoint(ActiveJob, "/config/workers/active")
+        first_result = persistence.get_objects_by_endpoint(ActiveJob, "/config/empty")
+        second_result = persistence.get_objects_by_endpoint(ActiveJob, "/config/empty")
 
         assert first_result.total_count == 0
         assert second_result.total_count == 0
@@ -99,14 +96,3 @@ def test_invalidate_cache_forwards_suffix_without_scope_mapping(app):
         "/admin/cache/invalidate",
         json_data={"mode": "model", "model": "config/workers/stats"},
     )
-
-
-def test_core_transport_rejects_malformed_health_and_raw_responses(app):
-    with responses.RequestsMock() as upstream, app.test_request_context():
-        upstream.get(f"{Config.TARANIS_CORE_URL}/health", json={"healthy": True})
-        upstream.get(f"{Config.TARANIS_CORE_URL}/auth/refresh", json={"message": "wrong envelope"})
-        api = CoreApi(jwt_token="token")
-        assert api.get_health() is None
-        with pytest.raises(requests.RequestException, match="Invalid Core API response"):
-            api.refresh()
-        assert len(upstream.calls) == 2

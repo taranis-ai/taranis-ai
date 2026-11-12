@@ -1,133 +1,99 @@
-from dataclasses import replace
+import re
 
 import pytest
 from pydantic import TypeAdapter, ValidationError
 
-from models.api import OperationContract
-from models.api_operations import OPERATIONS, find_operation, validate_outgoing_request
-from models.base import TaranisBaseModel
+from models.api import partial_model
+from models.api_operations import _OPERATIONS, OPERATIONS
+from models.assessment_api import WebParameters
+from models.config_api import UserInput
+from models.content_api import ContentImport, ContentQuery
+from models.imports import SourceImport
+from models.realtime_api import Broadcast
+from models.workspace_api import unchanged_proxy_url
 
 
-def test_operation_resolution_and_task_payload():
-    assert len({(operation.method, operation.path) for operation in OPERATIONS}) == len(OPERATIONS)
-    operation = find_operation("GET", "/tasks/runs?limit=1")
-    assert operation is not None and operation.path == "/tasks/runs"
-    filters = operation.query.model_validate({"job_ids": ["one", "two"], "limit": "1"})
-    assert filters.job_ids == ["one", "two"]
-    assert filters.limit == 1
-    assert validate_outgoing_request("GET", "/tasks/runs?job_ids=one&job_ids=two", params={"limit": "1"}) is operation
-    assert validate_outgoing_request("GET", "/tasks/runs", params={"job_ids": ("one", "two"), "search": None, "limit": ()}) is operation
-
-    operation = find_operation("POST", "/tasks")
-    assert operation is not None
-    submission = operation.validate_body({"task_id": "one", "status": "SUCCESS", "result": {"message": "Done", "data": None}})
-    assert submission.id == "one"
-    assert submission.result.data is None
-    assert submission.model_fields_set == {"id", "status", "result"}
-    with pytest.raises(ValidationError):
-        operation.validate_body({"id": "one", "status": "SUCCESS", "result": {}})
-    with pytest.raises(ValidationError):
-        operation.response(200).validate({"message": "Done"}, content_type="application/json")
+def test_contract_inventory_has_unique_keys_and_usable_schemas():
+    assert len(OPERATIONS) == len(_OPERATIONS)
+    for (method, path), operation in OPERATIONS.items():
+        assert (method, path) == (operation.method, operation.path)
+        assert set(operation.parameters.model_fields) == set(re.findall(r"\{(\w+)\}", path))
+        shapes = (
+            operation.body,
+            operation.query,
+            operation.parameters,
+            operation.headers,
+            operation.uploads,
+            *operation.alternate_bodies.values(),
+            *(response.body for response in operation.responses.values()),
+            *(response.json_body for response in operation.responses.values()),
+        )
+        for shape in shapes:
+            if shape is not None:
+                TypeAdapter(shape).json_schema()
 
 
-def test_bodyless_health_response_and_content_type():
-    operation = find_operation("GET", "/health")
-    assert operation is not None
-    assert operation.validate_body(None) is None
-    assert operation.validate_body({}) is None
-    with pytest.raises(ValueError):
-        operation.validate_body({"unexpected": "value"})
-    with pytest.raises(ValidationError):
-        operation.response(503).validate({"healthy": False}, content_type="application/json")
-    with pytest.raises(ValueError):
-        operation.response(200).validate({}, content_type="text/html")
-
-
-def test_validation_error_messages_preserve_precedence():
-    operation = OperationContract(
-        "POST",
-        "/example",
-        {},
-        field_error_messages={"0:int_parsing": "Specific error", "0": "Field error", "*": "Item error"},
-        validation_error_message="Invalid payload",
-        validation_error_model=TaranisBaseModel,
-    )
-    with pytest.raises(ValidationError) as error:
-        TypeAdapter(list[int]).validate_python(["invalid"])
-
-    assert operation.validation_error_response(error.value) == {"error": "Specific error"}
-    operation = replace(operation, field_error_messages={"0": "Field error", "*": "Item error"})
-    assert operation.validation_error_response(error.value) == {"error": "Field error"}
-    operation = replace(operation, field_error_messages={"*": "Item error"})
-    assert operation.validation_error_response(error.value) == {"error": "Item error"}
-    operation = replace(operation, field_error_messages={})
-    assert operation.validation_error_response(error.value) == {"error": "Invalid payload"}
-    operation = replace(operation, validation_error_message=None)
-    assert operation.validation_error_response(error.value)["error"].startswith("Validation failed for model 'TaranisBaseModel':")
-    operation = replace(operation, validation_error_model=None)
-    assert operation.validation_error_response(error.value)["error"].startswith("Invalid request: 0:")
-
-
-def test_partial_updates_csv_and_required_client_contracts():
-    from models.api import partial_model
-    from models.config_api import UserInput
-    from models.imports import CSV_WORD_LIST
-
+def test_partial_updates_preserve_omission_nullability_and_validation():
     update = partial_model(UserInput)
     assert update.model_validate({}).model_dump(exclude_unset=True) == {}
     assert update.model_validate({"organization": None}).model_dump(exclude_unset=True, exclude_none=False) == {"organization": None}
     with pytest.raises(ValidationError):
-        update.model_validate({"username": None})
-    imported = CSV_WORD_LIST.validate_python("value,category\nexample,domain\n", context={"filename": "words.csv"})
-    assert imported.data[0].name == "words.csv"
-    assert imported.data[0].entries[0].value == "example"
-    for invalid_csv in ("", "value,category\n" + "x" * 140000 + ",misc\n"):
-        with pytest.raises(ValidationError):
-            CSV_WORD_LIST.validate_python(invalid_csv)
-    with pytest.raises(ValueError, match="Missing API operation contract"):
-        validate_outgoing_request("GET", "/unregistered")
+        update.model_validate({"name": None})
 
-
-def test_nested_configuration_and_runtime_ranges():
-    from models.config_api import DagRequest, ReportTypeInput
-    from models.workspace_api import ClusterQuery
-
-    validate_outgoing_request("GET", "/analyze/report-items", params={"completed": "", "timefrom": ""})
-    preview = DagRequest.model_validate({"index": "1", "parameters": {"RUN_AFTER_COLLECTOR": "false"}})
-    assert preview.type is None
-    report = ReportTypeInput.model_validate(
-        {
-            "title": "Report",
-            "attribute_groups": [
-                {"title": "Group", "index": 0, "attribute_group_items": [{"title": "Story", "index": 0, "attribute": "Story"}]}
-            ],
-        }
-    )
-    assert report.attribute_groups[0].attribute_group_items[0].attribute == "Story"
-    validate_outgoing_request("PUT", "/worker/word-list/words", b"value,category\nexample,domain\n", content_type="text/csv")
+    profile_update = OPERATIONS["PUT", "/users/profile"].body
+    assert profile_update.model_validate({}).model_dump(exclude_unset=True) == {}
     with pytest.raises(ValidationError):
-        ClusterQuery.model_validate({"days": 10**12})
+        profile_update.model_validate({"timezone": "Invalid/Timezone"})
+
+
+def test_empty_optional_filters_and_repeated_query_values():
+    query = ContentQuery.model_validate({"completed": "", "timefrom": "", "group": ["one", "two"]})
+    assert query.completed is None and query.timefrom is None
+    assert query.group == ["one", "two"]
+    filters = OPERATIONS["GET", "/tasks/runs"].query.model_validate({"job_ids": ["one", "two"], "limit": "1"})
+    assert filters.job_ids == ["one", "two"] and filters.limit == 1
+
+
+def test_url_validation_retains_original_spelling():
+    url = "https://EXAMPLE.com"
+    assert WebParameters.model_validate({"WEB_URL": url}).WEB_URL == url
+    assert unchanged_proxy_url(url) == url
+    assert unchanged_proxy_url("") == ""
     with pytest.raises(ValidationError):
-        ClusterQuery.model_validate({"page": 1024, "limit": -9016003946094601})
-
-
-def test_worker_resources_require_identity_and_product_attributes_keep_groups():
-    from models.worker_api import WorkerProduct
-
-    operation = find_operation("GET", "/worker/bots/bot")
-    assert operation is not None
+        WebParameters.model_validate({"WEB_URL": "file:///etc/passwd"})
     with pytest.raises(ValidationError):
-        operation.response(200).validate({"name": "Bot", "type": "nlp_bot"}, content_type="application/json")
-    product = WorkerProduct.model_validate(
-        {
-            "id": "product",
-            "title": "Product",
-            "type": "html_presenter",
-            "type_id": "type",
-            "mime_type": "text/html",
-            "render_revision": "revision",
-            "parameters": {},
-            "report_items": [{"id": "report", "attributes": {"Overview": {"Text": "Content", "Empty": None}}, "stories": []}],
-        }
-    )
-    assert product.report_items[0].attributes["Overview"]["Text"] == "Content"
+        unchanged_proxy_url("invalid proxy")
+
+
+def test_broadcast_rejects_whitespace_without_trimming_valid_messages():
+    assert Broadcast.model_validate({"message": " hello "}).message == " hello "
+    with pytest.raises(ValidationError):
+        Broadcast.model_validate({"message": " \n "})
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"title": "News", "content": "Body"},
+        [{"title": "News", "content": "Body"}],
+        {"news_items": [{"title": "News", "content": "Body"}]},
+        {"total_count": 1, "items": [{"news_items": [{"title": "News", "content": "Body"}]}]},
+    ],
+)
+def test_content_import_preserves_supported_formats(payload):
+    assert ContentImport.model_validate(payload).payload == payload
+
+
+@pytest.mark.parametrize("payload", [[], {"items": []}, [1], [{"news_items": []}, {"title": "News"}]])
+def test_content_import_rejects_empty_malformed_or_mixed_rows(payload):
+    with pytest.raises(ValidationError):
+        ContentImport.model_validate(payload)
+
+
+def test_source_import_selects_version_specific_shape():
+    adapter = TypeAdapter(SourceImport)
+    source = {"name": "Feed", "type": "rss_collector"}
+    assert adapter.validate_python({"version": 2, "data": [source]}).data[0].name == "Feed"
+    assert adapter.validate_python({"version": 3, "sources": [source]}).sources[0].name == "Feed"
+    with pytest.raises(ValidationError):
+        adapter.validate_python({"version": 5, "sources": [source]})

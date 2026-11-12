@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Any, Literal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from pydantic import ConfigDict, Field, create_model, field_validator
+from pydantic import ConfigDict, Field, field_validator
 
 from models.base import TaranisBaseModel
 
@@ -93,24 +93,3 @@ class UserProfile(TaranisBaseModel):
     permissions: list[str] = Field(default_factory=list)
     roles: list[dict[str, Any]] = Field(default_factory=list)
     pending_onboarding_tasks: list[OnboardingTask] = Field(default_factory=list)
-
-
-class ProfileOrganization(TaranisBaseModel):
-    id: str
-    name: str
-
-
-class ProfileRole(TaranisBaseModel):
-    id: str
-    name: str
-
-
-UserProfileResponse = create_model(
-    "UserProfileResponse",
-    __base__=UserProfile,
-    id=(str, ...),
-    username=(str, ...),
-    permissions=(list[str], ...),
-    organization=(ProfileOrganization | None, None),
-    roles=(list[ProfileRole], Field(default_factory=list)),
-)

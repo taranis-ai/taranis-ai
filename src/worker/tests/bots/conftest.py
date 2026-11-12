@@ -16,4 +16,4 @@ def stories():
 
 @pytest.fixture
 def story_get_mock(requests_mock, stories):
-    yield requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/stories", headers={"Content-Type": "application/json"}, json=stories)
+    yield requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/stories", json=stories)

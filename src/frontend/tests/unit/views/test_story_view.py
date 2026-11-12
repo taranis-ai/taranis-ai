@@ -104,10 +104,7 @@ def test_assess_upstream_failure_returns_safe_error_page(authenticated_client, r
         assert tree.tag == "section" and tree.get("id") == "notification-bar"
         assert tree.get("hx-swap-oob") is None
 
-        responses_mock.post(
-            f"{Config.TARANIS_CORE_URL}/assess/stories/bulk_action",
-            json={"updated": 1, "success": [], "errors": [], "message": "Stories updated"},
-        )
+        responses_mock.post(f"{Config.TARANIS_CORE_URL}/assess/stories/bulk_action", json={"message": "Stories updated"})
         response = authenticated_client.post(
             url_for("assess.bulk_action"), headers=htmx_header, data={"action": "read", "value": "true", "story_ids": ["story-1"]}
         )
@@ -144,9 +141,7 @@ def test_assess_upstream_failure_returns_safe_error_page(authenticated_client, r
 def test_story_assess_return_navigation(authenticated_client, responses_mock, return_url, expected_return):
     mock_story_for_edit(responses_mock, story_with_news_item_tags())
     responses_mock.get(f"{Config.TARANIS_CORE_URL}/assess/bookmarks", json={"items": [], "total_count": 0})
-    responses_mock.patch(
-        f"{Config.TARANIS_CORE_URL}/assess/stories/story-1", json={"id": "story-1", "story": {"id": "story-1"}, "message": "Story updated"}
-    )
+    responses_mock.patch(f"{Config.TARANIS_CORE_URL}/assess/stories/story-1", json={"message": "Story updated"})
 
     response = authenticated_client.get(url_for("assess.story", story_id="story-1", assess_url=return_url))
     assert {"HX-Request", "HX-Target"} <= set(response.vary)
@@ -346,17 +341,11 @@ def test_display_preferences_preserve_filters_and_render_saved_profile(authentic
     saved = auth_user.model_copy(deep=True)
     saved.profile.compact_view = True
     saved.profile.show_bookmark_bar = False
-    responses_mock.post(
-        f"{Config.TARANIS_CORE_URL}{ProfileSettings._core_endpoint}",
-        json={"message": "Saved", "id": saved.id, "user_profile": saved.profile.model_dump(mode="json")}
-        if status == 200
-        else {"error": "Save failed"},
-        status=status,
-    )
+    responses_mock.post(f"{Config.TARANIS_CORE_URL}{ProfileSettings._core_endpoint}", json={"message": "Saved"}, status=status)
     responses_mock.get(f"{Config.TARANIS_CORE_URL}/users", json=saved.model_dump(mode="json"))
     mock_story_for_edit(responses_mock, story_with_news_item_tags())
     responses_mock.get(f"{Config.TARANIS_CORE_URL}/assess/stories", json={"items": [story_with_news_item_tags()], "total_count": 1})
-    responses_mock.get(f"{Config.TARANIS_CORE_URL}/assess/bookmarks", json={"items": [], "total_count": 0})
+    responses_mock.get(f"{Config.TARANIS_CORE_URL}/assess/bookmarks", json={"items": []})
     response = authenticated_client.post(
         url_for("assess.display_preferences"),
         data={"compact_view": "true", "show_bookmark_bar": "false"},
@@ -578,7 +567,7 @@ def test_story_update_payload_ignores_tags():
 def test_story_update_redirects_to_story_without_htmx(authenticated_client, responses_mock):
     responses_mock.patch(
         f"{Config.TARANIS_CORE_URL}/assess/stories/story-1",
-        json={"id": "story-1", "story": {"id": "story-1"}, "message": "Story updated"},
+        json={"message": "Story updated"},
     )
 
     response = authenticated_client.post(
@@ -607,7 +596,7 @@ def test_story_edit_standard_post_updates_and_redirects(authenticated_client, au
 
     responses_mock.patch(
         f"{Config.TARANIS_CORE_URL}/assess/stories/story-1",
-        json={"id": "story-1", "story": {"id": "story-1"}, "message": "Story updated"},
+        json={"message": "Story updated"},
     )
 
     response = authenticated_client.post(
@@ -802,10 +791,7 @@ def test_story_action_response_refreshes_updated_story(authenticated_client, res
     responses_mock.get(f"{Config.TARANIS_CORE_URL}/assess/bookmarks", json={"items": [], "total_count": 0})
     story_url = f"{Config.TARANIS_CORE_URL}/assess/stories/{story_payload['id']}"
     responses_mock.get(story_url, json=story_payload)
-    responses_mock.patch(
-        f"{Config.TARANIS_CORE_URL}/assess/stories/{story_payload['id']}",
-        json={"id": "story-1", "message": "Story updated", "story": updated_story},
-    )
+    responses_mock.patch(f"{Config.TARANIS_CORE_URL}/assess/stories/{story_payload['id']}", json={"story": updated_story})
 
     authenticated_client.get(url_for("assess.story_edit", story_id=story_payload["id"]))
     responses_mock.replace("GET", story_url, json=updated_story)
@@ -898,7 +884,7 @@ def test_update_news_item_tags_propagates_core_error_and_does_not_rerender_card(
     responses_mock.put(
         f"{Config.TARANIS_CORE_URL}/assess/news-items/news-1/tags",
         status=400,
-        json={"error": "Tags not updated"},
+        json={"message": "Tags not updated"},
     )
 
     response = authenticated_client.post(
@@ -1066,10 +1052,7 @@ def test_assess_tag_filters_highlight_matches_beyond_collapsed_limit(authenticat
     assess_url = url_for("assess.assess", tags=["tag-22", "actor"])
     return_url = url_for("assess.assess", tags=["tag-22", "actor"], page=2)
     if method != "GET":
-        responses_mock.patch(
-            f"{Config.TARANIS_CORE_URL}/assess/stories/story-1",
-            json={"id": "story-1", "story": {"id": "story-1"}, "message": "Story updated"},
-        )
+        responses_mock.patch(f"{Config.TARANIS_CORE_URL}/assess/stories/story-1", json={"message": "Story updated"})
         response = authenticated_client.open(
             url_for("assess.story", story_id="story-1", assess_url=return_url),
             method=method,
@@ -1522,7 +1505,7 @@ def test_table_search_bar_uses_form_level_search_trigger(app):
 )
 def test_create_news_item_from_file_validates_json_content(authenticated_client, responses_mock, htmx_header, content, status):
     if status == 204:
-        responses_mock.post(f"{Config.TARANIS_CORE_URL}/assess/import", json={"imported_news_items": [], "message": "Imported"})
+        responses_mock.post(f"{Config.TARANIS_CORE_URL}/assess/import", json={"message": "Imported"})
 
     response = authenticated_client.post(
         url_for("assess.create_news_item"),

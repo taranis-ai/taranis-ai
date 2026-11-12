@@ -1,9 +1,9 @@
 """User, dashboard, publishing, asset and settings HTTP operations."""
 
-from datetime import UTC, datetime, timedelta
+from datetime import datetime
 from typing import Annotated, Literal
 
-from pydantic import AfterValidator, AnyUrl, BaseModel, BeforeValidator, ConfigDict, Field, TypeAdapter, create_model, model_validator
+from pydantic import AfterValidator, AnyUrl, BaseModel, BeforeValidator, ConfigDict, Field, TypeAdapter, create_model
 
 from models import admin, product
 from models.api import (
@@ -20,12 +20,12 @@ from models.api import (
 )
 from models.asset import Asset
 from models.base import TaranisBaseModel
-from models.config_api import ListQuery, QueueNotice
+from models.config_api import ListQuery, QueueNotice, UserProfileResponse
 from models.cti import CTIResponse
 from models.dashboard import Cluster, Dashboard, PizzintStatus, TrendingCluster
 from models.llm import LLMAPIConfig, LLMAPIFormat
 from models.task import TaskResult
-from models.user import LoginCredentials, ProfileSettings, UserProfileResponse
+from models.user import LoginCredentials, ProfileSettings
 
 
 class RenderFailure(BaseModel):
@@ -49,19 +49,6 @@ class ProfileUpdated(IdMessageResponse):
 
 class ClusterQuery(ListQuery):
     days: int | None = None
-
-    @model_validator(mode="after")
-    def validate_runtime_bounds(self):
-        if self.days is not None:
-            try:
-                datetime.now(UTC) - timedelta(days=self.days)
-            except OverflowError:
-                raise ValueError("Days exceed the supported date range") from None
-        limit = min(self.limit, 100)
-        offset = min((self.page - 1) * limit, (2**31) - 1)
-        if limit < -(2**63) or offset < -(2**63):
-            raise ValueError("Pagination exceeds the supported integer range")
-        return self
 
 
 class StoryCluster(BaseModel):
@@ -133,16 +120,6 @@ SETTINGS_VALUES_INPUT = create_model(
     default_collector_proxy=(Annotated[str, AfterValidator(unchanged_proxy_url)], ""),
 )
 SETTINGS_INPUT = create_model("SettingsInput", __base__=TaranisBaseModel, settings=(SETTINGS_VALUES_INPUT, ...))
-SETTINGS_ERRORS = {
-    "settings": "settings must be a JSON object",
-    "settings.default_timezone": "Invalid timezone",
-    "settings.default_bot_lookback_days": "Invalid bot lookback setting",
-    "settings.rss_collector_max_entries": "Invalid RSS collector entry limit",
-    "settings.collection_group_threshold": "Collection threshold must be 1–100 and lookback days must be 1–36500",
-    "settings.collection_lookback_days": "Collection threshold must be 1–100 and lookback days must be 1–36500",
-    "settings.onboarding_enabled": "Invalid onboarding setting",
-    "settings.chat_max_stories": "Maximum stories must be between 1 and 20",
-}
 
 
 class SettingsUpdated(BaseModel):
@@ -194,18 +171,11 @@ PROFILE_UPDATE = partial_model(ProfileSettings)
 
 OPERATIONS = (
     OperationContract(
-        "GET",
-        "/reports/{product_id}",
-        {200: download_response(), 206: download_response(), 304: ResponseContract(None, media_type=None)},
-        api_path=False,
-    ),
-    OperationContract(
         "POST",
         "/auth/login",
         {200: json_response(TokenResponse)},
-        body=TypeAdapter(Annotated[LoginCredentials | ExternalLogin, Field(union_mode="left_to_right")] | None),
+        body=Annotated[LoginCredentials | ExternalLogin, Field(union_mode="left_to_right")] | None,
         request_media_types=("application/json", "application/x-www-form-urlencoded", "multipart/form-data"),
-        validation_error_message="Missing username or password",
     ),
     OperationContract("GET", "/users/", {200: json_response(UserProfileResponse)}),
     OperationContract("GET", "/users/profile", {200: json_response(ProfileSettings)}),
@@ -214,8 +184,7 @@ OPERATIONS = (
             method,
             "/users/profile",
             {200: json_response(ProfileUpdated)},
-            body=TypeAdapter(PROFILE_UPDATE),
-            invalid_request_message="Invalid profile settings",
+            body=PROFILE_UPDATE,
         )
         for method in ("POST", "PUT")
     ),
@@ -239,15 +208,15 @@ OPERATIONS = (
         )
         for operation in (
             OperationContract("GET", path, {200: json_response(PageResponse[response_model])}, query=AssetQuery),
-            OperationContract("POST", path, {201: json_response(IdMessageResponse)}, body=TypeAdapter(input_model)),
-            OperationContract("PUT", path, {}, body=TypeAdapter(partial_model(input_model))),
+            OperationContract("POST", path, {201: json_response(IdMessageResponse)}, body=input_model),
+            OperationContract("PUT", path, {}, body=partial_model(input_model)),
             OperationContract("DELETE", path, {}),
             OperationContract("GET", f"{path}/{{{identifier}}}", {200: json_response(response_model)}, query=AssetQuery),
             OperationContract(
                 "PUT",
                 f"{path}/{{{identifier}}}",
                 {200: json_response(MessageResponse | IdMessageResponse), 201: json_response(IdMessageResponse)},
-                body=TypeAdapter(partial_model(input_model)),
+                body=partial_model(input_model),
             ),
             OperationContract("DELETE", f"{path}/{{{identifier}}}", {200: json_response(MessageResponse | IdMessageResponse)}),
         )
@@ -258,7 +227,7 @@ OPERATIONS = (
         "PUT",
         "/assets/{asset_id}/vulnerabilities/{vulnerability_id}",
         {200: json_response(MessageResponse), 400: json_response(ErrorResponse | MessageResponse)},
-        body=TypeAdapter(SolvedRequest),
+        body=SolvedRequest,
     ),
     OperationContract("GET", "/publish/product-types", {200: json_response(ItemsResponse[admin.ProductType])}),
     OperationContract("GET", "/publish/product-choices", {200: json_response(ItemsResponse[product.ProductChoice])}),
@@ -274,10 +243,8 @@ OPERATIONS = (
     OperationContract("GET", "/publish/publisher-presets/{preset_id}", {200: json_response(product.PublisherPreset)}, query=ListQuery),
     OperationContract("GET", "/publish/products", {200: json_response(PageResponse[PRODUCT_RESPONSE])}, query=ProductQuery),
     OperationContract("GET", "/publish/products/{product_id}", {200: json_response(PRODUCT_RESPONSE)}),
-    OperationContract("POST", "/publish/products", {201: json_response(ProductWritten)}, body=TypeAdapter(ProductInput)),
-    OperationContract(
-        "PUT", "/publish/products/{product_id}", {200: json_response(ProductWritten)}, body=TypeAdapter(partial_model(ProductInput))
-    ),
+    OperationContract("POST", "/publish/products", {201: json_response(ProductWritten)}, body=ProductInput),
+    OperationContract("PUT", "/publish/products/{product_id}", {200: json_response(ProductWritten)}, body=partial_model(ProductInput)),
     OperationContract("DELETE", "/publish/products/{product_id}", {200: json_response(MessageResponse)}),
     OperationContract("POST", "/publish/products/{product_id}/render", {200: json_response(QueueNotice)}),
     OperationContract(
@@ -300,8 +267,7 @@ OPERATIONS = (
             method,
             "/settings/settings",
             {200: json_response(SettingsUpdated)},
-            body=TypeAdapter(SETTINGS_INPUT),
-            field_error_messages=SETTINGS_ERRORS,
+            body=SETTINGS_INPUT,
         )
         for method in ("PUT", "PATCH", "POST")
     ),
@@ -310,8 +276,7 @@ OPERATIONS = (
             "POST",
             path,
             {200: json_response(IdMessageResponse)},
-            body=TypeAdapter(partial_model(LLMWrite)),
-            validation_error_message="Invalid LLM endpoint",
+            body=partial_model(LLMWrite),
         )
         for path in ("/settings/llm-endpoints", "/settings/llm-endpoints/{endpoint_id}")
     ),
@@ -320,15 +285,6 @@ OPERATIONS = (
         "POST",
         "/admin/cache/invalidate",
         {200: json_response(CacheResponse)},
-        body=TypeAdapter(CacheRequest),
-        validation_error_message="Invalid mode",
-    ),
-    OperationContract(
-        "GET",
-        "/static/default_word_lists.json",
-        {200: download_response(), 206: download_response(), 304: ResponseContract(None, media_type=None)},
-    ),
-    OperationContract(
-        "GET", "/static/openapi3_1.yaml", {200: download_response(), 206: download_response(), 304: ResponseContract(None, media_type=None)}
+        body=CacheRequest,
     ),
 )

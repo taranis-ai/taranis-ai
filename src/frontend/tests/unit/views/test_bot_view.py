@@ -19,11 +19,11 @@ from frontend.views.admin_views.bot_views import BotView, render_bot_run_order
 )
 def test_bot_parameter_patch_preserves_submitted_fields(app, parameters, expected):
     with app.test_request_context(), responses.RequestsMock() as upstream:
-        upstream.patch(f"{Config.TARANIS_CORE_URL}/config/bots/bot-1", json={"id": "bot-1", "message": "Updated"})
+        upstream.patch(f"{Config.TARANIS_CORE_URL}/config/bots/bot-1", json={"message": "Updated"})
         result, error = BotView.store_form_data({"name": "NLP", "type": "nlp_bot", "parameters": parameters}, "bot-1")
 
         assert error is None
-        assert result == {"message": "Updated", "id": "bot-1"}
+        assert result == {"message": "Updated"}
         assert json.loads(upstream.calls[0].request.body)["parameters"] == expected
 
 
@@ -53,9 +53,7 @@ def test_bot_run_order_labels(parameters, expected):
     ],
 )
 def test_bot_parameters_include_optional_positive_integer_requests_timeout(authenticated_client, htmx_header, bot_type):
-    responses.add(
-        responses.GET, f"{Config.TARANIS_CORE_URL}/settings/settings", json={"_links": {}, "total_count": 1, "items": [{"settings": {}}]}
-    )
+    responses.add(responses.GET, f"{Config.TARANIS_CORE_URL}/settings/settings", json={"items": [{"settings": {}}]})
     response = authenticated_client.get(
         url_for("admin.bot_parameters", bot_id="0", type=bot_type),
         headers=htmx_header,

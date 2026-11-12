@@ -1,7 +1,5 @@
 """Bot service boundary contracts."""
 
-from pydantic import TypeAdapter
-
 from models import admin, assess
 from models.api import ErrorResponse, IdMessageResponse, ItemsResponse, MessageResponse, OperationContract, json_response
 from models.config_api import BotQuery
@@ -30,7 +28,7 @@ OPERATIONS = (
             "PUT",
             path,
             {200: json_response(IdMessageResponse), 404: json_response(MessageResponse | ErrorResponse)},
-            body=TypeAdapter(admin.BotUpdate),
+            body=admin.BotUpdate,
         )
         for path in ("/bots", "/bots/{bot_id}")
     ),
@@ -39,17 +37,16 @@ OPERATIONS = (
         "PUT",
         "/bots/news-item/{news_item_id}",
         {200: json_response(NewsUpdated | MessageResponse)},
-        body=TypeAdapter(LanguageUpdate),
-        validation_error_message="Invalid news item data: Invalid BCP 47 language tag",
+        body=LanguageUpdate,
     ),
     OperationContract(
         "PUT",
         "/bots/news-item/{news_item_id}/attributes",
         {200: json_response(MessageResponse)},
-        body=TypeAdapter(AttributeEnvelope | AttributePayload),
+        body=AttributeEnvelope | AttributePayload,
     ),
     OperationContract("GET", "/bots/story/{story_id}", {200: json_response(StoryResponse)}),
-    OperationContract("PUT", "/bots/story/{story_id}", {200: json_response(StoryUpdated)}, body=TypeAdapter(assess.StoryUpdatePayload)),
+    OperationContract("PUT", "/bots/story/{story_id}", {200: json_response(StoryUpdated)}, body=assess.StoryUpdatePayload),
     OperationContract(
         "GET", "/bots/story/{story_id}/attributes", {200: json_response(list[Attribute]), 404: json_response(MessageResponse | ErrorResponse)}
     ),
@@ -57,11 +54,9 @@ OPERATIONS = (
         "PATCH",
         "/bots/story/{story_id}/attributes",
         {200: json_response(MessageResponse)},
-        body=TypeAdapter(AttributeEnvelope | AttributePayload),
+        body=AttributeEnvelope | AttributePayload,
     ),
-    OperationContract("PUT", "/bots/stories/group", {200: json_response(MessageResponse)}, body=TypeAdapter(list[str] | StoryIds)),
-    OperationContract(
-        "PUT", "/bots/stories/group-multiple", {200: json_response(MessageResponse)}, body=TypeAdapter(list[list[str]] | StoryGroups)
-    ),
-    OperationContract("PUT", "/bots/stories/ungroup", {200: json_response(MessageResponse)}, body=TypeAdapter(list[str] | NewsIds)),
+    OperationContract("PUT", "/bots/stories/group", {200: json_response(MessageResponse)}, body=list[str] | StoryIds),
+    OperationContract("PUT", "/bots/stories/group-multiple", {200: json_response(MessageResponse)}, body=list[list[str]] | StoryGroups),
+    OperationContract("PUT", "/bots/stories/ungroup", {200: json_response(MessageResponse)}, body=list[str] | NewsIds),
 )

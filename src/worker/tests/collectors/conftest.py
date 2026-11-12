@@ -5,7 +5,6 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from tests.support.api_payloads import collection_result
 from worker import collectors
 from worker.collectors.base_web_collector import BaseWebCollector
 from worker.config import Config
@@ -55,12 +54,12 @@ def misp_collector():
 
 @pytest.fixture
 def osint_source_update_mock(requests_mock):
-    requests_mock.put(f"{Config.TARANIS_CORE_URL}/worker/osint-sources/1", headers={"Content-Type": "application/json"}, json={})
+    requests_mock.put(f"{Config.TARANIS_CORE_URL}/worker/osint-sources/1", json={})
 
 
 @pytest.fixture
 def news_item_upload_mock(requests_mock):
-    requests_mock.post(f"{Config.TARANIS_CORE_URL}/worker/news-items", headers={"Content-Type": "application/json"}, json=collection_result())
+    requests_mock.post(f"{Config.TARANIS_CORE_URL}/worker/news-items", json={})
 
 
 @pytest.fixture
@@ -74,7 +73,7 @@ def web_collector_url_mock(requests_mock):
 @pytest.fixture
 def collectors_mock(requests_mock, osint_source_update_mock, news_item_upload_mock):
     icon_endpoint = re.compile(rf"{re.escape(Config.TARANIS_CORE_URL)}/worker/osint-sources/[^/]+/icon$")
-    requests_mock.put(icon_endpoint, headers={"Content-Type": "application/json"}, json={})
+    requests_mock.put(icon_endpoint, json={})
 
 
 @pytest.fixture
@@ -96,9 +95,9 @@ def rss_collector_mock(requests_mock, collectors_mock):
         rss_collector_url_not_modified,
     )
 
-    requests_mock.get(rss_collector_targets[0], headers={"Content-Type": "application/json"}, json={})
-    requests_mock.get(rss_collector_targets[1], headers={"Content-Type": "application/json"}, json={})
-    requests_mock.get(rss_collector_targets[2], headers={"Content-Type": "application/json"}, json={})
+    requests_mock.get(rss_collector_targets[0], json={})
+    requests_mock.get(rss_collector_targets[1], json={})
+    requests_mock.get(rss_collector_targets[2], json={})
     requests_mock.get("https://cert.at/", text=f'<link rel="icon" href="{rss_collector_fav_icon_url}">')
     for path in ("apple-touch-icon.png", "apple-touch-icon-precomposed.png", "favicon.ico"):
         requests_mock.get(f"https://cert.at/{path}", status_code=404)
@@ -117,7 +116,7 @@ def rss_collector_mock(requests_mock, collectors_mock):
 def simple_web_collector_mock(requests_mock, collectors_mock, web_collector_url_mock):
     from tests.testdata import web_collector_fav_icon_url
 
-    requests_mock.get(web_collector_fav_icon_url, headers={"Content-Type": "application/json"}, json={})
+    requests_mock.get(web_collector_fav_icon_url, json={})
     for path in ("apple-touch-icon.png", "apple-touch-icon-precomposed.png"):
         requests_mock.get(f"https://raw.example.com/{path}", status_code=404)
 
@@ -159,66 +158,35 @@ def browser_web_collector_instance(simple_web_collector):
 def rt_mock(requests_mock, collectors_mock):
     from tests.collectors import rt_testdata
 
-    requests_mock.get(
-        rt_testdata.rt_ticket_search_url, headers={"Content-Type": "application/json"}, json=rt_testdata.rt_ticket_search_result
-    )
-    requests_mock.get(rt_testdata.rt_no_tickets_url, headers={"Content-Type": "application/json"}, json={"items": []})
+    requests_mock.get(rt_testdata.rt_ticket_search_url, json=rt_testdata.rt_ticket_search_result)
+    requests_mock.get(rt_testdata.rt_no_tickets_url, json={"items": []})
     requests_mock.get(rt_testdata.rt_malformed_json_url, content=b'{"items: [{"id": 1, "content": "test"}]}')
-    requests_mock.get(rt_testdata.rt_ticket_url, headers={"Content-Type": "application/json"}, json=rt_testdata.rt_ticket_1)
-    requests_mock.get(
-        rt_testdata.rt_ticket_attachments_url, headers={"Content-Type": "application/json"}, json=rt_testdata.rt_ticket_attachments
-    )
-    requests_mock.get(rt_testdata.rt_attachment_1_url, headers={"Content-Type": "application/json"}, json=rt_testdata.rt_ticket_attachment_1)
-    requests_mock.get(rt_testdata.worker_stories_url, headers={"Content-Type": "application/json"}, json=[])
-    requests_mock.get(rt_testdata.favicon_url, headers={"Content-Type": "application/json"}, json={})
+    requests_mock.get(rt_testdata.rt_ticket_url, json=rt_testdata.rt_ticket_1)
+    requests_mock.get(rt_testdata.rt_ticket_attachments_url, json=rt_testdata.rt_ticket_attachments)
+    requests_mock.get(rt_testdata.rt_attachment_1_url, json=rt_testdata.rt_ticket_attachment_1)
+    requests_mock.get(rt_testdata.worker_stories_url, json={})
+    requests_mock.get(rt_testdata.favicon_url, json={})
     for path in ("", "apple-touch-icon.png", "apple-touch-icon-precomposed.png", "favicon.ico"):
         requests_mock.get(f"http://rt.taranis.ai/{path}", status_code=404)
-    requests_mock.post(
-        f"{Config.TARANIS_CORE_URL}/worker/stories",
-        headers={"Content-Type": "application/json"},
-        json={"message": "Added", "story_id": "rt-story-1", "news_item_ids": []},
-    )
+    requests_mock.post(f"{Config.TARANIS_CORE_URL}/worker/stories", json={"story_id": "rt-story-1"})
 
 
 @pytest.fixture
 def misp_collector_mock(requests_mock):
     from tests.misp_collector_test_data import taranis_events
 
-    requests_mock.get("https://test.misp.test/servers/getVersion", headers={"Content-Type": "application/json"}, json={"version": "2.5.10"})
-    requests_mock.get(
-        "https://test.misp.test/servers/getPyMISPVersion.json", headers={"Content-Type": "application/json"}, json={"version": "2.5.10"}
-    )
-    requests_mock.post("https://test.misp.test/events/restSearch", headers={"Content-Type": "application/json"}, json=taranis_events)
-    requests_mock.get(
-        "https://test.misp.test/shadow_attributes/index/320d4589-cd71-4722-aa28-ea5530e99830",
-        headers={"Content-Type": "application/json"},
-        json={},
-    )
-    requests_mock.get(
-        f"{Config.TARANIS_CORE_URL}/worker/stories?source=b583f4ae-7ec3-492a-a36d-ed9cfc0b4a28",
-        headers={"Content-Type": "application/json"},
-        json={},
-    )
-    requests_mock.get(
-        f"{Config.TARANIS_CORE_URL}/worker/stories?story_id=320d4589-cd71-4722-aa28-ea5530e99830",
-        headers={"Content-Type": "application/json"},
-        json={},
-    )
-    requests_mock.put(
-        f"{Config.TARANIS_CORE_URL}/worker/osint-sources/b583f4ae-7ec3-492a-a36d-ed9cfc0b4a28",
-        headers={"Content-Type": "application/json"},
-        json={},
-    )
-    requests_mock.post(f"{Config.TARANIS_CORE_URL}/worker/stories", headers={"Content-Type": "application/json"}, json={})
-    requests_mock.post(
-        f"{Config.TARANIS_CORE_URL}/worker/misp/stories",
-        headers={"Content-Type": "application/json"},
-        json={"message": "Updated", "details": {"story_ids": ["misp-story-1"]}},
-    )
+    requests_mock.get("https://test.misp.test/servers/getVersion", json={"version": "2.5.10"})
+    requests_mock.get("https://test.misp.test/servers/getPyMISPVersion.json", json={"version": "2.5.10"})
+    requests_mock.post("https://test.misp.test/events/restSearch", json=taranis_events)
+    requests_mock.get("https://test.misp.test/shadow_attributes/index/320d4589-cd71-4722-aa28-ea5530e99830", json={})
+    requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/stories?source=b583f4ae-7ec3-492a-a36d-ed9cfc0b4a28", json={})
+    requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/stories?story_id=320d4589-cd71-4722-aa28-ea5530e99830", json={})
+    requests_mock.put(f"{Config.TARANIS_CORE_URL}/worker/osint-sources/b583f4ae-7ec3-492a-a36d-ed9cfc0b4a28", json={})
+    requests_mock.post(f"{Config.TARANIS_CORE_URL}/worker/stories", json={})
+    requests_mock.post(f"{Config.TARANIS_CORE_URL}/worker/misp/stories", json={"details": {"story_ids": ["misp-story-1"]}})
 
     requests_mock.get(
         "https://test.misp.test/users/view/me",
-        headers={"Content-Type": "application/json"},
         json={
             "Role": {},
             "UserSetting": {"items": "test"},

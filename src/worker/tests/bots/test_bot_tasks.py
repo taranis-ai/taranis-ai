@@ -90,10 +90,7 @@ class TestBotTask:
         requests_mock.real_http = False
         requests_mock.get(
             f"{Config.TARANIS_CORE_URL}/worker/bots/bot-456",
-            headers={"Content-Type": "application/json"},
             json={
-                "id": "bot-456",
-                "name": "Test",
                 "type": bot_type,
                 "parameters": {},
                 "llm_endpoint": None
@@ -107,18 +104,9 @@ class TestBotTask:
         )
         requests_mock.get(
             f"{Config.TARANIS_CORE_URL}/worker/stories",
-            headers={"Content-Type": "application/json"},
-            json=[
-                {
-                    "id": "story-1",
-                    "tags": {},
-                    "news_items": [{"osint_source_id": "manual", "id": "item-1", "title": "Story", "content": "Content"}],
-                }
-            ],
+            json=[{"id": "story-1", "tags": {}, "news_items": [{"id": "item-1", "title": "Story", "content": "Content"}]}],
         )
-        saved = requests_mock.post(
-            f"{Config.TARANIS_CORE_URL}/tasks", json=lambda request, context: request.json(), headers={"Content-Type": "application/json"}
-        )
+        saved = requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
         client, method = (DecisionsClient, "create_decision") if bot_type == "cybersec_classifier_bot" else (LLMClient, "create_response")
         with patch.object(client, method, autospec=True, side_effect=failure) as provider:
             provider.return_value = (
@@ -148,10 +136,8 @@ class TestBotTask:
 
     def test_bot_task_success_passes_result_dict(self, current_job, requests_mock, bot_config, stub_bots):
         """Test that bot_task passes the full result dict to CoreApi.save_task_result on success."""
-        requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/bots/bot-456", headers={"Content-Type": "application/json"}, json=bot_config)
-        requests_mock.post(
-            f"{Config.TARANIS_CORE_URL}/tasks", json=lambda request, context: request.json(), headers={"Content-Type": "application/json"}
-        )
+        requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/bots/bot-456", json=bot_config)
+        requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "ok"})
 
         # Mock bot execution result - bot returns a flat result payload
         bot_execution_result = {
@@ -197,15 +183,8 @@ class TestBotTask:
 
     def test_bot_task_not_found_wraps_error_in_dict(self, current_job, requests_mock):
         """Test that bot_task wraps error messages in dict when bot not found."""
-        requests_mock.get(
-            f"{Config.TARANIS_CORE_URL}/worker/bots/bot-999",
-            status_code=404,
-            headers={"Content-Type": "application/json"},
-            json={"error": "not found"},
-        )
-        requests_mock.post(
-            f"{Config.TARANIS_CORE_URL}/tasks", json=lambda request, context: request.json(), headers={"Content-Type": "application/json"}
-        )
+        requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/bots/bot-999", status_code=404, json={"error": "not found"})
+        requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
 
         # Execute and expect exception
         with pytest.raises(ValueError, match="Bot with id bot-999 not found"):
@@ -224,10 +203,8 @@ class TestBotTask:
 
     def test_bot_task_exception_wraps_error_in_dict(self, current_job, requests_mock, bot_config, stub_bots):
         """Test that bot_task does not expose unexpected exception messages."""
-        requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/bots/bot-456", headers={"Content-Type": "application/json"}, json=bot_config)
-        requests_mock.post(
-            f"{Config.TARANIS_CORE_URL}/tasks", json=lambda request, context: request.json(), headers={"Content-Type": "application/json"}
-        )
+        requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/bots/bot-456", json=bot_config)
+        requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
 
         def _raise(*_):
             raise RuntimeError("Bot execution crashed")
@@ -250,10 +227,8 @@ class TestBotTask:
         assert task_data["result"]["reason"] == "bot_execution_failed"
 
     def test_bot_task_none_result_is_reported_as_failure(self, current_job, requests_mock, bot_config, stub_bots):
-        requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/bots/bot-456", headers={"Content-Type": "application/json"}, json=bot_config)
-        requests_mock.post(
-            f"{Config.TARANIS_CORE_URL}/tasks", json=lambda request, context: request.json(), headers={"Content-Type": "application/json"}
-        )
+        requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/bots/bot-456", json=bot_config)
+        requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
         stub_bots._execute_impl = staticmethod(lambda params: None)
 
         with pytest.raises(RuntimeError, match="Bot bot-456 returned no result"):
@@ -273,10 +248,8 @@ class TestBotTask:
         }
 
     def test_bot_task_can_suppress_dependent_triggers(self, current_job, requests_mock, bot_config, stub_bots):
-        requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/bots/bot-456", headers={"Content-Type": "application/json"}, json=bot_config)
-        requests_mock.post(
-            f"{Config.TARANIS_CORE_URL}/tasks", json=lambda request, context: request.json(), headers={"Content-Type": "application/json"}
-        )
+        requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/bots/bot-456", json=bot_config)
+        requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "ok"})
         stub_bots._execute_impl = staticmethod(lambda params: {"tagged_items": 1})
 
         bot_task("bot-456", {"SOURCE": "source-1"}, trigger_dependents=False)
@@ -294,10 +267,8 @@ class TestBotTask:
 
     def test_bot_task_without_job_uses_fallback_id(self, no_current_job, requests_mock, bot_config, stub_bots):
         """Test that bot_task uses fallback task_id when no RQ job exists."""
-        requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/bots/bot-789", headers={"Content-Type": "application/json"}, json=bot_config)
-        requests_mock.post(
-            f"{Config.TARANIS_CORE_URL}/tasks", json=lambda request, context: request.json(), headers={"Content-Type": "application/json"}
-        )
+        requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/bots/bot-789", json=bot_config)
+        requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
         stub_bots._execute_impl = staticmethod(lambda params: {"message": "success"})
 
         # Execute
@@ -322,9 +293,7 @@ def test_pipeline_downloads_union_once_and_summary_sees_merged_items(current_job
         configurations.append(
             requests_mock.get(
                 f"{Config.TARANIS_CORE_URL}/worker/bots/{bot_id}",
-                headers={"Content-Type": "application/json"},
                 json={
-                    "name": "Test",
                     "id": bot_id,
                     "type": bot_type,
                     "parameters": {"REGULAR_EXPRESSION": "finding", "ATTRIBUTE_NAME": "CVE"} if bot_id == "analyst" else {},
@@ -339,7 +308,6 @@ def test_pipeline_downloads_union_once_and_summary_sees_merged_items(current_job
             "attributes": {},
             "news_items": [
                 {
-                    "osint_source_id": "manual",
                     "id": f"item-{number}",
                     "title": f"Item {number}",
                     "content": "CVE-2026-1234",
@@ -353,20 +321,15 @@ def test_pipeline_downloads_union_once_and_summary_sees_merged_items(current_job
     ]
     download = requests_mock.post(
         f"{Config.TARANIS_CORE_URL}/worker/bot-pipeline/stories",
-        headers={"Content-Type": "application/json"},
         json={
             "stories": stories,
             "selected": {bot_id: [story["id"] for story in stories] for bot_id in bot_types},
             "revisions": {story["id"]: 0 for story in stories},
         },
     )
-    submission = requests_mock.post(
-        f"{Config.TARANIS_CORE_URL}/tasks", json=lambda request, context: request.json(), headers={"Content-Type": "application/json"}
-    )
+    submission = requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"status": "SUCCESS"})
 
-    uploads = requests_mock.put(
-        f"{Config.TARANIS_CORE_URL}/worker/tags?replace=false", headers={"Content-Type": "application/json"}, json={"message": "Tags updated"}
-    )
+    uploads = requests_mock.put(f"{Config.TARANIS_CORE_URL}/worker/tags?replace=false", json={"message": "Tags updated"})
     outputs = [
         {"output_text": '{"Microsoft": "ORG"}'},
         {"output_text": '{"Microsoft": "ORG"}'},
@@ -391,7 +354,6 @@ def test_pipeline_downloads_union_once_and_summary_sees_merged_items(current_job
             for name, output in zip(("cluster", "summary", "title"), outputs[2:], strict=True):
                 requests_mock.get(
                     f"{endpoint['base_url']}/batches/{name}",
-                    headers={"Content-Type": "application/json"},
                     json={
                         "status": "completed",
                         "results": [{"custom_id": "1" if name == "title" else "0", "response": {"status_code": 200, "body": output}}],
@@ -459,7 +421,6 @@ def test_pipeline_submits_surviving_group_ids(current_job, requests_mock, redund
             "tags": {story_id: {"name": story_id, "tag_type": "misc"}},
             "news_items": [
                 {
-                    "osint_source_id": "manual",
                     "id": f"{story_id}-{index}",
                     "title": "",
                     "content": f"CVE-2026-{cve}",
@@ -477,32 +438,21 @@ def test_pipeline_submits_surviving_group_ids(current_job, requests_mock, redund
     for bot_id in ("group", "regroup"):
         requests_mock.get(
             f"{Config.TARANIS_CORE_URL}/worker/bots/{bot_id}",
-            headers={"Content-Type": "application/json"},
-            json={"name": "Test", "id": bot_id, "type": "grouping_bot", "parameters": {"REGULAR_EXPRESSION": r"CVE-\d{4}-\d{4,7}"}},
+            json={"id": bot_id, "type": "grouping_bot", "parameters": {"REGULAR_EXPRESSION": r"CVE-\d{4}-\d{4,7}"}},
         )
     requests_mock.get(
         f"{Config.TARANIS_CORE_URL}/worker/bots/cluster",
-        headers={"Content-Type": "application/json"},
-        json={
-            "name": "Test",
-            "id": "cluster",
-            "type": "story_bot",
-            "parameters": {},
-            "llm_endpoint": {"name": "Cluster", "base_url": "https://llm.test/v1"},
-        },
+        json={"id": "cluster", "type": "story_bot", "parameters": {}, "llm_endpoint": {"name": "Cluster", "base_url": "https://llm.test/v1"}},
     )
     requests_mock.post(
         f"{Config.TARANIS_CORE_URL}/worker/bot-pipeline/stories",
-        headers={"Content-Type": "application/json"},
         json={
             "stories": stories,
             "selected": {bot_id: ["A", "B", "C"] for bot_id in ("group", "regroup", "cluster")},
             "revisions": {story["id"]: 0 for story in stories},
         },
     )
-    submission = requests_mock.post(
-        f"{Config.TARANIS_CORE_URL}/tasks", json=lambda request, context: request.json(), headers={"Content-Type": "application/json"}
-    )
+    submission = requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"status": "SUCCESS"})
 
     with patch.object(LLMClient, "create_response", autospec=True) as provider:
         provider.return_value = {"output_text": '{"cluster_ids": {"event_clusters": [[1]]}, "cluster_reasons": [], "message": "Done"}'}
@@ -543,63 +493,45 @@ def test_tagging_bots_save_completed_items_before_failure(current_job, requests_
         "id": "story-1",
         "revision": 0,
         "news_items": [
-            {"osint_source_id": "manual", "id": "item-1", "title": "", "content": "Microsoft CVE-2026-1111"},
-            {"osint_source_id": "manual", "id": "item-2", "title": "", "content": ""},
-            {"osint_source_id": "manual", "id": "item-3", "title": "", "content": "Apple CVE-2026-2222"},
+            {"id": "item-1", "title": "", "content": "Microsoft CVE-2026-1111"},
+            {"id": "item-2", "title": "", "content": ""},
+            {"id": "item-3", "title": "", "content": "Apple CVE-2026-2222"},
         ],
     }
     requests_mock.get(
         f"{Config.TARANIS_CORE_URL}/worker/bots/ner",
-        headers={"Content-Type": "application/json"},
         json={
-            "name": "Test",
             "id": "ner",
             "type": bot_type,
             "parameters": {"REGULAR_EXPRESSION": "Microsoft|Apple"} if bot_type == "tagging_bot" else {},
             "llm_endpoint": endpoint,
         },
     )
-    requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/stories", headers={"Content-Type": "application/json"}, json=[story])
+    requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/stories", json=[story])
     requests_mock.post(
         f"{Config.TARANIS_CORE_URL}/worker/bot-pipeline/stories",
-        headers={"Content-Type": "application/json"},
         json={"stories": [story], "selected": {"ner": [story["id"]]}, "revisions": {story["id"]: 0}},
     )
     run_bot = partial(bot_pipeline_task, ["ner"]) if pipeline else partial(bot_task, "ner")
     requests_mock.get(
         f"{Config.TARANIS_CORE_URL}/worker/word-lists?usage=4&with_entries=true",
-        headers={"Content-Type": "application/json"},
-        json={
-            "items": [
-                {
-                    "id": "words",
-                    "name": "Words",
-                    "entries": [{"value": "Microsoft", "category": "ORG"}, {"value": "Apple", "category": "ORG"}],
-                }
-            ]
-        },
+        json={"items": [{"entries": [{"value": "Microsoft", "category": "ORG"}, {"value": "Apple", "category": "ORG"}]}]},
     )
     if bot_type != "nlp_bot" and isinstance(failure, Timeout):
         reason = "tag_save_failed"
     failed_upload = (
         {"exc": failure}
         if isinstance(failure, RequestException) or (bot_type != "nlp_bot" and isinstance(failure, Exception))
-        else {
-            "headers": {"Content-Type": "application/json"},
-            "json": {"message": "Some tags failed", "errors": {"item-3": "private Core details"}},
-            "status_code": 207,
-        }
+        else {"json": {"errors": {"item-3": "private Core details"}}, "status_code": 207}
     )
     uploads = requests_mock.put(
         f"{Config.TARANIS_CORE_URL}/worker/tags?replace=false",
         [
-            {"headers": {"Content-Type": "application/json"}, "json": {"message": "Tags updated"}},
+            {"json": {"message": "Tags updated"}},
             failed_upload,
         ],
     )
-    submission = requests_mock.post(
-        f"{Config.TARANIS_CORE_URL}/tasks", json=lambda request, context: request.json(), headers={"Content-Type": "application/json"}
-    )
+    submission = requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"status": "FAILURE"})
 
     def response(*args, **kwargs):
         # The next inference must never start before the previous result has reached Core.
@@ -625,11 +557,7 @@ def test_tagging_bots_save_completed_items_before_failure(current_job, requests_
             requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/bots/ner", status_code=500)
             requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/stories", status_code=500)
             requests_mock.post(f"{Config.TARANIS_CORE_URL}/worker/bot-pipeline/stories", status_code=500)
-            uploads = requests_mock.put(
-                f"{Config.TARANIS_CORE_URL}/worker/tags?replace=false",
-                headers={"Content-Type": "application/json"},
-                json={"message": "Tags updated"},
-            )
+            uploads = requests_mock.put(f"{Config.TARANIS_CORE_URL}/worker/tags?replace=false", json={"message": "Tags updated"})
             provider.side_effect = [{"output_text": '{"Apple": "ORG"}'}]
             run_bot()
             assert provider.await_count == (4 if bot_type == "nlp_bot" else 0)
@@ -657,31 +585,17 @@ def test_tagging_bots_save_completed_items_before_failure(current_job, requests_
 def test_timeout_retries_stop_when_no_progress_is_made(current_job, requests_mock, pipeline):
     requests_mock.get(
         f"{Config.TARANIS_CORE_URL}/worker/bots/ner",
-        headers={"Content-Type": "application/json"},
-        json={
-            "name": "Test",
-            "id": "ner",
-            "type": "nlp_bot",
-            "parameters": {},
-            "llm_endpoint": {"name": "NER", "base_url": "https://llm.test/v1"},
-        },
+        json={"id": "ner", "type": "nlp_bot", "parameters": {}, "llm_endpoint": {"name": "NER", "base_url": "https://llm.test/v1"}},
     )
-    story = {
-        "id": "story-1",
-        "revision": 0,
-        "news_items": [{"osint_source_id": "manual", "id": "item-1", "title": "Title", "content": "Content"}],
-    }
+    story = {"id": "story-1", "revision": 0, "news_items": [{"id": "item-1", "title": "Title", "content": "Content"}]}
     if pipeline:
         requests_mock.post(
             f"{Config.TARANIS_CORE_URL}/worker/bot-pipeline/stories",
-            headers={"Content-Type": "application/json"},
             json={"stories": [story], "selected": {"ner": [story["id"]]}, "revisions": {story["id"]: 0}},
         )
     else:
-        requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/stories", headers={"Content-Type": "application/json"}, json=[story])
-    submission = requests_mock.post(
-        f"{Config.TARANIS_CORE_URL}/tasks", json=lambda request, context: request.json(), headers={"Content-Type": "application/json"}
-    )
+        requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/stories", json=[story])
+    submission = requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"status": "FAILURE"})
     with patch.object(LLMClient, "create_response", autospec=True, side_effect=JobTimeoutException("private details")):
         for _ in range(2):
             retry = bot_pipeline_task(["ner"]) if pipeline else bot_task("ner")
@@ -703,31 +617,19 @@ def test_rq_worker_immediately_resumes_pipeline_after_actual_deadline(requests_m
     requests_mock.post(f"{Config.TARANIS_CORE_URL}/worker/tasks/changed", status_code=503)
     requests_mock.get(
         f"{Config.TARANIS_CORE_URL}/worker/bots/ner",
-        headers={"Content-Type": "application/json"},
-        json={
-            "name": "Test",
-            "id": "ner",
-            "type": "nlp_bot",
-            "parameters": {},
-            "llm_endpoint": {"name": "NER", "base_url": "https://llm.test/v1"},
-        },
+        json={"id": "ner", "type": "nlp_bot", "parameters": {}, "llm_endpoint": {"name": "NER", "base_url": "https://llm.test/v1"}},
     )
     story = {
         "id": "story-1",
         "revision": 0,
-        "news_items": [{"osint_source_id": "manual", "id": f"item-{number}", "title": "Title", "content": "Content"} for number in (1, 2, 3)],
+        "news_items": [{"id": f"item-{number}", "title": "Title", "content": "Content"} for number in (1, 2, 3)],
     }
     snapshot = requests_mock.post(
         f"{Config.TARANIS_CORE_URL}/worker/bot-pipeline/stories",
-        headers={"Content-Type": "application/json"},
         json={"stories": [story], "selected": {"ner": [story["id"]]}, "revisions": {story["id"]: 0}},
     )
-    uploads = requests_mock.put(
-        f"{Config.TARANIS_CORE_URL}/worker/tags?replace=false", headers={"Content-Type": "application/json"}, json={"message": "Tags updated"}
-    )
-    submission = requests_mock.post(
-        f"{Config.TARANIS_CORE_URL}/tasks", json=lambda request, context: request.json(), headers={"Content-Type": "application/json"}
-    )
+    uploads = requests_mock.put(f"{Config.TARANIS_CORE_URL}/worker/tags?replace=false", json={"message": "Tags updated"})
+    submission = requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"status": "SUCCESS"})
     queue = Queue("bots", connection=FakeRedis())
     job = queue.enqueue(bot_pipeline_task, ["ner"], job_timeout=1, meta={"user_id": "user-1"})
 
@@ -763,9 +665,7 @@ class TestSaveTaskResult:
         """Test that save_task_result accepts a dict parameter."""
         result_dict = {"message": "IOC scan complete", "reason": None, "retryable": False, "data": {"iocs_found": 10}}
 
-        requests_mock.post(
-            f"{Config.TARANIS_CORE_URL}/tasks", json=lambda request, context: request.json(), headers={"Content-Type": "application/json"}
-        )
+        requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
         CoreApi().save_task_result("job-123", "bot_ioc", "SUCCESS", worker_id="bot-123", worker_type="IOC_BOT", **result_dict)
 
         put_calls = [req for req in requests_mock.request_history if req.method == "POST" and req.url.endswith("/tasks")]
@@ -783,9 +683,7 @@ class TestSaveTaskResult:
         """Test that save_task_result formats the API payload correctly."""
         result = {"message": "Something went wrong", "reason": "bot_failure", "retryable": False, "data": None}
 
-        requests_mock.post(
-            f"{Config.TARANIS_CORE_URL}/tasks", json=lambda request, context: request.json(), headers={"Content-Type": "application/json"}
-        )
+        requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
         CoreApi().save_task_result("job-456", "bot_test", "FAILURE", **result)
 
         put_calls = [req for req in requests_mock.request_history if req.method == "POST" and req.url.endswith("/tasks")]
@@ -800,9 +698,7 @@ class TestSaveTaskResult:
         class DummyJob:
             meta = {"user_id": "user-123", "name": "Summary · Story: story-1"}
 
-        requests_mock.post(
-            f"{Config.TARANIS_CORE_URL}/tasks", json=lambda request, context: request.json(), headers={"Content-Type": "application/json"}
-        )
+        requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
         monkeypatch.setattr("worker.core_api.get_current_job", lambda: DummyJob())
 
         CoreApi().save_task_result("job-user", "collector_task", "SUCCESS", message="ok")
@@ -820,9 +716,7 @@ class TestSaveTaskResult:
         ],
     )
     def test_save_task_result_preserves_direct_result_payloads(self, requests_mock, result_payload):
-        requests_mock.post(
-            f"{Config.TARANIS_CORE_URL}/tasks", json=lambda request, context: request.json(), headers={"Content-Type": "application/json"}
-        )
+        requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
 
         CoreApi().save_task_result("job-direct", "collector_preview", "SUCCESS", result=result_payload)
 
@@ -841,9 +735,7 @@ class TestSaveTaskResult:
 
     def test_save_task_result_handles_api_false_response(self, requests_mock):
         """Test that save_task_result handles False response from API."""
-        requests_mock.post(
-            f"{Config.TARANIS_CORE_URL}/tasks", status_code=500, headers={"Content-Type": "application/json"}, json={"error": "nope"}
-        )
+        requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", status_code=500, json={"error": "nope"})
 
         assert CoreApi().save_task_result("job-999", "bot_fail", "SUCCESS", message="data") is False
 
