@@ -62,10 +62,27 @@ class ProductView(BaseView):
                 "renderer": render_count,
                 "render_args": {"field": "report_items"},
             },
+            {
+                "title": "Stories",
+                "field": "story_count",
+                "sortable": True,
+                "renderer": render_count,
+                "render_args": {"field": "story_count"},
+            },
         ]
+
+    @staticmethod
+    def _supported_report_row(report: dict[str, Any]) -> dict[str, Any]:
+        """Return a Report Items table row with the story count and the created timestamp cut to seconds."""
+        row = dict(report)
+        if isinstance(created := row.get("created"), str):
+            row["created"] = created[:19]
+        row["story_count"] = len(row.get("stories") or [])
+        return row
 
     @classmethod
     def get_extra_context(cls, base_context: dict[str, Any]) -> dict[str, Any]:
+        """Add publishers, selectable report rows, and compatible product types to the product editor context."""
         if cls.model_name() not in base_context:
             return base_context
         dpl = DataPersistenceLayer()
@@ -116,7 +133,7 @@ class ProductView(BaseView):
                 supported_reports.append(report.model_dump(mode="json"))
 
         base_context["selected_report_items"] = selected_report_items
-        base_context["supported_reports"] = supported_reports
+        base_context["supported_reports"] = [cls._supported_report_row(report) for report in supported_reports]
 
         report_ids = [] if report_access_warning else sorted(set(selected_report_items))
         product_types: list[ProductTypeChoice] = []

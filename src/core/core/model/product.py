@@ -18,6 +18,7 @@ from core.model.product_type import ProductType
 from core.model.report_item import ReportItem
 from core.model.report_item_type import ReportItemType
 from core.model.role_based_access import ItemType
+from core.model.story import ReportItemStory, Story
 from core.model.user import User
 from core.service.role_based_access import RBACQuery, RoleBasedAccessService
 
@@ -38,6 +39,7 @@ class Product(BaseModel):
     product_type: Mapped["ProductType"] = relationship("ProductType")
 
     report_items: Mapped[list["ReportItem"]] = relationship("ReportItem", secondary="product_report_item")
+    story_count: int | None = None
     default_publisher: Mapped[str | None] = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("publisher_preset.id"), nullable=True)
     last_rendered: Mapped[datetime | None] = db.Column(db.DateTime)
     last_published_url: Mapped[str | None] = db.Column(db.Text, nullable=True)
@@ -78,7 +80,7 @@ class Product(BaseModel):
         return RoleBasedAccessService.filter_query_with_acl(query, rbac)
 
     def get_supported_reports(self, user: User | None = None) -> list[ReportItem]:
-        """Returns list of ReportItems that are have the correct 'report_item_type' of that is set by the 'product_type' of the current 'product'"""
+        """Returns list of ReportItems that have the correct 'report_item_type' which is set by the 'product_type' of the current 'product'"""
         if not self.product_type or not self.product_type.report_types:
             return []
 
@@ -94,6 +96,7 @@ class Product(BaseModel):
                 lazyload(ReportItem.attributes),
                 load_only(ReportItem.id, ReportItem.title, ReportItem.created, ReportItem.report_item_type_id),
                 joinedload(ReportItem.report_item_type).load_only(ReportItemType.title),
+                selectinload(ReportItem.stories).load_only(Story.id),
             )
         )
         return list(db.session.execute(query).scalars().all())
@@ -146,7 +149,8 @@ class Product(BaseModel):
         return "created_desc"
 
     @classmethod
-    def _add_sorting_to_query(cls, filter_args: dict[str, Any], query: Select) -> Select:
+    def _add_sorting_to_query(cls, filter_args: dict[str, Any], query: Select, *, user: User | None = None) -> Select:
+        """Order products by the requested column; story counts only include reports the user can access."""
         order = filter_args.get("order") or filter_args.get("sort") or cls.default_sort_column()
         order = {"DATE_DESC": "created_desc", "DATE_ASC": "created_asc"}.get(order, order)
         descending = order.endswith("_desc")
@@ -154,20 +158,32 @@ class Product(BaseModel):
             column = db.select(func.count()).where(ProductReportItem.product_id == cls.id).correlate(cls).scalar_subquery()
         elif order in {"type_asc", "type_desc"}:
             column = cast(ProductType.type, String)
+        elif order in {"story_count_asc", "story_count_desc"}:
+            story_count_query = cls._accessible_story_query(
+                db.select(func.count(func.distinct(ReportItemStory.story_id))).select_from(ProductReportItem), user
+            )
+            column = story_count_query.where(ProductReportItem.product_id == cls.id).correlate(cls).scalar_subquery()
         else:
             return super()._add_sorting_to_query({"order": order}, query).order_by(cls.id.desc() if descending else cls.id.asc())
         return query.order_by(None).order_by(column.desc() if descending else column.asc(), cls.id.desc() if descending else cls.id.asc())
 
     @classmethod
     def get_all_for_api(cls, filter_args: dict[str, Any] | None, with_count: bool = False, user=None) -> tuple[dict[str, Any], int]:
+        """List products with their distinct story counts, limited to reports the user can access."""
         filter_args = filter_args or {}
         base_query = cls.get_filter_query_with_acl(filter_args, user) if user else cls.get_filter_query(filter_args)
         query = base_query if cls._should_fetch_all(filter_args) else cls._add_paging_to_query(filter_args, base_query)
-        query = cls._add_sorting_to_query(filter_args, query).options(
+        query = cls._add_sorting_to_query(filter_args, query, user=user).options(
             contains_eager(cls.product_type).load_only(ProductType.type),
             selectinload(cls.report_items).load_only(ReportItem.id).lazyload(ReportItem.attributes),
         )
-        response: dict[str, Any] = {"items": cls.to_list(cls.get_filtered(query) or [])}
+        products = cls.get_filtered(query) or []
+        items = cls.to_list(products)
+        story_counts = cls.get_story_counts([product.id for product in products], user)
+        for item in items:
+            item["story_count"] = story_counts.get(item["id"], 0)
+
+        response: dict[str, Any] = {"items": items}
         if with_count:
             response["total_count"] = cls.get_filtered_count(base_query)
         return response, 200
@@ -354,6 +370,29 @@ class Product(BaseModel):
         if item := cls.get(item_id):
             return item.to_worker_dict(), 200
         return {"error": f"{cls.__name__} not found"}, 404
+
+    @classmethod
+    def get_story_counts(cls, product_ids: list[str], user: User | None = None) -> dict[str, int]:
+        """Number of distinct stories across all reports linked to each product that the user can access."""
+        if not product_ids:
+            return {}
+        query = cls._accessible_story_query(
+            db.select(ProductReportItem.product_id, func.count(func.distinct(ReportItemStory.story_id))), user
+        )
+        query = query.where(ProductReportItem.product_id.in_(product_ids)).group_by(ProductReportItem.product_id)
+        return dict(db.session.execute(query).tuples().all())
+
+    @staticmethod
+    def _accessible_story_query(query: Select, user: User | None) -> Select:
+        """Join product reports to their stories, excluding reports hidden from the user by report type ACL or TLP."""
+        query = query.join(ReportItemStory, ReportItemStory.report_item_id == ProductReportItem.report_item_id)
+        if user is None:
+            return query
+        query = query.join(ReportItem, ReportItem.id == ProductReportItem.report_item_id).outerjoin(
+            ReportItemType, ReportItemType.id == ReportItem.report_item_type_id
+        )
+        query = RoleBasedAccessService.filter_query_with_acl(query, RBACQuery(user=user, resource_type=ItemType.REPORT_ITEM_TYPE))
+        return RoleBasedAccessService.filter_report_query_with_tlp(query, user)
 
 
 class ProductReportItem(BaseModel):
