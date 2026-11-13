@@ -1,6 +1,29 @@
 function assessTimeFilters() {
   return {
     timeClearPending: false,
+    timeFromNotice: "",
+    applyTimeFromBounds() {
+      const input = this.$refs.timeFrom;
+      const bounds = this.$refs.timePreset.selectedOptions[0]?.dataset ?? {};
+      for (const attribute of ["min", "max"]) {
+        if (bounds[attribute]) input.setAttribute(attribute, bounds[attribute]);
+        else input.removeAttribute(attribute);
+      }
+      this.checkTimeFrom();
+    },
+    checkTimeFrom() {
+      const input = this.$refs.timeFrom;
+      if (!input.value) return false;
+      const outside = input.validity.rangeUnderflow || input.validity.rangeOverflow;
+      this.timeFromNotice = outside
+        ? "From was cleared because it is outside the selected time period."
+        : "";
+      if (outside) {
+        input.value = "";
+        input.removeAttribute("name");
+      }
+      return outside;
+    },
     clearTimeFilters() {
       this.timeClearPending = true;
       for (const input of [this.$refs.timeFrom, this.$refs.timeTo]) {
@@ -8,6 +31,8 @@ function assessTimeFilters() {
         input.removeAttribute("name");
       }
       this.$refs.timePreset.value = "";
+      this.timeFromNotice = "";
+      this.applyTimeFromBounds();
     },
     restoreTimeFilters() {
       if (!this.timeClearPending) return;
@@ -20,6 +45,7 @@ function assessTimeFilters() {
       this.$refs.timePreset.value = params.get("range") || "";
       this.$refs.customPeriod.selected = !this.$refs.timePreset.value &&
         !!(this.$refs.timeFrom.value || this.$refs.timeTo.value);
+      this.applyTimeFromBounds();
       this.timeClearPending = false;
     },
   };

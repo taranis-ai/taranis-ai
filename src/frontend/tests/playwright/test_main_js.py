@@ -65,6 +65,67 @@ def load_main_js(page: Page, html: str = '<section id="notification-bar"></secti
     page.add_script_tag(path=str(MAIN_JS_PATH))
 
 
+def test_assess_time_from_stays_within_selected_preset(page: Page):
+    page.route("http://assess.test/**", lambda route: route.fulfill(body="<div></div>", content_type="text/html"))
+    page.goto("http://assess.test/frontend/assess")
+    page.add_script_tag(path=str(MAIN_JS_PATH.with_name("assess-navigation.js")))
+
+    result = page.evaluate("""() => {
+        document.body.innerHTML = `
+          <select id="preset">
+            <option value="">Any time</option>
+            <option value="week" data-min="2026-03-02T00:00" data-max="2026-03-08T23:59">This week</option>
+            <option value="shift" data-min="2026-03-08T00:00" data-max="2026-03-08T23:59">Today (shift)</option>
+          </select>
+          <input id="from" type="datetime-local" name="timefrom">`;
+        const preset = document.getElementById('preset');
+        const from = document.getElementById('from');
+        const state = assessTimeFilters();
+        state.$refs = { timePreset: preset, timeFrom: from, timeTo: document.createElement('input') };
+        const snapshot = () => ({
+            min: from.getAttribute('min'), max: from.getAttribute('max'),
+            value: from.value, name: from.getAttribute('name'), notice: state.timeFromNotice,
+        });
+
+        from.value = '2026-03-03T09:00';
+        preset.value = 'week';
+        state.applyTimeFromBounds();
+        const kept = snapshot();
+
+        preset.value = 'shift';
+        state.applyTimeFromBounds();
+        const cleared = snapshot();
+
+        from.value = '2026-03-07T15:00';
+        from.setAttribute('name', 'timefrom');
+        const typedCleared = state.checkTimeFrom();
+        const typed = snapshot();
+
+        state.clearTimeFilters();
+        return { kept, cleared, typedCleared, typed, anyTime: snapshot() };
+    }""")
+
+    assert result == {
+        "kept": {"min": "2026-03-02T00:00", "max": "2026-03-08T23:59", "value": "2026-03-03T09:00", "name": "timefrom", "notice": ""},
+        "cleared": {
+            "min": "2026-03-08T00:00",
+            "max": "2026-03-08T23:59",
+            "value": "",
+            "name": None,
+            "notice": "From was cleared because it is outside the selected time period.",
+        },
+        "typedCleared": True,
+        "typed": {
+            "min": "2026-03-08T00:00",
+            "max": "2026-03-08T23:59",
+            "value": "",
+            "name": None,
+            "notice": "From was cleared because it is outside the selected time period.",
+        },
+        "anyTime": {"min": None, "max": None, "value": "", "name": None, "notice": ""},
+    }
+
+
 def test_vendor_bundle_uses_htmx_4(page: Page):
     page.goto("data:text/html,<main></main>")
     page.add_script_tag(path=str(VENDOR_JS_PATH))
