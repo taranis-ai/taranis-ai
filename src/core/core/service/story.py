@@ -136,9 +136,10 @@ class StoryService:
         news_item_ids: list[str],
         user: User | None = None,
         actor: str | None = None,
+        confirm: bool = False,
     ) -> tuple[dict, int]:
         story_ids = [item.story_id for item_id in news_item_ids if (item := NewsItem.get(item_id))]
-        result = Story.ungroup_news_items_from_story(news_item_ids, user=user, actor=actor)
+        result = Story.ungroup_news_items_from_story(news_item_ids, user=user, actor=actor, confirm=confirm)
         if result[1] == 200 and result[0].get("new_stories_ids"):
             refresh_misp_auto_update_jobs(story_ids)
         return result

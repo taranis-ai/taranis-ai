@@ -208,12 +208,14 @@ class ReportItem(BaseModel):
         return data
 
     def to_supported_products_dict(self):
+        """Serialize the fields the product editor's Report Items table needs, including linked story IDs."""
         return {
             "id": self.id,
             "title": self.title,
             "type": self.report_item_type.title if self.report_item_type else "",
             "report_item_type_id": self.report_item_type_id,
             "created": self.serialize_datetime(self.created),
+            "stories": [story.id for story in self.stories],
         }
 
     def to_product_dict(self):
@@ -250,6 +252,20 @@ class ReportItem(BaseModel):
 
         created_by_id = user.id if isinstance(user, User) else getattr(user, "id", None)
         return ReportRevision.create_from_report(self, created_by_id=created_by_id, note=note)
+
+    @classmethod
+    def get_for_stories(cls, story_ids: list[str]) -> list[ReportItem]:
+        """Return every report that contains any of the given stories."""
+        if not story_ids:
+            return []
+        query = (
+            db.select(cls)
+            .join(ReportItemStory, ReportItemStory.report_item_id == cls.id)
+            .where(ReportItemStory.story_id.in_(story_ids))
+            .distinct()
+            .order_by(cls.id)
+        )
+        return list(db.session.execute(query).scalars())
 
     def get_revision_count(self) -> int:
         """Get the number of revisions for this report"""
