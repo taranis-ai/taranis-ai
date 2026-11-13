@@ -515,7 +515,8 @@ class TestAnalyzeApi(BaseTest):
 
                 latest_revision = db.session.execute(
                     db.select(ReportRevision).where(ReportRevision.report_item_id == report_id).order_by(ReportRevision.revision.desc())
-                ).scalar_one()
+                ).scalars().first()
+                assert latest_revision is not None
                 assert latest_revision.data["used_story_ids"] == [story_b]
 
             editor_response = self.assert_get_ok(client, f"report-editors/{report_id}", auth_header=auth_header)
@@ -537,7 +538,8 @@ class TestAnalyzeApi(BaseTest):
                 assert report.to_product_dict()["attributes"]["Analysis"]["Referenced Stories"] == ""
                 latest_revision = db.session.execute(
                     db.select(ReportRevision).where(ReportRevision.report_item_id == report_id).order_by(ReportRevision.revision.desc())
-                ).scalar_one()
+                ).scalars().first()
+                assert latest_revision is not None
                 assert latest_revision.data["used_story_ids"] == []
         finally:
             with app.app_context():
