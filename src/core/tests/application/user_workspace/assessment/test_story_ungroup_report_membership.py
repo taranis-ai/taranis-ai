@@ -187,3 +187,118 @@ def test_partial_ungroup_keeps_report_stories_and_records_one_revision(
     assert _news_item_ids(story_b.id) == [items_b[1]]
     assert not set(response["new_stories_ids"]) & set(_report_story_ids(report.id))
     assert _report_revision_notes(report.id) == [*notes_before, "ungroup_news_items"]
+
+
+@pytest.mark.usefixtures("app")
+def test_confirmed_ungroup_clears_detached_story_from_report_story_attributes(
+    client,
+    auth_header,
+    session,
+    story_relevance_news_item_payload_factory,
+    story_relevance_story_payload_factory,
+):
+    from uuid import uuid4
+    from uuid6 import uuid7
+    from core.model.attribute import Attribute, AttributeType
+    from core.model.report_item_type import ReportItemType
+
+    story_to_ungroup = _story(
+        story_relevance_news_item_payload_factory,
+        story_relevance_story_payload_factory,
+        "Story to ungroup",
+        item_count=1,
+    )
+    story_to_keep = _story(
+        story_relevance_news_item_payload_factory,
+        story_relevance_story_payload_factory,
+        "Story to keep",
+        item_count=1,
+    )
+
+    suffix = uuid4().hex
+    story_attr_def = Attribute(
+        name=f"story_ref_{suffix}",
+        description="Referenced stories attribute",
+        attribute_type=AttributeType.STORY,
+    )
+    db.session.add(story_attr_def)
+    db.session.flush()
+
+    report_type = ReportItemType(
+        title=f"Ungroup Attribute Report Type {suffix}",
+        description="Report type with STORY attribute",
+        attribute_groups=[
+            {
+                "index": 0,
+                "title": "Analysis",
+                "description": "Analysis attributes",
+                "attribute_group_items": [
+                    {
+                        "index": 0,
+                        "attribute_id": story_attr_def.id,
+                        "title": "Referenced Stories",
+                        "description": "Referenced stories",
+                        "required": False,
+                    }
+                ],
+            }
+        ],
+    )
+    db.session.add(report_type)
+    db.session.commit()
+
+    report_id = str(uuid7())
+    report, status = ReportItem.add(
+        {
+            "id": report_id,
+            "title": f"Ungroup Attribute Report {suffix}",
+            "completed": False,
+            "report_item_type_id": report_type.id,
+            "stories": [story_to_ungroup.id, story_to_keep.id],
+        },
+        _admin(),
+    )
+    assert status == 200
+
+    try:
+        story_attr = next(attr for attr in report.attributes if attr.attribute_type == AttributeType.STORY)
+        updated, update_status = ReportItem.update_report_item(
+            report_id,
+            {"attributes": {story_attr.id: f"{story_to_ungroup.id},{story_to_keep.id}"}},
+            _admin(),
+        )
+        assert update_status == 200
+        assert updated["used_story_ids"] == [story_to_ungroup.id, story_to_keep.id]
+
+        item_ids = _news_item_ids(story_to_ungroup.id)
+        notes_before = _report_revision_notes(report_id)
+
+        response = client.put("/api/assess/news-items/ungroup", json=item_ids, headers=auth_header)
+        assert response.status_code == 409
+        assert response.json == {"error": CONFIRM_ERROR, "reports": [{"id": report.id, "title": report.title}]}
+
+        response = client.put("/api/assess/news-items/ungroup?confirm=true", json=item_ids, headers=auth_header)
+        assert response.status_code == 200
+
+        assert _report_story_ids(report_id) == [story_to_keep.id]
+        assert Story.get(story_to_ungroup.id) is None
+
+        reloaded = _reload_report(report_id)
+        story_attr_after = next(attr for attr in reloaded.attributes if attr.attribute_type == AttributeType.STORY)
+        assert story_attr_after.value == story_to_keep.id
+        assert reloaded.to_detail_dict()["used_story_ids"] == [story_to_keep.id]
+        assert _report_revision_notes(report_id) == [*notes_before, "ungroup_news_items"]
+
+        latest_revision = db.session.execute(
+            db.select(ReportRevision).where(ReportRevision.report_item_id == report_id).order_by(ReportRevision.revision.desc())
+        ).scalars().first()
+        assert latest_revision is not None
+        assert latest_revision.data["used_story_ids"] == [story_to_keep.id]
+    finally:
+        if ReportItem.get(report_id):
+            ReportItem.delete(report_id)
+        if ReportItemType.get(report_type.id):
+            db.session.delete(ReportItemType.get(report_type.id))
+        if Attribute.get(story_attr_def.id):
+            db.session.delete(Attribute.get(story_attr_def.id))
+        db.session.commit()

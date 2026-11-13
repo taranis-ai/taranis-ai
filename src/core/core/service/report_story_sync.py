@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 from core.managers.db_manager import db
 from core.model.attribute import AttributeType
@@ -18,6 +18,12 @@ ReportStoryAction = Literal["attach", "detach", "retag"]
 
 
 class ReportStorySyncService:
+    @staticmethod
+    def parse_story_ids(raw_value: Any) -> list[str]:
+        if not raw_value:
+            return []
+        return [story_id.strip() for story_id in str(raw_value).split(",") if story_id and story_id.strip()]
+
     @staticmethod
     def refresh_auto_update_jobs(stories: Iterable[Story]) -> None:
         refresh_misp_auto_update_jobs(story.id for story in stories)
@@ -45,7 +51,7 @@ class ReportStorySyncService:
         for attribute in report.attributes or []:
             if attribute.attribute_type != AttributeType.STORY or not attribute.value:
                 continue
-            current_ids = [story_id.strip() for story_id in str(attribute.value).split(",") if story_id and story_id.strip()]
+            current_ids = cls.parse_story_ids(attribute.value)
             if not any(story_id in detached_story_ids for story_id in current_ids):
                 continue
             remaining_ids = [story_id for story_id in current_ids if story_id not in detached_story_ids]

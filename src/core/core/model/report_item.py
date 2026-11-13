@@ -183,7 +183,7 @@ class ReportItem(BaseModel):
         for attribute in attributes:
             if attribute.attribute_type != AttributeType.STORY:
                 continue
-            used_story_ids.extend(story_id.strip() for story_id in str(attribute.value).split(",") if story_id and story_id.strip())
+            used_story_ids.extend(ReportStorySyncService.parse_story_ids(attribute.value))
         return list(dict.fromkeys(used_story_ids))
 
     def get_grouped_attributes(self, attributes: list[dict[str, Any]] | None = None) -> list[dict[str, Any]]:

@@ -73,3 +73,10 @@ def test_detach_clears_last_selected_story_id_to_empty_string(monkeypatch):
     )
 
     assert story_single.value == ""
+
+
+def test_parse_story_ids():
+    assert ReportStorySyncService.parse_story_ids(None) == []
+    assert ReportStorySyncService.parse_story_ids("") == []
+    assert ReportStorySyncService.parse_story_ids("  ") == []
+    assert ReportStorySyncService.parse_story_ids("story-1, story-2 , ,story-3 ") == ["story-1", "story-2", "story-3"]

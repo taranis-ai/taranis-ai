@@ -1349,7 +1349,7 @@ class Story(BaseModel):
             # Collect before detaching: afterwards the emptied stories are no longer linked to their reports.
             reports_to_revise = ReportItem.get_for_stories([story.id for story in affected_stories])
             # An emptied story is deleted, and ON DELETE CASCADE would drop its report links silently,
-            # so detach it from its reports explicitly first. This does not clear its ID from report STORY attributes.
+            # so detach it from its reports explicitly first, clearing its ID from report STORY attributes.
             for report in emptied_reports:
                 stories_to_detach = [story for story in emptied_stories if story in report.stories]
                 report.stories = [story for story in report.stories if story not in stories_to_detach]
