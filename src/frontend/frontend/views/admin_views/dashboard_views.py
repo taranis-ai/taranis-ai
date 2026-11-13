@@ -46,7 +46,6 @@ class AdminDashboardView(AdminBaseView):
             "dashboard_health": cls.get_dashboard_health(dashboard),
             "release_info": cls.get_release_info(),
             "health_badge_classes": cls.get_health_badge_classes(),
-            "debug_mode": bool(dashboard.health_status and dashboard.health_status.debug),
             **cls._common_context(error),
         }
         return render_template(template, **context), 200

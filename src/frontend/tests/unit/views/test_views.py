@@ -9,6 +9,7 @@ from urllib.parse import parse_qs, urlparse
 import pytest
 from flask import render_template, url_for
 from lxml import html
+from lxml.html import fromstring
 from models.admin import OSINTSource, ReportItemType
 from models.task import Task, TaskResult
 from models.types import COLLECTOR_TYPES
@@ -939,7 +940,7 @@ def test_admin_dashboard_renders_health_card(
         "services": {"database": "up", "seed_data": "up", "broker": "down", "workers": "down"},
     }
     if core_debug is not None:
-        health_status["debug"] = core_debug
+        health_status["core"] = {"debug": core_debug}
 
     responses_mock.get(
         f"{Config.TARANIS_CORE_URL}{AdminDashboardView.model._core_endpoint}",
@@ -1000,6 +1001,8 @@ def test_admin_dashboard_renders_health_card(
     assert "Redis" in html
     assert "Workers" in html
     assert html.count('data-test-id="debug-mode-badge"') == int(badge_visible)
+    health_card = fromstring(html).xpath('//div[div/span[text()="System Health"]]')[0]
+    assert len(health_card.xpath('.//div[span[text()="Core"]]/span[@data-test-id="debug-mode-badge"]')) == int(badge_visible)
 
     restored = authenticated_client.get(
         AdminDashboardView.get_base_route(), headers={"HX-Request": "true", "HX-History-Restore-Request": "true"}

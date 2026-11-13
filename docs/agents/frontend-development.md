@@ -13,7 +13,7 @@ Shared controls own selection, accessibility, styling, and shortcut behavior acr
 Shared row actions have accessible names. Delete actions retain native CSRF-protected POST forms and explicitly target notifications on HTMX 400/4xx/5xx failures.
 Native delete dispatch rejects create placeholder IDs with 405 before contacting Core.
 
-The navbar's debug badge appears only on the admin dashboard. `AdminDashboardView` supplies `debug_mode` from the existing dashboard's `health_status.debug` (Core's `Config.DEBUG`); missing health data contributes false. It adds no HTTP requests and uses the dashboard's existing 30-second cache. Frontend debug, Flask CLI overrides, and Worker debug do not contribute.
+The admin health card shows a Core-labelled debug badge from the existing dashboard's `health_status.core.debug` (Core's `Config.DEBUG`); missing health data hides it. It adds no HTTP requests and uses the dashboard's existing 30-second cache. Frontend debug, Flask CLI overrides, and Worker debug do not contribute.
 
 ## HTMX and Forms
 

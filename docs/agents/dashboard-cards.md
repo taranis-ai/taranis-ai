@@ -8,7 +8,7 @@ Assess counts news items/stories, Analyze separates completed/in-progress report
 
 Weekly counts run from Monday 00:00 UTC through now, inclusive, excluding future content. News items use publication time; stories/reports/products use creation time. This is not a rolling seven-day window. The shared Dashboard response uses the 30-second frontend cache.
 
-Dashboard `health_status.debug` comes from the shared Core health response and reflects Core's `Config.DEBUG`. The admin navbar consumes that existing snapshot without another Core request.
+Dashboard `health_status.core.debug` comes from the shared Core health response and reflects Core's `Config.DEBUG`. The admin health card consumes that existing snapshot without another Core request.
 
 Source distribution respects per-user `show_charts` and `source_distribution_limit` (default 3, non-negative integer). Zero disables it, including Other; positive limits group remaining sources as Other. Profile saves invalidate the dashboard cache. The authenticated query uses the user profile; calls without a user retain the default.
 

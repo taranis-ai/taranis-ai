@@ -16,7 +16,7 @@ def test_health_reports_configured_debug(client, app, monkeypatch, debug, databa
     response = client.get("/api/health")
 
     assert response.status_code == expected_status
-    assert response.json["debug"] is debug
+    assert response.json["core"]["debug"] is debug
     assert response.json["healthy"] is (expected_status == 200)
 
 

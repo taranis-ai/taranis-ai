@@ -171,11 +171,14 @@ paths:
                     type: boolean
                     examples:
                     - true
-                  debug:
-                    type: boolean
-                    description: whether Core's configured application DEBUG setting is enabled
-                    examples:
-                    - false
+                  core:
+                    type: object
+                    properties:
+                      debug:
+                        type: boolean
+                        description: whether Core's configured application DEBUG setting is enabled
+                        examples:
+                        - false
                   services:
                     type: object
                     properties:
@@ -211,11 +214,14 @@ paths:
                     type: boolean
                     examples:
                     - false
-                  debug:
-                    type: boolean
-                    description: whether Core's configured application DEBUG setting is enabled
-                    examples:
-                    - false
+                  core:
+                    type: object
+                    properties:
+                      debug:
+                        type: boolean
+                        description: whether Core's configured application DEBUG setting is enabled
+                        examples:
+                        - false
                   services:
                     type: object
                     properties:
