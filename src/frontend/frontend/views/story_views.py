@@ -24,6 +24,7 @@ from models.assess import (
     Story,
     StoryBookmark,
     StoryUpdatePayload,
+    assess_range_bounds,
 )
 from models.classification import CLASSIFICATION_CATEGORIES
 from models.cti import CTIResponse
@@ -63,6 +64,18 @@ ASSESS_TIME_PRESETS = {
     "last7": "Last 7 days",
     "last30": "Last 30 days",
 }
+
+
+def _time_from_bounds(filter_range: str, now: datetime.datetime) -> dict[str, str]:
+    """Datetime-local min/max (UTC clock, second precision) that keep the From filter inside a preset."""
+    if not filter_range:
+        return {}
+    second = datetime.timedelta(seconds=1)
+    start, end = assess_range_bounds(filter_range, now)
+    first_second = start.replace(microsecond=0)
+    if first_second < start:
+        first_second += second
+    return {"min": f"{first_second:%Y-%m-%dT%H:%M:%S}", "max": f"{end - second:%Y-%m-%dT%H:%M:%S}" if end else ""}
 
 
 class StoryView(BaseView):
@@ -137,6 +150,9 @@ class StoryView(BaseView):
             days = int(current_range[4:])
             time_presets[current_range] = f"Last {days} {'day' if days == 1 else 'days'}"
         base_context["time_presets"] = time_presets
+        now = datetime.datetime.now(datetime.UTC)
+        base_context["time_from_bounds"] = _time_from_bounds(current_range, now.replace(tzinfo=None))
+        base_context["time_filter_now_ms"] = int(now.timestamp() * 1000)
         chips = []
         labels = {
             "search": "Search",

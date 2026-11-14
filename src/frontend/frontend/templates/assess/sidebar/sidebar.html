@@ -9,6 +9,7 @@
 {% set current_preset = request_args.get('range', ['']) | first %}
 {% set time_from = request_args.get('timefrom', ['']) | first %}
 {% set time_to = request_args.get('timeto', ['']) | first %}
+{% set current_from_bounds = time_from_bounds | default({}) %}
 {% set highlight = current_user.profile.highlight | default(false) %}
 {% set show_week_chart = current_user.profile.show_charts %}
 {% set compact_view = current_user.profile.compact_view %}
@@ -37,6 +38,7 @@
 <div class="p-4">
   <form id="assess-sidebar"
         x-data="assessTimeFilters"
+        data-now="{{ time_filter_now_ms | default('') }}"
         @htmx:after:request="if ($event.detail.ctx.response.status >= 400) restoreTimeFilters(); else timeClearPending = false"
         action="{{ base_url }}"
         method="get"
@@ -113,7 +115,7 @@
             name="range"
             class="select select-bordered select-sm w-full"
             x-ref="timePreset"
-            @change="if (!$el.value) clearTimeFilters()">
+            @change="if ($el.value) applyTimeFromBounds(); else clearTimeFilters()">
       <option value="" {% if not current_preset and not time_from and not time_to %}selected{% endif %}>Any time</option>
       <option value=""
               x-ref="customPeriod"
@@ -134,10 +136,22 @@
                  x-ref="timeFrom"
                  name="timefrom"
                  value="{{ time_from }}"
+                 step="1"
+                 {% if current_from_bounds.min %}min="{{ current_from_bounds.min }}"{% endif %}
+                 {% if current_from_bounds.max %}max="{{ current_from_bounds.max }}"{% endif %}
+                 aria-describedby="assess-time-from-notice"
                  onchange="this.name = this.value ? 'timefrom' : ''"
+                 @change="checkTimeFrom()"
+                 x-init="if (checkTimeFrom()) $nextTick(() => $el.dispatchEvent(new Event('change', { bubbles: true })))"
                  class="input-bordered input-xs -ml-3"
                  hx-trigger="change delay:250ms">
         </label>
+        <p id="assess-time-from-notice"
+           class="text-xs text-warning"
+           aria-live="polite"
+           x-show="timeFromNotice"
+           x-text="timeFromNotice"
+           data-testid="assess-time-from-notice"></p>
         <label class="input w-full p-1">
           <span class="label text-xs font-medium text-base-content/70 pr-1 mr-1">To</span>
           <input type="datetime-local"
