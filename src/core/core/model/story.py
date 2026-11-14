@@ -1215,6 +1215,8 @@ class Story(BaseModel):
                 story,
                 list(source_stories_by_id.values()),
                 actor=actor,
+                user=user,
+                revision_note="move_items_to_story",
             )
             for processed_story in processed_stories:
                 processed_story.record_revision(user, note="move_items_to_story")
@@ -1259,6 +1261,8 @@ class Story(BaseModel):
                 first_story,
                 list(source_stories_by_id.values()),
                 actor=actor,
+                user=user,
+                revision_note="group_stories",
             )
             for story in processed_stories:
                 story.record_revision(user, note="group_stories")

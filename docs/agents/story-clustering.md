@@ -12,6 +12,8 @@ Only clusters with multiple stories are staged for Core's final bot-result submi
 
 Core marks the surviving processed stories complete when the staged run commits, including singleton-only results. Later automatic runs skip these stories until collection changes their content or membership; explicit manual selections can force a rerun.
 
+Grouping and moving news items (`Story.group_stories`, `Story.move_items_to_story`) keep report memberships: `ReportStorySyncService.keep_memberships_after_merge` replaces absorbed stories with the surviving story before the empty stories are deleted, so the `report_item_story` cascade cannot drop them silently. Each affected report records a revision (`group_stories` or `move_items_to_story`) inside the caller's transaction. Deliberate limits: report status such as `completed` is not reset (lifecycle follows #1048). `ungroup_news_items` is not covered yet: removing all items from a report story still drops it from the report (see #1236).
+
 ## Coverage
 
-`src/worker/tests/bots/test_bots.py::test_story_bot_clusters_via_library` covers real prompts/parsing with mocked responses, reduced inputs, original IDs, empty/singleton results, and timeouts. `tests/bots/test_bot_tasks.py::test_llm_bot_failure_is_safe` covers persisted failures. Neither establishes live model quality.
+`src/worker/tests/bots/test_bots.py::test_story_bot_clusters_via_library` covers real prompts/parsing with mocked responses, reduced inputs, original IDs, empty/singleton results, and timeouts. `tests/bots/test_bot_tasks.py::test_llm_bot_failure_is_safe` covers persisted failures. Neither establishes live model quality. Core report membership during grouping/moving is covered by `src/core/tests/application/user_workspace/assessment/test_story_report_membership.py`.
