@@ -97,6 +97,9 @@ jobs:
       - name: Install the project
         run: uv sync --all-extras
 
+      - name: Test shared models
+        run: uv run pytest ../models/tests
+
       - name: Lint with ruff
         run: uv run ruff check --output-format=github .
 

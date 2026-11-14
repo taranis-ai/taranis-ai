@@ -52,6 +52,7 @@ run_models() {
   run_step "src/models"
   run_audit "src/models"
   run_in_dir src/models uv run --frozen --no-sync ruff check
+  run_in_dir src/models uv run --frozen --no-sync pytest
 }
 
 run_core() {

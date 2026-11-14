@@ -4,8 +4,6 @@ from pathlib import Path
 
 import yaml
 
-from core.__init__ import create_app
-
 
 OPENAPI_PATH = Path(__file__).resolve().parents[1] / "core" / "static" / "openapi3_1.yaml"
 IGNORED_PATHS = {"/"}
@@ -96,8 +94,7 @@ def _load_route_endpoints(app) -> dict[tuple[str, str], str]:
     return endpoints
 
 
-def test_openapi_covers_app_routes():
-    app = create_app(initial_setup=False)
+def test_openapi_covers_app_routes(app):
     spec_paths = _load_openapi_paths()
     app_routes = _load_routes(app)
 
@@ -118,8 +115,7 @@ def test_openapi_covers_app_routes():
     )
 
 
-def test_openapi_operation_ids_match_view_funcs():
-    app = create_app(initial_setup=False)
+def test_openapi_operation_ids_match_view_funcs(app):
     spec_operations, operation_ids, missing_operation_ids = _load_openapi_operations()
     route_endpoints = _load_route_endpoints(app)
 
@@ -140,6 +136,19 @@ def test_openapi_operation_ids_match_view_funcs():
         duplicates,
         missing_operation_ids,
     )
+
+
+def test_shared_contract_inventory_matches_core_api_routes(app):
+    from models.api_operations import OPERATIONS
+
+    prefix = f"{app.config['APPLICATION_ROOT']}api"
+    routes = {
+        (method, re.sub(r"<(?:[^:<>]+:)?([^<>]+)>", r"{\1}", rule.rule.removeprefix(prefix)))
+        for rule in app.url_map.iter_rules()
+        if rule.rule.startswith(f"{prefix}/") and not rule.rule.startswith(f"{prefix}/static/")
+        for method in rule.methods - {"HEAD", "OPTIONS"}
+    }
+    assert routes == set(OPERATIONS), {"missing": routes - OPERATIONS.keys(), "extra": OPERATIONS.keys() - routes}
 
 
 def _format_failure(
