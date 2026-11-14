@@ -40,13 +40,64 @@
         </summary>
         <div class="collapse-content">
           {% if endpoint.health %}<p class="text-sm mb-3">{{ endpoint.health.message }}</p>{% endif %}
-          <form method="post" action="{{ endpoint_url }}" hx-post="{{ endpoint_url }}" data-test-id="llm-endpoint-form">
+          {% set endpoint_provider = endpoint.provider | default('openai_compatible') %}
+          {% set formats = endpoint.api_formats | default({'responses': {}}) %}
+          {% set provider_defaults = {} %}
+          {% for provider_id, provider in llm_providers.items() %}
+            {% set _ = provider_defaults.update({provider_id: provider.get('base_url', '')}) %}
+          {% endfor %}
+          {% set llm_model_state = {
+            'provider': endpoint_provider,
+            'endpointId': endpoint_id,
+            'baseUrl': endpoint.base_url | default(''),
+            'defaultModel': 'orcarouter/auto',
+            'orcaBaseUrl': 'https://api.orcarouter.ai/v1',
+            'providerDefaults': provider_defaults,
+            'catalogUrl': url_for('admin_settings.llm_model_catalog'),
+            'formats': {
+              'responses': {'model': formats.get('responses', {}).get('model', '')},
+              'chat_completions': {'model': formats.get('chat_completions', {}).get('model', '')}
+            }
+          } %}
+          <form method="post"
+                action="{{ endpoint_url }}"
+                hx-post="{{ endpoint_url }}"
+                data-test-id="llm-endpoint-form"
+                x-data='llmEndpoint({{ llm_model_state | tojson }})'
+                x-init="init()"
+                @change="onFieldChange($event)">
             <input type="hidden" name="csrf_token" value="{{ request.cookies.get(config['JWT_ACCESS_CSRF_COOKIE_NAME'], '') }}" />
             {{ form_select('Endpoint state', 'enabled', 'true' if endpoint.enabled | default(not config['DEBUG']) else 'false', options=[{'id': 'true', 'name': 'Enabled'}, {'id': 'false', 'name': 'Disabled'}], input_id='llm-' ~ endpoint_id ~ '-enabled') }}
+            {{ form_select('Provider', 'provider', endpoint_provider, options=llm_provider_options, input_id='llm-' ~ endpoint_id ~ '-provider') }}
             {{ form_input('Name', 'name', endpoint.name | default(''), preserve=False, floating=False, required=True, input_id='llm-' ~ endpoint_id ~ '-name') }}
             {{ form_input('Provider base URL', 'base_url', endpoint.base_url | default(''), type='url', preserve=False, floating=False, required=True, placeholder='https://provider.example/v1', input_id='llm-' ~ endpoint_id ~ '-base_url') }}
             <p class="text-sm text-base-content/70 mb-4">Enter the provider base URL without /responses, /chat/completions, or /batches. Enable the formats this provider supports and choose a model for each.</p>
-            {% set formats = endpoint.api_formats | default({'responses': {}}) %}
+            <div class="mb-4 rounded-box border border-primary/30 bg-primary/5 p-4"
+                 x-show="provider === 'orcarouter'"
+                 x-cloak
+                 data-test-id="orcarouter-provider-info">
+              <p class="font-semibold">OrcaRouter Cyber Inference</p>
+              <p class="text-sm text-base-content/80 mt-1">
+                A named provider for authorized, scoped security inference from verified security teams. Use an OrcaRouter API key
+                (<code>sk-orca-…</code>); save, replace, or remove it below. OrcaRouter Cyber Inference supports Responses and Chat Completions for
+                Chat, clustering, summarization, NER, and sentiment. Topic classification keeps using its existing Decisions endpoint.
+              </p>
+              <p class="text-sm mt-2">
+                <a class="link link-primary" href="https://www.orcarouter.ai/cyber" target="_blank" rel="noopener">Provider overview</a>
+                <span class="mx-2 text-base-content/40">|</span>
+                <a class="link link-primary"
+                   href="https://www.orcarouter.ai/models?tier=cyber"
+                   target="_blank"
+                   rel="noopener">Cyber model catalogue</a>
+                <span class="mx-2 text-base-content/40">|</span>
+                <a class="link link-primary" href="https://www.orcarouter.ai/console" target="_blank" rel="noopener">Manage API keys</a>
+              </p>
+              <p class="text-sm text-base-content/70 mt-2">
+                Recommended: OrcaCyber Ultra (<code>orca/orcacyber-ultra-1.0</code>) and OrcaCyber Zero (<code>orca/orcacyber-zero-1.5</code>)
+                for verified security teams; <code>orcarouter/auto</code> is the default and <code>orcarouter/fusion</code> is the general fallback.
+                Cyber models are available through Chat Completions; Responses uses response-capable models such as <code>orcarouter/auto</code>.
+              </p>
+            </div>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
               {% for api_format, label in llm_api_formats.items() if api_format not in ('systemone', 'openai_decisions') %}
                 {% set api_config = formats.get(api_format, {}) %}
@@ -59,44 +110,136 @@
                            {% if api_config.enabled | default(api_format in formats) %}checked{% endif %} />
                     Enable {{ label }}
                   </label>
-                  {{ form_input(label ~ ' model', 'api_formats[' ~ api_format ~ '][model]', api_config.model | default(''), preserve=False, floating=False, required=False, placeholder='Provider model ID', input_id='llm-' ~ endpoint_id ~ '-' ~ api_format ~ '-model') }}
+                  <template x-if="provider !== 'orcarouter'">
+                    <div>{{ form_input(label ~ ' model', 'api_formats[' ~ api_format ~ '][model]', api_config.model | default(''), preserve=False, floating=False, required=False, placeholder='Provider model ID', input_id='llm-' ~ endpoint_id ~ '-' ~ api_format ~ '-model') }}</div>
+                  </template>
+                  <template x-if="provider === 'orcarouter'">
+                    <div class="mb-4" data-test-id="orcarouter-model-{{ api_format }}">
+                      <span class="label">{{ label }} model</span>
+                      <input type="hidden" name="api_formats[{{ api_format }}][model]" :value="formats['{{ api_format }}'].value" />
+                      <div class="relative" @keydown.escape="formats['{{ api_format }}'].open = false">
+                        <button type="button"
+                                class="btn btn-outline w-full justify-between normal-case font-normal"
+                                data-test-id="orcarouter-model-trigger"
+                                :aria-expanded="formats['{{ api_format }}'].open ? 'true' : 'false'"
+                                @click="togglePanel('{{ api_format }}')">
+                          <span class="truncate" x-text="selectedLabel('{{ api_format }}')"></span>
+                          <span aria-hidden="true">▾</span>
+                        </button>
+                        <div x-show="formats['{{ api_format }}'].open"
+                             x-cloak
+                             class="absolute left-0 right-0 z-40 mt-1 overflow-auto rounded-box border border-base-300 bg-base-100 shadow-lg"
+                             style="max-height: 22rem"
+                             data-test-id="orcarouter-model-panel">
+                          <div class="sticky top-0 z-10 border-b border-base-300 bg-base-100 p-2">
+                            <input type="search"
+                                   class="input input-sm w-full"
+                                   placeholder="Search live models"
+                                   aria-label="{{ label }} model search"
+                                   x-model="formats['{{ api_format }}'].filter"
+                                   data-test-id="orcarouter-model-search" />
+                          </div>
+                          <div class="flex items-center justify-between gap-2 px-3 py-2 text-xs">
+                            <span x-show="formats['{{ api_format }}'].loading">Loading models…</span>
+                            <span x-show="!formats['{{ api_format }}'].loading && formats['{{ api_format }}'].source === 'live'"
+                                  x-text="(formats['{{ api_format }}'].cached ? 'Cached · ' : '') + formats['{{ api_format }}'].items.length + ' models'"></span>
+                            <span x-show="!formats['{{ api_format }}'].loading && formats['{{ api_format }}'].degraded"
+                                  class="text-warning">Verified fallback</span>
+                            <button type="button"
+                                    class="btn btn-ghost btn-xs"
+                                    x-show="formats['{{ api_format }}'].loaded && !formats['{{ api_format }}'].loading"
+                                    @click="loadModels('{{ api_format }}', true)"
+                                    data-test-id="orcarouter-model-refresh">Refresh</button>
+                          </div>
+                          <p x-show="formats['{{ api_format }}'].error"
+                             class="px-3 pb-2 text-xs text-warning"
+                             x-text="formats['{{ api_format }}'].error"></p>
+                          <ul class="menu menu-sm w-full pb-2" data-test-id="orcarouter-model-options">
+                            <li x-show="!formats['{{ api_format }}'].loading && !modelsFor('{{ api_format }}').length">
+                              <span class="text-xs opacity-70">No compatible models.</span>
+                            </li>
+                            <template x-for="item in modelsFor('{{ api_format }}')" :key="item.id">
+                              <li>
+                                <button type="button"
+                                        @click="selectModel('{{ api_format }}', item.id)"
+                                        :class="isSelected('{{ api_format }}', item.id) ? 'active' : ''"
+                                        data-test-id="orcarouter-model-option">
+                                  <span class="flex min-w-0 flex-col items-start text-left">
+                                    <span class="font-mono text-xs" x-text="item.id"></span>
+                                    <span class="text-[0.7rem] opacity-70"
+                                          x-text="[item.name && item.name !== item.id ? item.name : '', item.context_window ? Math.round(item.context_window / 1000) + 'k ctx' : '', (item.input_modalities || []).join('/')].filter(Boolean).join(' · ')"></span>
+                                  </span>
+                                </button>
+                              </li>
+                            </template>
+                          </ul>
+                        </div>
+                      </div>
+                      <p class="text-xs text-warning mt-2"
+                         x-show="formats['{{ api_format }}'].hint"
+                         x-text="formats['{{ api_format }}'].hint"></p>
+                    </div>
+                  </template>
                   {{ form_input(label ~ ' URL override', 'api_formats[' ~ api_format ~ '][base_url]', api_config.base_url | default(''), type='url', preserve=False, floating=False, required=False, placeholder='Use provider base URL', input_id='llm-' ~ endpoint_id ~ '-' ~ api_format ~ '-url') }}
                 </fieldset>
               {% endfor %}
               {% set decisions_wire_format = 'openai_decisions' if 'openai_decisions' in formats and 'systemone' not in formats else 'systemone' %}
               {% set decisions_config = formats.get(decisions_wire_format, {}) %}
               {% set decisions_format = 'openrouter' if decisions_wire_format == 'systemone' and decisions_config.base_url | default('') == 'https://openrouter.ai/api/alpha/decisions' else decisions_wire_format %}
-              <fieldset class="border border-base-300 rounded-box p-4 md:col-span-2"
-                        data-test-id="llm-format-decisions"
-                        x-data="{ isOpenRouter: false }"
-                        x-init="isOpenRouter = $el.querySelector('select').value === 'openrouter'"
-                        @change="if ($event.target.name === 'decisions[api_format]') isOpenRouter = $event.target.value === 'openrouter'">
-                <label class="flex items-center gap-3 mb-4 font-semibold">
-                  <input type="checkbox"
-                         class="checkbox checkbox-sm"
-                         name="decisions[enabled]"
-                         value="true"
-                         {% if decisions_config.enabled | default(decisions_wire_format in formats) %}checked{% endif %} />
-                  Enable Decisions
-                </label>
-                {{ form_select('Decisions API format', 'decisions[api_format]', decisions_format, options=[{'id': 'systemone', 'name': 'System One (vLLM / llama.cpp)'}, {'id': 'openrouter', 'name': 'OpenRouter'}, {'id': 'openai_decisions', 'name': 'OpenAI'}], input_id='llm-' ~ endpoint_id ~ '-decisions-format') }}
-                {{ form_input('Decisions model', 'decisions[model]', decisions_config.model | default(''), preserve=False, floating=False, required=False, placeholder='Provider model ID', input_id='llm-' ~ endpoint_id ~ '-decisions-model') }}
-                <fieldset x-show="!isOpenRouter" :disabled="isOpenRouter">
-                  {{ form_input('Decisions URL override', 'decisions[base_url]', '' if decisions_format == 'openrouter' else decisions_config.base_url | default(''), type='url', preserve=False, floating=False, required=False, placeholder='Use provider base URL', input_id='llm-' ~ endpoint_id ~ '-decisions-url') }}
+              <template x-if="provider !== 'orcarouter'">
+                <fieldset class="border border-base-300 rounded-box p-4 md:col-span-2"
+                          data-test-id="llm-format-decisions"
+                          x-data="{ isOpenRouter: false }"
+                          x-init="isOpenRouter = $el.querySelector('select').value === 'openrouter'"
+                          @change="if ($event.target.name === 'decisions[api_format]') isOpenRouter = $event.target.value === 'openrouter'">
+                  <label class="flex items-center gap-3 mb-4 font-semibold">
+                    <input type="checkbox"
+                           class="checkbox checkbox-sm"
+                           name="decisions[enabled]"
+                           value="true"
+                           {% if decisions_config.enabled | default(decisions_wire_format in formats) %}checked{% endif %} />
+                    Enable Decisions
+                  </label>
+                  {{ form_select('Decisions API format', 'decisions[api_format]', decisions_format, options=[{'id': 'systemone', 'name': 'System One (vLLM / llama.cpp)'}, {'id': 'openrouter', 'name': 'OpenRouter'}, {'id': 'openai_decisions', 'name': 'OpenAI'}], input_id='llm-' ~ endpoint_id ~ '-decisions-format') }}
+                  {{ form_input('Decisions model', 'decisions[model]', decisions_config.model | default(''), preserve=False, floating=False, required=False, placeholder='Provider model ID', input_id='llm-' ~ endpoint_id ~ '-decisions-model') }}
+                  <fieldset x-show="!isOpenRouter" :disabled="isOpenRouter">
+                    {{ form_input('Decisions URL override', 'decisions[base_url]', '' if decisions_format == 'openrouter' else decisions_config.base_url | default(''), type='url', preserve=False, floating=False, required=False, placeholder='Use provider base URL', input_id='llm-' ~ endpoint_id ~ '-decisions-url') }}
+                  </fieldset>
+                  <p class="text-sm text-base-content/70"
+                     x-show="isOpenRouter"
+                     x-cloak>OpenRouter's Decisions URL is configured automatically.</p>
+                  <p class="text-sm text-base-content/70">Use System One for self-hosted /v1/systemone servers with a supported decision model, OpenRouter for its hosted models, or OpenAI for servers using OpenAI's /v1/decisions schema.</p>
                 </fieldset>
-                <p class="text-sm text-base-content/70"
-                   x-show="isOpenRouter"
-                   x-cloak>OpenRouter's Decisions URL is configured automatically.</p>
-                <p class="text-sm text-base-content/70">Use System One for self-hosted /v1/systemone servers with a supported decision model, OpenRouter for its hosted models, or OpenAI for servers using OpenAI's /v1/decisions schema.</p>
-              </fieldset>
+              </template>
+              <p class="text-sm text-base-content/70 md:col-span-2"
+                 x-show="provider === 'orcarouter'"
+                 x-cloak
+                 data-test-id="orcarouter-decisions-note">
+                Topic classification stays on its existing Decisions endpoint. OrcaRouter exposes no Decisions API, so this endpoint does not enable it.
+              </p>
             </div>
             <p class="text-sm text-base-content/70 mb-4">Each enabled format uses its own model. Blank models use the provider default. Decisions URLs default to /systemone or /decisions under the provider base URL; use a full URL override for a different path. Responses is preferred over Chat Completions when both are enabled.</p>
-            {{ form_select('Processing mode', 'processing_mode', endpoint.processing_mode | default('realtime'), options=[{'id': 'realtime', 'name': 'Realtime'}, {'id': 'openrouter_batch', 'name': 'OpenRouter batch'}], input_id='llm-' ~ endpoint_id ~ '-processing_mode') }}
+            <template x-if="provider !== 'orcarouter'">
+              <div>
+                {{ form_select('Processing mode', 'processing_mode', endpoint.processing_mode | default('realtime'), options=[{'id': 'realtime', 'name': 'Realtime'}, {'id': 'openrouter_batch', 'name': 'OpenRouter batch'}], input_id='llm-' ~ endpoint_id ~ '-processing_mode') }}
+              </div>
+            </template>
+            <template x-if="provider === 'orcarouter'">
+              <div>
+                <input type="hidden" name="processing_mode" value="realtime" />
+                <p class="text-sm text-base-content/70 mb-4">OrcaRouter Cyber Inference uses realtime processing; batch submission stays with OpenRouter endpoints.</p>
+              </div>
+            </template>
             <p class="text-sm text-base-content/70 mb-4">
               OpenRouter batch uses /batches for background bots and can take up to 24 hours. Use https://openrouter.ai/api/v1 and a model that supports batch processing. Chat requires realtime processing. Decisions always uses realtime processing, even when other formats use batch. The same endpoint can serve Chat and topic classification with different models.
             </p>
             {{ form_input('API key', 'api_key', '', type='password', required=False, preserve=False, floating=False, placeholder='Leave blank to keep the saved key' if endpoint_id else 'Enter provider API key', input_id='llm-' ~ endpoint_id ~ '-api_key') }}
-            <p class="text-sm text-base-content/70 mb-4">{{ 'An API key is saved.' if endpoint.api_key_configured else 'No API key saved. Optional for providers without authentication.' }}</p>
+            <p class="text-sm text-base-content/70 mb-4" data-test-id="orcarouter-api-key-state">
+              <span x-show="provider !== 'orcarouter'">{{ 'An API key is saved.' if endpoint.api_key_configured else 'No API key saved. Optional for providers without authentication.' }}</span>
+              <span x-show="provider === 'orcarouter'" x-cloak>
+                {{ 'An OrcaRouter API key is saved. Enter a new key to replace it.' if endpoint.api_key_configured else 'OrcaRouter requires an API key. Keys start with sk-orca-.' }}
+              </span>
+            </p>
             {% if endpoint_id %}
               <label class="flex items-center gap-3 mb-4">
                 <input type="checkbox" class="checkbox checkbox-sm" name="api_key_clear" value="true" />

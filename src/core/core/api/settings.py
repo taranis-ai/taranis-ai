@@ -1,5 +1,6 @@
 from flask import Blueprint, Flask, jsonify, request, url_for
 from flask.views import MethodView
+from models.llm import ORCAROUTER_PROVIDER_ID
 
 from core.config import Config
 from core.managers import queue_manager
@@ -7,6 +8,7 @@ from core.managers.auth_manager import auth_required
 from core.model.settings import Settings
 from core.service.admin import AdminService
 from core.service.cache_invalidation import cache_invalidation_service, invalidate_frontend_cache_on_success
+from core.service.llm_catalog import catalog_response
 from core.service.news_item_tag import NewsItemTagService
 from core.service.story import StoryService
 
@@ -142,6 +144,21 @@ class LLMEndpoints(MethodView):
         return jsonify(response), status
 
 
+class LLMModelCatalog(MethodView):
+    @auth_required("ADMIN_OPERATIONS")
+    def post(self):
+        payload = request.get_json(silent=True) or {}
+        endpoint_id = payload.get("endpoint_id")
+        saved_endpoint = None
+        if endpoint_id:
+            values = Settings.get_settings()
+            saved_endpoint = values.get("llm_endpoints", {}).get(endpoint_id)
+            if not isinstance(saved_endpoint, dict) or saved_endpoint.get("provider") != ORCAROUTER_PROVIDER_ID:
+                return jsonify({"error": "Unknown OrcaRouter endpoint", "code": "endpoint_not_found"}), 404
+        response, status = catalog_response(payload, saved_endpoint=saved_endpoint)
+        return jsonify(response), status
+
+
 class DeleteLLMEndpoint(MethodView):
     @auth_required("ADMIN_OPERATIONS")
     def post(self, endpoint_id: str):
@@ -165,6 +182,7 @@ def initialize(app: Flask):
     settings_bp.add_url_rule("/export-stories", view_func=ExportStories.as_view("export_stories"))
     settings_bp.add_url_rule("/settings", view_func=SettingsView.as_view("settings"))
     settings_bp.add_url_rule("/llm-endpoints", view_func=LLMEndpoints.as_view("llm_endpoints"))
+    settings_bp.add_url_rule("/llm-model-catalog", view_func=LLMModelCatalog.as_view("llm_model_catalog"))
     settings_bp.add_url_rule("/llm-endpoints/<string:endpoint_id>", view_func=LLMEndpoints.as_view("llm_endpoint"))
     settings_bp.add_url_rule("/llm-endpoints/<string:endpoint_id>/delete", view_func=DeleteLLMEndpoint.as_view("delete_llm_endpoint"))
 

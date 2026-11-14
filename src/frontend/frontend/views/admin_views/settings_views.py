@@ -6,7 +6,7 @@ from zoneinfo import ZoneInfo
 from flask import g, render_template, request, url_for
 from flask.typing import ResponseReturnValue
 from models.admin import Settings
-from models.llm import LLM_API_FORMATS, LLM_FEATURES
+from models.llm import LLM_API_FORMATS, LLM_FEATURES, LLM_PROVIDERS
 
 from frontend.core_api import CoreApi
 from frontend.data_persistence import DataPersistenceLayer
@@ -33,6 +33,10 @@ class SettingsView(AdminBaseView):
         base_context["settings"] = dpl.get_first(Settings)
         base_context["llm_features"] = LLM_FEATURES
         base_context["llm_api_formats"] = LLM_API_FORMATS
+        base_context["llm_providers"] = LLM_PROVIDERS
+        base_context["llm_provider_options"] = [
+            {"id": provider_id, "name": provider["name"]} for provider_id, provider in LLM_PROVIDERS.items()
+        ]
         base_context["llm_form"] = getattr(g, "llm_form", None)
         base_context["llm_editing_endpoint"] = getattr(g, "llm_editing_endpoint", None)
         base_context["timezone_options"] = get_timezone_options()
@@ -150,6 +154,18 @@ class SettingsView(AdminBaseView):
                 g.llm_form["enabled"] = request.form["enabled"].lower() == "true"
         view, _ = cls.static_view()
         return notification + view, response.status_code
+
+    @classmethod
+    def llm_model_catalog_action(cls):
+        payload = request.get_json(silent=True)
+        if not isinstance(payload, dict):
+            return {"error": "Model catalogue request must be a JSON object", "code": "invalid_request"}, 400
+        response = CoreApi().api_post("/settings/llm-model-catalog", json_data=payload)
+        try:
+            data = response.json()
+        except ValueError:
+            return {"error": "Model catalogue unavailable", "code": "catalog_unavailable"}, 502
+        return data, response.status_code
 
     def get(self, **kwargs: Any) -> ResponseReturnValue:
         return self.static_view()

@@ -3,6 +3,17 @@ import uuid
 from datetime import UTC, datetime, timedelta
 
 import pytest
+import requests
+
+
+def _json_response(payload: dict, status: int = 200) -> requests.Response:
+    response = requests.Response()
+    response.status_code = status
+    response.headers["Content-Type"] = "application/json"
+    response._content = json.dumps(payload).encode()
+    response._content_consumed = True
+    return response
+
 
 from tests.application.support.api_test_base import BaseTest
 
@@ -203,6 +214,83 @@ class TestAdminApi(BaseTest):
         self.assert_patch_ok(client, "settings", {"settings": {"llm_default_endpoint": ""}}, auth_header)
         assert client.get(worker_url, headers=worker_headers).json["llm_endpoint"] is None
         assert client.delete(bot_url, headers=auth_header).status_code == 200
+        self.assert_post_ok(client, f"llm-endpoints/{endpoint_id}/delete", {}, auth_header)
+
+    def test_orcarouter_provider_and_model_catalog(self, client, auth_header, monkeypatch, app):
+        from core.model.settings import Settings
+        from core.service import llm_catalog
+
+        endpoint = {
+            "name": "OrcaRouter",
+            "provider": "orcarouter",
+            "base_url": "https://api.orcarouter.ai/v1",
+            "api_key": "sk-orca-private",
+            "enabled": True,
+            "api_formats": {"chat_completions": {"model": "orcarouter/auto"}},
+        }
+        response = self.assert_post_ok(client, "llm-endpoints", endpoint, auth_header)
+        endpoint_id = response.get_json()["id"]
+        assert "sk-orca-private" not in response.get_data(as_text=True)
+        with app.app_context():
+            saved = Settings.get_settings()["llm_endpoints"][endpoint_id]
+            assert saved["provider"] == "orcarouter"
+
+        endpoint_url = self.concat_url(f"llm-endpoints/{endpoint_id}")
+        invalid = [
+            {"api_formats": {"systemone": {"model": "topic-model"}}},
+            {"processing_mode": "openrouter_batch"},
+            {"base_url": "http://api.orcarouter.ai/v1"},
+        ]
+        for values in invalid:
+            assert client.post(endpoint_url, json=values, headers=auth_header).status_code == 400
+
+        assert client.post(self.concat_url("llm-model-catalog"), json={"provider": "orcarouter"}).status_code == 401
+
+        calls = []
+
+        def get(*args, **kwargs):
+            calls.append(kwargs)
+            return _json_response(
+                {
+                    "data": [
+                        {
+                            "id": "orcarouter/auto",
+                            "name": "OrcaRouter Auto",
+                            "supported_endpoint_types": ["openai", "openai-response"],
+                            "architecture": {"input_modalities": ["text"], "output_modalities": ["text"]},
+                        },
+                        {
+                            "id": "orca/orcacyber-ultra-1.0",
+                            "supported_endpoint_types": ["openai"],
+                            "architecture": {"input_modalities": ["text"], "output_modalities": ["text"]},
+                        },
+                        {"id": "text/embedding", "supported_endpoint_types": ["embeddings"]},
+                    ]
+                }
+            )
+
+        llm_catalog.clear_cache()
+        monkeypatch.setattr(llm_catalog.requests, "get", get)
+        response = client.post(
+            self.concat_url("llm-model-catalog"),
+            json={"endpoint_id": endpoint_id, "api_format": "chat_completions"},
+            headers=auth_header,
+        )
+        assert response.status_code == 200
+        payload = response.get_json()
+        assert payload["source"] == "live"
+        assert payload["default_model"] == "orcarouter/auto"
+        assert [model["id"] for model in payload["models"]] == ["orcarouter/auto", "orca/orcacyber-ultra-1.0"]
+        assert calls[0]["headers"]["Authorization"] == "Bearer sk-orca-private"
+        assert "sk-orca-private" not in response.get_data(as_text=True)
+
+        other_id = self.assert_post_ok(
+            client, "llm-endpoints", {"name": "Compatible", "base_url": "https://provider.example/v1"}, auth_header
+        ).get_json()["id"]
+        response = client.post(self.concat_url("llm-model-catalog"), json={"endpoint_id": other_id}, headers=auth_header)
+        assert response.status_code == 404
+
+        self.assert_post_ok(client, f"llm-endpoints/{other_id}/delete", {}, auth_header)
         self.assert_post_ok(client, f"llm-endpoints/{endpoint_id}/delete", {}, auth_header)
 
     @pytest.mark.parametrize("api_format", ["systemone", "openai_decisions"])
