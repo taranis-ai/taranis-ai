@@ -21,10 +21,12 @@ def test_batch_endpoint_check_waits_for_inference(requests_mock, monkeypatch, ap
     }
     other_format = "chat_completions" if api_format == "responses" else "responses"
     config["api_formats"] = {
+        "embeddings": {"model": "embed-model"},
         "systemone": {"model": "topic-model", "base_url": "https://batch.test/api/classify"},
         api_format: {"model": config["model"]},
         other_format: {"model": config["model"]},
     }
+    embeddings = requests_mock.post("https://batch.test/api/v1/embeddings", json={"data": [{"embedding": [1.0, 0.0]}]})
     decisions = requests_mock.post(
         "https://batch.test/api/classify",
         json={"answers": {"probe": {"type": "choice", "choice": "OK", "probabilities": {"OK": 1.0, "other": 0.0}}}},
@@ -46,6 +48,7 @@ def test_batch_endpoint_check_waits_for_inference(requests_mock, monkeypatch, ap
     assert saved.call_count == 0
     assert submitted.call_count == 2
     assert decisions.call_count == 1
+    assert embeddings.call_count == 1
     request_id = submitted.request_history[0].json()["requests"][0]["custom_id"]
     other_id = submitted.request_history[1].json()["requests"][0]["custom_id"]
     requests_mock.get(f"{config['base_url']}/batches/batch_probe", json={"status": "in_progress"})
@@ -77,6 +80,8 @@ def test_batch_endpoint_check_waits_for_inference(requests_mock, monkeypatch, ap
     assert decisions.call_count == 1
     assert completed.call_count == 1
     assert decisions.last_request.json()["model"] == "topic-model"
+    assert embeddings.call_count == 1
+    assert embeddings.last_request.json()["model"] == "embed-model"
     assert "llm_batch_probe" not in job.meta
 
 

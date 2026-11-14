@@ -41,7 +41,7 @@ def get_llm_client(parameters: dict) -> LLMClient:
     if not endpoint:
         raise LLMConfigurationError
     config = LLMEndpoint.model_validate(endpoint)
-    if not config.enabled or config.is_decisions:
+    if not config.enabled or config.is_decisions or config.api_format == "embeddings":
         raise LLMConfigurationError
     client = LLMClient(
         base_url=config.base_url,

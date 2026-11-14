@@ -89,6 +89,20 @@ def probe(kind: str, config: dict, batch_state: dict | None = None, save_batch_s
             response.raise_for_status()
             client.parse_response(response.json(), questions)
             return True
+        if config["api_format"] == "embeddings":
+            from models.hrag import EmbeddingResult
+
+            response = http_request(
+                "POST",
+                f"{config['base_url']}/embeddings",
+                json={"input": "Synthetic endpoint check", "model": config.get("model", "")},
+                headers={"Authorization": f"Bearer {config['api_key']}"} if config.get("api_key") else {},
+                timeout=min(config["timeout"], 120),
+                verify=True,
+            )
+            response.raise_for_status()
+            EmbeddingResult(embedding=response.json()["data"][0]["embedding"])
+            return True
         chat = config["api_format"] == "chat_completions"
         if config.get("processing_mode") == "openrouter_batch":
             parameters = {"llm_endpoint": config, "_llm_batch_state": batch_state, "_save_llm_batch_state": save_batch_state}
@@ -123,7 +137,7 @@ def probe(kind: str, config: dict, batch_state: dict | None = None, save_batch_s
                 for choice in result.get("choices", [])
             )
         return _valid_responses_result(result)
-    except (RequestException, ValueError, TypeError, KeyError, BatchExecutionError, LLMTaskError, UpstreamLLMError):
+    except (RequestException, ValueError, TypeError, KeyError, IndexError, BatchExecutionError, LLMTaskError, UpstreamLLMError):
         logger.exception(f"Endpoint probe failed for {kind}")
         return False
 

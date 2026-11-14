@@ -9373,6 +9373,153 @@ paths:
           $ref: '#/components/responses/401Unauthorized'
         '403':
           description: forbidden
+  /settings/hrag:
+    get:
+      security:
+      - UserAuth: []
+      tags: [config]
+      operationId: settings.hrag.get
+      description: Inspect durable HRAG generations and work counts. Requires ADMIN_OPERATIONS.
+      parameters:
+      - name: news_item_id
+        in: query
+        description: Optional repeated NewsItem IDs to scope work counts (up to 500).
+        schema:
+          type: array
+          items:
+            type: string
+      responses:
+        '200':
+          description: Enabled state and generations with pipeline, model, activation, scan state and status counts
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: ADMIN_OPERATIONS required
+    post:
+      security:
+      - UserAuth: []
+      tags: [config]
+      operationId: settings.hrag.post
+      description: Queue reconciliation/backfill, activate a completed generation, or invalidate a generation for reprocessing. Requires ADMIN_OPERATIONS.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action]
+              additionalProperties: false
+              properties:
+                action:
+                  type: string
+                  enum: [backfill, reconcile, activate, reprocess]
+                generation_id:
+                  type: string
+                  maxLength: 64
+                  description: Required for activate and reprocess
+      responses:
+        '200':
+          description: Generation activated or reprocessing scheduled
+        '202':
+          description: Reconciliation queued
+        '400':
+          description: Invalid action
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: ADMIN_OPERATIONS required
+        '404':
+          description: Generation not found
+        '409':
+          description: Generation backfill is incomplete
+        '503':
+          description: HRAG disabled, queue unavailable, or index action failed
+  /worker/hrag/reconcile:
+    post:
+      security:
+      - APIKey: []
+      tags: [bots]
+      operationId: worker.hrag_reconcile.post
+      description: Reconcile durable work with current inputs and graph projections, queue eligible jobs, and prune deleted evidence.
+      responses:
+        '200':
+          description: Number of queued jobs; zero when HRAG is disabled
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '503':
+          description: Reconciliation unavailable
+  /worker/hrag/work/{work_id}:
+    parameters:
+    - name: work_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    post:
+      security:
+      - APIKey: []
+      tags: [bots]
+      operationId: worker.hrag_work.post
+      description: Claim a work lease. Returns skip or bounded content, pipeline, token, fingerprint, dimensions, endpoint credentials and optional cached extraction. Responses use Cache-Control no-store.
+      responses:
+        '200':
+          description: Claimed work or skip
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '503':
+          description: Work unavailable
+    put:
+      security:
+      - APIKey: []
+      tags: [bots]
+      operationId: worker.hrag_work.put
+      description: Submit a validated extraction/vector or report failure. Repeated accepted submissions are idempotent; obsolete tokens and fingerprints are rejected.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, fingerprint]
+              additionalProperties: false
+              properties:
+                token:
+                  type: string
+                  minLength: 1
+                  maxLength: 64
+                fingerprint:
+                  type: string
+                  minLength: 64
+                  maxLength: 64
+                failed:
+                  type: boolean
+                  default: false
+                extraction:
+                  type: [object, 'null']
+                  description: Entity and relation lists using the versioned HRAG vocabulary and exact content evidence spans
+                vector:
+                  type: [object, 'null']
+                  properties:
+                    embedding:
+                      type: array
+                      minItems: 1
+                      maxItems: 16000
+                      items:
+                        type: number
+      responses:
+        '200':
+          description: Result accepted, already accepted, or retry scheduled
+        '400':
+          description: Invalid submission, evidence passages, or vector dimensions
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '404':
+          description: HRAG work unavailable
+        '409':
+          description: Stale HRAG result
+        '503':
+          description: Submission unavailable
   /settings/llm-endpoints:
     post:
       security:
@@ -9381,8 +9528,9 @@ paths:
       - config
       description: >-
         Create an LLM endpoint (ADMIN_OPERATIONS required). Fields are name,
-        base_url, enabled, model, api_format (responses or chat_completions), api_key,
-        and timeout (positive seconds, default 120). Name and base_url are required.
+        base_url, enabled, api_formats (responses, chat_completions, systemone,
+        openai_decisions, or embeddings, each with a model and optional base_url),
+        api_key, and timeout (positive seconds, default 120). Name and base_url are required.
         Enabled defaults to false in development (DEBUG=true), true otherwise.
         Disabled endpoints skip probes, Chat, and bot scheduling.
         API keys are never included in the response or human settings reads.
@@ -9530,7 +9678,8 @@ paths:
         Get settings including llm_endpoints (API keys omitted, api_key_configured
         indicates whether a key is stored). Assignments use llm_default_endpoint,
         llm_chat_endpoint, llm_clustering_endpoint, llm_summarization_endpoint,
-        llm_ner_endpoint, llm_sentiment_endpoint, and llm_classification_endpoint.
+        llm_ner_endpoint, llm_sentiment_endpoint, llm_classification_endpoint,
+        llm_embedding_endpoint, llm_extraction_endpoint, and llm_graph_planning_endpoint.
         Empty feature assignments inherit the default; an empty default leaves
         unassigned features unconfigured. Change assignments through settings
         PATCH and manage endpoint definitions through the llm-endpoints routes.
@@ -10335,6 +10484,11 @@ components:
       type: object
       additionalProperties: false
       properties:
+        mode:
+          type: string
+          enum: [chat, hrag]
+          default: chat
+          description: Select retrieval for this turn; hrag requires HRAG_ENABLED
         content:
           type: string
           minLength: 1
@@ -10378,6 +10532,25 @@ components:
         created:
           type: string
           format: date-time
+        mode:
+          type: string
+          enum: [chat, hrag]
+          default: chat
+        hrag_result:
+          type: [object, 'null']
+          description: Evidence is reauthorized against current permissions and content before display
+          properties:
+            evidence:
+              type: array
+              items:
+                type: object
+                description: Citation, branch, work/content fingerprint, supporting path IDs, NewsItem/story IDs, title, quote, assertion, description and truncation flag
+            notices:
+              type: array
+              items:
+                type: string
+            filters:
+              type: object
         search_result:
           oneOf:
           - $ref: '#/components/schemas/chat_search_result'

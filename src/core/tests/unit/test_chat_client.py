@@ -217,3 +217,99 @@ def test_turn_deadline_closes_continuously_streaming_response(configured_chat, m
         writer.close()
         sender.join(timeout=5)
     assert not sender.is_alive()
+
+
+def test_hrag_turn_switching_partial_retrieval_and_live_history(configured_chat, db_persistent_session, admin_user, monkeypatch):
+    from core.managers.db_manager import db
+    from core.model.hrag import HragGeneration, HragMessage, HragWork
+    from core.service.hrag import retrieval
+    from core.service.hrag.indexing import fingerprint
+
+    monkeypatch.setattr(retrieval.Config, "HRAG_ENABLED", True)
+    story = create_story(news_items=[build_news_item_payload(content="Acme reported an incident.")])
+    item = story.news_items[0]
+    settings = Settings.get_settings()
+    settings["llm_graph_planning_endpoint"] = "existing-chat"
+    monkeypatch.setattr(Settings, "get_settings", classmethod(lambda cls: settings))
+    generation = HragGeneration.from_dict(
+        {
+            "id": "chat-extraction-generation",
+            "pipeline": "extraction",
+            "active": True,
+            "config": {"limit": 20000},
+            "cursor": "",
+            "scanned": True,
+        }
+    )
+    db.session.add(generation)
+    work = HragWork.from_dict(
+        {
+            "news_item_id": item.id,
+            "generation_id": generation.id,
+            "fingerprint": fingerprint(item, generation),
+            "status": "ready",
+            "result": {
+                "entities": [{"id": "a", "type": "ORG", "name": "Acme", "evidence": {"start": 0, "end": 4, "quote": "Acme"}}],
+                "relations": [],
+            },
+        }
+    )
+    db.session.add(work)
+    db.session.commit()
+    work_id, graph_key = work.id, work.graph_key
+    graph_calls = []
+
+    def graph_search(plan, keys, limit, timeout):
+        graph_calls.append(keys)
+        return [[{"key": graph_key, "work_id": work_id, "idx": None}]]
+
+    monkeypatch.setattr(retrieval, "graph_search", graph_search)
+    contexts = []
+
+    def post(*args, **kwargs):
+        payload = kwargs["json"]
+        messages = payload.get("messages") or payload["input"]
+        context = json.loads(messages[-1]["content"])
+        contexts.append(context)
+        if "text" in payload or "response_format" in payload:
+            answer = json.dumps({"names": ["Acme"], "hops": 0})
+        elif "retrieval" in context:
+            assert context["retrieval"]["evidence"][0]["quote"] == "Acme"
+            answer = "Acme is mentioned [G1]."
+        else:
+            answer = "Continuing in Chat."
+        return _chat_response(answer) if configured_chat == "chat_completions" else _response({"output_text": answer})
+
+    monkeypatch.setattr(requests, "post", post)
+    conversation = None
+    try:
+        conversation = ChatService.create_turn(admin_user, "What is known about Acme?", "hrag-turn", mode="hrag")
+        answer = conversation["messages"][-1]
+        assert answer["mode"] == "hrag" and answer["hrag_result"]["evidence"][0]["citation"] == "G1"
+        assert any("Vector retrieval is unavailable" in notice for notice in answer["hrag_result"]["notices"])
+        assert graph_calls == [[graph_key]]
+        metadata = db.session.get(HragMessage, answer["id"]).metadata_json
+        assert "quote" not in json.dumps(metadata) and "Acme" not in json.dumps(metadata)
+        followup = ChatService.create_turn(admin_user, "Continue", "chat-turn", conversation["id"])
+        assert followup["messages"][-1]["content"] == "Continuing in Chat."
+        assert contexts[-1]["conversation"][-1]["content"] == "Acme is mentioned [G1]."
+        item.content = "Changed evidence."
+        db.session.commit()
+        saved = ChatService.get_conversation(conversation["id"], admin_user)
+        assert saved["messages"][1]["hrag_result"]["evidence"] == []
+        assert "no longer accessible" in saved["messages"][1]["content"]
+        # The in-process Redis fake lacks Lua lock release; real Redis is covered by the browser flow.
+        from core.managers.queue_manager import queue_manager
+
+        queue_manager.redis.flushall()
+        # Both unavailable branches fail without appending a half-turn.
+        monkeypatch.setattr(retrieval, "graph_search", lambda *args: (_ for _ in ()).throw(RuntimeError("offline")))
+        with pytest.raises(ChatProviderError):
+            ChatService.create_turn(admin_user, "Try again", "failed-hrag", conversation["id"], mode="hrag")
+        assert len(ChatService.get_conversation(conversation["id"], admin_user)["messages"]) == 4
+    finally:
+        if conversation:
+            ChatService.delete_conversation(conversation["id"], admin_user)
+        db.session.delete(generation)
+        db.session.delete(story)
+        db.session.commit()

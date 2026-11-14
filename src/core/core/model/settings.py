@@ -140,6 +140,11 @@ class Settings(BaseModel):
                 not isinstance(update_data[key], str) or (update_data[key] and update_data[key] not in current_settings["llm_endpoints"])
             ):
                 return {"error": "Select an existing LLM endpoint"}, 400
+        for feature in ("embedding", "extraction", "graph_planning"):
+            if endpoint_id := update_data.get(f"llm_{feature}_endpoint"):
+                provider = LLMProvider.model_validate(current_settings["llm_endpoints"][endpoint_id])
+                if not provider.supports(feature) or (provider.for_feature(feature) or {}).get("processing_mode") != "realtime":
+                    return {"error": "HRAG requires a compatible realtime endpoint"}, 400
         if cls._chat_uses_batch({**current_settings, **update_data}):
             return {"error": "Chat requires a realtime LLM endpoint. Assign Chat explicitly before using a batch default."}, 400
         if cls._nonclassification_uses_decisions({**current_settings, **update_data}):
@@ -200,7 +205,7 @@ class Settings(BaseModel):
 
     @classmethod
     def _nonclassification_uses_decisions(cls, values: dict) -> bool:
-        for feature in LLM_FEATURES.keys() - {"classification"}:
+        for feature in LLM_FEATURES.keys() - {"classification", "embedding", "extraction", "graph_planning"}:
             endpoint_id = values.get(f"llm_{feature}_endpoint") or values.get("llm_default_endpoint")
             endpoint = values.get("llm_endpoints", {}).get(endpoint_id, {})
             if endpoint and not LLMProvider.model_validate(endpoint).supports(feature):
@@ -285,6 +290,13 @@ class Settings(BaseModel):
         lost_features = {
             feature for feature in LLM_FEATURES if provider and previous and previous.supports(feature) and not provider.supports(feature)
         }
+        for feature in ("embedding", "extraction", "graph_planning"):
+            if (
+                endpoint_id == values.get(f"llm_{feature}_endpoint")
+                and provider
+                and (not provider.supports(feature) or (provider.for_feature(feature) or {}).get("processing_mode") != "realtime")
+            ):
+                return {"error": "Reassign HRAG before changing this endpoint's capability or processing mode"}, 400
         if endpoint_id == values.get("llm_classification_endpoint") and "classification" in lost_features:
             return {"error": "Reassign topic classification before changing this endpoint's API format."}, 400
         for bot in db.session.execute(db.select(Bot)).scalars():

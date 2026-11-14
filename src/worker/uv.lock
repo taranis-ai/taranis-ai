@@ -13,11 +13,11 @@ exclude-newer = "0001-01-01T00:00:00Z" # This has no effect and is included for 
 exclude-newer-span = "P1W"
 
 [options.exclude-newer-package]
-brotli = "2026-10-23T00:00:00Z"
-brotlicffi = "2026-10-23T00:00:00Z"
+taranis-llm-bot = false
 certifi = false
 pillow = false
-taranis-llm-bot = false
+brotli = "2026-10-23T00:00:00Z"
+brotlicffi = "2026-10-23T00:00:00Z"
 
 [[package]]
 name = "annotated-types"
@@ -1894,18 +1894,36 @@ wheels = [
 
 [[package]]
 name = "taranis-llm-bot"
-version = "0.1.6"
-source = { registry = "https://pypi.org/simple" }
+version = "0.0.0"
+source = { url = "https://github.com/taranis-ai/llm-bot/archive/aa37cdfe43ee3e74820a6b478cf5fbdcba30c71b.tar.gz" }
 dependencies = [
     { name = "langcodes", extra = ["data"] },
-    { name = "niquests" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/69/42/8dd06d1749143d4ee23481a67fc3ac7e511c7b9eca824f373ae1124e5288/taranis_llm_bot-0.1.6.tar.gz", hash = "sha256:4d1368fe43b837d53af7a5e29cc6657806213ba4014d9301788c409dd5b19503", size = 145208, upload-time = "2026-10-21T11:30:32.197Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/82/5c/ed236ac95f27e3d9c5fd7593f8f0b99bdc63942cd09f55a23ee1a0d809fb/taranis_llm_bot-0.1.6-py3-none-any.whl", hash = "sha256:27a6f0a550c400f2cfe65d055d2b453f8137255d202b1f4fa66bd1ad97788d6b", size = 72950, upload-time = "2026-10-21T11:30:31.223Z" },
+sdist = { hash = "sha256:f106723cfb6eb3da7ccf4c94bc65cad3f86be2fffc497b5a461eb4854375f4f6" }
+
+[package.optional-dependencies]
+inference = [
+    { name = "niquests" },
 ]
+
+[package.metadata]
+requires-dist = [
+    { name = "granian", marker = "extra == 'server'" },
+    { name = "langcodes", extras = ["data"], specifier = ">=3.5.1" },
+    { name = "niquests", marker = "extra == 'inference'" },
+    { name = "niquests", marker = "extra == 'server'" },
+    { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=4.6.2" },
+    { name = "pydantic", specifier = ">=2.11.0" },
+    { name = "pydantic-settings" },
+    { name = "pytest", marker = "extra == 'dev'" },
+    { name = "pytest-asyncio", marker = "extra == 'dev'" },
+    { name = "python-dotenv", marker = "extra == 'dev'" },
+    { name = "quart", marker = "extra == 'server'", specifier = ">=0.20.0" },
+    { name = "ruff", marker = "extra == 'dev'" },
+]
+provides-extras = ["inference", "server", "dev"]
 
 [[package]]
 name = "taranis-models"
@@ -1963,7 +1981,7 @@ dependencies = [
     { name = "python-gnupg" },
     { name = "redis" },
     { name = "rq" },
-    { name = "taranis-llm-bot" },
+    { name = "taranis-llm-bot", extra = ["inference"] },
     { name = "taranis-models" },
     { name = "taxii2-client" },
     { name = "trafilatura" },
@@ -2025,7 +2043,7 @@ requires-dist = [
     { name = "ruff", marker = "extra == 'dev'" },
     { name = "setuptools", marker = "extra == 'dev'" },
     { name = "setuptools-scm", marker = "extra == 'dev'" },
-    { name = "taranis-llm-bot", specifier = "==0.1.6" },
+    { name = "taranis-llm-bot", extras = ["inference"], url = "https://github.com/taranis-ai/llm-bot/archive/aa37cdfe43ee3e74820a6b478cf5fbdcba30c71b.tar.gz" },
     { name = "taranis-models", editable = "../models" },
     { name = "taxii2-client" },
     { name = "trafilatura" },

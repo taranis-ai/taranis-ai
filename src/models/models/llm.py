@@ -6,6 +6,9 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 LLM_FEATURES = {
     "chat": "Chat",
+    "embedding": "HRAG embeddings",
+    "graph_planning": "HRAG graph planning",
+    "extraction": "HRAG entity and relationship extraction",
     "clustering": "Story clustering",
     "summarization": "Summarization and titles",
     "ner": "Named-entity recognition",
@@ -30,7 +33,7 @@ class LLMEndpoint(BaseModel):
     base_url: str = Field(min_length=1)
     enabled: bool = True
     model: str = ""
-    api_format: Literal["responses", "chat_completions", "systemone", "openai_decisions"] = "responses"
+    api_format: Literal["responses", "chat_completions", "systemone", "openai_decisions", "embeddings"] = "responses"
     processing_mode: Literal["realtime", "openrouter_batch"] = "realtime"
     api_key: str = Field(default="", repr=False)
     timeout: int = Field(default=120, gt=0)
@@ -41,7 +44,7 @@ class LLMEndpoint(BaseModel):
 
     @model_validator(mode="after")
     def validate_transport(self):
-        if self.is_decisions and self.processing_mode != "realtime":
+        if (self.is_decisions or self.api_format == "embeddings") and self.processing_mode != "realtime":
             raise ValueError("Decisions endpoints require realtime processing")
         if not self.is_decisions and urlparse(self.base_url).path.endswith(("/decisions", "/systemone")):
             raise ValueError("Select a Decisions API format for this endpoint")
@@ -57,15 +60,16 @@ class LLMEndpoint(BaseModel):
             parsed.port == 0
             or parsed.query
             or parsed.fragment
-            or parsed.path.rstrip("/").endswith(("/responses", "/chat/completions", "/batches"))
+            or parsed.path.rstrip("/").endswith(("/responses", "/chat/completions", "/batches", "/embeddings"))
         ):
             raise ValueError("Enter the provider base URL without an API endpoint, query, or fragment")
         return value.rstrip("/")
 
 
-type LLMAPIFormat = Literal["responses", "chat_completions", "systemone", "openai_decisions"]
+type LLMAPIFormat = Literal["responses", "chat_completions", "systemone", "openai_decisions", "embeddings"]
 
 LLM_API_FORMATS: dict[LLMAPIFormat, str] = {
+    "embeddings": "Embeddings",
     "responses": "Responses",
     "chat_completions": "Chat Completions",
     "systemone": "Decisions (System One / OpenRouter)",
@@ -120,12 +124,20 @@ class LLMProvider(BaseModel):
             raise ValueError("Decisions endpoints require realtime processing")
         return self
 
+    @staticmethod
+    def feature_formats(feature: str) -> tuple[str, ...]:
+        if feature == "embedding":
+            return ("embeddings",)
+        if feature == "classification":
+            return ("systemone", "openai_decisions")
+        return ("responses", "chat_completions")
+
     def supports(self, feature: str) -> bool:
-        return any((api_format in DECISIONS_FORMATS) == (feature == "classification") for api_format in self.api_formats)
+        return bool(set(self.api_formats) & set(self.feature_formats(feature)))
 
     def for_feature(self, feature: str) -> dict | None:
         for api_format in LLM_API_FORMATS:
-            if api_format in self.api_formats and (api_format in DECISIONS_FORMATS) == (feature == "classification"):
+            if api_format in self.api_formats and api_format in self.feature_formats(feature):
                 return self.for_format(api_format)
         return None
 
@@ -140,7 +152,7 @@ class LLMProvider(BaseModel):
             enabled=self.enabled,
             api_format=api_format,
             model=config.model,
-            processing_mode="realtime" if api_format in DECISIONS_FORMATS else self.processing_mode,
+            processing_mode="realtime" if api_format in DECISIONS_FORMATS or api_format == "embeddings" else self.processing_mode,
             api_key=self.api_key,
             timeout=self.timeout,
         ).model_dump()

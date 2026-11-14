@@ -150,7 +150,11 @@ def e2e_stack(request) -> str:
 @pytest.fixture(scope="session")
 def docker_compose_command(e2e_stack: str) -> str:
     command = require_docker_compose_command()
-    return f"{command} --profile rq" if e2e_stack == "full" else command
+    with pytest.MonkeyPatch.context() as patcher:
+        if e2e_stack == "full":
+            patcher.setenv("TARANIS_E2E_DATABASE_URI", "postgresql+psycopg://taranis:test@database:5432/taranis")
+            patcher.setenv("TARANIS_E2E_HRAG_ENABLED", "true")
+        yield f"{command} --profile rq" if e2e_stack == "full" else command
 
 
 @pytest.fixture(scope="session")

@@ -146,10 +146,12 @@ class ChatClient:
         on_delta: Callable[[str], None],
         *,
         search: bool = False,
+        prompt: str = CHAT_PROMPT,
+        response_format: dict | None = None,
     ) -> dict[str, Any]:
         payload: dict[str, Any] = {
             "input": input_items,
-            "instructions": CHAT_PROMPT,
+            "instructions": prompt,
             "store": False,
             "include": ["reasoning.encrypted_content"],
         }
@@ -166,7 +168,15 @@ class ChatClient:
             ]
             payload["parallel_tool_calls"] = False
         if self.api_format == "chat_completions":
-            payload = self._chat_payload(input_items, payload.get("tools", []))
+            payload = self._chat_payload(input_items, payload.get("tools", []), prompt)
+        if response_format:
+            if self.api_format == "chat_completions":
+                payload["response_format"] = {
+                    "type": "json_schema",
+                    "json_schema": {key: value for key, value in response_format.items() if key != "type"},
+                }
+            else:
+                payload["text"] = {"format": response_format}
         if self.model:
             payload["model"] = self.model
 
@@ -199,8 +209,8 @@ class ChatClient:
         raise ChatProviderError("Chat provider request failed")
 
     @staticmethod
-    def _chat_payload(input_items: list[dict[str, Any]], tools: list[dict[str, Any]]) -> dict[str, Any]:
-        messages = [{"role": "system", "content": CHAT_PROMPT}]
+    def _chat_payload(input_items: list[dict[str, Any]], tools: list[dict[str, Any]], prompt: str = CHAT_PROMPT) -> dict[str, Any]:
+        messages = [{"role": "system", "content": prompt}]
         for item in input_items:
             if item.get("type") == "chat_message":
                 messages.append(item["message"])
@@ -437,7 +447,7 @@ class ChatService:
     def get_conversation(cls, conversation_id: str, user: User) -> dict[str, Any]:
         if not (conversation := ChatConversation.get_for_user(conversation_id, user.id)):
             raise ChatConversationNotFoundError
-        return conversation.to_detail_dict()
+        return cls._conversation_detail(conversation, user.id)
 
     @classmethod
     def delete_conversation(cls, conversation_id: str, user: User) -> None:
@@ -447,17 +457,19 @@ class ChatService:
         db.session.commit()
 
     @classmethod
-    def create_turn(cls, user: User, content: str, turn_id: str, conversation_id: str | None = None) -> dict[str, Any]:
+    def create_turn(cls, user: User, content: str, turn_id: str, conversation_id: str | None = None, mode: str = "chat") -> dict[str, Any]:
         with cls._turn_lease(user.id, conversation_id):
             deadline = time.monotonic() + CHAT_TURN_TIMEOUT_SECONDS
             try:
-                return cls._create_turn(user, content, turn_id, conversation_id, deadline)
+                return cls._create_turn(user, content, turn_id, conversation_id, deadline, mode)
             except Exception:
                 db.session.rollback()
                 raise
 
     @classmethod
-    def _create_turn(cls, user: User, content: str, turn_id: str, conversation_id: str | None, deadline: float) -> dict[str, Any]:
+    def _create_turn(
+        cls, user: User, content: str, turn_id: str, conversation_id: str | None, deadline: float, mode: str = "chat"
+    ) -> dict[str, Any]:
         user_id = user.id
         stream = ChatTurnStream(user_id, turn_id)
         stream.stage("planning")
@@ -469,7 +481,8 @@ class ChatService:
             if not conversation:
                 raise ChatConversationNotFoundError
 
-        history = cls._history_payload(conversation)
+        history = cls._history_payload(conversation, user_id)
+        history_dependencies = cls._history_dependencies(conversation, user_id)
         catalog = FilterData.get_assess_filterlists(user=user)
         recent_results = cls._recent_result_references(history, user)
         settings = Settings.get_settings()
@@ -485,54 +498,90 @@ class ChatService:
             "latest_message": content,
         }
         input_items = [{"role": "user", "content": json.dumps(context, ensure_ascii=False, default=str)}]
-        response = client.create_response(input_items, stream.add, search=True)
+        hrag_result = None
         search_result = None
-        calls = [item for item in response.get("output", []) if item.get("type") == "function_call"]
-        if calls:
-            call = calls[0]
-            filters = cls._search_filters(call.get("arguments"), catalog, {item["id"] for item in recent_results})
-            stream.content = ""
-            stream.stage("searching")
-            query_params = cls._query_params(filters, timezone_name)
-            search_args: dict[str, Any] = {**query_params, "limit": settings["chat_max_stories"], "offset": 0}
-            search_user = User.get(user_id)
-            if not search_user:
-                raise ChatConversationNotFoundError
-            stories, counts = Story.get_by_filter(search_args, search_user)
-            story_context = [cls._story_context(story) for story in stories]
-            total_count = counts.get("total_count", len(stories)) if counts else len(stories)
-            search_result = {
-                "filters": query_params,
-                "total_count": total_count,
-                "story_ids": [story["id"] for story in stories],
-            }
-            db.session.rollback()
-            if not stories:
-                answer = no_results_answer
-                stream.stage("answering")
+        if mode == "hrag":
+            from llm_bot.tasks.evidence import SYNTHESIS_PROMPT
+            from models.hrag import EvidenceReference
+
+            from core.service.hrag.retrieval import reauthorize, retrieve
+
+            hrag_result = retrieve(context, user_id, settings, deadline, stream)
+            references = [
+                EvidenceReference.model_validate(e.model_dump(include=set(EvidenceReference.model_fields))) for e in hrag_result.evidence
+            ]
+            hrag_result.evidence = reauthorize(references, user_id, hrag_result.filters)
+            stream.stage("answering")
+            if not hrag_result.evidence:
+                answer = "Insufficient indexed evidence to answer this question."
                 stream.add(answer)
             else:
-                stream.stage("answering")
-                input_items.extend(response["output"])
-                input_items.append(
-                    {
-                        "type": "function_call_output",
-                        "call_id": call["call_id"],
-                        "output": json.dumps(
-                            {
-                                "applied_filters": query_params,
-                                "total_count": total_count,
-                                "stories": story_context,
-                            },
-                            ensure_ascii=False,
-                        ),
-                    }
+                # Recheck saved evidence after retrieval, immediately before synthesis.
+                current_conversation = ChatConversation.get_for_user(conversation_id, user_id) if conversation_id else None
+                history = cls._history_payload(current_conversation, user_id)
+                synthesis = {"conversation": history, "latest_message": content, "retrieval": hrag_result.model_dump()}
+                db.session.rollback()
+                answer = client.output_text(
+                    client.create_response(
+                        [{"role": "user", "content": json.dumps(synthesis, ensure_ascii=False)}], stream.add, prompt=SYNTHESIS_PROMPT
+                    )
                 )
-                response = client.create_response(input_items, stream.add)
-                answer = client.output_text(response)
+            current = reauthorize(references, user_id, hrag_result.filters)
+            if len(current) != len(hrag_result.evidence):
+                raise ChatProviderError("Evidence changed during this turn; retry the question")
         else:
-            answer = client.output_text(response)
+            response = client.create_response(input_items, stream.add, search=True)
+            search_result = None
+            calls = [item for item in response.get("output", []) if item.get("type") == "function_call"]
+            if calls:
+                call = calls[0]
+                filters = cls._search_filters(call.get("arguments"), catalog, {item["id"] for item in recent_results})
+                stream.content = ""
+                stream.stage("searching")
+                query_params = cls._query_params(filters, timezone_name)
+                search_args: dict[str, Any] = {**query_params, "limit": settings["chat_max_stories"], "offset": 0}
+                search_user = User.get(user_id)
+                if not search_user:
+                    raise ChatConversationNotFoundError
+                stories, counts = Story.get_by_filter(search_args, search_user)
+                story_context = [cls._story_context(story) for story in stories]
+                total_count = counts.get("total_count", len(stories)) if counts else len(stories)
+                search_result = {
+                    "filters": query_params,
+                    "total_count": total_count,
+                    "story_ids": [story["id"] for story in stories],
+                }
+                db.session.rollback()
+                if not stories:
+                    answer = no_results_answer
+                    stream.stage("answering")
+                    stream.add(answer)
+                else:
+                    stream.stage("answering")
+                    input_items.extend(response["output"])
+                    input_items.append(
+                        {
+                            "type": "function_call_output",
+                            "call_id": call["call_id"],
+                            "output": json.dumps(
+                                {
+                                    "applied_filters": query_params,
+                                    "total_count": total_count,
+                                    "stories": story_context,
+                                },
+                                ensure_ascii=False,
+                            ),
+                        }
+                    )
+                    response = client.create_response(input_items, stream.add)
+                    answer = client.output_text(response)
+            else:
+                answer = client.output_text(response)
+        if history_dependencies:
+            from core.service.hrag.retrieval import reauthorize
 
+            if len(reauthorize(history_dependencies, user_id)) != len(history_dependencies):
+                raise ChatProviderError("Conversation evidence changed during this turn")
         client.remaining_time()
         conversation = ChatConversation.get_for_user(conversation_id, user_id) if conversation_id else None
         if conversation_id and not conversation:
@@ -549,9 +598,22 @@ class ChatService:
         )
         client.remaining_time()
         conversation.updated = ChatConversation.utcnow()
+        if hrag_result is not None or history_dependencies:
+            from core.model.hrag import HragMessage
+            from core.service.hrag.retrieval import reference_metadata
+
+            db.session.flush()
+            metadata = reference_metadata(hrag_result) if hrag_result is not None else {"references": []}
+            metadata["dependencies"] = [reference.model_dump() for reference in history_dependencies]
+            metadata["mode"] = mode
+            db.session.add(HragMessage.from_dict({"message_id": conversation.messages[-1].id, "metadata_json": metadata}))
+            if mode == "hrag":
+                db.session.add(
+                    HragMessage.from_dict({"message_id": conversation.messages[-2].id, "metadata_json": {"references": [], "mode": mode}})
+                )
         db.session.commit()
         stream.complete()
-        return conversation.to_detail_dict()
+        return cls._conversation_detail(conversation, user_id)
 
     @staticmethod
     @contextmanager
@@ -592,13 +654,56 @@ class ChatService:
             return "Keine passenden Stories gefunden."
         return "No matching stories found."
 
+    @classmethod
+    def _conversation_detail(cls, conversation: ChatConversation, user_id: str) -> dict:
+        from core.model.hrag import HragMessage
+        from core.service.hrag.retrieval import display_result
+
+        detail = conversation.to_detail_dict()
+        for message in detail["messages"]:
+            saved = db.session.get(HragMessage, message["id"])
+            if saved is None:
+                continue
+            metadata = saved.metadata_json
+            result = display_result(metadata, user_id)
+            message["mode"] = metadata.get("mode", "hrag")
+            if message["mode"] == "hrag":
+                message["hrag_result"] = result.model_dump()
+            from models.hrag import EvidenceReference
+
+            from core.service.hrag.retrieval import reauthorize
+
+            dependencies = [EvidenceReference.model_validate(value) for value in metadata.get("dependencies", [])]
+            if len(result.evidence) < len(metadata.get("references", [])) or len(reauthorize(dependencies, user_id)) < len(dependencies):
+                message["content"] = "This answer's evidence has changed or is no longer accessible. Ask again for a current answer."
+        return detail
+
     @staticmethod
-    def _history_payload(conversation: ChatConversation | None) -> list[dict[str, Any]]:
+    def _history_dependencies(conversation: ChatConversation | None, user_id: str) -> list:
+        from models.hrag import EvidenceReference
+
+        from core.model.hrag import HragMessage
+        from core.service.hrag.retrieval import reauthorize
+
+        references = {}
+        if conversation:
+            for message in conversation.messages[-CHAT_HISTORY_CONTEXT_MESSAGES:]:
+                if saved := db.session.get(HragMessage, message.id):
+                    for value in [*saved.metadata_json.get("references", []), *saved.metadata_json.get("dependencies", [])]:
+                        reference = EvidenceReference.model_validate(value)
+                        references[reference.model_dump_json()] = reference
+        return [
+            EvidenceReference.model_validate(e.model_dump(include=set(EvidenceReference.model_fields)))
+            for e in reauthorize(list(references.values()), user_id)
+        ]
+
+    @classmethod
+    def _history_payload(cls, conversation: ChatConversation | None, user_id: str) -> list[dict[str, Any]]:
         if not conversation:
             return []
         return [
-            {"role": message.role, "content": message.content, "search_result": message.search_result}
-            for message in conversation.messages[-CHAT_HISTORY_CONTEXT_MESSAGES:]
+            {"role": message["role"], "content": message["content"], "search_result": message["search_result"]}
+            for message in cls._conversation_detail(conversation, user_id)["messages"][-CHAT_HISTORY_CONTEXT_MESSAGES:]
         ]
 
     @staticmethod

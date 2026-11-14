@@ -37,6 +37,8 @@ dependencies = [
     "sentry-sdk[flask]",
     "sentry-sdk[sqlalchemy]",
     "fuzzbite",
+    "neo4j>=6.4.1",
+    "taranis-llm-bot @ https://github.com/taranis-ai/llm-bot/archive/aa37cdfe43ee3e74820a6b478cf5fbdcba30c71b.tar.gz",
 ]
 dynamic = ["version"]
 

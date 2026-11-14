@@ -47,6 +47,56 @@ class TestRBAC:
         assert response.status_code == 200
         assert response.json == [{"name": "10-public", "story_count": 1}, {"name": "11-shared", "story_count": 1}]
 
+    def test_hrag_assertions_require_live_acl_item_tlp_and_every_path_support(self, session):
+        from models.hrag import EvidenceReference
+
+        from core.model.hrag import HragGeneration, HragWork
+        from core.model.news_item_attribute import NewsItemAttribute
+        from core.model.role import Role
+        from core.model.role_based_access import ItemType
+        from core.model.user import User
+        from core.service.hrag.indexing import fingerprint
+        from core.service.hrag.retrieval import authorized_work, evidence_from_reference
+
+        source, _story, item = create_rbac_source_story("hrag-visible")
+        hidden_source, _hidden_story, hidden_item = create_rbac_source_story("hrag-hidden")
+        role = Role.filter_by_name("User")
+        role.tlp_level = TLPLevel.CLEAR
+        user = User.find_by_name("user")
+        grant_acl(role, ItemType.OSINT_SOURCE, source.id)
+        generation = HragGeneration.from_dict(
+            {"id": "security-embedding", "pipeline": "embedding", "config": {"limit": 4000}, "active": True, "cursor": "", "scanned": True}
+        )
+        db.session.add(generation)
+        works = []
+        for news_item in (item, hidden_item):
+            work = HragWork.from_dict(
+                {
+                    "news_item_id": news_item.id,
+                    "generation_id": generation.id,
+                    "fingerprint": fingerprint(news_item, generation),
+                    "status": "ready",
+                    "result": {"embedding": [1, 0, 0]},
+                }
+            )
+            db.session.add(work)
+            works.append(work)
+        db.session.commit()
+        reference = EvidenceReference(citation="V1", work_id=works[0].id, fingerprint=works[0].fingerprint, support_ids=[works[1].graph_key])
+        allowed = authorized_work(user)
+        assert works[0].id in allowed and works[1].id not in allowed
+        assert evidence_from_reference(reference, allowed) is None
+        acl = grant_acl(role, ItemType.OSINT_SOURCE, hidden_source.id)
+        db.session.commit()
+        assert evidence_from_reference(reference, authorized_work(user)) is not None
+        hidden_item.upsert_attribute(NewsItemAttribute("TLP", "red"))
+        db.session.commit()
+        assert evidence_from_reference(reference, authorized_work(user)) is None
+        hidden_item.find_attribute_by_key("TLP").value = "clear"
+        acl.item_id = "revoked"
+        db.session.commit()
+        assert evidence_from_reference(reference, authorized_work(user)) is None
+
     def test_selected_export_requires_read_access_to_every_item(self, client, session, auth_header_user_permissions):
         from core.model.news_item_attribute import NewsItemAttribute
         from core.model.role import Role

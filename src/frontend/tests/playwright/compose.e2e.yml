@@ -11,7 +11,11 @@ services:
       JWT_SECRET_KEY: test_key_for_tests_only_do_not_use
       FLASK_DEBUG: "1"
       DEBUG: "true"
-      SQLALCHEMY_DATABASE_URI: sqlite:////tmp/taranis_ai_test.db
+      SQLALCHEMY_DATABASE_URI: "${TARANIS_E2E_DATABASE_URI:-sqlite:////tmp/taranis_ai_test.db}"
+      HRAG_ENABLED: "${TARANIS_E2E_HRAG_ENABLED:-false}"
+      HRAG_NEO4J_URI: bolt://neo4j:7687
+      HRAG_NEO4J_PASSWORD: hrag-test-password
+      HRAG_EMBEDDING_DIMENSIONS: "3"
       REDIS_URL: redis://redis:6379/0
       REDIS_PASSWORD: ""
       PRE_SEED_PASSWORD_ADMIN: admin
@@ -20,6 +24,7 @@ services:
       PRESERVE_CONTEXT_ON_EXCEPTION: "false"
       REALTIME_ENABLED: "false"
       CHAT_ENABLED: "true"
+      RQ_DEFAULT_JOB_TIMEOUT: "1800"
       SERVER_NAME: localhost
       TARANIS_CORE_SENTRY_DSN: ""
       APPLICATION_ROOT: /
@@ -39,6 +44,12 @@ services:
         condition: service_healthy
       demo-llm:
         condition: service_healthy
+      database:
+        condition: service_healthy
+        required: false
+      neo4j:
+        condition: service_healthy
+        required: false
     healthcheck:
       test:
         [
@@ -49,6 +60,38 @@ services:
       timeout: 3s
       retries: 30
       start_period: 5s
+
+  database:
+    profiles: ["rq"]
+    image: pgvector/pgvector:0.8.7-pg18-trixie
+    environment:
+      POSTGRES_USER: taranis
+      POSTGRES_PASSWORD: test
+      POSTGRES_DB: taranis
+      POSTGRES_INITDB_ARGS: "--locale=C --encoding=UTF8"
+    tmpfs:
+      - /var/lib/postgresql
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "taranis", "-d", "taranis"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  neo4j:
+    profiles: ["rq"]
+    image: neo4j:2026.10.2-community
+    environment:
+      NEO4J_AUTH: neo4j/hrag-test-password
+      NEO4J_server_memory_heap_initial__size: 128m
+      NEO4J_server_memory_heap_max__size: 256m
+      NEO4J_server_memory_pagecache_size: 128m
+    tmpfs:
+      - /data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:7474 || exit 1"]
+      interval: 2s
+      timeout: 3s
+      retries: 60
 
   demo-llm:
     image: ghcr.io/astral-sh/uv:python3.14-trixie-slim
