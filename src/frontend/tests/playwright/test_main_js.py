@@ -1,9 +1,12 @@
 import re
+from datetime import UTC, datetime
 from pathlib import Path
 from urllib.parse import parse_qs, quote, urlparse
 
 import pytest
 from playwright.sync_api import Page, expect
+
+from frontend.views.story_views import _time_from_bounds
 
 
 pytestmark = pytest.mark.e2e_ci
@@ -65,33 +68,44 @@ def load_main_js(page: Page, html: str = '<section id="notification-bar"></secti
     page.add_script_tag(path=str(MAIN_JS_PATH))
 
 
-def test_assess_time_from_stays_within_selected_preset(page: Page):
+def load_assess_navigation_js(page: Page):
     page.route("http://assess.test/**", lambda route: route.fulfill(body="<div></div>", content_type="text/html"))
     page.goto("http://assess.test/frontend/assess")
     page.add_script_tag(path=str(MAIN_JS_PATH.with_name("assess-navigation.js")))
+
+
+def test_assess_time_from_stays_within_selected_preset(page: Page):
+    load_assess_navigation_js(page)
 
     result = page.evaluate("""() => {
         document.body.innerHTML = `
           <select id="preset">
             <option value="">Any time</option>
-            <option value="week" data-min="2026-03-02T00:00" data-max="2026-03-08T23:59">This week</option>
-            <option value="shift" data-min="2026-03-08T00:00" data-max="2026-03-08T23:59">Today (shift)</option>
+            <option value="week">This week</option>
+            <option value="shift">Today (shift)</option>
           </select>
-          <input id="from" type="datetime-local" name="timefrom">`;
+          <input id="from" type="datetime-local" step="1" name="timefrom">`;
         const preset = document.getElementById('preset');
         const from = document.getElementById('from');
         const state = assessTimeFilters();
         state.$refs = { timePreset: preset, timeFrom: from, timeTo: document.createElement('input') };
+        const setNow = (iso) => { state.serverClockOffset = Date.parse(iso) - Date.now(); };
         const snapshot = () => ({
             min: from.getAttribute('min'), max: from.getAttribute('max'),
             value: from.value, name: from.getAttribute('name'), notice: state.timeFromNotice,
         });
 
+        setNow('2026-03-08T23:59:45Z');
         from.value = '2026-03-03T09:00';
         preset.value = 'week';
         state.applyTimeFromBounds();
         const kept = snapshot();
 
+        from.value = '2026-03-08T23:59:30';
+        state.applyTimeFromBounds();
+        const keptSeconds = snapshot();
+
+        from.value = '2026-03-03T09:00';
         preset.value = 'shift';
         state.applyTimeFromBounds();
         const cleared = snapshot();
@@ -101,29 +115,51 @@ def test_assess_time_from_stays_within_selected_preset(page: Page):
         const typedCleared = state.checkTimeFrom();
         const typed = snapshot();
 
+        setNow('2026-03-09T00:10:00Z');
+        preset.value = '';
         state.clearTimeFilters();
-        return { kept, cleared, typedCleared, typed, anyTime: snapshot() };
+        const anyTime = snapshot();
+        from.value = '2026-03-09T00:05';
+        from.setAttribute('name', 'timefrom');
+        preset.value = 'shift';
+        state.applyTimeFromBounds();
+        return { kept, keptSeconds, cleared, typedCleared, typed, anyTime, afterMidnight: snapshot() };
     }""")
 
+    week = {"min": "2026-03-02T00:00:00", "max": "2026-03-08T23:59:59"}
+    shift = {"min": "2026-03-08T00:00:00", "max": "2026-03-08T23:59:59"}
+    notice = "From was cleared because it is outside the selected time period."
     assert result == {
-        "kept": {"min": "2026-03-02T00:00", "max": "2026-03-08T23:59", "value": "2026-03-03T09:00", "name": "timefrom", "notice": ""},
-        "cleared": {
-            "min": "2026-03-08T00:00",
-            "max": "2026-03-08T23:59",
-            "value": "",
-            "name": None,
-            "notice": "From was cleared because it is outside the selected time period.",
-        },
+        "kept": {**week, "value": "2026-03-03T09:00", "name": "timefrom", "notice": ""},
+        "keptSeconds": {**week, "value": "2026-03-08T23:59:30", "name": "timefrom", "notice": ""},
+        "cleared": {**shift, "value": "", "name": None, "notice": notice},
         "typedCleared": True,
-        "typed": {
-            "min": "2026-03-08T00:00",
-            "max": "2026-03-08T23:59",
-            "value": "",
-            "name": None,
-            "notice": "From was cleared because it is outside the selected time period.",
-        },
+        "typed": {**shift, "value": "", "name": None, "notice": notice},
         "anyTime": {"min": None, "max": None, "value": "", "name": None, "notice": ""},
+        "afterMidnight": {
+            "min": "2026-03-09T00:00:00",
+            "max": "2026-03-09T23:59:59",
+            "value": "2026-03-09T00:05",
+            "name": "timefrom",
+            "notice": "",
+        },
     }
+
+
+@pytest.mark.parametrize("now", ["2026-03-08T23:59:45.250000", "2026-12-31T08:15:00.000001", "2024-02-29T00:00:00"])
+def test_assess_time_from_bounds_match_core_presets(page: Page, now: str):
+    load_assess_navigation_js(page)
+    presets = ["shift", "24h", "day", "week", "month", "last7", "last0"]
+    now_dt = datetime.fromisoformat(now)
+    now_ms = int(now_dt.replace(tzinfo=UTC).timestamp() * 1000)
+    now_at_ms = now_dt.replace(microsecond=now_dt.microsecond // 1000 * 1000)  # JS clocks have millisecond precision
+
+    js_bounds = page.evaluate(
+        "([presets, nowMs]) => Object.fromEntries(presets.map((preset) => [preset, assessTimeFromBounds(preset, nowMs)]))",
+        [presets, now_ms],
+    )
+
+    assert js_bounds == {preset: _time_from_bounds(preset, now_at_ms) for preset in presets}
 
 
 def test_vendor_bundle_uses_htmx_4(page: Page):

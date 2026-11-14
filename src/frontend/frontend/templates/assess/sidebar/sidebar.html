@@ -9,8 +9,7 @@
 {% set current_preset = request_args.get('range', ['']) | first %}
 {% set time_from = request_args.get('timefrom', ['']) | first %}
 {% set time_to = request_args.get('timeto', ['']) | first %}
-{% set from_bounds = time_preset_from_bounds | default({}) %}
-{% set current_from_bounds = from_bounds.get(current_preset, {}) %}
+{% set current_from_bounds = time_from_bounds | default({}) %}
 {% set highlight = current_user.profile.highlight | default(false) %}
 {% set show_week_chart = current_user.profile.show_charts %}
 {% set compact_view = current_user.profile.compact_view %}
@@ -39,6 +38,7 @@
 <div class="p-4">
   <form id="assess-sidebar"
         x-data="assessTimeFilters"
+        data-now="{{ time_filter_now_ms | default('') }}"
         @htmx:after:request="if ($event.detail.ctx.response.status >= 400) restoreTimeFilters(); else timeClearPending = false"
         action="{{ base_url }}"
         method="get"
@@ -123,10 +123,7 @@
               hidden
               {% if not current_preset and (time_from or time_to) %}selected{% endif %}>Custom dates</option>
       {% for value, label in time_presets.items() %}
-        <option value="{{ value }}"
-                data-min="{{ from_bounds.get(value, {}).get('min', '') }}"
-                data-max="{{ from_bounds.get(value, {}).get('max', '') }}"
-                {% if current_preset == value %}selected{% endif %}>{{ label }}</option>
+        <option value="{{ value }}" {% if current_preset == value %}selected{% endif %}>{{ label }}</option>
       {% endfor %}
     </select>
     <details {% if time_from or time_to %}open{% endif %}>
@@ -139,6 +136,7 @@
                  x-ref="timeFrom"
                  name="timefrom"
                  value="{{ time_from }}"
+                 step="1"
                  {% if current_from_bounds.min %}min="{{ current_from_bounds.min }}"{% endif %}
                  {% if current_from_bounds.max %}max="{{ current_from_bounds.max }}"{% endif %}
                  aria-describedby="assess-time-from-notice"

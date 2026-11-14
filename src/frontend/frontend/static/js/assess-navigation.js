@@ -1,10 +1,42 @@
+const ASSESS_DAY_MS = 86_400_000;
+
+// Mirrors models.assess.assess_range_bounds: UTC start and exclusive calendar end (null when rolling) in epoch ms.
+function assessRangeBounds(range, nowMs) {
+  const now = new Date(nowMs);
+  const midnight = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  if (range === "24h") return [nowMs - ASSESS_DAY_MS, null];
+  if (/^last\d+$/.test(range)) return [nowMs - Number(range.slice(4)) * ASSESS_DAY_MS, null];
+  if (range === "day") return [midnight - ASSESS_DAY_MS, null];
+  if (range === "week") {
+    const start = midnight - ((now.getUTCDay() + 6) % 7) * ASSESS_DAY_MS;
+    return [start, start + 7 * ASSESS_DAY_MS];
+  }
+  if (range === "month") {
+    return [Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1), Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1)];
+  }
+  return [midnight, midnight + ASSESS_DAY_MS];
+}
+
+// Datetime-local min/max (UTC clock, second precision) that keep From inside a preset; empty without a preset.
+function assessTimeFromBounds(range, nowMs) {
+  if (!range) return {};
+  const [start, end] = assessRangeBounds(range, nowMs);
+  const format = (ms) => new Date(ms).toISOString().slice(0, 19);
+  return { min: format(Math.ceil(start / 1000) * 1000), max: end === null ? "" : format(end - 1000) };
+}
+
 function assessTimeFilters() {
   return {
     timeClearPending: false,
     timeFromNotice: "",
+    serverClockOffset: 0,
+    init() {
+      const renderedAt = Number(this.$el.dataset.now);
+      if (renderedAt) this.serverClockOffset = renderedAt - Date.now();
+    },
     applyTimeFromBounds() {
       const input = this.$refs.timeFrom;
-      const bounds = this.$refs.timePreset.selectedOptions[0]?.dataset ?? {};
+      const bounds = assessTimeFromBounds(this.$refs.timePreset.value, Date.now() + this.serverClockOffset);
       for (const attribute of ["min", "max"]) {
         if (bounds[attribute]) input.setAttribute(attribute, bounds[attribute]);
         else input.removeAttribute(attribute);
