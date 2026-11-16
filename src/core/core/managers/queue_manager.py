@@ -54,7 +54,7 @@ from redis.maint_notifications import MaintNotificationsConfig
 from rq import Queue
 from rq.exceptions import NoSuchJobError
 from rq.job import Dependency, Job, JobStatus
-from rq.registry import DeferredJobRegistry, ScheduledJobRegistry, StartedJobRegistry
+from rq.registry import DeferredJobRegistry, ReadyJobRegistry, ScheduledJobRegistry, StartedJobRegistry
 from sqlalchemy import select
 
 from core.config import Config
@@ -1236,10 +1236,12 @@ class QueueManager:
 
     @staticmethod
     def _pending_job_ids(queue: Queue) -> set[str]:
+        # Read jobs in promotion order and leave ready-job recovery to RQ workers.
         return (
-            set(queue.get_job_ids())
-            | set(ScheduledJobRegistry(queue=queue).get_job_ids())
+            set(ScheduledJobRegistry(queue=queue).get_job_ids())
             | set(DeferredJobRegistry(queue=queue).get_job_ids())
+            | set(ReadyJobRegistry(queue=queue).get_job_ids(cleanup=False))
+            | set(queue.get_job_ids())
         )
 
     def _live_jobs(self, *, running: bool, pending: bool, user_id: str | None = None) -> list[Job]:
@@ -1252,7 +1254,7 @@ class QueueManager:
 
         statuses = set()
         if pending:
-            statuses.update({JobStatus.QUEUED, JobStatus.SCHEDULED, JobStatus.DEFERRED})
+            statuses.update({JobStatus.QUEUED, JobStatus.SCHEDULED, JobStatus.DEFERRED, JobStatus.READY_TO_ENQUEUE})
         if running:
             statuses.add(JobStatus.STARTED)
         job_ids = set()

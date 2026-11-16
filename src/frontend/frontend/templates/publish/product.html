@@ -228,7 +228,9 @@
             </fieldset>
             {% if report_access_warning %}
               <input type="hidden" name="auto_publish" value="{{ 'true' if product.auto_publish else 'false' }}">
-              {% if product.default_publisher %}<input type="hidden" name="default_publisher" value="{{ product.default_publisher }}">{% endif %}
+              {% if product.default_publisher %}
+                <input type="hidden" name="default_publisher" value="{{ product.default_publisher }}">
+              {% endif %}
             {% endif %}
           {% endif %}
           <input type="submit"
