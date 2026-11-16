@@ -326,6 +326,8 @@ Scheduler and My Tasks use current, uncached reads on realtime events. Tab navig
 
 Core broadcasts task hints to all affected owner channels in one request, alongside one scheduler broadcast. Queue Failures batches Redis job reads. Scheduler completion notices exclude endpoint probes and retain the newest 500 observations per tab; older unresolved observations are discarded without announcing completion.
 
+Dependent jobs remain visible in Scheduled Jobs and My Tasks while RQ moves them from the deferred registry to the queue.
+
 ### RQ Dashboard
 
 The development setup includes [rq-dashboard](https://github.com/Parallels/rq-dashboard) for monitoring RQ workers and jobs. It provides:
