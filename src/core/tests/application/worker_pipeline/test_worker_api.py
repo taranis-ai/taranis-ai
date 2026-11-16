@@ -1,5 +1,6 @@
 # pyright: reportAttributeAccessIssue=false
 import importlib.util
+import json
 import sys
 import uuid
 from datetime import datetime, timedelta
@@ -7,6 +8,7 @@ from pathlib import Path
 from unittest.mock import Mock
 
 import pytest
+from models.task import MissingTaskResponse, TaskResponse, TaskSubmission
 from sqlalchemy import select
 
 
@@ -18,6 +20,34 @@ def _tag_names(tags: list[dict] | dict[str, dict]) -> set[str]:
 
 def _expected_story_tag_names(story: dict) -> set[str]:
     return {tag["name"] for item in story.get("news_items", []) for tag in item.get("tags", [])}
+
+
+def _assert_task_round_trip(client, api_header, response) -> TaskResponse:
+    assert response.status_code == 200
+    assert response.mimetype == "application/json"
+    payload = response.get_json()
+    assert set(payload) >= {
+        "id",
+        "job_id",
+        "name",
+        "task",
+        "user_id",
+        "worker_id",
+        "worker_type",
+        "result",
+        "status",
+        "last_run",
+        "last_success",
+    }
+    assert set(payload["result"]) >= {"message", "reason", "retryable", "data"}
+    task = TaskResponse.model_validate(payload)
+    for task_id in {task.id, task.job_id}:
+        retrieved = client.get(f"/api/tasks/{task_id}", headers=api_header)
+        assert retrieved.status_code == 200
+        assert retrieved.mimetype == "application/json"
+        assert retrieved.get_json() == payload
+        assert TaskResponse.model_validate(retrieved.get_json()) == task
+    return task
 
 
 class TestWorkerApi:
@@ -497,7 +527,7 @@ class TestWorkerApi:
         try:
             response = client.post("/api/tasks", json=payload, headers=api_header)
 
-            assert response.status_code == 200
+            _assert_task_round_trip(client, api_header, response)
             assert response.get_json()["task"] == "collector_preview"
             assert response.get_json()["result"] == result_payload
 
@@ -911,30 +941,84 @@ class TestWorkerTaskResults:
     @pytest.mark.parametrize(
         ("payload", "expected_error"),
         [
+            ('{"secret":"submitted-secret",', "No data provided"),
+            ('"submitted-secret"', "No data provided"),
+            (None, "No data provided"),
+            ([], "No data provided"),
+            (123, "No data provided"),
             ({"status": "SUCCESS", "result": {"message": "ok", "retryable": False}}, "id"),
             ({"id": "task-1", "result": {"message": "ok", "retryable": False}}, "status"),
             ({"id": 123, "status": "SUCCESS", "result": {"message": "ok", "retryable": False}}, "id"),
             ({"id": "task-1", "status": 123, "result": {"message": "ok", "retryable": False}}, "status"),
             ({"id": "task-1", "status": "SUCCESS"}, "result"),
-            ({"id": "task-1", "status": "SUCCESS", "kwargs": {}}, "result"),
+            ({"id": "task-1", "status": "SUCCESS", "result": {"message": "ok"}, "kwargs": {"secret": "submitted-secret"}}, "kwargs"),
             ({"id": "task-1", "status": "SUCCESS", "result": {"retryable": False}}, "message"),
+            ({"id": " \t", "status": "SUCCESS", "result": {"message": "ok"}}, "id"),
+            ({"task_id": " \t", "status": "SUCCESS", "result": {"message": "ok"}}, "id"),
+            ({"id": "task-1", "status": " \t", "result": {"message": "ok"}}, "status"),
+            ({"id": "task-1", "status": "SUCCESS", "result": ["submitted-secret"]}, "result"),
+            ({"id": "task-1", "status": "SUCCESS", "result": None}, "result"),
+            ({"id": "task-1", "status": "SUCCESS", "result": {"message": "ok", "retryable": "submitted-secret"}}, "retryable"),
+            ({"id": "task-1", "status": "SUCCESS", "task": ["submitted-secret"], "result": {"message": "ok"}}, "task"),
         ],
     )
-    def test_worker_task_results_rejects_missing_or_invalid_required_fields(self, client, api_header, payload, expected_error):
-        response = client.post(self.base_uri, json=payload, headers=api_header)
+    @pytest.mark.parametrize("existing", [False, True], ids=["new-task", "existing-task"])
+    def test_worker_task_results_rejects_missing_or_invalid_required_fields(
+        self, client, api_header, session, redis_client, monkeypatch, payload, expected_error, existing
+    ):
+        from core.managers.realtime_publisher import realtime_publisher
+        from core.model.task import Task
+
+        if existing:
+            Task.add({"id": "task-1", "status": "FAILURE", "result": {"message": "Original result"}})
+        before = [task.to_dict() for task in session.scalars(select(Task).order_by(Task.id))]
+        redis_client.set("taranis_frontend:user:alice:model:task:list:default", "cached tasks")
+        redis_before = {key: redis_client.dump(key) for key in redis_client.scan_iter()}
+        publication = Mock(return_value=True)
+        monkeypatch.setattr(realtime_publisher, "publish", publication)
+
+        body = payload if isinstance(payload, str) else json.dumps(payload)
+        response = client.post(self.base_uri, data=body, headers=api_header)
 
         assert response.status_code == 400
+        assert response.mimetype == "application/json"
+        assert set(response.get_json()) == {"error"}
         assert expected_error in response.get_json()["error"]
+        assert "submitted-secret" not in response.get_data(as_text=True)
+        assert "Traceback" not in response.get_data(as_text=True)
+        session.expire_all()
+        assert [task.to_dict() for task in session.scalars(select(Task).order_by(Task.id))] == before
+        assert {key: redis_client.dump(key) for key in redis_client.scan_iter()} == redis_before
+        publication.assert_not_called()
 
-    def test_worker_task_results_rejects_invalid_task_field(self, client, api_header):
-        response = client.post(
-            self.base_uri,
-            json={"id": "task-1", "task": ["bad"], "result": {"message": "ok", "retryable": False}, "status": "SUCCESS"},
-            headers=api_header,
-        )
+    def test_task_submission_requires_api_key_before_validation(self, client, auth_header, session, redis_client, monkeypatch):
+        from core.managers.realtime_publisher import realtime_publisher
+        from core.model.task import Task
 
-        assert response.status_code == 400
-        assert "task" in response.get_json()["error"]
+        before = [task.to_dict() for task in session.scalars(select(Task).order_by(Task.id))]
+        redis_before = {key: redis_client.dump(key) for key in redis_client.scan_iter()}
+        publication = Mock(return_value=True)
+        monkeypatch.setattr(realtime_publisher, "publish", publication)
+        for headers in ({}, auth_header, {"Authorization": "Bearer submitted-secret"}):
+            for body in (
+                '{"secret":"submitted-secret",',
+                json.dumps({"id": "unauthorized-task", "status": "SUCCESS", "result": {"message": "ok"}}),
+            ):
+                response = client.post(self.base_uri, data=body, headers=headers, content_type="application/json")
+                assert response.status_code == 401
+                assert response.mimetype == "application/json"
+                assert response.get_json() == {"error": "not authorized"}
+        session.expire_all()
+        assert [task.to_dict() for task in session.scalars(select(Task).order_by(Task.id))] == before
+        assert {key: redis_client.dump(key) for key in redis_client.scan_iter()} == redis_before
+        publication.assert_not_called()
+
+    def test_missing_task_returns_pending(self, client, api_header):
+        response = client.get(f"{self.base_uri}/missing-{uuid.uuid4().hex}", headers=api_header)
+        assert response.status_code == 404
+        assert response.mimetype == "application/json"
+        assert response.get_json() == {"status": "PENDING"}
+        assert MissingTaskResponse.model_validate(response.get_json()).status == "PENDING"
 
     def test_worker_task_results_updates_product_render(self, client, api_header, app, cleanup_product):
         from core.model.product import Product
@@ -962,7 +1046,7 @@ class TestWorkerTaskResults:
         try:
             response = client.post(self.base_uri, json=payload, headers=api_header)
 
-            assert response.status_code == 200
+            _assert_task_round_trip(client, api_header, response)
             with app.app_context():
                 product = Product.get(product_id)
                 assert product is not None
@@ -1033,7 +1117,7 @@ class TestWorkerTaskResults:
         try:
             response = client.post(self.base_uri, json=payload, headers=api_header)
 
-            assert response.status_code == 200
+            _assert_task_round_trip(client, api_header, response)
             assert refreshed == [set(stories)]
 
             for story_id in stories:
@@ -1054,32 +1138,50 @@ class TestWorkerTaskResults:
                 if Task.get(task_id):
                     Task.delete(task_id)
 
-    def test_task_submission_accepts_task_id_alias(self, client, api_header, app):
+    @pytest.mark.parametrize(
+        ("id_field", "status", "task_name"),
+        [
+            ("id", "SUCCESS", " collector_task "),
+            ("task_id", "FAILURE", " collector_task "),
+            ("task_id", "PREVIEW", " "),
+            ("id", "custom-status", " "),
+        ],
+    )
+    def test_task_submission_accepts_task_id_alias(self, client, api_header, session, id_field, status, task_name):
         from core.model.task import Task
 
         task_id = f"alias-task-{uuid.uuid4().hex}"
         payload = {
-            "task_id": task_id,
-            "task": "collector_task",
+            id_field: f" {task_id} ",
+            "task": task_name,
             "result": {"message": "ok", "retryable": False, "data": {"source_id": "source-1"}},
-            "status": "SUCCESS",
+            "status": f" {status} ",
         }
+        submission = TaskSubmission.model_validate(payload)
+        assert submission.id == task_id
+        assert submission.status == status
+        assert submission.task == (task_name.strip() or None)
 
-        try:
-            response = client.post(self.base_uri, json=payload, headers=api_header)
-            assert response.status_code == 200
-            assert response.get_json()["job_id"] == task_id
-        finally:
-            with app.app_context():
-                if Task.get(task_id):
-                    Task.delete(task_id)
+        response = client.post(self.base_uri, json=payload, headers=api_header)
+        task = _assert_task_round_trip(client, api_header, response)
+        assert task.job_id == task_id
+        assert task.status == status
+        assert task.task == submission.task
+        assert task.result == submission.result
+        assert task.last_run is not None
+        assert (task.last_success is not None) == (status == "SUCCESS")
+        session.expire_all()
+        stored = Task.get(task_id)
+        assert stored is not None
+        assert stored.to_dict() == response.get_json()
 
-    def test_task_submission_persists_user_id(self, client, api_header, app):
+    def test_task_submission_persists_user_id(self, client, api_header, auth_header, app):
         from core.model.task import Task
 
         task_id = f"user-task-{uuid.uuid4().hex}"
         payload = {
             "id": task_id,
+            "name": "Collect source for user",
             "task": "collector_task",
             "user_id": "user-123",
             "worker_id": "source-1",
@@ -1090,13 +1192,15 @@ class TestWorkerTaskResults:
 
         try:
             response = client.post(self.base_uri, json=payload, headers=api_header)
-            assert response.status_code == 200
+            _assert_task_round_trip(client, auth_header, response)
             assert response.get_json()["user_id"] == "user-123"
+            assert response.get_json()["name"] == payload["name"]
 
             with app.app_context():
                 stored = Task.get(task_id)
                 assert stored is not None
                 assert stored.user_id == "user-123"
+                assert stored.name == payload["name"]
         finally:
             with app.app_context():
                 if Task.get(task_id):
@@ -1337,7 +1441,7 @@ class TestWorkerTaskResults:
 
         try:
             response = client.post(self.base_uri.replace("/worker", "/tasks"), json=payload, headers=api_header)
-            assert response.status_code == 200
+            _assert_task_round_trip(client, api_header, response)
 
             with app.app_context():
                 stored = Task.get(task_id)

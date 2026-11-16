@@ -4,6 +4,8 @@ Load for: Worker-backed actions, queue warnings/priority, task results, `/health
 
 ## Queue and Result Contracts
 
+`POST /api/tasks` validates `TaskSubmission` after API-key authentication, including `id`/`task_id` aliases and whitespace normalization. Worker-pipeline endpoint tests check submissions and `GET /api/tasks/{task_id}` against `TaskResponse`, with required keys even for nullable fields; rejection must leave tasks and Redis unchanged without notifications. Missing tasks return HTTP 404 with `MissingTaskResponse` (`{"status": "PENDING"}`). These response contracts do not add runtime validation hooks.
+
 Task entry points and RQ failure hooks own their HTTP session scope, including result persistence on error. See [HTTP Client Lifetimes](http-clients.md) for cleanup and no-retry service behavior.
 
 - With `QUEUE_ENABLED=false`, core skips queue connections and scheduling; broker/worker health is `n/a` and queue actions are unavailable (503). Source collection/preview and bot execution/chains reject disabled queues before source/bot validation or graph construction. Enabled queues require Redis at startup.
