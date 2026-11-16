@@ -1,9 +1,9 @@
 {% from "macros/table.html" import failure_state_filter, table, table_decoration %}
 
 {% set columns = columns | default([
-  {'title': 'name', 'field': 'name', 'sortable': True, 'renderer': None},
-  {'title': 'description', 'field': 'description', 'sortable': False, 'renderer': None}
-]) %}
+    {'title': 'name', 'field': 'name', 'sortable': True, 'renderer': None},
+    {'title': 'description', 'field': 'description', 'sortable': False, 'renderer': None}
+  ]) %}
 
 {% set actions = actions | default([]) %}
 {% set data = model_plural_name | get_var %}
