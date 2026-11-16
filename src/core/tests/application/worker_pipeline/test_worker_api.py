@@ -454,6 +454,36 @@ class TestWorkerApi:
         assert response.status_code == 200
         assert "timefrom" not in captured_filter
 
+    def test_worker_story_lists_batch_related_data(self, client, stories, api_header):
+        from sqlalchemy import event
+
+        from core.managers.db_manager import db
+
+        query_counts = []
+        returned_ids = []
+        for limit in (1, len(stories)):
+            db.session.expire_all()
+            statements = []
+
+            def collect(_conn, _cursor, statement, _params, _context, _many, collected=statements):
+                if statement.lstrip().upper().startswith("SELECT"):
+                    collected.append(statement)
+
+            event.listen(db.engine, "before_cursor_execute", collect)
+            try:
+                response = client.get(f"{self.base_uri}/stories", headers=api_header, query_string={"story_ids": stories, "limit": limit})
+                assert response.status_code == 200
+                payload = response.get_json()
+                assert len(payload) == limit
+                returned_ids.append([item["id"] for item in payload])
+                query_counts.append(len(statements))
+            finally:
+                event.remove(db.engine, "before_cursor_execute", collect)
+
+        assert set(returned_ids[1]) == set(stories)
+        assert returned_ids[0] == returned_ids[1][:1]
+        assert query_counts[1] <= query_counts[0] + 1, query_counts
+
     def test_post_collection_bots_forwards_user_id(self, client, api_header, monkeypatch):
         captured = {}
 
