@@ -30,4 +30,4 @@ Load for: Playwright stack setup, `--e2e-ci`, Compose service selection, RQ read
 
 From `src/frontend`, minimal-stack smoke targets `tests/playwright/test_e2e_admin.py::TestEndToEndAdmin::test_login`; full-stack smoke targets `tests/playwright/test_e2e_rq_tasks.py`. Run with `uv run pytest <target> --e2e-ci`. Render `tests/playwright/compose.e2e.yml` both with and without `--profile rq` when changing service selection. Feature signoff remains the [full pipeline](development-workflow.md#feature-signoff-loop).
 
-The Chat workflow backfills synthetic content with the scripted provider, switches Chat/HRAG within one conversation, checks both citation panels and reloads history against the real graph/vector stores. Provider fixtures contain no private articles.
+The Chat workflow backfills synthetic content with the scripted provider, waits for and activates its own model generations independently of earlier admin backfills, switches Chat/HRAG within one conversation, checks both citation panels and reloads history against the real graph/vector stores. Provider fixtures contain no private articles.

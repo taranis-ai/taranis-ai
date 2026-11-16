@@ -1,7 +1,7 @@
 import re
 import time
 from datetime import UTC, datetime, timedelta
-from urllib.parse import urlencode, urlparse
+from urllib.parse import urlparse
 from uuid import uuid4
 
 import pytest
@@ -19,6 +19,7 @@ def demo_chat_provider(core_request_client):
 
     allow_requests_passthru()
     settings = core_request_client.json_request("GET", "/settings/settings")["items"][0]["settings"]
+    model = f"hrag-demo-{uuid4().hex}"
     endpoint = core_request_client.json_request(
         "POST",
         "/settings/llm-endpoints",
@@ -26,7 +27,7 @@ def demo_chat_provider(core_request_client):
             "name": "Landing page demo",
             "base_url": "http://demo-llm:8080/v1",
             "enabled": True,
-            "api_formats": {"responses": {}, "embeddings": {"model": "demo"}},
+            "api_formats": {"responses": {"model": model}, "embeddings": {"model": model}},
         },
     )
     news_item_ids = []
@@ -66,15 +67,18 @@ def demo_chat_provider(core_request_client):
         core_request_client.post("/settings/hrag", json_data={"action": "backfill"})
         deadline = time.monotonic() + 120
         while time.monotonic() < deadline:
-            state = core_request_client.json_request("GET", "/settings/hrag?" + urlencode({"news_item_id": news_item_ids}, doseq=True))
-            if len(state["generations"]) >= 2 and all(
-                g["scanned"] and g["counts"].get("ready", 0) == len(news_item_ids) and set(g["counts"]) <= {"ready"}
-                for g in state["generations"]
+            state = core_request_client.json_request("GET", "/settings/hrag")
+            generations = [generation for generation in state["generations"] if generation["model"] == model]
+            if len(generations) == 2 and all(
+                g["scanned"] and g["counts"].get("ready", 0) >= len(news_item_ids) and set(g["counts"]) <= {"ready"} for g in generations
             ):
                 break
             time.sleep(0.5)
         else:
             pytest.fail("HRAG backfill did not complete")
+        for generation in generations:
+            if not generation["active"]:
+                core_request_client.post("/settings/hrag", json_data={"action": "activate", "generation_id": generation["id"]})
         yield story_ids
     finally:
         try:
