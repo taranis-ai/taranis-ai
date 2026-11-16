@@ -32,7 +32,7 @@ class ReportEditor(MethodView):
 class ReportStories(MethodView):
     @auth_required("ANALYZE_ACCESS")
     def get(self, report_item_id: str):
-        return report_item.ReportItem.get_story_ids(report_item_id)
+        return report_item.ReportItem.get_story_ids(report_item_id, current_user)
 
     @auth_required("ANALYZE_UPDATE")
     def put(self, report_item_id: str):
