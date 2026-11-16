@@ -56,7 +56,7 @@ class TestAnalyzeApi(BaseTest):
         try:
             full = self.assert_get_ok(client, f"report-items/{report_id}", auth_header).get_json()
             editor = self.assert_get_ok(client, f"report-editors/{report_id}", auth_header).get_json()
-            full["stories"] = [{key: story[key] for key in ("id", "title", "summary", "important", "links")} for story in full["stories"]]
+            editor["stories"] = [{key: story[key] for key in ("id", "title", "links")} for story in editor["stories"]]
             assert editor == full
             response = client.get(self.concat_url(f"report-editors/{uuid4()}"), headers=auth_header)
             assert response.status_code == 404

@@ -91,10 +91,18 @@ class ReportItem(BaseModel):
         return item.to_detail_dict(), 200
 
     @classmethod
-    def get_story_ids(cls, item_id: str) -> tuple[dict[str, Any], int]:
-        if report_item := cls.get(item_id):
-            return {"report": {"story_ids": [story.id for story in report_item.stories]}}, 200
-        return {"error": "Report Item not found"}, 404
+    def get_story_ids(cls, item_id: str, user: User | None = None) -> tuple[dict[str, Any], int]:
+        report_item = cls.get(item_id)
+        if not report_item:
+            return {"error": "Report Item not found"}, 404
+        if user and not report_item.access_allowed(user, False):
+            return {"error": "User is not allowed to read report"}, 403
+        story_ids = [story.id for story in report_item.stories]
+        if user:
+            visible_stories, _ = Story.get_visible_bulk(story_ids, user)
+            visible_ids = {story.id for story in visible_stories}
+            story_ids = [story_id for story_id in story_ids if story_id in visible_ids]
+        return {"report": {"story_ids": story_ids}}, 200
 
     @classmethod
     def get_detail_json(cls, id: str) -> dict[str, Any] | None:
@@ -202,7 +210,7 @@ class ReportItem(BaseModel):
         data = super().to_dict()
         attributes = self.get_attribute_dict()
         data["grouped_attributes"] = self.get_grouped_attributes(attributes)
-        data["stories"] = [story.to_dict() for story in self.stories if story]
+        data["stories"] = [story.to_report_dict() for story in self.stories if story]
         data["used_story_ids"] = self._get_used_story_ids(self.attributes or [])
         data["revision_count"] = self.get_revision_count()
         return data
@@ -382,6 +390,7 @@ class ReportItem(BaseModel):
         if not sanitized_data:
             return {"error": "Invalid data"}, 400
 
+        story_ids = sanitized_data.pop("stories", None)
         report_item = cls.from_dict(sanitized_data)
 
         if user:
@@ -389,6 +398,12 @@ class ReportItem(BaseModel):
                 return {"error": "User is not allowed to create report"}, 403
 
             report_item.user_id = user.id
+
+        if story_ids:
+            initial_stories, missing_story_ids = Story.get_visible_bulk(story_ids, user)
+            if user and missing_story_ids:
+                return cls._stories_not_found_error(missing_story_ids)
+            report_item.stories = initial_stories
         report_item.add_attributes()
 
         db.session.add(report_item)
@@ -526,14 +541,33 @@ class ReportItem(BaseModel):
 
         return report_item, {}, 200
 
+    @staticmethod
+    def _stories_not_found_error(story_ids: list[str]) -> tuple[dict[str, Any], int]:
+        # Unknown and inaccessible stories get the same answer, so this can't be used to probe for hidden stories.
+        return {"error": "One or more stories were not found", "story_ids": story_ids}, 404
+
+    def _resolve_stories_to_attach(self, story_ids: list[str], user: User | None) -> tuple[list[Story], list[str]]:
+        """Resolve stories that are not yet part of this report, considering the user's story ACL/TLP visibility.
+
+        Stories already attached to the report are skipped, so editing a report that contains
+        stories the current user cannot see does not fail; only newly attached stories must be visible.
+        """
+        existing_story_ids = {story.id for story in self.stories}
+        new_story_ids = [story_id for story_id in story_ids if story_id not in existing_story_ids]
+        return Story.get_visible_bulk(new_story_ids, user)
+
     @classmethod
     def add_stories(cls, report_id: str, story_ids: list[str], user: User) -> tuple[dict, int]:
         report_item, err, status = cls.get_report_item_and_check_permission(report_id, user)
         if err or not report_item:
             return err, status
 
-        existing_story_ids = {story.id for story in report_item.stories}
-        stories = [story for story in Story.get_bulk(story_ids) if story.id not in existing_story_ids]
+        normalized_ids = cls._extract_story_ids(story_ids)
+        if normalized_ids is None:
+            return {"error": "stories must be a list of story ids"}, 400
+        stories, missing_story_ids = report_item._resolve_stories_to_attach(normalized_ids, user)
+        if missing_story_ids:
+            return cls._stories_not_found_error(missing_story_ids)
         report_item.stories.extend(stories)
         ReportStorySyncService.sync_report_membership(report_item, stories, "attach")
         report_item.record_revision(user, note="add_stories")
@@ -561,16 +595,18 @@ class ReportItem(BaseModel):
     @classmethod
     def set_stories(cls, report_id: str, story_ids: list, user: User) -> tuple[dict, int]:
         new_report, status = cls.update_report_item(report_id, {"story_ids": story_ids}, user)
+        if status != 200:
+            return new_report, status
         return {"message": "Successfully updated Report Item", "report": new_report}, status
 
-    def update_stories(self, story_ids: list[str]):
-        new_stories = Story.get_bulk(story_ids)
+    def update_stories(self, story_ids: list[str], stories_to_add: list[Story] | None = None):
+        """ Replace the report's stories with `story_ids`.
+        """
+        if stories_to_add is None:
+            stories_to_add, _ = self._resolve_stories_to_attach(story_ids, None)
         new_story_ids_set = set(story_ids)
 
-        existing_story_ids_set = {story.id for story in self.stories}
-
-        # Identify stories to add and remove
-        stories_to_add = [story for story in new_stories if story.id not in existing_story_ids_set]
+        # Identify stories to remove
         stories_to_remove = [story for story in self.stories if story.id not in new_story_ids_set]
 
         # Add new stories and their tags
@@ -596,6 +632,18 @@ class ReportItem(BaseModel):
             return err, status
         affected_stories = list(report_item.stories)
 
+        # Validate stories before mutating anything, so a rejected request leaves the report untouched.
+        normalized_story_ids: list[str] | None = None
+        stories_to_attach: list[Story] = []
+        story_ids = data.get("story_ids", data.get("stories"))
+        if story_ids is not None:
+            normalized_story_ids = cls._extract_story_ids(story_ids)
+            if normalized_story_ids is None:
+                return {"error": "stories must be a list of story ids"}, 400
+            stories_to_attach, missing_story_ids = report_item._resolve_stories_to_attach(normalized_story_ids, user)
+            if missing_story_ids:
+                return cls._stories_not_found_error(missing_story_ids)
+
         if title := data.get("title"):
             retag_stories = True
             report_item.title = title
@@ -607,12 +655,8 @@ class ReportItem(BaseModel):
         if attributes_data := data.pop("attributes", None):
             report_item.update_attributes(attributes_data)
 
-        story_ids = data.get("story_ids", data.get("stories"))
-        if story_ids is not None:
-            normalized_ids = cls._extract_story_ids(story_ids)
-            if normalized_ids is None:
-                return {"error": "stories must be a list of story ids"}, 400
-            report_item.update_stories(normalized_ids)
+        if normalized_story_ids is not None:
+            report_item.update_stories(normalized_story_ids, stories_to_attach)
 
         if retag_stories:
             report_item.retag_stories()

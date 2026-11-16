@@ -5,6 +5,7 @@ from unittest.mock import DEFAULT, Mock, call
 import pytest
 from models.scheduler import ScheduledJob
 from redis.exceptions import AuthenticationError, AuthorizationError, BusyLoadingError, ConnectionError, TimeoutError
+from rq.job import JobStatus
 from rq.registry import ScheduledJobRegistry
 
 from core.managers.queue_manager import QueueManager
@@ -20,9 +21,23 @@ def test_get_scheduled_jobs_includes_cleanup_cron(app, redis_client, monkeypatch
     queue = queue_manager.get_queue("bots")
     queued = queue.enqueue("worker.bots.bot_tasks.bot_task")
     scheduled = queue.enqueue_at(datetime.now(UTC) + timedelta(minutes=1), "worker.bots.bot_tasks.bot_task")
+    presenters = queue_manager.get_queue("presenters")
+    presenter = presenters.enqueue("worker.presenters.presenter_tasks.presenter_task")
+    publishers = queue_manager.get_queue("publishers")
+    publisher = publishers.enqueue("worker.publishers.publisher_tasks.publisher_task", depends_on=presenter, meta={"user_id": "test-owner"})
+
+    # Commit dependency release without draining the ready registry, as after an interrupted worker.
+    presenters.remove(presenter)
+    presenter.set_status(JobStatus.FINISHED)
 
     with app.app_context():
+        pending_count = queue_manager.get_scheduled_job_count()
+        assert presenters.move_dependents_to_ready(presenter) == {"publishers": [publisher.id]}
         schedules, status = QueueManager.get_scheduled_jobs(queue_manager, {})
+        assert queue_manager.get_scheduled_job_count() == pending_count
+        assert [(job["id"], job["status"]) for job in queue_manager.get_user_live_tasks("test-owner")] == [(publisher.id, "QUEUED")]
+
+    assert publisher.get_status() == JobStatus.READY_TO_ENQUEUE
 
     assert status == 200
     items = schedules.get("items", [])
@@ -41,7 +56,7 @@ def test_get_scheduled_jobs_includes_cleanup_cron(app, redis_client, monkeypatch
     assert history_cleanup_job.get("type") == "cron"
     assert isinstance(history_cleanup_job.get("next_run_time"), str)
 
-    assert {queued.id, scheduled.id} <= {job["id"] for job in items}
+    assert {queued.id, scheduled.id, publisher.id} <= {job["id"] for job in items}
     get_scheduled_time = ScheduledJobRegistry.get_scheduled_time
 
     def promote_before_read(registry, job_id):

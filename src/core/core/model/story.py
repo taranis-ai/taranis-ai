@@ -886,6 +886,25 @@ class Story(BaseModel):
     def allowed_to_read(self, user: User) -> bool:
         return db.session.execute(self.visible_query(user).where(Story.id == self.id)).scalar() is not None
 
+    @classmethod
+    def get_visible_bulk(cls, story_ids: list[str], user: User | None) -> tuple[list["Story"], list[str]]:
+        """Resolve story ids, applying ACL and TLP filters when a user is given.
+
+        Returns the resolved stories (deduplicated, in request order) and the ids that
+        were not found or are not visible to the user. Both cases are reported the
+        same way so callers cannot be used to probe for hidden stories.
+        """
+        unique_ids = list(dict.fromkeys(story_ids))
+        if not unique_ids:
+            return [], []
+        query = db.select(cls).where(cls.id.in_(unique_ids))
+        if user is not None:
+            query = cls.visible_query(user, query)
+        stories_by_id = {story.id: story for story in db.session.execute(query).scalars().all()}
+        stories = [stories_by_id[story_id] for story_id in unique_ids if story_id in stories_by_id]
+        missing = [story_id for story_id in unique_ids if story_id not in stories_by_id]
+        return stories, missing
+
     def allowed_to_update(self, user: User, writable_sources: set[str | None] | None = None) -> bool:
         accessible_tlps = user.get_highest_tlp().get_accessible_levels()
         return (
@@ -1559,6 +1578,10 @@ class Story(BaseModel):
         data["in_reports_count"] = ReportItemStory.count(self.id)
         data["revision_count"] = self.get_revision_count()
         return data
+
+    def to_report_dict(self) -> dict[str, Any]:
+        """Minimal representation embedded in report payloads: no news item content, sources or attributes."""
+        return {"id": self.id, "title": self.title, "links": self.links}
 
     def to_export_dict(self) -> dict[str, Any]:
         data = self.to_dict()
