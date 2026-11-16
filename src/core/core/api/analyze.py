@@ -105,14 +105,15 @@ class ReportItem(MethodView):
             logger.debug("No data in request")
             return {"error": "No data in request"}, 400
         updated_report, status = report_item.ReportItem.update_report_item(report_item_id, request_data, current_user)
-        if status == 200:
-            realtime_publisher.report_item_changed(report_item_id, current_user.organization_id)
-            ProductService.autopublish_product(report_item_id, user_id=current_user.id)
-            invalidate_frontend_cache_on_success(
-                status,
-                scopes=(SCOPE_REPORT_VIEWS, SCOPE_PUBLISH_VIEWS),
-                object_ids={"report": report_item_id},
-            )
+        if status != 200:
+            return make_response(jsonify(updated_report), status)
+        realtime_publisher.report_item_changed(report_item_id, current_user.organization_id)
+        ProductService.autopublish_product(report_item_id, user_id=current_user.id)
+        invalidate_frontend_cache_on_success(
+            status,
+            scopes=(SCOPE_REPORT_VIEWS, SCOPE_PUBLISH_VIEWS),
+            object_ids={"report": report_item_id},
+        )
 
         return make_response(jsonify({"message": "Report item updated", "id": updated_report.get("id"), "report": updated_report}), status)
 
