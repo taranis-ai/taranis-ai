@@ -1,0 +1,69 @@
+<section id="settings-hrag-index" class="mt-6 border-t border-base-300 pt-5" aria-labelledby="settings-hrag-heading">
+  <h3 id="settings-hrag-heading" class="font-semibold">HRAG indexing</h3>
+  <p class="mt-2 text-sm text-base-content/70">
+    Index collected content for graph evidence and semantic search. Existing, unchanged results are reused.
+    Automatic indexing and retries require the scheduler to be running.
+  </p>
+  {% if hrag_notification %}
+    <p class="alert mt-3 {% if hrag_notification.error %}alert-error{% else %}alert-info{% endif %}"
+       role="status">{{ hrag_notification.message }}</p>
+  {% endif %}
+  <div class="my-4 flex flex-wrap items-center gap-3">
+    {% if hrag_status and hrag_status.enabled %}
+      <form method="post"
+            action="{{ url_for('admin_settings.hrag_indexing') }}"
+            hx-post="{{ url_for('admin_settings.hrag_indexing') }}"
+            hx-target="#settings-hrag-index"
+            hx-select="#settings-hrag-index"
+            hx-swap="outerHTML"
+            hx-status:4xx="target:#settings-hrag-index"
+            hx-status:5xx="target:#settings-hrag-index"
+            hx-disable="button">
+        <input type="hidden" name="csrf_token" value="{{ request.cookies.get(config['JWT_ACCESS_CSRF_COOKIE_NAME'], '') }}">
+        <button type="submit" class="btn btn-primary btn-sm" data-testid="settings-hrag-start">Start indexing</button>
+      </form>
+    {% endif %}
+    <a href="{{ url_for('admin_settings.hrag_indexing') }}"
+       hx-get="{{ url_for('admin_settings.hrag_indexing') }}"
+       hx-target="#settings-hrag-index"
+       hx-select="#settings-hrag-index"
+       hx-swap="outerHTML"
+       class="btn btn-outline btn-sm"
+       data-testid="settings-hrag-refresh">Refresh status</a>
+  </div>
+  {% if hrag_status is none %}
+    <p class="text-sm" role="status">HRAG indexing status is unavailable. Check the Core connection and try refreshing.</p>
+  {% elif not hrag_status.enabled %}
+    <p class="text-sm" role="status">HRAG is disabled on the server.</p>
+  {% elif not hrag_status.generations %}
+    <p class="text-sm" role="status">No indexing generations yet. Start indexing to build the first index.</p>
+  {% else %}
+    <div class="overflow-x-auto">
+      <table class="table table-sm" data-testid="settings-hrag-status">
+        <caption class="sr-only">HRAG indexing progress by pipeline and generation</caption>
+        <thead>
+          <tr>
+            <th scope="col">Pipeline</th>
+            <th scope="col">Model</th>
+            <th scope="col">Generation</th>
+            <th scope="col">Pending</th>
+            <th scope="col">Queued</th>
+            <th scope="col">Running</th>
+            <th scope="col">Ready</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for generation in hrag_status.generations %}
+            <tr>
+              <th scope="row">{{ 'Graph extraction' if generation.pipeline == 'extraction' else 'Embeddings' }}</th>
+              <td>{{ generation.model }}</td>
+              <td title="{{ generation.id }}">{{ generation.id[:12] }} ({{ 'Active' if generation.active else 'Inactive' }})</td>
+              {% for state in ['pending', 'queued', 'running', 'ready'] %}<td>{{ generation.counts.get(state, 0) }}</td>{% endfor %}
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p class="mt-2 text-xs text-base-content/70">Pending items may be waiting for retry. A manual start queues one indexing pass; the scheduler continues larger backfills.</p>
+  {% endif %}
+</section>

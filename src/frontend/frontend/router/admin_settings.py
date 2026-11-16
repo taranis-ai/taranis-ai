@@ -28,10 +28,21 @@ class SettingsAction(MethodView):
         return SettingsView.settings_action(action_url, method="patch")
 
 
+class HragIndexing(MethodView):
+    @admin_required()
+    def get(self):
+        return SettingsView.hrag_index()
+
+    @admin_required()
+    def post(self):
+        return SettingsView.hrag_index(start=True)
+
+
 def init(app: Flask):
     settings_bp = Blueprint("admin_settings", __name__, url_prefix=f"{app.config['APPLICATION_ROOT']}/admin/settings")
 
     settings_bp.add_url_rule("/", view_func=SettingsView.as_view("settings"))
+    settings_bp.add_url_rule("/hrag", view_func=HragIndexing.as_view("hrag_indexing"))
     settings_bp.add_url_rule("/<path:action>", view_func=SettingsAction.as_view("settings_action"))
 
     app.register_blueprint(settings_bp)

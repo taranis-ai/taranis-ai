@@ -1638,6 +1638,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             for cleanup_id in set(cleanup_ids):
                 core_request_client.delete(f"/assess/stories/{cleanup_id}", raise_for_status=False)
 
+    @pytest.mark.e2e_full_stack
     def test_admin_settings(self, logged_in_page, tmp_path, pre_seed_stories):
         page = logged_in_page
         settings_update_url = url_for("admin_settings.settings_action", action="settings", _external=True)
@@ -2045,9 +2046,29 @@ class TestEndToEndAdmin(BaseE2ETest):
             with_htmx_wait(page, lambda: endpoint.get_by_role("button", name="Delete Endpoint").click())
             expect(endpoint).to_have_count(0)
 
+        def check_hrag_indexing():
+            page.goto(url_for("admin_settings.settings", _external=True))
+            page.get_by_test_id("settings-chat-section").locator("summary").click()
+            panel = page.locator("#settings-hrag-index")
+            expect(panel.get_by_role("heading", name="HRAG indexing")).to_be_visible()
+            with page.expect_response(
+                lambda response: response.request.method == "POST" and response.url.endswith("/settings/hrag")
+            ) as started:
+                panel.get_by_role("button", name="Start indexing", exact=True).click()
+            assert started.value.status == 202
+            expect(panel.get_by_role("status").filter(has_text="HRAG indexing queued")).to_be_visible()
+            with page.expect_response(
+                lambda response: response.request.method == "GET" and response.url.endswith("/settings/hrag")
+            ) as refreshed:
+                panel.get_by_role("link", name="Refresh status", exact=True).click()
+            assert refreshed.value.ok
+            expect(panel.get_by_role("button", name="Start indexing", exact=True)).to_be_visible()
+            expect(page.locator("#settings-hrag-index")).to_have_count(1)
+
         go_to_admin_settings()
         check_default_values()
         check_llm_endpoints()
+        check_hrag_indexing()
         change_default_values()
         check_new_values()
         exported_stories_file = test_export_all_stories(pre_seed_stories)

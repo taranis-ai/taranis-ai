@@ -11,5 +11,6 @@
       {{ form_input('Maximum stories per answer', 'settings[chat_max_stories]', current_settings.chat_max_stories, type='number', preserve=False, min_value=1, max_value=20, data_testid='settings-chat-max-stories') }}
       <button type="submit" class="btn btn-primary" data-testid="settings-chat-submit">Save Chat Settings</button>
     </form>
+    {% include "settings/hrag.html" %}
   </div>
 </details>

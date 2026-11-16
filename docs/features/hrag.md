@@ -24,7 +24,9 @@ The fixed v1 vocabulary preserves existing NER types and adds vulnerability, cam
 
 PostgreSQL stores generation configuration, fingerprints, leases, retries, extraction output, and vectors. Redis executes work; it is not the index ledger. Startup queues reconciliation, and cron repeats it every minute. Each pass scans up to 500 items per generation and queues up to 50 jobs. A lost queued/running job becomes eligible after its 15-minute durable lease. Failed jobs use bounded exponential backoff up to one hour. Repeated callbacks are idempotent; outdated fingerprints and lease tokens are rejected. Missing Neo4j projections rebuild from saved extraction output without another inference call. Deletions cascade in PostgreSQL; reconciliation prunes graph assertions and unused entities.
 
-Administrators can use the authenticated API:
+In **Administration > Settings > Chat**, use **Start indexing** to queue a backfill pass and **Refresh status** to inspect ready, running, queued and pending work for each generation. This works without cron; continuous indexing and retries still require the cron process.
+
+Administrators can also use the authenticated API:
 
 - `GET /api/settings/hrag`: generations and work counts.
 - `POST /api/settings/hrag` with `{"action":"backfill"}`: queue reconciliation now.

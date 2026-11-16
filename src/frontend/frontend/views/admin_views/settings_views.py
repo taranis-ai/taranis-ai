@@ -3,16 +3,20 @@ from typing import Any
 from urllib.parse import urlencode
 from zoneinfo import ZoneInfo
 
-from flask import g, render_template, request, url_for
+import requests
+from flask import current_app, g, render_template, request, url_for
 from flask.typing import ResponseReturnValue
 from models.admin import Settings
+from models.hrag import IndexStatus
 from models.llm import LLM_API_FORMATS, LLM_FEATURES
+from pydantic import ValidationError
 
 from frontend.core_api import CoreApi
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.i18n import get_timezone_options, select_timezone
 from frontend.log import logger
 from frontend.utils.form_data_parser import parse_formdata
+from frontend.utils.router_helpers import is_htmx_request
 from frontend.views.admin_views.admin_base_view import AdminBaseView
 
 
@@ -38,6 +42,9 @@ class SettingsView(AdminBaseView):
         base_context["timezone_options"] = get_timezone_options()
         base_context["export_timezone"] = select_timezone()
         base_context["export_max_datetime"] = datetime.now(ZoneInfo(base_context["export_timezone"])).strftime("%Y-%m-%dT%H:%M")
+        if current_app.config.get("CHAT_ENABLED"):
+            base_context["hrag_status"] = cls.load_hrag_status()
+            base_context["hrag_notification"] = getattr(g, "hrag_notification", None)
         base_context["frontend_actions"] = [
             {
                 "label": "Invalidate Cache",
@@ -45,6 +52,40 @@ class SettingsView(AdminBaseView):
             }
         ]
         return base_context
+
+    @staticmethod
+    def load_hrag_status() -> IndexStatus | None:
+        try:
+            # Work counts change independently of settings; deliberately bypass the model cache.
+            payload = CoreApi().api_get("/settings/hrag")
+            return IndexStatus.model_validate(payload) if payload is not None else None
+        except requests.RequestException, ValidationError:
+            logger.exception("Could not load HRAG indexing status")
+            return None
+
+    @classmethod
+    def hrag_index(cls, start: bool = False) -> ResponseReturnValue:
+        notification = None
+        status = 200
+        if start:
+            try:
+                response = CoreApi().api_post("/settings/hrag", json_data={"action": "backfill"})
+                status = response.status_code
+                notification = {
+                    "message": "HRAG indexing queued. Refresh status to follow progress."
+                    if response.ok
+                    else "Could not start HRAG indexing. Check that HRAG is enabled and the worker queue is available.",
+                    "error": not response.ok,
+                }
+            except requests.RequestException:
+                logger.exception("Could not start HRAG indexing")
+                status = 502
+                notification = {"message": "Could not reach Core to start HRAG indexing. Try again.", "error": True}
+        if not is_htmx_request():
+            g.hrag_notification = notification
+            view, view_status = cls.static_view()
+            return view, status if status >= 400 else view_status
+        return render_template("settings/hrag.html", hrag_status=cls.load_hrag_status(), hrag_notification=notification), status
 
     @classmethod
     def model_plural_name(cls) -> str:
