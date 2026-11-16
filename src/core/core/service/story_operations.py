@@ -178,6 +178,8 @@ class StoryOperationsService:
         target_story.relevance_override = max(absorbed_overrides)
         cls.merge_votes_into_story(target_story, absorbed_story_ids)
         # Absorbed stories are deleted below; ON DELETE CASCADE would otherwise drop their report links.
-        ReportStorySyncService.keep_memberships_after_merge(target_story, source_stories, absorbed_story_ids, user, revision_note)
+        affected_reports = ReportStorySyncService.keep_memberships_after_merge(target_story, source_stories, absorbed_story_ids)
         type(target_story).update_stories(processed_stories, actor=actor)
+        # Snapshot reports only after update_stories recomputed TLP and other status fields.
+        ReportStorySyncService.record_report_revisions(affected_reports, user, revision_note)
         return processed_stories

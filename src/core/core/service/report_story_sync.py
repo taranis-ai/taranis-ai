@@ -69,12 +69,10 @@ class ReportStorySyncService:
         target_story: Story,
         source_stories: list[Story],
         absorbed_story_ids: list[str],
-        user: User | None,
-        revision_note: str,
-    ) -> None:
-        """Keep report links when stories are merged and record a revision in every affected report."""
+    ) -> list[ReportItem]:
+        """Keep report links when stories are merged and return every report that contains a merged story."""
         if not source_stories:
-            return
+            return []
 
         # Local import: core.model.report_item imports this module at module level.
         from core.model.report_item import ReportItem
@@ -87,11 +85,18 @@ class ReportStorySyncService:
             .distinct()
         )
         absorbed = set(absorbed_story_ids)
-        for report in db.session.execute(query).scalars():
+        reports = list(db.session.execute(query).scalars())
+        for report in reports:
             remaining = [story for story in report.stories if story.id not in absorbed]
             if len(remaining) != len(report.stories) and target_story not in remaining:
                 report.stories = [*remaining, target_story]
                 cls.sync_report_membership(report, [target_story], "attach")
             else:
                 report.stories = remaining
-            report.record_revision(user, note=revision_note)
+        return reports
+
+    @staticmethod
+    def record_report_revisions(reports: Iterable[ReportItem], user: User | None, note: str) -> None:
+        """Record a revision for each report; call after story status is recomputed so snapshots are current."""
+        for report in reports:
+            report.record_revision(user, note=note)

@@ -248,3 +248,34 @@ def test_grouping_without_report_stories_leaves_reports_untouched(
 
     assert _report_story_ids(report.id) == [unrelated_story.id]
     assert _report_revision_notes(report.id) == notes_before
+
+
+@pytest.mark.usefixtures("app")
+def test_report_revision_snapshot_has_recomputed_tlp_after_grouping(
+    session,
+    story_relevance_news_item_payload_factory,
+    story_relevance_story_payload_factory,
+    story_relevance_report_payload_factory,
+):
+    from core.model.news_item_attribute import NewsItemAttribute
+
+    clear_story = _story(story_relevance_news_item_payload_factory, story_relevance_story_payload_factory, "Clear report story")
+    red_story = _story(story_relevance_news_item_payload_factory, story_relevance_story_payload_factory, "Red story")
+    red_story.news_items[0].upsert_attribute(NewsItemAttribute(key="TLP", value="red"))
+    red_story.update_status()
+    db.session.commit()
+    assert clear_story.tlp_level.value == "clear"
+    assert red_story.tlp_level.value == "red"
+    report = _report_with_stories(story_relevance_report_payload_factory, [clear_story])
+
+    response, status = Story.group_stories([clear_story.id, red_story.id], user=_admin())
+    assert status == 200, response
+
+    assert _reload_report(report.id).stories[0].tlp_level.value == "red"
+    query = db.select(ReportRevision).filter_by(report_item_id=report.id).order_by(ReportRevision.revision.desc())
+    latest = db.session.execute(query).scalars().first()
+    assert latest is not None
+    assert latest.note == "group_stories"
+    snapshot_story = next(story for story in latest.data["stories"] if story["id"] == clear_story.id)
+    assert snapshot_story["tlp_level"] == "red"
+    assert {"key": "TLP", "value": "red"} in snapshot_story["attributes"]
