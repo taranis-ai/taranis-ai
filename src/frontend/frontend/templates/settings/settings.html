@@ -151,7 +151,7 @@
       <p class="text-sm text-base-content/60 mt-1">Clear cached data so the frontend fetches fresh values.</p>
     </div>
     {% for action in frontend_actions %}<button class="btn btn-outline shrink-0"
-        hx-post="{{ action.url }}">{{ action.label }}</button>{% endfor %}
+                                                hx-post="{{ action.url }}">{{ action.label }}</button>{% endfor %}
   </section>
 
   <details class="collapse collapse-arrow border border-error/30 bg-base-100 rounded-box">
