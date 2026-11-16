@@ -989,6 +989,94 @@ class TestEndToEndUser(BaseE2ETest):
             for created_id in created_ids:
                 core_request_client.delete(f"/assess/stories/{created_id}", raise_for_status=False)
 
+    def test_ungroup_last_news_item_of_report_story_requires_confirmation(
+        self, non_admin_logged_in_page, forward_console_and_page_errors_non_admin, core_request_client
+    ):
+        page = non_admin_logged_in_page
+        allow_requests_passthru()
+        marker = uuid.uuid4().hex
+        news_item_ids = []
+        report_id = None
+        try:
+            story_ids = []
+            for index in range(2):
+                result = core_request_client.json_request(
+                    "POST",
+                    "/assess/news-items",
+                    json_data={
+                        "title": f"Ungroup item {index} {marker}",
+                        "content": f"Ungroup test {marker}",
+                        "source": "manual",
+                        "osint_source_id": "manual",
+                        "link": f"https://example.invalid/{marker}/{index}",
+                    },
+                )
+                story_ids.append(result["story_id"])
+            core_request_client.post("/assess/stories/group", json_data=story_ids)
+            story_id = story_ids[0]
+            news_item_ids = [item["id"] for item in core_request_client.json_request("GET", f"/assess/stories/{story_id}")["news_items"]]
+            report_title = f"Ungroup report {marker}"
+            report_type_id = core_request_client.json_request("GET", "/analyze/report-types")["items"][0]["id"]
+            report_id = core_request_client.json_request(
+                "POST",
+                "/analyze/report-items",
+                json_data={"title": report_title, "report_item_type_id": report_type_id, "stories": [story_id]},
+            )["id"]
+
+            page.goto(url_for("assess.story", story_id=story_id, _external=True))
+            expect(page.get_by_test_id(f"ungroup-newsitem-{news_item_ids[1]}")).to_be_visible()
+            # Another session ungroups the first item, so this page still offers ungrouping the story's last item.
+            core_request_client.put("/assess/news-items/ungroup", json_data=[news_item_ids[0]])
+
+            dialog = page.locator("#ungroup_confirm_dialog")
+            for confirm in (False, True):
+                with_htmx_wait(page, page.get_by_test_id(f"ungroup-newsitem-{news_item_ids[1]}").click)
+                expect(dialog.locator('[data-test-id="affected-reports"]')).to_have_text(report_title)
+                if not confirm:
+                    dialog.locator('[data-test-id="ungroup-cancel"]').click()
+                    expect(dialog).to_have_count(0)
+                    report = core_request_client.json_request("GET", f"/analyze/report-items/{report_id}")
+                    assert [story["id"] for story in report["stories"]] == [story_id]
+            ungroup_url = url_for("assess.ungroup", story_id=story_id, _external=True)
+            page.route(
+                ungroup_url,
+                lambda route: route.fulfill(
+                    status=403,
+                    content_type="text/html",
+                    body='<section id="notification-bar"><div role="alert">User is not allowed to update report</div></section>',
+                ),
+                times=1,
+            )
+            confirm_button = dialog.locator('[data-test-id="ungroup-confirm"]')
+            with page.expect_response(lambda response: response.url == ungroup_url and response.status == 403):
+                confirm_button.click()
+            with pytest.raises(AssertionError, match=r"HTMX response error .* for POST .*/ungroup/.* returned 403"):
+                wait_for_htmx_settled(page)
+            reset_htmx_state(page)
+            expect(dialog).to_be_visible()
+            expect(confirm_button).to_be_enabled()
+            report = core_request_client.json_request("GET", f"/analyze/report-items/{report_id}")
+            assert [story["id"] for story in report["stories"]] == [story_id]
+            ungroup_posts = []
+            page.on(
+                "request",
+                lambda request: ungroup_posts.append(request.url) if request.method == "POST" and "/ungroup/" in request.url else None,
+            )
+            with page.expect_navigation(url=re.compile(r"/assess(\?|$)")):
+                dialog.locator('[data-test-id="ungroup-confirm"]').dblclick()
+            assert len(ungroup_posts) == 1, ungroup_posts
+            expect(page.locator("#notification-message")).to_contain_text("Successfully ungrouped")
+
+            report = core_request_client.json_request("GET", f"/analyze/report-items/{report_id}")
+            assert report["stories"] == []
+            assert core_request_client.get(f"/assess/stories/{story_id}", raise_for_status=False).status_code == 404
+        finally:
+            allow_requests_passthru()
+            if report_id:
+                core_request_client.delete(f"/analyze/report-items/{report_id}", raise_for_status=False)
+            for news_item_id in news_item_ids:
+                core_request_client.delete(f"/assess/news-items/{news_item_id}", raise_for_status=False)
+
     def test_story_export(
         self,
         non_admin_logged_in_page: Page,
@@ -1711,6 +1799,7 @@ class TestEndToEndUser(BaseE2ETest):
         core_request_client,
         api_header,
     ):
+        """Create, render, publish, and copy a product, checking its Report Items table along the way."""
         page = non_admin_logged_in_page
         product_title = f"test_product_{str(uuid.uuid4())[:8]}"
 
@@ -1729,10 +1818,37 @@ class TestEndToEndUser(BaseE2ETest):
             page.get_by_placeholder("Description").fill("This is a test product.")
             self.highlight_element(page.get_by_test_id("save-product")).click()
 
-        load_product_list()
-        add_product()
-        expect(page.get_by_test_id("copy-product")).to_be_visible()
-        expect(page.locator("[data-product-report-items-enhanced]")).to_be_visible()
+        def create_report_with_stories() -> tuple[str, str, int]:
+            """Create an OSINT Report with two stories through Core and return its ID, title, and story count."""
+            report_types = core_request_client.json_request("GET", "/analyze/report-types")["items"]
+            report_type_id = next(report_type["id"] for report_type in report_types if report_type["title"] == "OSINT Report")
+            story_ids = [story["id"] for story in core_request_client.json_request("GET", "/assess/stories")["items"][:2]]
+            title = f"{product_title} report"
+            response = core_request_client.post(
+                "/analyze/report-items", json_data={"title": title, "report_item_type_id": report_type_id, "stories": story_ids}
+            )
+            response.raise_for_status()
+            return response.json()["id"], title, len(story_ids)
+
+        def check_report_items_table(report_title: str, story_count: int):
+            """Assert the product's Report Items row shows the seconds-only timestamp and the story count."""
+            report_items = page.locator("[data-product-report-items-enhanced]")
+            expect(report_items.locator("thead")).to_contain_text("Stories")
+            report_items.get_by_placeholder("Search...").fill(report_title)
+            cells = report_items.locator("tbody tr", has_text=report_title).locator("td")
+            expect(cells.nth(3)).to_have_text(re.compile(r"^\s*\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\s*$"))
+            expect(cells.nth(4)).to_have_text(str(story_count))
+            report_items.get_by_placeholder("Search...").fill("")
+
+        report_id, report_title, report_story_count = create_report_with_stories()
+        try:
+            load_product_list()
+            add_product()
+            expect(page.get_by_test_id("copy-product")).to_be_visible()
+            expect(page.locator("[data-product-report-items-enhanced]")).to_be_visible()
+            check_report_items_table(report_title, report_story_count)
+        finally:
+            core_request_client.delete(f"/analyze/report-items/{report_id}")
         source_url = page.url
         product_type = page.locator("#product_type_id").input_value()
 

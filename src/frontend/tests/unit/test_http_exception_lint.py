@@ -17,9 +17,11 @@ REQUEST_METHOD_NAMES = {
     "update_object",
 }
 
+FRONTEND_ROOT = Path(__file__).resolve().parents[2]
+
 TARGET_PATHS = (
-    Path("frontend/auth.py"),
-    Path("frontend/views"),
+    FRONTEND_ROOT / "frontend/auth.py",
+    FRONTEND_ROOT / "frontend/views",
 )
 
 
@@ -71,8 +73,10 @@ def _is_broad_exception_type(handler_type: ast.expr | None) -> bool:
 
 def test_request_try_blocks_preserve_http_exceptions():
     violations: list[str] = []
+    files = _iter_python_files()
+    assert files, f"No files found under {FRONTEND_ROOT}"
 
-    for path in _iter_python_files():
+    for path in files:
         tree = ast.parse(path.read_text(), filename=str(path))
         for node in ast.walk(tree):
             if not isinstance(node, ast.Try) or not _contains_request_call(node):
