@@ -35,7 +35,7 @@ def check_endpoint(kind: str, endpoint_id: str, check_id: str):
             if not job:
                 raise RuntimeError("Batch endpoint checks require a queued job")
             state = job.meta.setdefault("llm_batch_probe", {})
-        healthy = probe(kind, config, state, job.save_meta if job else None)
+        healthy = probe(kind, config, state, job.save_meta if job else None, snapshot.get("embedding_dimensions"))
         if isinstance(healthy, Retry):
             return healthy
         if state is not None:
@@ -51,7 +51,9 @@ def check_endpoint(kind: str, endpoint_id: str, check_id: str):
         raise RuntimeError("Endpoint check failed")
 
 
-def probe(kind: str, config: dict, batch_state: dict | None = None, save_batch_state=None) -> bool | Retry:
+def probe(
+    kind: str, config: dict, batch_state: dict | None = None, save_batch_state=None, embedding_dimensions: int | None = None
+) -> bool | Retry:
     text = "Reply with OK."
     if kind != "llm":
         return False
@@ -65,7 +67,7 @@ def probe(kind: str, config: dict, batch_state: dict | None = None, save_batch_s
                 if state is not None and "healthy" in state:
                     healthy = healthy and state["healthy"]
                     continue
-                result = probe(kind, provider.for_format(api_format), state, save_batch_state)
+                result = probe(kind, provider.for_format(api_format), state, save_batch_state, embedding_dimensions)
                 if isinstance(result, Retry):
                     pending = result
                     continue
@@ -92,17 +94,20 @@ def probe(kind: str, config: dict, batch_state: dict | None = None, save_batch_s
         if config["api_format"] == "embeddings":
             from models.hrag import EmbeddingResult
 
+            payload = {"input": "Synthetic endpoint check", "model": config.get("model", "")}
+            if embedding_dimensions is not None:
+                payload["dimensions"] = embedding_dimensions
             response = http_request(
                 "POST",
                 f"{config['base_url']}/embeddings",
-                json={"input": "Synthetic endpoint check", "model": config.get("model", "")},
+                json=payload,
                 headers={"Authorization": f"Bearer {config['api_key']}"} if config.get("api_key") else {},
                 timeout=min(config["timeout"], 120),
                 verify=True,
             )
             response.raise_for_status()
-            EmbeddingResult(embedding=response.json()["data"][0]["embedding"])
-            return True
+            result = EmbeddingResult(embedding=response.json()["data"][0]["embedding"])
+            return embedding_dimensions is None or len(result.embedding) == embedding_dimensions
         chat = config["api_format"] == "chat_completions"
         if config.get("processing_mode") == "openrouter_batch":
             parameters = {"llm_endpoint": config, "_llm_batch_state": batch_state, "_save_llm_batch_state": save_batch_state}

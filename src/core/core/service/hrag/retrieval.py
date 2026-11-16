@@ -48,10 +48,10 @@ def endpoint_client(endpoint: dict, deadline: float):
     return ChatClient(settings, deadline=deadline)
 
 
-def query_embedding(question: str, endpoint: dict, deadline: float) -> EmbeddingResult:
+def query_embedding(question: str, endpoint: dict, dimensions: int, deadline: float) -> EmbeddingResult:
     client = endpoint_client({**endpoint, "api_format": "responses"}, deadline)
     client.endpoint = "embeddings"
-    payload = {"input": question}
+    payload = {"input": question, "dimensions": dimensions}
     if endpoint["model"]:
         payload["model"] = endpoint["model"]
     with client._response(payload) as response:
@@ -227,7 +227,7 @@ def retrieve(context: dict, user_id: str, settings: dict, deadline: float, strea
         dimensions = generation.config["dimensions"]
         embedding_generation_id = generation.id
         db.session.rollback()
-        vector = query_embedding(context["latest_message"], endpoint, deadline)
+        vector = query_embedding(context["latest_message"], endpoint, dimensions, deadline)
         if len(vector.embedding) != dimensions:
             raise ValueError("Unexpected embedding dimensions")
         user = db.session.get(User, user_id)

@@ -2,6 +2,8 @@
 
 HRAG combines source-backed entity/relationship evidence from Neo4j Community with semantic matches from PostgreSQL/pgvector. Chat remains the default. Each turn can select **Chat** or **HRAG** within the same conversation. HRAG answers cite graph evidence (`[G1]`) and similar passages (`[V1]`); expandable panels link to the current stories in Assess.
 
+For a technical source walkthrough and editable draw.io diagram, see the [HRAG implementation guide](hrag-implementation-guide.md).
+
 ## Enable
 
 HRAG requires PostgreSQL, a Neo4j database dedicated to this Taranis installation, the normal Redis/RQ worker, and cron for ongoing reconciliation. For container deployments, set `CHAT_ENABLED=true` and a strong `HRAG_NEO4J_PASSWORD`, then add `docker/compose.hrag.yml` to the normal Compose command. The overlay enables HRAG on Core/frontend, adds Neo4j, and uses the pgvector PostgreSQL 18 image. Verify that the existing PostgreSQL major version matches before switching images; follow the normal PostgreSQL upgrade process otherwise. Do not reuse a database volume across major versions.
@@ -10,7 +12,7 @@ For host development, use `dev/compose.hrag.yml` with `dev/compose.yml`, set `CH
 
 Core creates new indexing tables and runs `CREATE EXTENSION IF NOT EXISTS vector` when enabled. A database administrator may install the extension first if Core's database role lacks that privilege. Neo4j credentials need schema/index creation and read/write access; the graph database is selected with `HRAG_NEO4J_DATABASE` (default `neo4j`). Core alone connects to either database. Keep Bolt private; use `neo4j+s://` for verified TLS when connecting across untrusted networks.
 
-In **Admin Settings > LLM Endpoints**, enable an **Embeddings** format on an OpenAI-compatible endpoint. Assign **HRAG embeddings**, **HRAG entity and relationship extraction**, and **HRAG graph planning**. These require realtime processing in v1. Chat's existing endpoint synthesizes and streams answers. Set `HRAG_EMBEDDING_DIMENSIONS` to the embedding model's output dimension (default 1536). Provider changes create a separate generation; do not silently replace the model behind an unchanged model identifier.
+In **Admin Settings > LLM Endpoints**, enable an **Embeddings** format on an OpenAI-compatible endpoint. Assign **HRAG embeddings**, **HRAG entity and relationship extraction**, and **HRAG graph planning**. These require realtime processing in v1. Chat's existing endpoint synthesizes and streams answers. Set `HRAG_EMBEDDING_DIMENSIONS` to a dimension supported by the embedding model (default 1536). Indexing and query requests explicitly send this dimension and reject mismatched output. With HRAG enabled, embedding endpoint health checks request and verify the same configured dimension; unsupported dimensions fail the check. Provider changes create a separate generation; do not silently replace the model behind an unchanged model identifier.
 
 Core and worker currently pin the companion llm-bot evidence tasks, backported onto release 0.1.6, to an immutable source archive. This retains the existing generative sentiment API; adopting a later library release also requires reviewing its sentiment transport change. Core installs the transport-free library; workers install its `inference` extra. This avoids mixing Requests and Niquests transport packages in Core.
 

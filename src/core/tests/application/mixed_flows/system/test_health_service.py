@@ -19,12 +19,13 @@ def test_check_seed_data(monkeypatch, manual_exists, product_type_exists, expect
     assert health.check_seed_data() == expected
 
 
-def test_endpoint_health_lifecycle(client, auth_header, api_header, app, db_persistent_session, redis_client):
+def test_endpoint_health_lifecycle(client, auth_header, api_header, app, db_persistent_session, redis_client, monkeypatch):
     from copy import deepcopy
 
     from rq import Worker
     from rq.job import Job
 
+    from core.config import Config
     from core.managers.queue_manager import CRON_DEFS_KEY
     from core.model.bot import Bot
     from core.model.settings import Settings
@@ -64,6 +65,11 @@ def test_endpoint_health_lifecycle(client, auth_header, api_header, app, db_pers
             snapshot = client.get(route, query_string={"check_id": state["check_id"]}, headers=api_header)
             assert snapshot.headers["Cache-Control"] == "no-store"
             assert snapshot.json["config"]["api_key"] == endpoint["api_key"]
+            monkeypatch.setattr(Config, "HRAG_ENABLED", True)
+            monkeypatch.setattr(Config, "HRAG_EMBEDDING_DIMENSIONS", 1024)
+            assert client.get(route, query_string={"check_id": state["check_id"]}, headers=api_header).json["embedding_dimensions"] == 1024
+            monkeypatch.setattr(Config, "HRAG_ENABLED", False)
+            assert client.get(route, query_string={"check_id": state["check_id"]}, headers=api_header).json["embedding_dimensions"] is None
             assert client.get("/api/health").json["services"]["worker_endpoints"] == "down"
 
             result = {"check_id": state["check_id"], "healthy": False}

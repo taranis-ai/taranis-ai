@@ -36,6 +36,21 @@ def _chat_response(text: str) -> requests.Response:
     return _response({"choices": [{"finish_reason": "stop", "message": {"role": "assistant", "content": text}}]})
 
 
+def test_query_embedding_requests_generation_dimensions(app, configured_chat, monkeypatch):
+    from core.service.hrag.retrieval import query_embedding
+
+    endpoint = Settings.get_llm_endpoint("chat")
+
+    def post(url, **kwargs):
+        assert url == endpoint["base_url"] + "/embeddings"
+        assert kwargs["json"]["dimensions"] == 3
+        assert kwargs["json"]["input"] == "Which incidents?"
+        return _response({"data": [{"embedding": [1, 0, 0]}]})
+
+    monkeypatch.setattr(requests, "post", post)
+    assert query_embedding("Which incidents?", endpoint, 3, time.monotonic() + 30).embedding == [1, 0, 0]
+
+
 def _chat_stream(*deltas: dict, finish_reason: str = "stop") -> requests.Response:
     response = _stream_response(
         *({"choices": [{"index": 0, "delta": delta, "finish_reason": None}]} for delta in deltas),

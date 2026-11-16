@@ -32,8 +32,13 @@ def test_worker_claim_extraction_and_cached_retry(requests_mock, monkeypatch):
     requests_mock.post(
         route, json={**job, "pipeline": "embedding", "dimensions": 3, "endpoint": {**job["endpoint"], "api_format": "embeddings"}}
     )
-    monkeypatch.setattr("llm_bot.embedding_client.EmbeddingClient.create_embedding", AsyncMock(return_value=[float("nan"), 1, 0]))
-    with pytest.raises(RuntimeError, match="^HRAG indexing failed; retry scheduled$"):
-        index_item("test-work")
-    assert submitted.last_request.json()["failed"] is True
-    assert "NaN" not in submitted.last_request.text
+    embedding = requests_mock.post("https://provider.invalid/v1/embeddings", json={"data": [{"embedding": [1, 0, 0]}]})
+    index_item("test-work")
+    assert embedding.last_request.json() == {"input": content, "model": "", "dimensions": 3}
+    assert submitted.last_request.json()["vector"]["embedding"] == [1, 0, 0]
+    for vector in ([1, 0], [float("nan"), 1, 0]):
+        requests_mock.post("https://provider.invalid/v1/embeddings", json={"data": [{"embedding": vector}]})
+        with pytest.raises(RuntimeError, match="^HRAG indexing failed; retry scheduled$"):
+            index_item("test-work")
+        assert submitted.last_request.json()["failed"] is True
+        assert "NaN" not in submitted.last_request.text

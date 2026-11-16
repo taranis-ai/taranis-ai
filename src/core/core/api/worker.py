@@ -160,7 +160,7 @@ class EndpointHealth(MethodView):
         ):
             response = jsonify({"skip": True})
         else:
-            response = jsonify({"config": config})
+            response = jsonify({"config": config, "embedding_dimensions": Config.HRAG_EMBEDDING_DIMENSIONS if Config.HRAG_ENABLED else None})
         response.headers["Cache-Control"] = "no-store"
         return response
 
