@@ -78,7 +78,7 @@ class ReportPublishWorkflowService:
             return {"error": "Invalid report payload"}, 400
 
         story_ids = sanitized_report.get("stories", [])
-        stories, missing_story_ids = cls._get_stories(story_ids)
+        stories, missing_story_ids = Story.get_visible_bulk(story_ids, user)
         if missing_story_ids:
             return {"error": "Story ids not found", "story_ids": missing_story_ids}, 400
 
@@ -150,13 +150,6 @@ class ReportPublishWorkflowService:
         db.session.add(product)
         db.session.flush()
         return product, 200
-
-    @staticmethod
-    def _get_stories(story_ids: list[str]) -> tuple[list[Story], list[str]]:
-        stories = Story.get_bulk(story_ids) if story_ids else []
-        found_story_ids = {story.id for story in stories}
-        missing_story_ids = [story_id for story_id in story_ids if story_id not in found_story_ids]
-        return stories, missing_story_ids
 
     @classmethod
     def _apply_attribute_overrides(cls, report_item: ReportItem, overrides: Any):
