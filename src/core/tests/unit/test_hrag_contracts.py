@@ -1,5 +1,5 @@
 import pytest
-from models.hrag import ExtractionResult, bounded_content, entity_identity, input_fingerprint
+from models.hrag import CompactExtractionResult, ExtractionResult, bounded_content, entity_identity, input_fingerprint
 from pydantic import ValidationError
 
 
@@ -43,3 +43,25 @@ def test_bounded_inputs_have_independent_invalidation():
     )
     assert input_fingerprint(original, "model-v1") != input_fingerprint(original, "model-v2")
     assert bounded_content(None, 4000) == ""
+
+
+def test_compact_extraction_resolves_unicode_repeated_quotes_and_validates_graph():
+    quote = "APT29 did not use Mimikatz."
+    content = f"Übersicht: {quote} {quote}"
+    payload = {
+        "entities": [{"id": "a", "name": "APT29", "type": "GROUP"}, {"id": "b", "name": "Mimikatz", "type": "TOOL"}],
+        "relations": [{"source_id": "a", "target_id": "b", "type": "USES", "quote": quote, "assertion": "negated"}],
+    }
+    result = CompactExtractionResult.model_validate(payload).resolve(content)
+    assert result.entities[0].evidence.model_dump() == {"start": 11, "end": 16, "quote": "APT29"}
+    assert result.relations[0].evidence.model_dump() == {"start": 11, "end": 38, "quote": quote}
+    assert result.relations[0].assertion == "negated" and result.relations[0].date == ""
+    for invalid_content in (content.replace("Mimikatz", "another tool"), content.replace("did not use", "used")):
+        with pytest.raises(ValueError, match="Evidence does not match"):
+            CompactExtractionResult.model_validate(payload).resolve(invalid_content)
+    payload["relations"][0]["target_id"] = "missing"
+    with pytest.raises(ValueError, match="Invalid extracted relationship"):
+        CompactExtractionResult.model_validate(payload).resolve(content)
+    vulnerability = CompactExtractionResult.model_validate({"entities": [{"id": "v", "name": "CVE-2026-1234", "type": "VULNERABILITY"}]})
+    with pytest.raises(ValueError, match="Vulnerability identifier is absent"):
+        vulnerability.resolve("CVE-2026-12345")

@@ -1,6 +1,6 @@
 # HRAG implementation: a guided source walkthrough
 
-This guide describes `feature/hrag` at commit `d3b6505ec` and the implementation introduced after `711a09d66`. It explains the checked-in code, rather than a generic graph-RAG architecture. The editable [draw.io diagram](../diagrams/hrag-implementation.drawio) accompanies it. Open the file in draw.io / diagrams.net and use the five page tabs. Node IDs below match the diagram.
+This guide describes the HRAG implementation on `feature/hrag`, introduced after `711a09d66`. It explains the checked-in code, rather than a generic graph-RAG architecture. The editable [draw.io diagram](../diagrams/hrag-implementation.drawio) accompanies it. Open the file in draw.io / diagrams.net and use the five page tabs. Node IDs below match the diagram.
 
 For deployment and administrator instructions, see [Hybrid retrieval in Chat](hrag.md). This guide does not change application behavior.
 
@@ -40,7 +40,7 @@ SHA256(generation_id + "\0" + bounded_content)
 
 A title edit, review change, tag change or regrouping therefore does not require another model call. A content edit after character 4,000 but before character 20,000 invalidates extraction only. An edit beyond both cutoffs leaves both results reusable. Source title, story membership and permissions are resolved from current records later.
 
-`ExtractionResult` contains `ExtractedEntity` and `ExtractedRelation` lists. The fixed schema contains 20 entity types and 18 relationship kinds. `RELATION_ENDPOINTS` restricts which entity types may be the source and target of each kind. It also prevents an alias relation between different entity types.
+The LLM-facing `CompactExtractionResult` contains entity IDs, types and verbatim names, plus relationships with exact quotes and optional assertion polarity. Its `resolve()` method derives the existing `ExtractionResult` with `ExtractedEntity` and `ExtractedRelation` lists locally. Names and quotes must occur exactly in the bounded input; repeated occurrences resolve to the first match, and CVE identifiers require complete token matches. Dates, offsets, sentence IDs and separate entity quotations are not requested from the model. The fixed schema contains 20 entity types and 18 relationship kinds. `RELATION_ENDPOINTS` restricts which entity types may be the source and target of each kind. It also prevents an alias relation between different entity types.
 
 Every entity and relation carries an `EvidenceSpan`:
 
@@ -104,7 +104,7 @@ The worker submits an `IndexSubmission` by PUT to the same work URL. It never wr
 
 `submit()` checks the lease token, submitted fingerprint and current source fingerprint under locks. Stale results return 409. Successful repeated callbacks are idempotent while their token/fingerprint still match.
 
-For extraction, Core validates passages again, stores extraction JSON in `hrag_work.result`, and commits it **before** calling `project_graph()`. This deliberate separation permits recovery after graph failure without paying for extraction again. Projection IDs are frozen before that commit so an old callback cannot relabel its result with a new fingerprint.
+For extraction, the worker first resolves the compact output into canonical evidence spans. Core validates passages again, stores extraction JSON in `hrag_work.result`, and commits it **before** calling `project_graph()`. This deliberate separation permits recovery after graph failure without paying for extraction again. Projection IDs are frozen before that commit so an old callback cannot relabel its result with a new fingerprint.
 
 For embeddings, `save_vector()` upserts the vector; `hrag_work.result` stays empty because the vector table is its single durable copy.
 

@@ -57,6 +57,8 @@ def test_durable_index_lifecycle_cutoffs_retries_and_generations(configured_inde
             for w in db.session.scalars(db.select(HragWork).where(HragWork.news_item_id == item.id))
         }
         extraction, embedding = works["extraction"], works["embedding"]
+        assert db.session.get(HragGeneration, extraction.generation_id).config["schema"] == "v2"
+        assert db.session.get(HragGeneration, embedding.generation_id).config["schema"] == "v1"
         original = {kind: work.fingerprint for kind, work in works.items()}
         job = indexing.claim(extraction.id)
         assert job and indexing.claim(extraction.id) is None

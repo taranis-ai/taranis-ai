@@ -14,6 +14,7 @@ from models.llm import LLMEndpoint
 EMBEDDING_CONTENT_LIMIT = 4_000
 EXTRACTION_CONTENT_LIMIT = 20_000
 HRAG_SCHEMA_VERSION = "v1"
+HRAG_EXTRACTION_SCHEMA_VERSION = "v2"
 
 type EntityType = Literal[
     "PER",
@@ -100,6 +101,13 @@ class EvidenceSpan(HragContract):
     end: int = Field(gt=0)
     quote: str = Field(min_length=1)
 
+    @classmethod
+    def from_quote(cls, content: str, quote: str) -> Self:
+        start = content.find(quote)
+        if start < 0:
+            raise ValueError("Evidence does not match extraction input")
+        return cls(start=start, end=start + len(quote), quote=quote)
+
     @model_validator(mode="after")
     def valid_range(self) -> Self:
         if self.end <= self.start or self.end - self.start != len(self.quote):
@@ -107,10 +115,13 @@ class EvidenceSpan(HragContract):
         return self
 
 
-class ExtractedEntity(HragContract):
+class EntityMention(HragContract):
     id: str = Field(min_length=1, max_length=128)
     type: EntityType
     name: str = Field(min_length=1, max_length=2048)
+
+
+class ExtractedEntity(EntityMention):
     evidence: EvidenceSpan
 
 
@@ -170,6 +181,40 @@ class ExtractionResult(HragContract):
             label = mapping.get(entity.type, entity.type)
             labels.setdefault(entity.name, set()).add(label)
         return {name: next(iter(types)) for name, types in labels.items() if len(types) == 1 and types <= existing}
+
+
+class QuotedRelation(HragContract):
+    source_id: str
+    target_id: str
+    type: str
+    quote: str = Field(min_length=1)
+    assertion: Literal["affirmed", "negated", "uncertain"] = "affirmed"
+
+
+class CompactExtractionResult(HragContract):
+    """LLM-facing contract; persisted evidence spans are resolved locally."""
+
+    entities: list[EntityMention] = Field(default_factory=list, max_length=1000)
+    relations: list[QuotedRelation] = Field(default_factory=list, max_length=2000)
+
+    def resolve(self, content: str) -> ExtractionResult:
+        entities = []
+        for entity in self.entities:
+            if entity.type == "VULNERABILITY" and re.fullmatch(r"CVE-\d{4}-\d{4,}", entity.name, re.IGNORECASE):
+                match = re.search(r"(?<![\w-])" + re.escape(entity.name) + r"(?![\w-])", content)
+                if match is None:
+                    raise ValueError("Vulnerability identifier is absent from extraction input")
+                evidence = EvidenceSpan(start=match.start(), end=match.end(), quote=entity.name)
+            else:
+                evidence = EvidenceSpan.from_quote(content, entity.name)
+            entities.append(ExtractedEntity(**entity.model_dump(), evidence=evidence))
+        return ExtractionResult(
+            entities=entities,
+            relations=[
+                ExtractedRelation(**relation.model_dump(exclude={"quote"}), evidence=EvidenceSpan.from_quote(content, relation.quote))
+                for relation in self.relations
+            ],
+        ).validate_content(content)
 
 
 def bounded_content(content: str | None, limit: int) -> str:

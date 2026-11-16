@@ -4,7 +4,7 @@ import asyncio
 
 from llm_bot.tasks.evidence import prepare_evidence_extraction
 from llm_bot.tasks.llm_utils import InvalidLLMOutputError
-from models.hrag import EmbeddingResult, ExtractionResult, IndexJob, IndexSubmission, extraction_vocabulary
+from models.hrag import CompactExtractionResult, EmbeddingResult, ExtractionResult, IndexJob, IndexSubmission, extraction_vocabulary
 
 from worker.core_api import CoreApi
 from worker.http_client import http_request, http_session_scope
@@ -40,15 +40,16 @@ async def infer(job: IndexJob) -> dict:
     if not job.content:
         return ExtractionResult().model_dump()
 
-    def validate(result: ExtractionResult) -> ExtractionResult:
+    def validate(result: CompactExtractionResult) -> CompactExtractionResult:
         try:
-            return result.validate_content(job.content)
+            result.resolve(job.content)
+            return result
         except ValueError as exc:
             raise InvalidLLMOutputError("Evidence does not match source content") from exc
 
-    task = prepare_evidence_extraction(job.content, extraction_vocabulary(), ExtractionResult, validate=validate)
+    task = prepare_evidence_extraction(job.content, extraction_vocabulary(), CompactExtractionResult, validate=validate)
     client = get_llm_client({"llm_endpoint": job.endpoint.model_dump()})
-    return (await task.run(client)).model_dump()
+    return (await task.run(client)).resolve(job.content).model_dump()
 
 
 @instrument_job

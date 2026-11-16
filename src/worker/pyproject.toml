@@ -48,7 +48,7 @@ dependencies = [
     "pypandoc-binary",
     "niquests",
     "confluent-kafka",
-    "taranis-llm-bot[inference] @ https://github.com/taranis-ai/llm-bot/archive/aa37cdfe43ee3e74820a6b478cf5fbdcba30c71b.tar.gz",
+    "taranis-llm-bot[inference] @ https://github.com/taranis-ai/llm-bot/archive/8cda6aed055e6acda959421dd7da3de0a5301966.tar.gz",
 ]
 dynamic = ["version"]
 

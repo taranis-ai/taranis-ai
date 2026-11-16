@@ -1,3 +1,4 @@
+import json
 from unittest.mock import AsyncMock
 
 import pytest
@@ -20,15 +21,23 @@ def test_worker_claim_extraction_and_cached_retry(requests_mock, monkeypatch):
     }
     requests_mock.post(route, json=job)
     submitted = requests_mock.put(route, json={"message": "accepted"})
-    inference = AsyncMock(return_value={"output_text": '{"entities": [], "relations": []}'})
+    compact = {
+        "entities": [{"id": "a", "name": "Acme", "type": "ORG"}, {"id": "b", "name": "Beta", "type": "ORG"}],
+        "relations": [{"source_id": "a", "target_id": "b", "type": "ATTACKS", "quote": content, "assertion": "negated"}],
+    }
+    invalid = {**compact, "relations": [{**compact["relations"][0], "quote": "Acme attacked Beta."}]}
+    inference = AsyncMock(side_effect=[{"output_text": json.dumps(invalid)}, {"output_text": json.dumps(compact)}])
     monkeypatch.setattr("llm_bot.client.LLMClient.create_response", inference)
     index_item("test-work")
-    assert submitted.last_request.json()["extraction"] == {"entities": [], "relations": []}
-    assert inference.await_count == 1
-    assert content in inference.call_args.args[1]
-    requests_mock.post(route, json={**job, "cached_result": {"entities": [], "relations": []}})
+    stored = submitted.last_request.json()["extraction"]
+    assert stored["entities"][0]["evidence"] == {"start": 0, "end": 4, "quote": "Acme"}
+    assert stored["relations"][0]["evidence"] == {"start": 0, "end": len(content), "quote": content}
+    assert stored["relations"][0]["assertion"] == "negated"
+    assert inference.await_count == 2
+    assert content in inference.call_args_list[0].args[1]
+    requests_mock.post(route, json={**job, "cached_result": stored})
     index_item("test-work")
-    assert inference.await_count == 1
+    assert inference.await_count == 2
     requests_mock.post(
         route, json={**job, "pipeline": "embedding", "dimensions": 3, "endpoint": {**job["endpoint"], "api_format": "embeddings"}}
     )

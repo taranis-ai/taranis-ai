@@ -4,7 +4,15 @@ import hashlib
 import json
 from datetime import timedelta
 
-from models.hrag import HRAG_SCHEMA_VERSION, EmbeddingResult, IndexStatus, IndexSubmission, bounded_content, input_fingerprint
+from models.hrag import (
+    HRAG_EXTRACTION_SCHEMA_VERSION,
+    HRAG_SCHEMA_VERSION,
+    EmbeddingResult,
+    IndexStatus,
+    IndexSubmission,
+    bounded_content,
+    input_fingerprint,
+)
 
 from core.config import Config
 from core.log import logger
@@ -32,7 +40,7 @@ def current_configuration(pipeline: str, settings: dict) -> dict | None:
         "model": endpoint["model"],
         "api_format": endpoint["api_format"],
         "limit": limit,
-        "schema": HRAG_SCHEMA_VERSION,
+        "schema": HRAG_EXTRACTION_SCHEMA_VERSION if pipeline == "extraction" else HRAG_SCHEMA_VERSION,
         "dimensions": Config.HRAG_EMBEDDING_DIMENSIONS if pipeline == "embedding" else 0,
     }
 
