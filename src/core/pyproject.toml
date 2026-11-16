@@ -122,6 +122,7 @@ exclude = [
 
 [tool.pyright]
 typeCheckingMode = "standard"
+reportUnknownVariableType = "none"
 reportConstantRedefinition = "error"
 reportDuplicateImport = "error"
 reportMissingTypeStubs = "warning"
