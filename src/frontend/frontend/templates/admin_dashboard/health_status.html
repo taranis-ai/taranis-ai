@@ -10,6 +10,12 @@
     </div>
     <div class="divider"></div>
     <div class="flex flex-col gap-2 text-sm">
+      {% if data.health_status and data.health_status.core.debug %}
+        <div class="flex items-center justify-between gap-4">
+          <span>Core</span>
+          <span class="badge badge-warning" data-test-id="debug-mode-badge">{{ _("Debug mode") }}</span>
+        </div>
+      {% endif %}
       {% for service, status in dashboard_health.services.items() %}
         <div class="flex items-center justify-between gap-4">
           <span class="capitalize">{{ service | replace('_', ' ') }}</span>

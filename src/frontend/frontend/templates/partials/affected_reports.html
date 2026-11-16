@@ -1,0 +1,11 @@
+{# Lists reports affected by a story change. Expects `reports`: items with `id` and `title`. #}
+<ul class="list-disc pl-5 my-2 space-y-1" data-test-id="affected-reports">
+  {% for report in reports %}
+    <li>
+      <a class="link link-hover"
+         href="{{ url_for('analyze.report', report_id=report.id) }}"
+         target="_blank"
+         rel="noopener">{{ report.title or "Untitled report" }}</a>
+    </li>
+  {% endfor %}
+</ul>
