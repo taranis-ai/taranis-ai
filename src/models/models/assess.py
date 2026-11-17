@@ -1,7 +1,7 @@
 import contextlib
 import hashlib
 import re
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Annotated, Any, Literal, Self, get_origin
 from urllib.parse import quote, unquote
 
@@ -75,6 +75,24 @@ def _dump_core_fields(model: TaranisBaseModel, allowed_fields: frozenset[str]) -
 
 def _utcnow() -> datetime:
     return datetime.now(UTC).replace(tzinfo=None)
+
+
+def assess_range_bounds(filter_range: str, now: datetime) -> tuple[datetime, datetime | None]:
+    """Return the UTC start and exclusive calendar end of an Assess time preset; rolling presets end at now."""
+    midnight = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    if filter_range == "24h":
+        return now - timedelta(hours=24), None
+    if filter_range.startswith("last") and filter_range[4:].isdigit():
+        return now - timedelta(days=int(filter_range[4:])), None
+    if filter_range == "day":
+        return midnight - timedelta(days=1), None
+    if filter_range == "week":
+        start = midnight - timedelta(days=midnight.weekday())
+        return start, start + timedelta(days=7)
+    if filter_range == "month":
+        start = midnight.replace(day=1)
+        return start, (start + timedelta(days=32)).replace(day=1)
+    return midnight, midnight + timedelta(days=1)
 
 
 def _normalize_datetime(value: str | datetime | None) -> datetime | None:
