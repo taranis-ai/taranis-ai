@@ -633,6 +633,11 @@ def forward_console_and_page_errors_non_admin(request, non_admin_logged_in_page)
                 r"(?i)\[console\.error\].*/assess\?.*:0:0 :: Failed to load resource: the server responded with a status of 503 \(service unavailable\)$",
             ]
         )
+    if request.node.name == "test_ungroup_last_news_item_of_report_story_requires_confirmation":
+        # The workflow deliberately rejects one confirmation to verify that the dialog stays open.
+        allow_patterns.append(
+            r"(?i)\[console\.error\].*/ungroup/[^/]+:0:0 :: Failed to load resource: the server responded with a status of 403 \(forbidden\)$"
+        )
     yield from _forward_console_and_page_errors(request, non_admin_logged_in_page, extra_allow_patterns=allow_patterns)
 
 

@@ -91,8 +91,12 @@ def human_readable_trigger(trigger):
 
 
 def render_count(item, field: str) -> int:
-    if hasattr(item, field) and isinstance(getattr(item, field), list):
-        return len(getattr(item, field))
+    """Return the length of a list field, an integer field unchanged, or 0 for anything else."""
+    value = getattr(item, field, None)
+    if isinstance(value, list):
+        return len(value)
+    if isinstance(value, int):
+        return value
     return 0
 
 
