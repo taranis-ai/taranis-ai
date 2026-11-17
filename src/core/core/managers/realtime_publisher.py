@@ -128,14 +128,6 @@ class RealtimePublisher:
             resource={"kind": "report_item", "id": report_item_id},
         )
 
-    def report_lock_changed(self, report_item_id: str, organization_id: str) -> bool:
-        return self.publish(
-            f"org:{organization_id}",
-            "report.lock.changed",
-            "updated",
-            resource={"kind": "report_item", "id": report_item_id},
-        )
-
     def product_rendered(self, product_id: str, user_id: str, status: str) -> bool:
         return self.publish(
             f"user:#{user_id}",
