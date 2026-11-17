@@ -61,6 +61,9 @@ Producer and consumer: `src/core/core/service/chat.py`, `src/frontend/frontend/s
 
 ## Code and Tests
 
+**Important note (17.11.2026, by lebe1):** The API call `src/core/core/managers/report_item_lock_service.py` and the according test `src/core/tests/unit/test_report_item_lock_service.py` have been removed in the [PR #1291](https://github.com/taranis-ai/taranis-ai/pull/1291).
+
+
 Core: `src/core/core/managers/realtime_publisher.py`, `src/core/core/api/realtime.py`, `src/core/core/managers/report_item_lock_service.py`. Browser: `src/frontend/frontend/static/js/realtime.js`, `src/frontend/frontend/templates/partials/realtime_notices.html`. Deployment: `src/ingress/extras/default.conf.template`, `dev/nginx.conf`, `docker/compose.yml`, `deploy/kubernetes/`, `deploy/helm/`.
 
 Tests: `src/core/tests/unit/test_realtime_publisher.py`, `src/core/tests/unit/test_report_item_lock_service.py`, `src/core/tests/application/mixed_flows/security/test_realtime_connect.py`, `src/core/tests/application/worker_pipeline/test_worker_api.py`, `src/core/tests/application/user_workspace/assessment/test_assess_api.py`, `src/core/tests/test_schema.py`, `src/frontend/tests/unit/views/test_admin_notification_view.py`, `src/frontend/tests/playwright/test_realtime_js.py`.

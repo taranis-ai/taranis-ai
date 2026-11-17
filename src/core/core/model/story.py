@@ -1,11 +1,12 @@
 import re
 from collections import Counter
 from collections.abc import Sequence
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Any
 
 from models.assess import NewsItem as AssessNewsItem
 from models.assess import Story as StoryPayload
+from models.assess import assess_range_bounds
 from models.classification import story_classification
 from models.types import BOT_TYPES
 from pydantic import ValidationError
@@ -436,25 +437,7 @@ class Story(BaseModel):
                 query = query.filter(cls.last_change == changed_by)
 
         if filter_range := filter_args.get("range", "").lower():
-            now = cls.utcnow()
-            date_limit = now.replace(hour=0, minute=0, second=0, microsecond=0)
-            if filter_range in ["day", "week", "month", "24h"]:
-                if filter_range == "day":
-                    date_limit -= timedelta(days=1)
-
-                elif filter_range == "24h":
-                    date_limit = now - timedelta(hours=24)
-
-                elif filter_range == "week":
-                    date_limit -= timedelta(days=date_limit.weekday())
-
-                elif filter_range == "month":
-                    date_limit = date_limit.replace(day=1)
-
-            elif filter_range.startswith("last") and filter_range[4:].isdigit():
-                days = int(filter_range[4:])
-                date_limit = now - timedelta(days=days)
-
+            date_limit, _ = assess_range_bounds(filter_range, cls.utcnow())
             query = query.filter(cls.created >= date_limit)
 
         if timefrom := filter_args.get("timefrom"):
