@@ -198,6 +198,7 @@ def test_confirmed_ungroup_clears_detached_story_from_report_story_attributes(
     story_relevance_story_payload_factory,
 ):
     from uuid import uuid4
+
     from core.model.attribute import Attribute, AttributeType
     from core.model.report_item_type import ReportItemType
 
