@@ -72,8 +72,11 @@ def _time_preset_from_bounds(time_presets: dict[str, str]) -> dict[str, dict[str
     bounds = {}
     for value in time_presets:
         start, end = assess_range_bounds(value, now)
+        first_minute = start.replace(second=0, microsecond=0)
+        if first_minute < start:  # rolling presets start mid-minute; round up to stay inside Core's interval
+            first_minute += datetime.timedelta(minutes=1)
         last_second = f"{end - datetime.timedelta(seconds=1):%Y-%m-%dT%H:%M:%S}" if end else ""
-        bounds[value] = {"min": f"{start:%Y-%m-%dT%H:%M}", "max": last_second}
+        bounds[value] = {"min": f"{first_minute:%Y-%m-%dT%H:%M}", "max": last_second}
     return bounds
 
 
