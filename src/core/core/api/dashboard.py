@@ -67,7 +67,8 @@ class ClusterByType(MethodView):
 
 
 class DeleteTag(MethodView):
-    @auth_required()
+    # Deletes the tag from every news item regardless of ACLs, so it is restricted like the global "delete all tags" operation.
+    @auth_required("ADMIN_OPERATIONS")
     def delete(self, tag_name: str):
         NewsItemTagService.delete_tags_by_name(tag_name)
         return {"message": "Cluster deleted"}, 200

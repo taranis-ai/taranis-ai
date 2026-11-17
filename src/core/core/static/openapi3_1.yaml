@@ -8920,7 +8920,7 @@ paths:
       - UserAuth: []
       tags:
       - dashboard
-      description: delete tag
+      description: delete a tag from all news items; requires ADMIN_OPERATIONS
       operationId: dashboard.delete-tag.delete
       responses:
         '200':
