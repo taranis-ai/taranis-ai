@@ -66,16 +66,15 @@ ASSESS_TIME_PRESETS = {
 }
 
 
-def _time_from_bounds(filter_range: str, now: datetime.datetime) -> dict[str, str]:
-    """Datetime-local min/max (UTC clock, second precision) that keep the From filter inside a preset."""
-    if not filter_range:
-        return {}
-    second = datetime.timedelta(seconds=1)
-    start, end = assess_range_bounds(filter_range, now)
-    first_second = start.replace(microsecond=0)
-    if first_second < start:
-        first_second += second
-    return {"min": f"{first_second:%Y-%m-%dT%H:%M:%S}", "max": f"{end - second:%Y-%m-%dT%H:%M:%S}" if end else ""}
+def _time_preset_from_bounds(time_presets: dict[str, str]) -> dict[str, dict[str, str]]:
+    """Datetime-local min/max (UTC clock) that keep the From filter inside each preset."""
+    now = datetime.datetime.now(datetime.UTC).replace(tzinfo=None)
+    bounds = {}
+    for value in time_presets:
+        start, end = assess_range_bounds(value, now)
+        last_second = f"{end - datetime.timedelta(seconds=1):%Y-%m-%dT%H:%M:%S}" if end else ""
+        bounds[value] = {"min": f"{start:%Y-%m-%dT%H:%M}", "max": last_second}
+    return bounds
 
 
 class StoryView(BaseView):
@@ -150,9 +149,7 @@ class StoryView(BaseView):
             days = int(current_range[4:])
             time_presets[current_range] = f"Last {days} {'day' if days == 1 else 'days'}"
         base_context["time_presets"] = time_presets
-        now = datetime.datetime.now(datetime.UTC)
-        base_context["time_from_bounds"] = _time_from_bounds(current_range, now.replace(tzinfo=None))
-        base_context["time_filter_now_ms"] = int(now.timestamp() * 1000)
+        base_context["time_preset_from_bounds"] = _time_preset_from_bounds(time_presets)
         chips = []
         labels = {
             "search": "Search",
