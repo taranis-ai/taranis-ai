@@ -10,11 +10,14 @@ def test_hrag_indexing_start_refresh_and_failures(authenticated_client, response
     route = url_for("admin_settings.hrag_indexing")
     upstream = f"{Config.TARANIS_CORE_URL}/settings/hrag"
     headers = {"HX-Request": "true"}
-    responses_mock.get(upstream, json={"enabled": True, "generations": []})
+    responses_mock.get(
+        upstream, json={"enabled": True, "generations": [], "configuration_errors": ["Configure HRAG relationship verification."]}
+    )
     response = authenticated_client.get(route, headers=headers)
     assert response.status_code == 200
     assert "No indexing generations yet" in response.text
     assert "Start indexing" in response.text
+    assert "Configure HRAG relationship verification." in response.text
     form = html.fromstring(response.text).xpath(".//form")[0]
     assert form.get("action") == route and form.get("hx-target") == "#settings-hrag-index"
 

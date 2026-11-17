@@ -9,6 +9,7 @@ LLM_FEATURES = {
     "embedding": "HRAG embeddings",
     "graph_planning": "HRAG graph planning",
     "extraction": "HRAG entity and relationship extraction",
+    "extraction_verification": "HRAG relationship verification",
     "clustering": "Story clustering",
     "summarization": "Summarization and titles",
     "ner": "Named-entity recognition",
@@ -128,7 +129,7 @@ class LLMProvider(BaseModel):
     def feature_formats(feature: str) -> tuple[str, ...]:
         if feature == "embedding":
             return ("embeddings",)
-        if feature == "classification":
+        if feature in {"classification", "extraction_verification"}:
             return ("systemone", "openai_decisions")
         return ("responses", "chat_completions")
 

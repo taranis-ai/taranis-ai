@@ -1,4 +1,4 @@
-{% from "macros/forms.html" import form_input %}
+{% from "macros/forms.html" import form_input, form_select %}
 <details class="collapse collapse-arrow border border-base-300 bg-base-100 rounded-box shadow-sm" data-testid="settings-chat-section">
   <summary class="collapse-title px-6 py-5 pr-12 text-lg font-semibold">Chat</summary>
   <div class="collapse-content px-6">
@@ -9,6 +9,14 @@
           data-testid="settings-chat-form">
       <input type="hidden" name="csrf_token" value="{{ request.cookies.get(config['JWT_ACCESS_CSRF_COOKIE_NAME'], '') }}" />
       {{ form_input('Maximum stories per answer', 'settings[chat_max_stories]', current_settings.chat_max_stories, type='number', preserve=False, min_value=1, max_value=20, data_testid='settings-chat-max-stories') }}
+      {% if config["HRAG_ENABLED"] %}
+        {% set effort_options = [] %}
+        {% for value, label in hrag_reasoning_efforts.items() %}
+          {% set _ = effort_options.append({'id': value, 'name': label}) %}
+        {% endfor %}
+        {{ form_select('HRAG extraction reasoning', 'settings[hrag_extraction_reasoning_effort]', current_settings.hrag_extraction_reasoning_effort, options=effort_options, required=True) }}
+        <p class="mb-4 text-sm text-base-content/70">Applies only to graph extraction. Select an effort supported by its model; Provider default omits the parameter. Changes create a replacement extraction generation.</p>
+      {% endif %}
       <button type="submit" class="btn btn-primary" data-testid="settings-chat-submit">Save Chat Settings</button>
     </form>
     {% include "settings/hrag.html" %}

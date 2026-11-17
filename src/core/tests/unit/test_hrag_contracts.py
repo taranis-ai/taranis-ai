@@ -62,6 +62,11 @@ def test_compact_extraction_resolves_unicode_repeated_quotes_and_validates_graph
     payload["relations"][0]["target_id"] = "missing"
     with pytest.raises(ValueError, match="Invalid extracted relationship"):
         CompactExtractionResult.model_validate(payload).resolve(content)
+    quarantined = CompactExtractionResult.model_validate(payload).resolve(content, quarantine_invalid_relations=True)
+    assert quarantined.relations == [] and len(quarantined.entities) == 2
+    payload["relations"][0].pop("assertion")
+    with pytest.raises(ValidationError, match="assertion"):
+        CompactExtractionResult.model_validate(payload)
     vulnerability = CompactExtractionResult.model_validate({"entities": [{"id": "v", "name": "CVE-2026-1234", "type": "VULNERABILITY"}]})
     with pytest.raises(ValueError, match="Vulnerability identifier is absent"):
         vulnerability.resolve("CVE-2026-12345")

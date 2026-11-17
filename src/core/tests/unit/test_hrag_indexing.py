@@ -31,9 +31,16 @@ def configured_index(db_persistent_session, monkeypatch):
                     "api_formats": {"embeddings": {"model": "embed"}},
                     "enabled": True,
                 },
+                "verify": {
+                    "name": "Verification",
+                    "base_url": "https://example.invalid/v1",
+                    "api_formats": {"systemone": {"model": "verify"}},
+                    "enabled": True,
+                },
             },
             "llm_extraction_endpoint": "extract",
             "llm_embedding_endpoint": "embed",
+            "llm_extraction_verification_endpoint": "verify",
         }
     )
     monkeypatch.setattr(Settings, "get_settings", classmethod(lambda cls: settings))
@@ -52,16 +59,21 @@ def test_durable_index_lifecycle_cutoffs_retries_and_generations(configured_inde
     item = story.news_items[0]
     try:
         indexing.reconcile()
+        from core.managers.queue_manager import queue_manager
+
+        assert {call.args[0] for call in queue_manager.enqueue_task.call_args_list} == {"embeddings", "hrag"}
         works = {
             db.session.get(HragGeneration, w.generation_id).pipeline: w
             for w in db.session.scalars(db.select(HragWork).where(HragWork.news_item_id == item.id))
         }
         extraction, embedding = works["extraction"], works["embedding"]
-        assert db.session.get(HragGeneration, extraction.generation_id).config["schema"] == "v2"
+        assert db.session.get(HragGeneration, extraction.generation_id).config["schema"] == "v3"
         assert db.session.get(HragGeneration, embedding.generation_id).config["schema"] == "v1"
         original = {kind: work.fingerprint for kind, work in works.items()}
         job = indexing.claim(extraction.id)
         assert job and indexing.claim(extraction.id) is None
+        assert job["reasoning_effort"] == "none"
+        assert job["verification_endpoint"]["model"] == "verify"
         result = IndexSubmission(token=job["token"], fingerprint=job["fingerprint"], extraction=ExtractionResult())
         assert indexing.submit(extraction.id, result)[1] == 200
         assert indexing.submit(extraction.id, result)[1] == 200
@@ -95,6 +107,23 @@ def test_durable_index_lifecycle_cutoffs_retries_and_generations(configured_inde
         pending = next(g for g in generations if not g.active)
         assert indexing.activate(pending.id)[1] == 409
         db.session.rollback()
+        configured_index["llm_endpoints"]["verify"]["api_key"] = "rotated-key"
+        configured_index["llm_endpoints"]["verify"]["api_formats"]["systemone"]["model"] = "replacement-verifier"
+        configured_index["hrag_extraction_reasoning_effort"] = "low"
+        indexing.reconcile()
+        extraction_generations = list(db.session.scalars(db.select(HragGeneration).where(HragGeneration.pipeline == "extraction")))
+        assert len(extraction_generations) == 2
+        original_generation = db.session.get(HragGeneration, extraction.generation_id)
+        frozen = indexing.generation_verification_endpoint(original_generation)
+        assert frozen["model"] == "verify" and frozen["api_key"] == "rotated-key"
+        assert "api_key" not in original_generation.config["verification"]
+        replacement = next(g for g in extraction_generations if not g.active)
+        assert replacement.config["reasoning_effort"] == "low"
+        assert replacement.config["verification"]["model"] == "replacement-verifier"
+        configured_index["llm_endpoints"]["verify"]["enabled"] = False
+        assert indexing.generation_verification_endpoint(original_generation) is None
+        assert indexing.current_configuration("extraction", configured_index) is None
+        assert indexing.current_configuration("embedding", configured_index) is not None
         db.session.delete(item)
         db.session.commit()
         assert not list(db.session.scalars(db.select(HragWork).where(HragWork.news_item_id == item.id)))

@@ -85,8 +85,30 @@ def test_endpoint_health_lifecycle(client, auth_header, api_header, app, db_pers
             monkeypatch.setattr(Config, "HRAG_ENABLED", True)
             monkeypatch.setattr(Config, "HRAG_EMBEDDING_DIMENSIONS", 1024)
             assert client.get(route, query_string={"check_id": state["check_id"]}, headers=api_header).json["embedding_dimensions"] == 1024
+            assert (
+                client.patch(
+                    "/api/settings/settings", json={"settings": {"llm_extraction_endpoint": endpoint_id}}, headers=auth_header
+                ).status_code
+                == 200
+            )
+            state = read_state("llm", endpoint_id)
+            extraction = client.get(route, query_string={"check_id": state["check_id"]}, headers=api_header).json["extraction"]
+            assert extraction == {"api_format": "responses", "reasoning_effort": "none"}
+            assert (
+                client.patch(
+                    "/api/settings/settings", json={"settings": {"hrag_extraction_reasoning_effort": "default"}}, headers=auth_header
+                ).status_code
+                == 200
+            )
+            assert client.post(route, json={"check_id": state["check_id"], "healthy": True}, headers=api_header).json == {"accepted": False}
+            state = read_state("llm", endpoint_id)
+            assert (
+                client.get(route, query_string={"check_id": state["check_id"]}, headers=api_header).json["extraction"]["reasoning_effort"]
+                is None
+            )
             monkeypatch.setattr(Config, "HRAG_ENABLED", False)
-            assert client.get(route, query_string={"check_id": state["check_id"]}, headers=api_header).json["embedding_dimensions"] is None
+            snapshot = client.get(route, query_string={"check_id": state["check_id"]}, headers=api_header).json
+            assert snapshot["embedding_dimensions"] is None and snapshot["extraction"] is None
             assert client.get("/api/health").json["services"]["worker_endpoints"] == "down"
 
             result = {"check_id": state["check_id"], "healthy": False}

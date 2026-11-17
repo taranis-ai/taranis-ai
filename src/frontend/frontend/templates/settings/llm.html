@@ -8,7 +8,7 @@
 <section id="llm-endpoints" class="rounded-box border border-base-300 bg-base-100 p-6 shadow-sm" data-test-id="llm-settings">
   <h2 class="text-lg font-semibold">LLM Endpoints</h2>
   <p class="text-sm text-base-content/70 mt-2 mb-6">
-    Configure providers and models for Chat, NER, sentiment, topic classification, clustering, and summarization. Set a default, then override individual functions if needed.
+    Configure providers and models for Chat, HRAG, NER, sentiment, topic classification, clustering, and summarization. Set a default, then override individual functions if needed.
     Changes apply to the next message or bot run. Prompts and selected story content are sent to the assigned provider.
     Disabled endpoints pause health checks, Chat, and bot scheduling.
   </p>
@@ -93,7 +93,7 @@
             <p class="text-sm text-base-content/70 mb-4">Each enabled format uses its own model. Blank models use the provider default. Decisions URLs default to /systemone or /decisions under the provider base URL; use a full URL override for a different path. Responses is preferred over Chat Completions when both are enabled.</p>
             {{ form_select('Processing mode', 'processing_mode', endpoint.processing_mode | default('realtime'), options=[{'id': 'realtime', 'name': 'Realtime'}, {'id': 'openrouter_batch', 'name': 'OpenRouter batch'}], input_id='llm-' ~ endpoint_id ~ '-processing_mode') }}
             <p class="text-sm text-base-content/70 mb-4">
-              OpenRouter batch uses /batches for background bots and can take up to 24 hours. Use https://openrouter.ai/api/v1 and a model that supports batch processing. Chat requires realtime processing. Decisions always uses realtime processing, even when other formats use batch. The same endpoint can serve Chat and topic classification with different models.
+              OpenRouter batch uses /batches for background bots and can take up to 24 hours. Use https://openrouter.ai/api/v1 and a model that supports batch processing. Chat requires realtime processing. Decisions always uses realtime processing, even when other formats use batch. The same endpoint can serve Chat, topic classification, and HRAG relationship verification with different models.
             </p>
             {{ form_input('API key', 'api_key', '', type='password', required=False, preserve=False, floating=False, placeholder='Leave blank to keep the saved key' if endpoint_id else 'Enter provider API key', input_id='llm-' ~ endpoint_id ~ '-api_key') }}
             <p class="text-sm text-base-content/70 mb-4">{{ 'An API key is saved.' if endpoint.api_key_configured else 'No API key saved. Optional for providers without authentication.' }}</p>

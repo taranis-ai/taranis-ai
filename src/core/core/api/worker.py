@@ -148,7 +148,7 @@ class TaskChanges(MethodView):
 class EndpointHealth(MethodView):
     @api_key_required
     def get(self, kind: str, endpoint_id: str):
-        from core.service.endpoint_health import endpoint_config, fingerprint, read_state
+        from core.service.endpoint_health import endpoint_config, extraction_probe, fingerprint, read_state
 
         config = endpoint_config(kind, endpoint_id)
         state = read_state(kind, endpoint_id)
@@ -160,7 +160,13 @@ class EndpointHealth(MethodView):
         ):
             response = jsonify({"skip": True})
         else:
-            response = jsonify({"config": config, "embedding_dimensions": Config.HRAG_EMBEDDING_DIMENSIONS if Config.HRAG_ENABLED else None})
+            response = jsonify(
+                {
+                    "config": config,
+                    "embedding_dimensions": Config.HRAG_EMBEDDING_DIMENSIONS if Config.HRAG_ENABLED else None,
+                    "extraction": extraction_probe(endpoint_id),
+                }
+            )
         response.headers["Cache-Control"] = "no-store"
         return response
 

@@ -31,5 +31,21 @@ services:
   frontend:
     environment:
       HRAG_ENABLED: "true"
+  hrag-extraction-workers:
+    extends:
+      file: compose.yml
+      service: workers
+    environment:
+      WORKER_TYPES: '["HRAG"]'
+    deploy:
+      replicas: ${HRAG_EXTRACTION_WORKERS:-2}
+  hrag-embedding-worker:
+    extends:
+      file: compose.yml
+      service: workers
+    environment:
+      WORKER_TYPES: '["Embeddings"]'
+    deploy:
+      replicas: 1
 volumes:
   neo4j_data:

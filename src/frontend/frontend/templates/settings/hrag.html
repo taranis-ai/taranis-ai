@@ -8,6 +8,11 @@
     <p class="alert mt-3 {% if hrag_notification.error %}alert-error{% else %}alert-info{% endif %}"
        role="status">{{ hrag_notification.message }}</p>
   {% endif %}
+  {% if hrag_status %}
+    {% for message in hrag_status.configuration_errors %}
+      <p class="alert alert-warning mt-3" role="status">{{ message }}</p>
+    {% endfor %}
+  {% endif %}
   <div class="my-4 flex flex-wrap items-center gap-3">
     {% if hrag_status and hrag_status.enabled %}
       <form method="post"

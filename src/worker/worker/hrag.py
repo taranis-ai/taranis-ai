@@ -7,8 +7,9 @@ from llm_bot.tasks.llm_utils import InvalidLLMOutputError
 from models.hrag import CompactExtractionResult, EmbeddingResult, ExtractionResult, IndexJob, IndexSubmission, extraction_vocabulary
 
 from worker.core_api import CoreApi
+from worker.hrag_verification import verify_extraction
 from worker.http_client import http_request, http_session_scope
-from worker.llm import get_llm_client
+from worker.llm import get_decisions_client, get_llm_client
 from worker.log import logger
 from worker.telemetry import instrument_job
 
@@ -42,14 +43,24 @@ async def infer(job: IndexJob) -> dict:
 
     def validate(result: CompactExtractionResult) -> CompactExtractionResult:
         try:
-            result.resolve(job.content)
+            result.resolve(job.content, quarantine_invalid_relations=True)
             return result
         except ValueError as exc:
             raise InvalidLLMOutputError("Evidence does not match source content") from exc
 
     task = prepare_evidence_extraction(job.content, extraction_vocabulary(), CompactExtractionResult, validate=validate)
-    client = get_llm_client({"llm_endpoint": job.endpoint.model_dump()})
-    return (await task.run(client)).resolve(job.content).model_dump()
+    client = get_llm_client({"llm_endpoint": job.endpoint.model_dump()}, reasoning_effort=job.reasoning_effort)
+    proposals = await task.run(client)
+    resolved = proposals.resolve(job.content, quarantine_invalid_relations=True)
+    if job.verification_endpoint is None:
+        raise RuntimeError("HRAG relationship verification is not configured")
+    verifier = get_decisions_client({"llm_endpoint": job.verification_endpoint.model_dump()})
+    result = await verify_extraction(job.content, resolved, verifier)
+    logger.info(
+        f"HRAG extraction: quarantined={len(proposals.relations) - len(resolved.relations)} "
+        f"rejected={len(resolved.relations) - len(result.relations)} accepted={len(result.relations)}"
+    )
+    return result.model_dump()
 
 
 @instrument_job

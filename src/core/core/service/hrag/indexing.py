@@ -23,7 +23,7 @@ from core.model.settings import Settings
 from core.service.hrag.stores import graph_document_keys, project_graph, prune_graph, save_vector
 
 
-PIPELINES = ("extraction", "embedding")
+PIPELINES = ("embedding", "extraction")
 
 
 def current_configuration(pipeline: str, settings: dict) -> dict | None:
@@ -34,7 +34,7 @@ def current_configuration(pipeline: str, settings: dict) -> dict | None:
     limit = Config.HRAG_EXTRACTION_LIMIT if pipeline == "extraction" else Config.HRAG_EMBEDDING_LIMIT
     if not 1 <= limit <= 200_000 or not 1 <= Config.HRAG_EMBEDDING_DIMENSIONS <= 16000:
         return None
-    return {
+    configuration = {
         "endpoint_id": endpoint_id,
         "base_url": endpoint["base_url"],
         "model": endpoint["model"],
@@ -43,22 +43,43 @@ def current_configuration(pipeline: str, settings: dict) -> dict | None:
         "schema": HRAG_EXTRACTION_SCHEMA_VERSION if pipeline == "extraction" else HRAG_SCHEMA_VERSION,
         "dimensions": Config.HRAG_EMBEDDING_DIMENSIONS if pipeline == "embedding" else 0,
     }
+    if pipeline == "extraction":
+        verifier = Settings.get_llm_endpoint("extraction_verification", settings)
+        if not verifier or verifier["processing_mode"] != "realtime":
+            return None
+        configuration["reasoning_effort"] = (
+            None if settings["hrag_extraction_reasoning_effort"] == "default" else settings["hrag_extraction_reasoning_effort"]
+        )
+        configuration["verification"] = {
+            "endpoint_id": settings.get("llm_extraction_verification_endpoint") or settings.get("llm_default_endpoint"),
+            **{key: verifier[key] for key in ("base_url", "model", "api_format")},
+        }
+    return configuration
 
 
 def generation_endpoint(generation: HragGeneration) -> dict | None:
+    return _frozen_endpoint(generation.config, generation.pipeline)
+
+
+def generation_verification_endpoint(generation: HragGeneration) -> dict | None:
+    configuration = generation.config.get("verification")
+    return _frozen_endpoint(configuration, "extraction_verification") if configuration else None
+
+
+def _frozen_endpoint(configuration: dict, feature: str) -> dict | None:
     from models.llm import LLMProvider
 
-    provider = Settings.get_settings().get("llm_endpoints", {}).get(generation.config["endpoint_id"])
+    provider = Settings.get_settings().get("llm_endpoints", {}).get(configuration["endpoint_id"])
     if not provider or not provider.get("enabled", True):
         return None
     normalized = LLMProvider.model_validate(provider)
-    if not normalized.supports(generation.pipeline):
+    if not normalized.supports(feature):
         return None
-    endpoint = normalized.for_feature(generation.pipeline)
+    endpoint = normalized.for_feature(feature)
     if not endpoint or endpoint["processing_mode"] != "realtime":
         return None
     # Freeze model and destination for this generation; rotate credentials independently.
-    return {**endpoint, **{key: generation.config[key] for key in ("base_url", "model", "api_format")}}
+    return {**endpoint, **{key: configuration[key] for key in ("base_url", "model", "api_format")}}
 
 
 def fingerprint(item: NewsItem, generation: HragGeneration) -> str:
@@ -92,6 +113,11 @@ def reconcile() -> dict:
             db.session.flush()
         selected.append(generation.id)
     generations = list(db.session.scalars(db.select(HragGeneration).where(db.or_(HragGeneration.id.in_(selected), HragGeneration.active))))
+    generations = [
+        generation
+        for generation in generations
+        if generation_endpoint(generation) and (generation.pipeline == "embedding" or generation_verification_endpoint(generation))
+    ]
     for generation in generations:
         items = list(db.session.scalars(db.select(NewsItem).where(NewsItem.id > generation.cursor).order_by(NewsItem.id).limit(500)))
         for item in items:
@@ -118,11 +144,12 @@ def reconcile() -> dict:
                 work.status, work.token, work.lease_until = "pending", None, None
     now = HragWork.utcnow()
     # Reissue lost Redis work only after its PostgreSQL lease expires.
-    eligible = list(
-        db.session.scalars(
+    job_ids = []
+    for pipeline in PIPELINES:
+        eligible = db.session.scalars(
             db.select(HragWork)
             .where(
-                HragWork.generation_id.in_([g.id for g in generations]),
+                HragWork.generation_id.in_([g.id for g in generations if g.pipeline == pipeline]),
                 HragWork.status != "ready",
                 db.or_(HragWork.lease_until.is_(None), HragWork.lease_until < now),
                 db.or_(HragWork.retry_after.is_(None), HragWork.retry_after <= now),
@@ -130,19 +157,17 @@ def reconcile() -> dict:
             .order_by(HragWork.updated, HragWork.id)
             .limit(50)
         )
-    )
-    job_ids = []
-    for work in eligible:
-        work.status = "queued"
-        work.token = None
-        work.lease_until = now + timedelta(minutes=15)
-        job_ids.append(work.id)
+        for work in eligible:
+            work.status = "queued"
+            work.token = None
+            work.lease_until = now + timedelta(minutes=15)
+            job_ids.append(("embeddings" if pipeline == "embedding" else "hrag", work.id))
     db.session.commit()
     from core.managers.queue_manager import queue_manager
 
     queued = 0
-    for work_id in job_ids:
-        if queue_manager.enqueue_task("misc", "hrag_index", work_id=work_id, job_timeout=720, result_ttl=0):
+    for queue, work_id in job_ids:
+        if queue_manager.enqueue_task(queue, "hrag_index", work_id=work_id, job_timeout=720, result_ttl=0):
             queued += 1
         else:
             work = db.session.get(HragWork, work_id)
@@ -176,6 +201,9 @@ def claim(work_id: str) -> dict | None:
     item = db.session.get(NewsItem, work.news_item_id)
     if not generation or not item or not (endpoint := generation_endpoint(generation)):
         return None
+    verification_endpoint = generation_verification_endpoint(generation) if generation.pipeline == "extraction" else None
+    if generation.pipeline == "extraction" and verification_endpoint is None:
+        return None
     expected = fingerprint(item, generation)
     if expected != work.fingerprint:
         work.fingerprint, work.result, work.attempts = expected, None, 0
@@ -195,6 +223,8 @@ def claim(work_id: str) -> dict | None:
         "pipeline": generation.pipeline,
         "content": content,
         "endpoint": endpoint,
+        "verification_endpoint": verification_endpoint,
+        "reasoning_effort": generation.config.get("reasoning_effort"),
         "dimensions": generation.config["dimensions"],
         "cached_result": work.result,
     }
@@ -277,7 +307,10 @@ def index_status(news_item_ids: list[str] | None = None) -> dict:
                 "counts": counts,
             }
         )
-    return IndexStatus(enabled=Config.HRAG_ENABLED, generations=generations).model_dump()
+    errors = []
+    if Config.HRAG_ENABLED and current_configuration("extraction", Settings.get_settings()) is None:
+        errors.append("Assign compatible realtime HRAG extraction and relationship verification endpoints in LLM Endpoints.")
+    return IndexStatus(enabled=Config.HRAG_ENABLED, generations=generations, configuration_errors=errors).model_dump()
 
 
 def activate(generation_id: str) -> tuple[dict, int]:

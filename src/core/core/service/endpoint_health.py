@@ -37,6 +37,20 @@ def endpoint_config(kind: str, endpoint_id: str) -> dict | None:
     return None
 
 
+def extraction_probe(endpoint_id: str) -> dict | None:
+    from core.model.settings import Settings
+
+    if not Config.HRAG_ENABLED:
+        return None
+    settings = Settings.get_settings()
+    selected = settings.get("llm_extraction_endpoint") or settings.get("llm_default_endpoint")
+    endpoint = Settings.get_llm_endpoint("extraction", settings)
+    if selected != endpoint_id or not endpoint or endpoint["processing_mode"] != "realtime":
+        return None
+    effort = settings["hrag_extraction_reasoning_effort"]
+    return {"api_format": endpoint["api_format"], "reasoning_effort": None if effort == "default" else effort}
+
+
 def fingerprint(config: dict) -> str:
     return hashlib.sha256(json.dumps(config, sort_keys=True).encode()).hexdigest()
 

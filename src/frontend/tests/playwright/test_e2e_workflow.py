@@ -27,7 +27,7 @@ def demo_chat_provider(core_request_client):
             "name": "Landing page demo",
             "base_url": "http://demo-llm:8080/v1",
             "enabled": True,
-            "api_formats": {"responses": {"model": model}, "embeddings": {"model": model}},
+            "api_formats": {"responses": {"model": model}, "embeddings": {"model": model}, "openai_decisions": {"model": model}},
         },
     )
     news_item_ids = []
@@ -36,7 +36,10 @@ def demo_chat_provider(core_request_client):
         core_request_client.patch(
             "/settings/settings",
             json_data={
-                "settings": {f"llm_{feature}_endpoint": endpoint["id"] for feature in ("chat", "graph_planning", "extraction", "embedding")}
+                "settings": {
+                    f"llm_{feature}_endpoint": endpoint["id"]
+                    for feature in ("chat", "graph_planning", "extraction", "extraction_verification", "embedding")
+                }
             },
         )
         for index, title in enumerate(
@@ -53,7 +56,7 @@ def demo_chat_provider(core_request_client):
                 json_data={
                     "id": str(uuid4()),
                     "title": title,
-                    "content": "Demo intelligence for the landing-page chat walkthrough.",
+                    "content": "Demo uses Example. Demo intelligence for the landing-page chat walkthrough.",
                     "link": f"https://example.invalid/chat-demo/{index}",
                     "source": "manual",
                     "osint_source_id": "manual",
@@ -87,7 +90,7 @@ def demo_chat_provider(core_request_client):
                 json_data={
                     "settings": {
                         f"llm_{feature}_endpoint": settings.get(f"llm_{feature}_endpoint", "")
-                        for feature in ("chat", "graph_planning", "extraction", "embedding")
+                        for feature in ("chat", "graph_planning", "extraction", "extraction_verification", "embedding")
                     }
                 },
             )
@@ -476,6 +479,8 @@ class TestUserWorkflow(BaseE2ETest):
             expect(panels.first).not_to_have_attribute("open", "")
             panels.first.locator("summary").click()
             expect(panels.first.get_by_test_id("chat-hrag-citation").first).to_be_visible()
+            expect(panels.first).to_contain_text("Demo — USES → Example (affirmed)")
+            expect(panels.first).not_to_contain_text("OWNS")
             page.reload()
             expect(answer).to_have_count(3)
             expect(answer.last).to_contain_text("[G1]")

@@ -14,7 +14,21 @@ from models.llm import LLMEndpoint
 EMBEDDING_CONTENT_LIMIT = 4_000
 EXTRACTION_CONTENT_LIMIT = 20_000
 HRAG_SCHEMA_VERSION = "v1"
-HRAG_EXTRACTION_SCHEMA_VERSION = "v2"
+HRAG_EXTRACTION_SCHEMA_VERSION = "v3"
+
+type ReasoningEffort = Literal["none", "minimal", "low", "medium", "high", "xhigh", "max"]
+type ExtractionReasoningEffort = ReasoningEffort | Literal["default"]
+
+EXTRACTION_REASONING_EFFORTS = {
+    "default": "Provider default",
+    "none": "Disabled (none)",
+    "minimal": "Minimal",
+    "low": "Low",
+    "medium": "Medium",
+    "high": "High",
+    "xhigh": "Extra high",
+    "max": "Maximum",
+}
 
 type EntityType = Literal[
     "PER",
@@ -188,7 +202,7 @@ class QuotedRelation(HragContract):
     target_id: str
     type: str
     quote: str = Field(min_length=1)
-    assertion: Literal["affirmed", "negated", "uncertain"] = "affirmed"
+    assertion: Literal["affirmed", "negated", "uncertain"]
 
 
 class CompactExtractionResult(HragContract):
@@ -197,7 +211,7 @@ class CompactExtractionResult(HragContract):
     entities: list[EntityMention] = Field(default_factory=list, max_length=1000)
     relations: list[QuotedRelation] = Field(default_factory=list, max_length=2000)
 
-    def resolve(self, content: str) -> ExtractionResult:
+    def resolve(self, content: str, *, quarantine_invalid_relations: bool = False) -> ExtractionResult:
         entities = []
         for entity in self.entities:
             if entity.type == "VULNERABILITY" and re.fullmatch(r"CVE-\d{4}-\d{4,}", entity.name, re.IGNORECASE):
@@ -208,13 +222,23 @@ class CompactExtractionResult(HragContract):
             else:
                 evidence = EvidenceSpan.from_quote(content, entity.name)
             entities.append(ExtractedEntity(**entity.model_dump(), evidence=evidence))
-        return ExtractionResult(
-            entities=entities,
-            relations=[
-                ExtractedRelation(**relation.model_dump(exclude={"quote"}), evidence=EvidenceSpan.from_quote(content, relation.quote))
-                for relation in self.relations
-            ],
-        ).validate_content(content)
+        # Entity failures still enter the shared repair path. A malformed proposal
+        # must not prevent independent, valid relationships from being verified.
+        result = ExtractionResult(entities=entities).validate_content(content)
+        by_id = {entity.id: entity for entity in entities}
+        relations = []
+        for relation in self.relations:
+            try:
+                resolved = ExtractedRelation(
+                    **relation.model_dump(exclude={"quote"}), evidence=EvidenceSpan.from_quote(content, relation.quote)
+                )
+                endpoints = {key: by_id[key] for key in (relation.source_id, relation.target_id) if key in by_id}
+                ExtractionResult(entities=list(endpoints.values()), relations=[resolved]).validate_content(content)
+                relations.append(resolved)
+            except ValueError:
+                if not quarantine_invalid_relations:
+                    raise
+        return ExtractionResult(entities=result.entities, relations=relations).validate_content(content)
 
 
 def bounded_content(content: str | None, limit: int) -> str:
@@ -283,8 +307,19 @@ class IndexJob(HragContract):
     pipeline: Literal["extraction", "embedding"]
     content: str
     endpoint: LLMEndpoint
+    verification_endpoint: LLMEndpoint | None = None
+    reasoning_effort: ReasoningEffort | None = None
     dimensions: int = Field(default=0, ge=0, le=16000)
     cached_result: dict | None = None
+
+    @model_validator(mode="after")
+    def validate_pipeline_endpoints(self) -> Self:
+        if self.pipeline == "extraction":
+            if self.endpoint.api_format not in {"responses", "chat_completions"} or self.endpoint.processing_mode != "realtime":
+                raise ValueError("Extraction requires a realtime generative endpoint")
+            if self.verification_endpoint is None or not self.verification_endpoint.is_decisions:
+                raise ValueError("Extraction requires a Decisions verification endpoint")
+        return self
 
 
 class EvidenceReference(HragContract):
@@ -347,3 +382,4 @@ class IndexGenerationStatus(HragContract):
 class IndexStatus(HragContract):
     enabled: bool
     generations: list[IndexGenerationStatus]
+    configuration_errors: list[str] = Field(default_factory=list)

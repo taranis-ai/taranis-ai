@@ -35,7 +35,7 @@ def check_endpoint(kind: str, endpoint_id: str, check_id: str):
             if not job:
                 raise RuntimeError("Batch endpoint checks require a queued job")
             state = job.meta.setdefault("llm_batch_probe", {})
-        healthy = probe(kind, config, state, job.save_meta if job else None, snapshot.get("embedding_dimensions"))
+        healthy = probe(kind, config, state, job.save_meta if job else None, snapshot.get("embedding_dimensions"), snapshot.get("extraction"))
         if isinstance(healthy, Retry):
             return healthy
         if state is not None:
@@ -52,7 +52,12 @@ def check_endpoint(kind: str, endpoint_id: str, check_id: str):
 
 
 def probe(
-    kind: str, config: dict, batch_state: dict | None = None, save_batch_state=None, embedding_dimensions: int | None = None
+    kind: str,
+    config: dict,
+    batch_state: dict | None = None,
+    save_batch_state=None,
+    embedding_dimensions: int | None = None,
+    extraction: dict | None = None,
 ) -> bool | Retry:
     text = "Reply with OK."
     if kind != "llm":
@@ -67,7 +72,7 @@ def probe(
                 if state is not None and "healthy" in state:
                     healthy = healthy and state["healthy"]
                     continue
-                result = probe(kind, provider.for_format(api_format), state, save_batch_state, embedding_dimensions)
+                result = probe(kind, provider.for_format(api_format), state, save_batch_state, embedding_dimensions, extraction)
                 if isinstance(result, Retry):
                     pending = result
                     continue
@@ -119,9 +124,14 @@ def probe(
             result = results[0]
             return bool(result.get("output_text")) if chat else _valid_responses_result(result)
         url = f"{config['base_url']}/{'chat/completions' if chat else 'responses'}"
-        payload = {"messages": [{"role": "user", "content": text}]} if chat else {"input": text, "store": False}
+        payload: dict = {"messages": [{"role": "user", "content": text}]} if chat else {"input": text, "store": False}
         if config.get("model"):
             payload["model"] = config["model"]
+        if extraction and extraction["api_format"] == config["api_format"] and extraction.get("reasoning_effort") is not None:
+            if chat:
+                payload["reasoning_effort"] = extraction["reasoning_effort"]
+            else:
+                payload["reasoning"] = {"effort": extraction["reasoning_effort"]}
         api_key = config.get("api_key", "")
         timeout = min(config["timeout"], 120)
         response = http_request(

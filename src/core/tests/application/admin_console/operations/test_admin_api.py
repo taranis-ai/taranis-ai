@@ -221,10 +221,11 @@ class TestAdminApi(BaseTest):
         ).json["id"]
         for incompatible_format in ("responses", "chat_completions"):
             self.assert_post_ok(client, f"llm-endpoints/{incompatible_id}", {"api_format": incompatible_format}, auth_header)
-            response = client.patch(
-                self.concat_url("settings"), json={"settings": {"llm_classification_endpoint": incompatible_id}}, headers=auth_header
-            )
-            assert response.status_code == 400
+            for feature in ("classification", "extraction_verification"):
+                response = client.patch(
+                    self.concat_url("settings"), json={"settings": {f"llm_{feature}_endpoint": incompatible_id}}, headers=auth_header
+                )
+                assert response.status_code == 400
             response = client.post(
                 "/api/config/bots",
                 json={"name": "Invalid topics", "type": "cybersec_classifier_bot", "parameters": {"LLM_ENDPOINT": incompatible_id}},
@@ -239,6 +240,17 @@ class TestAdminApi(BaseTest):
             )
             assert response.status_code == 400
         self.assert_patch_ok(client, "settings", {"settings": {"llm_classification_endpoint": endpoint_id}}, auth_header)
+        self.assert_patch_ok(
+            client,
+            "settings",
+            {"settings": {"llm_extraction_verification_endpoint": endpoint_id, "hrag_extraction_reasoning_effort": "none"}},
+            auth_header,
+        )
+        invalid = client.patch(
+            self.concat_url("settings"), json={"settings": {"hrag_extraction_reasoning_effort": "private-invalid"}}, headers=auth_header
+        )
+        assert invalid.status_code == 400 and "private-invalid" not in invalid.text
+        assert client.post(self.concat_url(f"llm-endpoints/{endpoint_id}/delete"), json={}, headers=auth_header).status_code == 409
         for incompatible_format in ("responses", "chat_completions"):
             response = client.post(
                 endpoint_url, json={"base_url": "https://provider.example/v1", "api_format": incompatible_format}, headers=auth_header
@@ -322,6 +334,7 @@ class TestAdminApi(BaseTest):
         self.assert_patch_ok(client, "settings", {"settings": {"llm_default_endpoint": ""}}, auth_header)
         assert client.delete(f"/api/config/bots/{bot.json['id']}", headers=auth_header).status_code == 200
         self.assert_patch_ok(client, "settings", {"settings": {"llm_classification_endpoint": ""}}, auth_header)
+        self.assert_patch_ok(client, "settings", {"settings": {"llm_extraction_verification_endpoint": ""}}, auth_header)
         self.assert_post_ok(client, f"llm-endpoints/{endpoint_id}/delete", {}, auth_header)
         self.assert_post_ok(client, f"llm-endpoints/{incompatible_id}/delete", {}, auth_header)
 

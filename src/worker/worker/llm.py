@@ -8,6 +8,7 @@ from llm_bot.client import LLMClient, UpstreamLLMError
 from llm_bot.decisions_client import DecisionsClient
 from llm_bot.tasks.decision_utils import DecisionsTask
 from llm_bot.tasks.llm_utils import InvalidLLMOutputError, LLMTask, MissingOutputTextError
+from models.hrag import ReasoningEffort
 from models.llm import LLMEndpoint
 from niquests.exceptions import RequestException, Timeout
 from pydantic import ValidationError
@@ -36,7 +37,7 @@ class LLMTaskError(RuntimeError):
         super().__init__(public_message)
 
 
-def get_llm_client(parameters: dict) -> LLMClient:
+def get_llm_client(parameters: dict, *, reasoning_effort: ReasoningEffort | None = None) -> LLMClient:
     endpoint = parameters.get("llm_endpoint")
     if not endpoint:
         raise LLMConfigurationError
@@ -49,6 +50,7 @@ def get_llm_client(parameters: dict) -> LLMClient:
         model=config.model,
         api_mode=config.api_format,
         timeout=parameters.get("REQUESTS_TIMEOUT") or config.timeout,
+        reasoning_effort=reasoning_effort,
     )
     # The library treats an empty model as an environment fallback. Settings own it here.
     client.model = config.model
@@ -62,7 +64,7 @@ def get_decisions_client(parameters: dict) -> DecisionsClient:
     config = LLMEndpoint.model_validate(endpoint)
     if not config.enabled or not config.is_decisions:
         raise LLMTaskError(
-            "Select a realtime Decisions endpoint for topic classification in Admin Settings > LLM Endpoints.",
+            "Select a realtime Decisions endpoint in Admin Settings > LLM Endpoints.",
             "llm_not_configured",
         )
     return DecisionsClient(

@@ -23,6 +23,25 @@ class DemoChatProvider(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(body)
             return
+        if self.path == "/v1/decisions":
+            payload = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+            answers = []
+            for question in payload["questions"]:
+                name = question["name"]
+                choice = "OK" if name == "probe" else ("not_stated" if " owns " in question["instructions"] else "affirmed")
+                answers.append(
+                    {
+                        "type": "choice",
+                        "name": name,
+                        "choice": choice,
+                        "probabilities": [
+                            {"value": value, "probability": float(value == choice)}
+                            for value in (["OK", "other"] if name == "probe" else ["affirmed", "negated", "uncertain", "not_stated"])
+                        ],
+                    }
+                )
+            self.send_json({"answers": answers})
+            return
         if self.path != "/v1/responses":
             self.send_error(404)
             return
@@ -35,8 +54,20 @@ class DemoChatProvider(BaseHTTPRequestHandler):
         if schema_name == "evidence_extraction":
             content = context["text"]
             entities = [{"id": "demo", "type": "ORG", "name": "Demo"}] if content.startswith("Demo") else []
+            relations = []
+            if content.startswith("Demo uses Example."):
+                entities.append({"id": "example", "type": "PRODUCT", "name": "Example"})
+                relations = [
+                    {"source_id": "demo", "target_id": "example", "type": kind, "assertion": "uncertain", "quote": "Demo uses Example."}
+                    for kind in ("USES", "OWNS")
+                ]
             self.reply(
-                [{"type": "message", "content": [{"type": "output_text", "text": json.dumps({"entities": entities, "relations": []})}]}]
+                [
+                    {
+                        "type": "message",
+                        "content": [{"type": "output_text", "text": json.dumps({"entities": entities, "relations": relations})}],
+                    }
+                ]
             )
             return
         if schema_name == "retrieval_plan":
@@ -45,7 +76,7 @@ class DemoChatProvider(BaseHTTPRequestHandler):
                     {
                         "type": "message",
                         "content": [
-                            {"type": "output_text", "text": json.dumps({"names": ["demo"], "hops": 0, "filters": {"search": "ransomware"}})}
+                            {"type": "output_text", "text": json.dumps({"names": ["demo"], "hops": 1, "filters": {"search": "ransomware"}})}
                         ],
                     }
                 ]
@@ -75,7 +106,10 @@ class DemoChatProvider(BaseHTTPRequestHandler):
         self.reply(output)
 
     def reply(self, output):
-        body = json.dumps({"status": "completed", "output": output}).encode()
+        self.send_json({"status": "completed", "output": output})
+
+    def send_json(self, payload):
+        body = json.dumps(payload).encode()
         self.send_response(200)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(body)))

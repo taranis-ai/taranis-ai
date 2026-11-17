@@ -18,6 +18,7 @@ from pydantic import (
 )
 
 from models.base import TaranisBaseModel
+from models.hrag import ExtractionReasoningEffort
 from models.task import CronTaskSpec, Task
 from models.types import (
     BOT_TYPES,
@@ -244,6 +245,11 @@ class TaranisConfig(TaranisBaseModel):
     llm_ner_endpoint: str = ""
     llm_sentiment_endpoint: str = ""
     llm_classification_endpoint: str = ""
+    llm_embedding_endpoint: str = ""
+    llm_extraction_endpoint: str = ""
+    llm_extraction_verification_endpoint: str = ""
+    llm_graph_planning_endpoint: str = ""
+    hrag_extraction_reasoning_effort: ExtractionReasoningEffort = "none"
     chat_max_stories: int = Field(default=5, gt=0, le=20)
 
     @field_validator("default_timezone", mode="after")

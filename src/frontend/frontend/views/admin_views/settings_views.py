@@ -7,7 +7,7 @@ import requests
 from flask import current_app, g, render_template, request, url_for
 from flask.typing import ResponseReturnValue
 from models.admin import Settings
-from models.hrag import IndexStatus
+from models.hrag import EXTRACTION_REASONING_EFFORTS, IndexStatus
 from models.llm import LLM_API_FORMATS, LLM_FEATURES
 from pydantic import ValidationError
 
@@ -36,6 +36,7 @@ class SettingsView(AdminBaseView):
         base_context["_is_admin"] = cls._is_admin
         base_context["settings"] = dpl.get_first(Settings)
         base_context["llm_features"] = LLM_FEATURES
+        base_context["hrag_reasoning_efforts"] = EXTRACTION_REASONING_EFFORTS
         base_context["llm_api_formats"] = LLM_API_FORMATS
         base_context["llm_form"] = getattr(g, "llm_form", None)
         base_context["llm_editing_endpoint"] = getattr(g, "llm_editing_endpoint", None)

@@ -116,7 +116,7 @@ services:
       API_KEY: test_key
       TARANIS_CORE_URL: http://core:8080/api
       REDIS_URL: redis://redis:6379/0
-      WORKER_TYPES: '["Collectors", "Bots", "Misc"]'
+      WORKER_TYPES: '["Collectors", "Bots", "Misc", "Embeddings", "HRAG"]'
       DEBUG: "false"
       PYTHONPATH: /app/worker:/app/models
       UV_PROJECT_ENVIRONMENT: /tmp/.venv

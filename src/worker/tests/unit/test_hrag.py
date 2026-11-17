@@ -17,22 +17,38 @@ def test_worker_claim_extraction_and_cached_retry(requests_mock, monkeypatch):
         "pipeline": "extraction",
         "content": content,
         "endpoint": {"name": "extract", "base_url": "https://provider.invalid/v1", "api_format": "responses"},
+        "verification_endpoint": {"name": "verify", "base_url": "https://verify.invalid/v1/systemone", "api_format": "systemone"},
+        "reasoning_effort": "none",
         "dimensions": 0,
     }
     requests_mock.post(route, json=job)
     submitted = requests_mock.put(route, json={"message": "accepted"})
     compact = {
         "entities": [{"id": "a", "name": "Acme", "type": "ORG"}, {"id": "b", "name": "Beta", "type": "ORG"}],
-        "relations": [{"source_id": "a", "target_id": "b", "type": "ATTACKS", "quote": content, "assertion": "negated"}],
+        "relations": [
+            {"source_id": "a", "target_id": "b", "type": "ATTACKS", "quote": content, "assertion": "affirmed"},
+            {"source_id": "a", "target_id": "b", "type": "OWNS", "quote": content, "assertion": "affirmed"},
+            {"source_id": "a", "target_id": "b", "type": "USES", "quote": content, "assertion": "affirmed"},
+        ],
     }
-    invalid = {**compact, "relations": [{**compact["relations"][0], "quote": "Acme attacked Beta."}]}
+    invalid = {**compact, "entities": [{**compact["entities"][0], "name": "Absent"}, compact["entities"][1]]}
     inference = AsyncMock(side_effect=[{"output_text": json.dumps(invalid)}, {"output_text": json.dumps(compact)}])
     monkeypatch.setattr("llm_bot.client.LLMClient.create_response", inference)
+    verification = AsyncMock(
+        return_value={
+            "relation_0": {"affirmed": 0.0, "negated": 1.0, "uncertain": 0.0, "not_stated": 0.0},
+            "relation_1": {"affirmed": 0.0, "negated": 0.0, "uncertain": 0.0, "not_stated": 1.0},
+        }
+    )
+    monkeypatch.setattr("llm_bot.decisions_client.DecisionsClient.create_decision", verification)
     index_item("test-work")
     stored = submitted.last_request.json()["extraction"]
     assert stored["entities"][0]["evidence"] == {"start": 0, "end": 4, "quote": "Acme"}
     assert stored["relations"][0]["evidence"] == {"start": 0, "end": len(content), "quote": content}
     assert stored["relations"][0]["assertion"] == "negated"
+    assert len(stored["relations"]) == 1
+    assert verification.await_count == 1
+    assert set(verification.call_args.args[1]) == {"relation_0", "relation_1"}
     assert inference.await_count == 2
     assert content in inference.call_args_list[0].args[1]
     requests_mock.post(route, json={**job, "cached_result": stored})
@@ -51,3 +67,11 @@ def test_worker_claim_extraction_and_cached_retry(requests_mock, monkeypatch):
             index_item("test-work")
         assert submitted.last_request.json()["failed"] is True
         assert "NaN" not in submitted.last_request.text
+    requests_mock.post(route, json=job)
+    inference.side_effect = None
+    inference.return_value = {"output_text": json.dumps(compact)}
+    verification.side_effect = RuntimeError("private verification failure")
+    with pytest.raises(RuntimeError, match="^HRAG indexing failed; retry scheduled$"):
+        index_item("test-work")
+    assert submitted.last_request.json()["failed"] is True
+    assert submitted.last_request.json()["extraction"] is None

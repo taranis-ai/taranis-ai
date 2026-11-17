@@ -3,7 +3,9 @@ from copy import deepcopy
 from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
+from models.hrag import ExtractionReasoningEffort
 from models.llm import LLM_BOT_FEATURES, LLM_FEATURES, LLMEndpoint, LLMProvider
+from pydantic import TypeAdapter
 from sqlalchemy import event
 from sqlalchemy.orm import Mapped, Session
 
@@ -78,6 +80,7 @@ class Settings(BaseModel):
         for feature in LLM_FEATURES:
             merged.setdefault(f"llm_{feature}_endpoint", "")
         merged.setdefault("chat_max_stories", 5)
+        merged.setdefault("hrag_extraction_reasoning_effort", "none")
         return merged
 
     def to_dict(self) -> dict[str, Any]:
@@ -140,7 +143,7 @@ class Settings(BaseModel):
                 not isinstance(update_data[key], str) or (update_data[key] and update_data[key] not in current_settings["llm_endpoints"])
             ):
                 return {"error": "Select an existing LLM endpoint"}, 400
-        for feature in ("embedding", "extraction", "graph_planning"):
+        for feature in ("embedding", "extraction", "extraction_verification", "graph_planning"):
             if endpoint_id := update_data.get(f"llm_{feature}_endpoint"):
                 provider = LLMProvider.model_validate(current_settings["llm_endpoints"][endpoint_id])
                 if not provider.supports(feature) or (provider.for_feature(feature) or {}).get("processing_mode") != "realtime":
@@ -148,7 +151,9 @@ class Settings(BaseModel):
         if cls._chat_uses_batch({**current_settings, **update_data}):
             return {"error": "Chat requires a realtime LLM endpoint. Assign Chat explicitly before using a batch default."}, 400
         if cls._nonclassification_uses_decisions({**current_settings, **update_data}):
-            return {"error": "Decisions endpoints support only topic classification. Use a Responses or Chat Completions default."}, 400
+            return {
+                "error": "Decisions endpoints support topic classification and HRAG relationship verification. Use a Responses or Chat Completions default."
+            }, 400
         if (endpoint_id := update_data.get("llm_classification_endpoint")) and not LLMProvider.model_validate(
             current_settings["llm_endpoints"][endpoint_id]
         ).supports("classification"):
@@ -161,6 +166,13 @@ class Settings(BaseModel):
                 update_data["chat_max_stories"] = value
             except (TypeError, ValueError):
                 return {"error": "Maximum stories must be between 1 and 20"}, 400
+        if "hrag_extraction_reasoning_effort" in update_data:
+            try:
+                update_data["hrag_extraction_reasoning_effort"] = TypeAdapter(ExtractionReasoningEffort).validate_python(
+                    update_data["hrag_extraction_reasoning_effort"]
+                )
+            except ValueError:
+                return {"error": "Select a supported HRAG extraction reasoning effort"}, 400
 
         if update_data:
             onboarding_changed = (
@@ -177,6 +189,14 @@ class Settings(BaseModel):
             from core.model.bot import Bot
 
             Bot.schedule_all_bots()
+        if "hrag_extraction_reasoning_effort" in update_data or any(
+            key in update_data for key in ("llm_default_endpoint", "llm_extraction_endpoint")
+        ):
+            from core.service.endpoint_health import schedule_check
+
+            endpoint_id = current_settings.get("llm_extraction_endpoint") or current_settings.get("llm_default_endpoint")
+            if endpoint_id:
+                schedule_check("llm", endpoint_id)
         return {"message": "Successfully updated settings", "settings": settings.to_dict()["settings"]}, 200
 
     @classmethod
@@ -192,8 +212,11 @@ class Settings(BaseModel):
         if cls._chat_uses_batch(values):
             raise ValueError("Chat requires a realtime LLM endpoint")
         if cls._nonclassification_uses_decisions(values):
-            raise ValueError("Decisions endpoints support only topic classification")
+            raise ValueError("Decisions endpoints support topic classification and HRAG relationship verification")
         values["chat_max_stories"] = cls._validate_non_negative_int(values["chat_max_stories"])
+        values["hrag_extraction_reasoning_effort"] = TypeAdapter(ExtractionReasoningEffort).validate_python(
+            values["hrag_extraction_reasoning_effort"]
+        )
         if not 1 <= values["chat_max_stories"] <= 20:
             raise ValueError("Maximum stories must be between 1 and 20")
 
@@ -205,7 +228,7 @@ class Settings(BaseModel):
 
     @classmethod
     def _nonclassification_uses_decisions(cls, values: dict) -> bool:
-        for feature in LLM_FEATURES.keys() - {"classification", "embedding", "extraction", "graph_planning"}:
+        for feature in LLM_FEATURES.keys() - {"classification", "embedding", "extraction", "extraction_verification", "graph_planning"}:
             endpoint_id = values.get(f"llm_{feature}_endpoint") or values.get("llm_default_endpoint")
             endpoint = values.get("llm_endpoints", {}).get(endpoint_id, {})
             if endpoint and not LLMProvider.model_validate(endpoint).supports(feature):
@@ -283,14 +306,16 @@ class Settings(BaseModel):
         if cls._chat_uses_batch(values):
             return {"error": "Chat requires a realtime LLM endpoint. Reassign Chat before changing this endpoint to batch."}, 400
         if cls._nonclassification_uses_decisions(values):
-            return {"error": "Decisions endpoints support only topic classification. Reassign other features first."}, 400
+            return {
+                "error": "Decisions endpoints support topic classification and HRAG relationship verification. Reassign other features first."
+            }, 400
         from core.model.bot import Bot
 
         provider = LLMProvider.model_validate(endpoints[endpoint_id]) if endpoint_id in endpoints else None
         lost_features = {
             feature for feature in LLM_FEATURES if provider and previous and previous.supports(feature) and not provider.supports(feature)
         }
-        for feature in ("embedding", "extraction", "graph_planning"):
+        for feature in ("embedding", "extraction", "extraction_verification", "graph_planning"):
             if (
                 endpoint_id == values.get(f"llm_{feature}_endpoint")
                 and provider

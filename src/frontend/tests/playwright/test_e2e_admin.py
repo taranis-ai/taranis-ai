@@ -2049,6 +2049,15 @@ class TestEndToEndAdmin(BaseE2ETest):
         def check_hrag_indexing():
             page.goto(url_for("admin_settings.settings", _external=True))
             page.get_by_test_id("settings-chat-section").locator("summary").click()
+            effort = page.get_by_role("combobox", name="HRAG extraction reasoning", exact=True)
+            expect(effort).to_have_value("none")
+            effort.select_option("default")
+            with_htmx_wait(page, lambda: page.get_by_test_id("settings-chat-submit").click())
+            page.reload()
+            page.get_by_test_id("settings-chat-section").locator("summary").click()
+            expect(effort).to_have_value("default")
+            effort.select_option("none")
+            with_htmx_wait(page, lambda: page.get_by_test_id("settings-chat-submit").click())
             panel = page.locator("#settings-hrag-index")
             expect(panel.get_by_role("heading", name="HRAG indexing")).to_be_visible()
             with page.expect_response(

@@ -111,7 +111,7 @@ class QueueManager:
         self.error: str = ""
         self.redis_url = Config.REDIS_URL
         self.redis_password: str | None = None
-        self.queue_names = ["misc", "bots", "collectors", "presenters", "publishers", "connectors"]
+        self.queue_names = ["misc", "bots", "collectors", "presenters", "publishers", "connectors", "embeddings", "hrag"]
         if (redis_password_value := Config.REDIS_PASSWORD) and (secret := redis_password_value.get_secret_value()):
             self.redis_password = secret
 

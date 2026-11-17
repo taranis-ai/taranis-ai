@@ -132,7 +132,10 @@ def test_batch_endpoint_check_waits_for_inference(requests_mock, monkeypatch, ap
 )
 def test_endpoint_check_failure_and_recovery(requests_mock, kind, config, url, result):
     route = f"{Config.TARANIS_CORE_URL}/worker/endpoint-health/{kind}/test-id"
-    requests_mock.get(route, json={"config": config, "embedding_dimensions": 2})
+    requests_mock.get(
+        route,
+        json={"config": config, "embedding_dimensions": 2, "extraction": {"api_format": config["api_format"], "reasoning_effort": "none"}},
+    )
     saved = requests_mock.post(route, json={"accepted": True})
     upstream = requests_mock.post(
         url,
@@ -151,9 +154,16 @@ def test_endpoint_check_failure_and_recovery(requests_mock, kind, config, url, r
     with pytest.raises(RuntimeError, match="^Endpoint check failed$"):
         check_endpoint(kind, "test-id", "current-check")
     assert saved.last_request.json() == {"check_id": "current-check", "healthy": False}
-    requests_mock.get(route, json={"config": config, "embedding_dimensions": 2})
+    requests_mock.get(
+        route,
+        json={"config": config, "embedding_dimensions": 2, "extraction": {"api_format": config["api_format"], "reasoning_effort": "none"}},
+    )
     check_endpoint(kind, "test-id", "current-check")
     assert saved.last_request.json()["healthy"] is True
+    if config["api_format"] == "responses":
+        assert upstream.last_request.json()["reasoning"] == {"effort": "none"}
+    elif config["api_format"] == "chat_completions":
+        assert upstream.last_request.json()["reasoning_effort"] == "none"
     if config.get("api_key"):
         assert upstream.last_request.headers["Authorization"] == "Bearer test-secret"
         assert upstream.last_request.json()["model"] == "test-model"
