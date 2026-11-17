@@ -1533,7 +1533,14 @@ class StoryView(BaseView):
         except HTTPException:
             raise
         except Exception:
-            return cls.render_response_notification({"error": "Failed to delete news item"})
+            logger.exception("Failed to delete news item.")
+            return render_template(
+                "notification/index.html", notification={"message": "Failed to delete news item", "error": True}, oob=False
+            ), 500
+
+        if not core_response.ok:
+            # Delete buttons route error statuses to the notification bar, never into the story card.
+            return cls.get_notification_from_response(core_response, oob=False), core_response.status_code
 
         payload = core_response.json()
         story_id = payload.get("story_id") or payload.get("story_ids", [""])[0]
