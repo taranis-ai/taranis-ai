@@ -278,3 +278,92 @@ def test_grouping_recomputes_report_story_tlp_and_records_revision(
     assert latest.note == "group_stories"
     # Report payloads embed only id, title and links of stories (#1290), so the snapshot carries no TLP.
     assert any(story["id"] == clear_story.id for story in latest.data["stories"])
+
+
+@pytest.mark.parametrize("target_already_selected", [False, True], ids=["target-not-selected", "target-already-selected"])
+@pytest.mark.usefixtures("app")
+def test_grouping_points_story_attribute_selection_to_surviving_story(
+    session,
+    story_relevance_news_item_payload_factory,
+    story_relevance_story_payload_factory,
+    target_already_selected,
+):
+    from uuid import uuid4
+
+    from core.model.attribute import Attribute, AttributeType
+    from core.model.report_item_type import ReportItemType
+
+    absorbed_story = _story(story_relevance_news_item_payload_factory, story_relevance_story_payload_factory, "Absorbed story")
+    target_story = _story(story_relevance_news_item_payload_factory, story_relevance_story_payload_factory, "Target story")
+    other_story = _story(story_relevance_news_item_payload_factory, story_relevance_story_payload_factory, "Other story")
+    selected = [absorbed_story, target_story] if target_already_selected else [absorbed_story, other_story]
+
+    suffix = uuid4().hex
+    story_attr_def = Attribute(name=f"story_ref_{suffix}", description="Referenced stories attribute", attribute_type=AttributeType.STORY)
+    db.session.add(story_attr_def)
+    db.session.flush()
+    report_type = ReportItemType(
+        title=f"Grouping Attribute Report Type {suffix}",
+        description="Report type with STORY attribute",
+        attribute_groups=[
+            {
+                "index": 0,
+                "title": "Analysis",
+                "description": "Analysis attributes",
+                "attribute_group_items": [
+                    {
+                        "index": 0,
+                        "attribute_id": story_attr_def.id,
+                        "title": "Referenced Stories",
+                        "description": "Referenced stories",
+                        "required": False,
+                    }
+                ],
+            }
+        ],
+    )
+    db.session.add(report_type)
+    db.session.commit()
+
+    report_id = str(uuid4())
+    report, status = ReportItem.add(
+        {
+            "id": report_id,
+            "title": f"Grouping Attribute Report {suffix}",
+            "completed": False,
+            "report_item_type_id": report_type.id,
+            "stories": [story.id for story in selected],
+        },
+        _admin(),
+    )
+    assert status == 200
+
+    try:
+        story_attr = next(attr for attr in report.attributes if attr.attribute_type == AttributeType.STORY)
+        _, update_status = ReportItem.update_report_item(
+            report_id, {"attributes": {story_attr.id: ",".join(story.id for story in selected)}}, _admin()
+        )
+        assert update_status == 200
+
+        response, status = Story.group_stories([target_story.id, absorbed_story.id], user=_admin())
+        assert status == 200, response
+
+        expected_ids = [target_story.id] if target_already_selected else [target_story.id, other_story.id]
+        reloaded = _reload_report(report_id)
+        story_attr_after = next(attr for attr in reloaded.attributes if attr.attribute_type == AttributeType.STORY)
+        assert story_attr_after.value == ",".join(expected_ids)
+        assert reloaded.to_detail_dict()["used_story_ids"] == expected_ids
+
+        query = db.select(ReportRevision).filter_by(report_item_id=report_id).order_by(ReportRevision.revision.desc())
+        latest_revision = db.session.execute(query).scalars().first()
+        assert latest_revision is not None
+        assert latest_revision.note == "group_stories"
+        assert latest_revision.data["used_story_ids"] == expected_ids
+    finally:
+        if ReportItem.get(report_id):
+            ReportItem.delete(report_id)
+        if ReportItemType.get(report_type.id):
+            db.session.delete(ReportItemType.get(report_type.id))
+        if Attribute.get(story_attr_def.id):
+            db.session.delete(Attribute.get(story_attr_def.id))
+        db.session.commit()

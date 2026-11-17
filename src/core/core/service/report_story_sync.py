@@ -60,6 +60,18 @@ class ReportStorySyncService:
             attribute.value = ",".join(remaining_ids)
 
     @classmethod
+    def _replace_absorbed_story_attributes(cls, report: ReportItem, absorbed_story_ids: set[str], target_story_id: str) -> None:
+        """Point STORY attribute selections of absorbed stories to the surviving story, keeping order without duplicates."""
+        for attribute in report.attributes or []:
+            if attribute.attribute_type != AttributeType.STORY or not attribute.value:
+                continue
+            current_ids = cls.parse_story_ids(attribute.value)
+            if not any(story_id in absorbed_story_ids for story_id in current_ids):
+                continue
+            replaced_ids = [target_story_id if story_id in absorbed_story_ids else story_id for story_id in current_ids]
+            attribute.value = ",".join(dict.fromkeys(replaced_ids))
+
+    @classmethod
     def sync_report_membership(cls, report: ReportItem, stories: Iterable[Story], action: ReportStoryAction) -> list[Story]:
         stories = list(stories)
         if not stories:
@@ -110,6 +122,7 @@ class ReportStorySyncService:
         absorbed = set(absorbed_story_ids)
         reports = list(db.session.execute(query).scalars())
         for report in reports:
+            cls._replace_absorbed_story_attributes(report, absorbed, target_story.id)
             remaining = [story for story in report.stories if story.id not in absorbed]
             if len(remaining) != len(report.stories) and target_story not in remaining:
                 report.stories = [*remaining, target_story]
