@@ -124,6 +124,8 @@ class TestEndToEndUser(BaseE2ETest):
             page.get_by_role("link", name="Dashboard", exact=True).click()
 
             page.locator("#dashboard").get_by_role("link", name="Assess").click()
+            print("################ ITS ON  ####################")
+            self.capture_screenshot(page, "./tests/playwright/screenshots/assess.png")
             expect(page.get_by_test_id("assess_story_count")).to_be_visible()
             visible_count, total_count = self._get_assess_story_counts(page)
             assert total_count >= visible_count > 0
