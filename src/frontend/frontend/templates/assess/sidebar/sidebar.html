@@ -21,12 +21,12 @@
 {% set classification_filter = request_args.get('classification', ['']) | first %}
 {% set changed_by_filter = request_args.get('changed_by', ['']) | first %}
 {% set sort_choices = sort_choices | default([
-  {'label': 'Story date: newest first', 'value': 'date_desc'},
-  {'label': 'Story date: oldest first', 'value': 'date_asc'},
-  {'label': 'Relevance: highest first', 'value': 'relevance'},
-  {'label': 'Updated: newest first', 'value': 'updated_desc'},
-  {'label': 'Updated: oldest first', 'value': 'updated_asc'}
-]) %}
+    {'label': 'Story date: newest first', 'value': 'date_desc'},
+    {'label': 'Story date: oldest first', 'value': 'date_asc'},
+    {'label': 'Relevance: highest first', 'value': 'relevance'},
+    {'label': 'Updated: newest first', 'value': 'updated_desc'},
+    {'label': 'Updated: oldest first', 'value': 'updated_asc'}
+  ]) %}
 {% set tri_state_filters = [
   {'name': 'read', 'label': 'Read', 'value': read_filter},
   {'name': 'important', 'label': 'Important', 'value': important_filter},

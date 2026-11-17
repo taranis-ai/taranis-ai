@@ -18,9 +18,14 @@ class DashboardHealthServices(BaseModel):
     worker_endpoints: DashboardHealthState = "n/a"
 
 
+class CoreHealthDetails(BaseModel):
+    debug: bool = False
+
+
 class DashboardHealth(BaseModel):
     healthy: bool
     services: DashboardHealthServices
+    core: CoreHealthDetails = Field(default_factory=CoreHealthDetails)
 
 
 class CoreHealth(TaranisBaseModel):
@@ -31,6 +36,7 @@ class CoreHealth(TaranisBaseModel):
 
     healthy: bool
     services: DashboardHealthServices
+    core: CoreHealthDetails = Field(default_factory=CoreHealthDetails)
 
 
 class TaskStatusTotals(BaseModel):

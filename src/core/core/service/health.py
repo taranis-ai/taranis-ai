@@ -13,7 +13,7 @@ from core.service.endpoint_health import aggregate_status
 HealthStatus = Literal["up", "down", "n/a"]
 
 
-def get_health_response() -> tuple[dict[str, bool | dict[str, HealthStatus]], int]:
+def get_health_response() -> tuple[dict[str, bool | dict[str, HealthStatus] | dict[str, bool]], int]:
     database_status = check_database()
     services: dict[str, HealthStatus] = {
         "database": database_status,
@@ -30,7 +30,7 @@ def get_health_response() -> tuple[dict[str, bool | dict[str, HealthStatus]], in
     services["worker_endpoints"] = check_endpoints() if database_status == "up" and Config.QUEUE_ENABLED else "n/a"
 
     healthy = all(status != "down" for status in services.values())
-    return {"healthy": healthy, "services": services}, 200 if healthy else 503
+    return {"healthy": healthy, "services": services, "core": {"debug": Config.DEBUG}}, 200 if healthy else 503
 
 
 def broker_health_applicable() -> bool:

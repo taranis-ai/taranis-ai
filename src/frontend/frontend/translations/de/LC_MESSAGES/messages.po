@@ -26,6 +26,10 @@ msgstr "Englisch"
 msgid "German"
 msgstr "Deutsch"
 
+#: frontend/templates/partials/navbar.html:16
+msgid "Debug mode"
+msgstr "Debug-Modus"
+
 #: frontend/templates/base.html:6
 msgid "Taranis AI - Open-Source Intelligence leveraging AI"
 msgstr "Taranis AI - Open-Source Intelligence mit KI"

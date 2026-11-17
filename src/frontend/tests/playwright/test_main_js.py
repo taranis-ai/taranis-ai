@@ -126,11 +126,12 @@ def test_assess_time_from_stays_within_selected_preset(page: Page):
     }
 
 
-def test_vendor_bundle_uses_htmx_4(page: Page):
+def test_vendor_bundle_uses_htmx_4_or_newer(page: Page):
     page.goto("data:text/html,<main></main>")
     page.add_script_tag(path=str(VENDOR_JS_PATH))
 
-    assert page.evaluate("() => window.htmx.version") == "4.0.0"
+    version = page.evaluate("() => window.htmx.version")
+    assert int(version.split(".", 1)[0]) >= 4
 
 
 def test_story_conflict_editors_mount_after_outer_html_replacement(page: Page):

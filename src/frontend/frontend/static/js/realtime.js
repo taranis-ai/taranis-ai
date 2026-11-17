@@ -6,7 +6,6 @@
     "scheduler.changed",
     "task.changed",
     "report.item.changed",
-    "report.lock.changed",
     "product.rendered",
     "story.bot.finished",
     "osint_source.preview.finished",
@@ -28,7 +27,6 @@
   const PAGE_TARGETS = {
     "assess.changed": "#assess",
     "report.item.changed": "#report",
-    "report.lock.changed": "#report",
     "product.rendered": "#publish, #product",
   };
 
