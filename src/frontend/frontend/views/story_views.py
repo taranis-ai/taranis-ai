@@ -454,13 +454,17 @@ class StoryView(BaseView):
     @classmethod
     def get_saved_filter_links(cls, saved_filters: list[dict[str, Any]] | None = None) -> list[dict[str, Any]]:
         saved_filters = saved_filters if saved_filters is not None else cls._get_saved_assess_filters()
-        return [
-            {
-                **saved_filter,
-                "url": cls._build_assess_filters_url(cls._filter_payload_to_request_params(saved_filter["filters"])),
-            }
-            for saved_filter in saved_filters
-        ]
+        links: list[dict[str, Any]] = []
+        for saved_filter in saved_filters:
+            params = cls._filter_payload_to_request_params(saved_filter["filters"])
+            links.append(
+                {
+                    **saved_filter,
+                    "url": cls._build_assess_filters_url(params),
+                    "share_url": cls._build_assess_filters_url(params, external=True),
+                }
+            )
+        return links
 
     @classmethod
     def _get_assess_request_params(cls, request_params: dict[str, list[str]] | None = None) -> dict[str, list[str]]:
@@ -508,9 +512,9 @@ class StoryView(BaseView):
         return cls._normalize_assess_filter_payload(filters)
 
     @classmethod
-    def _build_assess_filters_url(cls, request_params: dict[str, list[str]]) -> str:
+    def _build_assess_filters_url(cls, request_params: dict[str, list[str]], *, external: bool = False) -> str:
         query_string = urlencode(request_params, doseq=True)
-        base_url = cls.get_base_route()
+        base_url = cls.get_base_route(_external=True) if external else cls.get_base_route()
         return f"{base_url}?{query_string}" if query_string else base_url
 
     @classmethod
