@@ -251,7 +251,7 @@ def test_grouping_without_report_stories_leaves_reports_untouched(
 
 
 @pytest.mark.usefixtures("app")
-def test_report_revision_snapshot_has_recomputed_tlp_after_grouping(
+def test_grouping_recomputes_report_story_tlp_and_records_revision(
     session,
     story_relevance_news_item_payload_factory,
     story_relevance_story_payload_factory,
@@ -276,6 +276,5 @@ def test_report_revision_snapshot_has_recomputed_tlp_after_grouping(
     latest = db.session.execute(query).scalars().first()
     assert latest is not None
     assert latest.note == "group_stories"
-    snapshot_story = next(story for story in latest.data["stories"] if story["id"] == clear_story.id)
-    assert snapshot_story["tlp_level"] == "red"
-    assert {"key": "TLP", "value": "red"} in snapshot_story["attributes"]
+    # Report payloads embed only id, title and links of stories (#1290), so the snapshot carries no TLP.
+    assert any(story["id"] == clear_story.id for story in latest.data["stories"])
