@@ -185,6 +185,31 @@ def test_enqueue_due_job_updates_next_run_and_notifies_wait_key():
     assert wait_key_result[1] == b"cron_osint_source_source-1_1000"  # type: ignore[comparison-with-callable]
 
 
+def test_enqueue_due_job_maps_cleanup_task_history():
+    redis_conn = fakeredis.FakeRedis(decode_responses=False)
+
+    rq_job_id = _enqueue_due_job(
+        redis_conn,
+        {},
+        "cleanup_task_history",
+        {
+            "queue_name": "misc",
+            "func_path": "cleanup_task_history",
+            "cron": "0 3 * * *",
+        },
+        due_ts=1000.0,
+    )
+
+    assert rq_job_id == "cron_cleanup_task_history_1000"
+    job = Queue("misc", connection=redis_conn).fetch_job(rq_job_id)
+    assert job is not None
+    assert job.origin == "misc"
+    assert job.func_name == "worker.misc.misc_tasks.cleanup_task_history"
+    assert job.args == ()
+    assert job.kwargs == {}
+    assert redis_conn.zscore(NEXT_KEY, "cleanup_task_history") is not None
+
+
 def test_enqueue_due_job_skips_missing_func_path_without_crashing(monkeypatch: pytest.MonkeyPatch, fake_queue: Any):
     redis_conn = fakeredis.FakeRedis(decode_responses=False)
     monkeypatch.setattr(cron_scheduler, "Queue", fake_queue)
