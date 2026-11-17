@@ -2058,6 +2058,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             expect(effort).to_have_value("default")
             effort.select_option("none")
             with_htmx_wait(page, lambda: page.get_by_test_id("settings-chat-submit").click())
+            page.get_by_test_id("settings-chat-section").locator("summary").click()
             panel = page.locator("#settings-hrag-index")
             expect(panel.get_by_role("heading", name="HRAG indexing")).to_be_visible()
             with page.expect_response(
