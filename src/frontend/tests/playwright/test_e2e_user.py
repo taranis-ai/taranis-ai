@@ -18,6 +18,11 @@ from tests.playwright.notification_helpers import dismiss_notifications
 ASSESS_STORY_PAGE_SIZE = 20
 
 
+@pytest.fixture(scope="session")
+def browser_context_args(browser_context_args):
+    return {**browser_context_args, "no_viewport": False, "viewport": {"width": 2560, "height": 1440}}
+
+
 @pytest.fixture
 def enabled_default_llm_endpoint(core_request_client):
     allow_requests_passthru()
@@ -124,6 +129,7 @@ class TestEndToEndUser(BaseE2ETest):
             page.get_by_role("link", name="Dashboard", exact=True).click()
 
             page.locator("#dashboard").get_by_role("link", name="Assess").click()
+            self.capture_screenshot(page, "./tests/playwright/screenshots/assess.png")
             expect(page.get_by_test_id("assess_story_count")).to_be_visible()
             visible_count, total_count = self._get_assess_story_counts(page)
             assert total_count >= visible_count > 0
@@ -1028,9 +1034,21 @@ class TestEndToEndUser(BaseE2ETest):
             # Another session ungroups the first item, so this page still offers ungrouping the story's last item.
             core_request_client.put("/assess/news-items/ungroup", json_data=[news_item_ids[0]])
 
+            ungroup_posts = []
+            page.on(
+                "request",
+                lambda request: ungroup_posts.append(request.url) if request.method == "POST" and "/ungroup/" in request.url else None,
+            )
             dialog = page.locator("#ungroup_confirm_dialog")
             for confirm in (False, True):
-                with_htmx_wait(page, page.get_by_test_id(f"ungroup-newsitem-{news_item_ids[1]}").click)
+                ungroup_button = page.get_by_test_id(f"ungroup-newsitem-{news_item_ids[1]}")
+                if confirm:
+                    with_htmx_wait(page, ungroup_button.click)
+                else:
+                    # A double click must send one request and open one confirmation dialog.
+                    with_htmx_wait(page, ungroup_button.dblclick)
+                    assert len(ungroup_posts) == 1, ungroup_posts
+                    expect(dialog).to_have_count(1)
                 expect(dialog.locator('[data-test-id="affected-reports"]')).to_have_text(report_title)
                 if not confirm:
                     dialog.locator('[data-test-id="ungroup-cancel"]').click()
@@ -1057,11 +1075,7 @@ class TestEndToEndUser(BaseE2ETest):
             expect(confirm_button).to_be_enabled()
             report = core_request_client.json_request("GET", f"/analyze/report-items/{report_id}")
             assert [story["id"] for story in report["stories"]] == [story_id]
-            ungroup_posts = []
-            page.on(
-                "request",
-                lambda request: ungroup_posts.append(request.url) if request.method == "POST" and "/ungroup/" in request.url else None,
-            )
+            ungroup_posts.clear()
             with page.expect_navigation(url=re.compile(r"/assess(\?|$)")):
                 dialog.locator('[data-test-id="ungroup-confirm"]').dblclick()
             assert len(ungroup_posts) == 1, ungroup_posts
@@ -1074,6 +1088,75 @@ class TestEndToEndUser(BaseE2ETest):
             allow_requests_passthru()
             if report_id:
                 core_request_client.delete(f"/analyze/report-items/{report_id}", raise_for_status=False)
+            for news_item_id in news_item_ids:
+                core_request_client.delete(f"/assess/news-items/{news_item_id}", raise_for_status=False)
+
+    def test_delete_news_item_is_disabled_while_request_is_pending(
+        self, non_admin_logged_in_page, forward_console_and_page_errors_non_admin, core_request_client
+    ):
+        page = non_admin_logged_in_page
+        allow_requests_passthru()
+        marker = uuid.uuid4().hex
+        news_item_ids = []
+        try:
+            story_ids = [
+                core_request_client.json_request(
+                    "POST",
+                    "/assess/news-items",
+                    json_data={
+                        "title": f"Delete item {index} {marker}",
+                        "content": f"Delete test {marker}",
+                        "source": "manual",
+                        "osint_source_id": "manual",
+                        "link": f"https://example.invalid/{marker}/{index}",
+                    },
+                )["story_id"]
+                for index in range(2)
+            ]
+            core_request_client.post("/assess/stories/group", json_data=story_ids)
+            story_id = story_ids[0]
+            news_item_ids = [item["id"] for item in core_request_client.json_request("GET", f"/assess/stories/{story_id}")["news_items"]]
+            page.goto(url_for("assess.story", story_id=story_id, _external=True))
+            delete_button = page.get_by_test_id(f"delete-newsitem-{news_item_ids[1]}")
+
+            delete_button.click()
+            page.locator(".swal2-cancel").click()
+            expect(page.locator(".swal2-container")).to_have_count(0)
+            expect(delete_button).to_be_enabled()
+
+            # Hold the first DELETE so the second click lands while it is pending; answer any later DELETE without a swap.
+            delete_requests = []
+            held_routes = []
+
+            def hold_first_delete(route):
+                delete_requests.append(route.request.url)
+                if len(delete_requests) == 1:
+                    held_routes.append(route)
+                else:
+                    route.fulfill(status=204)
+
+            delete_url = url_for("assess.delete_news_item", news_item_id=news_item_ids[1], _external=True)
+            page.route(re.compile(rf"^{re.escape(delete_url)}(\?.*)?$"), hold_first_delete)
+            # Without protection the queued click falls back to the native confirm, which Playwright would otherwise dismiss.
+            native_dialogs = []
+            page.on("dialog", lambda dialog: (native_dialogs.append(dialog.message), dialog.accept()))
+            delete_button.click()
+            with page.expect_request(lambda request: request.method == "DELETE"):
+                page.locator(".swal2-confirm").click()
+            expect(page.locator(".swal2-container")).to_have_count(0)
+            delete_button.click(force=True)
+            assert held_routes, delete_requests
+            held_routes[0].continue_()
+            wait_for_htmx_settled(page)
+
+            assert len(delete_requests) == 1, delete_requests
+            assert native_dialogs == []
+            expect(delete_button).to_have_count(0)
+            assert [item["id"] for item in core_request_client.json_request("GET", f"/assess/stories/{story_id}")["news_items"]] == [
+                news_item_ids[0]
+            ]
+        finally:
+            allow_requests_passthru()
             for news_item_id in news_item_ids:
                 core_request_client.delete(f"/assess/news-items/{news_item_id}", raise_for_status=False)
 

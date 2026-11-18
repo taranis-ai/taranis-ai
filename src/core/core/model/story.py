@@ -1,11 +1,12 @@
 import re
 from collections import Counter
 from collections.abc import Sequence
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Any
 
 from models.assess import NewsItem as AssessNewsItem
 from models.assess import Story as StoryPayload
+from models.assess import assess_range_bounds
 from models.classification import story_classification
 from models.types import BOT_TYPES
 from pydantic import ValidationError
@@ -436,25 +437,7 @@ class Story(BaseModel):
                 query = query.filter(cls.last_change == changed_by)
 
         if filter_range := filter_args.get("range", "").lower():
-            now = cls.utcnow()
-            date_limit = now.replace(hour=0, minute=0, second=0, microsecond=0)
-            if filter_range in ["day", "week", "month", "24h"]:
-                if filter_range == "day":
-                    date_limit -= timedelta(days=1)
-
-                elif filter_range == "24h":
-                    date_limit = now - timedelta(hours=24)
-
-                elif filter_range == "week":
-                    date_limit -= timedelta(days=date_limit.weekday())
-
-                elif filter_range == "month":
-                    date_limit = date_limit.replace(day=1)
-
-            elif filter_range.startswith("last") and filter_range[4:].isdigit():
-                days = int(filter_range[4:])
-                date_limit = now - timedelta(days=days)
-
+            date_limit, _ = assess_range_bounds(filter_range, cls.utcnow())
             query = query.filter(cls.created >= date_limit)
 
         if timefrom := filter_args.get("timefrom"):
@@ -586,8 +569,15 @@ class Story(BaseModel):
         query = cls._add_sorting_to_query(filter_args, base_query)
         query = cls._add_paging_to_query(filter_args, query)
 
+        serialization_options = (
+            selectinload(cls.attributes),
+            selectinload(cls.misp_auto_update),
+            selectinload(cls.news_items).selectinload(NewsItem.attributes),
+            selectinload(cls.news_items).selectinload(NewsItem.tags),
+            selectinload(cls.news_items).selectinload(NewsItem.osint_source),
+        )
         if filter_args.get("worker", False) or not user:
-            return [s.to_worker_dict() for s in cls.get_filtered(query) or []], None
+            return [s.to_worker_dict() for s in cls.get_filtered(query.options(*serialization_options)) or []], None
 
         story_ids = list(db.session.scalars(query.with_only_columns(cls.id)))
         if filter_args.get("limit"):
@@ -595,13 +585,7 @@ class Story(BaseModel):
             if story_ids:
                 query = query.order_by(db.case({story_id: position for position, story_id in enumerate(story_ids)}, value=cls.id))
 
-        query = query.options(
-            selectinload(cls.attributes),
-            selectinload(cls.misp_auto_update),
-            selectinload(cls.news_items).selectinload(NewsItem.attributes),
-            selectinload(cls.news_items).selectinload(NewsItem.tags),
-            selectinload(cls.news_items).selectinload(NewsItem.osint_source),
-        )
+        query = query.options(*serialization_options)
         writable_sources = set(
             db.session.scalars(
                 RoleBasedAccessService.filter_query_with_acl(
@@ -885,6 +869,25 @@ class Story(BaseModel):
 
     def allowed_to_read(self, user: User) -> bool:
         return db.session.execute(self.visible_query(user).where(Story.id == self.id)).scalar() is not None
+
+    @classmethod
+    def get_visible_bulk(cls, story_ids: list[str], user: User | None) -> tuple[list["Story"], list[str]]:
+        """Resolve story ids, applying ACL and TLP filters when a user is given.
+
+        Returns the resolved stories (deduplicated, in request order) and the ids that
+        were not found or are not visible to the user. Both cases are reported the
+        same way so callers cannot be used to probe for hidden stories.
+        """
+        unique_ids = list(dict.fromkeys(story_ids))
+        if not unique_ids:
+            return [], []
+        query = db.select(cls).where(cls.id.in_(unique_ids))
+        if user is not None:
+            query = cls.visible_query(user, query)
+        stories_by_id = {story.id: story for story in db.session.execute(query).scalars().all()}
+        stories = [stories_by_id[story_id] for story_id in unique_ids if story_id in stories_by_id]
+        missing = [story_id for story_id in unique_ids if story_id not in stories_by_id]
+        return stories, missing
 
     def allowed_to_update(self, user: User, writable_sources: set[str | None] | None = None) -> bool:
         accessible_tlps = user.get_highest_tlp().get_accessible_levels()
@@ -1215,6 +1218,8 @@ class Story(BaseModel):
                 story,
                 list(source_stories_by_id.values()),
                 actor=actor,
+                user=user,
+                revision_note="move_items_to_story",
             )
             for processed_story in processed_stories:
                 processed_story.record_revision(user, note="move_items_to_story")
@@ -1259,6 +1264,8 @@ class Story(BaseModel):
                 first_story,
                 list(source_stories_by_id.values()),
                 actor=actor,
+                user=user,
+                revision_note="group_stories",
             )
             for story in processed_stories:
                 story.record_revision(user, note="group_stories")
@@ -1349,7 +1356,7 @@ class Story(BaseModel):
             # Collect before detaching: afterwards the emptied stories are no longer linked to their reports.
             reports_to_revise = ReportItem.get_for_stories([story.id for story in affected_stories])
             # An emptied story is deleted, and ON DELETE CASCADE would drop its report links silently,
-            # so detach it from its reports explicitly first. This does not clear its ID from report STORY attributes.
+            # so detach it from its reports explicitly first, clearing its ID from report STORY attributes.
             for report in emptied_reports:
                 stories_to_detach = [story for story in emptied_stories if story in report.stories]
                 report.stories = [story for story in report.stories if story not in stories_to_detach]
@@ -1559,6 +1566,10 @@ class Story(BaseModel):
         data["in_reports_count"] = ReportItemStory.count(self.id)
         data["revision_count"] = self.get_revision_count()
         return data
+
+    def to_report_dict(self) -> dict[str, Any]:
+        """Minimal representation embedded in report payloads: no news item content, sources or attributes."""
+        return {"id": self.id, "title": self.title, "links": self.links}
 
     def to_export_dict(self) -> dict[str, Any]:
         data = self.to_dict()

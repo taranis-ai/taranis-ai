@@ -18,7 +18,7 @@ Agent name: jipitiii. taranis.ai is an OSINT application; see [README.md](README
 
 ## Pull Requests
 
-Link PRs to the relevant issue when one exists. The **Taranis AI** GitHub project tracks issues; PRs do not require separate project assignment.
+Link PRs to the relevant issues. The **Taranis AI** GitHub project tracks issues; PRs do not require separate project assignment.
 
 [Contributing](CONTRIBUTING.md) and the mandatory [PR template](.github/pull_request_template.md) process apply to outside collaborators. [taranis-ai/ait](https://github.com/orgs/taranis-ai/teams/ait) core members may omit template sections, prompts, contributor confirmations, and review-time estimates. Shared code, security, testing, licensing, attribution, and review rules still apply.
 
