@@ -4,6 +4,11 @@ from urllib.parse import urlparse
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
+type LLMProcessingMode = Literal["realtime", "openrouter_batch"]
+
+OPENROUTER_DECISIONS_URL = "https://openrouter.ai/api/alpha/decisions"
+
+
 LLM_FEATURES = {
     "chat": "Chat",
     "clustering": "Story clustering",
@@ -31,7 +36,7 @@ class LLMEndpoint(BaseModel):
     enabled: bool = True
     model: str = ""
     api_format: Literal["responses", "chat_completions", "systemone", "openai_decisions"] = "responses"
-    processing_mode: Literal["realtime", "openrouter_batch"] = "realtime"
+    processing_mode: LLMProcessingMode = "realtime"
     api_key: str = Field(default="", repr=False)
     timeout: int = Field(default=120, gt=0)
 
@@ -93,7 +98,7 @@ class LLMProvider(BaseModel):
     base_url: str = Field(min_length=1)
     enabled: bool = True
     api_formats: dict[LLMAPIFormat, LLMAPIConfig] = Field(min_length=1)
-    processing_mode: Literal["realtime", "openrouter_batch"] = "realtime"
+    processing_mode: LLMProcessingMode = "realtime"
     api_key: str = Field(default="", repr=False)
     timeout: int = Field(default=120, gt=0)
 

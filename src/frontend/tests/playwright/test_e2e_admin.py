@@ -1928,8 +1928,13 @@ class TestEndToEndAdmin(BaseE2ETest):
             expect(form.get_by_label("Name", exact=False)).to_have_value("E2E shared model")
             expect(form.get_by_label("API key", exact=False)).to_have_value("")
             reset_htmx_state(page)
-            form.get_by_label("Provider base URL").fill("https://provider.example/v1")
             form.get_by_label("API key", exact=False).fill("e2e-private-key")
+            form.get_by_label("Provider base URL").fill("https://provider.example/v1")
+            with page.expect_response(lambda response: "/llm-model-suggestions?" in response.url) as suggestions:
+                form.get_by_label("Responses model", exact=True).fill("private/custom-model")
+            assert suggestions.value.ok
+            assert "e2e-private-key" not in suggestions.value.url
+            assert "https%3A%2F%2Fprovider.example%2Fv1" in suggestions.value.url
             with_htmx_wait(page, lambda: form.get_by_role("button", name="Add Endpoint", exact=True).click())
             endpoint = section.locator("details").filter(has=page.locator("summary", has_text="E2E shared model"))
             expect(endpoint).to_have_count(1)
@@ -1942,6 +1947,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             expect(assignments.get_by_label("Default endpoint").locator("option:checked")).to_have_text("E2E shared model")
             endpoint.locator("summary").click()
             expect(endpoint.get_by_label("Endpoint state")).to_have_value("false")
+            expect(endpoint.get_by_label("Responses model", exact=True)).to_have_value("private/custom-model")
             expect(endpoint.locator('input[name="api_key"]')).to_have_value("")
             expect(endpoint).to_contain_text("An API key is saved.")
             endpoint.get_by_label("Endpoint state").select_option("true")

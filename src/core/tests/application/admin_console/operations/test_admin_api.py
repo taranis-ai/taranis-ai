@@ -1,8 +1,11 @@
 import json
 import uuid
 from datetime import UTC, datetime, timedelta
+from io import BytesIO
+from unittest.mock import patch
 
 import pytest
+import requests
 
 from tests.application.support.api_test_base import BaseTest
 
@@ -78,6 +81,58 @@ class TestAdminApi(BaseTest):
         )
 
         assert response.get_json()["settings"]["default_bot_lookback_days"] == 0
+
+    def test_llm_model_suggestions(self, client, auth_header, monkeypatch):
+        from core.service import llm_catalog
+
+        monkeypatch.setattr(llm_catalog, "_openrouter_cache", (0, None))
+        catalog_url = self.concat_url("llm-model-suggestions")
+        openrouter_url = "https://openrouter.ai/api/v1"
+        response = requests.Response()
+        response.status_code = 200
+        response.raw = BytesIO(
+            json.dumps(
+                {
+                    "data": [
+                        {"id": "vendor/chat", "name": "Chat", "endpoints": ["/api/v1/chat/completions"]},
+                        {"id": "vendor/response", "name": "Response", "endpoints": ["/api/v1/responses"]},
+                        {"id": "vendor/chat:batch", "name": "Batch", "endpoints": ["/api/v1/batches"]},
+                        {"id": "vendor/decision", "name": "Decision", "endpoints": ["/api/alpha/decisions"]},
+                    ]
+                }
+            ).encode()
+        )
+        with patch("core.service.llm_catalog.requests.get", return_value=response) as fetch:
+            assert client.get(catalog_url, query_string={"responses": openrouter_url}).status_code == 401
+            unsupported = client.get(catalog_url, query_string={"responses": f"{openrouter_url}.invalid"}, headers=auth_header)
+            assert unsupported.json == {}
+            fetch.assert_not_called()
+
+            query = {
+                "responses": f" {openrouter_url}/ ",
+                "chat_completions": openrouter_url,
+                "systemone": "https://openrouter.ai/api/alpha/decisions",
+            }
+            realtime = client.get(catalog_url, query_string=query, headers=auth_header)
+            assert realtime.json == {
+                "responses": [{"id": "vendor/response", "name": "Response"}],
+                "chat_completions": [{"id": "vendor/chat", "name": "Chat"}],
+                "systemone": [{"id": "vendor/decision", "name": "Decision"}],
+            }
+            batch = client.get(catalog_url, query_string={**query, "processing_mode": "openrouter_batch"}, headers=auth_header)
+            assert batch.json == {
+                "responses": [{"id": "vendor/chat:batch", "name": "Batch"}],
+                "chat_completions": [{"id": "vendor/chat:batch", "name": "Batch"}],
+                "systemone": realtime.json["systemone"],
+            }
+            fetch.assert_called_once()
+            assert fetch.call_args.args == (f"{openrouter_url}/models",)
+            assert fetch.call_args.kwargs.get("headers") is None
+
+            monkeypatch.setattr(llm_catalog, "_openrouter_cache", (0, None))
+            fetch.side_effect = requests.Timeout("upstream details")
+            unavailable = client.get(catalog_url, query_string=query, headers=auth_header)
+            assert unavailable.json == {api_format: [] for api_format in query}
 
     @pytest.mark.parametrize(
         "bot_type, feature",
