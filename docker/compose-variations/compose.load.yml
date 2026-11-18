@@ -91,6 +91,8 @@ services:
       TARANIS_CORE_URL: http://core:8080/api
       APPLICATION_ROOT: /frontend
       TARANIS_BASE_PATH: /
+      TARANIS_TRUST_FORWARDED_PROTO: "${TARANIS_TRUST_FORWARDED_PROTO:-false}"
+      TRUSTED_HOSTS: "${TRUSTED_HOSTS:-[]}"
       JWT_SECRET_KEY: load_testing_secret_key
       JWT_COOKIE_SUFFIX: ""
       REDIS_URL: redis://redis:6379/0
@@ -123,6 +125,7 @@ services:
       TARANIS_FRONTEND_UPSTREAM: frontend:8080
       TARANIS_REALTIME_UPSTREAM: core:8080
       TARANIS_BASE_PATH: /
+      TARANIS_TRUST_FORWARDED_PROTO: "${TARANIS_TRUST_FORWARDED_PROTO:-false}"
     depends_on:
       core:
         condition: service_healthy

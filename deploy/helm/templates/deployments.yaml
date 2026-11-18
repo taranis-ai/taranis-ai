@@ -266,6 +266,11 @@ spec:
               value: centrifugo:8000
             - name: TARANIS_FRONTEND_UPSTREAM
               value: frontend:8080
+            - name: TARANIS_TRUST_FORWARDED_PROTO
+              valueFrom:
+                configMapKeyRef:
+                  name: taranis-config
+                  key: TARANIS_TRUST_FORWARDED_PROTO
             - name: TARANIS_BASE_PATH
               valueFrom:
                 configMapKeyRef:

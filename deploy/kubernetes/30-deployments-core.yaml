@@ -277,6 +277,12 @@ spec:
               value: centrifugo:8000
             - name: TARANIS_FRONTEND_UPSTREAM
               value: frontend:8080
+            - name: TARANIS_TRUST_FORWARDED_PROTO
+              valueFrom:
+                configMapKeyRef:
+                  name: taranis-config
+                  key: TARANIS_TRUST_FORWARDED_PROTO
+                  optional: true
             - name: TARANIS_BASE_PATH
               valueFrom:
                 configMapKeyRef:
@@ -290,6 +296,9 @@ spec:
             httpGet:
               path: /
               port: 8080
+              httpHeaders:
+                - name: Host
+                  value: localhost
             initialDelaySeconds: 30
             periodSeconds: 90
             timeoutSeconds: 30
@@ -298,6 +307,9 @@ spec:
             httpGet:
               path: /
               port: 8080
+              httpHeaders:
+                - name: Host
+                  value: localhost
             initialDelaySeconds: 30
             periodSeconds: 90
             timeoutSeconds: 30

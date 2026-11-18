@@ -6,6 +6,8 @@ config:
   granianHost: CHANGE_ME_BIND_HOST
   granianPort: "8080"
   taranisBasePath: /
+  trustForwardedProto: false
+  trustedHosts: []
   jwtCookieSuffix: ""
   realtimeEnabled: "true"
   centrifugoApiUrl: http://centrifugo:9000

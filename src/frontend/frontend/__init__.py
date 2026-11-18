@@ -1,6 +1,7 @@
 from typing import Any
 
 from flask import Flask
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from frontend import auth, cache, core_api, router, setup
 from frontend.config import Config, build_config_overrides
@@ -16,6 +17,9 @@ def create_app(config_overrides: dict[str, Any] | None = None):
 
     with app.app_context():
         init(app)
+
+    if app.config["TARANIS_TRUST_FORWARDED_PROTO"]:
+        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=0, x_proto=1, x_host=0, x_port=0, x_prefix=0)
 
     return app
 

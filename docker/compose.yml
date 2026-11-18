@@ -33,6 +33,7 @@ services:
       TARANIS_REALTIME_UPSTREAM: "${TARANIS_REALTIME_UPSTREAM:-centrifugo:8000}"
       TARANIS_FRONTEND_UPSTREAM: "${TARANIS_FRONTEND_UPSTREAM:-frontend:8080}"
       TARANIS_BASE_PATH: "${TARANIS_BASE_PATH:-/}"
+      TARANIS_TRUST_FORWARDED_PROTO: "${TARANIS_TRUST_FORWARDED_PROTO:-false}"
     healthcheck:
       test: ["CMD-SHELL", "/usr/bin/curl --fail http://localhost:8080"]
       interval: 1m30s
@@ -147,6 +148,8 @@ services:
       TARANIS_CORE_URL: "${TARANIS_CORE_URL:-http://core:8080/api}"
       APPLICATION_ROOT: "${TARANIS_BASE_PATH:-/}frontend"
       TARANIS_BASE_PATH: "${TARANIS_BASE_PATH:-/}"
+      TARANIS_TRUST_FORWARDED_PROTO: "${TARANIS_TRUST_FORWARDED_PROTO:-false}"
+      TRUSTED_HOSTS: "${TRUSTED_HOSTS:-[]}"
       JWT_SECRET_KEY: "${JWT_SECRET_KEY}"
       JWT_COOKIE_SUFFIX: "${JWT_COOKIE_SUFFIX:-}"
       REDIS_URL: "redis://redis:6379/0"

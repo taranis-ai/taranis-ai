@@ -7,6 +7,7 @@ if [ "$PUBLIC_BASE_PATH" != "/" ]; then
 fi
 
 export TARANIS_BASE_PATH=$PUBLIC_BASE_PATH
+export TARANIS_TRUST_FORWARDED_PROTO=${TARANIS_TRUST_FORWARDED_PROTO:-false}
 
 echo "Setting base path to: $TARANIS_BASE_PATH"
 

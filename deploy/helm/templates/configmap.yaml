@@ -9,6 +9,8 @@ data:
   GRANIAN_HOST: {{ .Values.config.granianHost | quote }}
   GRANIAN_PORT: {{ .Values.config.granianPort | quote }}
   TARANIS_BASE_PATH: {{ .Values.config.taranisBasePath | quote }}
+  TARANIS_TRUST_FORWARDED_PROTO: {{ .Values.config.trustForwardedProto | quote }}
+  TRUSTED_HOSTS: {{ .Values.config.trustedHosts | toJson | quote }}
   JWT_COOKIE_SUFFIX: {{ .Values.config.jwtCookieSuffix | quote }}
   REALTIME_ENABLED: {{ .Values.config.realtimeEnabled | quote }}
   CENTRIFUGO_API_URL: {{ .Values.config.centrifugoApiUrl | quote }}

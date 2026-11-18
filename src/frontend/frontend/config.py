@@ -17,6 +17,8 @@ class Settings(BaseSettings):
     APPLICATION_ROOT: str = "/frontend"
     MODULE_ID: str = "Frontend"
     DEBUG: bool = False
+    TARANIS_TRUST_FORWARDED_PROTO: bool = False
+    TRUSTED_HOSTS: list[str] | None = None
 
     FLASK_SECRET_KEY: SecretStr = Field(default_factory=lambda: SecretStr(token_urlsafe(32)))
     JWT_SECRET_KEY: str = "supersecret"

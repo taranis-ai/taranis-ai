@@ -1,0 +1,33 @@
+import pytest
+from flask import url_for
+
+from frontend import create_app
+
+
+@pytest.mark.parametrize(("trust_forwarded_proto", "scheme"), [(False, "http"), (True, "https")])
+def test_absolute_url_uses_public_origin(trust_forwarded_proto: bool, scheme: str) -> None:
+    app = create_app(
+        {
+            "TESTING": True,
+            "APPLICATION_ROOT": "/taranis/frontend",
+            "TARANIS_TRUST_FORWARDED_PROTO": trust_forwarded_proto,
+            "TRUSTED_HOSTS": ["taranis.example.org"],
+        }
+    )
+
+    @app.get("/test-absolute-url")
+    def absolute_url():
+        return url_for("assess.assess", search="old", _external=True)
+
+    client = app.test_client()
+    headers = {
+        "X-Forwarded-Proto": "https",
+        "X-Forwarded-Host": "other.example.org",
+        "X-Forwarded-Port": "9999",
+        "X-Forwarded-Prefix": "/other",
+    }
+    response = client.get("/test-absolute-url", base_url="http://taranis.example.org:8443", headers=headers)
+
+    assert response.status_code == 200
+    assert response.text == f"{scheme}://taranis.example.org:8443/taranis/frontend/assess?search=old"
+    assert client.get("/test-absolute-url", base_url="http://other.example.org", headers=headers).status_code == 400
