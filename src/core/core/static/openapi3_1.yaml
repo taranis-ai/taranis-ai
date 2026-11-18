@@ -9315,6 +9315,55 @@ paths:
           $ref: '#/components/responses/401Unauthorized'
         '403':
           description: forbidden
+  /settings/llm-model-suggestions:
+    get:
+      security:
+      - UserAuth: []
+      tags: [config]
+      operationId: settings.llm_model_suggestions.get
+      description: >-
+        List suggested model IDs by API format using the supplied effective URLs.
+        Unsupported or unavailable catalogs yield no suggestions. Requires ADMIN_OPERATIONS.
+      parameters:
+      - name: responses
+        in: query
+        schema: {type: string}
+      - name: chat_completions
+        in: query
+        schema: {type: string}
+      - name: systemone
+        in: query
+        schema: {type: string}
+      - name: openai_decisions
+        in: query
+        schema: {type: string}
+      - name: processing_mode
+        in: query
+        schema:
+          type: string
+          enum: [realtime, openrouter_batch]
+          default: realtime
+      responses:
+        '200':
+          description: Suggestions keyed by API format
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: array
+                  items:
+                    type: object
+                    required: [id, name]
+                    properties:
+                      id: {type: string}
+                      name: {type: string}
+        '400':
+          description: Invalid model suggestions request
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: ADMIN_OPERATIONS required
   /settings/llm-endpoints:
     post:
       security:
