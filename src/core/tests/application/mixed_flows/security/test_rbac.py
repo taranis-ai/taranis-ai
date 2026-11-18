@@ -529,6 +529,55 @@ class TestRBACAclBehavior:
         assert detail_status == 403
         assert detail_error == {"error": "User does not have access to this news item"}
 
+    def test_story_summary_hides_inaccessible_stories(self, client, session, auth_header_user_permissions):
+        from core.model.news_item_attribute import NewsItemAttribute
+        from core.model.role import Role
+        from core.model.role_based_access import ItemType
+        from core.model.story import Story
+
+        visible_source, visible_story, visible_item = create_rbac_source_story("summary-visible")
+        _, acl_hidden_story, _ = create_rbac_source_story("summary-acl-hidden")
+        tlp_source, tlp_story, _ = create_rbac_source_story("summary-tlp-hidden")
+        mixed_source, mixed_story, _ = create_rbac_source_story("summary-mixed")
+        hidden_member_source, hidden_member, _ = create_rbac_source_story("summary-mixed-hidden")
+        role = Role.filter_by_name("User")
+        assert role is not None
+        role.tlp_level = TLPLevel.CLEAR
+        for source in (visible_source, tlp_source, mixed_source):
+            grant_acl(role, ItemType.OSINT_SOURCE, source.id)
+        tlp_story.upsert_attribute(NewsItemAttribute("tlp_override", "red"))
+        tlp_story.refresh_tlp()
+        Story.group_stories([mixed_story.id, hidden_member.id])
+        db.session.commit()
+
+        def summary(story_id):
+            return client.get(f"/api/connectors/story-summary/{story_id}", headers=auth_header_user_permissions)
+
+        response = summary(visible_story.id)
+        assert response.status_code == 200
+        assert response.json == {
+            "id": visible_story.id,
+            "title": visible_story.title,
+            "is_misp_story": False,
+            "news_item_count": 1,
+            "relevance": visible_story.relevance,
+            "news_item_data": [{"title": visible_item.title, "id": visible_item.id}],
+        }
+
+        # ACL-hidden, TLP-hidden, partially hidden (grouped with an inaccessible source) and missing stories are indistinguishable.
+        for story_id in (acl_hidden_story.id, tlp_story.id, mixed_story.id, "does-not-exist"):
+            response = summary(story_id)
+            assert response.status_code == 404
+            assert response.json == {"error": "Story not found"}
+
+        # Once access is granted, the same stories become available.
+        role.tlp_level = TLPLevel.RED
+        grant_acl(role, ItemType.OSINT_SOURCE, hidden_member_source.id)
+        assert summary(tlp_story.id).status_code == 200
+        response = summary(mixed_story.id)
+        assert response.status_code == 200
+        assert response.json["news_item_count"] == 2
+
     def test_source_group_acl_inherits_to_assess_content_and_filter_lists(self, session):
         from core.model.osint_source import OSINTSource, OSINTSourceGroup
         from core.model.role import Role
