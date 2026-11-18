@@ -18,8 +18,11 @@ Configure the outer proxy to preserve the public `Host` and overwrite
 custom proxy directly in front of the frontend, set the same option on the
 frontend only and apply those rules to its proxy.
 
-Set `TRUSTED_HOSTS` to a JSON list such as
-`["taranis.example.org","localhost","127.0.0.1"]` to enable hostname
-validation. Helm accepts the list in `config.trustedHosts`. Include the
-public names and the loopback names used by the health probes. Flask
-validates the hostname independently of the port.
+Compose accepts `localhost` and `127.0.0.1` out of the box. For a direct
+deployment on another hostname or IPv4 address, set `TARANIS_PUBLIC_HOST`.
+Helm and Kustomize use the hostname from the Kubernetes Ingress. Add
+aliases through the `TRUSTED_HOSTS` JSON list (Helm: `config.trustedHosts`).
+The frontend includes loopback hosts for health checks and preserves
+the public port when generating links.
+
+For an existing TLS proxy, see the [Compose setup](../../docker/README.md#using-an-existing-tls-proxy).

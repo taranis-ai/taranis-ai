@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     MODULE_ID: str = "Frontend"
     DEBUG: bool = False
     TARANIS_TRUST_FORWARDED_PROTO: bool = False
+    TARANIS_PUBLIC_HOST: str = ""
     TRUSTED_HOSTS: list[str] | None = None
 
     FLASK_SECRET_KEY: SecretStr = Field(default_factory=lambda: SecretStr(token_urlsafe(32)))
@@ -91,6 +92,15 @@ class Settings(BaseSettings):
             return "/"
 
         return f"/{v.strip('/')}/"
+
+    @model_validator(mode="after")
+    def set_trusted_hosts(self):
+        if self.TARANIS_PUBLIC_HOST or self.TRUSTED_HOSTS:
+            hosts = list(self.TRUSTED_HOSTS or [])
+            if self.TARANIS_PUBLIC_HOST:
+                hosts.append(self.TARANIS_PUBLIC_HOST)
+            self.TRUSTED_HOSTS = list(dict.fromkeys([*hosts, "localhost", "127.0.0.1"]))
+        return self
 
     @model_validator(mode="after")
     def set_taranis_core(self):

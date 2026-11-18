@@ -223,7 +223,7 @@ uv pip install -e ../models
 flask run
 ```
 
-Taranis AI should be reachable on _local.taranis.ai_.
+The development ingress accepts `dev.taranis.ai` and `local.taranis.ai`. Point the name you use at your development machine. Hostless HTTP/1.0 requests use `dev.taranis.ai`.
 
 ## Dependency updates
 

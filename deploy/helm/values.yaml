@@ -7,6 +7,7 @@ config:
   granianPort: "8080"
   taranisBasePath: /
   trustForwardedProto: false
+  # Additional frontend hostnames. The enabled ingress host and health probes are included automatically.
   trustedHosts: []
   jwtCookieSuffix: ""
   realtimeEnabled: "true"

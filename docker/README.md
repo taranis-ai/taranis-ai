@@ -28,6 +28,36 @@ cp env.sample .env
 
 Open file `.env` and defaults if needed
 
+### Using an existing TLS proxy
+
+For direct local access, open `http://localhost:8080`. For a host reverse proxy
+or [nginx-proxy](https://github.com/nginx-proxy/nginx-proxy) that already serves
+HTTPS, put the public DNS name in the Compose `.env` once and select the proxy
+configuration.
+
+```dotenv
+VIRTUAL_HOST=taranis.example.org
+COMPOSE_FILE=compose.yml:compose.reverse-proxy.yml
+```
+
+Run `docker compose up -d` from `docker/` with Docker Compose 2.24.4 or newer.
+A host proxy can forward to `http://127.0.0.1:8080`. For nginx-proxy, connect
+the Taranis ingress to the proxy's Docker network so it can discover the
+virtual host and reach port 8080. Keep that network private to trusted services.
+
+For a host Nginx proxy, use these directives in its existing location block:
+
+```nginx
+proxy_pass http://127.0.0.1:8080;
+proxy_set_header Host $http_host;
+proxy_set_header X-Forwarded-Proto $scheme;
+```
+
+At the public edge, set
+`TRUST_DOWNSTREAM_PROXY=false` on nginx-proxy to enforce that behavior.
+The bundled ingress listens on HTTP and its published port binds to loopback.
+Certificate management stays with your existing proxy.
+
 ### Settings preseeding
 
 Before the first startup, pass `PRE_SEED_SETTINGS` to the core container as a flat JSON object using the keys stored in Admin Settings. Any subset (or all settings) can be supplied; omitted keys retain their built-in defaults. The shipped Compose files (including load, minimal, PPN, and Tor variations) forward this variable from your shell or `.env`, defaulting to `{}`. For example, add this line to `.env`:

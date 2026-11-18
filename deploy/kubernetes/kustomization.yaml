@@ -10,3 +10,14 @@ resources:
   - 30-deployments-core.yaml
   - 35-deployment-inference.yaml
   - 40-ingress.yaml
+replacements:
+  - source:
+      kind: Ingress
+      name: taranis
+      fieldPath: spec.rules.0.host
+    targets:
+      - select:
+          kind: ConfigMap
+          name: taranis-config
+        fieldPaths:
+          - data.TARANIS_PUBLIC_HOST
