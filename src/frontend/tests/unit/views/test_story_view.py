@@ -1478,6 +1478,14 @@ def test_assess_saved_filter_update_button_reuses_save_endpoint(authenticated_cl
     assert json.loads(update_values) == {"name": "Shift queue"}
     assert update_button.get("disabled") is None
 
+    share_link = tree.xpath('//*[@data-testid="saved-filter-url"]')[0]
+    expected_path = url_for("assess.assess", search="old")
+    assert share_link.text_content().strip() == expected_path
+    assert share_link.get("href") == expected_path
+    assert share_link.get("title") == expected_path
+    apply_link = tree.xpath('//*[@data-testid="saved-filter-actions"]//a[normalize-space()="Apply"]')[0]
+    assert apply_link.get("href") == expected_path
+
 
 def test_table_search_bar_uses_form_level_search_trigger(app):
     with app.test_request_context("/frontend/admin/osint-sources?search=alpha"):
