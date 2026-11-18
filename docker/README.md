@@ -30,33 +30,22 @@ Open file `.env` and defaults if needed
 
 ### Using an existing TLS proxy
 
-For direct local access, open `http://localhost:8080`. For a host reverse proxy
-or [nginx-proxy](https://github.com/nginx-proxy/nginx-proxy) that already serves
-HTTPS, put the public DNS name in the Compose `.env` once and select the proxy
-configuration.
+Direct access at `http://localhost:8080` works with the standard Compose file.
+For an existing HTTPS proxy, set the public hostname in `docker/.env` and
+enable its forwarded scheme:
 
 ```dotenv
-VIRTUAL_HOST=taranis.example.org
-COMPOSE_FILE=compose.yml:compose.reverse-proxy.yml
+TRUSTED_HOSTS=taranis.example.org
+TARANIS_TRUST_FORWARDED_PROTO=true
 ```
 
-Run `docker compose up -d` from `docker/` with Docker Compose 2.24.4 or newer.
-A host proxy can forward to `http://127.0.0.1:8080`. For nginx-proxy, connect
-the Taranis ingress to the proxy's Docker network so it can discover the
-virtual host and reach port 8080. Keep that network private to trusted services.
-
-For a host Nginx proxy, use these directives in its existing location block:
-
-```nginx
-proxy_pass http://127.0.0.1:8080;
-proxy_set_header Host $http_host;
-proxy_set_header X-Forwarded-Proto $scheme;
-```
-
-At the public edge, set
-`TRUST_DOWNSTREAM_PROXY=false` on nginx-proxy to enforce that behavior.
-The bundled ingress listens on HTTP and its published port binds to loopback.
-Certificate management stays with your existing proxy.
+Run `docker compose up -d` as usual. Restrict ingress access to the proxy
+and health probes. For a proxy on the same host, the existing
+`TARANIS_PORT=127.0.0.1:8080` setting binds the published port to loopback.
+The proxy should preserve the public Host including its port and overwrite
+`X-Forwarded-Proto` with the client scheme. For nginx-proxy on a shared
+Docker network, route to the ingress on port 8080 and set
+`TRUST_DOWNSTREAM_PROXY=false` at the public edge. TLS stays at the proxy.
 
 ### Settings preseeding
 

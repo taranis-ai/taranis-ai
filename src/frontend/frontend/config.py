@@ -18,8 +18,7 @@ class Settings(BaseSettings):
     MODULE_ID: str = "Frontend"
     DEBUG: bool = False
     TARANIS_TRUST_FORWARDED_PROTO: bool = False
-    TARANIS_PUBLIC_HOST: str = ""
-    TRUSTED_HOSTS: list[str] | None = None
+    TRUSTED_HOSTS: str | list[str] | None = None
 
     FLASK_SECRET_KEY: SecretStr = Field(default_factory=lambda: SecretStr(token_urlsafe(32)))
     JWT_SECRET_KEY: str = "supersecret"
@@ -93,14 +92,12 @@ class Settings(BaseSettings):
 
         return f"/{v.strip('/')}/"
 
-    @model_validator(mode="after")
-    def set_trusted_hosts(self):
-        if self.TARANIS_PUBLIC_HOST or self.TRUSTED_HOSTS:
-            hosts = list(self.TRUSTED_HOSTS or [])
-            if self.TARANIS_PUBLIC_HOST:
-                hosts.append(self.TARANIS_PUBLIC_HOST)
-            self.TRUSTED_HOSTS = list(dict.fromkeys([*hosts, "localhost", "127.0.0.1"]))
-        return self
+    @field_validator("TRUSTED_HOSTS")
+    def include_healthcheck_hosts(cls, hosts: str | list[str] | None) -> list[str] | None:
+        if hosts is None:
+            return None
+        names = [hosts] if isinstance(hosts, str) else hosts
+        return list(dict.fromkeys([*names, "localhost", "127.0.0.1"]))
 
     @model_validator(mode="after")
     def set_taranis_core(self):

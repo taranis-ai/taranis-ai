@@ -10,10 +10,11 @@ data:
   GRANIAN_PORT: {{ .Values.config.granianPort | quote }}
   TARANIS_BASE_PATH: {{ .Values.config.taranisBasePath | quote }}
   TARANIS_TRUST_FORWARDED_PROTO: {{ .Values.config.trustForwardedProto | quote }}
+  {{- $hosts := .Values.config.trustedHosts }}
   {{- if .Values.ingress.enabled }}
-  TARANIS_PUBLIC_HOST: {{ .Values.ingress.host | quote }}
+  {{- $hosts = append $hosts .Values.ingress.host }}
   {{- end }}
-  TRUSTED_HOSTS: {{ .Values.config.trustedHosts | toJson | quote }}
+  TRUSTED_HOSTS: {{ $hosts | toJson | quote }}
   JWT_COOKIE_SUFFIX: {{ .Values.config.jwtCookieSuffix | quote }}
   REALTIME_ENABLED: {{ .Values.config.realtimeEnabled | quote }}
   CENTRIFUGO_API_URL: {{ .Values.config.centrifugoApiUrl | quote }}

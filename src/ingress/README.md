@@ -18,11 +18,7 @@ Configure the outer proxy to preserve the public `Host` and overwrite
 custom proxy directly in front of the frontend, set the same option on the
 frontend only and apply those rules to its proxy.
 
-Compose accepts `localhost` and `127.0.0.1` out of the box. For a direct
-deployment on another hostname or IPv4 address, set `TARANIS_PUBLIC_HOST`.
-Helm and Kustomize use the hostname from the Kubernetes Ingress. Add
-aliases through the `TRUSTED_HOSTS` JSON list (Helm: `config.trustedHosts`).
-The frontend includes loopback hosts for health checks and preserves
-the public port when generating links.
-
-For an existing TLS proxy, see the [Compose setup](../../docker/README.md#using-an-existing-tls-proxy).
+Compose accepts loopback requests by default. Set `TRUSTED_HOSTS` to the
+public hostname, or to a JSON list for multiple hostnames. Local health
+checks are included automatically. Helm and Kustomize reuse the Ingress
+hostname. See the [Compose setup](../../docker/README.md#using-an-existing-tls-proxy).

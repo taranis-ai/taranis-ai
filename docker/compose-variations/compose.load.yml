@@ -92,8 +92,7 @@ services:
       APPLICATION_ROOT: /frontend
       TARANIS_BASE_PATH: /
       TARANIS_TRUST_FORWARDED_PROTO: "${TARANIS_TRUST_FORWARDED_PROTO:-false}"
-      TARANIS_PUBLIC_HOST: "${TARANIS_PUBLIC_HOST:-ingress}"
-      TRUSTED_HOSTS: "${TRUSTED_HOSTS:-[]}"
+      TRUSTED_HOSTS: "${TRUSTED_HOSTS:-ingress}"
       JWT_SECRET_KEY: load_testing_secret_key
       JWT_COOKIE_SUFFIX: ""
       REDIS_URL: redis://redis:6379/0

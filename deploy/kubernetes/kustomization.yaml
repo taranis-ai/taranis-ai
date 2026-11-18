@@ -20,4 +20,4 @@ replacements:
           kind: ConfigMap
           name: taranis-config
         fieldPaths:
-          - data.TARANIS_PUBLIC_HOST
+          - data.TRUSTED_HOSTS

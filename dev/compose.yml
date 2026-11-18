@@ -81,7 +81,7 @@ services:
       CENTRIFUGO_ENGINE_TYPE: "redis"
       CENTRIFUGO_ENGINE_REDIS_ADDRESS: "redis://redis:6379/0"
       CENTRIFUGO_ENGINE_REDIS_PREFIX: "taranis:realtime"
-      CENTRIFUGO_CLIENT_ALLOWED_ORIGINS: "${CENTRIFUGO_ALLOWED_ORIGINS:-http://local.taranis.ai http://dev.taranis.ai}"
+      CENTRIFUGO_CLIENT_ALLOWED_ORIGINS: "${CENTRIFUGO_ALLOWED_ORIGINS:-http://local.taranis.ai}"
       CENTRIFUGO_CLIENT_PROXY_CONNECT_ENABLED: "true"
       CENTRIFUGO_CLIENT_PROXY_CONNECT_ENDPOINT: "http://host.containers.internal:${TARANIS_CORE_PORT:-5001}/api/realtime/connect"
       CENTRIFUGO_CLIENT_PROXY_CONNECT_HTTP_HEADERS: "Cookie"
