@@ -58,9 +58,7 @@ class BotPipelineService:
             if existing and existing.status == "SUCCESS":
                 return TaskResponseModel.model_validate(existing.to_dict()).model_dump(mode="json", exclude_none=False), 200, False
 
-            stories = {
-                story.id: story for story in db.session.execute(db.select(Story).where(Story.id.in_(revisions)).with_for_update()).scalars()
-            }
+            stories = {story.id: story for story in db.session.execute(Story.lock_select(revisions)).scalars()}
             if len(stories) != len(revisions) or any(stories[story_id].revision != revision for story_id, revision in revisions.items()):
                 raise StaleBotRun
             allowed_items = {item.id for story in stories.values() for item in story.news_items}

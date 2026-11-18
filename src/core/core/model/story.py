@@ -1,6 +1,6 @@
 import re
 from collections import Counter
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from datetime import datetime
 from typing import Any
 
@@ -871,17 +871,31 @@ class Story(BaseModel):
         return db.session.execute(self.visible_query(user).where(Story.id == self.id)).scalar() is not None
 
     @classmethod
-    def get_visible_bulk(cls, story_ids: list[str], user: User | None) -> tuple[list["Story"], list[str]]:
+    def lock_select(cls, story_ids: Iterable[str]) -> Select:
+        """Lock story rows in id order. Lock stories before reports to avoid deadlocks (#1258)."""
+        return db.select(cls).where(cls.id.in_(list(story_ids))).order_by(cls.id).with_for_update().execution_options(populate_existing=True)
+
+    @classmethod
+    def lock_many(cls, story_ids: Iterable[str]) -> dict[str, "Story"]:
+        """Lock existing stories until commit; stories deleted meanwhile are missing from the result."""
+        unique_ids = list(dict.fromkeys(story_id for story_id in story_ids if story_id))
+        if not unique_ids:
+            return {}
+        return {story.id: story for story in db.session.execute(cls.lock_select(unique_ids)).scalars()}
+
+    @classmethod
+    def get_visible_bulk(cls, story_ids: list[str], user: User | None, *, lock: bool = False) -> tuple[list["Story"], list[str]]:
         """Resolve story ids, applying ACL and TLP filters when a user is given.
 
         Returns the resolved stories (deduplicated, in request order) and the ids that
         were not found or are not visible to the user. Both cases are reported the
         same way so callers cannot be used to probe for hidden stories.
+        With `lock`, the stories stay locked until commit, so a story deleted meanwhile is reported missing.
         """
         unique_ids = list(dict.fromkeys(story_ids))
         if not unique_ids:
             return [], []
-        query = db.select(cls).where(cls.id.in_(unique_ids))
+        query = cls.lock_select(unique_ids) if lock else db.select(cls).where(cls.id.in_(unique_ids))
         if user is not None:
             query = cls.visible_query(user, query)
         stories_by_id = {story.id: story for story in db.session.execute(query).scalars().all()}
@@ -1156,7 +1170,8 @@ class Story(BaseModel):
 
     @classmethod
     def delete_by_id(cls, story_id, user):
-        story = cls.get(story_id)
+        # Keep the report check below valid until commit; report assignment locks the story too.
+        story = cls.lock_many([story_id]).get(story_id)
         if not story:
             logger.debug(f"Story with id: {story_id} not found")
             return {"error": "Story not found"}, 404
@@ -1248,6 +1263,8 @@ class Story(BaseModel):
                 return {"error": "at least two valid Story ids needed"}, 404
 
             ordered_story_ids = list(story_ids)
+            # Absorbed stories are deleted; the lock keeps their report lookup valid until commit.
+            cls.lock_many(ordered_story_ids)
             first_story = cls.get(ordered_story_ids[0])
             if not first_story:
                 return {"error": "Story not found"}, 404
@@ -1290,11 +1307,12 @@ class Story(BaseModel):
     def ungroup_story(cls, story_id: str, user: User | None = None, actor: str | None = None):
         actor = cls.resolve_actor(user=user, actor=actor)
         try:
-            if ReportItemStory.is_assigned(story_id):
-                return {"error": "Story is assigned to a report"}, 400
-            story = cls.get(story_id)
+            # Lock before the report check, so the emptied story cannot be assigned before it is deleted.
+            story = cls.lock_many([story_id]).get(story_id)
             if not story:
                 return {"error": "Story not found"}, 404
+            if ReportItemStory.is_assigned(story_id):
+                return {"error": "Story is assigned to a report"}, 400
             new_story_ids: list[str] = []
             for news_item in story.news_items[:]:
                 if (user is None or news_item.allowed_with_acl(user, True)) and (
@@ -1324,6 +1342,10 @@ class Story(BaseModel):
 
         actor = cls.resolve_actor(user=user, actor=actor)
         try:
+            # Lock the stories, then their reports, before memberships and report STORY fields are read.
+            story_ids = db.session.scalars(db.select(NewsItem.story_id).where(NewsItem.id.in_(newsitem_ids))).all()
+            locked_stories = Story.lock_many(story_ids)
+            ReportItem.lock_for_stories(list(locked_stories))
             removable_items: dict[str, tuple[NewsItem, Story]] = {}
             for item in newsitem_ids:
                 news_item = NewsItem.get(item)
@@ -1331,7 +1353,7 @@ class Story(BaseModel):
                     continue
                 if not news_item.allowed_with_acl(user, True):
                     continue
-                story = Story.get(news_item.story_id)
+                story = locked_stories.get(news_item.story_id)
                 if not story:
                     continue
                 removable_items[news_item.id] = (news_item, story)
