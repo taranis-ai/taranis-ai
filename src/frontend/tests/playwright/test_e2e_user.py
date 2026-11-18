@@ -18,6 +18,11 @@ from tests.playwright.notification_helpers import dismiss_notifications
 ASSESS_STORY_PAGE_SIZE = 20
 
 
+@pytest.fixture(scope="session")
+def browser_context_args(browser_context_args):
+    return {**browser_context_args, "no_viewport": False, "viewport": {"width": 2560, "height": 1440}}
+
+
 @pytest.fixture
 def enabled_default_llm_endpoint(core_request_client):
     allow_requests_passthru()
@@ -124,6 +129,7 @@ class TestEndToEndUser(BaseE2ETest):
             page.get_by_role("link", name="Dashboard", exact=True).click()
 
             page.locator("#dashboard").get_by_role("link", name="Assess").click()
+            self.capture_screenshot(page, "./tests/playwright/screenshots/assess.png")
             expect(page.get_by_test_id("assess_story_count")).to_be_visible()
             visible_count, total_count = self._get_assess_story_counts(page)
             assert total_count >= visible_count > 0
