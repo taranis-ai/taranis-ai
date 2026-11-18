@@ -278,6 +278,22 @@ class TestRBAC:
 
         db.session.remove()
 
+    def test_global_tag_deletion_requires_admin_operations(self, client, session, auth_header, auth_header_user_permissions):
+        from core.model.news_item_tag import NewsItemTag
+
+        url = "/api/dashboard/delete-tag/rbac-global-tag"
+        response = client.delete(url, headers=auth_header_user_permissions)
+        assert response.status_code == 403
+
+        _, _, item = create_rbac_source_story("delete-tag")
+        assert item.set_tags([{"name": "rbac-global-tag"}])[1] == 200
+        tag_query = db.select(NewsItemTag.id).where(NewsItemTag.name == "rbac-global-tag")
+        assert db.session.execute(tag_query).first() is not None
+
+        response = client.delete(url, headers=auth_header)
+        assert response.status_code == 200
+        assert db.session.execute(tag_query).first() is None
+
 
 class TestRBACAclBehavior:
     @pytest.mark.parametrize("restriction", ["acl", "tlp"])
