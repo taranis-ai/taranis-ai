@@ -895,7 +895,11 @@ class Story(BaseModel):
         unique_ids = list(dict.fromkeys(story_ids))
         if not unique_ids:
             return [], []
-        query = cls.lock_select(unique_ids) if lock else db.select(cls).where(cls.id.in_(unique_ids))
+        if lock:
+            # Check visibility in a separate statement: after a lock wait, PostgreSQL rechecks only
+            # the locked row, while the TLP/ACL subqueries would still see the old snapshot.
+            cls.lock_many(unique_ids)
+        query = db.select(cls).where(cls.id.in_(unique_ids))
         if user is not None:
             query = cls.visible_query(user, query)
         stories_by_id = {story.id: story for story in db.session.execute(query).scalars().all()}
@@ -1296,7 +1300,8 @@ class Story(BaseModel):
 
     @classmethod
     def ungroup_multiple_stories(cls, story_ids: list[str], user: User | None = None):
-        results = [cls.ungroup_story(story_id, user) for story_id in story_ids]
+        # A rejected story stays locked until the next commit; ascending order keeps the locks deadlock-free.
+        results = [cls.ungroup_story(story_id, user) for story_id in sorted(story_ids, key=str)]
         if errors := [res[0].get("error") for res in results if res[1] != 200 and res[0].get("error") is not None]:
             error_message = "; ".join(filter(None, errors))
             logger.error(f"Errors ungrouping stories: {error_message}")
@@ -1343,8 +1348,11 @@ class Story(BaseModel):
         actor = cls.resolve_actor(user=user, actor=actor)
         try:
             # Lock the stories, then their reports, before memberships and report STORY fields are read.
-            story_ids = db.session.scalars(db.select(NewsItem.story_id).where(NewsItem.id.in_(newsitem_ids))).all()
-            locked_stories = Story.lock_many(story_ids)
+            parent_ids = db.select(NewsItem.story_id).where(NewsItem.id.in_(newsitem_ids))
+            locked_stories = Story.lock_many(db.session.scalars(parent_ids).all())
+            # An item moved to another story before the lock must not be skipped silently.
+            if any(story_id and story_id not in locked_stories for story_id in db.session.scalars(parent_ids).all()):
+                return {"error": "News items changed. Reload the story and try again."}, 409
             ReportItem.lock_for_stories(list(locked_stories))
             removable_items: dict[str, tuple[NewsItem, Story]] = {}
             for item in newsitem_ids:

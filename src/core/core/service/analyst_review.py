@@ -13,8 +13,10 @@ from core.service.report_story_sync import ReportStorySyncService
 class AnalystReviewService:
     @classmethod
     def triage(cls, payload: AnalystReviewActionPayload, user: User) -> tuple[dict[str, Any], int]:
-        # Lock the story so a concurrent deletion cannot drop the new report link (#1258).
-        story_query = Story.visible_query(user, Story.lock_select([payload.story_id]))
+        # Lock the story so a concurrent deletion cannot drop the new report link (#1258),
+        # then check visibility in a separate statement that sees changes made during the lock wait.
+        Story.lock_many([payload.story_id])
+        story_query = Story.visible_query(user).where(Story.id == payload.story_id)
         story = db.session.execute(story_query).scalar()
         if not story:
             return {"error": "Story not found"}, 404

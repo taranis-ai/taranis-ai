@@ -655,9 +655,19 @@ class ReportItem(BaseModel):
 
         # Lock current and requested stories, then the report, so a concurrent merge or ungroup
         # cannot rewrite the report's stories or STORY fields between reading and saving them.
-        Story.lock_many([*(story.id for story in report_item.stories), *(normalized_story_ids or [])])
-        if db.session.execute(cls.lock_select([report_item.id])).scalar_one_or_none() is None:
-            return {"error": "Report Item not Found"}, 404
+        # A story added before the report lock would be locked after the report; retry instead.
+        for _attempt in range(2):
+            locked_stories = Story.lock_many([*(story.id for story in report_item.stories), *(normalized_story_ids or [])])
+            if db.session.execute(cls.lock_select([report_item.id])).scalar_one_or_none() is None:
+                return {"error": "Report Item not Found"}, 404
+            if all(story.id in locked_stories for story in report_item.stories):
+                break
+            db.session.rollback()
+        else:
+            return {"error": "Report stories changed. Reload the report and try again."}, 409
+        # The locked report is current; its TLP may have changed since the first check.
+        if not report_item.access_allowed(user, True):
+            return {"error": "User is not allowed to update report"}, 403
         affected_stories = list(report_item.stories)
 
         if normalized_story_ids is not None:
