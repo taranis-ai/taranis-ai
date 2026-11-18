@@ -392,7 +392,7 @@ class GroupAction(MethodView):
         response, code = StoryService.group_stories(story_ids, current_user, actor=actor)
         if 200 <= code < 300:
             realtime_publisher.assess_changed()
-        invalidate_frontend_cache_on_success(code, scopes=(SCOPE_STORY_VIEWS,))
+        invalidate_frontend_cache_on_success(code, scopes=(SCOPE_STORY_VIEWS, SCOPE_REPORT_VIEWS))
         return response, code
 
     @auth_required("ASSESS_UPDATE")
@@ -404,7 +404,7 @@ class GroupAction(MethodView):
         response, code = StoryService.group_stories(story_ids, current_user, actor=actor)
         if 200 <= code < 300:
             realtime_publisher.assess_changed()
-        invalidate_frontend_cache_on_success(code, scopes=(SCOPE_STORY_VIEWS,))
+        invalidate_frontend_cache_on_success(code, scopes=(SCOPE_STORY_VIEWS, SCOPE_REPORT_VIEWS))
         return response, code
 
 
