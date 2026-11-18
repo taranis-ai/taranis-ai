@@ -9,8 +9,8 @@
         </div>
       {% endif %}
       <a class="{% if show_name or saved_filter.is_default %}mt-1 {% endif %}link link-hover block max-w-full truncate text-xs text-base-content/60"
-         href="{{ saved_filter.share_url }}"
-         title="{{ saved_filter.share_url }}"
+         href="{{ saved_filter.url }}"
+         title="{{ saved_filter.url }}"
          data-testid="saved-filter-url">{{ saved_filter.url }}</a>
     </div>
     {% if show_apply_action or show_management_actions or show_delete_action %}

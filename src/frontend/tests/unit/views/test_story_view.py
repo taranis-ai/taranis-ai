@@ -1480,10 +1480,9 @@ def test_assess_saved_filter_update_button_reuses_save_endpoint(authenticated_cl
 
     share_link = tree.xpath('//*[@data-testid="saved-filter-url"]')[0]
     expected_path = url_for("assess.assess", search="old")
-    expected_share_url = url_for("assess.assess", search="old", _external=True)
     assert share_link.text_content().strip() == expected_path
-    assert share_link.get("href") == expected_share_url
-    assert share_link.get("title") == expected_share_url
+    assert share_link.get("href") == expected_path
+    assert share_link.get("title") == expected_path
     apply_link = tree.xpath('//*[@data-testid="saved-filter-actions"]//a[normalize-space()="Apply"]')[0]
     assert apply_link.get("href") == expected_path
 
