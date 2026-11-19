@@ -64,50 +64,83 @@
       {% endif %}
       <ol class="mt-2 divide-y divide-base-300">
         {% for comment in discussion["items"] %}
-          <li class="py-3 last:pb-2" id="comment-{{ comment.id }}">
-            <div class="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-sm">
-              <span class="font-semibold [overflow-wrap:anywhere]">{{ comment.author or ("Unknown author" if not comment.created_at else "Deleted user") }}</span>
-              {% if comment.created_at %}
-                <time class="text-base-content/70" datetime="{{ comment.created_at }}">{{ comment.created_at | format_datetime }}</time>
-              {% else %}
-                <span class="text-base-content/70">Original time unknown</span>
-              {% endif %}
-              {% if comment.edited_at %}
-                <span class="text-base-content/70" title="{{ comment.edited_at | format_datetime }}">Edited</span>
+          {% set edit_failed = failed_action == 'edit' and failed_comment_id == comment.id %}
+          <li class="group/comment py-3 last:pb-2" id="comment-{{ comment.id }}" {% if comment.can_edit %}x-data{% endif %}>
+            <div class="flex items-start justify-between gap-2">
+              <div class="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-sm">
+                <span class="font-semibold [overflow-wrap:anywhere]">{{ comment.author or ("Unknown author" if not comment.created_at else "Deleted user") }}</span>
+                {% if comment.created_at %}
+                  <time class="text-base-content/70" datetime="{{ comment.created_at }}">{{ comment.created_at | format_datetime }}</time>
+                {% else %}
+                  <span class="text-base-content/70">Original time unknown</span>
+                {% endif %}
+                {% if comment.edited_at %}
+                  <span class="text-base-content/70" title="{{ comment.edited_at | format_datetime }}">Edited</span>
+                {% endif %}
+              </div>
+              {% if comment.can_edit or comment.can_delete %}
+                <div class="flex shrink-0 items-center gap-1">
+                  {% if comment.can_edit %}
+                    <button type="button"
+                            class="btn btn-ghost btn-xs btn-square group-has-open/comment:hidden"
+                            aria-label="Edit comment"
+                            title="Edit comment"
+                            x-cloak
+                            x-ref="editButton"
+                            @click="$refs.editor.open = true; $refs.body.focus()">{{ heroicon_mini("pencil", class="size-4") }}</button>
+                  {% endif %}
+                  {% if comment.can_delete %}
+                    <form {{ comment_form_attrs('delete', comment.id) }} hx-confirm="Delete this comment?" data-confirm-confirm="Delete">
+                      {{ hidden_fields('delete', comment.id) }}
+                      <noscript>
+                        <label class="text-sm">
+                          <input type="checkbox" required>
+                          Confirm deletion
+                        </label>
+                      </noscript>
+                      <button class="btn btn-ghost btn-xs btn-square text-error"
+                              type="submit"
+                              aria-label="Delete comment"
+                              title="Delete comment">{{ heroicon_mini("trash", class="size-4") }}</button>
+                    </form>
+                  {% endif %}
+                </div>
               {% endif %}
             </div>
-            <p class="mt-1 whitespace-pre-wrap [overflow-wrap:anywhere] {{ 'line-clamp-3 text-sm' if discussion_preview else '' }}">{{ comment.body }}</p>
-            {% if comment.can_edit or comment.can_delete %}
-              <div class="mt-1 grid justify-items-start gap-1">
-                {% if comment.can_edit %}
-                  <details class="max-w-full" {% if failed_action == 'edit' and failed_comment_id == comment.id %}open{% endif %}>
-                    <summary class="link link-hover cursor-pointer text-sm text-base-content/70">Edit comment</summary>
-                    <form {{ comment_form_attrs('edit', comment.id) }} class="mt-2 w-full space-y-2 sm:min-w-80">
-                      {{ hidden_fields('edit', comment.id) }}
-                      <label class="sr-only" for="edit-comment-{{ comment.id }}">Edit comment</label>
-                      <textarea id="edit-comment-{{ comment.id }}" name="body" class="textarea w-full" rows="3" required maxlength="{{ comment_max_length }}">{{ comment_draft if failed_action == 'edit' and failed_comment_id == comment.id else comment.body }}</textarea>
-                      <div id="comment-edit-error-{{ comment.id }}" role="alert">
-                        {% if failed_action == "edit" and failed_comment_id == comment.id %}
-                          {% include "discussion/action_error.html" %}
-                        {% endif %}
-                      </div>
-                      <button class="btn btn-sm btn-primary" type="submit">Save comment</button>
-                    </form>
-                  </details>
-                {% endif %}
-                {% if comment.can_delete %}
-                  <details {% if failed_action == 'delete' and failed_comment_id == comment.id %}open{% endif %}>
-                    <summary class="link link-hover cursor-pointer text-sm text-base-content/70">Delete comment</summary>
-                    <form {{ comment_form_attrs('delete', comment.id) }} class="mt-2 space-y-2">
-                      {{ hidden_fields('delete', comment.id) }}
-                      <div id="comment-delete-error-{{ comment.id }}" role="alert">
-                        {% if failed_action == "delete" and failed_comment_id == comment.id %}
-                          {% include "discussion/action_error.html" %}
-                        {% endif %}
-                      </div>
-                      <button class="btn btn-sm btn-error btn-outline" type="submit">Confirm deletion</button>
-                    </form>
-                  </details>
+            {% if comment.can_edit %}
+              <details class="peer" x-ref="editor" {% if edit_failed %}open{% endif %}>
+                <summary x-show="false" class="cursor-pointer text-sm">Edit comment</summary>
+                <form {{ comment_form_attrs('edit', comment.id) }} class="mt-1 space-y-2">
+                  {{ hidden_fields('edit', comment.id) }}
+                  <label class="sr-only" for="edit-comment-{{ comment.id }}">Edit comment</label>
+                  <textarea id="edit-comment-{{ comment.id }}"
+                            x-ref="body"
+                            name="body"
+                            class="textarea w-full"
+                            rows="3"
+                            required
+                            maxlength="{{ comment_max_length }}">{{ comment_draft if edit_failed else comment.body }}</textarea>
+                  <div id="comment-edit-error-{{ comment.id }}" x-ref="editError" role="alert">
+                    {% if edit_failed %}
+                      {% include "discussion/action_error.html" %}
+                    {% endif %}
+                  </div>
+                  <div class="flex gap-2">
+                    <button class="btn btn-sm btn-primary" type="submit">Save comment</button>
+                    <button class="btn btn-sm btn-ghost"
+                            type="button"
+                            x-cloak
+                            @click="$refs.editor.open = false; $refs.body.value = $refs.saved.textContent; $refs.editError.replaceChildren(); $refs.editButton.focus()">Cancel</button>
+                  </div>
+                </form>
+              </details>
+            {% endif %}
+            <p class="mt-1 whitespace-pre-wrap [overflow-wrap:anywhere] peer-open:hidden {{ 'line-clamp-3 text-sm' if discussion_preview else '' }}"
+               {% if comment.can_edit %}x-ref="saved"{% endif %}>{{ comment.body }}</p>
+            {% if comment.can_delete %}
+              <div id="comment-delete-error-{{ comment.id }}" role="alert">
+                {% if failed_action == "delete" and failed_comment_id == comment.id %}
+                  {% include "discussion/action_error.html" %}
                 {% endif %}
               </div>
             {% endif %}
@@ -118,8 +151,11 @@
       <p class="mt-2 text-sm text-base-content/70">No comments yet.</p>
     {% endif %}
     <div class="mt-3 border-t border-base-300 pt-3">
-      <details {% if not discussion_preview or failed_action == 'post' %}open{% endif %}>
-        <summary class="link link-hover cursor-pointer text-sm font-medium">Add a comment</summary>
+      <details class="group" {% if not discussion_preview or failed_action == 'post' %}open{% endif %}>
+        <summary class="btn btn-ghost btn-sm">
+          {{ heroicon_mini("chevron-right", class="size-4 group-open:rotate-90") }}
+          Add a comment
+        </summary>
         <form {{ comment_form_attrs("post") }} class="mt-2 space-y-2">
           {{ hidden_fields("post") }}
           <label for="new-comment-body" class="sr-only">Comment text</label>
