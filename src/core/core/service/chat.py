@@ -146,6 +146,7 @@ class ChatClient:
         on_delta: Callable[[str], None],
         *,
         search: bool = False,
+        require_search: bool = False,
         prompt: str = CHAT_PROMPT,
         response_format: dict | None = None,
     ) -> dict[str, Any]:
@@ -169,6 +170,12 @@ class ChatClient:
             payload["parallel_tool_calls"] = False
         if self.api_format == "chat_completions":
             payload = self._chat_payload(input_items, payload.get("tools", []), prompt)
+        if require_search:
+            payload["tool_choice"] = (
+                {"type": "function", "function": {"name": "search_stories"}}
+                if self.api_format == "chat_completions"
+                else {"type": "function", "name": "search_stories"}
+            )
         if response_format:
             if self.api_format == "chat_completions":
                 payload["response_format"] = {
@@ -498,6 +505,22 @@ class ChatService:
             "latest_message": content,
         }
         input_items = [{"role": "user", "content": json.dumps(context, ensure_ascii=False, default=str)}]
+        if mode == "hrag" and not Config.HRAG_ENABLED:
+            raise ChatUnavailableError("HRAG is disabled")
+        response = client.create_response(
+            input_items,
+            (lambda _delta: None) if mode == "hrag" else stream.add,
+            search=True,
+            require_search=mode == "hrag",
+        )
+        calls = [item for item in response.get("output", []) if item.get("type") == "function_call"]
+        query_params = {}
+        if calls:
+            call = calls[0]
+            filters = cls._search_filters(call.get("arguments"), catalog, {item["id"] for item in recent_results})
+            query_params = cls._query_params(filters, timezone_name)
+        elif mode == "hrag":
+            raise ChatProviderError("Chat provider did not resolve HRAG search filters")
         hrag_result = None
         search_result = None
         if mode == "hrag":
@@ -506,7 +529,11 @@ class ChatService:
             from core.service.hrag.answering import synthesize
             from core.service.hrag.retrieval import reauthorize, retrieve
 
-            hrag_result = retrieve(context, user_id, settings, deadline, stream)
+            graph_context = {
+                "latest_message": content,
+                "conversation": [{"role": message["role"], "content": message["content"]} for message in history],
+            }
+            hrag_result = retrieve(graph_context, user_id, settings, deadline, stream, filters=query_params)
             references = [
                 EvidenceReference.model_validate(e.model_dump(include=set(EvidenceReference.model_fields))) for e in hrag_result.evidence
             ]
@@ -525,15 +552,9 @@ class ChatService:
             if len(current) != len(hrag_result.evidence):
                 raise ChatProviderError("Evidence changed during this turn; retry the question")
         else:
-            response = client.create_response(input_items, stream.add, search=True)
-            search_result = None
-            calls = [item for item in response.get("output", []) if item.get("type") == "function_call"]
             if calls:
-                call = calls[0]
-                filters = cls._search_filters(call.get("arguments"), catalog, {item["id"] for item in recent_results})
                 stream.content = ""
                 stream.stage("searching")
-                query_params = cls._query_params(filters, timezone_name)
                 search_args: dict[str, Any] = {**query_params, "limit": settings["chat_max_stories"], "offset": 0}
                 search_user = User.get(user_id)
                 if not search_user:
@@ -557,7 +578,7 @@ class ChatService:
                     input_items.append(
                         {
                             "type": "function_call_output",
-                            "call_id": call["call_id"],
+                            "call_id": calls[0]["call_id"],
                             "output": json.dumps(
                                 {
                                     "applied_filters": query_params,

@@ -1899,13 +1899,13 @@ wheels = [
 [[package]]
 name = "taranis-llm-bot"
 version = "0.0.0"
-source = { url = "https://github.com/taranis-ai/llm-bot/archive/b637c3386b7e3a8956279eb777ea31500e501044.tar.gz" }
+source = { url = "https://github.com/taranis-ai/llm-bot/archive/a07c1bd01ed5525d57be5a90c4c790d1c5df439b.tar.gz" }
 dependencies = [
     { name = "langcodes", extra = ["data"] },
     { name = "pydantic" },
     { name = "pydantic-settings" },
 ]
-sdist = { hash = "sha256:cf5331701782e75f2eb1e3e8906451517a1a6bd5a1c1dfd7fcf9ed8094e1c695" }
+sdist = { hash = "sha256:47e9e4a936b3434a0cbb918d412ade981789e2c1fb63945452ae7c5592bb4989" }
 
 [package.optional-dependencies]
 inference = [
@@ -2047,7 +2047,7 @@ requires-dist = [
     { name = "ruff", marker = "extra == 'dev'" },
     { name = "setuptools", marker = "extra == 'dev'" },
     { name = "setuptools-scm", marker = "extra == 'dev'" },
-    { name = "taranis-llm-bot", extras = ["inference"], url = "https://github.com/taranis-ai/llm-bot/archive/b637c3386b7e3a8956279eb777ea31500e501044.tar.gz" },
+    { name = "taranis-llm-bot", extras = ["inference"], url = "https://github.com/taranis-ai/llm-bot/archive/a07c1bd01ed5525d57be5a90c4c790d1c5df439b.tar.gz" },
     { name = "taranis-models", editable = "../models" },
     { name = "taxii2-client" },
     { name = "trafilatura" },

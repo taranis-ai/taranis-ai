@@ -164,12 +164,12 @@ def reauthorize(references: list[EvidenceReference], user_id: str, filters: dict
     return result
 
 
-def retrieve(context: dict, user_id: str, settings: dict, deadline: float, stream) -> HragResult:
-    from core.service.chat import ChatProviderError, ChatService, ChatUnavailableError
+def retrieve(context: dict, user_id: str, settings: dict, deadline: float, stream, *, filters: dict) -> HragResult:
+    from core.service.chat import ChatProviderError, ChatUnavailableError
 
     if not Config.HRAG_ENABLED:
         raise ChatUnavailableError("HRAG is disabled")
-    result = HragResult(notices=[LIMIT_NOTICE])
+    result = HragResult(notices=[LIMIT_NOTICE], filters=filters)
     plan = GraphPlan()
     plan_ok = False
     graph_ok = False
@@ -185,12 +185,6 @@ def retrieve(context: dict, user_id: str, settings: dict, deadline: float, strea
         )
         proposed = run_inference(prepare_graph_query_generation(request).run(client), deadline)
         plan = GraphPlan.model_validate(proposed.model_dump())
-        filters = ChatService._search_filters(
-            plan.filters.model_dump_json(exclude_defaults=True),
-            context["available_filters"],
-            {item["id"] for item in context["recent_results"]},
-        )
-        result.filters = ChatService._query_params(filters, context["analyst_timezone"])
         plan_ok = True
         stream.stage("searching")
         user = db.session.get(User, user_id)
@@ -232,7 +226,7 @@ def retrieve(context: dict, user_id: str, settings: dict, deadline: float, strea
         result.notices.append(
             "Graph retrieval is unavailable; the answer uses vector evidence where available."
             if plan_ok
-            else "Graph planning is unavailable; vector matching could not apply inferred Assess filters."
+            else "Graph planning is unavailable; vector matching uses the Chat-resolved filters."
         )
     try:
         generation = db.session.scalar(db.select(HragGeneration).where(HragGeneration.active, HragGeneration.pipeline == "embedding"))

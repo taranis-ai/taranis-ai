@@ -7,7 +7,6 @@ from typing import Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from models.assess import AssessSearchFilters
 from models.llm import LLMEndpoint
 
 
@@ -264,7 +263,6 @@ class GraphPlan(HragContract):
     entity_types: list[EntityType] = Field(default_factory=list, max_length=20)
     relationships: list[str] = Field(default_factory=list, max_length=18)
     hops: int = Field(default=1, ge=0, le=3)
-    filters: AssessSearchFilters = Field(default_factory=AssessSearchFilters)
 
     @field_validator("names")
     @classmethod

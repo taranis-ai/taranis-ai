@@ -242,6 +242,7 @@ def test_hrag_turn_switching_partial_retrieval_and_live_history(configured_chat,
 
     monkeypatch.setattr(retrieval.Config, "HRAG_ENABLED", True)
     story = create_story(news_items=[build_news_item_payload(content="Acme reported an incident.")])
+    story.read = False
     item = story.news_items[0]
     settings = Settings.get_settings()
     settings["llm_graph_planning_endpoint"] = "existing-chat"
@@ -282,6 +283,7 @@ def test_hrag_turn_switching_partial_retrieval_and_live_history(configured_chat,
     contexts = []
     snapshots = []
     invalid_citations = False
+    invalid_filters = False
     invalid_replies = []
     expected_answer = 'Acme is mentioned: "Acme" [G1].\nWeitere Angaben fehlen.'
     monkeypatch.setattr("core.service.chat.ChatTurnStream._publish", lambda self, _stage: snapshots.append(self.content))
@@ -292,7 +294,30 @@ def test_hrag_turn_switching_partial_retrieval_and_live_history(configured_chat,
         context = json.loads(messages[-1]["content"])
         contexts.append(context)
         response_format = payload.get("text", {}).get("format") or payload.get("response_format", {}).get("json_schema", {})
+        if isinstance(payload.get("tool_choice"), dict):
+            assert "available_filters" in context
+            arguments = json.dumps({"source": ["unknown-source"]} if invalid_filters else {"read": False})
+            if configured_chat == "chat_completions":
+                return _response(
+                    {
+                        "choices": [
+                            {
+                                "finish_reason": "tool_calls",
+                                "message": {
+                                    "role": "assistant",
+                                    "content": None,
+                                    "tool_calls": [
+                                        {"id": "filters", "type": "function", "function": {"name": "search_stories", "arguments": arguments}}
+                                    ],
+                                },
+                            }
+                        ]
+                    }
+                )
+            return _response({"output": [{"type": "function_call", "name": "search_stories", "call_id": "filters", "arguments": arguments}]})
         if response_format.get("name") == "graph_query_generation_response":
+            assert set(context["context"]) == {"latest_message", "conversation"}
+            assert all(set(message) == {"role", "content"} for message in context["context"]["conversation"])
             assert context["question"] == "What is known about Acme?"
             answer = json.dumps({"names": ["Acme"], "hops": 0})
         elif response_format.get("name") == "hrag_response":
@@ -321,6 +346,7 @@ def test_hrag_turn_switching_partial_retrieval_and_live_history(configured_chat,
         assert answer["mode"] == "hrag" and answer["hrag_result"]["evidence"][0]["citation"] == "G1"
         assert any("Vector retrieval is unavailable" in notice for notice in answer["hrag_result"]["notices"])
         assert graph_calls == [[graph_key]]
+        assert answer["hrag_result"]["filters"]["read"] == "false"
         assert answer["content"] == expected_answer
         assert any(0 < len(snapshot) < len(expected_answer) for snapshot in snapshots)
         assert all(expected_answer.startswith(snapshot) for snapshot in snapshots)
@@ -331,6 +357,13 @@ def test_hrag_turn_switching_partial_retrieval_and_live_history(configured_chat,
         assert contexts[-1]["conversation"][-1]["content"] == expected_answer
         from core.managers.queue_manager import queue_manager
 
+        queue_manager.redis.flushall()
+        invalid_filters = True
+        with pytest.raises(ChatProviderError):
+            ChatService.create_turn(admin_user, "What is known about Acme?", "invalid-filters", conversation["id"], mode="hrag")
+        assert graph_calls == [[graph_key]]
+        assert len(ChatService.get_conversation(conversation["id"], admin_user)["messages"]) == 4
+        invalid_filters = False
         queue_manager.redis.flushall()
         invalid_citations = True
         with pytest.raises(ChatProviderError, match="invalid grounded answer"):

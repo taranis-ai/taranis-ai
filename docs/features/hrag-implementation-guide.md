@@ -167,11 +167,11 @@ The frontend posts `mode=hrag` in the existing `ChatTurnRequest` contract in [mo
 
 `ChatService.create_turn()` acquires the existing Redis turn lease and establishes a 540-second shared deadline. The context includes current UTC time, analyst timezone, the latest ten saved messages, the user's visible filter catalog, accessible recent search results, and the latest question. HRAG indexing jobs are asynchronous; answering this question runs in Core during the Chat request.
 
-### 5.2 Ask for a plan, never executable query text
+### 5.2 Resolve Chat filters, then ask for a graph plan
 
-`retrieve()` builds a `GraphQueryGenerationRequest` from the latest question, fixed extraction vocabulary and conversation/filter context, then calls `prepare_graph_query_generation()` through `PlanningClient`. Core validates the result again through its `GraphPlan` and Assess filter contracts. The adapter retains the existing deadline-aware `ChatClient` transport.
+Chat first resolves filters with its existing `search_stories` call and validates catalog/recent-result references and timezone values through the existing search helpers. `retrieve()` receives those filters explicitly. It builds a `GraphQueryGenerationRequest` from the question, fixed vocabulary and conversation text only, then calls `prepare_graph_query_generation()` through the deadline-aware `PlanningClient`.
 
-`GraphPlan` constrains names, entity types, known relationship kinds, hops from 0 to 3, and `AssessSearchFilters`. Names normalize to stripped casefolded strings. Existing Chat search helpers validate catalog/recent-result references and convert filters with the analyst's timezone.
+`GraphPlan` constrains names, entity types, known relationship kinds and hops from 0 to 3. Names normalize to stripped casefolded strings. Assess filters are not part of this plan.
 
 The model does not supply SQL or Cypher. `compile_graph()` chooses one of two fixed Cypher statements and binds plan values as parameters.
 
@@ -189,7 +189,7 @@ Graph results are bounded and ordered by path length and the first evidence key,
 
 After the graph attempt, the vector branch resolves the active embedding generation and calls the provider's `/embeddings` route through the existing Chat HTTP transport. It embeds `context["latest_message"]`, not an LLM-rewritten query or the entire conversation. It explicitly requests the active generation's configured `dimensions` and checks the returned dimensions.
 
-It gathers authorized embedding work with the same planned filters and verifies that the generation did not change during query embedding. `vector_search()` performs:
+It gathers authorized embedding work with the same Chat-resolved filters and verifies that the generation did not change during query embedding. `vector_search()` performs:
 
 ```sql
 SELECT work_id
@@ -216,7 +216,7 @@ All branches include current story ID/title and truncation metadata. `reference_
 | Situation | Turn behavior |
 | --- | --- |
 | Graph fails, vectors succeed | Use vector evidence and show a partial-retrieval notice |
-| Planning fails, vectors succeed | Use vector evidence with no inferred Assess filters; explicitly report that limitation |
+| Planning fails, vectors succeed | Use vector evidence with the Chat-resolved filters and report the graph-planning failure |
 | Vectors fail, graph succeeds | Use graph evidence and show a partial-retrieval notice |
 | Both branches fail | Raise a Chat provider error; do not save the turn |
 | Retrieval succeeds but produces no authorized evidence | Save the static “Insufficient indexed evidence…” answer |

@@ -75,9 +75,7 @@ class DemoChatProvider(BaseHTTPRequestHandler):
                 [
                     {
                         "type": "message",
-                        "content": [
-                            {"type": "output_text", "text": json.dumps({"names": ["demo"], "hops": 1, "filters": {"search": "ransomware"}})}
-                        ],
+                        "content": [{"type": "output_text", "text": json.dumps({"names": ["demo"], "hops": 1})}],
                     }
                 ]
             )
