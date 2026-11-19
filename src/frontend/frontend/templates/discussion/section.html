@@ -20,38 +20,40 @@
   {% if comment_id %}<input type="hidden" name="comment_id" value="{{ comment_id }}">{% endif %}
 {% endmacro %}
 
-<section id="comments" aria-labelledby="comments-heading" class="scroll-mt-24 rounded-box border border-base-300 bg-base-100 p-4 sm:p-5">
-  <div class="flex flex-wrap items-center justify-between gap-2">
-    <h2 id="comments-heading" class="flex items-center gap-2 text-base font-semibold">
-      {{ heroicon_outline("chat-bubble-left-right", class="size-5 text-base-content/60") }}
+<details id="comments"
+         class="group/discussion scroll-mt-24 rounded-box border border-base-300 bg-base-100 px-3 py-1"
+         {% if not discussion_preview or discussion.total_count or action_status or load_error or failed_action %}open{% endif %}>
+  <summary class="cursor-pointer list-none rounded-sm py-1">
+    <h2 class="flex items-center gap-1.5 text-sm font-semibold">
+      {{ heroicon_mini("chevron-right", class="size-4 text-base-content/60 group-open/discussion:rotate-90") }}
       Comments
-      {% if not load_error %}<span class="badge badge-ghost badge-sm">{{ discussion.total_count }}</span>{% endif %}
+      {% if not load_error %}<span class="badge badge-ghost badge-xs">{{ discussion.total_count }}</span>{% endif %}
     </h2>
-    {% if discussion_preview %}
-      <a href="{{ discussion_thread_url }}" class="link link-hover text-sm font-medium">View discussion</a>
-    {% endif %}
-  </div>
+  </summary>
 
   {% if action_status %}
-    <p class="mt-2 text-sm text-success"
+    <p class="mt-1 text-xs text-success"
        role="status"
        tabindex="-1"
        x-data
        x-init="$nextTick(() => $el.focus({ preventScroll: true }))">{{ action_status }}</p>
   {% endif %}
   {% if load_error %}
-    <p class="mt-3 text-sm text-base-content/70" role="status">Could not load comments.</p>
+    <p class="my-1 text-sm text-base-content/70" role="status">Could not load comments.</p>
     <a href="{{ discussion_thread_url }}"
        {% if discussion_preview %} hx-get="{{ retry_url }}" hx-target="#comments" hx-swap="outerHTML" hx-status:4xx="target:#comments swap:outerHTML" hx-status:5xx="target:#comments swap:outerHTML" {% endif %}
-       class="link mt-2 inline-block text-sm">Try again</a>
+       class="link inline-block text-sm">Try again</a>
+    {% if discussion_preview %}
+      <a href="{{ discussion_thread_url }}" class="link link-hover ml-2 text-xs font-medium">View discussion</a>
+    {% endif %}
     {% if comment_draft %}
       <label for="unsent-comment" class="mt-3 block text-sm font-medium">Unsent comment</label>
-      <textarea id="unsent-comment" readonly class="textarea mt-1 w-full" rows="3">{{ comment_draft }}</textarea>
+      <textarea id="unsent-comment" readonly class="textarea mt-1 w-full" rows="2">{{ comment_draft }}</textarea>
     {% endif %}
   {% else %}
     {% if discussion["items"] %}
       {% if not discussion_preview and (has_older_comments or discussion_page > 1) %}
-        <nav aria-label="Thread pages" class="mt-3 flex flex-wrap gap-2">
+        <nav aria-label="Thread pages" class="my-1 flex flex-wrap gap-2">
           {% if has_older_comments %}
             <a class="btn btn-outline btn-sm"
                href="{{ url_for('discussion.thread', kind=discussion_kind, parent_id=discussion_parent_id, scope=discussion_scope, page=discussion_page + 1, _anchor='comments') }}">Older comments</a>
@@ -62,20 +64,21 @@
           {% endif %}
         </nav>
       {% endif %}
-      <ol class="mt-2 divide-y divide-base-300">
+      <ol class="divide-y divide-base-300">
         {% for comment in discussion["items"] %}
           {% set edit_failed = failed_action == 'edit' and failed_comment_id == comment.id %}
-          <li class="group/comment py-3 last:pb-2" id="comment-{{ comment.id }}" {% if comment.can_edit %}x-data{% endif %}>
+          <li class="group/comment py-1" id="comment-{{ comment.id }}" {% if comment.can_edit %}x-data{% endif %}>
             <div class="flex items-start justify-between gap-2">
-              <div class="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-sm">
+              <div class="flex flex-wrap items-baseline gap-x-2 text-sm">
                 <span class="font-semibold [overflow-wrap:anywhere]">{{ comment.author or ("Unknown author" if not comment.created_at else "Deleted user") }}</span>
                 {% if comment.created_at %}
-                  <time class="text-base-content/70" datetime="{{ comment.created_at }}">{{ comment.created_at | format_datetime }}</time>
+                  <time class="text-xs text-base-content/70"
+                        datetime="{{ comment.created_at }}">{{ comment.created_at | format_datetime }}</time>
                 {% else %}
-                  <span class="text-base-content/70">Original time unknown</span>
+                  <span class="text-xs text-base-content/70">Original time unknown</span>
                 {% endif %}
                 {% if comment.edited_at %}
-                  <span class="text-base-content/70" title="{{ comment.edited_at | format_datetime }}">Edited</span>
+                  <span class="text-xs text-base-content/70" title="{{ comment.edited_at | format_datetime }}">Edited</span>
                 {% endif %}
               </div>
               {% if comment.can_edit or comment.can_delete %}
@@ -110,14 +113,14 @@
             {% if comment.can_edit %}
               <details class="peer" x-ref="editor" {% if edit_failed %}open{% endif %}>
                 <summary x-show="false" class="cursor-pointer text-sm">Edit comment</summary>
-                <form {{ comment_form_attrs('edit', comment.id) }} class="mt-1 space-y-2">
+                <form {{ comment_form_attrs('edit', comment.id) }} class="mt-1 space-y-1">
                   {{ hidden_fields('edit', comment.id) }}
                   <label class="sr-only" for="edit-comment-{{ comment.id }}">Edit comment</label>
                   <textarea id="edit-comment-{{ comment.id }}"
                             x-ref="body"
                             name="body"
-                            class="textarea w-full"
-                            rows="3"
+                            class="textarea textarea-sm min-h-0 w-full"
+                            rows="2"
                             required
                             maxlength="{{ comment_max_length }}">{{ comment_draft if edit_failed else comment.body }}</textarea>
                   <div id="comment-edit-error-{{ comment.id }}" x-ref="editError" role="alert">
@@ -135,7 +138,7 @@
                 </form>
               </details>
             {% endif %}
-            <p class="mt-1 whitespace-pre-wrap [overflow-wrap:anywhere] peer-open:hidden {{ 'line-clamp-3 text-sm' if discussion_preview else '' }}"
+            <p class="whitespace-pre-wrap [overflow-wrap:anywhere] peer-open:hidden {{ 'line-clamp-3 text-sm' if discussion_preview else '' }}"
                {% if comment.can_edit %}x-ref="saved"{% endif %}>{{ comment.body }}</p>
             {% if comment.can_delete %}
               <div id="comment-delete-error-{{ comment.id }}" role="alert">
@@ -148,21 +151,22 @@
         {% endfor %}
       </ol>
     {% else %}
-      <p class="mt-2 text-sm text-base-content/70">No comments yet.</p>
+      <p class="my-1 text-sm text-base-content/70">No comments yet.</p>
     {% endif %}
-    <div class="mt-3 border-t border-base-300 pt-3">
-      <details class="group" {% if not discussion_preview or failed_action == 'post' %}open{% endif %}>
-        <summary class="btn btn-ghost btn-sm">
-          {{ heroicon_mini("chevron-right", class="size-4 group-open:rotate-90") }}
+    <div class="flex flex-wrap items-baseline justify-between gap-x-3 border-t border-base-300 py-1">
+      <details class="group/composer min-w-0 open:w-full"
+               {% if not discussion_preview or not discussion.total_count or failed_action == 'post' %}open{% endif %}>
+        <summary class="btn btn-ghost btn-xs">
+          {{ heroicon_mini("chevron-right", class="size-3 group-open/composer:rotate-90") }}
           Add a comment
         </summary>
-        <form {{ comment_form_attrs("post") }} class="mt-2 space-y-2">
+        <form {{ comment_form_attrs("post") }} class="my-1 space-y-1">
           {{ hidden_fields("post") }}
           <label for="new-comment-body" class="sr-only">Comment text</label>
           <textarea id="new-comment-body"
                     name="body"
-                    class="textarea w-full"
-                    rows="3"
+                    class="textarea textarea-sm min-h-0 w-full"
+                    rows="2"
                     required
                     maxlength="{{ comment_max_length }}">{{ comment_draft if failed_action == 'post' else '' }}</textarea>
           <div id="comment-post-error-new" role="alert">
@@ -173,6 +177,9 @@
           <button class="btn btn-primary btn-sm" type="submit">Post comment</button>
         </form>
       </details>
+      {% if discussion_preview %}
+        <a href="{{ discussion_thread_url }}" class="link link-hover text-xs font-medium">View discussion</a>
+      {% endif %}
     </div>
   {% endif %}
-</section>
+</details>

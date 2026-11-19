@@ -536,7 +536,7 @@ class TestEndToEndUser(BaseE2ETest):
             expect(back_to_assess).to_have_attribute("href", return_url)
             page.get_by_role("textbox", name="Title").fill(edited_title)
             page.get_by_role("textbox", name="Summary").fill("Test summary")
-            page.get_by_text("Add a comment", exact=True).click()
+            page.locator("#comments > summary").click()
             page.get_by_role("textbox", name="Comment text").fill("Test analyst comment")
             with_htmx_wait(page, page.get_by_role("button", name="Post comment").click)
             comment = page.locator("#comments li").filter(has_text="Test analyst comment")
