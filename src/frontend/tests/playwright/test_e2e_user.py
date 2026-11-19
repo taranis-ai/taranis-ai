@@ -66,6 +66,91 @@ class TestEndToEndUser(BaseE2ETest):
         assert match, f"Unable to parse assess story selection count from: {count_text!r}"
         return int(match.group(1))
 
+    def test_social_monitor(self, logged_in_page, core_request_client, api_header, forward_console_and_page_errors):
+        allow_requests_passthru()
+        page = logged_in_page
+        source_id = str(uuid.uuid4())
+        core_request_client.post(
+            "/config/osint-sources",
+            json_data={
+                "id": source_id,
+                "type": "reddit_collector",
+                "name": f"Transport {source_id}",
+                "description": "",
+                "enabled": False,
+                "parameters": {"TLP_LEVEL": "clear", "PUBLISH_IMAGES": True},
+            },
+        )
+        report_id = None
+        try:
+            endpoint = f"/worker/social/{source_id}"
+            root = {
+                "key": "submission",
+                "thread": "submission",
+                "title": "Station reopening",
+                "author": "operator",
+                "url": "https://example.org/post",
+                "published": "2026-11-19T08:00:00Z",
+            }
+            core_request_client.post(endpoint, headers=api_header, json_data=root)
+            core_request_client.post(
+                endpoint,
+                headers=api_header,
+                json_data={
+                    **root,
+                    "key": "reply",
+                    "parent": "submission",
+                    "title": "",
+                    "author": "observer",
+                    "body": "Platform open",
+                    "images": [
+                        {
+                            "key": "platform",
+                            "alt": "Station platform",
+                            "data": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==",
+                        }
+                    ],
+                },
+            )
+            page.goto(url_for("social.monitor", sources=source_id, _external=True))
+            page.get_by_text("Save as personal beat").click()
+            page.get_by_label("Beat name").fill("Rail watch")
+            page.get_by_role("button", name="Save beat").click()
+            page.get_by_role("link", name="Rail watch").click()
+            page.get_by_text("Station reopening", exact=True).click()
+            page.get_by_role("checkbox", name="Select contribution by observer").check()
+            page.get_by_role("img", name="Station platform").click()
+            viewer = page.get_by_role("dialog", name="Image viewer")
+            expect(viewer.get_by_role("img", name="Station platform")).to_be_visible()
+            viewer.get_by_role("button", name="Zoom").click()
+            viewer.get_by_role("button", name="Close").click()
+            page.get_by_role("button", name="Review selection").click()
+            page.get_by_label("New Story title").fill("Restoration confirmed")
+            page.get_by_role("button", name="Attach selection").click()
+            with page.expect_popup() as story_window:
+                page.get_by_role("link", name="Open Story").click()
+            page = story_window.value
+            expect(page.get_by_text("Restoration confirmed", exact=True).first).to_be_visible()
+            expect(page.get_by_role("img", name="Station platform").first).to_be_visible()
+            story_id = urlparse(page.url).path.split("/")[-1]
+            report_type_id = core_request_client.json_request("GET", "/analyze/report-types")["items"][0]["id"]
+            report_id = core_request_client.json_request(
+                "POST",
+                "/analyze/report-items",
+                json_data={"title": "Rail report", "report_item_type_id": report_type_id, "stories": [story_id]},
+            )["id"]
+            page.goto(url_for("social.figures", report_id=report_id, _external=True))
+            page.get_by_label("Include figure").check()
+            page.get_by_label("Caption").fill("Platform reopened")
+            page.get_by_role("button", name="Save report figures").click()
+            page.reload()
+            expect(page.get_by_label("Include figure")).to_be_checked()
+            expect(page.get_by_label("Caption")).to_have_value("Platform reopened")
+        finally:
+            if report_id:
+                core_request_client.delete(f"/analyze/report-items/{report_id}")
+            core_request_client.delete(f"/config/osint-sources/{source_id}", params={"force": "true"})
+
     def test_login(self, taranis_frontend: Page):
         page = taranis_frontend
         page.context.clear_cookies()

@@ -17,6 +17,7 @@ def initialize(app):
     core_api.settings.initialize(app)
     core_api.analyze.initialize(app)
     core_api.assess.initialize(app)
+    core_api.social.initialize(app)
     core_api.assets.initialize(app)
     core_api.auth.initialize(app)
     core_api.bots.initialize(app)

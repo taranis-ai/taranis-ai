@@ -101,7 +101,34 @@ class RSSCollectorParameters(WebCollectorParameters):
     XPATH: str = Field("", title="XPath", description="Optional XPath expression selecting article content.")
 
 
-class MastodonCollectorParameters(WorkerParameters):
+class SocialCollectorParameters(WorkerParameters):
+    PUBLISH_IMAGES: bool = Field(
+        False, title="Allow image publication", description="Enable only when permitted to distribute images from this source."
+    )
+    TLP_LEVEL: InheritedTLP = Field(None, title="TLP level", description="Leave unset to inherit the global TLP.")
+    REFRESH_INTERVAL: Cron = Field("", title="Refresh interval", description="Five-field collection schedule.")
+
+
+class RedditCollectorParameters(SocialCollectorParameters):
+    SUBREDDIT: str = Field(pattern=r"^[A-Za-z0-9_]{2,21}$", title="Subreddit", description="Community name without r/.")
+    CLIENT_ID: str = Field(
+        min_length=1, title="Approved application client ID", description="Client ID issued for the approved Reddit application."
+    )
+    CLIENT_SECRET: SecretStr = Field(
+        min_length=1, title="Application secret", description="Client secret used to obtain a read token from Reddit."
+    )
+    USER_AGENT: str = Field(
+        min_length=1, title="Reddit user agent", description="Identify the approved application, version and Reddit contact."
+    )
+
+
+class MastodonCollectorParameters(SocialCollectorParameters):
+    MEDIA_HOST: str = Field(
+        "", title="Media hostname", description="Optional trusted HTTPS media host for this instance, e.g. files.mastodon.social."
+    )
+    DELIVERY: Literal["monitor", "stories"] = Field(
+        "monitor", title="Deliver to", description="Send new posts to the Social monitor or directly to Stories."
+    )
     INSTANCE_URL: str = Field(
         min_length=1,
         pattern=r"^https?://[^\s/@?#]+/?$",
@@ -536,6 +563,9 @@ def _definition(
 
 
 _DEFINITIONS = (
+    _definition(
+        WORKER_TYPES.REDDIT_COLLECTOR, "Reddit Collector", "Monitor public subreddit submissions and replies", RedditCollectorParameters
+    ),
     _definition(WORKER_TYPES.RSS_COLLECTOR, "RSS Collector", "Collector for gathering data from RSS feeds", RSSCollectorParameters),
     _definition(
         WORKER_TYPES.MASTODON_COLLECTOR,

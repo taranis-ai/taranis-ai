@@ -1,0 +1,76 @@
+{% macro gallery(post) %}
+  {% if post.images %}
+    <div class="flex flex-wrap gap-2 my-2" x-data="{ active: 0, open: false, zoom: false, count: {{ post.images|length }} }">
+      {% for image in post.images %}
+        {% if image.available %}
+          <a href="{{ url_for('social.image', image_id=image.id) }}"
+             @click.prevent="active={{ loop.index0 }}; zoom=false; open=true; $refs.viewer.showModal()">
+            <img class="rounded object-cover h-24 max-w-48"
+                 loading="lazy"
+                 src="{{ url_for('social.image', image_id=image.id, size='thumbnail') }}"
+                 alt="{{ image.alt or 'Open image ' ~ loop.index }}">
+          </a>
+      {% else %}<span class="text-sm">Image {{ loop.index }} unavailable · {{ image.alt }}</span>{% endif %}
+    {% endfor %}
+    <dialog x-ref="viewer"
+            @close="open=false"
+            class="modal"
+            @keydown.left.prevent="active=(active+count-1)%count; zoom=false"
+            @keydown.right.prevent="active=(active+1)%count; zoom=false"
+            aria-label="Image viewer">
+      <div class="modal-box max-w-6xl">
+        <div class="flex items-center gap-2 mb-2">
+          <button type="button" class="btn btn-sm" @click="active=(active+count-1)%count; zoom=false">Previous</button>
+          <span x-text="(active+1)+' / '+count"></span>
+          <button type="button" class="btn btn-sm" @click="active=(active+1)%count; zoom=false">Next</button>
+          <button type="button" class="btn btn-sm" @click="zoom=!zoom" :aria-pressed="zoom">Zoom</button>
+          <button type="button" class="btn btn-sm ml-auto" @click="$refs.viewer.close()">Close</button>
+        </div>
+        {% for image in post.images %}
+          <template x-if="active === {{ loop.index0 }} && open">
+            <figure class="overflow-auto max-h-[70vh]">
+              {% if image.available %}
+                <img src="{{ url_for('social.image', image_id=image.id) }}"
+                     alt="{{ image.alt }}"
+                     :class="zoom ? 'max-w-none' : 'max-w-full mx-auto'">
+        {% else %}<p>Image unavailable</p>{% endif %}
+        {% if image.alt %}<figcaption>{{ image.alt }}</figcaption>{% endif %}
+          </figure>
+          </template>
+        {% endfor %}
+      </div>
+    </dialog>
+    </div>
+  {% endif %}
+{% endmacro %}
+
+{% macro contribution(post, select=false) %}
+  <article class="border-l-2 border-base-300 pl-3 py-1">
+    <header class="flex flex-wrap gap-2 items-center text-sm">
+      {% if select and not post.story_id %}
+        <label id="social-choice-{{ post.id }}">
+          <input type="checkbox"
+                 class="checkbox checkbox-sm align-middle"
+                 name="posts"
+                 value="{{ post.id }}"
+                 form="social-attach"
+                 aria-label="Select contribution by {{ post.author or 'unknown author' }}"
+                 data-label="{{ post.platform|title }} · {{ post.author }} · {{ (post.title or post.body or 'Image post')|truncate(70) }}">
+        </label>
+      {% endif %}
+      <b>{{ post.author or 'Unknown author' }}</b><span>{{ post.platform|title }}</span><time>{{ post.published | format_datetime }}</time>
+      {% if post.boosted_by %}<span>Boosted by {{ post.boosted_by }}</span>{% endif %}
+      {% if post.story_id %}<a class="link"
+                               target="_blank"
+                               rel="noopener"
+                               href="{{ url_for('assess.story', story_id=post.story_id) }}">View Story</a>{% endif %}
+    </header>
+    {% if post.parent %}<p class="text-xs opacity-70">{{ 'In reply to · ' ~ post.context|truncate(180) if post.context else 'Reply · parent context unavailable' }}</p>{% endif %}
+    {% if post.warning %}<details><summary class="cursor-pointer">Content warning · {{ post.warning }}</summary>{% endif %}
+    {% if post.title %}<h3 class="font-semibold">{{ post.title }}</h3>{% endif %}
+    <p class="whitespace-pre-line break-words">{{ post.body }}</p>
+    {{ gallery(post) }}
+    {% if post.warning %}</details>{% endif %}
+    <a class="link text-xs" href="{{ post.url }}" target="_blank" rel="noopener noreferrer">Open original</a>
+  </article>
+{% endmacro %}

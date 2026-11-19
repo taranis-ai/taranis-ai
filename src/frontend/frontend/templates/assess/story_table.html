@@ -27,6 +27,12 @@
     <a :href="previousSearch" class="btn btn-sm btn-primary">Restore last search</a>
     <button type="button" class="btn btn-sm btn-ghost" @click="dismiss()">Dismiss</button>
   </div>
+  <nav class="tabs tabs-border mb-2" aria-label="Assess views">
+    <a class="tab tab-active"
+       aria-current="page"
+       href="{{ url_for('assess.assess') }}">Stories</a><a class="tab"
+                                                           href="{{ url_for('social.monitor') }}">Social monitor</a>
+  </nav>
   {% include "assess/page_controls.html" %}
   {% include "assess/assess_top_bar.html" %}
   {% if pagination.infinite_scroll and pagination.has_previous %}

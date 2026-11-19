@@ -95,6 +95,11 @@
           <span>{{ news_item.link }}</span>
         </a>
       {% endif %}
+      {% if news_item.source == "Social monitor" %}
+        {% with item=news_item %}
+          {% include "social/source_link.html" %}
+        {% endwith %}
+      {% endif %}
       {% if news_item.content %}
         <p class="text-sm leading-relaxed text-base-content/80 whitespace-pre-line highlight">{{ news_item.content }}</p>
       {% endif %}

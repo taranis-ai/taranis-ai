@@ -43,8 +43,10 @@ class ProductService:
 
     @classmethod
     def publish_to_taranis(cls, product_id: str):
-        product = Product.get(product_id)
-        if not product or not product.render_result:
+        product = db.session.scalar(select(Product).filter_by(id=product_id).with_for_update())
+        from core.service.social import product_images_allowed
+
+        if not product or not product.render_result or not product_images_allowed(product):
             return {"error": "Rendered product not found"}, 404
 
         report_directory = cls._published_reports_directory()
@@ -69,7 +71,9 @@ class ProductService:
 
     @classmethod
     def get_published_report(cls, product_id: str):
-        if not (product := Product.get(product_id)) or not product.last_published_url:
+        from core.service.social import product_images_allowed
+
+        if not (product := Product.get(product_id)) or not product.last_published_url or not product_images_allowed(product):
             return {"error": "Published report not found"}, 404
 
         report_path = cls._published_reports_directory() / product.id

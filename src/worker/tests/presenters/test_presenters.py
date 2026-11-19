@@ -214,3 +214,23 @@ def test_stix_bundle_contains_product_grouping_context(stix_presenter):
     assert grouping_object["x_taranis_product_description"] == test_stix_product["description"]
     assert "description" not in grouping_object
     assert "x_taranis_product_fields" not in grouping_object
+
+
+def test_social_figure_embeds_in_html_and_pdf(pdf_presenter):
+    from worker.presenters.html_presenter import HTMLPresenter
+
+    image = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg=="
+    figure = {
+        "caption": "Station <open>",
+        "alt": "Platform",
+        "credit": "Observer",
+        "url": "https://example.org/post",
+        "src": f"data:image/png;base64,{image}",
+    }
+    product = {"report_items": [{"figures": [figure]}]}
+    template = "<html><body>Rail report</body></html>"
+    output = HTMLPresenter().generate(product, template)
+    assert "Station &lt;open&gt;" in output and figure["src"] in output
+    assert "</figure></body>" in output
+    rendered_pdf = pdf_presenter.generate(product, template)
+    assert rendered_pdf.startswith(b"%PDF") and b"/Subtype /Image" in rendered_pdf

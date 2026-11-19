@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block content %}
+  <main class="max-w-4xl mx-auto p-4 space-y-4">
+    <a class="link" href="{{ url_for('analyze.report', report_id=report_id) }}">Back to report</a>
+    <h1 class="text-2xl font-bold">Images from linked Stories</h1>
+    {% if error %}<div class="alert alert-error" role="alert">{{ error }}</div>{% endif %}
+    <form method="post" class="space-y-3">
+      <input type="hidden" name="csrf_token" value="{{ request.cookies.get(config['JWT_ACCESS_CSRF_COOKIE_NAME'], '') }}">
+      {% for image in images %}
+        <fieldset class="border rounded-box p-3 grid gap-2" {{ 'disabled' if not image.eligible }}>
+          <label>
+            <input class="checkbox" name="image_id" type="checkbox" value="{{ image.id }}" {{ 'checked' if image.position }}> Include figure
+          </label>
+          {% if image.warning %}<details><summary>{{ image.warning }}</summary>{% endif %}
+          {% if image.available %}<a href="{{ url_for('social.image', image_id=image.id) }}" target="_blank"><img class="h-28" src="{{ url_for('social.image', image_id=image.id, size='thumbnail') }}" alt="{{ image.alt }}"></a>{% else %}Image unavailable{% endif %}
+          {% if image.warning %}</details>{% endif %}
+          <a class="link"
+             href="{{ image.url }}"
+             target="_blank"
+             rel="noopener noreferrer">{{ image.author or 'Unknown author' }} · {{ image.platform|title }}</a>
+          {% if image.eligible %}
+            <label>
+              Caption<input class="input w-full" name="caption-{{ image.id }}" value="{{ image.caption }}" maxlength="4000">
+            </label>
+            <label>
+              Alternative text<input class="input w-full" name="alt-{{ image.id }}" value="{{ image.alt }}" maxlength="2000">
+            </label>
+            <label>
+              Figure order<input class="input w-20"
+                                 type="number"
+                                 min="1"
+                                 name="order-{{ image.id }}"
+                                 value="{{ image.position or loop.index }}">
+            </label>
+      {% else %}<p>Available for assessment only</p>{% endif %}
+        </fieldset>
+{% else %}<p>The linked Stories have no visible images.</p>{% endfor %}
+{% if images %}<button class="btn btn-primary">Save report figures</button>{% endif %}
+  </form>
+  </main>
+{% endblock %}

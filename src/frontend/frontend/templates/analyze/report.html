@@ -24,6 +24,10 @@
       </div>
       <div class="flex-1"></div>
       {% if is_edit %}
+        {% if "ASSESS_ACCESS" in current_user.permissions %}<a class="btn btn-outline btn-sm"
+                                                               href="{{ url_for('social.figures', report_id=report.id) }}"
+                                                               target="_blank"
+                                                               rel="noopener">Insert image from linked Stories</a>{% endif %}
         {% if report.revision_count and report.revision_count > 0 %}
           <a class="btn btn-outline btn-sm"
              href="{{ url_for('analyze.report_versions', report_id=report.id) }}"

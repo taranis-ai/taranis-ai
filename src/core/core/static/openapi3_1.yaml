@@ -1320,6 +1320,278 @@ paths:
           $ref: '#/components/responses/404NotFound'
         '500':
           description: review action failed
+  /assess/social:
+    get:
+      operationId: social.monitor.get
+      summary: List visible social conversations, source health and personal beats
+      tags:
+      - assess
+      security:
+      - UserAuth: []
+      parameters:
+      - name: sources
+        in: query
+        schema:
+          type: array
+          items:
+            type: string
+      - name: search
+        in: query
+        schema:
+          type: string
+      - name: platform
+        in: query
+        schema:
+          enum:
+          - mastodon
+          - reddit
+      - name: images
+        in: query
+        schema:
+          type: boolean
+      - name: page
+        in: query
+        schema:
+          type: integer
+          minimum: 0
+      responses:
+        '200':
+          description: List visible social conversations, source health and personal beats
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+  /assess/social/beats:
+    post:
+      operationId: social.save_beat.post
+      summary: Save personal beat filters by name
+      tags:
+      - assess
+      security:
+      - UserAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SocialSaveBeat'
+      responses:
+        '200':
+          description: Save personal beat filters by name
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+  /assess/social/posts/{post_id}:
+    get:
+      operationId: social.thread.get
+      summary: Read a page of collected contributions and parent context
+      tags:
+      - assess
+      security:
+      - UserAuth: []
+      parameters:
+      - name: post_id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: page
+        in: query
+        schema:
+          type: integer
+          minimum: 0
+      responses:
+        '200':
+          description: Read a page of collected contributions and parent context
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+  /assess/social/material/{item_id}:
+    get:
+      operationId: social.material.get
+      summary: Resolve attached social source material
+      tags:
+      - assess
+      security:
+      - UserAuth: []
+      parameters:
+      - name: item_id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Resolve attached social source material
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+  /assess/social/images/{image_id}:
+    get:
+      operationId: social.image.get
+      summary: Read an authorized original image or thumbnail
+      tags:
+      - assess
+      security:
+      - UserAuth: []
+      parameters:
+      - name: image_id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: size
+        in: query
+        schema:
+          enum:
+          - thumbnail
+      responses:
+        '200':
+          description: Read an authorized original image or thumbnail
+          content:
+            image/*:
+              schema:
+                type: string
+                format: binary
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+  /assess/social/attach:
+    post:
+      operationId: social.attach.post
+      summary: Attach selected contributions to one new or existing Story
+      tags:
+      - assess
+      security:
+      - UserAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SocialAttachPosts'
+      responses:
+        '200':
+          description: Attach selected contributions to one new or existing Story
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+  /analyze/reports/{report_id}/figures:
+    get:
+      operationId: social.report_figures.get
+      summary: List linked Story images and publication eligibility
+      tags:
+      - analyze
+      security:
+      - UserAuth: []
+      parameters:
+      - name: report_id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: List linked Story images and publication eligibility
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+    put:
+      operationId: social.report_figures.put
+      summary: Replace ordered report figure selection
+      tags:
+      - analyze
+      security:
+      - UserAuth: []
+      parameters:
+      - name: report_id
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SocialFigureSelection'
+      responses:
+        '200':
+          description: Replace ordered report figure selection
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+  /worker/social/{source_id}:
+    get:
+      operationId: social.collect.get
+      summary: List stored contribution keys due for rechecking
+      tags:
+      - collectors
+      security:
+      - APIKey: []
+      parameters:
+      - name: source_id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: List stored contribution keys due for rechecking
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+    post:
+      operationId: social.collect.post
+      summary: Ingest a contribution or withdraw a removed key
+      tags:
+      - collectors
+      security:
+      - APIKey: []
+      parameters:
+      - name: source_id
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - $ref: '#/components/schemas/SocialContribution'
+              - type: object
+                required:
+                - removed
+                properties:
+                  removed:
+                    type: string
+      responses:
+        '200':
+          description: Ingest a contribution or withdraw a removed key
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+  /worker/social/{source_id}/{post_id}/image:
+    post:
+      operationId: social.upload_image.post
+      summary: Store an image belonging to a collected contribution
+      tags:
+      - collectors
+      security:
+      - APIKey: []
+      parameters:
+      - name: source_id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: post_id
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SocialCollectedImage'
+      responses:
+        '200':
+          description: Store an image belonging to a collected contribution
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
   /assess/stories:
     get:
       security:
@@ -10273,6 +10545,184 @@ paths:
           $ref: '#/components/responses/404NotFound'
 components:
   schemas:
+    SocialAttachPosts:
+      properties:
+        posts:
+          items:
+            type: string
+          maxItems: 100
+          minItems: 1
+          title: Posts
+          type: array
+        title:
+          default: ''
+          maxLength: 500
+          title: Title
+          type: string
+        story_id:
+          default: ''
+          maxLength: 36
+          title: Story Id
+          type: string
+      required:
+      - posts
+      title: AttachPosts
+      type: object
+    SocialCollectedImage:
+      properties:
+        key:
+          maxLength: 500
+          minLength: 1
+          title: Key
+          type: string
+        alt:
+          default: ''
+          maxLength: 8192
+          title: Alt
+          type: string
+        data:
+          anyOf:
+          - maxLength: 16777216
+            type: string
+          - type: 'null'
+          default: null
+          title: Data
+      required:
+      - key
+      title: CollectedImage
+      type: object
+    SocialContribution:
+      properties:
+        key:
+          maxLength: 500
+          minLength: 1
+          title: Key
+          type: string
+        thread:
+          maxLength: 500
+          minLength: 1
+          title: Thread
+          type: string
+        parent:
+          default: ''
+          maxLength: 500
+          title: Parent
+          type: string
+        author:
+          default: ''
+          maxLength: 500
+          title: Author
+          type: string
+        boosted_by:
+          default: ''
+          maxLength: 500
+          title: Boosted By
+          type: string
+        title:
+          default: ''
+          maxLength: 2000
+          title: Title
+          type: string
+        body:
+          default: ''
+          maxLength: 200000
+          title: Body
+          type: string
+        url:
+          format: uri
+          maxLength: 2083
+          minLength: 1
+          title: Url
+          type: string
+        published:
+          format: date-time
+          title: Published
+          type: string
+        warning:
+          default: ''
+          maxLength: 2000
+          title: Warning
+          type: string
+        images:
+          items:
+            $ref: '#/components/schemas/SocialCollectedImage'
+          maxItems: 20
+          title: Images
+          type: array
+      required:
+      - key
+      - thread
+      - url
+      - published
+      title: Contribution
+      type: object
+    SocialReportFigure:
+      properties:
+        image_id:
+          title: Image Id
+          type: string
+        caption:
+          default: ''
+          maxLength: 4000
+          title: Caption
+          type: string
+        alt:
+          default: ''
+          maxLength: 2000
+          title: Alt
+          type: string
+      required:
+      - image_id
+      title: ReportFigure
+      type: object
+    SocialFigureSelection:
+      properties:
+        figures:
+          items:
+            $ref: '#/components/schemas/SocialReportFigure'
+          maxItems: 50
+          title: Figures
+          type: array
+      required:
+      - figures
+      title: FigureSelection
+      type: object
+    SocialSaveBeat:
+      properties:
+        sources:
+          items:
+            type: string
+          maxItems: 200
+          title: Sources
+          type: array
+        platform:
+          anyOf:
+          - enum:
+            - mastodon
+            - reddit
+            type: string
+          - type: 'null'
+          default: null
+          title: Platform
+        search:
+          default: ''
+          maxLength: 300
+          title: Search
+          type: string
+        images:
+          default: false
+          title: Images
+          type: boolean
+        name:
+          maxLength: 100
+          minLength: 1
+          pattern: \S
+          title: Name
+          type: string
+      required:
+      - name
+      title: SaveBeat
+      type: object
     chat_turn_request:
       type: object
       additionalProperties: false

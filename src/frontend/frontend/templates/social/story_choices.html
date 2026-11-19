@@ -1,0 +1,4 @@
+<select id="social-story-choices" class="select" name="story_id" aria-label="Existing Story">
+  <option value="">Choose a Story</option>
+  {% for story in stories if story.can_edit %}<option value="{{ story.id }}">{{ story.title }}</option>{% endfor %}
+</select>

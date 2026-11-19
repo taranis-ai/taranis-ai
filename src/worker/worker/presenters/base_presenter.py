@@ -1,4 +1,5 @@
 import datetime
+from html import escape
 
 import jinja2
 from jinja2.sandbox import ImmutableSandboxedEnvironment
@@ -33,4 +34,18 @@ class BasePresenter:
         tmpl = env.from_string(template)
         product["current_date"] = datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%d")
 
-        return tmpl.render(data=product)
+        rendered = tmpl.render(data=product)
+        if self.type in {"PDF_PRESENTER", "HTML_PRESENTER"}:
+            figures = []
+            for report in product.get("report_items", []):
+                for figure in report.get("figures", []):
+                    src, alt, caption, url, credit = (escape(figure[k], quote=True) for k in ("src", "alt", "caption", "url", "credit"))
+                    figures.append(
+                        f'<figure style="break-inside:avoid"><img style="max-width:100%;max-height:70vh" src="{src}" alt="{alt}">'
+                        f'<figcaption>{caption} <a href="{url}">{credit}</a></figcaption></figure>'
+                    )
+            if figures:
+                index = rendered.lower().rfind("</body>")
+                index = index if index >= 0 else len(rendered)
+                rendered = rendered[:index] + "".join(figures) + rendered[index:]
+        return rendered

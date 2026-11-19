@@ -374,6 +374,14 @@ class TestWorkerApi:
             source_response = client.get(f"{self.base_uri}/osint-sources/{source_id}", headers=api_header)
             assert source_response.status_code == 200
             assert source_response.get_json()["mastodon_cursor"] == cursor
+            assert source_response.json["parameters"]["DELIVERY"] == "monitor"
+            with app.app_context():
+                from core.managers.db_manager import db
+
+                legacy = OSINTSource.get(source_id)
+                legacy.parameters = {k: v for k, v in legacy.parameters.items() if k != "DELIVERY"}
+                db.session.commit()
+            assert client.get(f"{self.base_uri}/osint-sources/{source_id}", headers=api_header).json["parameters"]["DELIVERY"] == "stories"
             assert "rss_collector_max_entries" not in source_response.get_json()
 
             malformed = {

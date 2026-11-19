@@ -59,6 +59,7 @@ def test_mastodon_failure_result_uses_curated_message_and_recovers(current_job, 
             "TIMELINE": "hashtag",
             "HASHTAG": "security",
             "ACCESS_TOKEN": "secret-token-value",
+            "DELIVERY": "stories",
         },
     }
     monkeypatch.setattr(collector_tasks.Collector, "get_source", lambda self, osint_source_id: source)

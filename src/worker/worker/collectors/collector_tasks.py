@@ -12,8 +12,8 @@ from rq import get_current_job
 import worker.collectors
 from worker.collectors.base_collector import BaseCollector, NoChangeError
 from worker.collectors.base_web_collector import HTTPNotModifiedError
-from worker.collectors.mastodon_collector import MastodonCollectorError
 from worker.collectors.rss_collector import EmptyRSSFeedError, RSSCollector
+from worker.collectors.social_media import SocialCollectorError
 from worker.core_api import CoreApi, build_failure_task_result, build_success_task_result, build_task_result
 from worker.http_client import http_session_scope
 from worker.log import TaranisLogFormatter, TaranisLogger, logger
@@ -42,6 +42,7 @@ class Collector:
         self.collectors = {
             "rss_collector": worker.collectors.RSSCollector(),
             "mastodon_collector": worker.collectors.MastodonCollector(),
+            "reddit_collector": worker.collectors.RedditCollector(),
             "simple_web_collector": worker.collectors.SimpleWebCollector(),
             "rt_collector": worker.collectors.RTCollector(),
             "misp_collector": worker.collectors.MispCollector(),
@@ -227,8 +228,8 @@ def collector_task(osint_source_id: str, manual: bool = False):
                 reason="collector_not_modified",
                 data=_collector_result_data(osint_source_id, manual, collector_impl),
             )
-        except MastodonCollectorError as e:
-            logger.error(f"Mastodon collector task failed: {task_description}")
+        except SocialCollectorError as e:
+            logger.error(f"Social collector task failed: {task_description}")
             if job:
                 core_api.save_task_result(
                     job.id,
@@ -327,8 +328,8 @@ def collector_preview(osint_source_id: str):
         except NoChangeError as e:
             logger.info(f"No changes detected: {e}")
             preview_result = []
-        except MastodonCollectorError as e:
-            logger.error(f"Mastodon collector preview failed: {task_description}")
+        except SocialCollectorError as e:
+            logger.error(f"Social collector preview failed: {task_description}")
             if job:
                 collector.core_api.save_task_result(
                     job.id,

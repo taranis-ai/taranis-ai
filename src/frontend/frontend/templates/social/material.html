@@ -1,0 +1,5 @@
+{% extends "social/fragment.html" if fragment else "base.html" %}
+{% from "social/post.html" import contribution %}
+{% block content %}
+  {% if post %}{{ contribution(post) }}{% else %}<p>Source contribution unavailable.</p>{% endif %}
+{% endblock %}

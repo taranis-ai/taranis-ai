@@ -1,4 +1,5 @@
 from typing import Any
+from urllib.parse import urlparse
 
 from bs4 import BeautifulSoup
 from mastodon import Mastodon
@@ -13,6 +14,7 @@ from mastodon.errors import (
 from models.assess import NewsItem
 
 from worker.collectors.base_collector import BaseCollector, NoChangeError
+from worker.collectors.social_media import SocialCollectorError, collect_image, publish_contribution
 from worker.log import logger
 
 
@@ -20,11 +22,8 @@ MASTODON_PAGE_SIZE = 40
 MASTODON_SKIP_MESSAGE = "Mastodon latest mode skipped older statuses to stay current; use complete mode to prevent gaps"
 
 
-class MastodonCollectorError(Exception):
-    def __init__(self, public_message: str, reason: str):
-        super().__init__(public_message)
-        self.public_message = public_message
-        self.reason = reason
+class MastodonCollectorError(SocialCollectorError):
+    pass
 
 
 class MastodonCollector(BaseCollector):
@@ -205,15 +204,68 @@ class MastodonCollector(BaseCollector):
             logger.error("Mastodon returned an invalid response")
             raise MastodonCollectorError("Mastodon returned an invalid response", "mastodon_invalid_response") from exc
 
+    def _monitor_post(self, status, source):
+        post = status.get("reblog") or status
+        if post.get("visibility") != "public" or status.get("visibility") != "public":
+            return None
+        account = post.get("account") or {}
+        parameters = source["parameters"]
+        hosts = {str(urlparse(self.instance_url).hostname), parameters.get("MEDIA_HOST", "").strip().lower()}
+        images = [
+            collect_image(str(media["id"]), media.get("url") or "", media.get("description") or "", hosts, parameters.get("PROXY_SERVER"))
+            for media in post.get("media_attachments") or []
+            if media.get("type") == "image"
+        ]
+        key = f"{self.instance_url}/statuses/{status['id']}"
+        return {
+            "key": key,
+            "thread": key,
+            "parent": f"{self.instance_url}/statuses/{post['in_reply_to_id']}" if post.get("in_reply_to_id") else "",
+            "url": post.get("url") or post["uri"],
+            "author": account.get("acct") or account.get("display_name") or "",
+            "boosted_by": (status.get("account") or {}).get("acct", "") if status.get("reblog") else "",
+            "published": str(post["created_at"]),
+            "body": self._plain_text(post.get("content")),
+            "warning": post.get("spoiler_text") or ("Sensitive media" if post.get("sensitive") else ""),
+            "images": images,
+        }
+
+    def _publish_monitor(self, statuses, source):
+        endpoint = f"/worker/social/{source['id']}"
+        for status in statuses:
+            if (post := self._monitor_post(status, source)) and not publish_contribution(self.core_api, endpoint, post):
+                raise ValueError("Could not store social post")
+        return "Social monitor updated"
+
+    def _refresh_monitor(self, source):
+        endpoint = f"/worker/social/{source['id']}"
+        due = self.core_api.api_get(endpoint)
+        if due is None or self.client is None:
+            raise MastodonCollectorError("Could not check stored posts", "monitor_refresh_failed")
+        for key in due["keys"]:
+            if not key.startswith(f"{self.instance_url}/statuses/"):
+                continue
+            try:
+                post = self._monitor_post(self.client.status(key.rsplit("/", 1)[1]), source)
+            except MastodonNotFoundError:
+                post = None
+            except MastodonError as exc:
+                raise self._public_error(exc) from exc
+            if not publish_contribution(self.core_api, endpoint, post or {"removed": key}):
+                raise MastodonCollectorError("Could not refresh stored post", "monitor_refresh_failed")
+
     def collect(self, source: dict[str, Any], manual: bool = False):
         statuses, news_items = self._gather(source, use_cursor=True)
+        monitor = source["parameters"].get("DELIVERY") == "monitor"
+        if monitor:
+            self._refresh_monitor(source)
         previous_cursor = self.mastodon_cursor
         if not statuses:
             raise NoChangeError("No new Mastodon statuses")
 
         next_cursor = {"timeline": self._timeline_key(), "last_status_id": self._status_id(statuses[0])}
         try:
-            result = self.publish(news_items, source)
+            result = self._publish_monitor(statuses, source) if monitor else self.publish(news_items, source)
         except NoChangeError as exc:
             self.mastodon_cursor = next_cursor
             if self.skipped_statuses:

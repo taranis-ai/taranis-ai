@@ -1,0 +1,21 @@
+{% extends "social/fragment.html" if fragment else "base.html" %}
+{% from "social/post.html" import contribution %}
+{% block content %}
+  {% if not fragment %}
+    <a class="link" href="{{ url_for('social.monitor') }}">Back to Social monitor</a>
+    <form id="social-attach" method="post" action="{{ url_for('social.attach') }}" class="flex gap-2 my-3">
+      <input type="hidden" name="csrf_token" value="{{ request.cookies.get(config['JWT_ACCESS_CSRF_COOKIE_NAME'], '') }}">
+      <label>
+        New Story title<input class="input" name="title" required>
+      </label>
+      <button class="btn btn-primary">Create Story from selection</button>
+    </form>
+  {% endif %}
+  <section class="space-y-3 my-3">
+    {% for post in posts %}{{ contribution(post, true) }}{% endfor %}
+    {% if more %}<a class="link"
+                    href="{{ url_for('social.thread', post_id=root_id, page=page+1) }}"
+                    hx-get="{{ url_for('social.thread', post_id=root_id, page=page+1) }}"
+                    hx-swap="outerHTML">More replies</a>{% endif %}
+  </section>
+{% endblock %}

@@ -1,0 +1,14 @@
+{% if error %}<div class="alert alert-error" role="alert">{{ error }}</div>
+{% else %}<div class="alert alert-success" role="status">Selection attached. <a class="link"
+                                                                                target="_blank"
+                                                                                rel="noopener"
+                                                                                href="{{ url_for('assess.story', story_id=story_id) }}">Open Story</a></div>{% endif %}
+
+{% for post_id in attached %}
+  <a id="social-choice-{{ post_id }}"
+     hx-swap-oob="outerHTML"
+     class="link"
+     target="_blank"
+     rel="noopener"
+     href="{{ url_for('assess.story', story_id=story_id) }}">View Story</a>
+{% endfor %}

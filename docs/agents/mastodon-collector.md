@@ -18,3 +18,7 @@ Load for: `MASTODON_COLLECTOR`, hashtag/home/account timelines, Mastodon.py, or 
 `src/worker/worker/collectors/mastodon_collector.py`, `src/models/models/worker_parameters.py`, `src/core/core/model/osint_source.py`; setup: `docs/mastodon.md`.
 
 Tests: `src/worker/tests/collectors/test_mastodon_collector.py`, `src/worker/tests/collectors/test_collector_tasks.py`, `src/core/tests/unit/test_worker_parameter_registry.py`, `src/core/tests/application/worker_pipeline/test_worker_api.py`.
+
+## Social monitor
+
+New sources store an explicit `DELIVERY=monitor`. Previously configured sources without a stored delivery setting retain Stories in collection, forms, and exports. Monitor ingestion is separate from article ingestion, includes only public posts, and preserves each boost's identity and original attribution. See [Social monitoring](../social-monitor.md) for Reddit, images, and publication.

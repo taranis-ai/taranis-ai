@@ -29,7 +29,7 @@
   {% if news_items %}
     <div class="space-y-2 w-full max-w-full">
       <div class="flex items-center gap-2">
-        <h3 class="font-semibold uppercase tracking-wide text-xs text-base-content/60">News Items</h3>
+        <h3 class="font-semibold uppercase tracking-wide text-xs text-base-content/60">Source material</h3>
         <span class="badge badge-outline badge-sm">{{ news_count }}</span>
       </div>
       <div class="space-y-2">
@@ -50,6 +50,9 @@
                 {{ heroicon_mini("arrow-top-right-on-square", class="h-4 w-4 shrink-0") }}
                 <span class="break-all">{{ item.link }}</span>
               </a>
+            {% endif %}
+            {% if item.source == "Social monitor" %}
+              {% include "social/source_link.html" %}
             {% endif %}
             {{ news_item_metadata(item, story) }}
             {% if not loop.last %}<div class="divider"></div>{% endif %}

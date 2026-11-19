@@ -70,6 +70,7 @@ def presenter_task(product_id: str):
             "render_revision": product.get("render_revision"),
         }
 
+        has_figures = any(report.get("figures") for report in product.get("report_items", []))
         # Save task result to database
         if job:
             core_api.save_task_result(
@@ -81,6 +82,7 @@ def presenter_task(product_id: str):
                 result=build_success_task_result(
                     default_message=result_data["message"],
                     data={
+                        **({"social_figures": True} if has_figures else {}),
                         "product_id": product_id,
                         "render_result": rendered_product,
                         "render_revision": product.get("render_revision"),
@@ -88,6 +90,8 @@ def presenter_task(product_id: str):
                 ),
             )
 
+        if has_figures:
+            result_data.pop("render_result", None)
         return result_data
 
     # Failed to generate product

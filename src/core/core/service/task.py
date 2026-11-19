@@ -157,6 +157,12 @@ class TaskService:
             validated = TaskResponseModel.model_validate(existing.to_dict())
             return validated.model_dump(mode="json", exclude_none=False), 200
         result_payload = submission.result.model_dump(mode="json", exclude_none=False)
+        if (
+            task_kind == "presenter_task"
+            and isinstance(result_payload.get("data"), dict)
+            and result_payload["data"].pop("social_figures", False)
+        ):
+            result_payload["data"].pop("render_result", None)
         payload: dict[str, Any] = {
             "id": submission.id,
             "result": result_payload,

@@ -169,6 +169,8 @@ class OSINTSource(BaseModel):
         if payload.icon is not None:
             self.icon = self._parse_icon(payload.icon)
         self.enabled = True if payload.enabled is None else payload.enabled
+        if self.type == COLLECTOR_TYPES.MASTODON_COLLECTOR:
+            payload.parameters = {"DELIVERY": "monitor", **(payload.parameters or {})}
         self.parameters = set_parameters(
             self.type,
             {},
@@ -424,6 +426,8 @@ class OSINTSource(BaseModel):
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
         data["parameters"] = configured_parameters(self.type, self.parameters)
+        if self.type == COLLECTOR_TYPES.MASTODON_COLLECTOR:
+            data["parameters"].setdefault("DELIVERY", "stories")
         data["icon"] = base64.b64encode(self.icon).decode("utf-8") if self.icon else None
         if status := self.status:
             data["status"] = status
@@ -436,6 +440,8 @@ class OSINTSource(BaseModel):
         for group in self.groups:
             data["word_lists"].extend([word_list.to_dict() for word_list in group.word_lists if word_list])
         data["parameters"] = effective_parameters(self.type, self.parameters)
+        if self.type == COLLECTOR_TYPES.MASTODON_COLLECTOR:
+            data["parameters"]["DELIVERY"] = self.parameters.get("DELIVERY", "stories")
         if status := self.status:
             data["status"] = status
             result = status.get("result")
@@ -614,6 +620,12 @@ class OSINTSource(BaseModel):
         if parsed_icon is not None:
             osint_source.icon = parsed_icon
         osint_source.enabled = target_enabled
+        if osint_source.type in {COLLECTOR_TYPES.REDDIT_COLLECTOR, COLLECTOR_TYPES.MASTODON_COLLECTOR} and any(
+            osint_source.parameters.get(key) != target_parameters.get(key) for key in ("TLP_LEVEL", "PUBLISH_IMAGES")
+        ):
+            from core.service.social import withdraw_source_images
+
+            withdraw_source_images([osint_source.id])
         osint_source.parameters = target_parameters
         db.session.commit()
 
@@ -724,6 +736,9 @@ class OSINTSource(BaseModel):
                     .scalars()
                     .all()
                 )
+            from core.service.social import withdraw_source_images
+
+            withdraw_source_images(source_ids)
             for source in sources:
                 db.session.delete(source)
             db.session.commit()
@@ -834,6 +849,8 @@ class OSINTSource(BaseModel):
 
     def get_export_parameters(self, with_secrets: bool = False) -> dict[str, Any]:
         parameters = dict(self.parameters) if with_secrets else configured_parameters(self.type, self.parameters)
+        if self.type == COLLECTOR_TYPES.MASTODON_COLLECTOR:
+            parameters.setdefault("DELIVERY", "stories")
         if not with_secrets and parameters.get("PROXY_SERVER"):
             parameters["PROXY_SERVER"] = "<REDACTED>"
         return parameters
@@ -1103,6 +1120,9 @@ class OSINTSource(BaseModel):
 
     @classmethod
     def delete_all(cls) -> tuple[dict[str, Any], int]:
+        from core.service.social import withdraw_source_images
+
+        withdraw_source_images(select(cls.id))
         # Clear the association table entries
         db.session.execute(db.delete(OSINTSourceGroupOSINTSource).where(OSINTSourceGroupOSINTSource.osint_source_id.in_(db.select(cls.id))))
 

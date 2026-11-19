@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% block content %}
+  <div class="p-4 space-y-4"
+       x-data="{ selected: [], destination: 'new', review: false }"
+       @change="if ($event.target.name === 'posts') { selected=Array.from(document.querySelectorAll('input[name=posts]:checked')).map(el=>el.dataset.label); review=false }">
+    <nav class="tabs tabs-border" aria-label="Assess views">
+      <a class="tab"
+         href="{{ url_for('assess.assess') }}">Stories</a><a class="tab tab-active"
+                                                             aria-current="page"
+                                                             href="{{ url_for('social.monitor') }}">Social monitor</a>
+    </nav>
+    <h1 class="text-2xl font-bold">Social monitor</h1>
+    <div class="grid gap-6 lg:grid-cols-[17rem_1fr]">
+      <aside class="space-y-4">
+        {% if beats %}<section><h2 class="font-semibold">Saved beats</h2>{% for beat in beats %}
+          <a class="link block" href="{{ url_for('social.monitor', **beat.filters) }}">{{ beat.name }}</a>{% endfor %}</section>{% endif %}
+      <form method="get" class="grid gap-3">
+        <label>
+          Search contributions<input class="input w-full" name="search" value="{{ filters.get('search', '') }}">
+        </label>
+        <label>
+          Platform<select class="select w-full" name="platform">
+          <option value="">All platforms</option>
+        {% for p in ['mastodon','reddit'] %}<option value="{{ p }}"
+                                                    {{ 'selected' if filters.platform == p }}>{{ p|title }}</option>{% endfor %}</select></label>
+        <fieldset>
+          <legend class="font-semibold">Sources</legend>
+        {% for source in sources %}<label class="block"><input class="checkbox checkbox-sm"
+                                                               type="checkbox"
+                                                               name="sources"
+                                                               value="{{ source.id }}"
+                                                               {{ 'checked' if source.id in filters.sources }}> {{ source.name }}</label>
+        <p class="text-xs mb-2">{{ source.status or 'Awaiting collection' }}{% if source.last_success %} · Last success {{ source.last_success|format_datetime }}{% endif %}</p>{% endfor %}
+    </fieldset>
+    <label>
+      <input class="checkbox checkbox-sm"
+             type="checkbox"
+             name="images"
+             value="true"
+             {{ 'checked' if filters.get('images', '')|lower == 'true' }}> With images
+    </label>
+    <button class="btn btn-primary">Apply filters</button>
+    <details>
+      <summary class="cursor-pointer">Save as personal beat</summary>
+      <label>
+        Beat name<input name="name" class="input w-full" maxlength="100">
+      </label>
+      <button formaction="{{ url_for('social.save_beat') }}"
+              formmethod="post"
+              name="csrf_token"
+              value="{{ request.cookies.get(config['JWT_ACCESS_CSRF_COOKIE_NAME'], '') }}"
+              class="btn btn-sm">Save beat</button>
+    </details>
+  </form>
+</aside>
+<main class="space-y-3 min-w-0">
+  <div class="flex justify-between items-center">
+    <h2 class="text-lg font-semibold">Latest activity</h2>
+    <a class="btn btn-sm" href="{{ url_for('social.monitor', **dict(filters, page=0)) }}">Show new activity</a>
+  </div>
+  <form method="post"
+        id="social-attach"
+        action="{{ url_for('social.attach') }}"
+        hx-post="{{ url_for('social.attach') }}"
+        hx-target="#social-result"
+        hx-include="#social-attach, input[name=posts]:checked"
+        hx-status:4xx="target:#social-result swap:innerHTML"
+        @social-attached.window="review=false; selected=[]"
+        class="space-y-2">
+    <input type="hidden" name="csrf_token" value="{{ request.cookies.get(config['JWT_ACCESS_CSRF_COOKIE_NAME'], '') }}">
+    <button class="btn btn-sm"
+            type="button"
+            x-show="selected.length"
+            @click="review=true">Review selection (<span x-text="selected.length"></span>)</button>
+    <fieldset x-show="review" x-cloak class="border p-3 space-y-2">
+      <legend>Selected contributions</legend>
+      <ul>
+        <template x-for="(label, i) in selected" :key="i">
+          <li x-text="label"></li>
+        </template>
+      </ul>
+      <label>
+        <input type="radio" value="new" x-model="destination">
+        Create Story
+      </label>
+      <label>
+        <input type="radio" value="existing" x-model="destination">
+        Existing Story
+      </label>
+      <input class="input"
+             x-show="destination==='new'"
+             :disabled="destination!=='new'"
+             :required="destination==='new'"
+             name="title"
+             aria-label="New Story title"
+             placeholder="New Story title">
+      <fieldset x-show="destination==='existing'" :disabled="destination!=='existing'">
+        <input class="input"
+               name="story_search"
+               aria-label="Search Stories"
+               placeholder="Search Stories"
+               hx-get="{{ url_for('social.story_choices') }}"
+               hx-trigger="focus once, input changed delay:300ms"
+               hx-target="#social-story-choices"
+               hx-select="#social-story-choices"
+               hx-swap="outerHTML">
+        {% include "social/story_choices.html" %}
+      </fieldset>
+      <button class="btn btn-primary" type="submit">Attach selection</button>
+    </fieldset>
+  </form>
+  <div id="social-result" aria-live="polite"></div>
+  {% for row in rows %}
+    <details class="rounded-box border border-base-300 p-3"
+             hx-get="{{ url_for('social.thread', post_id=row.id) }}"
+             hx-trigger="toggle once"
+             hx-target="find .social-thread">
+      <summary class="cursor-pointer">
+        <span class="font-semibold">{{ row.warning or row.title or row.body|truncate(140) or 'Image post' }}</span>
+        <span class="block text-sm">{{ row.platform|title }} · {{ row.author or 'Unknown author' }} · {{ row.latest|format_datetime }}
+        {% if row.platform == "reddit" %}· {{ row.replies }} collected replies{% endif %}</span>
+        {% if row.images and not row.warning and row.images[0].available %}
+          <img class="rounded h-20 mt-1"
+               loading="lazy"
+               src="{{ url_for('social.image', image_id=row.images[0].id, size='thumbnail') }}"
+               alt="{{ row.images[0].alt or 'Post image' }}">
+        {% endif %}
+      </summary>
+      {% if row.story_id %}<a class="link"
+                              target="_blank"
+                              rel="noopener"
+                              href="{{ url_for('assess.story', story_id=row.story_id) }}">View Story</a>{% endif %}
+      <div class="social-thread">
+        <a class="link" href="{{ url_for('social.thread', post_id=row.id) }}">Open conversation</a>
+      </div>
+    </details>
+  {% else %}<p>No collected contributions match this beat.</p>{% endfor %}
+  <nav class="flex gap-3">{% if page %}<a class="link"
+                                          href="{{ url_for('social.monitor', **dict(filters, page=page-1)) }}">Previous</a>{% endif %}
+  {% if more %}<a class="link" href="{{ url_for('social.monitor', **dict(filters, page=page+1)) }}">Next</a>{% endif %}</nav>
+</main>
+</div>
+</div>
+{% endblock %}

@@ -309,3 +309,21 @@ def test_network_errors_are_replaced_with_a_curated_message(requests_mock):
 
     assert exception.value.public_message == "The Mastodon instance could not be reached"
     assert exception.value.reason == "mastodon_unavailable"
+
+
+def test_monitor_preserves_public_boost_identity_and_excludes_private_posts(requests_mock):
+    original = {**status(1, account_handle="operator@remote.test"), "visibility": "public"}
+    boost = {**status(2, reblog=original), "visibility": "public"}
+    private = {**status(3), "visibility": "private"}
+    requests_mock.get(re.compile(rf"{INSTANCE_URL}/api/v1/timelines/tag/security.*"), json=[private, boost])
+    endpoint = f"{Config.TARANIS_CORE_URL}/worker/social/source-1"
+    requests_mock.get(endpoint, json={"keys": []})
+    stored = requests_mock.post(endpoint, json={"id": "post"})
+    config = source("hashtag", access_token="")
+    config["parameters"]["DELIVERY"] = "monitor"
+    MastodonCollector().collect(config)
+    assert stored.call_count == 1
+    assert stored.last_request.json()["key"].endswith("/statuses/2")
+    assert stored.last_request.json()["url"].endswith("/1")
+    assert stored.last_request.json()["author"] == "operator@remote.test"
+    assert stored.last_request.json()["boosted_by"] == "alice@example.social"
