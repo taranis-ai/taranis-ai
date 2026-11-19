@@ -99,9 +99,6 @@ class TestStoryAssessWorkerUpdates:
         assert response_data.get("description") == story_conflict_resolution_1.get("resolution").get("description"), (
             "The worker story description should be updated correctly"
         )
-        assert response_data.get("comments") == story_conflict_resolution_1.get("resolution").get("comments"), (
-            "The worker story comments should be updated correctly"
-        )
         assert response_data.get("summary") == story_conflict_resolution_1.get("resolution").get("summary"), (
             "The worker story summary should be updated correctly"
         )

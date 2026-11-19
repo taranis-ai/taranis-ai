@@ -33,6 +33,8 @@ tags:
   description: read/update report items, their types, groups and attributes
 - name: assess
   description: read/update/delete OSINT sources and news items
+- name: discussion
+  description: Internal discussions on Stories, Reports, and Products
 - name: chat
   description: persistent analyst conversations backed by the configured LLM provider
 - name: assets
@@ -1002,6 +1004,115 @@ paths:
           $ref: '#/components/responses/401Unauthorized'
         '404':
           $ref: '#/components/responses/404NotFound'
+  /discussions:
+    get:
+      tags: [discussion]
+      security:
+      - UserAuth: []
+      operationId: discussion.recent.get
+      summary: List readable discussions by their latest comment
+      parameters:
+      - name: kind
+        in: query
+        schema:
+          $ref: '#/components/schemas/discussion_kind'
+      - name: page
+        in: query
+        schema: {type: integer, minimum: 1, default: 1}
+      responses:
+        '200':
+          description: One entry per parent, with its title, latest comment excerpt, author, and timestamp. Use has_more to paginate.
+        '400':
+          description: Unknown discussion type
+  /discussions/{kind}/{parent_id}:
+    parameters:
+    - &discussion-kind
+      name: kind
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/discussion_kind'
+    - &discussion-parent
+      name: parent_id
+      in: path
+      required: true
+      schema: {type: string, format: uuid}
+    get:
+      tags: [discussion]
+      security:
+      - UserAuth: []
+      operationId: discussion.comments.get
+      summary: Read a page of comments in chronological order
+      parameters:
+      - name: page
+        in: query
+        description: Page 1 contains the newest comments
+        schema: {type: integer, minimum: 1, default: 1}
+      - name: preview
+        in: query
+        description: Return the three most recent comments
+        schema: {type: boolean, default: false}
+      responses:
+        '200':
+          description: Parent metadata, total_count, and items with author, body, timestamps, and permitted actions
+        '404':
+          $ref: '#/components/responses/404NotFound'
+    post:
+      tags: [discussion]
+      security:
+      - UserAuth: []
+      operationId: discussion.comments.post
+      summary: Post a comment as the current user
+      requestBody: &discussion-body
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/discussion_comment_payload'
+      responses:
+        '201':
+          description: The posted comment ID
+        '400':
+          description: Invalid comment
+        '404':
+          $ref: '#/components/responses/404NotFound'
+  /discussions/{kind}/{parent_id}/{comment_id}:
+    parameters:
+    - *discussion-kind
+    - *discussion-parent
+    - name: comment_id
+      in: path
+      required: true
+      schema: {type: string, format: uuid}
+    patch:
+      tags: [discussion]
+      security:
+      - UserAuth: []
+      operationId: discussion.comments.patch
+      summary: Edit a comment as its author
+      requestBody: *discussion-body
+      responses:
+        '200':
+          description: The edited comment ID
+        '400':
+          description: Invalid comment
+        '403':
+          description: Only the author can edit
+        '404':
+          $ref: '#/components/responses/404NotFound'
+    delete:
+      tags: [discussion]
+      security:
+      - UserAuth: []
+      operationId: discussion.comments.delete
+      summary: Remove a comment as its author or a user allowed to delete the parent
+      responses:
+        '204':
+          description: Comment deleted
+        '403':
+          description: Comment deletion forbidden
+        '404':
+          $ref: '#/components/responses/404NotFound'
   /chat/conversations:
     get:
       security:
@@ -1950,8 +2061,6 @@ paths:
                 title:
                   type: string
                 description:
-                  type: string
-                comments:
                   type: string
       responses:
         '200':
@@ -10273,6 +10382,15 @@ paths:
           $ref: '#/components/responses/404NotFound'
 components:
   schemas:
+    discussion_kind:
+      type: string
+      enum: [story, report, product]
+    discussion_comment_payload:
+      type: object
+      required: [body]
+      additionalProperties: false
+      properties:
+        body: {type: string, minLength: 1, maxLength: 10000}
     chat_turn_request:
       type: object
       additionalProperties: false
@@ -11304,8 +11422,6 @@ components:
         description:
           type: string
         created:
-          type: string
-        comments:
           type: string
         likes:
           type: integer

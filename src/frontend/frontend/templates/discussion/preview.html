@@ -1,0 +1,11 @@
+{% with discussion = comment_preview.discussion,
+  discussion_preview = true,
+  load_error = comment_preview.load_error,
+  comment_max_length = comment_preview.comment_max_length,
+  discussion_thread_url = comment_preview.discussion_thread_url,
+  retry_url = comment_preview.retry_url,
+  comment_action = comment_preview.comment_action,
+  discussion_scope = comment_preview.discussion_scope,
+  discussion_page = 1 %}
+  {% include "discussion/section.html" %}
+{% endwith %}

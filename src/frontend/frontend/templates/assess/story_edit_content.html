@@ -176,6 +176,10 @@
     </div>
   </article>
 
+  {% if comment_preview %}
+    {% include "discussion/preview.html" %}
+  {% endif %}
+
   {% if layout == "advanced" %}
     {% set misp_sync = story.misp_auto_update or {} %}
     {% set proposal_url = story.attributes | selectattr('key', 'equalto', 'has_proposals') | map(attribute='value') | first | default(none) %}
@@ -267,12 +271,6 @@
                         placeholder="Summarise the key takeaways">{{ story.summary }}</textarea>
             </label>
 
-            <label class="floating-label">
-              <span class="label">Analyst comments</span>
-              <textarea name="comments"
-                        class="textarea textarea-bordered w-full"
-                        placeholder="Capture notes, caveats, or next steps">{{ story.comments }}</textarea>
-            </label>
             {# djlint:off #}
             <section class="rounded-2xl border border-base-200 bg-base-200/40 p-5 sm:col-span-2"
                      @story-ai-attributes='if ($event.detail.storyId === {{ story.id | tojson }}) { for (const fresh of $event.detail.attributes) { const existing = attributes.find(item => item.key === fresh.key); if (existing) existing.value = fresh.value; else attributes.push(fresh); } }'

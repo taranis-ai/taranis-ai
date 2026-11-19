@@ -536,7 +536,12 @@ class TestEndToEndUser(BaseE2ETest):
             expect(back_to_assess).to_have_attribute("href", return_url)
             page.get_by_role("textbox", name="Title").fill(edited_title)
             page.get_by_role("textbox", name="Summary").fill("Test summary")
-            page.get_by_role("textbox", name="Analyst comments").fill("Test analyst comment")
+            page.get_by_text("Add a comment", exact=True).click()
+            page.get_by_role("textbox", name="Comment text").fill("Test analyst comment")
+            with_htmx_wait(page, page.get_by_role("button", name="Post comment").click)
+            expect(page.locator("#comments")).to_contain_text("Test analyst comment")
+            expect(page.get_by_role("textbox", name="Title")).to_have_value(edited_title)
+            expect(page.get_by_role("textbox", name="Summary")).to_have_value("Test summary")
             news_item_card = page.locator("article[id^='news-item-card-']").first
             news_item_card.get_by_test_id("edit-newsitem-tags").click()
             expect(news_item_card.get_by_role("heading", name="News item tags")).to_be_in_viewport()
@@ -576,7 +581,8 @@ class TestEndToEndUser(BaseE2ETest):
             expect(page.get_by_role("complementary")).to_contain_text("Generate summary & title")
             expect(page.get_by_role("complementary")).to_contain_text("Run sentiment analysis")
             expect(page.get_by_role("complementary")).to_contain_text("Topic classification")
-            page.get_by_role("textbox", name="Analyst comments").fill("Unsaved analyst comment")
+            page.get_by_text("Add a comment", exact=True).click()
+            page.get_by_role("textbox", name="Comment text").fill("Unsaved analyst comment")
             for action in ("Generate summary & title", "Generate Tags", "Run sentiment analysis", "Topic classification"):
                 with_htmx_wait(page, page.get_by_role("button", name=action, exact=True).click)
                 expect(page.locator("#notification-bar")).to_have_count(1)
@@ -584,7 +590,7 @@ class TestEndToEndUser(BaseE2ETest):
                     "Tag generation scheduled" if action == "Generate Tags" else "Executing Bot scheduled"
                 )
                 expect(page.get_by_role("textbox", name="Title", exact=True)).to_have_value(edited_title)
-                expect(page.get_by_role("textbox", name="Analyst comments")).to_have_value("Unsaved analyst comment")
+                expect(page.get_by_role("textbox", name="Comment text")).to_have_value("Unsaved analyst comment")
             story_id = seeded_story["id"]
             news_item_id = seeded_story["news_items"][0]["id"]
             response = core_request_client.put(
@@ -634,7 +640,7 @@ class TestEndToEndUser(BaseE2ETest):
                 wait_for_htmx_settled(page)
                 assert len(refresh_requests) == 1
                 assert parse_qs(urlparse(refresh_requests[0]).query) == {"layout": ["advanced"], "bot_types": [bot_type]}
-                expect(page.get_by_role("textbox", name="Analyst comments")).to_have_value("Unsaved analyst comment")
+                expect(page.get_by_role("textbox", name="Comment text")).to_have_value("Unsaved analyst comment")
                 expect(page.get_by_test_id("attribute-value-input").nth(1)).to_have_value("Unsaved custom attribute")
                 if bot_type != "SUMMARY_BOT":
                     expect(page.locator("#story-ai-summary")).to_have_value("Private summary draft " * 600)
@@ -654,6 +660,15 @@ class TestEndToEndUser(BaseE2ETest):
             }""")
             page.get_by_role("link", name="Return to story").click()
             expect(page.get_by_test_id("story-title")).to_contain_text(edited_title)
+            comments = page.locator("#comments")
+            expect(comments).to_contain_text("Test analyst comment")
+            comments.get_by_role("link", name="View discussion").click()
+            expect(page.get_by_role("heading", name=edited_title, exact=True)).to_be_visible()
+            page.get_by_role("link", name="← Discussion").click()
+            expect(page.get_by_role("link", name="Stories", exact=True)).to_have_attribute("aria-current", "page")
+            expect(page.get_by_role("link", name=re.compile(re.escape(edited_title)))).to_contain_text("Test analyst comment")
+            page.go_back()
+            page.go_back()
             back_to_assess.click()
             expect(page.get_by_placeholder("Search stories")).to_have_value(target_title)
             expect(story_card()).to_be_visible()

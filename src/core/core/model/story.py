@@ -52,7 +52,6 @@ class Story(BaseModel):
     relevance: Mapped[int] = db.Column(db.Integer, default=0)
     relevance_override: Mapped[int] = db.Column(db.Integer, default=0)
 
-    comments: Mapped[str] = db.Column(db.String(), default="")
     summary: Mapped[str] = db.Column(db.Text, default="")
     revision: Mapped[int] = db.Column(db.Integer, nullable=False, default=0)
     news_items: Mapped[list["NewsItem"]] = relationship("NewsItem")
@@ -79,7 +78,6 @@ class Story(BaseModel):
         read: bool = False,
         important: bool = False,
         summary: str = "",
-        comments: str = "",
         revision: int = 0,
         attributes: list[dict[str, Any]] | None = None,
         news_items: list[dict[str, Any]] | list[str] | list[NewsItem] | None = None,
@@ -95,7 +93,6 @@ class Story(BaseModel):
         self.read = read
         self.important = important
         self.summary = summary
-        self.comments = comments
         self.revision = revision
         self.news_items = self.load_news_items(news_items)
         self.last_change = last_change or "internal"
@@ -960,9 +957,6 @@ class Story(BaseModel):
 
         if "description" in data:
             story.description = data["description"]
-
-        if "comments" in data:
-            story.comments = data["comments"]
 
         if "summary" in data:
             story.summary = data["summary"]

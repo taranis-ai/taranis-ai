@@ -59,7 +59,6 @@ STORY_IMPORT_FIELDS = frozenset(
         "read",
         "important",
         "summary",
-        "comments",
         "revision",
         "attributes",
         "news_items",
@@ -306,7 +305,6 @@ class Story(TaranisBaseModel):
     summary: str | None = None
     relevance: int | None = None
     relevance_override: int | None = None
-    comments: str | None = None
     in_reports_count: int | None = None
     bookmarked: bool = False
     tags: list[dict[str, Any]] | None = None
@@ -443,7 +441,6 @@ class StoryUpdatePayload(TaranisBaseModel):
     read: bool | None = None
     title: str | None = None
     description: str | None = None
-    comments: str | None = None
     summary: str | None = None
     relevance: int | None = None
     relevance_override: int | None = None
