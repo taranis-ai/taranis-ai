@@ -51,7 +51,7 @@ class DemoChatProvider(BaseHTTPRequestHandler):
             return
         context = json.loads(next(item["content"] for item in payload["input"] if item.get("role") == "user"))
         schema_name = payload.get("text", {}).get("format", {}).get("name")
-        if schema_name == "evidence_extraction":
+        if schema_name == "entity_relationship_extraction_response":
             content = context["text"]
             entities = [{"id": "demo", "type": "ORG", "name": "Demo"}] if content.startswith("Demo") else []
             relations = []

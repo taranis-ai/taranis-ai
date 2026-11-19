@@ -2,7 +2,8 @@
 
 import asyncio
 
-from llm_bot.tasks.evidence import prepare_evidence_extraction
+from llm_bot.schemas import EntityRelationshipExtractionRequest
+from llm_bot.tasks.entity_relationship_extraction import prepare_entity_relationship_extraction
 from llm_bot.tasks.llm_utils import InvalidLLMOutputError
 from models.hrag import CompactExtractionResult, EmbeddingResult, ExtractionResult, IndexJob, IndexSubmission, extraction_vocabulary
 
@@ -48,7 +49,10 @@ async def infer(job: IndexJob) -> dict:
         except ValueError as exc:
             raise InvalidLLMOutputError("Evidence does not match source content") from exc
 
-    task = prepare_evidence_extraction(job.content, extraction_vocabulary(), CompactExtractionResult, validate=validate)
+    request = EntityRelationshipExtractionRequest.model_validate(
+        {"text": job.content, "schema": extraction_vocabulary(), "reasoning_effort": job.reasoning_effort}
+    )
+    task = prepare_entity_relationship_extraction(request, result_model=CompactExtractionResult, validate=validate)
     client = get_llm_client({"llm_endpoint": job.endpoint.model_dump()}, reasoning_effort=job.reasoning_effort)
     proposals = await task.run(client)
     resolved = proposals.resolve(job.content, quarantine_invalid_relations=True)

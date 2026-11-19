@@ -14,7 +14,7 @@ from models.llm import LLMEndpoint
 EMBEDDING_CONTENT_LIMIT = 4_000
 EXTRACTION_CONTENT_LIMIT = 20_000
 HRAG_SCHEMA_VERSION = "v1"
-HRAG_EXTRACTION_SCHEMA_VERSION = "v3"
+HRAG_EXTRACTION_SCHEMA_VERSION = "v4"
 
 type ReasoningEffort = Literal["none", "minimal", "low", "medium", "high", "xhigh", "max"]
 type ExtractionReasoningEffort = ReasoningEffort | Literal["default"]
@@ -351,11 +351,11 @@ class HragResult(HragContract):
 
 def extraction_vocabulary() -> dict:
     return {
-        "version": HRAG_SCHEMA_VERSION,
-        "entities": ENTITY_DESCRIPTIONS,
-        "relationships": {
-            name: {"source_types": sorted(source), "target_types": sorted(target)} for name, (source, target) in RELATION_ENDPOINTS.items()
-        },
+        "entity_types": [{"name": name, "description": description} for name, description in ENTITY_DESCRIPTIONS.items()],
+        "relation_types": [
+            {"name": name, "source_types": sorted(source), "target_types": sorted(target)}
+            for name, (source, target) in RELATION_ENDPOINTS.items()
+        ],
     }
 
 

@@ -85,7 +85,7 @@ Reconciliation also compares saved extraction work against Neo4j document keys. 
 
 ### 3.4 Lease before enqueue; claim before inference
 
-At most 50 eligible work rows across the pass are marked queued with a 15-minute lease and committed before RQ enqueue. Work must be non-ready, outside its lease, and past `retry_after`. Failed enqueue releases the queued lease so a later pass can retry.
+At most 50 eligible work rows per pipeline in each pass are marked queued with a 15-minute lease and committed before RQ enqueue. Work must be non-ready, outside its lease, and past `retry_after`. Failed enqueue releases the queued lease so a later pass can retry.
 
 `index_item(work_id)` then calls `POST /api/worker/hrag/work/{work_id}`. `claim()` locks the row, rejects already-ready or currently-running work, verifies the current item and endpoint, and refreshes changed fingerprints. Blank/whitespace input becomes ready without inference and remains ineligible as retrieval evidence.
 
@@ -95,7 +95,7 @@ Otherwise, claim sets `running`, generates a fresh token, renews the 15-minute l
 
 `infer()` returns `cached_result` immediately when present. Otherwise:
 
-- Extraction prepares the companion library's `prepare_evidence_extraction()` task with the fixed vocabulary and `ExtractionResult`, validates exact passages, and executes through the worker's LLM client.
+- Extraction uses the companion library's shared `prepare_entity_relationship_extraction()` task with the fixed vocabulary, `CompactExtractionResult`, and a Taranis source validator. Taranis resolves exact spans, quarantines malformed relationships, and verifies valid candidates through Decisions before submission.
 - Embedding posts to `/embeddings` through the worker HTTP transport, explicitly requesting the generation's configured `dimensions`. The result must be finite, nonzero, and match those dimensions.
 
 The worker submits an `IndexSubmission` by PUT to the same work URL. It never writes PostgreSQL or Neo4j directly. On failure it logs details, attempts a `failed=True` callback, and raises a static job error.
@@ -264,9 +264,9 @@ A multi-hop citation depends on its whole path: losing an intermediate supportin
 | `llm_graph_planning_endpoint` | Realtime constrained graph planning |
 | Existing `llm_chat_endpoint` | Final answer synthesis and streaming |
 
-Endpoint resolution can inherit the shared default when no explicit assignment is set, subject to capability checks. Shared LLM contracts and Core Settings reject incompatible assignments; extraction, embedding and graph planning require realtime processing. Worker [endpoint_health.py](../../src/worker/worker/endpoint_health.py) adds embedding probes that request and verify the configured HRAG dimension when enabled, and [llm.py](../../src/worker/worker/llm.py) handles the added generative feature names.
+Endpoint resolution can inherit the shared default when no explicit assignment is set, subject to capability checks. Shared LLM contracts and Core Settings reject incompatible assignments; extraction, relationship verification, embedding and graph planning require realtime processing. Worker [endpoint_health.py](../../src/worker/worker/endpoint_health.py) adds embedding probes that request and verify the configured HRAG dimension when enabled, and [llm.py](../../src/worker/worker/llm.py) handles the added generative feature names.
 
-Core installs the transport-free companion library and workers its inference extra. The dependency is pinned to an immutable source archive based on llm-bot 0.1.6 with the evidence APIs backported; prepared extraction/planning tasks and the synthesis prompt live in that dependency, not in this repository. See the component `pyproject.toml` files for the exact source pin.
+Core installs the transport-free companion library and workers its inference extra. The dependency is pinned to an immutable source archive based on llm-bot 0.1.6 with the shared extraction and retrieval-planning APIs backported; prepared extraction/planning tasks and the synthesis prompt live in that dependency, not in this repository. See the component `pyproject.toml` files for the exact source pin.
 
 `GET /api/settings/hrag` requires `ADMIN_OPERATIONS` and reports enabled state, generations and grouped work counts. Optional repeated `news_item_id` query parameters restrict counts (up to 500 IDs). POST actions use `IndexAction`:
 
