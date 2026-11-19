@@ -234,7 +234,7 @@ def test_turn_deadline_closes_continuously_streaming_response(configured_chat, m
     assert not sender.is_alive()
 
 
-def test_hrag_turn_switching_partial_retrieval_and_live_history(configured_chat, db_persistent_session, admin_user, monkeypatch):
+def test_hrag_turn_switching_partial_retrieval_and_live_history(configured_chat, db_persistent_session, admin_user, monkeypatch, caplog):
     from core.managers.db_manager import db
     from core.model.hrag import HragGeneration, HragMessage, HragWork
     from core.service.hrag import retrieval
@@ -280,17 +280,35 @@ def test_hrag_turn_switching_partial_retrieval_and_live_history(configured_chat,
 
     monkeypatch.setattr(retrieval, "graph_search", graph_search)
     contexts = []
+    snapshots = []
+    invalid_citations = False
+    invalid_replies = []
+    expected_answer = 'Acme is mentioned: "Acme" [G1].\nWeitere Angaben fehlen.'
+    monkeypatch.setattr("core.service.chat.ChatTurnStream._publish", lambda self, _stage: snapshots.append(self.content))
 
     def post(*args, **kwargs):
         payload = kwargs["json"]
         messages = payload.get("messages") or payload["input"]
         context = json.loads(messages[-1]["content"])
         contexts.append(context)
-        if "text" in payload or "response_format" in payload:
+        response_format = payload.get("text", {}).get("format") or payload.get("response_format", {}).get("json_schema", {})
+        if response_format.get("name") == "graph_query_generation_response":
+            assert context["question"] == "What is known about Acme?"
             answer = json.dumps({"names": ["Acme"], "hops": 0})
-        elif "retrieval" in context:
-            assert context["retrieval"]["evidence"][0]["quote"] == "Acme"
-            answer = "Acme is mentioned [G1]."
+        elif response_format.get("name") == "hrag_response":
+            if invalid_citations:
+                invalid_replies.append(context)
+                invalid = json.dumps({"answer": "private-provider-detail [G999]", "citations": ["G999"], "insufficient_evidence": False})
+                return _chat_response(invalid) if configured_chat == "chat_completions" else _response({"output_text": invalid})
+            assert "Acme" in context["graph_facts"][0]["fact"]
+            answer = json.dumps({"answer": expected_answer, "citations": ["G1"], "insufficient_evidence": False})
+            chunks = [answer[index : index + 3] for index in range(0, len(answer), 3)]
+            if configured_chat == "chat_completions":
+                return _chat_stream(*({"content": chunk} for chunk in chunks))
+            return _stream_response(
+                *({"type": "response.output_text.delta", "delta": chunk} for chunk in chunks),
+                {"type": "response.completed", "response": {"status": "completed"}},
+            )
         else:
             answer = "Continuing in Chat."
         return _chat_response(answer) if configured_chat == "chat_completions" else _response({"output_text": answer})
@@ -303,19 +321,30 @@ def test_hrag_turn_switching_partial_retrieval_and_live_history(configured_chat,
         assert answer["mode"] == "hrag" and answer["hrag_result"]["evidence"][0]["citation"] == "G1"
         assert any("Vector retrieval is unavailable" in notice for notice in answer["hrag_result"]["notices"])
         assert graph_calls == [[graph_key]]
+        assert answer["content"] == expected_answer
+        assert any(0 < len(snapshot) < len(expected_answer) for snapshot in snapshots)
+        assert all(expected_answer.startswith(snapshot) for snapshot in snapshots)
         metadata = db.session.get(HragMessage, answer["id"]).metadata_json
         assert "quote" not in json.dumps(metadata) and "Acme" not in json.dumps(metadata)
         followup = ChatService.create_turn(admin_user, "Continue", "chat-turn", conversation["id"])
         assert followup["messages"][-1]["content"] == "Continuing in Chat."
-        assert contexts[-1]["conversation"][-1]["content"] == "Acme is mentioned [G1]."
+        assert contexts[-1]["conversation"][-1]["content"] == expected_answer
+        from core.managers.queue_manager import queue_manager
+
+        queue_manager.redis.flushall()
+        invalid_citations = True
+        with pytest.raises(ChatProviderError, match="invalid grounded answer"):
+            ChatService.create_turn(admin_user, "What is known about Acme?", "invalid-citations", conversation["id"], mode="hrag")
+        assert len(invalid_replies) == 2
+        assert "private-provider-detail" not in caplog.text
+        assert len(ChatService.get_conversation(conversation["id"], admin_user)["messages"]) == 4
+        invalid_citations = False
         item.content = "Changed evidence."
         db.session.commit()
         saved = ChatService.get_conversation(conversation["id"], admin_user)
         assert saved["messages"][1]["hrag_result"]["evidence"] == []
         assert "no longer accessible" in saved["messages"][1]["content"]
         # The in-process Redis fake lacks Lua lock release; real Redis is covered by the browser flow.
-        from core.managers.queue_manager import queue_manager
-
         queue_manager.redis.flushall()
         # Both unavailable branches fail without appending a half-turn.
         monkeypatch.setattr(retrieval, "graph_search", lambda *args: (_ for _ in ()).throw(RuntimeError("offline")))

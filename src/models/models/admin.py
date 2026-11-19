@@ -249,7 +249,7 @@ class TaranisConfig(TaranisBaseModel):
     llm_extraction_endpoint: str = ""
     llm_extraction_verification_endpoint: str = ""
     llm_graph_planning_endpoint: str = ""
-    hrag_extraction_reasoning_effort: ExtractionReasoningEffort = "none"
+    hrag_extraction_reasoning_effort: ExtractionReasoningEffort = "low"
     chat_max_stories: int = Field(default=5, gt=0, le=20)
 
     @field_validator("default_timezone", mode="after")

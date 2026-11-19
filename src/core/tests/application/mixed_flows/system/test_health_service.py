@@ -93,7 +93,7 @@ def test_endpoint_health_lifecycle(client, auth_header, api_header, app, db_pers
             )
             state = read_state("llm", endpoint_id)
             extraction = client.get(route, query_string={"check_id": state["check_id"]}, headers=api_header).json["extraction"]
-            assert extraction == {"api_format": "responses", "reasoning_effort": "none"}
+            assert extraction == {"api_format": "responses", "reasoning_effort": "low"}
             assert (
                 client.patch(
                     "/api/settings/settings", json={"settings": {"hrag_extraction_reasoning_effort": "default"}}, headers=auth_header
@@ -160,10 +160,10 @@ def test_endpoint_health_lifecycle(client, auth_header, api_header, app, db_pers
 
             for bot_type in ("nlp_bot", "sentiment_analysis_bot", "cybersec_classifier_bot"):
                 selected_endpoint_id = endpoint_id
-                if bot_type == "cybersec_classifier_bot":
+                if bot_type in {"cybersec_classifier_bot", "sentiment_analysis_bot"}:
                     response = client.post(
                         "/api/settings/llm-endpoints",
-                        json={**endpoint, "name": "Topic health", "api_format": "systemone", "enabled": True},
+                        json={**endpoint, "name": f"{bot_type} health", "api_format": "systemone", "enabled": True},
                         headers=auth_header,
                     )
                     assert response.status_code == 200

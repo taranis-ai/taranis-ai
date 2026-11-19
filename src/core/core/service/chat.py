@@ -501,9 +501,9 @@ class ChatService:
         hrag_result = None
         search_result = None
         if mode == "hrag":
-            from llm_bot.tasks.grounded_answer import SYNTHESIS_PROMPT
             from models.hrag import EvidenceReference
 
+            from core.service.hrag.answering import synthesize
             from core.service.hrag.retrieval import reauthorize, retrieve
 
             hrag_result = retrieve(context, user_id, settings, deadline, stream)
@@ -519,13 +519,8 @@ class ChatService:
                 # Recheck saved evidence after retrieval, immediately before synthesis.
                 current_conversation = ChatConversation.get_for_user(conversation_id, user_id) if conversation_id else None
                 history = cls._history_payload(current_conversation, user_id)
-                synthesis = {"conversation": history, "latest_message": content, "retrieval": hrag_result.model_dump()}
                 db.session.rollback()
-                answer = client.output_text(
-                    client.create_response(
-                        [{"role": "user", "content": json.dumps(synthesis, ensure_ascii=False)}], stream.add, prompt=SYNTHESIS_PROMPT
-                    )
-                )
+                answer = synthesize(content, history, hrag_result, client, stream)
             current = reauthorize(references, user_id, hrag_result.filters)
             if len(current) != len(hrag_result.evidence):
                 raise ChatProviderError("Evidence changed during this turn; retry the question")

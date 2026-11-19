@@ -3,8 +3,18 @@
 import asyncio
 import time
 
-from llm_bot.tasks.retrieval_planning import prepare_retrieval_plan
-from models.hrag import EmbeddingResult, EvidenceReference, ExtractionResult, GraphPlan, HragResult, RetrievalEvidence, bounded_content
+from llm_bot.schemas import GraphQueryGenerationRequest
+from llm_bot.tasks.graph_query_generation import prepare_graph_query_generation
+from models.hrag import (
+    EmbeddingResult,
+    EvidenceReference,
+    ExtractionResult,
+    GraphPlan,
+    HragResult,
+    RetrievalEvidence,
+    bounded_content,
+    extraction_vocabulary,
+)
 from sqlalchemy import select
 from sqlalchemy.orm import defer
 
@@ -170,7 +180,11 @@ def retrieve(context: dict, user_id: str, settings: dict, deadline: float, strea
             raise ValueError("Graph planning endpoint unavailable")
         client = PlanningClient(endpoint, deadline)
         db.session.rollback()
-        plan = run_inference(prepare_retrieval_plan(context, GraphPlan).run(client), deadline)
+        request = GraphQueryGenerationRequest.model_validate(
+            {"question": context["latest_message"], "schema": extraction_vocabulary(), "context": context}
+        )
+        proposed = run_inference(prepare_graph_query_generation(request).run(client), deadline)
+        plan = GraphPlan.model_validate(proposed.model_dump())
         filters = ChatService._search_filters(
             plan.filters.model_dump_json(exclude_defaults=True),
             context["available_filters"],
@@ -214,7 +228,7 @@ def retrieve(context: dict, user_id: str, settings: dict, deadline: float, strea
         graph_ok = True
     except Exception:
         db.session.rollback()
-        logger.exception("HRAG graph retrieval failed")
+        logger.error("HRAG graph retrieval failed")
         result.notices.append(
             "Graph retrieval is unavailable; the answer uses vector evidence where available."
             if plan_ok
@@ -247,7 +261,7 @@ def retrieve(context: dict, user_id: str, settings: dict, deadline: float, strea
         vector_ok = True
     except Exception:
         db.session.rollback()
-        logger.exception("HRAG vector retrieval failed")
+        logger.error("HRAG vector retrieval failed")
         result.notices.append("Vector retrieval is unavailable; the answer uses graph evidence where available.")
     if not graph_ok and not vector_ok:
         raise ChatProviderError("HRAG retrieval failed")

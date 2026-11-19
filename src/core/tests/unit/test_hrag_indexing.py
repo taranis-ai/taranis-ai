@@ -67,12 +67,12 @@ def test_durable_index_lifecycle_cutoffs_retries_and_generations(configured_inde
             for w in db.session.scalars(db.select(HragWork).where(HragWork.news_item_id == item.id))
         }
         extraction, embedding = works["extraction"], works["embedding"]
-        assert db.session.get(HragGeneration, extraction.generation_id).config["schema"] == "v4"
+        assert db.session.get(HragGeneration, extraction.generation_id).config["schema"] == "v5"
         assert db.session.get(HragGeneration, embedding.generation_id).config["schema"] == "v1"
         original = {kind: work.fingerprint for kind, work in works.items()}
         job = indexing.claim(extraction.id)
         assert job and indexing.claim(extraction.id) is None
-        assert job["reasoning_effort"] == "none"
+        assert job["reasoning_effort"] == "low"
         assert job["verification_endpoint"]["model"] == "verify"
         result = IndexSubmission(token=job["token"], fingerprint=job["fingerprint"], extraction=ExtractionResult())
         assert indexing.submit(extraction.id, result)[1] == 200
@@ -109,7 +109,7 @@ def test_durable_index_lifecycle_cutoffs_retries_and_generations(configured_inde
         db.session.rollback()
         configured_index["llm_endpoints"]["verify"]["api_key"] = "rotated-key"
         configured_index["llm_endpoints"]["verify"]["api_formats"]["systemone"]["model"] = "replacement-verifier"
-        configured_index["hrag_extraction_reasoning_effort"] = "low"
+        configured_index["hrag_extraction_reasoning_effort"] = "none"
         indexing.reconcile()
         extraction_generations = list(db.session.scalars(db.select(HragGeneration).where(HragGeneration.pipeline == "extraction")))
         assert len(extraction_generations) == 2
@@ -118,7 +118,7 @@ def test_durable_index_lifecycle_cutoffs_retries_and_generations(configured_inde
         assert frozen["model"] == "verify" and frozen["api_key"] == "rotated-key"
         assert "api_key" not in original_generation.config["verification"]
         replacement = next(g for g in extraction_generations if not g.active)
-        assert replacement.config["reasoning_effort"] == "low"
+        assert replacement.config["reasoning_effort"] == "none"
         assert replacement.config["verification"]["model"] == "replacement-verifier"
         configured_index["llm_endpoints"]["verify"]["enabled"] = False
         assert indexing.generation_verification_endpoint(original_generation) is None

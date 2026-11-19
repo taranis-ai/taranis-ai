@@ -80,7 +80,7 @@ class Settings(BaseModel):
         for feature in LLM_FEATURES:
             merged.setdefault(f"llm_{feature}_endpoint", "")
         merged.setdefault("chat_max_stories", 5)
-        merged.setdefault("hrag_extraction_reasoning_effort", "none")
+        merged.setdefault("hrag_extraction_reasoning_effort", "low")
         return merged
 
     def to_dict(self) -> dict[str, Any]:
@@ -152,12 +152,13 @@ class Settings(BaseModel):
             return {"error": "Chat requires a realtime LLM endpoint. Assign Chat explicitly before using a batch default."}, 400
         if cls._nonclassification_uses_decisions({**current_settings, **update_data}):
             return {
-                "error": "Decisions endpoints support topic classification and HRAG relationship verification. Use a Responses or Chat Completions default."
+                "error": "Decisions endpoints support sentiment, topic classification and HRAG relationship verification. Use a Responses or Chat Completions default."
             }, 400
-        if (endpoint_id := update_data.get("llm_classification_endpoint")) and not LLMProvider.model_validate(
-            current_settings["llm_endpoints"][endpoint_id]
-        ).supports("classification"):
-            return {"error": "Topic classification requires a realtime Decisions endpoint."}, 400
+        for feature, label in (("classification", "Topic classification"), ("sentiment", "Sentiment analysis")):
+            if (endpoint_id := update_data.get(f"llm_{feature}_endpoint")) and not LLMProvider.model_validate(
+                current_settings["llm_endpoints"][endpoint_id]
+            ).supports(feature):
+                return {"error": f"{label} requires a realtime Decisions endpoint."}, 400
         if "chat_max_stories" in update_data:
             try:
                 value = cls._validate_non_negative_int(update_data["chat_max_stories"])
@@ -212,7 +213,7 @@ class Settings(BaseModel):
         if cls._chat_uses_batch(values):
             raise ValueError("Chat requires a realtime LLM endpoint")
         if cls._nonclassification_uses_decisions(values):
-            raise ValueError("Decisions endpoints support topic classification and HRAG relationship verification")
+            raise ValueError("Decisions endpoints support sentiment, topic classification and HRAG relationship verification")
         values["chat_max_stories"] = cls._validate_non_negative_int(values["chat_max_stories"])
         values["hrag_extraction_reasoning_effort"] = TypeAdapter(ExtractionReasoningEffort).validate_python(
             values["hrag_extraction_reasoning_effort"]
@@ -228,7 +229,14 @@ class Settings(BaseModel):
 
     @classmethod
     def _nonclassification_uses_decisions(cls, values: dict) -> bool:
-        for feature in LLM_FEATURES.keys() - {"classification", "embedding", "extraction", "extraction_verification", "graph_planning"}:
+        for feature in LLM_FEATURES.keys() - {
+            "classification",
+            "sentiment",
+            "embedding",
+            "extraction",
+            "extraction_verification",
+            "graph_planning",
+        }:
             endpoint_id = values.get(f"llm_{feature}_endpoint") or values.get("llm_default_endpoint")
             endpoint = values.get("llm_endpoints", {}).get(endpoint_id, {})
             if endpoint and not LLMProvider.model_validate(endpoint).supports(feature):
@@ -307,7 +315,7 @@ class Settings(BaseModel):
             return {"error": "Chat requires a realtime LLM endpoint. Reassign Chat before changing this endpoint to batch."}, 400
         if cls._nonclassification_uses_decisions(values):
             return {
-                "error": "Decisions endpoints support topic classification and HRAG relationship verification. Reassign other features first."
+                "error": "Decisions endpoints support sentiment, topic classification and HRAG relationship verification. Reassign other features first."
             }, 400
         from core.model.bot import Bot
 
@@ -322,8 +330,9 @@ class Settings(BaseModel):
                 and (not provider.supports(feature) or (provider.for_feature(feature) or {}).get("processing_mode") != "realtime")
             ):
                 return {"error": "Reassign HRAG before changing this endpoint's capability or processing mode"}, 400
-        if endpoint_id == values.get("llm_classification_endpoint") and "classification" in lost_features:
-            return {"error": "Reassign topic classification before changing this endpoint's API format."}, 400
+        for feature, label in (("classification", "topic classification"), ("sentiment", "sentiment analysis")):
+            if endpoint_id == values.get(f"llm_{feature}_endpoint") and feature in lost_features:
+                return {"error": f"Reassign {label} before changing this endpoint's API format."}, 400
         for bot in db.session.execute(db.select(Bot)).scalars():
             if bot.parameters.get("LLM_ENDPOINT") == endpoint_id and LLM_BOT_FEATURES.get(bot.type.value) in lost_features:
                 return {"error": "Reassign incompatible bots before changing this endpoint's API format."}, 400

@@ -147,3 +147,7 @@ class Logger(TaranisLogger):
 
 
 logger = Logger(module=Config.MODULE_ID, colored=Config.COLORED_LOGS, debug=Config.DEBUG, syslog_address=None)
+
+# Library debug payloads and repair warnings can contain private Chat material.
+# Core reports curated provider failures through its own logger.
+logging.getLogger("llm_bot").setLevel(logging.ERROR)

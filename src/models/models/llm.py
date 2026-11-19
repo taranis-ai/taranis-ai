@@ -129,7 +129,7 @@ class LLMProvider(BaseModel):
     def feature_formats(feature: str) -> tuple[str, ...]:
         if feature == "embedding":
             return ("embeddings",)
-        if feature in {"classification", "extraction_verification"}:
+        if feature in {"classification", "sentiment", "extraction_verification"}:
             return ("systemone", "openai_decisions")
         return ("responses", "chat_completions")
 

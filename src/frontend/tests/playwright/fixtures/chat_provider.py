@@ -70,7 +70,7 @@ class DemoChatProvider(BaseHTTPRequestHandler):
                 ]
             )
             return
-        if schema_name == "retrieval_plan":
+        if schema_name == "graph_query_generation_response":
             self.reply(
                 [
                     {
@@ -82,10 +82,14 @@ class DemoChatProvider(BaseHTTPRequestHandler):
                 ]
             )
             return
-        if "retrieval" in context:
-            evidence = context["retrieval"]["evidence"]
-            answer = "Demo evidence: " + " ".join(f"[{entry['citation']}]" for entry in evidence)
-            self.reply([{"type": "message", "content": [{"type": "output_text", "text": answer}]}])
+        if schema_name == "hrag_response":
+            citations = [entry["id"] for entry in context["graph_facts"] + context["passages"]]
+            result = {
+                "answer": "Demo evidence: " + " ".join(f"[{citation}]" for citation in citations),
+                "citations": citations,
+                "insufficient_evidence": not citations,
+            }
+            self.reply([{"type": "message", "content": [{"type": "output_text", "text": json.dumps(result)}]}])
             return
         unread = "unread" in context["latest_message"].lower()
         if payload.get("tools"):

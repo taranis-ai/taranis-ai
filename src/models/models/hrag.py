@@ -14,7 +14,7 @@ from models.llm import LLMEndpoint
 EMBEDDING_CONTENT_LIMIT = 4_000
 EXTRACTION_CONTENT_LIMIT = 20_000
 HRAG_SCHEMA_VERSION = "v1"
-HRAG_EXTRACTION_SCHEMA_VERSION = "v4"
+HRAG_EXTRACTION_SCHEMA_VERSION = "v5"
 
 type ReasoningEffort = Literal["none", "minimal", "low", "medium", "high", "xhigh", "max"]
 type ExtractionReasoningEffort = ReasoningEffort | Literal["default"]

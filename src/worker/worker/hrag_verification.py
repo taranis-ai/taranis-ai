@@ -10,7 +10,7 @@ from models.hrag import EvidenceSpan, ExtractedRelation, ExtractionResult
 QUESTIONS_PER_REQUEST = 64
 ACCEPTANCE_THRESHOLD = 0.8
 
-# These meanings are part of extraction schema v4. Change its version when
+# These meanings are part of extraction schema v5. Change its version when
 # verification semantics or acceptance policy changes.
 RELATION_MEANINGS = {
     "USES": ("uses", "The source uses the target tool, malware, technology or technique."),

@@ -98,7 +98,7 @@ class TestBotTask:
                 else {
                     "name": "Test",
                     "base_url": "https://llm.test/v1",
-                    "api_format": "systemone" if bot_type == "cybersec_classifier_bot" else "responses",
+                    "api_format": "systemone" if bot_type in {"cybersec_classifier_bot", "sentiment_analysis_bot"} else "responses",
                 },
             },
         )
@@ -107,11 +107,17 @@ class TestBotTask:
             json=[{"id": "story-1", "tags": {}, "news_items": [{"id": "item-1", "title": "Story", "content": "Content"}]}],
         )
         saved = requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
-        client, method = (DecisionsClient, "create_decision") if bot_type == "cybersec_classifier_bot" else (LLMClient, "create_response")
+        client, method = (
+            (DecisionsClient, "create_decision")
+            if bot_type in {"cybersec_classifier_bot", "sentiment_analysis_bot"}
+            else (LLMClient, "create_response")
+        )
         with patch.object(client, method, autospec=True, side_effect=failure) as provider:
             provider.return_value = (
-                {"category": {"invalid": "private invalid provider output"}}
-                if bot_type == "cybersec_classifier_bot"
+                {"sentiment": {"positive": 2.0, "neutral": 0.0, "negative": 0.0}}
+                if bot_type == "sentiment_analysis_bot"
+                else {"category": {"invalid": "private invalid provider output"}}
+                if bot_type in {"cybersec_classifier_bot", "sentiment_analysis_bot"}
                 else {"output_text": "private invalid provider output"}
             )
             with pytest.raises(RuntimeError) as exc_info:

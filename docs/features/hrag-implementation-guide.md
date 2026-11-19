@@ -169,7 +169,7 @@ The frontend posts `mode=hrag` in the existing `ChatTurnRequest` contract in [mo
 
 ### 5.2 Ask for a plan, never executable query text
 
-`retrieve()` uses `prepare_retrieval_plan(context, GraphPlan)` through `PlanningClient`. This adapts the existing deadline-aware `ChatClient` transport to the companion library's prepared task API.
+`retrieve()` builds a `GraphQueryGenerationRequest` from the latest question, fixed extraction vocabulary and conversation/filter context, then calls `prepare_graph_query_generation()` through `PlanningClient`. Core validates the result again through its `GraphPlan` and Assess filter contracts. The adapter retains the existing deadline-aware `ChatClient` transport.
 
 `GraphPlan` constrains names, entity types, known relationship kinds, hops from 0 to 3, and `AssessSearchFilters`. Names normalize to stripped casefolded strings. Existing Chat search helpers validate catalog/recent-result references and convert filters with the analyst's timezone.
 
@@ -225,7 +225,7 @@ Every result also carries a notice that evidence covers only currently accessibl
 
 ### 5.6 Synthesize and save through the existing Chat flow
 
-The HRAG branch reauthorizes retrieval references immediately before synthesis. With evidence, it rebuilds checked conversation history and sends history, latest question and `HragResult` under the companion library's `SYNTHESIS_PROMPT` to the existing Chat provider. The answer streams through `ChatTurnStream`. Without evidence, it uses the static insufficient-evidence answer.
+The HRAG branch reauthorizes references immediately before synthesis and rebuilds checked conversation history. `hrag/answering.py` maps authorized evidence into the library's `HragRequest` and executes `prepare_hrag()` through the existing Chat provider. Only the decoded JSON answer field streams through `ChatTurnStream`; full answer/citation validation precedes persistence. Without evidence, it uses the static insufficient-evidence answer.
 
 Core checks current evidence again after generation and checks inherited history dependencies before persistence. It saves user and assistant messages together, with `HragMessage` metadata in the same final transaction. A failed provider response or detected evidence change prevents saving that message pair.
 
@@ -266,7 +266,7 @@ A multi-hop citation depends on its whole path: losing an intermediate supportin
 
 Endpoint resolution can inherit the shared default when no explicit assignment is set, subject to capability checks. Shared LLM contracts and Core Settings reject incompatible assignments; extraction, relationship verification, embedding and graph planning require realtime processing. Worker [endpoint_health.py](../../src/worker/worker/endpoint_health.py) adds embedding probes that request and verify the configured HRAG dimension when enabled, and [llm.py](../../src/worker/worker/llm.py) handles the added generative feature names.
 
-Core installs the transport-free companion library and workers its inference extra. The dependency is pinned to an immutable source archive based on llm-bot 0.1.6 with the shared extraction and retrieval-planning APIs backported; prepared extraction/planning tasks and the synthesis prompt live in that dependency, not in this repository. See the component `pyproject.toml` files for the exact source pin.
+Core installs the transport-free companion library and workers its inference extra. The dependency is pinned to the immutable llm-bot HRAG PR commit pending an official release; prepared extraction/planning tasks and the final structured HRAG task live in that dependency, not in this repository. See the component `pyproject.toml` files for the exact source pin.
 
 `GET /api/settings/hrag` requires `ADMIN_OPERATIONS` and reports enabled state, generations and grouped work counts. Optional repeated `news_item_id` query parameters restrict counts (up to 500 IDs). POST actions use `IndexAction`:
 
