@@ -55,7 +55,7 @@
                  value="{{ post.id }}"
                  form="social-attach"
                  aria-label="Select contribution by {{ post.author or 'unknown author' }}"
-                 data-label="{{ post.platform|title }} · {{ post.author }} · {{ (post.title or post.body or 'Image post')|truncate(70) }}">
+                 data-label="{{ post.platform|title }} · {{ post.author }} · {{ (post.title or post.body or ('Image post' if post.images else 'Post without text'))|truncate(70) }}">
         </label>
       {% endif %}
       <b>{{ post.author or 'Unknown author' }}</b><span>{{ post.platform|title }}</span><time>{{ post.published | format_datetime }}</time>

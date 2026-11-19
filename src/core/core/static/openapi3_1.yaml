@@ -1359,6 +1359,10 @@ paths:
           description: List visible social conversations, source health and personal beats
         '401':
           $ref: '#/components/responses/401Unauthorized'
+        '400':
+          description: Invalid input
+        '403':
+          description: Insufficient access
   /assess/social/beats:
     post:
       operationId: social.save_beat.post
@@ -1378,6 +1382,14 @@ paths:
           description: Save personal beat filters by name
         '401':
           $ref: '#/components/responses/401Unauthorized'
+        '400':
+          description: Invalid input
+        '403':
+          description: Insufficient access
+        '404':
+          description: Requested resource unavailable
+        '409':
+          description: Selection conflicts with current state
   /assess/social/posts/{post_id}:
     get:
       operationId: social.thread.get
@@ -1402,6 +1414,10 @@ paths:
           description: Read a page of collected contributions and parent context
         '401':
           $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: Insufficient access
+        '404':
+          description: Requested resource unavailable
   /assess/social/material/{item_id}:
     get:
       operationId: social.material.get
@@ -1421,6 +1437,10 @@ paths:
           description: Resolve attached social source material
         '401':
           $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: Insufficient access
+        '404':
+          description: Requested resource unavailable
   /assess/social/images/{image_id}:
     get:
       operationId: social.image.get
@@ -1450,6 +1470,10 @@ paths:
                 format: binary
         '401':
           $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: Insufficient access
+        '404':
+          description: Requested resource unavailable
   /assess/social/attach:
     post:
       operationId: social.attach.post
@@ -1469,6 +1493,14 @@ paths:
           description: Attach selected contributions to one new or existing Story
         '401':
           $ref: '#/components/responses/401Unauthorized'
+        '400':
+          description: Invalid input
+        '403':
+          description: Insufficient access
+        '404':
+          description: Requested resource unavailable
+        '409':
+          description: Selection conflicts with current state
   /analyze/reports/{report_id}/figures:
     get:
       operationId: social.report_figures.get
@@ -1488,6 +1520,10 @@ paths:
           description: List linked Story images and publication eligibility
         '401':
           $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: Insufficient access
+        '404':
+          description: Requested resource unavailable
     put:
       operationId: social.report_figures.put
       summary: Replace ordered report figure selection
@@ -1512,6 +1548,14 @@ paths:
           description: Replace ordered report figure selection
         '401':
           $ref: '#/components/responses/401Unauthorized'
+        '400':
+          description: Invalid input
+        '403':
+          description: Insufficient access
+        '404':
+          description: Requested resource unavailable
+        '409':
+          description: Selection conflicts with current state
   /worker/social/{source_id}:
     get:
       operationId: social.collect.get
@@ -1531,6 +1575,8 @@ paths:
           description: List stored contribution keys due for rechecking
         '401':
           $ref: '#/components/responses/401Unauthorized'
+        '404':
+          description: Requested resource unavailable
     post:
       operationId: social.collect.post
       summary: Ingest a contribution or withdraw a removed key
@@ -1562,6 +1608,12 @@ paths:
           description: Ingest a contribution or withdraw a removed key
         '401':
           $ref: '#/components/responses/401Unauthorized'
+        '400':
+          description: Invalid input
+        '404':
+          description: Requested resource unavailable
+        '409':
+          description: Selection conflicts with current state
   /worker/social/{source_id}/{post_id}/image:
     post:
       operationId: social.upload_image.post
@@ -1592,6 +1644,10 @@ paths:
           description: Store an image belonging to a collected contribution
         '401':
           $ref: '#/components/responses/401Unauthorized'
+        '400':
+          description: Invalid input
+        '409':
+          description: Selection conflicts with current state
   /assess/stories:
     get:
       security:

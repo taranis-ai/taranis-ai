@@ -2,6 +2,7 @@ import base64
 from datetime import timedelta
 from io import BytesIO
 
+from flask import g, has_request_context
 from models.assess import NewsItem as NewsItemData
 from models.social import AttachPosts, BeatFilters, CollectedImage, Contribution, FigureSelection
 from models.types import COLLECTOR_TYPES, TLPLevel
@@ -41,6 +42,8 @@ def withdraw_images(image_ids):
 
 def withdraw_products(products):
     for product in db.session.scalars(select(Product).where(Product.id.in_(products)).order_by(Product.id).with_for_update()):
+        if has_request_context():
+            g.social_output_withdrawn = True
         product.render_result = None
         product.last_rendered = None
         product.last_published_url = None

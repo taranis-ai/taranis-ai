@@ -41,12 +41,15 @@ class RedditCollector(BaseCollector):
                 raise ValueError("Reddit listing unavailable")
             return [row["data"] for row in response.json()["data"]["children"]]
 
-    @staticmethod
-    def _post(row) -> dict:
+    def _post(self, row, source) -> dict:
         key = row["name"]
         body = row.get("body", row.get("selftext", ""))
         if row.get("removed_by_category") or body in ("[removed]", "[deleted]"):
             return {"removed": key}
+        if source.get("word_lists"):
+            item = NewsItem(osint_source_id=source["id"], title=row.get("title") or "Reddit contribution", content=body)
+            if not self.process_news_items([item], source):
+                return {"removed": key}
         images = []
         hosts = {"i.redd.it", "preview.redd.it"}
         if row.get("is_gallery"):
@@ -85,7 +88,7 @@ class RedditCollector(BaseCollector):
                 break
             refreshed = {r["name"]: r for r in self._listing("api/info", {"id": ",".join(sorted(keys))})}
             for key in sorted(keys):
-                update = self._post(refreshed[key]) if key in refreshed else {"removed": key}
+                update = self._post(refreshed[key], source) if key in refreshed else {"removed": key}
                 if not publish_contribution(self.core_api, endpoint, update):
                     raise ValueError("Could not refresh a stored Reddit contribution")
             if len(keys) < 100:
@@ -98,7 +101,7 @@ class RedditCollector(BaseCollector):
         for start in range(0, len(roots), 100):
             found.update({row["name"]: row for row in self._listing("api/info", {"id": ",".join(sorted(roots)[start : start + 100])})})
         for row in found.values():
-            if not publish_contribution(self.core_api, endpoint, self._post(row)):
+            if not publish_contribution(self.core_api, endpoint, self._post(row, source)):
                 raise ValueError("Could not store a Reddit contribution")
         return "Social monitor updated"
 

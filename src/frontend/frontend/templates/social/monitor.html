@@ -116,7 +116,7 @@
              hx-trigger="toggle once"
              hx-target="find .social-thread">
       <summary class="cursor-pointer">
-        <span class="font-semibold">{{ row.warning or row.title or row.body|truncate(140) or 'Image post' }}</span>
+        <span class="font-semibold">{{ row.warning or row.title or row.body|truncate(140) or ('Image post' if row.images else 'Post without text') }}</span>
         <span class="block text-sm">{{ row.platform|title }} · {{ row.author or 'Unknown author' }} · {{ row.latest|format_datetime }}
         {% if row.platform == "reddit" %}· {{ row.replies }} collected replies{% endif %}</span>
         {% if row.images and not row.warning and row.images[0].available %}

@@ -196,6 +196,8 @@ class MastodonCollector(BaseCollector):
         try:
             self._setup(source)
             statuses = self._fetch_statuses(use_cursor=use_cursor)
+            if source["parameters"].get("DELIVERY") == "monitor":
+                return statuses, []
             return statuses, [self._news_item(status, str(source["id"])) for status in statuses]
         except MastodonError as exc:
             logger.error("Mastodon API request failed")
@@ -207,6 +209,8 @@ class MastodonCollector(BaseCollector):
     def _monitor_post(self, status, source):
         post = status.get("reblog") or status
         if post.get("visibility") != "public" or status.get("visibility") != "public":
+            return None
+        if source.get("word_lists") and not self.process_news_items([self._news_item(status, str(source["id"]))], source):
             return None
         account = post.get("account") or {}
         parameters = source["parameters"]
@@ -258,7 +262,13 @@ class MastodonCollector(BaseCollector):
         statuses, news_items = self._gather(source, use_cursor=True)
         monitor = source["parameters"].get("DELIVERY") == "monitor"
         if monitor:
-            self._refresh_monitor(source)
+            try:
+                self._refresh_monitor(source)
+            except MastodonCollectorError:
+                raise
+            except Exception as exc:
+                logger.exception("Could not refresh monitored statuses")
+                raise MastodonCollectorError("Could not refresh stored posts", "monitor_refresh_failed") from exc
         previous_cursor = self.mastodon_cursor
         if not statuses:
             raise NoChangeError("No new Mastodon statuses")
@@ -284,5 +294,8 @@ class MastodonCollector(BaseCollector):
         return result
 
     def preview_collector(self, source: dict[str, Any]) -> list[dict[str, Any]]:
-        _, news_items = self._gather(source, use_cursor=False)
+        statuses, news_items = self._gather(source, use_cursor=False)
+        if source["parameters"].get("DELIVERY") == "monitor":
+            count = sum(s.get("visibility") == "public" and (s.get("reblog") or s).get("visibility") == "public" for s in statuses)
+            return [NewsItem(osint_source_id=source["id"], title=f"{count} recent public statuses available").model_dump(mode="json")]
         return self.preview(news_items, source)

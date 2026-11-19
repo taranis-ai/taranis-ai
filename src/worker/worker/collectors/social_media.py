@@ -29,8 +29,12 @@ def reddit_errors():
 def collect_image(key: str, url: str, alt: str, hosts: set[str], proxy: str | None = None) -> dict:
     """Only download raster attachments from configured platform hosts, without credentials."""
     result = {"key": key, "alt": alt or ""}
-    parsed = urlparse(url)
-    if parsed.scheme != "https" or parsed.hostname not in hosts or parsed.username or parsed.password or parsed.port not in (443, None):
+    try:
+        parsed = urlparse(url)
+        port = parsed.port
+    except ValueError:
+        return result
+    if parsed.scheme != "https" or parsed.hostname not in hosts or parsed.username or parsed.password or port not in (443, None):
         return result
     limit = 12 * 1024 * 1024
     try:

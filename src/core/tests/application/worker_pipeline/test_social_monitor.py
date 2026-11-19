@@ -4,7 +4,9 @@ from io import BytesIO
 from PIL import Image
 
 
-def test_thread_to_story_to_report_figure_and_withdrawal(client, session, api_header, auth_header, auth_header_user_permissions):
+def test_thread_to_story_to_report_figure_and_withdrawal(
+    client, session, api_header, auth_header, auth_header_user_permissions, tmp_path, monkeypatch
+):
     from core.model.osint_source import OSINTSource
     from core.model.product import Product
     from core.model.product_type import ProductType
@@ -73,7 +75,13 @@ def test_thread_to_story_to_report_figure_and_withdrawal(client, session, api_he
     figure = render["report_items"][0]["figures"][0]
     assert figure["caption"] == "Station reopened" and figure["src"].startswith("data:image/png;base64,")
     assert Product.update_render_for_id(product.id, b64encode(b"test product").decode(), render["render_revision"])[1] == 200
+    monkeypatch.setitem(client.application.config, "DATA_FOLDER", str(tmp_path))
+    assert client.post(f"/api/worker/products/{product.id}/publish", headers=api_header).status_code == 200
+    public_url = f"/reports/{product.id}"
+    assert client.get(public_url).data == b"test product"
     assert client.post(endpoint, json={"removed": reply["key"]}, headers=api_header).status_code == 200
     assert client.get(image_url, headers=auth_header).status_code == 404
+    assert client.get(public_url).status_code == 404
+    assert not (tmp_path / "published-reports" / product.id).exists()
     assert not Product.get_render(product.id)
     assert Product.update_render_for_id(product.id, "dGVzdA==", render["render_revision"])[1] == 409

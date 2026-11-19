@@ -1,4 +1,4 @@
-from flask import Blueprint, Flask, Response, request
+from flask import Blueprint, Flask, Response, g, request
 from flask_jwt_extended import current_user
 from models.base import TaranisBaseModel
 from models.social import AttachPosts, BeatFilters, CollectedImage, Contribution, FigureSelection, SaveBeat
@@ -18,6 +18,13 @@ from core.service.cache_invalidation import SCOPE_PUBLISH_VIEWS, SCOPE_STORY_REP
 
 
 bp = Blueprint("social", __name__, url_prefix=f"{Config.APPLICATION_ROOT}api")
+
+
+@bp.after_request
+def invalidate_withdrawn_outputs(response):
+    if g.get("social_output_withdrawn"):
+        invalidate_frontend_cache_on_success(response.status_code, scopes=(SCOPE_PUBLISH_VIEWS,))
+    return response
 
 
 @bp.errorhandler(ValidationError)
