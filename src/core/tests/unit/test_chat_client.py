@@ -45,6 +45,7 @@ def test_query_embedding_requests_generation_dimensions(app, configured_chat, mo
         assert url == endpoint["base_url"] + "/embeddings"
         assert kwargs["json"]["dimensions"] == 3
         assert kwargs["json"]["input"] == "Which incidents?"
+        assert kwargs["json"]["encoding_format"] == "float"
         return _response({"data": [{"embedding": [1, 0, 0]}]})
 
     monkeypatch.setattr(requests, "post", post)

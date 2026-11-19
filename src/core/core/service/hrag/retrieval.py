@@ -3,6 +3,7 @@
 import asyncio
 import time
 
+from llm_bot.embedding_client import EmbeddingClient
 from llm_bot.schemas import GraphQueryGenerationRequest
 from llm_bot.tasks.graph_query_generation import prepare_graph_query_generation
 from models.hrag import (
@@ -53,20 +54,17 @@ def endpoint_client(endpoint: dict, deadline: float):
     from core.service.chat import ChatClient
 
     settings = Settings.with_defaults({"llm_endpoints": {"hrag": endpoint}, "llm_chat_endpoint": "hrag"})
-    # An embedding transport cannot resolve as Chat; initialize with a compatible
-    # format and then select its fixed, non-generative route below.
     return ChatClient(settings, deadline=deadline)
 
 
 def query_embedding(question: str, endpoint: dict, dimensions: int, deadline: float) -> EmbeddingResult:
-    client = endpoint_client({**endpoint, "api_format": "responses"}, deadline)
-    client.endpoint = "embeddings"
-    payload = {"input": question, "dimensions": dimensions}
-    if endpoint["model"]:
-        payload["model"] = endpoint["model"]
-    with client._response(payload) as response:
+    from core.service.chat import ProviderTransport
+
+    client = EmbeddingClient(base_url=endpoint["base_url"], api_key=endpoint["api_key"], model=endpoint["model"], timeout=endpoint["timeout"])
+    transport = ProviderTransport(client.base_url, client.path, client.api_key, client.timeout, deadline)
+    with transport._response(client.build_request(question, dimensions=dimensions)) as response:
         response.raise_for_status()
-        return EmbeddingResult(embedding=response.json()["data"][0]["embedding"])
+        return EmbeddingResult(embedding=client.parse_response(response.json(), dimensions=dimensions)[0])
 
 
 def run_inference(coroutine, deadline: float):

@@ -8,6 +8,7 @@ from niquests.exceptions import RequestException
 from rq import Retry, get_current_job
 
 from worker.core_api import CoreApi
+from worker.embedding import create_embedding
 from worker.http_client import http_request, http_session_scope
 from worker.llm import LLMTaskError, get_decisions_client, get_llm_client, run_llm_tasks
 from worker.llm_batch import BatchExecutionError
@@ -97,22 +98,8 @@ def probe(
             client.parse_response(response.json(), questions)
             return True
         if config["api_format"] == "embeddings":
-            from models.hrag import EmbeddingResult
-
-            payload = {"input": "Synthetic endpoint check", "model": config.get("model", "")}
-            if embedding_dimensions is not None:
-                payload["dimensions"] = embedding_dimensions
-            response = http_request(
-                "POST",
-                f"{config['base_url']}/embeddings",
-                json=payload,
-                headers={"Authorization": f"Bearer {config['api_key']}"} if config.get("api_key") else {},
-                timeout=min(config["timeout"], 120),
-                verify=True,
-            )
-            response.raise_for_status()
-            result = EmbeddingResult(embedding=response.json()["data"][0]["embedding"])
-            return embedding_dimensions is None or len(result.embedding) == embedding_dimensions
+            create_embedding("Synthetic endpoint check", {**config, "timeout": min(config["timeout"], 120)}, embedding_dimensions)
+            return True
         chat = config["api_format"] == "chat_completions"
         if config.get("processing_mode") == "openrouter_batch":
             parameters = {"llm_endpoint": config, "_llm_batch_state": batch_state, "_save_llm_batch_state": save_batch_state}

@@ -8,8 +8,9 @@ from llm_bot.tasks.llm_utils import InvalidLLMOutputError
 from models.hrag import CompactExtractionResult, EmbeddingResult, ExtractionResult, IndexJob, IndexSubmission, extraction_vocabulary
 
 from worker.core_api import CoreApi
+from worker.embedding import create_embedding
 from worker.hrag_verification import verify_extraction
-from worker.http_client import http_request, http_session_scope
+from worker.http_client import http_session_scope
 from worker.llm import get_decisions_client, get_llm_client
 from worker.log import logger
 from worker.telemetry import instrument_job
@@ -26,19 +27,8 @@ async def infer(job: IndexJob) -> dict:
     if job.cached_result is not None:
         return job.cached_result
     if job.pipeline == "embedding":
-        response = http_request(
-            "POST",
-            f"{job.endpoint.base_url}/embeddings",
-            json={"input": job.content, "model": job.endpoint.model, "dimensions": job.dimensions},
-            headers={"Authorization": f"Bearer {job.endpoint.api_key}"} if job.endpoint.api_key else {},
-            timeout=job.endpoint.timeout,
-            verify=True,
-        )
-        response.raise_for_status()
-        result = EmbeddingResult(embedding=response.json()["data"][0]["embedding"])
-        if len(result.embedding) != job.dimensions:
-            raise ValueError("Unexpected embedding dimensions")
-        return result.model_dump()
+        vector = create_embedding(job.content, job.endpoint.model_dump(), job.dimensions)
+        return EmbeddingResult(embedding=vector).model_dump()
     if not job.content:
         return ExtractionResult().model_dump()
 

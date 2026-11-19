@@ -96,7 +96,7 @@ Otherwise, claim sets `running`, generates a fresh token, renews the 15-minute l
 `infer()` returns `cached_result` immediately when present. Otherwise:
 
 - Extraction uses the companion library's shared `prepare_entity_relationship_extraction()` task with the fixed vocabulary, `CompactExtractionResult`, and a Taranis source validator. Taranis resolves exact spans, quarantines malformed relationships, and verifies valid candidates through Decisions before submission.
-- Embedding posts to `/embeddings` through the worker HTTP transport, explicitly requesting the generation's configured `dimensions`. The result must be finite, nonzero, and match those dimensions.
+- Embedding uses llm-bot’s `EmbeddingClient` to build the `/embeddings` request and validate its result through `worker/embedding.py`. The worker HTTP transport retains pooling and credential handling. The request specifies the generation’s `dimensions`; the vector must be finite, nonzero and match that length.
 
 The worker submits an `IndexSubmission` by PUT to the same work URL. It never writes PostgreSQL or Neo4j directly. On failure it logs details, attempts a `failed=True` callback, and raises a static job error.
 
@@ -187,7 +187,7 @@ Graph results are bounded and ordered by path length and the first evidence key,
 
 ### 5.4 Embed the question and rank authorized vectors
 
-After the graph attempt, the vector branch resolves the active embedding generation and calls the provider's `/embeddings` route through the existing Chat HTTP transport. It embeds `context["latest_message"]`, not an LLM-rewritten query or the entire conversation. It explicitly requests the active generation's configured `dimensions` and checks the returned dimensions.
+After the graph attempt, the vector branch resolves the active embedding generation and uses llm-bot’s `EmbeddingClient` request/response handling through the deadline-aware `ProviderTransport` shared with Chat. It embeds `context["latest_message"]`, not an LLM-rewritten query or the entire conversation. It explicitly requests the active generation's configured `dimensions` and checks the returned dimensions.
 
 It gathers authorized embedding work with the same Chat-resolved filters and verifies that the generation did not change during query embedding. `vector_search()` performs:
 
@@ -266,7 +266,7 @@ A multi-hop citation depends on its whole path: losing an intermediate supportin
 
 Endpoint resolution can inherit the shared default when no explicit assignment is set, subject to capability checks. Shared LLM contracts and Core Settings reject incompatible assignments; extraction, relationship verification, embedding and graph planning require realtime processing. Worker [endpoint_health.py](../../src/worker/worker/endpoint_health.py) adds embedding probes that request and verify the configured HRAG dimension when enabled, and [llm.py](../../src/worker/worker/llm.py) handles the added generative feature names.
 
-Core installs the transport-free companion library and workers its inference extra. The dependency is pinned to the immutable llm-bot HRAG PR commit pending an official release; prepared extraction/planning tasks and the final structured HRAG task live in that dependency, not in this repository. See the component `pyproject.toml` files for the exact source pin.
+Core installs the transport-free companion library and workers its inference extra. The dependency is pinned to the immutable llm-bot HRAG PR commit pending an official release; the embedding client, prepared extraction/planning tasks and final structured HRAG task live in that dependency. See the component `pyproject.toml` files for the exact source pin.
 
 `GET /api/settings/hrag` requires `ADMIN_OPERATIONS` and reports enabled state, generations and grouped work counts. Optional repeated `news_item_id` query parameters restrict counts (up to 500 IDs). POST actions use `IndexAction`:
 

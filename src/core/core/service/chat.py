@@ -125,20 +125,105 @@ class ChatTurnStream:
             self.enabled = False
 
 
-class ChatClient:
+class ProviderTransport:
+    """Requests transport shared by Chat and HRAG under the turn deadline."""
+
+    def __init__(self, base_url: str, endpoint: str, api_key: str, timeout: float, deadline: float):
+        self.base_url = base_url.rstrip("/")
+        self.endpoint = endpoint.lstrip("/")
+        self.api_key = api_key
+        self.timeout = timeout
+        self.request_timeout = (5.0, timeout)
+        self.deadline = deadline
+
+    def remaining_time(self) -> float:
+        remaining = self.deadline - time.monotonic()
+        if remaining <= 0:
+            raise ChatProviderTimeoutError("Chat provider timed out")
+        return remaining
+
+    @contextmanager
+    def _response(self, payload: dict[str, Any]) -> Iterator[requests.Response]:
+        pending: Future[requests.Response] = Future()
+
+        def post() -> None:
+            try:
+                pending.set_result(
+                    requests.post(
+                        f"{self.base_url}/{self.endpoint}",
+                        headers=self._headers(),
+                        json=payload,
+                        timeout=self.request_timeout,
+                        allow_redirects=False,
+                        stream=True,
+                    )
+                )
+            except Exception as exc:
+                pending.set_exception(exc)
+
+        def close_late_response(result: Future[requests.Response]) -> None:
+            with suppress(Exception):
+                result.result().close()
+
+        response = None
+        timer = None
+        try:
+            remaining = self.remaining_time()
+            Thread(target=post, daemon=True).start()
+            try:
+                response = pending.result(timeout=remaining)
+            except TimeoutError:
+                pending.add_done_callback(close_late_response)
+                raise
+
+            def stop_reading() -> None:
+                with suppress(AttributeError, OSError, RuntimeError, ValueError):
+                    response.raw.shutdown()
+
+            timer = Timer(self.remaining_time(), stop_reading)
+            timer.daemon = True
+            timer.start()
+            yield response
+        except (TimeoutError, requests.Timeout) as exc:
+            raise ChatProviderTimeoutError("Chat provider timed out") from exc
+        except requests.HTTPError as exc:
+            status_code = exc.response.status_code if exc.response is not None else "unknown"
+            raise ChatProviderError(f"Chat provider returned HTTP {status_code}") from exc
+        except requests.RequestException as exc:
+            raise ChatProviderError("Chat provider request failed") from exc
+        except (TypeError, ValueError) as exc:
+            raise ChatProviderError("Chat provider returned an invalid response") from exc
+        finally:
+            if timer is not None:
+                timer.cancel()
+                timer.join()
+            if response is not None:
+                response.close()
+            self.remaining_time()
+
+    def _headers(self) -> dict[str, str]:
+        headers = {"Content-Type": "application/json"}
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
+        return headers
+
+
+class ChatClient(ProviderTransport):
     def __init__(self, settings: dict[str, Any] | None = None, deadline: float | None = None):
         self.deadline = deadline if deadline is not None else time.monotonic() + CHAT_TURN_TIMEOUT_SECONDS
         settings = settings if settings is not None else Settings.get_settings()
         endpoint = Settings.get_llm_endpoint("chat", settings)
         if not endpoint:
             raise ChatUnavailableError("Chat provider is not configured")
-        self.base_url = endpoint["base_url"].rstrip("/")
         self.api_format = endpoint["api_format"]
-        self.endpoint = "chat/completions" if self.api_format == "chat_completions" else "responses"
-        self.api_key = endpoint["api_key"]
         self.model = endpoint["model"]
-        self.timeout = endpoint["timeout"]
-        self.request_timeout = (5.0, self.timeout)
+        super().__init__(
+            endpoint["base_url"],
+            "chat/completions" if self.api_format == "chat_completions" else "responses",
+            endpoint["api_key"],
+            endpoint["timeout"],
+            self.deadline,
+        )
 
     def create_response(
         self,
@@ -328,71 +413,6 @@ class ChatClient:
             message["tool_calls"] = [calls[index] for index in sorted(calls)]
         return {"choices": [{"message": message, "finish_reason": finish_reason}]}
 
-    def remaining_time(self) -> float:
-        remaining = self.deadline - time.monotonic()
-        if remaining <= 0:
-            raise ChatProviderTimeoutError("Chat provider timed out")
-        return remaining
-
-    @contextmanager
-    def _response(self, payload: dict[str, Any]) -> Iterator[requests.Response]:
-        pending: Future[requests.Response] = Future()
-
-        def post() -> None:
-            try:
-                pending.set_result(
-                    requests.post(
-                        f"{self.base_url}/{self.endpoint}",
-                        headers=self._headers(),
-                        json=payload,
-                        timeout=self.request_timeout,
-                        allow_redirects=False,
-                        stream=True,
-                    )
-                )
-            except Exception as exc:
-                pending.set_exception(exc)
-
-        def close_late_response(result: Future[requests.Response]) -> None:
-            with suppress(Exception):
-                result.result().close()
-
-        response = None
-        timer = None
-        try:
-            remaining = self.remaining_time()
-            Thread(target=post, daemon=True).start()
-            try:
-                response = pending.result(timeout=remaining)
-            except TimeoutError:
-                pending.add_done_callback(close_late_response)
-                raise
-
-            def stop_reading() -> None:
-                with suppress(AttributeError, OSError, RuntimeError, ValueError):
-                    response.raw.shutdown()
-
-            timer = Timer(self.remaining_time(), stop_reading)
-            timer.daemon = True
-            timer.start()
-            yield response
-        except (TimeoutError, requests.Timeout) as exc:
-            raise ChatProviderTimeoutError("Chat provider timed out") from exc
-        except requests.HTTPError as exc:
-            status_code = exc.response.status_code if exc.response is not None else "unknown"
-            raise ChatProviderError(f"Chat provider returned HTTP {status_code}") from exc
-        except requests.RequestException as exc:
-            raise ChatProviderError("Chat provider request failed") from exc
-        except (TypeError, ValueError) as exc:
-            raise ChatProviderError("Chat provider returned an invalid response") from exc
-        finally:
-            if timer is not None:
-                timer.cancel()
-                timer.join()
-            if response is not None:
-                response.close()
-            self.remaining_time()
-
     @staticmethod
     def _read_stream(response: requests.Response, on_delta: Callable[[str], None]) -> dict[str, Any]:
         deltas: list[str] = []
@@ -422,12 +442,6 @@ class ChatClient:
         if deltas:
             result["output_text"] = "".join(deltas)
         return result
-
-    def _headers(self) -> dict[str, str]:
-        headers = {"Content-Type": "application/json"}
-        if self.api_key:
-            headers["Authorization"] = f"Bearer {self.api_key}"
-        return headers
 
     @staticmethod
     def output_text(response: dict[str, Any]) -> str:

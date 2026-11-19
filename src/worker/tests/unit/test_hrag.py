@@ -59,7 +59,7 @@ def test_worker_claim_extraction_and_cached_retry(requests_mock, monkeypatch):
     )
     embedding = requests_mock.post("https://provider.invalid/v1/embeddings", json={"data": [{"embedding": [1, 0, 0]}]})
     index_item("test-work")
-    assert embedding.last_request.json() == {"input": content, "model": "", "dimensions": 3}
+    assert embedding.last_request.json() == {"input": content, "encoding_format": "float", "dimensions": 3}
     assert submitted.last_request.json()["vector"]["embedding"] == [1, 0, 0]
     for vector in ([1, 0], [float("nan"), 1, 0]):
         requests_mock.post("https://provider.invalid/v1/embeddings", json={"data": [{"embedding": vector}]})
