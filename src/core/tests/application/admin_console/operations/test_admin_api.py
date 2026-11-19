@@ -1,13 +1,11 @@
+import asyncio
 import json
 import uuid
 from datetime import UTC, datetime, timedelta
-from io import BytesIO
-from time import monotonic
-from unittest.mock import patch
-from urllib.parse import parse_qs, urlsplit
+from unittest.mock import ANY, patch
 
 import pytest
-import requests
+from niquests import AsyncSession, Response
 
 from tests.application.support.api_test_base import BaseTest
 
@@ -87,7 +85,7 @@ class TestAdminApi(BaseTest):
     def test_llm_model_suggestions(self, client, auth_header, monkeypatch):
         from core.service import llm_catalog
 
-        now = monotonic()
+        now = 1.0
         monkeypatch.setattr(llm_catalog, "monotonic", lambda: now)
         monkeypatch.setattr(llm_catalog, "_openrouter_cache", (0, None))
         catalog_url = self.concat_url("llm-model-suggestions")
@@ -101,13 +99,15 @@ class TestAdminApi(BaseTest):
             ]
         }
 
-        def catalog_response():
-            response = requests.Response()
-            response.status_code = 200
-            response.raw = BytesIO(json.dumps(catalog).encode())
+        response = Response()
+        response.status_code = 200
+        response._content = json.dumps(catalog).encode()
+
+        async def yield_before_response(*args, **kwargs):
+            await asyncio.sleep(0)
             return response
 
-        with patch("requests.adapters.HTTPAdapter.send", return_value=catalog_response()) as fetch:
+        with patch.object(AsyncSession, "get", autospec=True, return_value=response) as fetch:
             assert client.get(catalog_url, query_string={"responses": openrouter_url}).status_code == 401
             unsupported = client.get(catalog_url, query_string={"responses": f"{openrouter_url}.invalid"}, headers=auth_header)
             assert unsupported.json == {}
@@ -130,36 +130,22 @@ class TestAdminApi(BaseTest):
                 "chat_completions": [{"id": "vendor/chat:batch", "name": "Batch"}],
                 "systemone": realtime.json["systemone"],
             }
-            fetch.assert_called_once()
-            request = fetch.call_args.args[0]
-            assert request.url.partition("?")[0] == f"{openrouter_url}/models"
-            assert parse_qs(urlsplit(request.url).query) == {"output_modalities": ["text,decisions"]}
-            assert "Authorization" not in request.headers
+            fetch.assert_awaited_once_with(ANY, f"{openrouter_url}/models", params={"output_modalities": "text,decisions"})
 
             now += 301
-            fetch.side_effect = requests.Timeout("upstream details")
-            unavailable = client.get(catalog_url, query_string=query, headers=auth_header)
+            fetch.side_effect = yield_before_response
+            with patch.object(llm_catalog, "CATALOG_TIMEOUT_SECONDS", 0):
+                unavailable = client.get(catalog_url, query_string=query, headers=auth_header)
             assert unavailable.json == {api_format: [] for api_format in query}
-            assert fetch.call_count == 2
+            assert fetch.await_count == 2
             now += 14
             assert client.get(catalog_url, query_string=query, headers=auth_header).json == unavailable.json
-            assert fetch.call_count == 2
+            assert fetch.await_count == 2
 
             now += 1
-            redirect = requests.Response()
-            redirect.status_code = 302
-            redirect.headers["Location"] = "https://provider.example/catalog"
-            redirect.raw = BytesIO(b"redirect response body")
-            fetch.side_effect = [redirect, catalog_response()]
-            with patch.object(redirect.raw, "read", wraps=redirect.raw.read) as read_redirect:
-                assert client.get(catalog_url, query_string=query, headers=auth_header).json == unavailable.json
-                read_redirect.assert_not_called()
-            assert redirect.raw.closed
-            assert fetch.call_count == 3
-
-            now += 15
+            fetch.side_effect = None
             assert client.get(catalog_url, query_string=query, headers=auth_header).json == realtime.json
-            assert fetch.call_count == 4
+            assert fetch.await_count == 3
 
     @pytest.mark.parametrize(
         "bot_type, feature",

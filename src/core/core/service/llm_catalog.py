@@ -1,12 +1,12 @@
+import asyncio
 from threading import Lock
 from time import monotonic
 
-import requests
 from models.llm import OPENROUTER_DECISIONS_URL, LLMAPIFormat, LLMProcessingMode
 from models.llm_catalog import LLMModelCatalogQuery, LLMModelSuggestion, OpenRouterCatalog
+from niquests import AsyncSession, RequestException
 
 from core.log import logger
-from core.service.http_deadline import response_with_deadline
 
 
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
@@ -15,45 +15,19 @@ OPENROUTER_INFERENCE_PATHS = {
     (OPENROUTER_BASE_URL, "chat_completions"): "/api/v1/chat/completions",
     (OPENROUTER_DECISIONS_URL, "systemone"): "/api/alpha/decisions",
 }
-CATALOG_MAX_BYTES = 4 * 1024 * 1024
 CATALOG_TIMEOUT_SECONDS = 5
 _openrouter_cache: tuple[float, OpenRouterCatalog | None] = (0, None)
 _openrouter_cache_lock = Lock()
-_openrouter_request_lock = Lock()
 
 
-def _reject_unsuccessful_catalog_response(response: requests.Response, **_kwargs) -> None:
-    # Requests can otherwise read a redirect body while preparing Response.next().
-    if response.status_code != 200:
-        response.close()
-        raise requests.HTTPError(f"Unexpected OpenRouter catalog status: {response.status_code}")
-
-
-def _request_openrouter_catalog() -> requests.Response:
-    # DNS or response headers can outlive the deadline in the Requests thread.
-    if not _openrouter_request_lock.acquire(blocking=False):
-        raise TimeoutError("Previous OpenRouter catalog request is still pending")
-    try:
-        return requests.get(
+async def _fetch_openrouter_catalog() -> OpenRouterCatalog:
+    async with asyncio.timeout(CATALOG_TIMEOUT_SECONDS), AsyncSession() as session:
+        response = await session.get(
             f"{OPENROUTER_BASE_URL}/models",
             params={"output_modalities": "text,decisions"},
-            timeout=(2, 3),
-            allow_redirects=False,
-            stream=True,
-            hooks={"response": _reject_unsuccessful_catalog_response},
         )
-    finally:
-        _openrouter_request_lock.release()
-
-
-def _fetch_openrouter_catalog() -> OpenRouterCatalog:
-    with response_with_deadline(_request_openrouter_catalog, monotonic() + CATALOG_TIMEOUT_SECONDS) as response:
-        body = bytearray()
-        for chunk in response.iter_content(chunk_size=64 * 1024):
-            body.extend(chunk)
-            if len(body) > CATALOG_MAX_BYTES:
-                raise ValueError("OpenRouter catalog exceeds response size limit")
-    return OpenRouterCatalog.model_validate_json(body)
+        response.raise_for_status()
+        return OpenRouterCatalog.model_validate_json(response.content or b"")
 
 
 def _get_openrouter_catalog() -> OpenRouterCatalog | None:
@@ -63,9 +37,9 @@ def _get_openrouter_catalog() -> OpenRouterCatalog | None:
         if monotonic() < expires_at:
             return catalog
         try:
-            catalog = _fetch_openrouter_catalog()
+            catalog = asyncio.run(_fetch_openrouter_catalog())
             _openrouter_cache = (monotonic() + 300, catalog)
-        except (requests.RequestException, TimeoutError, ValueError):
+        except (RequestException, TimeoutError, ValueError):
             logger.exception("Failed to retrieve the OpenRouter model catalog")
             catalog = None
             _openrouter_cache = (monotonic() + 15, None)

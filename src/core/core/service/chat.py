@@ -1,8 +1,10 @@
 import json
 import time
 from collections.abc import Callable, Iterator
+from concurrent.futures import Future
 from contextlib import contextmanager, suppress
 from datetime import UTC, datetime
+from threading import Thread, Timer
 from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -20,7 +22,6 @@ from core.model.filter_data import FilterData
 from core.model.settings import Settings
 from core.model.story import Story
 from core.model.user import User
-from core.service.http_deadline import response_with_deadline
 
 
 CHAT_HISTORY_CONTEXT_MESSAGES = 10
@@ -318,19 +319,46 @@ class ChatClient:
 
     @contextmanager
     def _response(self, payload: dict[str, Any]) -> Iterator[requests.Response]:
+        pending: Future[requests.Response] = Future()
+
+        def post() -> None:
+            try:
+                pending.set_result(
+                    requests.post(
+                        f"{self.base_url}/{self.endpoint}",
+                        headers=self._headers(),
+                        json=payload,
+                        timeout=self.request_timeout,
+                        allow_redirects=False,
+                        stream=True,
+                    )
+                )
+            except Exception as exc:
+                pending.set_exception(exc)
+
+        def close_late_response(result: Future[requests.Response]) -> None:
+            with suppress(Exception):
+                result.result().close()
+
+        response = None
+        timer = None
         try:
-            with response_with_deadline(
-                lambda: requests.post(
-                    f"{self.base_url}/{self.endpoint}",
-                    headers=self._headers(),
-                    json=payload,
-                    timeout=self.request_timeout,
-                    allow_redirects=False,
-                    stream=True,
-                ),
-                self.deadline,
-            ) as response:
-                yield response
+            remaining = self.remaining_time()
+            Thread(target=post, daemon=True).start()
+            try:
+                response = pending.result(timeout=remaining)
+            except TimeoutError:
+                pending.add_done_callback(close_late_response)
+                raise
+
+            def stop_reading() -> None:
+                with suppress(AttributeError, OSError, RuntimeError, ValueError):
+                    response.raw.shutdown()
+
+            timer = Timer(self.remaining_time(), stop_reading)
+            timer.daemon = True
+            timer.start()
+            yield response
         except (TimeoutError, requests.Timeout) as exc:
             raise ChatProviderTimeoutError("Chat provider timed out") from exc
         except requests.HTTPError as exc:
@@ -340,6 +368,13 @@ class ChatClient:
             raise ChatProviderError("Chat provider request failed") from exc
         except (TypeError, ValueError) as exc:
             raise ChatProviderError("Chat provider returned an invalid response") from exc
+        finally:
+            if timer is not None:
+                timer.cancel()
+                timer.join()
+            if response is not None:
+                response.close()
+            self.remaining_time()
 
     @staticmethod
     def _read_stream(response: requests.Response, on_delta: Callable[[str], None]) -> dict[str, Any]:
