@@ -1475,7 +1475,7 @@ class TestEndToEndUser(BaseE2ETest):
             def test_report_item_view():
                 page.get_by_role("link", name="Analyze").click()
                 page.get_by_role("link", name="Test report").click()
-                expect(page.get_by_role("paragraph")).to_contain_text("test summary")
+                expect(page.get_by_test_id("report-stories").get_by_text("test summary", exact=True)).to_be_visible()
 
             def test_remove_story_from_report():
                 page.get_by_role("link", name="Analyze").click()
