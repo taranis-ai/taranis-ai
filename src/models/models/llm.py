@@ -79,6 +79,14 @@ LLM_API_FORMATS: dict[LLMAPIFormat, str] = {
 DECISIONS_FORMATS = {"systemone", "openai_decisions"}
 
 
+def resolve_format_base_url(base_url: str, api_format: str, override: str) -> str:
+    if override:
+        return override
+    if base_url and api_format in DECISIONS_FORMATS and not urlparse(base_url).path.endswith(("/systemone", "/decisions")):
+        return base_url + ("/systemone" if api_format == "systemone" else "/decisions")
+    return base_url
+
+
 class LLMAPIConfig(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
@@ -136,12 +144,9 @@ class LLMProvider(BaseModel):
 
     def for_format(self, api_format: LLMAPIFormat) -> dict:
         config = self.api_formats[api_format]
-        base_url = config.base_url or self.base_url
-        if not config.base_url and api_format in DECISIONS_FORMATS and not urlparse(base_url).path.endswith(("/systemone", "/decisions")):
-            base_url += "/systemone" if api_format == "systemone" else "/decisions"
         return LLMEndpoint(
             name=self.name,
-            base_url=base_url,
+            base_url=resolve_format_base_url(self.base_url, api_format, config.base_url),
             enabled=self.enabled,
             api_format=api_format,
             model=config.model,

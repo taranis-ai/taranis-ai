@@ -7,10 +7,10 @@ from zoneinfo import ZoneInfo
 import pytest
 import redis
 from base_e2e_test import BaseE2ETest
-from flask import url_for
+from flask import render_template, url_for
 from htmx_helpers import reset_htmx_state, with_htmx_wait
 from models.scheduler import MAX_OBSERVED_JOBS
-from playwright.sync_api import Page, expect
+from playwright.sync_api import Page, Route, expect
 from rq import Queue
 from rq.executions import Execution
 
@@ -1929,12 +1929,51 @@ class TestEndToEndAdmin(BaseE2ETest):
             expect(form.get_by_label("API key", exact=False)).to_have_value("")
             reset_htmx_state(page)
             form.get_by_label("API key", exact=False).fill("e2e-private-key")
-            form.get_by_label("Provider base URL").fill("https://provider.example/v1")
-            with page.expect_response(lambda response: "/llm-model-suggestions?" in response.url) as suggestions:
-                form.get_by_label("Responses model", exact=True).fill("private/custom-model")
-            assert suggestions.value.ok
-            assert "e2e-private-key" not in suggestions.value.url
-            assert "https%3A%2F%2Fprovider.example%2Fv1" in suggestions.value.url
+            base_url = "https://provider.example/v1"
+            suggestions_url = url_for("admin_settings.settings_action", action="llm-model-suggestions", _external=True)
+            responses_model = form.get_by_label("Responses model", exact=True)
+            model_options = form.locator("#llm--responses-models option")
+            expect(responses_model).to_have_attribute("list", "llm--responses-models")
+            model_ids = {"realtime": "test/responses", "openrouter_batch": "test/batch"}
+            fragments = {
+                mode: render_template(
+                    "settings/llm_model_suggestions.html",
+                    field_prefix="llm-",
+                    suggestions={"responses": [{"id": model_id, "name": model_id}]},
+                )
+                for mode, model_id in model_ids.items()
+            }
+
+            def respond_with_suggestions(route: Route):
+                query = parse_qs(urlparse(route.request.url).query)
+                if query.get("base_url") == [base_url]:
+                    route.fulfill(body=fragments[query["processing_mode"][0]], content_type="text/html")
+                else:
+                    route.continue_()
+
+            route_pattern = f"{suggestions_url}?**"
+            page.route(route_pattern, respond_with_suggestions)
+            try:
+                with page.expect_response(
+                    lambda response: (
+                        response.url.startswith(f"{suggestions_url}?")
+                        and parse_qs(urlparse(response.url).query).get("base_url") == [base_url]
+                    )
+                ) as suggestions:
+                    form.get_by_label("Provider base URL").fill(base_url)
+                    responses_model.focus()
+                assert suggestions.value.ok
+                assert "e2e-private-key" not in suggestions.value.url
+                expect(model_options).to_have_attribute("value", model_ids["realtime"])
+
+                processing_mode = form.get_by_label("Processing mode")
+                processing_mode.select_option("openrouter_batch")
+                expect(model_options).to_have_attribute("value", model_ids["openrouter_batch"])
+                processing_mode.select_option("realtime")
+                expect(model_options).to_have_attribute("value", model_ids["realtime"])
+            finally:
+                page.unroute(route_pattern, respond_with_suggestions)
+            responses_model.fill("private/custom-model")
             with_htmx_wait(page, lambda: form.get_by_role("button", name="Add Endpoint", exact=True).click())
             endpoint = section.locator("details").filter(has=page.locator("summary", has_text="E2E shared model"))
             expect(endpoint).to_have_count(1)

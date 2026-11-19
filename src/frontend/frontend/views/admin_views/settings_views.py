@@ -6,7 +6,7 @@ from zoneinfo import ZoneInfo
 from flask import g, render_template, request, url_for
 from flask.typing import ResponseReturnValue
 from models.admin import Settings
-from models.llm import DECISIONS_FORMATS, LLM_API_FORMATS, LLM_FEATURES, OPENROUTER_DECISIONS_URL
+from models.llm import DECISIONS_FORMATS, LLM_API_FORMATS, LLM_FEATURES, OPENROUTER_DECISIONS_URL, resolve_format_base_url
 
 from frontend.core_api import CoreApi
 from frontend.data_persistence import DataPersistenceLayer
@@ -122,19 +122,23 @@ class SettingsView(AdminBaseView):
 
     @classmethod
     def llm_model_suggestions(cls):
-        base_url = request.args.get("base_url", "").strip()
+        base_url = request.args.get("base_url", "").strip().rstrip("/")
         params: dict[str, str] = {
             api_format: request.args.get(f"api_formats[{api_format}][base_url]", "").strip() or base_url
             for api_format in LLM_API_FORMATS
             if api_format not in DECISIONS_FORMATS
         }
         decisions_format = request.args.get("decisions[api_format]", "systemone")
-        decisions_url = request.args.get("decisions[base_url]", "")
+        decisions_url = request.args.get("decisions[base_url]", "").strip()
         if decisions_format == "openrouter":
             decisions_format = "systemone"
             decisions_url = OPENROUTER_DECISIONS_URL
         if decisions_format in DECISIONS_FORMATS:
-            params[decisions_format] = decisions_url
+            try:
+                params[decisions_format] = resolve_format_base_url(base_url, decisions_format, decisions_url)
+            except ValueError:
+                # Unsaved URLs can still be incomplete or malformed.
+                params[decisions_format] = ""
         params["processing_mode"] = request.args.get("processing_mode", "realtime")
 
         # Core owns the public catalog cache. The browser supplies unsaved URLs for this form.

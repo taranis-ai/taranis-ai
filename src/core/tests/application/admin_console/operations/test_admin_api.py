@@ -2,7 +2,9 @@ import json
 import uuid
 from datetime import UTC, datetime, timedelta
 from io import BytesIO
+from time import monotonic
 from unittest.mock import patch
+from urllib.parse import parse_qs, urlsplit
 
 import pytest
 import requests
@@ -85,24 +87,27 @@ class TestAdminApi(BaseTest):
     def test_llm_model_suggestions(self, client, auth_header, monkeypatch):
         from core.service import llm_catalog
 
+        now = monotonic()
+        monkeypatch.setattr(llm_catalog, "monotonic", lambda: now)
         monkeypatch.setattr(llm_catalog, "_openrouter_cache", (0, None))
         catalog_url = self.concat_url("llm-model-suggestions")
         openrouter_url = "https://openrouter.ai/api/v1"
-        response = requests.Response()
-        response.status_code = 200
-        response.raw = BytesIO(
-            json.dumps(
-                {
-                    "data": [
-                        {"id": "vendor/chat", "name": "Chat", "endpoints": ["/api/v1/chat/completions"]},
-                        {"id": "vendor/response", "name": "Response", "endpoints": ["/api/v1/responses"]},
-                        {"id": "vendor/chat:batch", "name": "Batch", "endpoints": ["/api/v1/batches"]},
-                        {"id": "vendor/decision", "name": "Decision", "endpoints": ["/api/alpha/decisions"]},
-                    ]
-                }
-            ).encode()
-        )
-        with patch("core.service.llm_catalog.requests.get", return_value=response) as fetch:
+        catalog = {
+            "data": [
+                {"id": "vendor/chat", "name": "Chat", "endpoints": ["/api/v1/chat/completions"]},
+                {"id": "vendor/response", "name": "Response", "endpoints": ["/api/v1/responses"]},
+                {"id": "vendor/chat:batch", "name": "Batch", "endpoints": ["/api/v1/batches"]},
+                {"id": "vendor/decision", "name": "Decision", "endpoints": ["/api/alpha/decisions"]},
+            ]
+        }
+
+        def catalog_response():
+            response = requests.Response()
+            response.status_code = 200
+            response.raw = BytesIO(json.dumps(catalog).encode())
+            return response
+
+        with patch("requests.adapters.HTTPAdapter.send", return_value=catalog_response()) as fetch:
             assert client.get(catalog_url, query_string={"responses": openrouter_url}).status_code == 401
             unsupported = client.get(catalog_url, query_string={"responses": f"{openrouter_url}.invalid"}, headers=auth_header)
             assert unsupported.json == {}
@@ -126,13 +131,35 @@ class TestAdminApi(BaseTest):
                 "systemone": realtime.json["systemone"],
             }
             fetch.assert_called_once()
-            assert fetch.call_args.args == (f"{openrouter_url}/models",)
-            assert fetch.call_args.kwargs.get("headers") is None
+            request = fetch.call_args.args[0]
+            assert request.url.partition("?")[0] == f"{openrouter_url}/models"
+            assert parse_qs(urlsplit(request.url).query) == {"output_modalities": ["text,decisions"]}
+            assert "Authorization" not in request.headers
 
-            monkeypatch.setattr(llm_catalog, "_openrouter_cache", (0, None))
+            now += 301
             fetch.side_effect = requests.Timeout("upstream details")
             unavailable = client.get(catalog_url, query_string=query, headers=auth_header)
             assert unavailable.json == {api_format: [] for api_format in query}
+            assert fetch.call_count == 2
+            now += 14
+            assert client.get(catalog_url, query_string=query, headers=auth_header).json == unavailable.json
+            assert fetch.call_count == 2
+
+            now += 1
+            redirect = requests.Response()
+            redirect.status_code = 302
+            redirect.headers["Location"] = "https://provider.example/catalog"
+            redirect.raw = BytesIO(b"redirect response body")
+            fetch.side_effect = [redirect, catalog_response()]
+            with patch.object(redirect.raw, "read", wraps=redirect.raw.read) as read_redirect:
+                assert client.get(catalog_url, query_string=query, headers=auth_header).json == unavailable.json
+                read_redirect.assert_not_called()
+            assert redirect.raw.closed
+            assert fetch.call_count == 3
+
+            now += 15
+            assert client.get(catalog_url, query_string=query, headers=auth_header).json == realtime.json
+            assert fetch.call_count == 4
 
     @pytest.mark.parametrize(
         "bot_type, feature",
