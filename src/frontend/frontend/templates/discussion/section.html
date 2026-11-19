@@ -1,5 +1,6 @@
 {% macro comment_form_attrs(action, comment_id='new') -%}
   method="post"
+  {% if discussion_preview %}target="_blank" rel="noopener"{% endif %}
   action="{{ comment_action }}"
   hx-post="{{ comment_action }}"
   hx-target="#comments"
@@ -51,6 +52,11 @@
       <textarea id="unsent-comment" readonly class="textarea mt-1 w-full" rows="2">{{ comment_draft }}</textarea>
     {% endif %}
   {% else %}
+    {% if discussion_preview %}
+      <noscript>
+        <p class="my-1 text-sm">Comment actions open the discussion in a new tab so your edits stay here.</p>
+      </noscript>
+    {% endif %}
     {% if discussion["items"] %}
       {% if not discussion_preview and (has_older_comments or discussion_page > 1) %}
         <nav aria-label="Thread pages" class="my-1 flex flex-wrap gap-2">

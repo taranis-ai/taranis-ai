@@ -110,6 +110,37 @@ class TestEndToEndUser(BaseE2ETest):
         finally:
             context.close()
 
+    def test_story_discussion_without_javascript(self, browser, non_admin_logged_in_page, core_request_client):
+        allow_requests_passthru()
+        story = core_request_client.json_request(
+            "POST", "/assess/news-items", json_data={"title": "Discussion test", "content": uuid.uuid4().hex, "osint_source_id": "manual"}
+        )
+        story_id = story["story_id"]
+        try:
+            with browser.new_context(java_script_enabled=False, storage_state=non_admin_logged_in_page.context.storage_state()) as context:
+                editor = context.new_page()
+                editor.goto(url_for("assess.story_edit", story_id=story_id, _external=True))
+                title = editor.get_by_role("textbox", name="Title", exact=True)
+                title.fill("Unsaved story title")
+                editor.locator("#comments > summary").click()
+                editor.get_by_role("textbox", name="Comment text").fill("First comment")
+                with context.expect_page() as opened:
+                    editor.get_by_role("button", name="Post comment").click()
+                thread = opened.value
+                expect(thread.locator("#comments li")).to_have_text(re.compile("First comment"))
+                expect(title).to_have_value("Unsaved story title")
+
+                for index in range(20):
+                    core_request_client.post(f"/discussions/story/{story_id}", json_data={"body": f"Reply {index}"})
+                thread.reload()
+                thread.get_by_role("link", name="Older comments").click()
+                thread.get_by_label("Confirm deletion").check()
+                thread.get_by_role("button", name="Delete comment").click()
+                expect(thread.locator("#comments li")).to_have_count(20)
+                expect(thread.locator("#comments")).to_contain_text("Reply 19")
+        finally:
+            core_request_client.delete(f"/assess/stories/{story_id}")
+
     def test_user_dashboard(self, non_admin_logged_in_page: Page, forward_console_and_page_errors_non_admin, stories_function_wrapper):
         page = non_admin_logged_in_page
 

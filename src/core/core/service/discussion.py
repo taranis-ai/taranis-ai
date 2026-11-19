@@ -20,6 +20,9 @@ PARENTS: dict[DiscussionKind, tuple[type[Story] | type[ReportItem] | type[Produc
 }
 
 
+NEWEST_FIRST = (Comment.created_at.is_not(None).desc(), Comment.created_at.desc(), Comment.id.desc())
+
+
 def visible_parents(kind: DiscussionKind, user: User) -> Select:
     if kind == "story":
         return Story.visible_query(user)
@@ -51,14 +54,7 @@ def recent_discussions(user: User, kind: DiscussionKind | None, page: int, limit
         if (kind is not None and kind != parent_kind) or DISCUSSION_PERMISSIONS[parent_kind] not in user.get_permissions():
             continue
         # One index lookup per visible parent yields its latest comment.
-        latest_id = (
-            select(Comment.id)
-            .where(parent_key == parent.id)
-            .order_by(Comment.created_at.desc().nulls_last(), Comment.id.desc())
-            .limit(1)
-            .correlate(parent)
-            .scalar_subquery()
-        )
+        latest_id = select(Comment.id).where(parent_key == parent.id).order_by(*NEWEST_FIRST).limit(1).correlate(parent).scalar_subquery()
         queries.append(
             visible_parents(parent_kind, user)
             .with_only_columns(parent.id.label("parent_id"), parent.title, literal(parent_kind).label("kind"), Comment.id.label("comment_id"))
@@ -72,7 +68,7 @@ def recent_discussions(user: User, kind: DiscussionKind | None, page: int, limit
         select(Comment, discussions.c.kind, discussions.c.parent_id, discussions.c.title)
         .join(discussions, discussions.c.comment_id == Comment.id)
         .options(joinedload(Comment.author))
-        .order_by(Comment.created_at.desc().nulls_last(), Comment.id.desc())
+        .order_by(*NEWEST_FIRST)
         .offset((page - 1) * limit)
         .limit(limit + 1)
     )
@@ -104,10 +100,7 @@ def comment_page(
     query = select(Comment).where(parent_key == parent.id)
     total_count = db.session.scalar(select(func.count(Comment.id)).where(parent_key == parent.id)) or 0
     items = db.session.scalars(
-        query.options(joinedload(Comment.author))
-        .order_by(Comment.created_at.desc().nulls_last(), Comment.id.desc())
-        .offset((page - 1) * limit)
-        .limit(limit)
+        query.options(joinedload(Comment.author)).order_by(*NEWEST_FIRST).offset((page - 1) * limit).limit(limit)
     ).all()
     return {
         "parent": {"id": parent.id, "title": parent.title},

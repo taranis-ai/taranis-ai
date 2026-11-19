@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import CheckConstraint, Index, String, Text
+from sqlalchemy import CheckConstraint, Index, String, Text, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from core.managers.db_manager import db
@@ -17,9 +17,11 @@ class Comment(BaseModel):
             "CASE WHEN product_id IS NULL THEN 0 ELSE 1 END) = 1",
             name="ck_comment_one_parent",
         ),
-        Index("ix_comment_story_time", "story_id", "created_at", "id"),
-        Index("ix_comment_report_time", "report_item_id", "created_at", "id"),
-        Index("ix_comment_product_time", "product_id", "created_at", "id"),
+        # A backward scan puts dated comments first on both PostgreSQL and SQLite.
+        *(
+            Index(f"ix_comment_{kind}_time", parent_key, text("(created_at IS NOT NULL)"), "created_at", "id")
+            for kind, parent_key in (("story", "story_id"), ("report", "report_item_id"), ("product", "product_id"))
+        ),
     )
 
     id: Mapped[str] = mapped_column(String(UUID_STR_LENGTH), primary_key=True, default=BaseModel.uuid7_str)

@@ -61,7 +61,11 @@ def _detail_url(kind: str, parent_id: str) -> str:
 
 def _section(kind: str, parent_id: str, *, preview: bool, page: int, scope: str | None) -> tuple[dict[str, Any], int]:
     params = {"preview": "true"} if preview else {"page": page}
-    discussion, status = _load(_endpoint(kind, parent_id), params)
+    endpoint = _endpoint(kind, parent_id)
+    discussion, status = _load(endpoint, params)
+    if not preview and status == 200 and page > 1 and not discussion["items"]:
+        page = max(1, (discussion["total_count"] + 19) // 20)
+        discussion, status = _load(endpoint, {"page": page})
     thread_args = {"kind": kind, "parent_id": parent_id, "scope": scope}
     return {
         "discussion": discussion,
@@ -178,9 +182,6 @@ def post_comment(kind: str, parent_id: str) -> ResponseReturnValue:
             )
 
     context, _ = _section(kind, parent_id, preview=preview and htmx, page=page, scope=scope)
-    if page > 1 and (discussion := context["discussion"]) and not discussion["items"]:
-        page = max(1, (discussion["total_count"] + 19) // 20)
-        context, _ = _section(kind, parent_id, preview=False, page=page, scope=scope)
     if message:
         context.update(failed_action=action, failed_comment_id=comment_id, action_error=message, comment_draft=draft)
         return _full_thread(context), status
