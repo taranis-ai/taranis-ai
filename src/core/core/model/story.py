@@ -1212,7 +1212,13 @@ class Story(BaseModel):
         user: User | None = None,
         actor: str | None = None,
     ):
-        results = [cls.group_stories(story_ids, user=user, actor=actor) for story_ids in story_mappings]
+        results = []
+        for story_ids in story_mappings:
+            result = cls.group_stories(story_ids, user=user, actor=actor)
+            if result[1] != 200:
+                # Release the rejected mapping's story locks before the next mapping locks its own.
+                db.session.rollback()
+            results.append(result)
         if any(result[1] == 500 for result in results):
             return {"error": "grouping failed"}, 500
         return {"message": "success"}, 200
@@ -1350,16 +1356,17 @@ class Story(BaseModel):
             # Lock the stories, then their reports, before memberships and report STORY fields are read.
             parent_ids = db.select(NewsItem.story_id).where(NewsItem.id.in_(newsitem_ids))
             locked_stories = Story.lock_many(db.session.scalars(parent_ids).all())
+            # Reload after the lock: callers may hold these items with a story_id read before it.
+            news_items = db.session.scalars(
+                db.select(NewsItem).where(NewsItem.id.in_(newsitem_ids)).execution_options(populate_existing=True)
+            ).all()
             # An item moved to another story before the lock must not be skipped silently.
-            if any(story_id and story_id not in locked_stories for story_id in db.session.scalars(parent_ids).all()):
+            if any(item.story_id and item.story_id not in locked_stories for item in news_items):
                 return {"error": "News items changed. Reload the story and try again."}, 409
             ReportItem.lock_for_stories(list(locked_stories))
             removable_items: dict[str, tuple[NewsItem, Story]] = {}
-            for item in newsitem_ids:
-                news_item = NewsItem.get(item)
-                if not news_item or not user:
-                    continue
-                if not news_item.allowed_with_acl(user, True):
+            for news_item in news_items:
+                if not user or not news_item.allowed_with_acl(user, True):
                     continue
                 story = locked_stories.get(news_item.story_id)
                 if not story:
