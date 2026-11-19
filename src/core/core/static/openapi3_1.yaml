@@ -1020,6 +1020,10 @@ paths:
         in: query
         schema: {type: integer, minimum: 1, default: 1}
       responses:
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: Access to a supported module is required
         '200':
           description: One entry per parent, with its title, latest comment excerpt, author, and timestamp. Use has_more to paginate.
         '400':
@@ -1053,6 +1057,10 @@ paths:
         description: Return the three most recent comments
         schema: {type: boolean, default: false}
       responses:
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: Access to a supported module is required
         '200':
           description: Parent metadata, total_count, and items with author, body, timestamps, and permitted actions
         '404':
@@ -1070,6 +1078,10 @@ paths:
             schema:
               $ref: '#/components/schemas/discussion_comment_payload'
       responses:
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: Access to a supported module is required
         '201':
           description: The posted comment ID
         '400':
@@ -1092,12 +1104,14 @@ paths:
       summary: Edit a comment as its author
       requestBody: *discussion-body
       responses:
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: Comment editing forbidden
         '200':
           description: The edited comment ID
         '400':
           description: Invalid comment
-        '403':
-          description: Only the author can edit
         '404':
           $ref: '#/components/responses/404NotFound'
     delete:
@@ -1107,10 +1121,12 @@ paths:
       operationId: discussion.comments.delete
       summary: Remove a comment as its author or a user allowed to delete the parent
       responses:
-        '204':
-          description: Comment deleted
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
         '403':
           description: Comment deletion forbidden
+        '204':
+          description: Comment deleted
         '404':
           $ref: '#/components/responses/404NotFound'
   /chat/conversations:
