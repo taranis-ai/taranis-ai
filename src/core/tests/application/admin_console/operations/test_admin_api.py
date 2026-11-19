@@ -2,10 +2,10 @@ import asyncio
 import json
 import uuid
 from datetime import UTC, datetime, timedelta
-from unittest.mock import ANY, patch
+from unittest.mock import ANY, MagicMock, patch
 
 import pytest
-from niquests import AsyncSession, Response
+from niquests import AsyncResponse, AsyncSession
 
 from tests.application.support.api_test_base import BaseTest
 
@@ -99,9 +99,15 @@ class TestAdminApi(BaseTest):
             ]
         }
 
-        response = Response()
-        response.status_code = 200
-        response._content = json.dumps(catalog).encode()
+        payload = json.dumps(catalog).encode()
+        monkeypatch.setattr(llm_catalog, "CATALOG_MAX_BYTES", len(payload))
+
+        async def catalog_chunks(_chunk_size):
+            yield payload[:10]
+            yield payload[10:]
+
+        response = MagicMock(spec=AsyncResponse)
+        response.iter_content.side_effect = catalog_chunks
 
         async def yield_before_response(*args, **kwargs):
             await asyncio.sleep(0)
@@ -130,7 +136,9 @@ class TestAdminApi(BaseTest):
                 "chat_completions": [{"id": "vendor/chat:batch", "name": "Batch"}],
                 "systemone": realtime.json["systemone"],
             }
-            fetch.assert_awaited_once_with(ANY, f"{openrouter_url}/models", params={"output_modalities": "text,decisions"})
+            fetch.assert_awaited_once_with(
+                ANY, f"{openrouter_url}/models", params={"output_modalities": "text,decisions"}, stream=True, hooks=ANY
+            )
 
             now += 301
             fetch.side_effect = yield_before_response
@@ -146,6 +154,10 @@ class TestAdminApi(BaseTest):
             fetch.side_effect = None
             assert client.get(catalog_url, query_string=query, headers=auth_header).json == realtime.json
             assert fetch.await_count == 3
+
+            now += 301
+            payload += b" "
+            assert client.get(catalog_url, query_string=query, headers=auth_header).json == unavailable.json
 
     @pytest.mark.parametrize(
         "bot_type, feature",

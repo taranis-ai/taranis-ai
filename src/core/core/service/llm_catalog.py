@@ -15,9 +15,17 @@ OPENROUTER_INFERENCE_PATHS = {
     (OPENROUTER_BASE_URL, "chat_completions"): "/api/v1/chat/completions",
     (OPENROUTER_DECISIONS_URL, "systemone"): "/api/alpha/decisions",
 }
+CATALOG_MAX_BYTES = 4 * 1024 * 1024
 CATALOG_TIMEOUT_SECONDS = 5
 _openrouter_cache: tuple[float, OpenRouterCatalog | None] = (0, None)
 _openrouter_cache_lock = Lock()
+
+
+async def _require_catalog_status(response, **_kwargs) -> None:
+    # Niquests can consume redirect bodies while preparing the next request.
+    if response.status_code != 200:
+        await response.close()
+        raise ValueError("Unexpected OpenRouter catalog status")
 
 
 async def _fetch_openrouter_catalog() -> OpenRouterCatalog:
@@ -25,9 +33,16 @@ async def _fetch_openrouter_catalog() -> OpenRouterCatalog:
         response = await session.get(
             f"{OPENROUTER_BASE_URL}/models",
             params={"output_modalities": "text,decisions"},
+            stream=True,
+            hooks={"response": [_require_catalog_status]},
         )
-        response.raise_for_status()
-        return OpenRouterCatalog.model_validate_json(response.content or b"")
+        async with response:
+            body = bytearray()
+            async for chunk in await response.iter_content(64 * 1024):
+                if len(body) + len(chunk) > CATALOG_MAX_BYTES:
+                    raise ValueError("OpenRouter catalog exceeds response size limit")
+                body.extend(chunk)
+        return OpenRouterCatalog.model_validate_json(body)
 
 
 def _get_openrouter_catalog() -> OpenRouterCatalog | None:
