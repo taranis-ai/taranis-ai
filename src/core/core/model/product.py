@@ -43,6 +43,8 @@ class Product(BaseModel):
     default_publisher: Mapped[str | None] = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("publisher_preset.id"), nullable=True)
     last_rendered: Mapped[datetime | None] = db.Column(db.DateTime)
     last_published_url: Mapped[str | None] = db.Column(db.Text, nullable=True)
+    # Image-bearing renders must still match their inputs before they can be distributed.
+    figure_render_revision: Mapped[str | None] = db.Column(db.String(64))
     render_result = deferred(db.Column(db.Text))
 
     def __init__(
@@ -116,14 +118,10 @@ class Product(BaseModel):
         user = User.get(user_id)
         if not user or not self.product_type.allowed_with_acl(user, require_write_access=False):
             return "User is not allowed to access product"
-        from core.service.social import figures, product_images_allowed, report_images
+        from core.service.social import has_restricted_figures
 
-        if not product_images_allowed(self, user):
-            return "Product contains restricted images"
-        for report in self.report_items:
-            selected = {f.image_id for f in figures(report)}
-            if selected and selected - {i.id for i in report_images(report, user)}:
-                return "Product contains restricted images"
+        if any(has_restricted_figures(report, user) for report in self.report_items):
+            return "Product contains restricted figures"
         if self.has_restricted_reports(user):
             logger.info("Blocked product action for user %s: product %s has restricted reports", user_id, self.id)
             return self.RESTRICTED_REPORTS_MESSAGE
@@ -214,7 +212,7 @@ class Product(BaseModel):
         return item.to_detail_dict(user=user, include_render=include_render), 200
 
     def to_dict(self) -> dict[str, Any]:
-        data = super().to_dict(exclude={"render_result"})
+        data = super().to_dict(exclude={"render_result", "figure_render_revision"})
         data["type"] = self.product_type.type
         data["report_items"] = [report_item.id for report_item in self.report_items if report_item]
         return data
@@ -233,9 +231,7 @@ class Product(BaseModel):
         data["report_access_warning"] = self.RESTRICTED_REPORTS_MESSAGE if self.has_restricted_reports(user) else None
         data["supported_reports"] = [r.to_supported_products_dict() for r in self.get_supported_reports(user)]
         if include_render:
-            from core.service.social import product_images_allowed
-
-            data["render_result"] = self.render_result if product_images_allowed(self, user) else None
+            data["render_result"] = self.current_render
         data["mime_type"] = self.product_type.get_mimetype() if self.product_type else None
         return data
 
@@ -272,9 +268,16 @@ class Product(BaseModel):
             logger.exception()
             return False
 
-    def update_render(self, render_result: str) -> bool:
+    @property
+    def current_render(self) -> str | None:
+        if self.figure_render_revision and self.figure_render_revision != self.to_worker_dict()["render_revision"]:
+            return None
+        return self.render_result
+
+    def update_render(self, render_result: str, figure_render_revision: str | None = None) -> bool:
         if self.test_if_valid_render_result(render_result):
             self.last_rendered = self.utcnow()
+            self.figure_render_revision = figure_render_revision
             self.render_result = render_result
             db.session.commit()
             return True
@@ -283,17 +286,14 @@ class Product(BaseModel):
 
     @classmethod
     def update_render_for_id(cls, product_id: str, render_result: str, render_revision: str):
-        from core.service.social import lock_render_inputs, remember_render_images
-
-        if not (product := lock_render_inputs(product_id)):
+        if not (product := cls.get(product_id)):
             return {"error": "Product not found"}, 404
-
         payload = product.to_worker_dict()
         if render_revision != payload["render_revision"]:
             logger.warning("Discarded stale render result for Product %s", product_id)
             return {"error": "Stale product render"}, 409
-        remember_render_images(product_id, payload)
-        if product.update_render(render_result):
+        has_figures = any(report.get("figures") for report in payload["report_items"])
+        if product.update_render(render_result, render_revision if has_figures else None):
             logger.debug(f"Render result for Product {product_id} updated")
             return {"message": "Product updated"}, 200
         return {"error": "Product not updated"}, 500
@@ -309,10 +309,8 @@ class Product(BaseModel):
 
     @classmethod
     def get_render(cls, product_id: str):
-        from core.service.social import product_images_allowed
-
-        if (product := cls.get(product_id)) and product.render_result and product_images_allowed(product):
-            return {"mime_type": product.product_type.get_mimetype(), "blob": product.render_result, "filename": product.get_file_name()}
+        if (product := cls.get(product_id)) and (render := product.current_render):
+            return {"mime_type": product.product_type.get_mimetype(), "blob": render, "filename": product.get_file_name()}
         return None
 
     @classmethod
@@ -372,6 +370,7 @@ class Product(BaseModel):
 
         product.description = data.get("description")
         product.product_type = product_type
+        product.figure_render_revision = None
         product.render_result = None
         product.last_rendered = None
         if mime_type_changed:

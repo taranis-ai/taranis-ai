@@ -4,9 +4,7 @@ from io import BytesIO
 from PIL import Image
 
 
-def test_thread_to_story_to_report_figure_and_withdrawal(
-    client, session, api_header, auth_header, auth_header_user_permissions, tmp_path, monkeypatch
-):
+def test_thread_to_story_to_published_figure(client, session, api_header, auth_header, auth_header_user_permissions, tmp_path, monkeypatch):
     from core.model.osint_source import OSINTSource
     from core.model.product import Product
     from core.model.product_type import ProductType
@@ -14,7 +12,7 @@ def test_thread_to_story_to_report_figure_and_withdrawal(
     from core.model.story import Story
 
     assert client.post("/api/worker/social/unknown", json={}, headers=auth_header).status_code == 401
-    source = OSINTSource("Pilot community", "", "reddit_collector", enabled=False, parameters={"TLP_LEVEL": "clear", "PUBLISH_IMAGES": True})
+    source = OSINTSource("Pilot community", "", "reddit_collector", enabled=False, parameters={"TLP_LEVEL": "clear"})
     session.add(source)
     session.commit()
     endpoint = f"/api/worker/social/{source.id}"
@@ -61,10 +59,8 @@ def test_thread_to_story_to_report_figure_and_withdrawal(
     source.parameters = {**source.parameters, "TLP_LEVEL": "red"}
     session.commit()
     assert client.get(image_url, headers=auth_header_user_permissions).status_code == 404
-    source.parameters = {**source.parameters, "TLP_LEVEL": "clear", "PUBLISH_IMAGES": False}
-    session.commit()
     assert client.put(figures_url, json={"figures": [{"image_id": image_id}]}, headers=auth_header).status_code == 400
-    source.parameters = {**source.parameters, "PUBLISH_IMAGES": True}
+    source.parameters = {**source.parameters, "TLP_LEVEL": "clear"}
     session.commit()
     selection = {"figures": [{"image_id": image_id, "caption": "Station reopened", "alt": "Platform"}]}
     assert client.put(figures_url, json=selection, headers=auth_header).status_code == 200
@@ -79,9 +75,14 @@ def test_thread_to_story_to_report_figure_and_withdrawal(
     assert client.post(f"/api/worker/products/{product.id}/publish", headers=api_header).status_code == 200
     public_url = f"/reports/{product.id}"
     assert client.get(public_url).data == b"test product"
+    source.parameters = {**source.parameters, "TLP_LEVEL": "amber"}
+    session.commit()
+    assert "figures" not in product.to_worker_dict()["report_items"][0]
+    assert client.post(f"/api/worker/products/{product.id}/publish", headers=api_header).status_code == 404
+    assert client.get(public_url).data == b"test product"
     assert client.post(endpoint, json={"removed": reply["key"]}, headers=api_header).status_code == 200
     assert client.get(image_url, headers=auth_header).status_code == 404
-    assert client.get(public_url).status_code == 404
-    assert not (tmp_path / "published-reports" / product.id).exists()
+    assert client.get(figures_url, headers=auth_header).json["images"] == []
+    assert client.get(public_url).data == b"test product"
     assert not Product.get_render(product.id)
     assert Product.update_render_for_id(product.id, "dGVzdA==", render["render_revision"])[1] == 409

@@ -102,9 +102,6 @@ class RSSCollectorParameters(WebCollectorParameters):
 
 
 class SocialCollectorParameters(WorkerParameters):
-    PUBLISH_IMAGES: bool = Field(
-        False, title="Allow image publication", description="Enable only when permitted to distribute images from this source."
-    )
     TLP_LEVEL: InheritedTLP = Field(None, title="TLP level", description="Leave unset to inherit the global TLP.")
     REFRESH_INTERVAL: Cron = Field("", title="Refresh interval", description="Five-field collection schedule.")
 

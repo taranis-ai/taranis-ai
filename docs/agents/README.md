@@ -34,7 +34,7 @@ Read matching memories before planning or editing application behavior. Code and
 - [HTTP Client Lifetimes](http-clients.md): pooling, service/source policies, credentials, streaming cleanup, and SDK boundaries.
 - [RSS Source Health](rss-source-health.md): feed detection, empty feeds, and entry limits.
 - [Mastodon Collector](mastodon-collector.md): timelines, pagination, tokens, and cursors.
-- [Social monitoring](../social-monitor.md): source delivery, analyst beats, contribution membership, image permissions and withdrawal.
+- [Social monitoring](../social-monitor.md): source delivery, analyst beats, contribution membership, report figures and TLP.
 - [Bot Run Order DAG](bot-run-order-dag.md): bot dependencies and scheduling.
 - [Story Clustering](story-clustering.md): direct worker library integration, reduced input, and provider configuration.
 - [IntelOwl Enrichment](intelowl-enrichment.md): IOC persistence, CTI aggregation, and analyzer setup.

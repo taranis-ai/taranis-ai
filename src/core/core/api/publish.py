@@ -119,10 +119,6 @@ class ProductsRender(MethodView):
             return {"error": "Product not found"}, 404
         if not selected_product.product_type or not selected_product.product_type.allowed_with_acl(current_user, require_write_access=False):
             return {"error": "User is not allowed to read product"}, 403
-        from core.service.social import product_images_allowed
-
-        if not product_images_allowed(selected_product, current_user):
-            return {"error": "Product contains restricted images"}, 403
         return ProductService.get_render(product_id)
 
 

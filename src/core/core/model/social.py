@@ -66,32 +66,3 @@ class SocialBeat(BaseModel):
     def __init__(self, user_id: str, name: str):
         self.user_id = user_id
         self.name = name
-
-
-class SocialFigure(BaseModel):
-    __tablename__ = "social_figure"
-    report_id: Mapped[str] = db.Column(db.ForeignKey("report_item.id", ondelete="CASCADE"), primary_key=True)
-    image_id: Mapped[str] = db.Column(db.ForeignKey("social_image.id", ondelete="CASCADE"), primary_key=True)
-    image: Mapped[SocialImage] = relationship()
-    position: Mapped[int] = db.Column(db.Integer, nullable=False)
-    caption: Mapped[str] = db.Column(db.Text, nullable=False)
-    alt: Mapped[str] = db.Column(db.Text, nullable=False)
-
-    def __init__(self, report_id: str, image_id: str, position: int, caption: str, alt: str):
-        self.report_id = report_id
-        self.image_id = image_id
-        self.position = position
-        self.caption = caption
-        self.alt = alt
-
-
-class SocialRenderImage(BaseModel):
-    """Dependencies of generated output, including older still-published copies."""
-
-    __tablename__ = "social_render_image"
-    product_id: Mapped[str] = db.Column(db.ForeignKey("product.id", ondelete="CASCADE"), primary_key=True)
-    image_id: Mapped[str] = db.Column(db.ForeignKey("social_image.id", ondelete="CASCADE"), primary_key=True)
-
-    def __init__(self, product_id: str, image_id: str):
-        self.product_id = product_id
-        self.image_id = image_id

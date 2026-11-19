@@ -5,7 +5,8 @@ from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
 
 from sqlalchemy import func, inspect, or_
-from sqlalchemy.orm import Mapped, joinedload, lazyload, relationship, selectinload
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.orm import Mapped, deferred, joinedload, lazyload, relationship, selectinload
 from sqlalchemy.sql import Select
 from sqlalchemy.sql.expression import false
 
@@ -33,6 +34,10 @@ class ReportItem(BaseModel):
     last_updated: Mapped[datetime] = db.Column(db.DateTime, default=BaseModel.utcnow)
     completed: Mapped[bool] = db.Column(db.Boolean, default=False)
     revision: Mapped[int] = db.Column(db.Integer, nullable=False, default=0)
+
+    figure_selection: Mapped[list[dict[str, str]]] = deferred(
+        db.Column(db.JSON().with_variant(JSONB(), "postgresql"), nullable=False, default=list, server_default="[]")
+    )
 
     user_id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("user.id"), nullable=True)
     user: Mapped[User] = relationship("User")
@@ -110,7 +115,7 @@ class ReportItem(BaseModel):
         return report_item.to_detail_dict() if report_item else None
 
     def to_dict(self):
-        data = super().to_dict()
+        data = super().to_dict(exclude={"figure_selection"})
         data["stories"] = [story.id for story in self.stories]
         data["report_item_type"] = self.report_item_type.title if self.report_item_type else ""
         return data
@@ -160,7 +165,7 @@ class ReportItem(BaseModel):
             return {"error": "ReportItem not found"}, 404
         if not item.access_allowed(user, False):
             return {"error": "User is not allowed to read report"}, 403
-        data = BaseModel.to_dict(item)
+        data = BaseModel.to_dict(item, exclude={"figure_selection"})
         data["grouped_attributes"] = item.get_grouped_attributes()
         data["stories"] = [
             {"id": story.id, "title": story.title, "summary": story.summary, "important": story.important, "links": story.links}
@@ -207,7 +212,7 @@ class ReportItem(BaseModel):
         return [(group["title"] or "") for group in grouped_attributes]
 
     def to_detail_dict(self):
-        data = super().to_dict()
+        data = super().to_dict(exclude={"figure_selection"})
         attributes = self.get_attribute_dict()
         data["grouped_attributes"] = self.get_grouped_attributes(attributes)
         data["stories"] = [story.to_report_dict() for story in self.stories if story]
@@ -227,7 +232,7 @@ class ReportItem(BaseModel):
         }
 
     def to_product_dict(self):
-        data = super().to_dict()
+        data = super().to_dict(exclude={"figure_selection"})
 
         if self.attributes:
             grouped_attributes = {}

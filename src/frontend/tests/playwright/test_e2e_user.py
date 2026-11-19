@@ -78,7 +78,7 @@ class TestEndToEndUser(BaseE2ETest):
                 "name": f"Transport {source_id}",
                 "description": "",
                 "enabled": False,
-                "parameters": {"TLP_LEVEL": "clear", "PUBLISH_IMAGES": True},
+                "parameters": {"TLP_LEVEL": "clear"},
             },
         )
         report_id = None

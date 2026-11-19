@@ -1,4 +1,4 @@
-from flask import Blueprint, Flask, Response, g, request
+from flask import Blueprint, Flask, Response, request
 from flask_jwt_extended import current_user
 from models.base import TaranisBaseModel
 from models.social import AttachPosts, BeatFilters, CollectedImage, Contribution, FigureSelection, SaveBeat
@@ -14,17 +14,10 @@ from core.model.osint_source import OSINTSource
 from core.model.report_item import ReportItem
 from core.model.social import SocialBeat, SocialImage, SocialPost
 from core.service import social
-from core.service.cache_invalidation import SCOPE_PUBLISH_VIEWS, SCOPE_STORY_REPORT_VIEWS, invalidate_frontend_cache_on_success
+from core.service.cache_invalidation import SCOPE_STORY_REPORT_VIEWS, invalidate_frontend_cache_on_success
 
 
 bp = Blueprint("social", __name__, url_prefix=f"{Config.APPLICATION_ROOT}api")
-
-
-@bp.after_request
-def invalidate_withdrawn_outputs(response):
-    if g.get("social_output_withdrawn"):
-        invalidate_frontend_cache_on_success(response.status_code, scopes=(SCOPE_PUBLISH_VIEWS,))
-    return response
 
 
 @bp.errorhandler(ValidationError)
@@ -51,10 +44,8 @@ def collect(source_id):
     if isinstance(payload, dict) and isinstance(payload.get("removed"), str):
         post = db.session.scalar(select(SocialPost).filter_by(source_id=source.id, key=payload["removed"]))
         if post:
-            social.withdraw_images([i.id for i in post.images])
             db.session.delete(post)
             db.session.commit()
-        invalidate_frontend_cache_on_success(200, scopes=(SCOPE_PUBLISH_VIEWS,))
         return {"message": "Contribution removed"}
     data = Contribution.model_validate(payload)
     try:
@@ -178,10 +169,10 @@ def report_figures(report_id):
         result, status = social.save_figures(report, FigureSelection.model_validate(request.get_json()), current_user)
         invalidate_frontend_cache_on_success(status, scopes=(SCOPE_STORY_REPORT_VIEWS,))
         return result, status
-    selected = {f.image_id: f for f in social.figures(report)}
+    selected = {f["image_id"]: {**f, "position": pos} for pos, f in enumerate(report.figure_selection, start=1)}
     rows = []
-    for asset in social.report_images(report, current_user):
-        figure = selected.get(asset.id)
+    for asset in social.report_images(report, current_user).values():
+        figure = selected.get(asset.id, {})
         rows.append(
             {
                 "id": asset.id,
@@ -191,9 +182,9 @@ def report_figures(report_id):
                 "url": asset.post.url,
                 "eligible": social.eligible(asset),
                 "available": bool(asset.mime),
-                "caption": figure.caption if figure else "",
-                "alt": figure.alt if figure else asset.alt,
-                "position": figure.position + 1 if figure else None,
+                "caption": figure.get("caption", ""),
+                "alt": figure.get("alt", asset.alt),
+                "position": figure.get("position"),
             }
         )
     return {"images": sorted(rows, key=lambda row: row["position"] or len(rows) + 1)}

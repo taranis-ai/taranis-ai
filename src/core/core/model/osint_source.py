@@ -620,12 +620,6 @@ class OSINTSource(BaseModel):
         if parsed_icon is not None:
             osint_source.icon = parsed_icon
         osint_source.enabled = target_enabled
-        if osint_source.type in {COLLECTOR_TYPES.REDDIT_COLLECTOR, COLLECTOR_TYPES.MASTODON_COLLECTOR} and any(
-            osint_source.parameters.get(key) != target_parameters.get(key) for key in ("TLP_LEVEL", "PUBLISH_IMAGES")
-        ):
-            from core.service.social import withdraw_source_images
-
-            withdraw_source_images([osint_source.id])
         osint_source.parameters = target_parameters
         db.session.commit()
 
@@ -736,9 +730,6 @@ class OSINTSource(BaseModel):
                     .scalars()
                     .all()
                 )
-            from core.service.social import withdraw_source_images
-
-            withdraw_source_images(source_ids)
             for source in sources:
                 db.session.delete(source)
             db.session.commit()
@@ -1120,9 +1111,6 @@ class OSINTSource(BaseModel):
 
     @classmethod
     def delete_all(cls) -> tuple[dict[str, Any], int]:
-        from core.service.social import withdraw_source_images
-
-        withdraw_source_images(select(cls.id))
         # Clear the association table entries
         db.session.execute(db.delete(OSINTSourceGroupOSINTSource).where(OSINTSourceGroupOSINTSource.osint_source_id.in_(db.select(cls.id))))
 
