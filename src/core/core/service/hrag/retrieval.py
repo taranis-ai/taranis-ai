@@ -3,7 +3,7 @@
 import asyncio
 import time
 
-from llm_bot.tasks.evidence import prepare_retrieval_plan
+from llm_bot.tasks.retrieval_planning import prepare_retrieval_plan
 from models.hrag import EmbeddingResult, EvidenceReference, ExtractionResult, GraphPlan, HragResult, RetrievalEvidence, bounded_content
 from sqlalchemy import select
 from sqlalchemy.orm import defer

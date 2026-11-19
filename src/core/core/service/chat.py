@@ -501,7 +501,7 @@ class ChatService:
         hrag_result = None
         search_result = None
         if mode == "hrag":
-            from llm_bot.tasks.evidence import SYNTHESIS_PROMPT
+            from llm_bot.tasks.grounded_answer import SYNTHESIS_PROMPT
             from models.hrag import EvidenceReference
 
             from core.service.hrag.retrieval import reauthorize, retrieve
