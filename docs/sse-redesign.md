@@ -330,6 +330,8 @@ Using only the user ID is insufficient because two tabs belonging to the same us
 
 ### HTTP behavior
 
+**Important note (17.11.2026, by lebe1):** The three following API calls have been removed in the [PR #1291](https://github.com/taranis-ai/taranis-ai/pull/1291).
+
 Preserve the current report lock routes:
 
 - `GET /api/analyze/report-items/<id>/locks`

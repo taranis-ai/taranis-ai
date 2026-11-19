@@ -82,7 +82,8 @@ class NewsItemConflicts(MethodView):
 class StoryInfo(MethodView):
     @auth_required("ASSESS_ACCESS")
     def get(self, story_id):
-        if story := Story.get(story_id):
+        stories, _ = Story.get_visible_bulk([story_id], current_user)
+        if story := next(iter(stories), None):
             is_misp_story = any(attribute.key == "misp_event_uuid" for attribute in story.attributes)
             news_item_data = [{"title": item.title, "id": item.id} for item in story.news_items if hasattr(item, "title")]
             return {

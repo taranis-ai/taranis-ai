@@ -975,80 +975,6 @@ paths:
           description: forbidden
         '404':
           $ref: '#/components/responses/404NotFound'
-  /analyze/report-items/{report_item_id}/locks:
-    parameters:
-    - name: report_item_id
-      in: path
-      required: true
-      schema:
-        type: string
-    get:
-      security:
-      - UserAuth: []
-      tags:
-      - analyze
-      operationId: analyze.report_item_locks.get
-      description: get a report item's field locks
-      responses:
-        '200':
-          description: the report item's field locks
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/report_item_lock'
-        '400':
-          description: invalid request
-        '401':
-          $ref: '#/components/responses/401Unauthorized'
-        '404':
-          $ref: '#/components/responses/404NotFound'
-  /analyze/report-items/{report_item_id}/lock:
-    parameters:
-    - name: report_item_id
-      in: path
-      required: true
-      schema:
-        type: string
-    put:
-      security:
-      - UserAuth: []
-      tags:
-      - analyze
-      description: lock the specified field
-      operationId: analyze.report_item_lock.put
-      responses:
-        '200':
-          description: the locked field as a SSE
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/report_item_lock'
-        '400':
-          description: invalid request
-        '401':
-          $ref: '#/components/responses/401Unauthorized'
-        '404':
-          $ref: '#/components/responses/404NotFound'
-    delete:
-      security:
-      - UserAuth: []
-      tags:
-      - analyze
-      description: unlock the specified field
-      operationId: analyze.report_item_lock.delete
-      responses:
-        '200':
-          description: the locked field as a SSE
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/report_item_lock'
-        '400':
-          description: invalid request
-        '401':
-          $ref: '#/components/responses/401Unauthorized'
-        '404':
-          $ref: '#/components/responses/404NotFound'
   /analyze/report-items/{report_item_id}/clone:
     parameters:
     - name: report_item_id
@@ -8994,7 +8920,7 @@ paths:
       - UserAuth: []
       tags:
       - dashboard
-      description: delete tag
+      description: delete a tag from all news items; requires ADMIN_OPERATIONS
       operationId: dashboard.delete-tag.delete
       responses:
         '200':
@@ -11982,16 +11908,6 @@ components:
                   type:
                   - string
                   - 'null'
-    report_item_lock:
-      type: object
-      properties:
-        locked:
-          type: boolean
-        lock_time:
-          type: string
-          format: date-time
-        report_item_id:
-          type: string
     validation_status:
       type: object
       properties:

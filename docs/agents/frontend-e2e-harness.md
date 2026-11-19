@@ -9,6 +9,7 @@ Load for: Playwright stack setup, `--e2e-ci`, Compose service selection, RQ read
 - HTTP test services use matching `DEBUG=true` / `FLASK_DEBUG=1` so production Secure cookies and HSTS do not interfere with the isolated HTTP stack. Production cookie/header behavior has dedicated request-level coverage.
 - The frontend runs in a session-scoped spawned Werkzeug process. `pytest-flask`'s fork-based live server is unsafe with native threads on Python 3.14; the separate process also isolates Core requests from per-test HTTP mocks.
 - Worker prepares the shared RQ environment once; cron waits for `.e2e-ready`.
+- The spawned-worker notification check runs `tests/spawned_task_events.py` inside the existing worker service, using a unique queue on the stack's Redis. It explicitly exercises `TaskEventSpawnWorker` and observes queued/started/finished notifications after their state is readable; no separate container or browser is needed.
 - Authenticated page fixtures complete onboarding tasks; onboarding tests explicitly reset them.
 - Local E2E servers enable Chat. The landing-page workflow's `demo_chat_provider` fixture assigns `demo-llm` to Chat temporarily and seeds disposable stories; it skips external instances. The scripted Responses service returns search calls and answers from real search results without contacting an LLM, and accepts synthetic endpoint health probes.
 - Demo teardown attempts endpoint deletion and news-item cleanup even when restoring the Chat assignment or deleting the endpoint fails. Removing the last news item also removes its story.

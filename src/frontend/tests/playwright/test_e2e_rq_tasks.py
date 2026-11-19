@@ -1,4 +1,6 @@
 import json
+import shlex
+import subprocess
 import time
 import uuid
 from dataclasses import dataclass
@@ -271,6 +273,35 @@ def rq_harness(
     redis_backend: RedisBackend,
 ) -> RqE2EHarness:
     return RqE2EHarness(core_client=core_request_client, redis_backend=redis_backend)
+
+
+@pytest.mark.e2e_ci
+def test_spawned_worker_publishes_started_and_finished_states(
+    worker_process,
+    docker_compose_command: str,
+    docker_compose_file: str,
+    docker_compose_project_name: str,
+):
+    result = subprocess.run(
+        [
+            *shlex.split(docker_compose_command),
+            "-p",
+            docker_compose_project_name,
+            "-f",
+            docker_compose_file,
+            "exec",
+            "-T",
+            "worker",
+            "/tmp/.venv/bin/python",
+            "-c",
+            "from tests.spawned_task_events import check_spawned_worker_notifications; check_spawned_worker_notifications()",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=60,
+        check=False,
+    )
+    assert result.returncode == 0, f"Spawned-worker lifecycle check failed:\n{result.stdout}\n{result.stderr}"
 
 
 @pytest.mark.e2e_ci

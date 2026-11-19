@@ -24,6 +24,7 @@ from models.assess import (
     Story,
     StoryBookmark,
     StoryUpdatePayload,
+    assess_range_bounds,
 )
 from models.classification import CLASSIFICATION_CATEGORIES
 from models.cti import CTIResponse
@@ -63,6 +64,20 @@ ASSESS_TIME_PRESETS = {
     "last7": "Last 7 days",
     "last30": "Last 30 days",
 }
+
+
+def _time_preset_from_bounds(time_presets: dict[str, str]) -> dict[str, dict[str, str]]:
+    """Datetime-local min/max (UTC clock) that keep the From filter inside each preset."""
+    now = datetime.datetime.now(datetime.UTC).replace(tzinfo=None)
+    bounds = {}
+    for value in time_presets:
+        start, end = assess_range_bounds(value, now)
+        first_minute = start.replace(second=0, microsecond=0)
+        if first_minute < start:  # rolling presets start mid-minute; round up to stay inside Core's interval
+            first_minute += datetime.timedelta(minutes=1)
+        last_second = f"{end - datetime.timedelta(seconds=1):%Y-%m-%dT%H:%M:%S}" if end else ""
+        bounds[value] = {"min": f"{first_minute:%Y-%m-%dT%H:%M}", "max": last_second}
+    return bounds
 
 
 class StoryView(BaseView):
@@ -137,6 +152,7 @@ class StoryView(BaseView):
             days = int(current_range[4:])
             time_presets[current_range] = f"Last {days} {'day' if days == 1 else 'days'}"
         base_context["time_presets"] = time_presets
+        base_context["time_preset_from_bounds"] = _time_preset_from_bounds(time_presets)
         chips = []
         labels = {
             "search": "Search",
@@ -1517,7 +1533,14 @@ class StoryView(BaseView):
         except HTTPException:
             raise
         except Exception:
-            return cls.render_response_notification({"error": "Failed to delete news item"})
+            logger.exception("Failed to delete news item.")
+            return render_template(
+                "notification/index.html", notification={"message": "Failed to delete news item", "error": True}, oob=False
+            ), 500
+
+        if not core_response.ok:
+            # Delete buttons route error statuses to the notification bar, never into the story card.
+            return cls.get_notification_from_response(core_response, oob=False), core_response.status_code
 
         payload = core_response.json()
         story_id = payload.get("story_id") or payload.get("story_ids", [""])[0]
