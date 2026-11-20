@@ -5,7 +5,7 @@ import uuid
 
 import pytest
 from flask import Flask
-from models.hrag import ExtractionResult, GraphPlan
+from models.hrag import ChunkEmbedding, ExtractionResult, GraphPlan
 from sqlalchemy import text
 
 from core.config import Config
@@ -55,6 +55,20 @@ def test_authorized_paths_vector_ranking_projection_retry_and_deletion(hrag_stor
     db.session.execute(text("DELETE FROM hrag_work WHERE id = :id"), {"id": ids[1]})
     db.session.commit()
     assert stores.vector_search([1, 0, 0], ids[1:], 3) == [ids[2]]
+
+    for work_id in (ids[0], ids[2]):
+        stores.save_chunks(
+            work_id, [ChunkEmbedding(start=0, end=10, embedding=[1, 0, 0]), ChunkEmbedding(start=8, end=20, embedding=[0.9, 0.1, 0])]
+        )
+    db.session.commit()
+    assert stores.search_chunk_vectors([1, 0, 0], [ids[2]], 3, 1) == [(ids[2], 0)]
+    assert stores.search_chunk_vectors([1, 0, 0], [ids[2]], 3, 2) == [(ids[2], 0), (ids[2], 1)]
+    stores.save_chunks(ids[2], [ChunkEmbedding(start=0, end=20, embedding=[0, 1, 0])])
+    db.session.commit()
+    assert stores.search_chunk_vectors([1, 0, 0], [ids[2]], 3, 2) == [(ids[2], 0)]
+    db.session.execute(text("DELETE FROM hrag_work WHERE id = :id"), {"id": ids[2]})
+    db.session.commit()
+    assert stores.search_chunk_vectors([1, 0, 0], [ids[2]], 3, 2) == []
 
     keys = []
     for index, (actor, assertion) in enumerate((("Alpha", "affirmed"), ("Beta", "affirmed"), ("Gamma", "negated"))):

@@ -8,10 +8,12 @@ from models.hrag import (
     HRAG_EXTRACTION_SCHEMA_VERSION,
     HRAG_SCHEMA_VERSION,
     EmbeddingResult,
+    EmbeddingSettings,
     IndexStatus,
     IndexSubmission,
     bounded_content,
     input_fingerprint,
+    split_content,
 )
 
 from core.config import Config
@@ -20,7 +22,7 @@ from core.managers.db_manager import db
 from core.model.hrag import HragGeneration, HragWork
 from core.model.news_item import NewsItem
 from core.model.settings import Settings
-from core.service.hrag.stores import graph_document_keys, project_graph, prune_graph, save_vector
+from core.service.hrag.stores import graph_document_keys, project_graph, prune_graph, save_chunks, save_vector
 
 
 PIPELINES = ("embedding", "extraction")
@@ -31,7 +33,8 @@ def current_configuration(pipeline: str, settings: dict) -> dict | None:
     if not endpoint or endpoint["processing_mode"] != "realtime":
         return None
     endpoint_id = settings.get(f"llm_{pipeline}_endpoint") or settings.get("llm_default_endpoint")
-    limit = Config.HRAG_EXTRACTION_LIMIT if pipeline == "extraction" else Config.HRAG_EMBEDDING_LIMIT
+    embedding_settings = EmbeddingSettings.model_validate(settings)
+    limit = Config.HRAG_EXTRACTION_LIMIT if pipeline == "extraction" else embedding_settings.hrag_embedding_limit
     if not 1 <= limit <= 200_000 or not 1 <= Config.HRAG_EMBEDDING_DIMENSIONS <= 16000:
         return None
     configuration = {
@@ -43,6 +46,12 @@ def current_configuration(pipeline: str, settings: dict) -> dict | None:
         "schema": HRAG_EXTRACTION_SCHEMA_VERSION if pipeline == "extraction" else HRAG_SCHEMA_VERSION,
         "dimensions": Config.HRAG_EMBEDDING_DIMENSIONS if pipeline == "embedding" else 0,
     }
+    if pipeline == "embedding":
+        configuration["chunking"] = {
+            "enabled": embedding_settings.hrag_chunking_enabled,
+            "size": embedding_settings.hrag_chunk_size,
+            "overlap": embedding_settings.hrag_chunk_overlap,
+        }
     if pipeline == "extraction":
         verifier = Settings.get_llm_endpoint("extraction_verification", settings)
         if not verifier or verifier["processing_mode"] != "realtime":
@@ -227,6 +236,9 @@ def claim(work_id: str) -> dict | None:
         "reasoning_effort": generation.config.get("reasoning_effort"),
         "dimensions": generation.config["dimensions"],
         "cached_result": work.result,
+        "chunks": [chunk.model_dump() for chunk in split_content(content, **generation.config["chunking"])]
+        if "chunking" in generation.config
+        else [],
     }
     db.session.commit()
     return payload
@@ -253,7 +265,7 @@ def submit(work_id: str, submission: IndexSubmission) -> tuple[dict, int]:
         return {"message": "HRAG retry scheduled"}, 200
     content = bounded_content(item.content, generation.config["limit"])
     if generation.pipeline == "extraction":
-        if submission.extraction is None or submission.vector is not None:
+        if submission.extraction is None or submission.vector is not None or submission.chunks is not None:
             return {"error": "Expected extraction result"}, 400
         try:
             result = submission.extraction.validate_content(content)
@@ -266,13 +278,26 @@ def submit(work_id: str, submission: IndexSubmission) -> tuple[dict, int]:
         db.session.commit()
         project_graph(*projection, result)
     else:
-        if submission.vector is None or submission.extraction is not None:
+        if submission.extraction is not None:
             return {"error": "Expected embedding result"}, 400
-        result_vector = EmbeddingResult.model_validate(submission.vector)
-        if len(result_vector.embedding) != generation.config["dimensions"]:
-            return {"error": "Unexpected embedding dimensions"}, 400
-        work.result = None  # The vector table is the single durable copy.
-        save_vector(work.id, result_vector.embedding)
+        if "chunking" in generation.config:
+            expected = split_content(content, **generation.config["chunking"])
+            chunks = submission.chunks
+            if submission.vector is not None or chunks is None or len(chunks) != len(expected):
+                return {"error": "Expected chunk embeddings"}, 400
+            if any((chunk.start, chunk.end) != (span.start, span.end) for chunk, span in zip(chunks, expected, strict=True)):
+                return {"error": "Invalid chunk offsets"}, 400
+            if any(len(chunk.embedding) != generation.config["dimensions"] for chunk in chunks):
+                return {"error": "Unexpected embedding dimensions"}, 400
+            save_chunks(work.id, chunks)
+        else:
+            if submission.vector is None or submission.chunks is not None:
+                return {"error": "Expected embedding result"}, 400
+            result_vector = EmbeddingResult.model_validate(submission.vector)
+            if len(result_vector.embedding) != generation.config["dimensions"]:
+                return {"error": "Unexpected embedding dimensions"}, 400
+            save_vector(work.id, result_vector.embedding)
+        work.result = None
     # Content can change while Neo4j is updated. Never reactivate a stale submission.
     db.session.flush()
     db.session.expire_all()
@@ -305,6 +330,10 @@ def index_status(news_item_ids: list[str] | None = None) -> dict:
                 "model": generation.config["model"],
                 "scanned": generation.scanned,
                 "counts": counts,
+                "chunk_size": generation.config.get("chunking", {}).get("size"),
+                "chunk_overlap": generation.config.get("chunking", {}).get("overlap"),
+                "chunking_enabled": generation.config.get("chunking", {}).get("enabled"),
+                "content_limit": generation.config["limit"],
             }
         )
     errors = []

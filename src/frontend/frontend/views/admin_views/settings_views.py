@@ -7,7 +7,7 @@ import requests
 from flask import current_app, g, render_template, request, url_for
 from flask.typing import ResponseReturnValue
 from models.admin import Settings
-from models.hrag import EXTRACTION_REASONING_EFFORTS, IndexStatus
+from models.hrag import EXTRACTION_REASONING_EFFORTS, IndexAction, IndexStatus
 from models.llm import LLM_API_FORMATS, LLM_FEATURES
 from pydantic import ValidationError
 
@@ -70,14 +70,24 @@ class SettingsView(AdminBaseView):
         status = 200
         if start:
             try:
-                response = CoreApi().api_post("/settings/hrag", json_data={"action": "backfill"})
+                action = IndexAction.model_validate(
+                    {"action": request.form.get("action", "backfill"), "generation_id": request.form.get("generation_id", "")}
+                )
+                response = CoreApi().api_post("/settings/hrag", json_data=action.model_dump())
                 status = response.status_code
                 notification = {
-                    "message": "HRAG indexing queued. Refresh status to follow progress."
+                    "message": (
+                        "HRAG generation activated."
+                        if action.action == "activate"
+                        else "HRAG indexing queued. Refresh status to follow progress."
+                    )
                     if response.ok
                     else "Could not start HRAG indexing. Check that HRAG is enabled and the worker queue is available.",
                     "error": not response.ok,
                 }
+            except ValidationError:
+                status = 400
+                notification = {"message": "Select a valid HRAG indexing action and generation.", "error": True}
             except requests.RequestException:
                 logger.exception("Could not start HRAG indexing")
                 status = 502

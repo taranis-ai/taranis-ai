@@ -67,6 +67,26 @@ def test_worker_claim_extraction_and_cached_retry(requests_mock, monkeypatch):
             index_item("test-work")
         assert submitted.last_request.json()["failed"] is True
         assert "NaN" not in submitted.last_request.text
+    requests_mock.post(
+        route,
+        json={
+            **job,
+            "pipeline": "embedding",
+            "dimensions": 3,
+            "endpoint": {**job["endpoint"], "api_format": "embeddings"},
+            "chunks": [{"start": 0, "end": 4}, {"start": 5, "end": len(content)}],
+        },
+    )
+    embedding = requests_mock.post(
+        "https://provider.invalid/v1/embeddings", json={"data": [{"index": 1, "embedding": [0, 1, 0]}, {"index": 0, "embedding": [1, 0, 0]}]}
+    )
+    index_item("test-work")
+    assert embedding.last_request.json()["input"] == ["Acme", "did not attack Beta."]
+    assert submitted.last_request.json()["vector"] is None
+    assert submitted.last_request.json()["chunks"] == [
+        {"start": 0, "end": 4, "embedding": [1, 0, 0]},
+        {"start": 5, "end": len(content), "embedding": [0, 1, 0]},
+    ]
     requests_mock.post(route, json=job)
     inference.side_effect = None
     inference.return_value = {"output_text": json.dumps(compact)}

@@ -257,6 +257,24 @@ class TestAdminApi(BaseTest):
             self.concat_url("settings"), json={"settings": {"hrag_extraction_reasoning_effort": "private-invalid"}}, headers=auth_header
         )
         assert invalid.status_code == 400 and "private-invalid" not in invalid.text
+        self.assert_patch_ok(
+            client,
+            "settings",
+            {
+                "settings": {
+                    "hrag_chunk_size": "1000",
+                    "hrag_chunk_overlap": "100",
+                    "hrag_chunking_enabled": "false",
+                    "hrag_vector_limit": "8",
+                }
+            },
+            auth_header,
+        )
+        invalid = client.patch(self.concat_url("settings"), json={"settings": {"hrag_chunk_overlap": 1000}}, headers=auth_header)
+        assert invalid.status_code == 400
+        current = client.get(self.concat_url("settings"), headers=auth_header).json["items"][0]["settings"]
+        assert current["hrag_chunk_size"] == 1000 and current["hrag_chunk_overlap"] == 100
+        assert current["hrag_chunking_enabled"] is False and current["hrag_vector_limit"] == 8
         assert client.post(self.concat_url(f"llm-endpoints/{endpoint_id}/delete"), json={}, headers=auth_header).status_code == 409
         for incompatible_format in ("responses", "chat_completions"):
             response = client.post(

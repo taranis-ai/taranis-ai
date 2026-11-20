@@ -4,7 +4,7 @@ import json
 from contextlib import contextmanager
 from typing import LiteralString
 
-from models.hrag import ExtractionResult, GraphPlan, entity_identity
+from models.hrag import ChunkEmbedding, ExtractionResult, GraphPlan, entity_identity
 from neo4j import GraphDatabase, Query
 from sqlalchemy import String, bindparam, text
 from sqlalchemy.dialects.postgresql import ARRAY
@@ -26,6 +26,47 @@ def initialize_vectors(engine):
             embedding vector NOT NULL
         )""")
         )
+
+        connection.execute(
+            text("""CREATE TABLE IF NOT EXISTS hrag_chunk_vector (
+            work_id varchar(36) NOT NULL REFERENCES hrag_work(id) ON DELETE CASCADE,
+            chunk_index integer NOT NULL,
+            start_offset integer NOT NULL,
+            end_offset integer NOT NULL,
+            embedding vector NOT NULL,
+            PRIMARY KEY (work_id, chunk_index)
+        )""")
+        )
+
+
+def save_chunks(work_id: str, chunks: list[ChunkEmbedding]):
+    if db.engine.dialect.name != "postgresql":
+        return
+    db.session.execute(text("DELETE FROM hrag_chunk_vector WHERE work_id = :id"), {"id": work_id})
+    if chunks:
+        db.session.execute(
+            text("""INSERT INTO hrag_chunk_vector (work_id, chunk_index, start_offset, end_offset, embedding)
+            VALUES (:id, :index, :start, :end, CAST(:vector AS vector))"""),
+            [
+                {"id": work_id, "index": index, "start": chunk.start, "end": chunk.end, "vector": json.dumps(chunk.embedding)}
+                for index, chunk in enumerate(chunks)
+            ],
+        )
+
+
+def search_chunk_vectors(vector: list[float], allowed_ids: list[str], limit: int, per_item: int) -> list[tuple[str, int]]:
+    if not allowed_ids:
+        return []
+    query = text("""WITH ranked AS (
+        SELECT work_id, chunk_index, embedding <=> CAST(:vector AS vector) AS distance,
+        row_number() OVER (PARTITION BY work_id ORDER BY embedding <=> CAST(:vector AS vector), chunk_index) AS item_rank
+        FROM hrag_chunk_vector WHERE work_id = ANY(:ids)
+    ) SELECT work_id, chunk_index FROM ranked WHERE item_rank <= :per_item
+    ORDER BY distance, work_id, chunk_index LIMIT :limit""").bindparams(bindparam("ids", type_=ARRAY(String())))
+    return [
+        (row[0], row[1])
+        for row in db.session.execute(query, {"ids": allowed_ids, "vector": json.dumps(vector), "limit": limit, "per_item": per_item})
+    ]
 
 
 def save_vector(work_id: str, vector: list[float]):

@@ -106,7 +106,7 @@ The worker submits an `IndexSubmission` by PUT to the same work URL. It never wr
 
 For extraction, the worker first resolves the compact output into canonical evidence spans. Core validates passages again, stores extraction JSON in `hrag_work.result`, and commits it **before** calling `project_graph()`. This deliberate separation permits recovery after graph failure without paying for extraction again. Projection IDs are frozen before that commit so an old callback cannot relabel its result with a new fingerprint.
 
-For embeddings, `save_vector()` upserts the vector; `hrag_work.result` stays empty because the vector table is its single durable copy.
+Core validates chunk offsets and dimensions against the frozen generation. `save_chunks()` replaces chunk rows atomically with work status; `hrag_work.result` stays empty.
 
 Core then refreshes and locks the work again and checks token/content freshness before marking ready and clearing lease/retry fields. A content edit during projection cannot reactivate stale evidence. A stale graph projection can remain temporarily, but authorization excludes its key.
 
@@ -132,7 +132,8 @@ PostgreSQL deletes cascade from NewsItem/generation to work and from work to vec
 | --- | --- | --- |
 | `hrag_generation` | Configuration hash ID, pipeline, config JSON, active flag, scan cursor/scanned, created | Version the model/input/schema configuration separately per pipeline |
 | `hrag_work` | Generation and NewsItem FKs; fingerprint, status, token, lease, retry, attempts, extraction result, truncation, updated | Durable per-item work and provenance ledger |
-| `hrag_vector` | `work_id` PK/FK with cascade; `embedding vector NOT NULL` | One embedding per item/pipeline generation |
+| `hrag_vector` | `work_id` PK/FK with cascade; `embedding vector NOT NULL` | Single-vector generations |
+| `hrag_chunk_vector` | Composite work ID/chunk index key; source offsets, vector; cascade deletion | Multiple passages per item/generation |
 | Neo4j `HDocument` | `key=work_id:fingerprint`, `work_id` | Identify the exact extraction revision being projected |
 | Neo4j `HEntity` | Identity, casefolded name, entity type | Mention nodes and the limited shared CVE identity |
 | Neo4j `H_MENTIONS` | Document → entity | Enable entity-only retrieval at zero hops |
@@ -199,7 +200,7 @@ ORDER BY embedding <=> CAST(:vector AS vector), work_id
 LIMIT :limit
 ```
 
-This is exact cosine-distance ranking over the allowed items. Filtering occurs before top-k, so hidden nearest neighbours cannot consume the result budget. The default is 12 results; configuration permits up to 100. There is one vector per bounded item, with no overlapping chunks or passage-splitting pipeline in this implementation. Vector evidence displays the item's bounded embedding input as its passage.
+This is exact cosine-distance ranking over the allowed items. Filtering occurs before top-k, so hidden nearest neighbours cannot consume the result budget. Runtime settings default to 12 chunks and at most 3 per NewsItem, with each cap permitting up to 100. Per-item limits apply before the total limit. Generations freeze chunk size, overlap, enabled state and content limit. `hrag_chunk_vector` stores work ID, chunk index, source offsets and vector. References reconstruct exact passages from current source content. Single-vector generations use `hrag_vector`.
 
 Graph and vector attempts run sequentially. Their results are appended to one `HragResult`; there is no reciprocal-rank fusion, shared numeric scoring or separate reranker.
 

@@ -16,6 +16,15 @@
         {% endfor %}
         {{ form_select('HRAG extraction reasoning', 'settings[hrag_extraction_reasoning_effort]', current_settings.hrag_extraction_reasoning_effort, options=effort_options, required=True) }}
         <p class="mb-4 text-sm text-base-content/70">Applies only to graph extraction. Select an effort supported by its model; Provider default omits the parameter. Changes create a replacement extraction generation.</p>
+        <h3 class="mt-5 mb-3 font-semibold">HRAG semantic search</h3>
+        {{ form_select('Chunking', 'settings[hrag_chunking_enabled]', 'true' if current_settings.hrag_chunking_enabled else 'false', options=[{'id': 'true', 'name': 'Enabled'}, {'id': 'false', 'name': 'Disabled'}], required=True) }}
+        {{ form_input('Chunk size (characters)', 'settings[hrag_chunk_size]', current_settings.hrag_chunk_size, type='number', preserve=False, min_value=500, max_value=20000, required=True) }}
+        {{ form_input('Chunk overlap (characters)', 'settings[hrag_chunk_overlap]', current_settings.hrag_chunk_overlap, type='number', preserve=False, min_value=0, max_value=10000, required=True) }}
+        {{ form_input('Maximum indexed characters per NewsItem', 'settings[hrag_embedding_limit]', current_settings.hrag_embedding_limit, type='number', preserve=False, min_value=1, max_value=200000, required=True) }}
+        <p class="mb-4 text-sm text-base-content/70">Chunks follow paragraph and sentence boundaries. Overlap must be less than half the chunk size. Saving these indexing options queues a replacement index; activate it below when ready. The active index remains searchable. Disabled chunking embeds one bounded passage per NewsItem.</p>
+        {{ form_input('Maximum retrieved chunks', 'settings[hrag_vector_limit]', current_settings.hrag_vector_limit, type='number', preserve=False, min_value=1, max_value=100, required=True) }}
+        {{ form_input('Maximum chunks per NewsItem', 'settings[hrag_chunks_per_item]', current_settings.hrag_chunks_per_item, type='number', preserve=False, min_value=1, max_value=100, required=True) }}
+        <p class="mb-4 text-sm text-base-content/70">Retrieval limits apply to the next question without rebuilding the index.</p>
       {% endif %}
       <button type="submit" class="btn btn-primary" data-testid="settings-chat-submit">Save Chat Settings</button>
     </form>

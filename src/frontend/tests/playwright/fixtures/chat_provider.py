@@ -15,8 +15,15 @@ class DemoChatProvider(BaseHTTPRequestHandler):
     def do_POST(self):
         if self.path == "/v1/embeddings":
             payload = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
-            vector = [1, 0, 0] if "demo" in str(payload.get("input", "")).lower() else [0, 1, 0]
-            body = json.dumps({"data": [{"embedding": vector}]}).encode()
+            inputs = payload.get("input", "")
+            texts = [inputs] if isinstance(inputs, str) else inputs
+            body = json.dumps(
+                {
+                    "data": [
+                        {"index": index, "embedding": [1, 0, 0] if "demo" in text.lower() else [0, 1, 0]} for index, text in enumerate(texts)
+                    ]
+                }
+            ).encode()
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.send_header("Content-Length", str(len(body)))

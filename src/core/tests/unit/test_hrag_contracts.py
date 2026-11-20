@@ -1,5 +1,7 @@
+from itertools import pairwise
+
 import pytest
-from models.hrag import CompactExtractionResult, ExtractionResult, bounded_content, entity_identity, input_fingerprint
+from models.hrag import CompactExtractionResult, ExtractionResult, bounded_content, entity_identity, input_fingerprint, split_content
 from pydantic import ValidationError
 
 
@@ -70,3 +72,17 @@ def test_compact_extraction_resolves_unicode_repeated_quotes_and_validates_graph
     vulnerability = CompactExtractionResult.model_validate({"entities": [{"id": "v", "name": "CVE-2026-1234", "type": "VULNERABILITY"}]})
     with pytest.raises(ValueError, match="Vulnerability identifier is absent"):
         vulnerability.resolve("CVE-2026-12345")
+
+
+def test_character_chunks_preserve_unicode_offsets_and_full_coverage():
+    content = "Ä" * 600 + "\n\n" + "ß" * 600 + "\n\n" + "Ω" * 600
+    chunks = split_content(content, 1000, 100)
+    assert [(chunk.start, chunk.end) for chunk in chunks] == [(0, 602), (502, 1204), (1104, 1804)]
+    for size in (500, 1000, 3000):
+        spans = split_content(content, size, 100)
+        assert spans[0].start == 0 and spans[-1].end == len(content)
+        assert all(span.end - span.start <= size for span in spans)
+        assert all(right.start == left.end - 100 for left, right in pairwise(spans))
+    assert len(split_content(content, 500, 100)) > len(split_content(content, 3000, 100))
+    assert [(span.start, span.end) for span in split_content(content, 500, 100, False)] == [(0, len(content))]
+    assert split_content(" \n", 500, 100) == []

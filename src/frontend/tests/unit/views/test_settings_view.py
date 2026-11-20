@@ -22,11 +22,11 @@ def test_hrag_indexing_start_refresh_and_failures(authenticated_client, response
     assert form.get("action") == route and form.get("hx-target") == "#settings-hrag-index"
 
     responses_mock.post(upstream, json={"message": "HRAG reconciliation queued"}, status=202)
-    response = authenticated_client.post(route, headers=headers, data={"action": "reprocess"})
+    response = authenticated_client.post(route, headers=headers, data={"action": "backfill"})
     assert response.status_code == 202
     assert "HRAG indexing queued" in response.text
     submitted = next(call for call in responses_mock.calls if call.request.method == "POST")
-    assert json.loads(submitted.request.body) == {"action": "backfill"}
+    assert json.loads(submitted.request.body) == {"action": "backfill", "generation_id": ""}
 
     responses_mock.get(
         upstream,
@@ -50,11 +50,21 @@ def test_hrag_indexing_start_refresh_and_failures(authenticated_client, response
         "Embeddings",
         "embedding-model",
         "generation (Active)",
+        "—",
+        "",
         "3",
         "2",
         "1",
         "7",
     ]
+
+    responses_mock.post(upstream, json={"message": "HRAG generation activated"})
+    response = authenticated_client.post(route, headers=headers, data={"action": "activate", "generation_id": "replacement"})
+    assert response.status_code == 200 and "HRAG generation activated" in response.text
+    submitted = next(call for call in reversed(responses_mock.calls) if call.request.method == "POST")
+    assert json.loads(submitted.request.body) == {"action": "activate", "generation_id": "replacement"}
+    response = authenticated_client.post(route, headers=headers, data={"action": "activate"})
+    assert response.status_code == 400
 
     responses_mock.post(upstream, json={"error": "Queue unavailable"}, status=503)
     response = authenticated_client.post(route, headers=headers)

@@ -9403,7 +9403,7 @@ paths:
       - APIKey: []
       tags: [bots]
       operationId: worker.hrag_work.post
-      description: Claim a work lease. Returns skip or bounded content, pipeline, token, fingerprint, dimensions, endpoint credentials and optional cached extraction. Responses use Cache-Control no-store.
+      description: Claim a work lease. Returns skip or bounded content, pipeline, token, fingerprint, dimensions, embedding chunk source offsets, endpoint credentials and optional cached extraction. Responses use Cache-Control no-store.
       responses:
         '200':
           description: Claimed work or skip
@@ -9416,7 +9416,7 @@ paths:
       - APIKey: []
       tags: [bots]
       operationId: worker.hrag_work.put
-      description: Submit a validated extraction/vector or report failure. Repeated accepted submissions are idempotent; obsolete tokens and fingerprints are rejected.
+      description: Submit a validated extraction, chunk embeddings, or single-vector result, or report failure. Repeated accepted submissions are idempotent; obsolete tokens and fingerprints are rejected.
       requestBody:
         required: true
         content:
@@ -9440,6 +9440,22 @@ paths:
                 extraction:
                   type: [object, 'null']
                   description: Entity and relation lists using the versioned HRAG vocabulary and exact content evidence spans
+                chunks:
+                  type: [array, 'null']
+                  maxItems: 2000
+                  description: One vector per claimed chunk in order, with exact source offsets and configured dimensions
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required: [start, end, embedding]
+                    properties:
+                      start: {type: integer, minimum: 0}
+                      end: {type: integer, minimum: 1}
+                      embedding:
+                        type: array
+                        minItems: 1
+                        maxItems: 16000
+                        items: {type: number}
                 vector:
                   type: [object, 'null']
                   properties:
@@ -9706,7 +9722,13 @@ paths:
       - UserAuth: []
       tags:
       - config
-      description: update settings
+      description: >-
+        Update supplied settings only. HRAG semantic options are hrag_chunking_enabled,
+        hrag_chunk_size (500-20000 characters), hrag_chunk_overlap (less than half
+        the size), and hrag_embedding_limit (1-200000 characters per NewsItem).
+        Indexing options create a separate generation through reconciliation;
+        activate a ready generation with /settings/hrag. Retrieval caps
+        hrag_vector_limit and hrag_chunks_per_item (each 1-100) apply immediately.
       operationId: settings.settings.patch
       requestBody:
         required: true

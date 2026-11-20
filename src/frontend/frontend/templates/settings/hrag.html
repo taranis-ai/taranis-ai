@@ -51,6 +51,8 @@
             <th scope="col">Pipeline</th>
             <th scope="col">Model</th>
             <th scope="col">Generation</th>
+            <th scope="col">Chunks</th>
+            <th scope="col">Action</th>
             <th scope="col">Pending</th>
             <th scope="col">Queued</th>
             <th scope="col">Running</th>
@@ -63,6 +65,25 @@
               <th scope="row">{{ 'Graph extraction' if generation.pipeline == 'extraction' else 'Embeddings' }}</th>
               <td>{{ generation.model }}</td>
               <td title="{{ generation.id }}">{{ generation.id[:12] }} ({{ 'Active' if generation.active else 'Inactive' }})</td>
+              <td>{% if generation.chunk_size is not none %}{{ generation.chunk_size if generation.chunking_enabled else 'Single passage' }}{% if generation.chunking_enabled %} chars / {{ generation.chunk_overlap }} overlap{% endif %}<br><span class="text-xs">{{ generation.content_limit }} character limit</span>{% else %}—{% endif %}</td>
+              <td>
+                {% if not generation.active and generation.scanned and not generation.counts.get("pending", 0) and not generation.counts.get("queued", 0) and not generation.counts.get("running", 0) %}
+                  <form method="post"
+                        action="{{ url_for('admin_settings.hrag_indexing') }}"
+                        hx-post="{{ url_for('admin_settings.hrag_indexing') }}"
+                        hx-target="#settings-hrag-index"
+                        hx-select="#settings-hrag-index"
+                        hx-swap="outerHTML"
+                        hx-status:4xx="target:#settings-hrag-index"
+                        hx-status:5xx="target:#settings-hrag-index"
+                        hx-disable="button">
+                    <input type="hidden" name="csrf_token" value="{{ request.cookies.get(config['JWT_ACCESS_CSRF_COOKIE_NAME'], '') }}">
+                    <input type="hidden" name="action" value="activate">
+                    <input type="hidden" name="generation_id" value="{{ generation.id }}">
+                    <button type="submit" class="btn btn-outline btn-sm">Activate</button>
+                  </form>
+                {% endif %}
+              </td>
               {% for state in ['pending', 'queued', 'running', 'ready'] %}<td>{{ generation.counts.get(state, 0) }}</td>{% endfor %}
             </tr>
           {% endfor %}

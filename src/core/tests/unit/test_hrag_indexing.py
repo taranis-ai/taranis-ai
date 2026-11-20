@@ -2,13 +2,14 @@ from datetime import timedelta
 from unittest.mock import Mock
 
 import pytest
-from models.hrag import ExtractionResult, IndexSubmission
+from models.hrag import ChunkEmbedding, EvidenceReference, ExtractionResult, IndexSubmission
 
 from core.config import Config
 from core.managers.db_manager import db
 from core.model.hrag import HragGeneration, HragWork
 from core.model.settings import Settings
 from core.service.hrag import indexing
+from core.service.hrag.retrieval import evidence_from_reference
 from tests.application.support.builders import build_news_item_payload, create_story
 
 
@@ -68,7 +69,7 @@ def test_durable_index_lifecycle_cutoffs_retries_and_generations(configured_inde
         }
         extraction, embedding = works["extraction"], works["embedding"]
         assert db.session.get(HragGeneration, extraction.generation_id).config["schema"] == "v5"
-        assert db.session.get(HragGeneration, embedding.generation_id).config["schema"] == "v1"
+        assert db.session.get(HragGeneration, embedding.generation_id).config["schema"] == "v2"
         original = {kind: work.fingerprint for kind, work in works.items()}
         job = indexing.claim(extraction.id)
         assert job and indexing.claim(extraction.id) is None
@@ -127,6 +128,53 @@ def test_durable_index_lifecycle_cutoffs_retries_and_generations(configured_inde
         db.session.delete(item)
         db.session.commit()
         assert not list(db.session.scalars(db.select(HragWork).where(HragWork.news_item_id == item.id)))
+    finally:
+        db.session.delete(story)
+        db.session.commit()
+
+
+def test_runtime_chunk_sizes_build_independent_generations(configured_index, monkeypatch):
+    content = "First paragraph. " * 50 + "\n\n" + "Relevant final paragraph. " * 50
+    story = create_story(news_items=[build_news_item_payload(content=content)])
+    saved = Mock()
+    monkeypatch.setattr(indexing, "save_chunks", saved)
+    sizes = (2000, 500, 3000)
+    counts = []
+    original_active = None
+    try:
+        for size in sizes:
+            configured_index.update(hrag_chunk_size=size, hrag_chunk_overlap=100)
+            indexing.reconcile()
+            generation = db.session.scalar(
+                db.select(HragGeneration).where(HragGeneration.pipeline == "embedding").order_by(HragGeneration.created.desc())
+            )
+            if original_active is None:
+                original_active = generation.id
+            else:
+                assert db.session.get(HragGeneration, original_active).active
+                assert not generation.active
+            work = db.session.scalar(
+                db.select(HragWork).where(HragWork.generation_id == generation.id, HragWork.news_item_id == story.news_items[0].id)
+            )
+            job = indexing.claim(work.id)
+            counts.append(len(job["chunks"]))
+            chunks = [ChunkEmbedding(**span, embedding=[1, 0, 0]) for span in job["chunks"]]
+            submission = IndexSubmission(token=job["token"], fingerprint=job["fingerprint"], chunks=chunks)
+            invalid = submission.model_copy(deep=True)
+            invalid.chunks[0].end -= 1
+            assert indexing.submit(work.id, invalid)[1] == 400
+            db.session.rollback()
+            assert indexing.submit(work.id, submission)[1] == 200
+            assert saved.call_args.args[1] == chunks
+            assert indexing.submit(work.id, submission)[1] == 200
+            reference = EvidenceReference(citation="V1", work_id=work.id, fingerprint=work.fingerprint, chunk_index=len(chunks) - 1)
+            evidence = evidence_from_reference(reference, {work.id: (work, generation, story.news_items[0])})
+            assert evidence.quote == content[chunks[-1].start : chunks[-1].end]
+            assert evidence.chunk_index == len(chunks) - 1
+        assert counts[1] > counts[0] > counts[2]
+        assert indexing.activate(generation.id)[1] == 200
+        assert not db.session.get(HragGeneration, original_active).active
+        assert db.session.get(HragGeneration, generation.id).active
     finally:
         db.session.delete(story)
         db.session.commit()

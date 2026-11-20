@@ -12,7 +12,7 @@ from models.llm import LLMEndpoint
 
 EMBEDDING_CONTENT_LIMIT = 4_000
 EXTRACTION_CONTENT_LIMIT = 20_000
-HRAG_SCHEMA_VERSION = "v1"
+HRAG_SCHEMA_VERSION = "v2"
 HRAG_EXTRACTION_SCHEMA_VERSION = "v5"
 
 type ReasoningEffort = Literal["none", "minimal", "low", "medium", "high", "xhigh", "max"]
@@ -279,6 +279,63 @@ class GraphPlan(HragContract):
         return values
 
 
+class EmbeddingSettings(BaseModel):
+    hrag_chunking_enabled: bool = True
+    hrag_chunk_size: int = Field(default=2000, ge=500, le=20000)
+    hrag_chunk_overlap: int = Field(default=200, ge=0, le=10000)
+    hrag_embedding_limit: int = Field(default=4000, ge=1, le=200000)
+    hrag_vector_limit: int = Field(default=12, ge=1, le=100)
+    hrag_chunks_per_item: int = Field(default=3, ge=1, le=100)
+
+    @model_validator(mode="after")
+    def valid_overlap(self) -> Self:
+        if self.hrag_chunk_overlap * 2 >= self.hrag_chunk_size:
+            raise ValueError("Chunk overlap must be less than half the chunk size")
+        return self
+
+
+class TextChunk(HragContract):
+    start: int = Field(ge=0)
+    end: int = Field(gt=0)
+
+    @model_validator(mode="after")
+    def valid_span(self) -> Self:
+        if self.end <= self.start:
+            raise ValueError("Invalid chunk offsets")
+        return self
+
+
+def split_content(content: str, size: int, overlap: int, enabled: bool = True) -> list[TextChunk]:
+    """Paragraph/sentence-aware character windows retaining exact source offsets."""
+    if size < 1 or overlap < 0 or overlap * 2 >= size:
+        raise ValueError("Invalid chunk size or overlap")
+    if not content.strip():
+        return []
+    if not enabled:
+        return [TextChunk(start=0, end=len(content))]
+    spans = []
+    start = 0
+    while start < len(content):
+        end = min(len(content), start + size)
+        if end < len(content):
+            minimum = start + (size + overlap) // 2
+            paragraph = content.rfind("\n\n", minimum, end)
+            if paragraph >= minimum:
+                end = paragraph + 2
+            else:
+                sentences = list(re.finditer(r"[.!?](?=\s)", content[minimum:end]))
+                if sentences:
+                    end = minimum + sentences[-1].end()
+                elif (space := content.rfind(" ", minimum, end)) >= minimum:
+                    end = space + 1
+        if content[start:end].strip():
+            spans.append(TextChunk(start=start, end=end))
+        if end == len(content):
+            break
+        start = end - overlap
+    return spans
+
+
 class EmbeddingResult(HragContract):
     embedding: list[float] = Field(min_length=1, max_length=16000)
 
@@ -290,11 +347,16 @@ class EmbeddingResult(HragContract):
         return values
 
 
+class ChunkEmbedding(EmbeddingResult, TextChunk):
+    pass
+
+
 class IndexSubmission(HragContract):
     token: str = Field(min_length=1, max_length=64)
     fingerprint: str = Field(min_length=64, max_length=64)
     extraction: ExtractionResult | None = None
     vector: EmbeddingResult | None = None
+    chunks: list[ChunkEmbedding] | None = Field(default=None, max_length=2000)
     failed: bool = False
 
 
@@ -309,6 +371,7 @@ class IndexJob(HragContract):
     reasoning_effort: ReasoningEffort | None = None
     dimensions: int = Field(default=0, ge=0, le=16000)
     cached_result: dict | None = None
+    chunks: list[TextChunk] = Field(default_factory=list, max_length=2000)
 
     @model_validator(mode="after")
     def validate_pipeline_endpoints(self) -> Self:
@@ -328,6 +391,7 @@ class EvidenceReference(HragContract):
     support_ids: list[str] = Field(default_factory=list, max_length=4)
     relation_index: int | None = Field(default=None, ge=0)
     path_id: int | None = Field(default=None, ge=1)
+    chunk_index: int | None = Field(default=None, ge=0)
 
 
 class RetrievalEvidence(EvidenceReference):
@@ -375,6 +439,10 @@ class IndexGenerationStatus(HragContract):
     model: str
     scanned: bool
     counts: dict[str, int]
+    chunk_size: int | None = None
+    chunk_overlap: int | None = None
+    content_limit: int | None = None
+    chunking_enabled: bool | None = None
 
 
 class IndexStatus(HragContract):

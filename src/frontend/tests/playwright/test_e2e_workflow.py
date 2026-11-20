@@ -56,7 +56,8 @@ def demo_chat_provider(core_request_client):
                 json_data={
                     "id": str(uuid4()),
                     "title": title,
-                    "content": "Demo uses Example. Demo intelligence for the landing-page chat walkthrough.",
+                    "content": "Demo uses Example. Demo intelligence for the landing-page chat walkthrough.\n\n"
+                    + "Additional demo ransomware evidence remains attributable to this NewsItem. " * 40,
                     "link": f"https://example.invalid/chat-demo/{index}",
                     "source": "manual",
                     "osint_source_id": "manual",
