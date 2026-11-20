@@ -13,9 +13,10 @@ exclude-newer = "0001-01-01T00:00:00Z" # This has no effect and is included for 
 exclude-newer-span = "P1W"
 
 [options.exclude-newer-package]
-fuzzbite = "2026-09-15T00:00:00Z"
+taranis-llm-bot = false
 certifi = false
 pillow = false
+fuzzbite = "2026-09-15T00:00:00Z"
 
 [[package]]
 name = "annotated-types"
@@ -1903,7 +1904,7 @@ requires-dist = [
     { name = "setuptools" },
     { name = "setuptools-scm", marker = "extra == 'dev'" },
     { name = "sqlalchemy" },
-    { name = "taranis-llm-bot", url = "https://github.com/taranis-ai/llm-bot/archive/617537bf657144c6f26e24895b557df63c84af2e.tar.gz" },
+    { name = "taranis-llm-bot", specifier = "==0.1.8" },
     { name = "taranis-models", editable = "../models" },
     { name = "wheel", marker = "extra == 'dev'" },
     { name = "yoyo-migrations" },
@@ -1912,31 +1913,17 @@ provides-extras = ["dev"]
 
 [[package]]
 name = "taranis-llm-bot"
-version = "0.0.0"
-source = { url = "https://github.com/taranis-ai/llm-bot/archive/617537bf657144c6f26e24895b557df63c84af2e.tar.gz" }
+version = "0.1.8"
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "langcodes", extra = ["data"] },
     { name = "pydantic" },
     { name = "pydantic-settings" },
 ]
-sdist = { hash = "sha256:9ff9be9e479b58e5109a03872ad04b06c49056082d33c8ba3ec17a964903ed74" }
-
-[package.metadata]
-requires-dist = [
-    { name = "granian", marker = "extra == 'server'" },
-    { name = "langcodes", extras = ["data"], specifier = ">=3.5.1" },
-    { name = "niquests", marker = "extra == 'inference'" },
-    { name = "niquests", marker = "extra == 'server'" },
-    { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=4.6.2" },
-    { name = "pydantic", specifier = ">=2.11.0" },
-    { name = "pydantic-settings" },
-    { name = "pytest", marker = "extra == 'dev'" },
-    { name = "pytest-asyncio", marker = "extra == 'dev'" },
-    { name = "python-dotenv", marker = "extra == 'dev'" },
-    { name = "quart", marker = "extra == 'server'", specifier = ">=0.20.0" },
-    { name = "ruff", marker = "extra == 'dev'" },
+sdist = { url = "https://files.pythonhosted.org/packages/34/84/5ffef9acdfd5efd669f505129a0969d8f1a2c8fe3773e5f397b2b85bd53b/taranis_llm_bot-0.1.8.tar.gz", hash = "sha256:aaea3eede90a8a1b774888d199fc05c9c9f0c882ed7a084d62461324dbbabf92", size = 176743, upload-time = "2026-11-19T10:28:14.96Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/cb/80/69113cdea2c32746f4c4787fa2c263e6a5277e31a6e0d45de3c861d1fd81/taranis_llm_bot-0.1.8-py3-none-any.whl", hash = "sha256:fda8ab9c99a0293d38a55d033948db9f73d29409f400594f3e5cbecc7b562325", size = 70680, upload-time = "2026-11-19T10:28:14.008Z" },
 ]
-provides-extras = ["inference", "server", "dev"]
 
 [[package]]
 name = "taranis-models"

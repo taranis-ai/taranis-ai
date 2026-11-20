@@ -266,7 +266,7 @@ A multi-hop citation depends on its whole path: losing an intermediate supportin
 
 Endpoint resolution can inherit the shared default when no explicit assignment is set, subject to capability checks. Shared LLM contracts and Core Settings reject incompatible assignments; extraction, relationship verification, embedding and graph planning require realtime processing. Worker [endpoint_health.py](../../src/worker/worker/endpoint_health.py) adds embedding probes that request and verify the configured HRAG dimension when enabled, and [llm.py](../../src/worker/worker/llm.py) handles the added generative feature names.
 
-Core installs the transport-free companion library and workers its inference extra. The dependency is pinned to the immutable llm-bot HRAG PR commit pending an official release; the embedding client, prepared extraction/planning tasks and final structured HRAG task live in that dependency. See the component `pyproject.toml` files for the exact source pin.
+Core installs the transport-free companion library and workers its inference extra. The dependency is pinned to `taranis-llm-bot==0.1.8` from PyPI; the embedding client, prepared extraction/planning tasks and final structured HRAG task live in that dependency. See the component `pyproject.toml` files for the dependency and extras.
 
 `GET /api/settings/hrag` requires `ADMIN_OPERATIONS` and reports enabled state, generations and grouped work counts. Optional repeated `news_item_id` query parameters restrict counts (up to 500 IDs). POST actions use `IndexAction`:
 
