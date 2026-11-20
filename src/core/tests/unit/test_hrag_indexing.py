@@ -172,6 +172,16 @@ def test_runtime_chunk_sizes_build_independent_generations(configured_index, mon
             assert evidence.quote == content[chunks[-1].start : chunks[-1].end]
             assert evidence.chunk_index == len(chunks) - 1
         assert counts[1] > counts[0] > counts[2]
+        remaining = list(db.session.scalars(db.select(HragWork).where(HragWork.generation_id == generation.id, HragWork.status != "ready")))
+        for pending in remaining:
+            job = indexing.claim(pending.id)
+            if job:
+                result = IndexSubmission(
+                    token=job["token"],
+                    fingerprint=job["fingerprint"],
+                    chunks=[ChunkEmbedding(**span, embedding=[1, 0, 0]) for span in job["chunks"]],
+                )
+                assert indexing.submit(pending.id, result)[1] == 200
         assert indexing.activate(generation.id)[1] == 200
         assert not db.session.get(HragGeneration, original_active).active
         assert db.session.get(HragGeneration, generation.id).active
