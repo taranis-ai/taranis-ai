@@ -21,16 +21,18 @@ def test_batch_endpoint_check_waits_for_inference(requests_mock, monkeypatch, ap
     }
     other_format = "chat_completions" if api_format == "responses" else "responses"
     config["api_formats"] = {
+        "embeddings": {"model": "embed-model"},
         "systemone": {"model": "topic-model", "base_url": "https://batch.test/api/classify"},
         api_format: {"model": config["model"]},
         other_format: {"model": config["model"]},
     }
+    embeddings = requests_mock.post("https://batch.test/api/v1/embeddings", json={"data": [{"embedding": [1.0, 0.0]}]})
     decisions = requests_mock.post(
         "https://batch.test/api/classify",
         json={"answers": {"probe": {"type": "choice", "choice": "OK", "probabilities": {"OK": 1.0, "other": 0.0}}}},
     )
     route = f"{Config.TARANIS_CORE_URL}/worker/endpoint-health/llm/test-id"
-    requests_mock.get(route, json={"config": config})
+    requests_mock.get(route, json={"config": config, "embedding_dimensions": 2})
     saved = requests_mock.post(route, json={"accepted": True})
     submitted = requests_mock.post(
         f"{config['base_url']}/batches",
@@ -46,6 +48,7 @@ def test_batch_endpoint_check_waits_for_inference(requests_mock, monkeypatch, ap
     assert saved.call_count == 0
     assert submitted.call_count == 2
     assert decisions.call_count == 1
+    assert embeddings.call_count == 1
     request_id = submitted.request_history[0].json()["requests"][0]["custom_id"]
     other_id = submitted.request_history[1].json()["requests"][0]["custom_id"]
     requests_mock.get(f"{config['base_url']}/batches/batch_probe", json={"status": "in_progress"})
@@ -77,6 +80,9 @@ def test_batch_endpoint_check_waits_for_inference(requests_mock, monkeypatch, ap
     assert decisions.call_count == 1
     assert completed.call_count == 1
     assert decisions.last_request.json()["model"] == "topic-model"
+    assert embeddings.call_count == 1
+    assert embeddings.last_request.json()["model"] == "embed-model"
+    assert embeddings.last_request.json()["dimensions"] == 2
     assert "llm_batch_probe" not in job.meta
 
 
@@ -116,11 +122,20 @@ def test_batch_endpoint_check_waits_for_inference(requests_mock, monkeypatch, ap
                 ]
             },
         ),
+        (
+            "llm",
+            {"base_url": "http://model.test/v1", "api_format": "embeddings", "model": "test-model", "timeout": 10},
+            "http://model.test/v1/embeddings",
+            {"data": [{"embedding": [1, 0]}]},
+        ),
     ],
 )
 def test_endpoint_check_failure_and_recovery(requests_mock, kind, config, url, result):
     route = f"{Config.TARANIS_CORE_URL}/worker/endpoint-health/{kind}/test-id"
-    requests_mock.get(route, json={"config": config})
+    requests_mock.get(
+        route,
+        json={"config": config, "embedding_dimensions": 2, "extraction": {"api_format": config["api_format"], "reasoning_effort": "none"}},
+    )
     saved = requests_mock.post(route, json={"accepted": True})
     upstream = requests_mock.post(
         url,
@@ -139,15 +154,28 @@ def test_endpoint_check_failure_and_recovery(requests_mock, kind, config, url, r
     with pytest.raises(RuntimeError, match="^Endpoint check failed$"):
         check_endpoint(kind, "test-id", "current-check")
     assert saved.last_request.json() == {"check_id": "current-check", "healthy": False}
-    requests_mock.get(route, json={"config": config})
+    requests_mock.get(
+        route,
+        json={"config": config, "embedding_dimensions": 2, "extraction": {"api_format": config["api_format"], "reasoning_effort": "none"}},
+    )
     check_endpoint(kind, "test-id", "current-check")
     assert saved.last_request.json()["healthy"] is True
+    if config["api_format"] == "responses":
+        assert upstream.last_request.json()["reasoning"] == {"effort": "none"}
+    elif config["api_format"] == "chat_completions":
+        assert upstream.last_request.json()["reasoning_effort"] == "none"
     if config.get("api_key"):
         assert upstream.last_request.headers["Authorization"] == "Bearer test-secret"
         assert upstream.last_request.json()["model"] == "test-model"
     requests_mock.get(route, json={"skip": True})
     check_endpoint(kind, "test-id", "old-check")
     assert upstream.call_count == 4
+    if config["api_format"] == "embeddings":
+        assert upstream.last_request.json()["dimensions"] == 2
+        requests_mock.get(route, json={"config": config, "embedding_dimensions": 3})
+        with pytest.raises(RuntimeError, match="^Endpoint check failed$"):
+            check_endpoint(kind, "test-id", "current-check")
+        assert saved.last_request.json()["healthy"] is False
     extra_format = "responses" if config["api_format"] in {"systemone", "openai_decisions"} else "systemone"
     extra_url = "https://other-path.test/v1" if extra_format == "responses" else "https://other-path.test/api/classify"
     extra_result = (

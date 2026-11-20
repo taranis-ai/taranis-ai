@@ -125,20 +125,105 @@ class ChatTurnStream:
             self.enabled = False
 
 
-class ChatClient:
+class ProviderTransport:
+    """Requests transport shared by Chat and HRAG under the turn deadline."""
+
+    def __init__(self, base_url: str, endpoint: str, api_key: str, timeout: float, deadline: float):
+        self.base_url = base_url.rstrip("/")
+        self.endpoint = endpoint.lstrip("/")
+        self.api_key = api_key
+        self.timeout = timeout
+        self.request_timeout = (5.0, timeout)
+        self.deadline = deadline
+
+    def remaining_time(self) -> float:
+        remaining = self.deadline - time.monotonic()
+        if remaining <= 0:
+            raise ChatProviderTimeoutError("Chat provider timed out")
+        return remaining
+
+    @contextmanager
+    def _response(self, payload: dict[str, Any]) -> Iterator[requests.Response]:
+        pending: Future[requests.Response] = Future()
+
+        def post() -> None:
+            try:
+                pending.set_result(
+                    requests.post(
+                        f"{self.base_url}/{self.endpoint}",
+                        headers=self._headers(),
+                        json=payload,
+                        timeout=self.request_timeout,
+                        allow_redirects=False,
+                        stream=True,
+                    )
+                )
+            except Exception as exc:
+                pending.set_exception(exc)
+
+        def close_late_response(result: Future[requests.Response]) -> None:
+            with suppress(Exception):
+                result.result().close()
+
+        response = None
+        timer = None
+        try:
+            remaining = self.remaining_time()
+            Thread(target=post, daemon=True).start()
+            try:
+                response = pending.result(timeout=remaining)
+            except TimeoutError:
+                pending.add_done_callback(close_late_response)
+                raise
+
+            def stop_reading() -> None:
+                with suppress(AttributeError, OSError, RuntimeError, ValueError):
+                    response.raw.shutdown()
+
+            timer = Timer(self.remaining_time(), stop_reading)
+            timer.daemon = True
+            timer.start()
+            yield response
+        except (TimeoutError, requests.Timeout) as exc:
+            raise ChatProviderTimeoutError("Chat provider timed out") from exc
+        except requests.HTTPError as exc:
+            status_code = exc.response.status_code if exc.response is not None else "unknown"
+            raise ChatProviderError(f"Chat provider returned HTTP {status_code}") from exc
+        except requests.RequestException as exc:
+            raise ChatProviderError("Chat provider request failed") from exc
+        except (TypeError, ValueError) as exc:
+            raise ChatProviderError("Chat provider returned an invalid response") from exc
+        finally:
+            if timer is not None:
+                timer.cancel()
+                timer.join()
+            if response is not None:
+                response.close()
+            self.remaining_time()
+
+    def _headers(self) -> dict[str, str]:
+        headers = {"Content-Type": "application/json"}
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
+        return headers
+
+
+class ChatClient(ProviderTransport):
     def __init__(self, settings: dict[str, Any] | None = None, deadline: float | None = None):
         self.deadline = deadline if deadline is not None else time.monotonic() + CHAT_TURN_TIMEOUT_SECONDS
         settings = settings if settings is not None else Settings.get_settings()
         endpoint = Settings.get_llm_endpoint("chat", settings)
         if not endpoint:
             raise ChatUnavailableError("Chat provider is not configured")
-        self.base_url = endpoint["base_url"].rstrip("/")
         self.api_format = endpoint["api_format"]
-        self.endpoint = "chat/completions" if self.api_format == "chat_completions" else "responses"
-        self.api_key = endpoint["api_key"]
         self.model = endpoint["model"]
-        self.timeout = endpoint["timeout"]
-        self.request_timeout = (5.0, self.timeout)
+        super().__init__(
+            endpoint["base_url"],
+            "chat/completions" if self.api_format == "chat_completions" else "responses",
+            endpoint["api_key"],
+            endpoint["timeout"],
+            self.deadline,
+        )
 
     def create_response(
         self,
@@ -146,10 +231,13 @@ class ChatClient:
         on_delta: Callable[[str], None],
         *,
         search: bool = False,
+        require_search: bool = False,
+        prompt: str = CHAT_PROMPT,
+        response_format: dict | None = None,
     ) -> dict[str, Any]:
         payload: dict[str, Any] = {
             "input": input_items,
-            "instructions": CHAT_PROMPT,
+            "instructions": prompt,
             "store": False,
             "include": ["reasoning.encrypted_content"],
         }
@@ -166,7 +254,21 @@ class ChatClient:
             ]
             payload["parallel_tool_calls"] = False
         if self.api_format == "chat_completions":
-            payload = self._chat_payload(input_items, payload.get("tools", []))
+            payload = self._chat_payload(input_items, payload.get("tools", []), prompt)
+        if require_search:
+            payload["tool_choice"] = (
+                {"type": "function", "function": {"name": "search_stories"}}
+                if self.api_format == "chat_completions"
+                else {"type": "function", "name": "search_stories"}
+            )
+        if response_format:
+            if self.api_format == "chat_completions":
+                payload["response_format"] = {
+                    "type": "json_schema",
+                    "json_schema": {key: value for key, value in response_format.items() if key != "type"},
+                }
+            else:
+                payload["text"] = {"format": response_format}
         if self.model:
             payload["model"] = self.model
 
@@ -199,8 +301,8 @@ class ChatClient:
         raise ChatProviderError("Chat provider request failed")
 
     @staticmethod
-    def _chat_payload(input_items: list[dict[str, Any]], tools: list[dict[str, Any]]) -> dict[str, Any]:
-        messages = [{"role": "system", "content": CHAT_PROMPT}]
+    def _chat_payload(input_items: list[dict[str, Any]], tools: list[dict[str, Any]], prompt: str = CHAT_PROMPT) -> dict[str, Any]:
+        messages = [{"role": "system", "content": prompt}]
         for item in input_items:
             if item.get("type") == "chat_message":
                 messages.append(item["message"])
@@ -311,71 +413,6 @@ class ChatClient:
             message["tool_calls"] = [calls[index] for index in sorted(calls)]
         return {"choices": [{"message": message, "finish_reason": finish_reason}]}
 
-    def remaining_time(self) -> float:
-        remaining = self.deadline - time.monotonic()
-        if remaining <= 0:
-            raise ChatProviderTimeoutError("Chat provider timed out")
-        return remaining
-
-    @contextmanager
-    def _response(self, payload: dict[str, Any]) -> Iterator[requests.Response]:
-        pending: Future[requests.Response] = Future()
-
-        def post() -> None:
-            try:
-                pending.set_result(
-                    requests.post(
-                        f"{self.base_url}/{self.endpoint}",
-                        headers=self._headers(),
-                        json=payload,
-                        timeout=self.request_timeout,
-                        allow_redirects=False,
-                        stream=True,
-                    )
-                )
-            except Exception as exc:
-                pending.set_exception(exc)
-
-        def close_late_response(result: Future[requests.Response]) -> None:
-            with suppress(Exception):
-                result.result().close()
-
-        response = None
-        timer = None
-        try:
-            remaining = self.remaining_time()
-            Thread(target=post, daemon=True).start()
-            try:
-                response = pending.result(timeout=remaining)
-            except TimeoutError:
-                pending.add_done_callback(close_late_response)
-                raise
-
-            def stop_reading() -> None:
-                with suppress(AttributeError, OSError, RuntimeError, ValueError):
-                    response.raw.shutdown()
-
-            timer = Timer(self.remaining_time(), stop_reading)
-            timer.daemon = True
-            timer.start()
-            yield response
-        except (TimeoutError, requests.Timeout) as exc:
-            raise ChatProviderTimeoutError("Chat provider timed out") from exc
-        except requests.HTTPError as exc:
-            status_code = exc.response.status_code if exc.response is not None else "unknown"
-            raise ChatProviderError(f"Chat provider returned HTTP {status_code}") from exc
-        except requests.RequestException as exc:
-            raise ChatProviderError("Chat provider request failed") from exc
-        except (TypeError, ValueError) as exc:
-            raise ChatProviderError("Chat provider returned an invalid response") from exc
-        finally:
-            if timer is not None:
-                timer.cancel()
-                timer.join()
-            if response is not None:
-                response.close()
-            self.remaining_time()
-
     @staticmethod
     def _read_stream(response: requests.Response, on_delta: Callable[[str], None]) -> dict[str, Any]:
         deltas: list[str] = []
@@ -406,12 +443,6 @@ class ChatClient:
             result["output_text"] = "".join(deltas)
         return result
 
-    def _headers(self) -> dict[str, str]:
-        headers = {"Content-Type": "application/json"}
-        if self.api_key:
-            headers["Authorization"] = f"Bearer {self.api_key}"
-        return headers
-
     @staticmethod
     def output_text(response: dict[str, Any]) -> str:
         if isinstance(text := response.get("output_text"), str) and text.strip():
@@ -437,7 +468,7 @@ class ChatService:
     def get_conversation(cls, conversation_id: str, user: User) -> dict[str, Any]:
         if not (conversation := ChatConversation.get_for_user(conversation_id, user.id)):
             raise ChatConversationNotFoundError
-        return conversation.to_detail_dict()
+        return cls._conversation_detail(conversation, user.id)
 
     @classmethod
     def delete_conversation(cls, conversation_id: str, user: User) -> None:
@@ -447,17 +478,19 @@ class ChatService:
         db.session.commit()
 
     @classmethod
-    def create_turn(cls, user: User, content: str, turn_id: str, conversation_id: str | None = None) -> dict[str, Any]:
+    def create_turn(cls, user: User, content: str, turn_id: str, conversation_id: str | None = None, mode: str = "chat") -> dict[str, Any]:
         with cls._turn_lease(user.id, conversation_id):
             deadline = time.monotonic() + CHAT_TURN_TIMEOUT_SECONDS
             try:
-                return cls._create_turn(user, content, turn_id, conversation_id, deadline)
+                return cls._create_turn(user, content, turn_id, conversation_id, deadline, mode)
             except Exception:
                 db.session.rollback()
                 raise
 
     @classmethod
-    def _create_turn(cls, user: User, content: str, turn_id: str, conversation_id: str | None, deadline: float) -> dict[str, Any]:
+    def _create_turn(
+        cls, user: User, content: str, turn_id: str, conversation_id: str | None, deadline: float, mode: str = "chat"
+    ) -> dict[str, Any]:
         user_id = user.id
         stream = ChatTurnStream(user_id, turn_id)
         stream.stage("planning")
@@ -469,7 +502,8 @@ class ChatService:
             if not conversation:
                 raise ChatConversationNotFoundError
 
-        history = cls._history_payload(conversation)
+        history = cls._history_payload(conversation, user_id)
+        history_dependencies = cls._history_dependencies(conversation, user_id)
         catalog = FilterData.get_assess_filterlists(user=user)
         recent_results = cls._recent_result_references(history, user)
         settings = Settings.get_settings()
@@ -485,54 +519,99 @@ class ChatService:
             "latest_message": content,
         }
         input_items = [{"role": "user", "content": json.dumps(context, ensure_ascii=False, default=str)}]
-        response = client.create_response(input_items, stream.add, search=True)
-        search_result = None
+        if mode == "hrag" and not Config.HRAG_ENABLED:
+            raise ChatUnavailableError("HRAG is disabled")
+        response = client.create_response(
+            input_items,
+            (lambda _delta: None) if mode == "hrag" else stream.add,
+            search=True,
+            require_search=mode == "hrag",
+        )
         calls = [item for item in response.get("output", []) if item.get("type") == "function_call"]
+        query_params = {}
         if calls:
             call = calls[0]
             filters = cls._search_filters(call.get("arguments"), catalog, {item["id"] for item in recent_results})
-            stream.content = ""
-            stream.stage("searching")
             query_params = cls._query_params(filters, timezone_name)
-            search_args: dict[str, Any] = {**query_params, "limit": settings["chat_max_stories"], "offset": 0}
-            search_user = User.get(user_id)
-            if not search_user:
-                raise ChatConversationNotFoundError
-            stories, counts = Story.get_by_filter(search_args, search_user)
-            story_context = [cls._story_context(story) for story in stories]
-            total_count = counts.get("total_count", len(stories)) if counts else len(stories)
-            search_result = {
-                "filters": query_params,
-                "total_count": total_count,
-                "story_ids": [story["id"] for story in stories],
+        elif mode == "hrag":
+            raise ChatProviderError("Chat provider did not resolve HRAG search filters")
+        hrag_result = None
+        search_result = None
+        if mode == "hrag":
+            from models.hrag import EvidenceReference
+
+            from core.service.hrag.answering import synthesize
+            from core.service.hrag.retrieval import reauthorize, retrieve
+
+            graph_context = {
+                "latest_message": content,
+                "conversation": [{"role": message["role"], "content": message["content"]} for message in history],
             }
-            db.session.rollback()
-            if not stories:
-                answer = no_results_answer
-                stream.stage("answering")
+            hrag_result = retrieve(graph_context, user_id, settings, deadline, stream, filters=query_params)
+            references = [
+                EvidenceReference.model_validate(e.model_dump(include=set(EvidenceReference.model_fields))) for e in hrag_result.evidence
+            ]
+            hrag_result.evidence = reauthorize(references, user_id, hrag_result.filters)
+            stream.stage("answering")
+            if not hrag_result.evidence:
+                answer = "Insufficient indexed evidence to answer this question."
                 stream.add(answer)
             else:
-                stream.stage("answering")
-                input_items.extend(response["output"])
-                input_items.append(
-                    {
-                        "type": "function_call_output",
-                        "call_id": call["call_id"],
-                        "output": json.dumps(
-                            {
-                                "applied_filters": query_params,
-                                "total_count": total_count,
-                                "stories": story_context,
-                            },
-                            ensure_ascii=False,
-                        ),
-                    }
-                )
-                response = client.create_response(input_items, stream.add)
-                answer = client.output_text(response)
+                # Recheck saved evidence after retrieval, immediately before synthesis.
+                current_conversation = ChatConversation.get_for_user(conversation_id, user_id) if conversation_id else None
+                history = cls._history_payload(current_conversation, user_id)
+                db.session.rollback()
+                answer = synthesize(content, history, hrag_result, client, stream)
+            current = reauthorize(references, user_id, hrag_result.filters)
+            if len(current) != len(hrag_result.evidence):
+                raise ChatProviderError("Evidence changed during this turn; retry the question")
         else:
-            answer = client.output_text(response)
+            if calls:
+                stream.content = ""
+                stream.stage("searching")
+                search_args: dict[str, Any] = {**query_params, "limit": settings["chat_max_stories"], "offset": 0}
+                search_user = User.get(user_id)
+                if not search_user:
+                    raise ChatConversationNotFoundError
+                stories, counts = Story.get_by_filter(search_args, search_user)
+                story_context = [cls._story_context(story) for story in stories]
+                total_count = counts.get("total_count", len(stories)) if counts else len(stories)
+                search_result = {
+                    "filters": query_params,
+                    "total_count": total_count,
+                    "story_ids": [story["id"] for story in stories],
+                }
+                db.session.rollback()
+                if not stories:
+                    answer = no_results_answer
+                    stream.stage("answering")
+                    stream.add(answer)
+                else:
+                    stream.stage("answering")
+                    input_items.extend(response["output"])
+                    input_items.append(
+                        {
+                            "type": "function_call_output",
+                            "call_id": calls[0]["call_id"],
+                            "output": json.dumps(
+                                {
+                                    "applied_filters": query_params,
+                                    "total_count": total_count,
+                                    "stories": story_context,
+                                },
+                                ensure_ascii=False,
+                            ),
+                        }
+                    )
+                    response = client.create_response(input_items, stream.add)
+                    answer = client.output_text(response)
+            else:
+                answer = client.output_text(response)
+        if history_dependencies:
+            from core.service.hrag.retrieval import reauthorize
 
+            if len(reauthorize(history_dependencies, user_id)) != len(history_dependencies):
+                raise ChatProviderError("Conversation evidence changed during this turn")
         client.remaining_time()
         conversation = ChatConversation.get_for_user(conversation_id, user_id) if conversation_id else None
         if conversation_id and not conversation:
@@ -549,9 +628,22 @@ class ChatService:
         )
         client.remaining_time()
         conversation.updated = ChatConversation.utcnow()
+        if hrag_result is not None or history_dependencies:
+            from core.model.hrag import HragMessage
+            from core.service.hrag.retrieval import reference_metadata
+
+            db.session.flush()
+            metadata = reference_metadata(hrag_result) if hrag_result is not None else {"references": []}
+            metadata["dependencies"] = [reference.model_dump() for reference in history_dependencies]
+            metadata["mode"] = mode
+            db.session.add(HragMessage.from_dict({"message_id": conversation.messages[-1].id, "metadata_json": metadata}))
+            if mode == "hrag":
+                db.session.add(
+                    HragMessage.from_dict({"message_id": conversation.messages[-2].id, "metadata_json": {"references": [], "mode": mode}})
+                )
         db.session.commit()
         stream.complete()
-        return conversation.to_detail_dict()
+        return cls._conversation_detail(conversation, user_id)
 
     @staticmethod
     @contextmanager
@@ -592,13 +684,56 @@ class ChatService:
             return "Keine passenden Stories gefunden."
         return "No matching stories found."
 
+    @classmethod
+    def _conversation_detail(cls, conversation: ChatConversation, user_id: str) -> dict:
+        from core.model.hrag import HragMessage
+        from core.service.hrag.retrieval import display_result
+
+        detail = conversation.to_detail_dict()
+        for message in detail["messages"]:
+            saved = db.session.get(HragMessage, message["id"])
+            if saved is None:
+                continue
+            metadata = saved.metadata_json
+            result = display_result(metadata, user_id)
+            message["mode"] = metadata.get("mode", "hrag")
+            if message["mode"] == "hrag":
+                message["hrag_result"] = result.model_dump()
+            from models.hrag import EvidenceReference
+
+            from core.service.hrag.retrieval import reauthorize
+
+            dependencies = [EvidenceReference.model_validate(value) for value in metadata.get("dependencies", [])]
+            if len(result.evidence) < len(metadata.get("references", [])) or len(reauthorize(dependencies, user_id)) < len(dependencies):
+                message["content"] = "This answer's evidence has changed or is no longer accessible. Ask again for a current answer."
+        return detail
+
     @staticmethod
-    def _history_payload(conversation: ChatConversation | None) -> list[dict[str, Any]]:
+    def _history_dependencies(conversation: ChatConversation | None, user_id: str) -> list:
+        from models.hrag import EvidenceReference
+
+        from core.model.hrag import HragMessage
+        from core.service.hrag.retrieval import reauthorize
+
+        references = {}
+        if conversation:
+            for message in conversation.messages[-CHAT_HISTORY_CONTEXT_MESSAGES:]:
+                if saved := db.session.get(HragMessage, message.id):
+                    for value in [*saved.metadata_json.get("references", []), *saved.metadata_json.get("dependencies", [])]:
+                        reference = EvidenceReference.model_validate(value)
+                        references[reference.model_dump_json()] = reference
+        return [
+            EvidenceReference.model_validate(e.model_dump(include=set(EvidenceReference.model_fields)))
+            for e in reauthorize(list(references.values()), user_id)
+        ]
+
+    @classmethod
+    def _history_payload(cls, conversation: ChatConversation | None, user_id: str) -> list[dict[str, Any]]:
         if not conversation:
             return []
         return [
-            {"role": message.role, "content": message.content, "search_result": message.search_result}
-            for message in conversation.messages[-CHAT_HISTORY_CONTEXT_MESSAGES:]
+            {"role": message["role"], "content": message["content"], "search_result": message["search_result"]}
+            for message in cls._conversation_detail(conversation, user_id)["messages"][-CHAT_HISTORY_CONTEXT_MESSAGES:]
         ]
 
     @staticmethod

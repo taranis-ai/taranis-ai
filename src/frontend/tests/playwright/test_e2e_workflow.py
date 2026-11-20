@@ -19,15 +19,29 @@ def demo_chat_provider(core_request_client):
 
     allow_requests_passthru()
     settings = core_request_client.json_request("GET", "/settings/settings")["items"][0]["settings"]
+    model = f"hrag-demo-{uuid4().hex}"
     endpoint = core_request_client.json_request(
         "POST",
         "/settings/llm-endpoints",
-        json_data={"name": "Landing page demo", "base_url": "http://demo-llm:8080/v1", "enabled": True, "api_format": "responses"},
+        json_data={
+            "name": "Landing page demo",
+            "base_url": "http://demo-llm:8080/v1",
+            "enabled": True,
+            "api_formats": {"responses": {"model": model}, "embeddings": {"model": model}, "openai_decisions": {"model": model}},
+        },
     )
     news_item_ids = []
     story_ids = []
     try:
-        core_request_client.patch("/settings/settings", json_data={"settings": {"llm_chat_endpoint": endpoint["id"]}})
+        core_request_client.patch(
+            "/settings/settings",
+            json_data={
+                "settings": {
+                    f"llm_{feature}_endpoint": endpoint["id"]
+                    for feature in ("chat", "graph_planning", "extraction", "extraction_verification", "embedding")
+                }
+            },
+        )
         for index, title in enumerate(
             [
                 "Ransomware campaign targets European hospitals",
@@ -42,7 +56,8 @@ def demo_chat_provider(core_request_client):
                 json_data={
                     "id": str(uuid4()),
                     "title": title,
-                    "content": "Demo intelligence for the landing-page chat walkthrough.",
+                    "content": "Demo uses Example. Demo intelligence for the landing-page chat walkthrough.\n\n"
+                    + "Additional demo ransomware evidence remains attributable to this NewsItem. " * 40,
                     "link": f"https://example.invalid/chat-demo/{index}",
                     "source": "manual",
                     "osint_source_id": "manual",
@@ -53,11 +68,32 @@ def demo_chat_provider(core_request_client):
             news_item_ids.extend(created["news_item_ids"])
             story_ids.append(created["story_id"])
             core_request_client.patch(f"/assess/stories/{created['story_id']}", json_data={"read": index == 2})
+        core_request_client.post("/settings/hrag", json_data={"action": "backfill"})
+        deadline = time.monotonic() + 120
+        while time.monotonic() < deadline:
+            state = core_request_client.json_request("GET", "/settings/hrag")
+            generations = [generation for generation in state["generations"] if generation["model"] == model]
+            if len(generations) == 2 and all(
+                g["scanned"] and g["counts"].get("ready", 0) >= len(news_item_ids) and set(g["counts"]) <= {"ready"} for g in generations
+            ):
+                break
+            time.sleep(0.5)
+        else:
+            pytest.fail("HRAG backfill did not complete")
+        for generation in generations:
+            if not generation["active"]:
+                core_request_client.post("/settings/hrag", json_data={"action": "activate", "generation_id": generation["id"]})
         yield story_ids
     finally:
         try:
             core_request_client.patch(
-                "/settings/settings", json_data={"settings": {"llm_chat_endpoint": settings.get("llm_chat_endpoint", "")}}
+                "/settings/settings",
+                json_data={
+                    "settings": {
+                        f"llm_{feature}_endpoint": settings.get(f"llm_{feature}_endpoint", "")
+                        for feature in ("chat", "graph_planning", "extraction", "extraction_verification", "embedding")
+                    }
+                },
             )
         finally:
             try:
@@ -386,6 +422,7 @@ class TestUserWorkflow(BaseE2ETest):
         self.wait_for_htmx_settled(page)
 
     @pytest.mark.e2e_ci
+    @pytest.mark.e2e_full_stack
     def test_chat(
         self,
         demo_chat_provider: list[str],
@@ -431,6 +468,30 @@ class TestUserWorkflow(BaseE2ETest):
             expect(answer).to_have_count(2)
             expect(page.get_by_test_id("chat-message-user")).to_have_count(2)
             expect(timestamps).to_have_text(saved_timestamps)
+
+            page.get_by_test_id("chat-mode").select_option("hrag")
+            page.get_by_test_id("chat-input").fill("Find unread demo ransomware evidence.")
+            page.get_by_test_id("chat-send").click()
+            expect(answer).to_have_count(3)
+            expect(answer.last).to_contain_text("[G1]")
+            expect(answer.last).to_contain_text("[V1]")
+            panels = answer.last.get_by_test_id("chat-hrag-evidence")
+            expect(panels).to_have_count(2)
+            expect(panels.first).not_to_contain_text("Manufacturing sector strengthens ransomware defenses")
+            expect(panels.last).not_to_contain_text("Manufacturing sector strengthens ransomware defenses")
+            expect(panels.first).not_to_have_attribute("open", "")
+            panels.first.locator("summary").click()
+            expect(panels.first.get_by_test_id("chat-hrag-citation").first).to_be_visible()
+            expect(panels.first).to_contain_text("Demo — USES → Example (affirmed)")
+            expect(panels.first).not_to_contain_text("OWNS")
+            page.reload()
+            expect(answer).to_have_count(3)
+            expect(answer.last).to_contain_text("[G1]")
+            page.get_by_test_id("chat-mode").select_option("chat")
+            page.get_by_test_id("chat-input").fill("Which ransomware stories are unread?")
+            page.get_by_test_id("chat-send").click()
+            expect(answer).to_have_count(4)
+            expect(answer.last).to_contain_text("unread ransomware")
 
             self.highlight_element(page.get_by_test_id("chat-assess-link").last).click()
             expect(page.get_by_test_id("assess")).to_be_visible()

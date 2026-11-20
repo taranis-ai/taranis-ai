@@ -16,6 +16,7 @@ Read matching memories before planning or editing application behavior. Code and
 - [Redis Runtime State](redis-runtime-state.md): disposable Redis/RQ state, persistence settings, and restart recovery.
 - [Story Export](story-export.md): Settings and Assess downloads, metadata, import contracts, dates, and access checks.
 - [Telemetry](telemetry.md): Sentry initialization, OTLP traces and metrics, RQ trace propagation, and the optional Grafana LGTM Compose profile.
+- [Hybrid Retrieval](../features/hrag.md): Neo4j/pgvector deployment, durable indexing, generation activation, permissions and recovery.
 - [Analyst Chat](analyst-chat.md): persistent chat workflow, Responses and Chat Completions integration, Assess search planning, privacy, ownership, and deployment configuration.
 - [LLM Endpoints](llm-endpoints.md): shared provider settings, feature assignments, secrets, and worker execution.
 - [Global Settings](global-settings.md): transaction-scoped read caching, defaults, and invalidation.

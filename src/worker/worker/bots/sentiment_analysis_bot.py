@@ -1,8 +1,7 @@
 from llm_bot.schemas import SentimentRequest
 from llm_bot.tasks.sentiment import prepare_sentiment
-from rq import Retry
 
-from worker.llm import get_llm_client, run_llm_tasks
+from worker.llm import get_decisions_client, run_decisions_tasks
 from worker.log import logger
 
 from .base_bot import BaseBot
@@ -15,19 +14,17 @@ class SentimentAnalysisBot(BaseBot):
         self.name = "Sentiment Analysis Bot"
         self.description = "Bot to analyze the sentiment of news items' content"
 
-    def execute(self, parameters: dict | None = None) -> dict | Retry:
+    def execute(self, parameters: dict | None = None) -> dict:
         if not parameters:
             parameters = {}
         if not (data := self.get_stories(parameters)):
             return {"message": "No stories found for sentiment analysis"}
 
-        self.llm_client = get_llm_client(parameters)
+        self.llm_client = get_decisions_client(parameters)
 
         logger.debug(f"Analyzing sentiment for {len(data)} news items")
 
         sentiment_results = self._analyze_news_items(data, parameters)
-        if isinstance(sentiment_results, Retry):
-            return sentiment_results
         if sentiment_results:
             return {
                 "message": "Sentiment analysis complete",
@@ -36,12 +33,10 @@ class SentimentAnalysisBot(BaseBot):
 
         return {"message": "No sentiment analysis results"}
 
-    def _analyze_news_items(self, stories: list, parameters: dict) -> dict | Retry:
+    def _analyze_news_items(self, stories: list, parameters: dict) -> dict:
         items = [item for story in stories for item in story.get("news_items", []) if item.get("content", "").strip()]
         tasks = [prepare_sentiment(SentimentRequest(text=item["content"])) for item in items]
-        results = run_llm_tasks(tasks, self.llm_client, parameters)
-        if isinstance(results, Retry):
-            return results
+        results = run_decisions_tasks(tasks, self.llm_client, parameters)
         return {
             item["id"]: {"sentiment": result.sentiment.score, "category": result.sentiment.label.value}
             for item, result in zip(items, results, strict=True)

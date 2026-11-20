@@ -150,9 +150,51 @@ class DeleteLLMEndpoint(MethodView):
         return jsonify(response), status
 
 
+class HragIndex(MethodView):
+    @auth_required("ADMIN_OPERATIONS")
+    def get(self):
+        from core.service.hrag.indexing import index_status
+
+        return index_status(request.args.getlist("news_item_id")[:500]), 200
+
+    @auth_required("ADMIN_OPERATIONS")
+    def post(self):
+        from models.hrag import IndexAction
+        from pydantic import ValidationError
+
+        from core.log import logger
+        from core.managers.db_manager import db
+        from core.service.hrag.indexing import activate, reprocess
+
+        try:
+            data = IndexAction.model_validate(request.get_json(silent=True)).model_dump()
+        except ValidationError:
+            return {"error": "Invalid HRAG index action"}, 400
+        if not Config.HRAG_ENABLED:
+            return {"error": "HRAG is disabled"}, 503
+        try:
+            if data.get("action") in {"reconcile", "backfill"}:
+                job = queue_manager.queue_manager.enqueue_task("misc", "hrag_reconcile", job_timeout=720)
+                return ({"message": "HRAG reconciliation queued"}, 202) if job else ({"error": "Queue unavailable"}, 503)
+            if data.get("action") == "activate":
+                result, status = activate(data.get("generation_id", ""))
+            elif data.get("action") == "reprocess":
+                result, status = reprocess(data.get("generation_id", ""))
+            else:
+                return {"error": "Unknown HRAG action"}, 400
+            if status >= 400:
+                db.session.rollback()
+            return result, status
+        except Exception:
+            db.session.rollback()
+            logger.exception("HRAG index action failed")
+            return {"error": "HRAG index action failed"}, 503
+
+
 def initialize(app: Flask):
     settings_bp = Blueprint("settings", __name__, url_prefix=f"{Config.APPLICATION_ROOT}api/settings")
 
+    settings_bp.add_url_rule("/hrag", view_func=HragIndex.as_view("hrag"))
     settings_bp.add_url_rule("/delete-tags", view_func=DeleteTags.as_view("delete_tags"))
     settings_bp.add_url_rule("/delete-stories", view_func=DeleteStories.as_view("delete_stories"))
     settings_bp.add_url_rule("/ungroup-stories", view_func=UngroupStories.as_view("ungroup_all_stories"))

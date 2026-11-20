@@ -8,6 +8,7 @@ from niquests.exceptions import RequestException
 from rq import Retry, get_current_job
 
 from worker.core_api import CoreApi
+from worker.embedding import create_embedding
 from worker.http_client import http_request, http_session_scope
 from worker.llm import LLMTaskError, get_decisions_client, get_llm_client, run_llm_tasks
 from worker.llm_batch import BatchExecutionError
@@ -35,7 +36,7 @@ def check_endpoint(kind: str, endpoint_id: str, check_id: str):
             if not job:
                 raise RuntimeError("Batch endpoint checks require a queued job")
             state = job.meta.setdefault("llm_batch_probe", {})
-        healthy = probe(kind, config, state, job.save_meta if job else None)
+        healthy = probe(kind, config, state, job.save_meta if job else None, snapshot.get("embedding_dimensions"), snapshot.get("extraction"))
         if isinstance(healthy, Retry):
             return healthy
         if state is not None:
@@ -51,7 +52,14 @@ def check_endpoint(kind: str, endpoint_id: str, check_id: str):
         raise RuntimeError("Endpoint check failed")
 
 
-def probe(kind: str, config: dict, batch_state: dict | None = None, save_batch_state=None) -> bool | Retry:
+def probe(
+    kind: str,
+    config: dict,
+    batch_state: dict | None = None,
+    save_batch_state=None,
+    embedding_dimensions: int | None = None,
+    extraction: dict | None = None,
+) -> bool | Retry:
     text = "Reply with OK."
     if kind != "llm":
         return False
@@ -65,7 +73,7 @@ def probe(kind: str, config: dict, batch_state: dict | None = None, save_batch_s
                 if state is not None and "healthy" in state:
                     healthy = healthy and state["healthy"]
                     continue
-                result = probe(kind, provider.for_format(api_format), state, save_batch_state)
+                result = probe(kind, provider.for_format(api_format), state, save_batch_state, embedding_dimensions, extraction)
                 if isinstance(result, Retry):
                     pending = result
                     continue
@@ -89,6 +97,9 @@ def probe(kind: str, config: dict, batch_state: dict | None = None, save_batch_s
             response.raise_for_status()
             client.parse_response(response.json(), questions)
             return True
+        if config["api_format"] == "embeddings":
+            create_embedding("Synthetic endpoint check", {**config, "timeout": min(config["timeout"], 120)}, embedding_dimensions)
+            return True
         chat = config["api_format"] == "chat_completions"
         if config.get("processing_mode") == "openrouter_batch":
             parameters = {"llm_endpoint": config, "_llm_batch_state": batch_state, "_save_llm_batch_state": save_batch_state}
@@ -100,9 +111,14 @@ def probe(kind: str, config: dict, batch_state: dict | None = None, save_batch_s
             result = results[0]
             return bool(result.get("output_text")) if chat else _valid_responses_result(result)
         url = f"{config['base_url']}/{'chat/completions' if chat else 'responses'}"
-        payload = {"messages": [{"role": "user", "content": text}]} if chat else {"input": text, "store": False}
+        payload: dict = {"messages": [{"role": "user", "content": text}]} if chat else {"input": text, "store": False}
         if config.get("model"):
             payload["model"] = config["model"]
+        if extraction and extraction["api_format"] == config["api_format"] and extraction.get("reasoning_effort") is not None:
+            if chat:
+                payload["reasoning_effort"] = extraction["reasoning_effort"]
+            else:
+                payload["reasoning"] = {"effort": extraction["reasoning_effort"]}
         api_key = config.get("api_key", "")
         timeout = min(config["timeout"], 120)
         response = http_request(
@@ -123,7 +139,7 @@ def probe(kind: str, config: dict, batch_state: dict | None = None, save_batch_s
                 for choice in result.get("choices", [])
             )
         return _valid_responses_result(result)
-    except (RequestException, ValueError, TypeError, KeyError, BatchExecutionError, LLMTaskError, UpstreamLLMError):
+    except (RequestException, ValueError, TypeError, KeyError, IndexError, BatchExecutionError, LLMTaskError, UpstreamLLMError):
         logger.exception(f"Endpoint probe failed for {kind}")
         return False
 

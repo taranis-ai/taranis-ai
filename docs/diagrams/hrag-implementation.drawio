@@ -1,0 +1,343 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mxfile host="app.diagrams.net" agent="jipitiii" version="24.7.17" compressed="false">
+  <diagram id="page-1" name="1 · System overview">
+    <mxGraphModel dx="1800" dy="1200" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1800" pageHeight="1500" math="0" shadow="0">
+      <root>
+        <mxCell id="0" value="" />
+        <mxCell id="1" parent="0" value="" />
+        <mxCell id="title" value="&lt;b&gt;1 · System overview&lt;/b&gt;&lt;br&gt;Read with docs/features/hrag-implementation-guide.md · feature/hrag · arrows show data/control flow; dashed = recovery or configuration" style="text;html=1;align=left;verticalAlign=middle;fontSize=22;whiteSpace=wrap;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="35" y="20" width="1720" height="90" />
+        </mxCell>
+        <mxCell id="O1" value="&lt;b&gt;O1 · Analyst selects HRAG&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/frontend/frontend/views/chat_views.py&lt;/font&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/frontend/frontend/templates/chat/workspace.html&lt;/font&gt;&lt;br&gt;&lt;br&gt;Per-turn mode in the existing Chat conversation.&lt;br&gt;Evidence panels link [G#] and [V#] to current Assess stories." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;align=left;verticalAlign=top;spacing=14;fontSize=15;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="40" y="140" width="500" height="270" />
+        </mxCell>
+        <mxCell id="O2" value="&lt;b&gt;O2 · Core owns the turn&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/core/core/api/chat.py&lt;/font&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/core/core/service/chat.py&lt;/font&gt;&lt;br&gt;&lt;br&gt;ASSESS_ACCESS + conversation ownership.&lt;br&gt;Existing Redis turn lock and 540 s deadline.&lt;br&gt;Planning → retrieval → synthesis → atomic save." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=left;verticalAlign=top;spacing=14;fontSize=15;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="640" y="140" width="500" height="270" />
+        </mxCell>
+        <mxCell id="O3" value="&lt;b&gt;O3 · Realtime LLM providers&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/core/core/model/settings.py&lt;/font&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/models/models/hrag.py&lt;/font&gt;&lt;br&gt;&lt;br&gt;Three HRAG assignments: extraction, embedding, graph_planning.&lt;br&gt;Existing chat assignment synthesizes the final answer.&lt;br&gt;Core and worker both make provider calls." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;align=left;verticalAlign=top;spacing=14;fontSize=15;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1240" y="140" width="500" height="270" />
+        </mxCell>
+        <mxCell id="O4" value="&lt;b&gt;O4 · Durable background indexing&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/core/core/service/hrag/indexing.py&lt;/font&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/core/core/managers/queue_manager.py&lt;/font&gt;&lt;br&gt;&lt;br&gt;Startup + minute cron reconcile NewsItem.content.&lt;br&gt;Independent extraction and embedding generations.&lt;br&gt;500 items/generation scan; at most 50 jobs/pass." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=left;verticalAlign=top;spacing=14;fontSize=15;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="40" y="500" width="500" height="270" />
+        </mxCell>
+        <mxCell id="O5" value="&lt;b&gt;O5 · PostgreSQL is authoritative&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/core/core/model/hrag.py&lt;/font&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/core/core/service/hrag/stores.py&lt;/font&gt;&lt;br&gt;&lt;br&gt;Tables: news_item; hrag_generation; hrag_work; hrag_vector; hrag_message; chat_message.&lt;br&gt;Saved extraction, vectors, leases and evidence references." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;align=left;verticalAlign=top;spacing=14;fontSize=15;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="640" y="500" width="500" height="270" />
+        </mxCell>
+        <mxCell id="O6" value="&lt;b&gt;O6 · Redis / RQ execution&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/core/core/managers/queue_manager.py&lt;/font&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/worker/worker/hrag.py&lt;/font&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/worker/worker/cron_scheduler.py&lt;/font&gt;&lt;br&gt;&lt;br&gt;misc queue: hrag_reconcile / hrag_index.&lt;br&gt;Worker claims content via Core API; returns validated output.&lt;br&gt;Redis is disposable; PostgreSQL leases recover lost jobs." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;align=left;verticalAlign=top;spacing=14;fontSize=15;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1240" y="500" width="500" height="270" />
+        </mxCell>
+        <mxCell id="O7" value="&lt;b&gt;O7 · Live evidence authorization&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/core/core/service/hrag/retrieval.py&lt;/font&gt;&lt;br&gt;&lt;br&gt;Active + ready + fresh fingerprint + ACL/TLP + filters.&lt;br&gt;Authorize before limits and ranking; recheck evidence and full path supports for synthesis/history." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;align=left;verticalAlign=top;spacing=14;fontSize=15;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="40" y="860" width="500" height="270" />
+        </mxCell>
+        <mxCell id="O8" value="&lt;b&gt;O8 · Neo4j projection&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/core/core/service/hrag/stores.py&lt;/font&gt;&lt;br&gt;&lt;br&gt;HDocument → H_MENTIONS → HEntity&lt;br&gt;HEntity → H_ASSERTION → HEntity&lt;br&gt;Fixed parameterized Cypher; source assertions retain polarity.&lt;br&gt;Can rebuild from PostgreSQL extraction JSON." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;align=left;verticalAlign=top;spacing=14;fontSize=15;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="640" y="860" width="500" height="270" />
+        </mxCell>
+        <mxCell id="O9" value="&lt;b&gt;O9 · Opt-in infrastructure&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/core/core/config.py&lt;/font&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;docker/compose.hrag.yml&lt;/font&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;dev/compose.hrag.yml&lt;/font&gt;&lt;br&gt;&lt;br&gt;PostgreSQL + pgvector, Neo4j Community, Redis/RQ.&lt;br&gt;CHAT_ENABLED and HRAG_ENABLED; cron for ongoing indexing.&lt;br&gt;Only Core connects directly to the index databases." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;align=left;verticalAlign=top;spacing=14;fontSize=15;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1240" y="860" width="500" height="270" />
+        </mxCell>
+        <mxCell id="e0" value="question + mode" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;fontSize=12;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="O1" target="O2">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e1" value="plan / query embedding / synthesize" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;fontSize=12;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="O2" target="O3">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e2" value="generation + work ledger" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;fontSize=12;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="O4" target="O5">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e3" value="enqueue work" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;fontSize=12;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="O4" target="O6">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e4" value="extract / embed" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;fontSize=12;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="O6" target="O3">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e5" value="via Core claim/submit API" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;fontSize=12;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="O6" target="O5">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e6" value="current source + index state" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;fontSize=12;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="O5" target="O7">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e7" value="allowed graph keys" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;fontSize=12;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="O7" target="O8">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e8" value="authorized graph + vector evidence" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;fontSize=12;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="O7" target="O2">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e9" value="extraction projection" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;fontSize=12;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="O5" target="O8">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e10" value="configure" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;fontSize=12;labelBackgroundColor=#ffffff;dashed=1;" edge="1" parent="1" source="O9" target="O6">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="legend" value="Colors: blue = Core services · yellow = worker / RQ · orange = model inference · purple = stores · red = authorization / recovery · green = frontend · gray = notes. Paths are repository-relative. Dashed arrows show recovery or configuration." style="text;html=1;align=left;verticalAlign=middle;fontSize=13;whiteSpace=wrap;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="40" y="1190" width="1695" height="65" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="page-2" name="2 · Indexing lifecycle">
+    <mxGraphModel dx="1800" dy="1200" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1800" pageHeight="1500" math="0" shadow="0">
+      <root>
+        <mxCell id="0" value="" />
+        <mxCell id="1" parent="0" value="" />
+        <mxCell id="title" value="&lt;b&gt;2 · Indexing lifecycle&lt;/b&gt;&lt;br&gt;Follow I1 → I8; inference is separate from the durable ledger and graph projection." style="text;html=1;align=left;verticalAlign=middle;fontSize=22;whiteSpace=wrap;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="35" y="20" width="1720" height="90" />
+        </mxCell>
+        <mxCell id="I1" value="&lt;b&gt;I1 · Schedule reconciliation&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/core/core/managers/queue_manager.py&lt;/font&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/worker/worker/cron_scheduler.py&lt;/font&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/worker/worker/hrag.py&lt;/font&gt;&lt;br&gt;&lt;br&gt;Startup enqueue + cron * * * * *.&lt;br&gt;reconcile_index() POSTs /api/worker/hrag/reconcile.&lt;br&gt;Admin backfill/reconcile also queues this job." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;align=left;verticalAlign=top;spacing=14;fontSize=15;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="40" y="140" width="500" height="270" />
+        </mxCell>
+        <mxCell id="I2" value="&lt;b&gt;I2 · Resolve independent generations&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/core/core/service/hrag/indexing.py&lt;/font&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/core/core/model/settings.py&lt;/font&gt;&lt;br&gt;&lt;br&gt;reconcile() locks Settings; hashes pipeline + endpoint ID, URL, model, format, limit, schema, dimensions.&lt;br&gt;First generation is active immediately; later ones build beside it." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=left;verticalAlign=top;spacing=14;fontSize=15;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="640" y="140" width="500" height="270" />
+        </mxCell>
+        <mxCell id="I3" value="&lt;b&gt;I3 · Scan bounded content&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/core/core/service/hrag/indexing.py&lt;/font&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/models/models/hrag.py&lt;/font&gt;&lt;br&gt;&lt;br&gt;fingerprint = SHA256(generation + NUL + bounded content).&lt;br&gt;Extraction: 20,000 chars; embedding: 4,000 chars.&lt;br&gt;Upsert work; changed input resets result/token/retry state." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=left;verticalAlign=top;spacing=14;fontSize=15;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1240" y="140" width="500" height="270" />
+        </mxCell>
+        <mxCell id="I4" value="&lt;b&gt;I4 · Lease and enqueue&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/core/core/service/hrag/indexing.py&lt;/font&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/core/core/model/hrag.py&lt;/font&gt;&lt;br&gt;&lt;br&gt;hrag_work: pending → queued.&lt;br&gt;Scan ≤500 items/generation; select ≤50 eligible jobs.&lt;br&gt;15 min lease; commit before RQ enqueue.&lt;br&gt;A failed enqueue releases the queued lease." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=left;verticalAlign=top;spacing=14;fontSize=15;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1240" y="500" width="500" height="270" />
+        </mxCell>
+        <mxCell id="I5" value="&lt;b&gt;I5 · Worker claims through Core&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/worker/worker/hrag.py&lt;/font&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/core/core/api/worker.py&lt;/font&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/core/core/service/hrag/indexing.py&lt;/font&gt;&lt;br&gt;&lt;br&gt;index_item(id) POST /api/worker/hrag/work/{id}.&lt;br&gt;claim(): row lock, current fingerprint, frozen endpoint.&lt;br&gt;running + new token + lease + attempts.&lt;br&gt;Blank content → ready, no inference." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;align=left;verticalAlign=top;spacing=14;fontSize=15;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="640" y="500" width="500" height="270" />
+        </mxCell>
+        <mxCell id="I6" value="&lt;b&gt;I6 · Infer or reuse cached output&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/worker/worker/hrag.py&lt;/font&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/models/models/hrag.py&lt;/font&gt;&lt;br&gt;&lt;br&gt;infer(): cached_result bypasses provider.&lt;br&gt;Extraction: compact names/quotes → locally resolved source spans.&lt;br&gt;Embedding: POST /embeddings with configured dimensions; validate size/finite/nonzero." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;align=left;verticalAlign=top;spacing=14;fontSize=15;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="40" y="500" width="500" height="270" />
+        </mxCell>
+        <mxCell id="I7" value="&lt;b&gt;I7 · Core validates submission&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/core/core/api/worker.py&lt;/font&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/core/core/service/hrag/indexing.py&lt;/font&gt;&lt;br&gt;&lt;br&gt;PUT same work route with token + fingerprint.&lt;br&gt;Reject stale token/content; validate extraction again.&lt;br&gt;Extraction JSON commits before Neo4j projection.&lt;br&gt;Embedding upserts hrag_vector." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=left;verticalAlign=top;spacing=14;fontSize=15;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="40" y="860" width="500" height="270" />
+        </mxCell>
+        <mxCell id="I8" value="&lt;b&gt;I8 · Ready after final freshness check&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/core/core/service/hrag/indexing.py&lt;/font&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/core/core/model/hrag.py&lt;/font&gt;&lt;br&gt;&lt;br&gt;Re-fetch locked work; verify token and fingerprint again.&lt;br&gt;Set ready; clear lease/retry; commit.&lt;br&gt;Repeated accepted callback returns success.&lt;br&gt;Ready work still needs live authorization at query time." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;align=left;verticalAlign=top;spacing=14;fontSize=15;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="640" y="860" width="500" height="270" />
+        </mxCell>
+        <mxCell id="I9" value="&lt;b&gt;I9 · Recover failed or lost work&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/core/core/service/hrag/indexing.py&lt;/font&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/worker/worker/hrag.py&lt;/font&gt;&lt;br&gt;&lt;br&gt;Failed callback → pending + bounded exponential backoff ≤1 h.&lt;br&gt;Lost callback/job → eligible after 15 min lease.&lt;br&gt;Missing Neo4j key → pending with saved result for replay.&lt;br&gt;Prune stale graph keys and orphan entities." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;align=left;verticalAlign=top;spacing=14;fontSize=15;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1240" y="860" width="500" height="270" />
+        </mxCell>
+        <mxCell id="e0" value="reconcile()" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;fontSize=12;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="I1" target="I2">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e1" value="selected + active generations" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;fontSize=12;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="I2" target="I3">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e2" value="hrag_work" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;fontSize=12;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="I3" target="I4">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e3" value="RQ hrag_index(work_id)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;fontSize=12;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="I4" target="I5">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e4" value="IndexJob" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;fontSize=12;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="I5" target="I6">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e5" value="IndexSubmission" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;fontSize=12;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="I6" target="I7">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e6" value="projection / vector stored" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;fontSize=12;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="I7" target="I8">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e7" value="failed=True or interrupted" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;fontSize=12;labelBackgroundColor=#ffffff;dashed=1;" edge="1" parent="1" source="I7" target="I9">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e8" value="retry when eligible" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;fontSize=12;labelBackgroundColor=#ffffff;dashed=1;" edge="1" parent="1" source="I9" target="I4">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="recovery1" value="failed callback / projection failure" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;dashed=1;fontSize=12;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="I7" target="I9">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="recovery2" value="retry eligible after backoff / lease" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;dashed=1;fontSize=12;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="I9" target="I4">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="legend" value="Colors: blue = Core services · yellow = worker / RQ · orange = model inference · purple = stores · red = authorization / recovery · green = frontend · gray = notes. Paths are repository-relative. Dashed arrows show recovery or configuration." style="text;html=1;align=left;verticalAlign=middle;fontSize=13;whiteSpace=wrap;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="40" y="1190" width="1695" height="65" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="page-3" name="3 · Data model and provenance">
+    <mxGraphModel dx="1800" dy="1200" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1800" pageHeight="1500" math="0" shadow="0">
+      <root>
+        <mxCell id="0" value="" />
+        <mxCell id="1" parent="0" value="" />
+        <mxCell id="title" value="&lt;b&gt;3 · Data model and provenance&lt;/b&gt;&lt;br&gt;Purple blocks are persisted stores. Full source passages remain in NewsItem / saved extraction, not Neo4j." style="text;html=1;align=left;verticalAlign=middle;fontSize=22;whiteSpace=wrap;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="35" y="20" width="1720" height="90" />
+        </mxCell>
+        <mxCell id="D1" value="&lt;b&gt;D1 · Source tables&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/core/core/model/news_item.py&lt;/font&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/core/core/model/story.py&lt;/font&gt;&lt;br&gt;&lt;br&gt;news_item.content is the sole inference input.&lt;br&gt;Current source ACL, story/item TLP and story membership are read at retrieval/display time.&lt;br&gt;Title/review/tags/regrouping do not invalidate inference." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;align=left;verticalAlign=top;spacing=14;fontSize=15;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="40" y="140" width="500" height="270" />
+        </mxCell>
+        <mxCell id="D2" value="&lt;b&gt;D2 · hrag_generation&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/core/core/model/hrag.py&lt;/font&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/core/core/service/hrag/indexing.py&lt;/font&gt;&lt;br&gt;&lt;br&gt;id: config SHA256; pipeline; config JSON; active; cursor; scanned; created.&lt;br&gt;Separate extraction/embedding lifecycle.&lt;br&gt;activate() verifies all current items are ready and fresh." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;align=left;verticalAlign=top;spacing=14;fontSize=15;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="640" y="140" width="500" height="270" />
+        </mxCell>
+        <mxCell id="D3" value="&lt;b&gt;D3 · hrag_work&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/core/core/model/hrag.py&lt;/font&gt;&lt;br&gt;&lt;br&gt;Unique(generation_id, news_item_id).&lt;br&gt;fingerprint; status; token; lease_until; retry_after; attempts; result JSON; truncated; updated.&lt;br&gt;FK deletes cascade. graph_key = work.id : fingerprint." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;align=left;verticalAlign=top;spacing=14;fontSize=15;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1240" y="140" width="500" height="270" />
+        </mxCell>
+        <mxCell id="D4" value="&lt;b&gt;D4 · ExtractionResult contract&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/models/models/hrag.py&lt;/font&gt;&lt;br&gt;&lt;br&gt;LLM: CompactExtractionResult (names + relationship quotes).&lt;br&gt;Worker resolves Unicode offsets; Core revalidates stored evidence.&lt;br&gt;EvidenceSpan: Unicode [start:end] + exact quote.&lt;br&gt;Relations: affirmed / negated / uncertain; no model-generated dates.&lt;br&gt;ner_tags() offers compatible projection; no second NER call." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=left;verticalAlign=top;spacing=14;fontSize=15;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="40" y="500" width="500" height="270" />
+        </mxCell>
+        <mxCell id="D5" value="&lt;b&gt;D5 · Neo4j: HDocument / HEntity&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/core/core/service/hrag/stores.py&lt;/font&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/models/models/hrag.py&lt;/font&gt;&lt;br&gt;&lt;br&gt;HDocument key + work_id; H_MENTIONS to entities.&lt;br&gt;HEntity id + casefolded name + entity_type.&lt;br&gt;Only validated CVEs merge across documents.&lt;br&gt;Other identities are scoped to item/generation/fingerprint." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;align=left;verticalAlign=top;spacing=14;fontSize=15;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="640" y="500" width="500" height="270" />
+        </mxCell>
+        <mxCell id="D6" value="&lt;b&gt;D6 · Neo4j: H_ASSERTION&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/core/core/service/hrag/stores.py&lt;/font&gt;&lt;br&gt;&lt;br&gt;Directed source → target relation.&lt;br&gt;Properties: key, work_id, kind, assertion, idx, date.&lt;br&gt;idx resolves original relation and quote in saved JSON.&lt;br&gt;Projection rewrite is transactional and replayable." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;align=left;verticalAlign=top;spacing=14;fontSize=15;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1240" y="500" width="500" height="270" />
+        </mxCell>
+        <mxCell id="D7" value="&lt;b&gt;D7 · hrag_vector (raw SQL table)&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/core/core/service/hrag/stores.py&lt;/font&gt;&lt;br&gt;&lt;br&gt;work_id PK/FK → hrag_work.id, ON DELETE CASCADE.&lt;br&gt;embedding vector NOT NULL, dimension not fixed in DDL.&lt;br&gt;One vector per bounded item per generation; no chunk table.&lt;br&gt;Exact cosine distance via &amp;lt;=&amp;gt; over allowed work IDs." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;align=left;verticalAlign=top;spacing=14;fontSize=15;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="40" y="860" width="500" height="270" />
+        </mxCell>
+        <mxCell id="D8" value="&lt;b&gt;D8 · chat_message + hrag_message&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/core/core/model/chat.py&lt;/font&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/core/core/model/hrag.py&lt;/font&gt;&lt;br&gt;&lt;br&gt;chat_message stores user/assistant text.&lt;br&gt;hrag_message keyed by message_id stores metadata_json:&lt;br&gt;references, dependencies, notices, filters, mode.&lt;br&gt;No copied evidence passages in HRAG metadata." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;align=left;verticalAlign=top;spacing=14;fontSize=15;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="640" y="860" width="500" height="270" />
+        </mxCell>
+        <mxCell id="D9" value="&lt;b&gt;D9 · EvidenceReference → RetrievalEvidence&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/models/models/hrag.py&lt;/font&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/core/core/service/hrag/retrieval.py&lt;/font&gt;&lt;br&gt;&lt;br&gt;Reference: citation, work_id, fingerprint, support_ids, relation_index, path_id.&lt;br&gt;Reauthorization reconstructs title, story, quote, assertion, description and truncation from current data." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;align=left;verticalAlign=top;spacing=14;fontSize=15;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1240" y="860" width="500" height="270" />
+        </mxCell>
+        <mxCell id="e0" value="one row/item/generation" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;fontSize=12;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="D1" target="D3">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e1" value="generation FK" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;fontSize=12;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="D2" target="D3">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e2" value="project_graph()" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;fontSize=12;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="D4" target="D5">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e3" value="assertions between entities" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;fontSize=12;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="D5" target="D6">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e4" value="JSON provenance + graph key" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;fontSize=12;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="D3" target="D6">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e5" value="embedding pipeline" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;fontSize=12;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="D3" target="D7">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e6" value="key + relation index" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;fontSize=12;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="D6" target="D9">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e7" value="ranked work IDs" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;fontSize=12;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="D7" target="D9">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e8" value="persist references only" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;fontSize=12;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="D9" target="D8">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e9" value="live source + membership" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;fontSize=12;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="D1" target="D9">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="legend" value="Colors: blue = Core services · yellow = worker / RQ · orange = model inference · purple = stores · red = authorization / recovery · green = frontend · gray = notes. Paths are repository-relative. Dashed arrows show recovery or configuration." style="text;html=1;align=left;verticalAlign=middle;fontSize=13;whiteSpace=wrap;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="40" y="1190" width="1695" height="65" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="page-4" name="4 · HRAG question to answer">
+    <mxGraphModel dx="1800" dy="1200" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1800" pageHeight="1500" math="0" shadow="0">
+      <root>
+        <mxCell id="0" value="" />
+        <mxCell id="1" parent="0" value="" />
+        <mxCell id="title" value="&lt;b&gt;4 · HRAG question to answer&lt;/b&gt;&lt;br&gt;Graph then vector execute sequentially in retrieve(); there is no cross-branch score fusion or reranker." style="text;html=1;align=left;verticalAlign=middle;fontSize=22;whiteSpace=wrap;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="35" y="20" width="1720" height="90" />
+        </mxCell>
+        <mxCell id="R1" value="&lt;b&gt;R1 · Existing Chat turn entry&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/frontend/frontend/views/chat_views.py&lt;/font&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/core/core/api/chat.py&lt;/font&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/core/core/service/chat.py&lt;/font&gt;&lt;br&gt;&lt;br&gt;mode=hrag → create_turn() / _create_turn().&lt;br&gt;Owner check, Redis lease, shared deadline.&lt;br&gt;Context: last 10 messages, timezone/time, visible filter catalog, recent results, question." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=left;verticalAlign=top;spacing=14;fontSize=15;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="40" y="140" width="500" height="270" />
+        </mxCell>
+        <mxCell id="R2" value="&lt;b&gt;R2 · Constrained graph plan&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/core/core/service/hrag/retrieval.py&lt;/font&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/models/models/hrag.py&lt;/font&gt;&lt;br&gt;&lt;br&gt;prepare_retrieval_plan(context, GraphPlan).&lt;br&gt;Names, entity types, relationships, hops 0..3, Assess filters.&lt;br&gt;Validate filters using ChatService search helpers.&lt;br&gt;Planning failure leaves vector branch unfiltered + notice." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;align=left;verticalAlign=top;spacing=14;fontSize=15;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="640" y="140" width="500" height="270" />
+        </mxCell>
+        <mxCell id="R3" value="&lt;b&gt;R3 · Authorized graph candidates&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/core/core/service/hrag/retrieval.py&lt;/font&gt;&lt;br&gt;&lt;br&gt;iter_authorized_work(extraction, filters).&lt;br&gt;Story.visible_query + NewsItem.allowed_with_acl().&lt;br&gt;Active generation, ready work, nonblank input, current fingerprint.&lt;br&gt;Pass allowed graph keys to graph_search()." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;align=left;verticalAlign=top;spacing=14;fontSize=15;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1240" y="140" width="500" height="270" />
+        </mxCell>
+        <mxCell id="R4" value="&lt;b&gt;R4 · Fixed graph traversal&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/core/core/service/hrag/stores.py&lt;/font&gt;&lt;br&gt;&lt;br&gt;compile_graph(): hops=0 mentions; otherwise 1..3 undirected traversal.&lt;br&gt;All support edges must be allowed.&lt;br&gt;Multi-hop: affirmed only, excludes ALIAS_OF.&lt;br&gt;Stable bounded evidence; default ≤50 graph rows." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;align=left;verticalAlign=top;spacing=14;fontSize=15;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1240" y="500" width="500" height="270" />
+        </mxCell>
+        <mxCell id="R5" value="&lt;b&gt;R5 · Query embedding + vector top-k&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/core/core/service/hrag/retrieval.py&lt;/font&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/core/core/service/hrag/stores.py&lt;/font&gt;&lt;br&gt;&lt;br&gt;Embed latest_message; explicitly request active generation dimensions.&lt;br&gt;Authorize embedding work with the same planned filters.&lt;br&gt;Exact cosine ORDER BY distance, work_id; default 12.&lt;br&gt;Recheck generation and query dimensions." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;align=left;verticalAlign=top;spacing=14;fontSize=15;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="640" y="500" width="500" height="270" />
+        </mxCell>
+        <mxCell id="R6" value="&lt;b&gt;R6 · Reconstruct and reauthorize&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/core/core/service/hrag/retrieval.py&lt;/font&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/models/models/hrag.py&lt;/font&gt;&lt;br&gt;&lt;br&gt;Graph [G1…] and vector [V1…] references.&lt;br&gt;Reauthorize full path support_ids; reconstruct passages.&lt;br&gt;Append branches in one HragResult with notices/filters.&lt;br&gt;One failure → partial evidence; two → fail turn." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;align=left;verticalAlign=top;spacing=14;fontSize=15;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="40" y="500" width="500" height="270" />
+        </mxCell>
+        <mxCell id="R7" value="&lt;b&gt;R7 · Synthesize with existing ChatClient&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/core/core/service/chat.py&lt;/font&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/core/core/service/hrag/retrieval.py&lt;/font&gt;&lt;br&gt;&lt;br&gt;Reauthorize immediately before synthesis.&lt;br&gt;llm-bot SYNTHESIS_PROMPT + history/question/evidence.&lt;br&gt;Chat provider streams answer.&lt;br&gt;Successful empty retrieval → static insufficient-evidence answer." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;align=left;verticalAlign=top;spacing=14;fontSize=15;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="40" y="860" width="500" height="270" />
+        </mxCell>
+        <mxCell id="R8" value="&lt;b&gt;R8 · Freshness check and atomic save&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/core/core/service/chat.py&lt;/font&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/core/core/model/hrag.py&lt;/font&gt;&lt;br&gt;&lt;br&gt;Recheck current references + inherited history dependencies.&lt;br&gt;Persist both messages with HRAG references/dependencies.&lt;br&gt;Provider/retrieval failure prevents saving the message pair.&lt;br&gt;Final response reconstructs current evidence again." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=left;verticalAlign=top;spacing=14;fontSize=15;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="640" y="860" width="500" height="270" />
+        </mxCell>
+        <mxCell id="R9" value="&lt;b&gt;R9 · Evidence panels and Assess links&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/frontend/frontend/views/chat_views.py&lt;/font&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/frontend/frontend/templates/chat/workspace.html&lt;/font&gt;&lt;br&gt;&lt;br&gt;Escaped answer text, graph evidence and similar passages.&lt;br&gt;Quotes, relation polarity, source title, truncation notice.&lt;br&gt;Current story_id produces an Assess navigation link.&lt;br&gt;Reload follows page 5 authorization flow." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;align=left;verticalAlign=top;spacing=14;fontSize=15;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1240" y="860" width="500" height="270" />
+        </mxCell>
+        <mxCell id="e0" value="context" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;fontSize=12;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="R1" target="R2">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e1" value="validated plan + filters" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;fontSize=12;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="R2" target="R3">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e2" value="authorized keys" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;fontSize=12;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="R3" target="R4">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e3" value="graph references collected" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;fontSize=12;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="R4" target="R5">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e4" value="authorized vector matches" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;fontSize=12;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="R5" target="R6">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e5" value="HragResult" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;fontSize=12;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="R6" target="R7">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e6" value="streamed answer" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;fontSize=12;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="R7" target="R8">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e7" value="conversation detail" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;fontSize=12;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="R8" target="R9">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="legend" value="Colors: blue = Core services · yellow = worker / RQ · orange = model inference · purple = stores · red = authorization / recovery · green = frontend · gray = notes. Paths are repository-relative. Dashed arrows show recovery or configuration." style="text;html=1;align=left;verticalAlign=middle;fontSize=13;whiteSpace=wrap;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="40" y="1190" width="1695" height="65" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="page-5" name="5 · History, permissions and operations">
+    <mxGraphModel dx="1800" dy="1200" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1800" pageHeight="1500" math="0" shadow="0">
+      <root>
+        <mxCell id="0" value="" />
+        <mxCell id="1" parent="0" value="" />
+        <mxCell id="title" value="&lt;b&gt;5 · History, permissions and operations&lt;/b&gt;&lt;br&gt;Authorization depends on live PostgreSQL sources and work state; graph cleanup is best effort." style="text;html=1;align=left;verticalAlign=middle;fontSize=22;whiteSpace=wrap;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="35" y="20" width="1720" height="90" />
+        </mxCell>
+        <mxCell id="S1" value="&lt;b&gt;S1 · Reload or build provider history&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/core/core/service/chat.py&lt;/font&gt;&lt;br&gt;&lt;br&gt;_conversation_detail() loads HragMessage metadata.&lt;br&gt;_history_payload() reuses that checked detail.&lt;br&gt;Last 10 saved messages form provider context.&lt;br&gt;A withheld answer becomes a static placeholder." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=left;verticalAlign=top;spacing=14;fontSize=15;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="40" y="140" width="500" height="270" />
+        </mxCell>
+        <mxCell id="S2" value="&lt;b&gt;S2 · Reauthorize every reference&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/core/core/service/hrag/retrieval.py&lt;/font&gt;&lt;br&gt;&lt;br&gt;display_result() → reauthorize().&lt;br&gt;Re-fetch user + ASSESS_ACCESS; allowed source rows;&lt;br&gt;active generation; ready work; fresh fingerprint.&lt;br&gt;Every support_ids entry must be authorized." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;align=left;verticalAlign=top;spacing=14;fontSize=15;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="640" y="140" width="500" height="270" />
+        </mxCell>
+        <mxCell id="S3" value="&lt;b&gt;S3 · Protect derived conversation answers&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/core/core/service/chat.py&lt;/font&gt;&lt;br&gt;&lt;br&gt;_history_dependencies() gathers references + inherited dependencies.&lt;br&gt;Later Chat and HRAG turns persist dependency references.&lt;br&gt;If any dependency disappears, withhold the answer on reload and from later provider context." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;align=left;verticalAlign=top;spacing=14;fontSize=15;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1240" y="140" width="500" height="270" />
+        </mxCell>
+        <mxCell id="S4" value="&lt;b&gt;S4 · Admin index actions&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/core/core/api/settings.py&lt;/font&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/core/core/service/hrag/indexing.py&lt;/font&gt;&lt;br&gt;&lt;br&gt;ADMIN_OPERATIONS on /api/settings/hrag.&lt;br&gt;GET: generation work counts (optional item IDs).&lt;br&gt;POST: backfill/reconcile, activate, reprocess.&lt;br&gt;Reprocess invalidates saved results and incurs inference." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=left;verticalAlign=top;spacing=14;fontSize=15;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="40" y="500" width="500" height="270" />
+        </mxCell>
+        <mxCell id="S5" value="&lt;b&gt;S5 · Generation activation&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/core/core/service/hrag/indexing.py&lt;/font&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/core/core/model/hrag.py&lt;/font&gt;&lt;br&gt;&lt;br&gt;Initial generation is active during first backfill.&lt;br&gt;Changed config creates an inactive generation.&lt;br&gt;activate(): scanned + every current item ready/fresh.&lt;br&gt;Switch only that pipeline; old generations remain stored." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;align=left;verticalAlign=top;spacing=14;fontSize=15;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="640" y="500" width="500" height="270" />
+        </mxCell>
+        <mxCell id="S6" value="&lt;b&gt;S6 · Recovery boundaries&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/core/core/service/hrag/indexing.py&lt;/font&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/core/core/service/hrag/stores.py&lt;/font&gt;&lt;br&gt;&lt;br&gt;PostgreSQL backup includes work/results/vectors/references.&lt;br&gt;Empty Neo4j rebuilds from stored extraction JSON.&lt;br&gt;Redis loss recovers via leases + reconciliation.&lt;br&gt;Dedicated Neo4j database required: pruning is global to HRAG labels." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;align=left;verticalAlign=top;spacing=14;fontSize=15;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1240" y="500" width="500" height="270" />
+        </mxCell>
+        <mxCell id="S7" value="&lt;b&gt;S7 · Evidence meaning and limitations&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/models/models/hrag.py&lt;/font&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/core/core/service/hrag/stores.py&lt;/font&gt;&lt;br&gt;&lt;br&gt;Exact quote validation proves provenance, not factual correctness.&lt;br&gt;Same-name entities stay separate except validated CVEs.&lt;br&gt;Undirected traversal does not reverse semantic relation direction.&lt;br&gt;Counts describe retrieved accessible indexed evidence only." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;align=left;verticalAlign=top;spacing=14;fontSize=15;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="40" y="860" width="500" height="270" />
+        </mxCell>
+        <mxCell id="S8" value="&lt;b&gt;S8 · Tests to read&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/core/tests/unit/test_hrag_indexing.py&lt;/font&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/core/tests/unit/test_hrag_contracts.py&lt;/font&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/core/tests/integration/test_hrag_stores.py&lt;/font&gt;&lt;br&gt;&lt;br&gt;Lifecycle/cutoffs/retries/generations; provenance/identity;&lt;br&gt;real-store graph paths and filtered vector ranking.&lt;br&gt;Chat, RBAC, worker and browser suites cover integration; see guide for paths." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;align=left;verticalAlign=top;spacing=14;fontSize=15;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="640" y="860" width="500" height="270" />
+        </mxCell>
+        <mxCell id="S9" value="&lt;b&gt;S9 · Source reading map&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/core/core/service/hrag/indexing.py&lt;/font&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/core/core/service/hrag/retrieval.py&lt;/font&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;src/core/core/service/hrag/stores.py&lt;/font&gt;&lt;br&gt;&lt;br&gt;Start: shared models/hrag.py → indexing.py → worker/hrag.py → stores.py → retrieval.py → service/chat.py.&lt;br&gt;The companion guide follows the same node IDs.&lt;br&gt;Existing deployment instructions: docs/features/hrag.md." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;align=left;verticalAlign=top;spacing=14;fontSize=15;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1240" y="860" width="500" height="270" />
+        </mxCell>
+        <mxCell id="e0" value="saved references + filters" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;fontSize=12;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="S1" target="S2">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e1" value="checked evidence + dependencies" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;fontSize=12;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="S2" target="S3">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e2" value="activate" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;fontSize=12;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="S4" target="S5">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e3" value="rebuild state" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;fontSize=12;labelBackgroundColor=#ffffff;dashed=1;" edge="1" parent="1" source="S6" target="S5">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e4" value="interpret checked evidence" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;fontSize=12;labelBackgroundColor=#ffffff;dashed=1;" edge="1" parent="1" source="S7" target="S2">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="legend" value="Colors: blue = Core services · yellow = worker / RQ · orange = model inference · purple = stores · red = authorization / recovery · green = frontend · gray = notes. Paths are repository-relative. Dashed arrows show recovery or configuration." style="text;html=1;align=left;verticalAlign=middle;fontSize=13;whiteSpace=wrap;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="40" y="1190" width="1695" height="65" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

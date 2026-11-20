@@ -1,0 +1,17 @@
+# Infrastructure for host-run core/frontend/worker; enable HRAG in their environment.
+services:
+  database:
+    image: pgvector/pgvector:0.8.7-pg18-trixie
+  neo4j:
+    image: neo4j:2026.10.2-community
+    environment:
+      NEO4J_AUTH: "neo4j/${HRAG_NEO4J_PASSWORD:?Set HRAG_NEO4J_PASSWORD}"
+      NEO4J_server_memory_heap_max__size: 512m
+      NEO4J_server_memory_pagecache_size: 256m
+    ports:
+      - "127.0.0.1:${HRAG_NEO4J_PORT:-7687}:7687"
+      - "127.0.0.1:${HRAG_NEO4J_HTTP_PORT:-7474}:7474"
+    volumes:
+      - neo4j_data:/data
+volumes:
+  neo4j_data:

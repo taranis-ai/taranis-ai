@@ -36,12 +36,13 @@ def test_check_seed_data(monkeypatch, manual_exists, product_type_exists, expect
     assert health.check_seed_data() == expected
 
 
-def test_endpoint_health_lifecycle(client, auth_header, api_header, app, db_persistent_session, redis_client):
+def test_endpoint_health_lifecycle(client, auth_header, api_header, app, db_persistent_session, redis_client, monkeypatch):
     from copy import deepcopy
 
     from rq import Worker
     from rq.job import Job
 
+    from core.config import Config
     from core.managers.queue_manager import CRON_DEFS_KEY
     from core.model.bot import Bot
     from core.model.settings import Settings
@@ -81,6 +82,33 @@ def test_endpoint_health_lifecycle(client, auth_header, api_header, app, db_pers
             snapshot = client.get(route, query_string={"check_id": state["check_id"]}, headers=api_header)
             assert snapshot.headers["Cache-Control"] == "no-store"
             assert snapshot.json["config"]["api_key"] == endpoint["api_key"]
+            monkeypatch.setattr(Config, "HRAG_ENABLED", True)
+            monkeypatch.setattr(Config, "HRAG_EMBEDDING_DIMENSIONS", 1024)
+            assert client.get(route, query_string={"check_id": state["check_id"]}, headers=api_header).json["embedding_dimensions"] == 1024
+            assert (
+                client.patch(
+                    "/api/settings/settings", json={"settings": {"llm_extraction_endpoint": endpoint_id}}, headers=auth_header
+                ).status_code
+                == 200
+            )
+            state = read_state("llm", endpoint_id)
+            extraction = client.get(route, query_string={"check_id": state["check_id"]}, headers=api_header).json["extraction"]
+            assert extraction == {"api_format": "responses", "reasoning_effort": "low"}
+            assert (
+                client.patch(
+                    "/api/settings/settings", json={"settings": {"hrag_extraction_reasoning_effort": "default"}}, headers=auth_header
+                ).status_code
+                == 200
+            )
+            assert client.post(route, json={"check_id": state["check_id"], "healthy": True}, headers=api_header).json == {"accepted": False}
+            state = read_state("llm", endpoint_id)
+            assert (
+                client.get(route, query_string={"check_id": state["check_id"]}, headers=api_header).json["extraction"]["reasoning_effort"]
+                is None
+            )
+            monkeypatch.setattr(Config, "HRAG_ENABLED", False)
+            snapshot = client.get(route, query_string={"check_id": state["check_id"]}, headers=api_header).json
+            assert snapshot["embedding_dimensions"] is None and snapshot["extraction"] is None
             assert client.get("/api/health").json["services"]["worker_endpoints"] == "down"
 
             result = {"check_id": state["check_id"], "healthy": False}
@@ -132,10 +160,10 @@ def test_endpoint_health_lifecycle(client, auth_header, api_header, app, db_pers
 
             for bot_type in ("nlp_bot", "sentiment_analysis_bot", "cybersec_classifier_bot"):
                 selected_endpoint_id = endpoint_id
-                if bot_type == "cybersec_classifier_bot":
+                if bot_type in {"cybersec_classifier_bot", "sentiment_analysis_bot"}:
                     response = client.post(
                         "/api/settings/llm-endpoints",
-                        json={**endpoint, "name": "Topic health", "api_format": "systemone", "enabled": True},
+                        json={**endpoint, "name": f"{bot_type} health", "api_format": "systemone", "enabled": True},
                         headers=auth_header,
                     )
                     assert response.status_code == 200

@@ -80,8 +80,25 @@ def test_chat_history_escapes_answers_and_builds_doseq_assess_link(
     assert '<button id="chat-send" type="submit" class="btn btn-primary" data-testid="chat-send">Send</button>' in body
 
 
-def test_new_chat_pushes_conversation_url(authenticated_client_basic, responses):
+def test_new_chat_pushes_conversation_url(authenticated_client_basic, responses, app):
     conversation = _conversation()
+    app.config["HRAG_ENABLED"] = True
+    conversation["messages"][0]["mode"] = "hrag"
+    conversation["messages"][0]["hrag_result"] = {
+        "evidence": [
+            {
+                "citation": "G1",
+                "work_id": "work",
+                "fingerprint": "fingerprint",
+                "branch": "graph",
+                "news_item_id": "item",
+                "story_id": "story",
+                "title": "Evidence title",
+                "quote": "<script>private()</script>",
+            }
+        ],
+        "notices": ["Partial evidence"],
+    }
     responses.post(
         f"{Config.TARANIS_CORE_URL}/chat/conversations",
         json={"conversation": conversation},
@@ -89,12 +106,18 @@ def test_new_chat_pushes_conversation_url(authenticated_client_basic, responses)
     )
     responses.get(f"{Config.TARANIS_CORE_URL}/chat/conversations", json={"items": [conversation]}, status=200)
 
-    response = authenticated_client_basic.post(url_for("chat.send_message"), data={"content": "Vienna"})
+    response = authenticated_client_basic.post(url_for("chat.send_message"), data={"content": "Vienna", "mode": "hrag"})
 
     assert response.status_code == 200
     assert response.headers["HX-Push-Url"] == url_for("chat.conversation", conversation_id=CONVERSATION_ID)
     assert 'data-testid="chat-message-assistant"' in response.get_data(as_text=True)
     assert ">11. June 2026 23:30</time>" in response.get_data(as_text=True)
+    assert 'name="mode"' in response.text and '<option value="hrag" selected' in response.text
+    assert "&lt;script&gt;private()&lt;/script&gt;" in response.text
+    assert "Partial evidence" in response.text
+    assert 'data-testid="chat-hrag-evidence"' in response.text
+    assert '"mode": "hrag"' in responses.calls[0].request.body.decode()
+    app.config["HRAG_ENABLED"] = False
 
 
 def test_chat_provider_error_keeps_draft_retryable(authenticated_client_basic, responses):

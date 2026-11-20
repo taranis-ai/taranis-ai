@@ -230,3 +230,8 @@ files are no longer used. Pull the selected published images, restart services, 
 health, and publish a test product. No database migration is required. Before rolling
 back, export the presets and remove the new parameters for older schema versions;
 the prior worker version requires its documented `known_hosts` setup.
+
+
+### Sentiment Decisions upgrade
+
+The updated llm-bot integration runs sentiment through Decisions. In **LLM Endpoints**, enable a realtime Decisions format and assign **Sentiment analysis**, or select a compatible endpoint on each sentiment bot. Existing generative assignments remain saved but cannot execute sentiment with the new library. Other generative bot assignments remain unchanged. HRAG extraction now defaults to **Low** reasoning; explicitly change an older saved **None** setting when desired, then backfill and activate the replacement extraction generation.

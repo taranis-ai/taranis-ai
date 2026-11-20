@@ -3,7 +3,9 @@ from copy import deepcopy
 from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
+from models.hrag import EmbeddingSettings, ExtractionReasoningEffort
 from models.llm import LLM_BOT_FEATURES, LLM_FEATURES, LLMEndpoint, LLMProvider
+from pydantic import TypeAdapter
 from sqlalchemy import event
 from sqlalchemy.orm import Mapped, Session
 
@@ -78,6 +80,13 @@ class Settings(BaseModel):
         for feature in LLM_FEATURES:
             merged.setdefault(f"llm_{feature}_endpoint", "")
         merged.setdefault("chat_max_stories", 5)
+        merged.setdefault("hrag_extraction_reasoning_effort", "low")
+        for key, value in (
+            EmbeddingSettings(hrag_embedding_limit=Config.HRAG_EMBEDDING_LIMIT, hrag_vector_limit=Config.HRAG_VECTOR_LIMIT)
+            .model_dump()
+            .items()
+        ):
+            merged.setdefault(key, value)
         return merged
 
     def to_dict(self) -> dict[str, Any]:
@@ -140,14 +149,22 @@ class Settings(BaseModel):
                 not isinstance(update_data[key], str) or (update_data[key] and update_data[key] not in current_settings["llm_endpoints"])
             ):
                 return {"error": "Select an existing LLM endpoint"}, 400
+        for feature in ("embedding", "extraction", "extraction_verification", "graph_planning"):
+            if endpoint_id := update_data.get(f"llm_{feature}_endpoint"):
+                provider = LLMProvider.model_validate(current_settings["llm_endpoints"][endpoint_id])
+                if not provider.supports(feature) or (provider.for_feature(feature) or {}).get("processing_mode") != "realtime":
+                    return {"error": "HRAG requires a compatible realtime endpoint"}, 400
         if cls._chat_uses_batch({**current_settings, **update_data}):
             return {"error": "Chat requires a realtime LLM endpoint. Assign Chat explicitly before using a batch default."}, 400
         if cls._nonclassification_uses_decisions({**current_settings, **update_data}):
-            return {"error": "Decisions endpoints support only topic classification. Use a Responses or Chat Completions default."}, 400
-        if (endpoint_id := update_data.get("llm_classification_endpoint")) and not LLMProvider.model_validate(
-            current_settings["llm_endpoints"][endpoint_id]
-        ).supports("classification"):
-            return {"error": "Topic classification requires a realtime Decisions endpoint."}, 400
+            return {
+                "error": "Decisions endpoints support sentiment, topic classification and HRAG relationship verification. Use a Responses or Chat Completions default."
+            }, 400
+        for feature, label in (("classification", "Topic classification"), ("sentiment", "Sentiment analysis")):
+            if (endpoint_id := update_data.get(f"llm_{feature}_endpoint")) and not LLMProvider.model_validate(
+                current_settings["llm_endpoints"][endpoint_id]
+            ).supports(feature):
+                return {"error": f"{label} requires a realtime Decisions endpoint."}, 400
         if "chat_max_stories" in update_data:
             try:
                 value = cls._validate_non_negative_int(update_data["chat_max_stories"])
@@ -156,6 +173,20 @@ class Settings(BaseModel):
                 update_data["chat_max_stories"] = value
             except (TypeError, ValueError):
                 return {"error": "Maximum stories must be between 1 and 20"}, 400
+        embedding_keys = set(EmbeddingSettings.model_fields)
+        if embedding_keys.intersection(update_data):
+            try:
+                normalized = EmbeddingSettings.model_validate({**current_settings, **update_data}).model_dump()
+            except ValueError:
+                return {"error": "Invalid semantic search settings. Use valid limits and overlap less than half the chunk size."}, 400
+            update_data.update({key: normalized[key] for key in embedding_keys.intersection(update_data)})
+        if "hrag_extraction_reasoning_effort" in update_data:
+            try:
+                update_data["hrag_extraction_reasoning_effort"] = TypeAdapter(ExtractionReasoningEffort).validate_python(
+                    update_data["hrag_extraction_reasoning_effort"]
+                )
+            except ValueError:
+                return {"error": "Select a supported HRAG extraction reasoning effort"}, 400
 
         if update_data:
             onboarding_changed = (
@@ -172,10 +203,23 @@ class Settings(BaseModel):
             from core.model.bot import Bot
 
             Bot.schedule_all_bots()
+        if "hrag_extraction_reasoning_effort" in update_data or any(
+            key in update_data for key in ("llm_default_endpoint", "llm_extraction_endpoint")
+        ):
+            from core.service.endpoint_health import schedule_check
+
+            endpoint_id = current_settings.get("llm_extraction_endpoint") or current_settings.get("llm_default_endpoint")
+            if endpoint_id:
+                schedule_check("llm", endpoint_id)
+        if Config.HRAG_ENABLED and (embedding_keys - {"hrag_vector_limit", "hrag_chunks_per_item"}).intersection(update_data):
+            from core.managers.queue_manager import queue_manager
+
+            queue_manager.enqueue_task("misc", "hrag_reconcile", job_timeout=720)
         return {"message": "Successfully updated settings", "settings": settings.to_dict()["settings"]}, 200
 
     @classmethod
     def _validate_llm_settings(cls, values: dict) -> None:
+        EmbeddingSettings.model_validate(values)
         endpoints = {key: LLMProvider.model_validate(value).model_dump() for key, value in values["llm_endpoints"].items()}
         names = [endpoint["name"].casefold() for endpoint in endpoints.values()]
         if len(names) != len(set(names)):
@@ -187,8 +231,11 @@ class Settings(BaseModel):
         if cls._chat_uses_batch(values):
             raise ValueError("Chat requires a realtime LLM endpoint")
         if cls._nonclassification_uses_decisions(values):
-            raise ValueError("Decisions endpoints support only topic classification")
+            raise ValueError("Decisions endpoints support sentiment, topic classification and HRAG relationship verification")
         values["chat_max_stories"] = cls._validate_non_negative_int(values["chat_max_stories"])
+        values["hrag_extraction_reasoning_effort"] = TypeAdapter(ExtractionReasoningEffort).validate_python(
+            values["hrag_extraction_reasoning_effort"]
+        )
         if not 1 <= values["chat_max_stories"] <= 20:
             raise ValueError("Maximum stories must be between 1 and 20")
 
@@ -200,7 +247,14 @@ class Settings(BaseModel):
 
     @classmethod
     def _nonclassification_uses_decisions(cls, values: dict) -> bool:
-        for feature in LLM_FEATURES.keys() - {"classification"}:
+        for feature in LLM_FEATURES.keys() - {
+            "classification",
+            "sentiment",
+            "embedding",
+            "extraction",
+            "extraction_verification",
+            "graph_planning",
+        }:
             endpoint_id = values.get(f"llm_{feature}_endpoint") or values.get("llm_default_endpoint")
             endpoint = values.get("llm_endpoints", {}).get(endpoint_id, {})
             if endpoint and not LLMProvider.model_validate(endpoint).supports(feature):
@@ -278,15 +332,25 @@ class Settings(BaseModel):
         if cls._chat_uses_batch(values):
             return {"error": "Chat requires a realtime LLM endpoint. Reassign Chat before changing this endpoint to batch."}, 400
         if cls._nonclassification_uses_decisions(values):
-            return {"error": "Decisions endpoints support only topic classification. Reassign other features first."}, 400
+            return {
+                "error": "Decisions endpoints support sentiment, topic classification and HRAG relationship verification. Reassign other features first."
+            }, 400
         from core.model.bot import Bot
 
         provider = LLMProvider.model_validate(endpoints[endpoint_id]) if endpoint_id in endpoints else None
         lost_features = {
             feature for feature in LLM_FEATURES if provider and previous and previous.supports(feature) and not provider.supports(feature)
         }
-        if endpoint_id == values.get("llm_classification_endpoint") and "classification" in lost_features:
-            return {"error": "Reassign topic classification before changing this endpoint's API format."}, 400
+        for feature in ("embedding", "extraction", "extraction_verification", "graph_planning"):
+            if (
+                endpoint_id == values.get(f"llm_{feature}_endpoint")
+                and provider
+                and (not provider.supports(feature) or (provider.for_feature(feature) or {}).get("processing_mode") != "realtime")
+            ):
+                return {"error": "Reassign HRAG before changing this endpoint's capability or processing mode"}, 400
+        for feature, label in (("classification", "topic classification"), ("sentiment", "sentiment analysis")):
+            if endpoint_id == values.get(f"llm_{feature}_endpoint") and feature in lost_features:
+                return {"error": f"Reassign {label} before changing this endpoint's API format."}, 400
         for bot in db.session.execute(db.select(Bot)).scalars():
             if bot.parameters.get("LLM_ENDPOINT") == endpoint_id and LLM_BOT_FEATURES.get(bot.type.value) in lost_features:
                 return {"error": "Reassign incompatible bots before changing this endpoint's API format."}, 400

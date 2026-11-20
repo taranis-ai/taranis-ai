@@ -1638,6 +1638,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             for cleanup_id in set(cleanup_ids):
                 core_request_client.delete(f"/assess/stories/{cleanup_id}", raise_for_status=False)
 
+    @pytest.mark.e2e_full_stack
     def test_admin_settings(self, logged_in_page, tmp_path, pre_seed_stories):
         page = logged_in_page
         settings_update_url = url_for("admin_settings.settings_action", action="settings", _external=True)
@@ -1957,7 +1958,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             expect(endpoint).to_have_count(1)
             expect(page.locator("#notification-bar")).to_contain_text("Reassign this endpoint")
             reset_htmx_state(page)
-            for bot_type in ("story_bot", "summary_bot", "nlp_bot", "sentiment_analysis_bot"):
+            for bot_type in ("story_bot", "summary_bot", "nlp_bot"):
                 page.goto(url_for("admin.bots", _external=True))
                 page.get_by_test_id("new-bot-button").click()
                 selector = page.get_by_role("combobox", name="LLM endpoint", exact=True)
@@ -2006,6 +2007,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             with_htmx_wait(page, lambda: endpoint.get_by_role("button", name="Save Endpoint", exact=True).click())
             assignments.get_by_label("Default endpoint").select_option(label="E2E shared model")
             assignments.get_by_label("Topic classification").select_option(label="E2E shared model")
+            assignments.get_by_label("Sentiment analysis").select_option(label="E2E shared model")
             with_htmx_wait(page, lambda: assignments.get_by_role("button", name="Save Assignments").click())
             page.reload()
             expect(assignments.get_by_label("Topic classification").locator("option:checked")).to_have_text("E2E shared model")
@@ -2040,14 +2042,56 @@ class TestEndToEndAdmin(BaseE2ETest):
             endpoint.get_by_label("Enable Decisions", exact=True).check()
             assignments.get_by_label("Default endpoint").select_option("")
             assignments.get_by_label("Topic classification").select_option("")
+            assignments.get_by_label("Sentiment analysis").select_option("")
             with_htmx_wait(page, lambda: assignments.get_by_role("button", name="Save Assignments").click())
             endpoint.locator("summary").click()
             with_htmx_wait(page, lambda: endpoint.get_by_role("button", name="Delete Endpoint").click())
             expect(endpoint).to_have_count(0)
 
+        def check_hrag_indexing():
+            page.goto(url_for("admin_settings.settings", _external=True))
+            page.get_by_test_id("settings-chat-section").locator("summary").click()
+            effort = page.get_by_role("combobox", name="HRAG extraction reasoning", exact=True)
+            expect(effort).to_have_value("low")
+            effort.select_option("default")
+            page.get_by_test_id("settings-hrag-chunk-size").fill("500")
+            page.get_by_test_id("settings-hrag-chunk-overlap").fill("50")
+            with_htmx_wait(page, lambda: page.get_by_test_id("settings-chat-submit").click())
+            page.reload()
+            page.get_by_test_id("settings-chat-section").locator("summary").click()
+            expect(effort).to_have_value("default")
+            expect(page.get_by_test_id("settings-hrag-chunk-size")).to_have_value("500")
+            expect(page.get_by_test_id("settings-hrag-chunk-overlap")).to_have_value("50")
+            page.get_by_test_id("settings-hrag-chunk-size").fill("3000")
+            page.get_by_test_id("settings-hrag-chunk-overlap").fill("100")
+            effort.select_option("low")
+            with_htmx_wait(page, lambda: page.get_by_test_id("settings-chat-submit").click())
+            page.get_by_test_id("settings-chat-section").locator("summary").click()
+            expect(page.get_by_test_id("settings-hrag-chunk-size")).to_have_value("3000")
+            page.get_by_test_id("settings-hrag-chunk-size").fill("2000")
+            page.get_by_test_id("settings-hrag-chunk-overlap").fill("200")
+            with_htmx_wait(page, lambda: page.get_by_test_id("settings-chat-submit").click())
+            page.get_by_test_id("settings-chat-section").locator("summary").click()
+            panel = page.locator("#settings-hrag-index")
+            expect(panel.get_by_role("heading", name="HRAG indexing")).to_be_visible()
+            with page.expect_response(
+                lambda response: response.request.method == "POST" and response.url.endswith("/settings/hrag")
+            ) as started:
+                panel.get_by_role("button", name="Start indexing", exact=True).click()
+            assert started.value.status == 202
+            expect(panel.get_by_role("status").filter(has_text="HRAG indexing queued")).to_be_visible()
+            with page.expect_response(
+                lambda response: response.request.method == "GET" and response.url.endswith("/settings/hrag")
+            ) as refreshed:
+                panel.get_by_role("link", name="Refresh status", exact=True).click()
+            assert refreshed.value.ok
+            expect(panel.get_by_role("button", name="Start indexing", exact=True)).to_be_visible()
+            expect(page.locator("#settings-hrag-index")).to_have_count(1)
+
         go_to_admin_settings()
         check_default_values()
         check_llm_endpoints()
+        check_hrag_indexing()
         change_default_values()
         check_new_values()
         exported_stories_file = test_export_all_stories(pre_seed_stories)
