@@ -367,3 +367,25 @@ def test_grouping_points_story_attribute_selection_to_surviving_story(
         if Attribute.get(story_attr_def.id):
             db.session.delete(Attribute.get(story_attr_def.id))
         db.session.commit()
+
+
+@pytest.mark.usefixtures("app")
+def test_locked_report_lookup_matches_report_lookup(
+    session,
+    story_relevance_news_item_payload_factory,
+    story_relevance_story_payload_factory,
+    story_relevance_report_payload_factory,
+):
+    first, second, other = (
+        _story(story_relevance_news_item_payload_factory, story_relevance_story_payload_factory, title)
+        for title in ("First", "Second", "Other")
+    )
+    both = _report_with_stories(story_relevance_report_payload_factory, [first, second])
+    only_second = _report_with_stories(story_relevance_report_payload_factory, [second])
+    _report_with_stories(story_relevance_report_payload_factory, [other])
+    _report_with_stories(story_relevance_report_payload_factory, [])
+
+    expected = sorted([both.id, only_second.id])
+    assert [report.id for report in ReportItem.get_for_stories([first.id, second.id])] == expected
+    assert [report.id for report in ReportItem.lock_for_stories([first.id, second.id])] == expected
+    assert ReportItem.lock_for_stories([]) == []

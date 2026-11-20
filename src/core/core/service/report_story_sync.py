@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING, Any, Literal
 
 from core.managers.db_manager import db
 from core.model.attribute import AttributeType
-from core.model.story import ReportItemStory
 from core.service.misp_auto_update import refresh_misp_auto_update_jobs
 from core.service.story import StoryService
 
@@ -113,14 +112,9 @@ class ReportStorySyncService:
         from core.model.report_item import ReportItem
 
         story_ids = [target_story.id, *(story.id for story in source_stories)]
-        query = (
-            db.select(ReportItem)
-            .join(ReportItemStory, ReportItemStory.report_item_id == ReportItem.id)
-            .where(ReportItemStory.story_id.in_(story_ids))
-            .distinct()
-        )
         absorbed = set(absorbed_story_ids)
-        reports = list(db.session.execute(query).scalars())
+        # The caller has locked the stories; lock the reports before their stories and STORY fields are read.
+        reports = ReportItem.lock_for_stories(story_ids)
         for report in reports:
             cls._replace_absorbed_story_attributes(report, absorbed, target_story.id)
             remaining = [story for story in report.stories if story.id not in absorbed]

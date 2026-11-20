@@ -1,6 +1,7 @@
 import pytest
 
 from core.managers.db_manager import db
+from core.model.news_item import NewsItem
 from core.model.report_item import ReportItem
 from core.model.revision import ReportRevision
 from core.model.story import Story
@@ -187,6 +188,31 @@ def test_partial_ungroup_keeps_report_stories_and_records_one_revision(
     assert _news_item_ids(story_b.id) == [items_b[1]]
     assert not set(response["new_stories_ids"]) & set(_report_story_ids(report.id))
     assert _report_revision_notes(report.id) == [*notes_before, "ungroup_news_items"]
+
+
+@pytest.mark.usefixtures("app")
+def test_ungroup_uses_current_story_of_cached_news_item(
+    session,
+    story_relevance_news_item_payload_factory,
+    story_relevance_story_payload_factory,
+):
+    story_a = _story(story_relevance_news_item_payload_factory, story_relevance_story_payload_factory, "Story A", item_count=2)
+    story_b = _story(story_relevance_news_item_payload_factory, story_relevance_story_payload_factory, "Story B")
+    moved_item_id = _news_item_ids(story_a.id)[0]
+    items_b = _news_item_ids(story_b.id)
+    cached_item = NewsItem.get(moved_item_id)
+    assert cached_item is not None and cached_item.story_id == story_a.id
+    # Move the item in the database only, as a concurrent merge would; the session keeps the stale story_id.
+    db.session.execute(
+        db.update(NewsItem).where(NewsItem.id == moved_item_id).values(story_id=story_b.id).execution_options(synchronize_session=False)
+    )
+
+    response, status = Story.ungroup_news_items_from_story([moved_item_id], user=_admin())
+
+    assert status == 200, response
+    assert _news_item_ids(story_b.id) == items_b
+    assert moved_item_id not in _news_item_ids(story_a.id)
+    assert NewsItem.get(moved_item_id).story_id in response["new_stories_ids"]
 
 
 @pytest.mark.usefixtures("app")
