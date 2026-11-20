@@ -1,0 +1,76 @@
+name: docs
+
+on:
+  pull_request:
+    paths:
+      - "docs/user/**"
+      - ".github/workflows/docs.yaml"
+  push:
+    branches:
+      - master
+    paths:
+      - "docs/user/**"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: build website with these docs
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      HUGO_VERSION: 0.151.0
+      HTMLTEST_VERSION: 0.17.0
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: taranis-ai
+          persist-credentials: false
+      - uses: actions/checkout@v7
+        with:
+          repository: taranis-ai/taranis.ai
+          path: taranis.ai
+          lfs: true
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: taranis.ai/.nvmrc
+          cache: npm
+          cache-dependency-path: taranis.ai/package.json
+      - name: Install Hugo and htmltest
+        run: |
+          wget -qO "$RUNNER_TEMP/hugo.deb" "https://github.com/gohugoio/hugo/releases/download/v${HUGO_VERSION}/hugo_extended_${HUGO_VERSION}_linux-amd64.deb"
+          sudo dpkg -i "$RUNNER_TEMP/hugo.deb"
+          wget -qO- "https://github.com/wjdp/htmltest/releases/download/v${HTMLTEST_VERSION}/htmltest_${HTMLTEST_VERSION}_linux_amd64.tar.gz" | sudo tar xz -C /usr/local/bin htmltest
+      - name: Build website and check links
+        working-directory: taranis.ai
+        env:
+          # Use this checkout instead of the module version pinned in the website config.
+          HUGO_MODULE_REPLACEMENTS: "github.com/taranis-ai/taranis-ai -> ${{ github.workspace }}/taranis-ai"
+        run: |
+          npm ci
+          ./htmltest.sh
+          test -f public/docs/index.html || { echo "::error::Docs were not rendered"; exit 1; }
+
+  deploy:
+    name: trigger website deployment
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Run gh_pages.yaml in taranis-ai/taranis.ai
+        env:
+          GH_TOKEN: ${{ secrets.TARANIS_AI_SITE_TOKEN }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::warning::TARANIS_AI_SITE_TOKEN is not set; skipping website deployment."
+            exit 0
+          fi
+          gh workflow run gh_pages.yaml --repo taranis-ai/taranis.ai --ref master
