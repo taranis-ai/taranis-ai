@@ -110,6 +110,37 @@ class TestEndToEndUser(BaseE2ETest):
         finally:
             context.close()
 
+    def test_story_discussion_without_javascript(self, browser, non_admin_logged_in_page, core_request_client):
+        allow_requests_passthru()
+        story = core_request_client.json_request(
+            "POST", "/assess/news-items", json_data={"title": "Discussion test", "content": uuid.uuid4().hex, "osint_source_id": "manual"}
+        )
+        story_id = story["story_id"]
+        try:
+            with browser.new_context(java_script_enabled=False, storage_state=non_admin_logged_in_page.context.storage_state()) as context:
+                editor = context.new_page()
+                editor.goto(url_for("assess.story_edit", story_id=story_id, _external=True))
+                title = editor.get_by_role("textbox", name="Title", exact=True)
+                title.fill("Unsaved story title")
+                editor.locator("#comments > summary").click()
+                editor.get_by_role("textbox", name="Comment text").fill("First comment")
+                with context.expect_page() as opened:
+                    editor.get_by_role("button", name="Post comment").click()
+                thread = opened.value
+                expect(thread.locator("#comments li")).to_have_text(re.compile("First comment"))
+                expect(title).to_have_value("Unsaved story title")
+
+                for index in range(20):
+                    core_request_client.post(f"/discussions/story/{story_id}", json_data={"body": f"Reply {index}"})
+                thread.reload()
+                thread.get_by_role("link", name="Older comments").click()
+                thread.get_by_label("Confirm deletion").check()
+                thread.get_by_role("button", name="Delete comment").click()
+                expect(thread.locator("#comments li")).to_have_count(20)
+                expect(thread.locator("#comments")).to_contain_text("Reply 19")
+        finally:
+            core_request_client.delete(f"/assess/stories/{story_id}")
+
     def test_user_dashboard(self, non_admin_logged_in_page: Page, forward_console_and_page_errors_non_admin, stories_function_wrapper):
         page = non_admin_logged_in_page
 
@@ -536,7 +567,25 @@ class TestEndToEndUser(BaseE2ETest):
             expect(back_to_assess).to_have_attribute("href", return_url)
             page.get_by_role("textbox", name="Title").fill(edited_title)
             page.get_by_role("textbox", name="Summary").fill("Test summary")
-            page.get_by_role("textbox", name="Analyst comments").fill("Test analyst comment")
+            page.locator("#comments > summary").click()
+            page.get_by_role("textbox", name="Comment text").fill("Test analyst comment")
+            with_htmx_wait(page, page.get_by_role("button", name="Post comment").click)
+            comment = page.locator("#comments li").filter(has_text="Test analyst comment")
+            edit = comment.get_by_role("button", name="Edit comment")
+            editor = comment.get_by_role("textbox", name="Edit comment")
+            expect(comment.get_by_role("button", name="Delete comment")).to_be_visible()
+            edit.click()
+            expect(editor).to_be_focused()
+            expect(comment.locator("p").filter(has_text="Test analyst comment")).not_to_be_visible()
+            editor.fill("Discarded edit")
+            comment.get_by_role("button", name="Cancel").click()
+            edit.click()
+            expect(editor).to_have_value("Test analyst comment")
+            editor.fill("Updated analyst comment")
+            with_htmx_wait(page, comment.get_by_role("button", name="Save comment").click)
+            expect(page.locator("#comments p").filter(has_text="Updated analyst comment")).to_be_visible()
+            expect(page.get_by_role("textbox", name="Title")).to_have_value(edited_title)
+            expect(page.get_by_role("textbox", name="Summary")).to_have_value("Test summary")
             news_item_card = page.locator("article[id^='news-item-card-']").first
             news_item_card.get_by_test_id("edit-newsitem-tags").click()
             expect(news_item_card.get_by_role("heading", name="News item tags")).to_be_in_viewport()
@@ -576,7 +625,8 @@ class TestEndToEndUser(BaseE2ETest):
             expect(page.get_by_role("complementary")).to_contain_text("Generate summary & title")
             expect(page.get_by_role("complementary")).to_contain_text("Run sentiment analysis")
             expect(page.get_by_role("complementary")).to_contain_text("Topic classification")
-            page.get_by_role("textbox", name="Analyst comments").fill("Unsaved analyst comment")
+            page.get_by_text("Add a comment", exact=True).click()
+            page.get_by_role("textbox", name="Comment text").fill("Unsaved analyst comment")
             for action in ("Generate summary & title", "Generate Tags", "Run sentiment analysis", "Topic classification"):
                 with_htmx_wait(page, page.get_by_role("button", name=action, exact=True).click)
                 expect(page.locator("#notification-bar")).to_have_count(1)
@@ -584,7 +634,7 @@ class TestEndToEndUser(BaseE2ETest):
                     "Tag generation scheduled" if action == "Generate Tags" else "Executing Bot scheduled"
                 )
                 expect(page.get_by_role("textbox", name="Title", exact=True)).to_have_value(edited_title)
-                expect(page.get_by_role("textbox", name="Analyst comments")).to_have_value("Unsaved analyst comment")
+                expect(page.get_by_role("textbox", name="Comment text")).to_have_value("Unsaved analyst comment")
             story_id = seeded_story["id"]
             news_item_id = seeded_story["news_items"][0]["id"]
             response = core_request_client.put(
@@ -634,7 +684,7 @@ class TestEndToEndUser(BaseE2ETest):
                 wait_for_htmx_settled(page)
                 assert len(refresh_requests) == 1
                 assert parse_qs(urlparse(refresh_requests[0]).query) == {"layout": ["advanced"], "bot_types": [bot_type]}
-                expect(page.get_by_role("textbox", name="Analyst comments")).to_have_value("Unsaved analyst comment")
+                expect(page.get_by_role("textbox", name="Comment text")).to_have_value("Unsaved analyst comment")
                 expect(page.get_by_test_id("attribute-value-input").nth(1)).to_have_value("Unsaved custom attribute")
                 if bot_type != "SUMMARY_BOT":
                     expect(page.locator("#story-ai-summary")).to_have_value("Private summary draft " * 600)
@@ -654,6 +704,15 @@ class TestEndToEndUser(BaseE2ETest):
             }""")
             page.get_by_role("link", name="Return to story").click()
             expect(page.get_by_test_id("story-title")).to_contain_text(edited_title)
+            comments = page.locator("#comments")
+            expect(comments).to_contain_text("Updated analyst comment")
+            comments.get_by_role("link", name="View discussion").click()
+            expect(page.get_by_role("heading", name=edited_title, exact=True)).to_be_visible()
+            page.get_by_role("link", name="← Discussion").click()
+            expect(page.get_by_role("link", name="Stories", exact=True)).to_have_attribute("aria-current", "page")
+            expect(page.get_by_role("link", name=re.compile(re.escape(edited_title)))).to_contain_text("Updated analyst comment")
+            page.go_back()
+            page.go_back()
             back_to_assess.click()
             expect(page.get_by_placeholder("Search stories")).to_have_value(target_title)
             expect(story_card()).to_be_visible()
@@ -1460,7 +1519,7 @@ class TestEndToEndUser(BaseE2ETest):
             def test_report_item_view():
                 page.get_by_role("link", name="Analyze").click()
                 page.get_by_role("link", name="Test report").click()
-                expect(page.get_by_role("paragraph")).to_contain_text("test summary")
+                expect(page.get_by_test_id("report-stories").get_by_text("test summary", exact=True)).to_be_visible()
 
             def test_remove_story_from_report():
                 page.get_by_role("link", name="Analyze").click()

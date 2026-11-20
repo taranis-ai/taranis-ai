@@ -105,16 +105,13 @@ class MispConnector:
             )
             event.add_object(news_item_object)
 
-    def create_event_report_content(self, story) -> str:
-        return "# Story description\n" + story.get("description") + "\n\n" + "# Story comment\n" + story.get("comments")
-
     def create_event_report(self, story: dict, existing_uuid: str | None = None) -> MISPEventReport:
         """
         Creates and returns a MISPEventReport from a story.
         If an existing_uuid is provided, it is reused to allow an update instead of adding a new report.
         """
         report_title = story.get("title", "")
-        content = self.create_event_report_content(story)
+        content = f"# Story description\n{story.get('description') or ''}"
         new_report = MISPEventReport()
         if existing_uuid:
             new_report.uuid = existing_uuid

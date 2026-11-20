@@ -13,6 +13,7 @@ from frontend.data_persistence import DataPersistenceLayer
 from frontend.filters import render_count, render_datetime, render_item_type
 from frontend.log import logger
 from frontend.views.base_view import BaseView
+from frontend.views.discussion_views import discussion_preview
 
 
 class ProductView(BaseView):
@@ -106,6 +107,7 @@ class ProductView(BaseView):
             base_context["supported_reports"] = list(getattr(source, "supported_reports", None) or [])
         is_edit = product.id not in {None, "0"}
         if is_edit:
+            base_context["comment_preview"] = discussion_preview("product", str(product.id))
             base_context["submit_text"] = f"Update {cls.pretty_name()} - {product.title}"
             base_context["publishers"] = [{"id": p.id, "name": p.name} for p in dpl.get_objects(PublisherPreset)]
         base_context["is_edit"] = is_edit

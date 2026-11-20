@@ -91,6 +91,10 @@
       </div>
     {% endif %}
 
+    {% if comment_preview %}
+      {% include "discussion/preview.html" %}
+    {% endif %}
+
     <div class="grid grid-cols-12 gap-4">
       <div class="col-span-12 {% if is_edit %}lg:col-span-6{% else %}lg:col-span-12{% endif %} px-2">
         <form id="product_form"

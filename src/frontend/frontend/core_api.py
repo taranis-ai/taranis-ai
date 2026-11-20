@@ -101,10 +101,13 @@ class CoreApi:
     def api_delete(self, endpoint: str, params: dict[str, Any] | None = None) -> requests.Response:
         return self.session.delete(url=f"{self.api_url}{endpoint}", headers=self.headers, params=params, timeout=self.timeout)
 
+    def api_get_response(self, endpoint: str, params: dict | None = None) -> requests.Response:
+        return self.session.get(url=f"{self.api_url}{endpoint}", headers=self.headers, timeout=self.timeout, params=params)
+
     def api_get(self, endpoint: str, params: dict | None = None):
         url = f"{self.api_url}{endpoint}"
         try:
-            response = self.session.get(url=url, headers=self.headers, timeout=self.timeout, params=params)
+            response = self.api_get_response(endpoint, params)
         except requests.RequestException as e:
             logger.error(f"Call to {url} failed {e}")
             return None

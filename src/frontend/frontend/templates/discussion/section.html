@@ -1,0 +1,191 @@
+{% macro comment_form_attrs(action, comment_id='new') -%}
+  method="post"
+  {% if discussion_preview %}target="_blank" rel="noopener"{% endif %}
+  action="{{ comment_action }}"
+  hx-post="{{ comment_action }}"
+  hx-target="#comments"
+  hx-swap="outerHTML"
+  hx-sync="#comments:drop"
+  hx-disable="find button"
+  hx-status:400="target:#comment-{{ action }}-error-{{ comment_id }} swap:innerHTML"
+  hx-status:4xx="target:#comment-{{ action }}-error-{{ comment_id }} swap:innerHTML"
+  hx-status:5xx="target:#comment-{{ action }}-error-{{ comment_id }} swap:innerHTML"
+{%- endmacro %}
+
+{% macro hidden_fields(action, comment_id=None) %}
+  <input type="hidden" name="csrf_token" value="{{ request.cookies.get(config['JWT_ACCESS_CSRF_COOKIE_NAME'], '') }}">
+  <input type="hidden" name="action" value="{{ action }}">
+  <input type="hidden" name="page" value="{{ discussion_page }}">
+  {% if discussion_preview %}<input type="hidden" name="preview" value="1">{% endif %}
+  {% if discussion_scope %}<input type="hidden" name="scope" value="{{ discussion_scope }}">{% endif %}
+  {% if comment_id %}<input type="hidden" name="comment_id" value="{{ comment_id }}">{% endif %}
+{% endmacro %}
+
+<details id="comments"
+         class="group/discussion scroll-mt-24 rounded-box border border-base-300 bg-base-100 px-3 py-1"
+         {% if not discussion_preview or discussion.total_count or action_status or load_error or failed_action %}open{% endif %}>
+  <summary class="cursor-pointer list-none rounded-sm py-1">
+    <h2 class="flex items-center gap-1.5 text-sm font-semibold">
+      {{ heroicon_mini("chevron-right", class="size-4 text-base-content/60 group-open/discussion:rotate-90") }}
+      Comments
+      {% if not load_error %}<span class="badge badge-ghost badge-xs">{{ discussion.total_count }}</span>{% endif %}
+    </h2>
+  </summary>
+
+  {% if action_status %}
+    <p class="mt-1 text-xs text-success"
+       role="status"
+       tabindex="-1"
+       x-data
+       x-init="$nextTick(() => $el.focus({ preventScroll: true }))">{{ action_status }}</p>
+  {% endif %}
+  {% if load_error %}
+    <p class="my-1 text-sm text-base-content/70" role="status">Could not load comments.</p>
+    <a href="{{ discussion_thread_url }}"
+       {% if discussion_preview %} hx-get="{{ retry_url }}" hx-target="#comments" hx-swap="outerHTML" hx-status:4xx="target:#comments swap:outerHTML" hx-status:5xx="target:#comments swap:outerHTML" {% endif %}
+       class="link inline-block text-sm">Try again</a>
+    {% if discussion_preview %}
+      <a href="{{ discussion_thread_url }}" class="link link-hover ml-2 text-xs font-medium">View discussion</a>
+    {% endif %}
+    {% if comment_draft %}
+      <label for="unsent-comment" class="mt-3 block text-sm font-medium">Unsent comment</label>
+      <textarea id="unsent-comment" readonly class="textarea mt-1 w-full" rows="2">{{ comment_draft }}</textarea>
+    {% endif %}
+  {% else %}
+    {% if discussion_preview %}
+      <noscript>
+        <p class="my-1 text-sm">Comment actions open the discussion in a new tab so your edits stay here.</p>
+      </noscript>
+    {% endif %}
+    {% if discussion["items"] %}
+      {% if not discussion_preview and (has_older_comments or discussion_page > 1) %}
+        <nav aria-label="Thread pages" class="my-1 flex flex-wrap gap-2">
+          {% if has_older_comments %}
+            <a class="btn btn-outline btn-sm"
+               href="{{ url_for('discussion.thread', kind=discussion_kind, parent_id=discussion_parent_id, scope=discussion_scope, page=discussion_page + 1, _anchor='comments') }}">Older comments</a>
+          {% endif %}
+          {% if discussion_page > 1 %}
+            <a class="btn btn-outline btn-sm"
+               href="{{ url_for('discussion.thread', kind=discussion_kind, parent_id=discussion_parent_id, scope=discussion_scope, page=discussion_page - 1, _anchor='comments') }}">Newer comments</a>
+          {% endif %}
+        </nav>
+      {% endif %}
+      <ol class="divide-y divide-base-300">
+        {% for comment in discussion["items"] %}
+          {% set edit_failed = failed_action == 'edit' and failed_comment_id == comment.id %}
+          <li class="group/comment py-1" id="comment-{{ comment.id }}" {% if comment.can_edit %}x-data{% endif %}>
+            <div class="flex items-start justify-between gap-2">
+              <div class="flex flex-wrap items-baseline gap-x-2 text-sm">
+                <span class="font-semibold [overflow-wrap:anywhere]">{{ comment.author or ("Unknown author" if not comment.created_at else "Deleted user") }}</span>
+                {% if comment.created_at %}
+                  <time class="text-xs text-base-content/70"
+                        datetime="{{ comment.created_at }}">{{ comment.created_at | format_datetime }}</time>
+                {% else %}
+                  <span class="text-xs text-base-content/70">Original time unknown</span>
+                {% endif %}
+                {% if comment.edited_at %}
+                  <span class="text-xs text-base-content/70" title="{{ comment.edited_at | format_datetime }}">Edited</span>
+                {% endif %}
+              </div>
+              {% if comment.can_edit or comment.can_delete %}
+                <div class="flex shrink-0 items-center gap-1">
+                  {% if comment.can_edit %}
+                    <button type="button"
+                            class="btn btn-ghost btn-xs btn-square group-has-open/comment:hidden"
+                            aria-label="Edit comment"
+                            title="Edit comment"
+                            x-cloak
+                            x-ref="editButton"
+                            @click="$refs.editor.open = true; $refs.body.focus()">{{ heroicon_mini("pencil", class="size-4") }}</button>
+                  {% endif %}
+                  {% if comment.can_delete %}
+                    <form {{ comment_form_attrs('delete', comment.id) }} hx-confirm="Delete this comment?" data-confirm-confirm="Delete">
+                      {{ hidden_fields('delete', comment.id) }}
+                      <noscript>
+                        <label class="text-sm">
+                          <input type="checkbox" required>
+                          Confirm deletion
+                        </label>
+                      </noscript>
+                      <button class="btn btn-ghost btn-xs btn-square text-error"
+                              type="submit"
+                              aria-label="Delete comment"
+                              title="Delete comment">{{ heroicon_mini("trash", class="size-4") }}</button>
+                    </form>
+                  {% endif %}
+                </div>
+              {% endif %}
+            </div>
+            {% if comment.can_edit %}
+              <details class="peer" x-ref="editor" {% if edit_failed %}open{% endif %}>
+                <summary x-show="false" class="cursor-pointer text-sm">Edit comment</summary>
+                <form {{ comment_form_attrs('edit', comment.id) }} class="mt-1 space-y-1">
+                  {{ hidden_fields('edit', comment.id) }}
+                  <label class="sr-only" for="edit-comment-{{ comment.id }}">Edit comment</label>
+                  <textarea id="edit-comment-{{ comment.id }}"
+                            x-ref="body"
+                            name="body"
+                            class="textarea textarea-sm min-h-0 w-full"
+                            rows="2"
+                            required
+                            maxlength="{{ comment_max_length }}">{{ comment_draft if edit_failed else comment.body }}</textarea>
+                  <div id="comment-edit-error-{{ comment.id }}" x-ref="editError" role="alert">
+                    {% if edit_failed %}
+                      {% include "discussion/action_error.html" %}
+                    {% endif %}
+                  </div>
+                  <div class="flex gap-2">
+                    <button class="btn btn-sm btn-primary" type="submit">Save comment</button>
+                    <button class="btn btn-sm btn-ghost"
+                            type="button"
+                            x-cloak
+                            @click="$refs.editor.open = false; $refs.body.value = $refs.saved.textContent; $refs.editError.replaceChildren(); $refs.editButton.focus()">Cancel</button>
+                  </div>
+                </form>
+              </details>
+            {% endif %}
+            <p class="whitespace-pre-wrap [overflow-wrap:anywhere] peer-open:hidden {{ 'line-clamp-3 text-sm' if discussion_preview else '' }}"
+               {% if comment.can_edit %}x-ref="saved"{% endif %}>{{ comment.body }}</p>
+            {% if comment.can_delete %}
+              <div id="comment-delete-error-{{ comment.id }}" role="alert">
+                {% if failed_action == "delete" and failed_comment_id == comment.id %}
+                  {% include "discussion/action_error.html" %}
+                {% endif %}
+              </div>
+            {% endif %}
+          </li>
+        {% endfor %}
+      </ol>
+    {% else %}
+      <p class="my-1 text-sm text-base-content/70">No comments yet.</p>
+    {% endif %}
+    <div class="flex flex-wrap items-baseline justify-between gap-x-3 border-t border-base-300 py-1">
+      <details class="group/composer min-w-0 open:w-full"
+               {% if not discussion_preview or not discussion.total_count or failed_action == 'post' %}open{% endif %}>
+        <summary class="btn btn-ghost btn-xs">
+          {{ heroicon_mini("chevron-right", class="size-3 group-open/composer:rotate-90") }}
+          Add a comment
+        </summary>
+        <form {{ comment_form_attrs("post") }} class="my-1 space-y-1">
+          {{ hidden_fields("post") }}
+          <label for="new-comment-body" class="sr-only">Comment text</label>
+          <textarea id="new-comment-body"
+                    name="body"
+                    class="textarea textarea-sm min-h-0 w-full"
+                    rows="2"
+                    required
+                    maxlength="{{ comment_max_length }}">{{ comment_draft if failed_action == 'post' else '' }}</textarea>
+          <div id="comment-post-error-new" role="alert">
+            {% if failed_action == "post" %}
+              {% include "discussion/action_error.html" %}
+            {% endif %}
+          </div>
+          <button class="btn btn-primary btn-sm" type="submit">Post comment</button>
+        </form>
+      </details>
+      {% if discussion_preview %}
+        <a href="{{ discussion_thread_url }}" class="link link-hover text-xs font-medium">View discussion</a>
+      {% endif %}
+    </div>
+  {% endif %}
+</details>

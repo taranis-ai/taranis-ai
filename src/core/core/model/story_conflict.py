@@ -13,7 +13,6 @@ from core.model.user import User
 STORY_CONFLICT_ALLOWED_KEYS: frozenset[str] = frozenset(
     {
         "attributes",
-        "comments",
         "description",
         "id",
         "news_items",
