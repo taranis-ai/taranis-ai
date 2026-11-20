@@ -109,6 +109,26 @@ class Task(TaranisBaseModel):
     last_success: datetime | None = None
 
 
+class TaskResponse(TaranisBaseModel):
+    """Complete payload returned by task submission and single-task retrieval."""
+
+    id: str
+    job_id: str
+    name: str | None
+    task: str | None
+    user_id: str | None
+    worker_id: str | None
+    worker_type: str | None
+    result: TaskResult
+    status: str | None
+    last_run: datetime | None
+    last_success: datetime | None
+
+
+class MissingTaskResponse(TaranisBaseModel):
+    status: Literal["PENDING"]
+
+
 class UserTask(TaranisBaseModel):
     _core_endpoint = "/tasks/user"
     _model_name = "user_task"
