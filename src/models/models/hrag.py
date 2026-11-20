@@ -10,7 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from models.llm import LLMEndpoint
 
 
-EMBEDDING_CONTENT_LIMIT = 4_000
+EMBEDDING_CONTENT_LIMIT = 10_000
 EXTRACTION_CONTENT_LIMIT = 20_000
 HRAG_SCHEMA_VERSION = "v2"
 HRAG_EXTRACTION_SCHEMA_VERSION = "v5"
@@ -283,7 +283,7 @@ class EmbeddingSettings(BaseModel):
     hrag_chunking_enabled: bool = True
     hrag_chunk_size: int = Field(default=2000, ge=500, le=20000)
     hrag_chunk_overlap: int = Field(default=200, ge=0, le=10000)
-    hrag_embedding_limit: int = Field(default=4000, ge=1, le=200000)
+    hrag_embedding_limit: int = Field(default=EMBEDDING_CONTENT_LIMIT, ge=1, le=200000)
     hrag_vector_limit: int = Field(default=12, ge=1, le=100)
     hrag_chunks_per_item: int = Field(default=3, ge=1, le=100)
 

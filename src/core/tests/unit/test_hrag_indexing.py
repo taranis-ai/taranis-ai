@@ -56,7 +56,7 @@ def configured_index(db_persistent_session, monkeypatch):
 
 
 def test_durable_index_lifecycle_cutoffs_retries_and_generations(configured_index):
-    story = create_story(news_items=[build_news_item_payload(content="a" * 4000 + "b" * 16000)])
+    story = create_story(news_items=[build_news_item_payload(content="a" * 10000 + "b" * 10000)])
     item = story.news_items[0]
     try:
         indexing.reconcile()
@@ -70,6 +70,7 @@ def test_durable_index_lifecycle_cutoffs_retries_and_generations(configured_inde
         extraction, embedding = works["extraction"], works["embedding"]
         assert db.session.get(HragGeneration, extraction.generation_id).config["schema"] == "v5"
         assert db.session.get(HragGeneration, embedding.generation_id).config["schema"] == "v2"
+        assert db.session.get(HragGeneration, embedding.generation_id).config["limit"] == 10000
         original = {kind: work.fingerprint for kind, work in works.items()}
         job = indexing.claim(extraction.id)
         assert job and indexing.claim(extraction.id) is None
@@ -85,7 +86,7 @@ def test_durable_index_lifecycle_cutoffs_retries_and_generations(configured_inde
         assert {kind: work.fingerprint for kind, work in works.items()} == original
         assert extraction.status == "ready"
 
-        item.content = "a" * 4000 + "changed inside extraction"
+        item.content = "a" * 10000 + "changed inside extraction"
         db.session.commit()
         indexing.reconcile()
         assert embedding.fingerprint == original["embedding"]

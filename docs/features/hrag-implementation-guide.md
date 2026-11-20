@@ -32,13 +32,13 @@ Paths shown in diagram blocks are repository-relative. In this guide, `models/hr
 
 **Diagram D1, D4; I3, I6.** Read shared `models/hrag.py` first.
 
-Only `NewsItem.content` is indexed. `bounded_content()` takes a prefix by Python Unicode characters, rather than bytes or tokens. Defaults are 20,000 characters for extraction and 4,000 for embeddings; configuration can change each independently. Each pipeline has its own fingerprint:
+Only `NewsItem.content` is indexed. `bounded_content()` takes a prefix by Python Unicode characters, rather than bytes or tokens. Defaults are 20,000 characters for extraction and 10,000 for embeddings; configuration can change each independently. Each pipeline has its own fingerprint:
 
 ```text
 SHA256(generation_id + "\0" + bounded_content)
 ```
 
-A title edit, review change, tag change or regrouping therefore does not require another model call. A content edit after character 4,000 but before character 20,000 invalidates extraction only. An edit beyond both cutoffs leaves both results reusable. Source title, story membership and permissions are resolved from current records later.
+A title edit, review change, tag change or regrouping therefore does not require another model call. A content edit after character 10,000 but before character 20,000 invalidates extraction only. An edit beyond both cutoffs leaves both results reusable. Source title, story membership and permissions are resolved from current records later.
 
 The LLM-facing `CompactExtractionResult` contains entity IDs, types and verbatim names, plus relationships with exact quotes and optional assertion polarity. Its `resolve()` method derives the existing `ExtractionResult` with `ExtractedEntity` and `ExtractedRelation` lists locally. Names and quotes must occur exactly in the bounded input; repeated occurrences resolve to the first match, and CVE identifiers require complete token matches. Dates, offsets, sentence IDs and separate entity quotations are not requested from the model. The fixed schema contains 20 entity types and 18 relationship kinds. `RELATION_ENDPOINTS` restricts which entity types may be the source and target of each kind. It also prevents an alias relation between different entity types.
 
@@ -256,7 +256,7 @@ A multi-hop citation depends on its whole path: losing an intermediate supportin
 | `HRAG_ENABLED` | Opt-in indexing/retrieval; frontend also uses it to show the mode selector |
 | `HRAG_NEO4J_URI/USER/PASSWORD/DATABASE` | Core's graph connection; default database `neo4j` |
 | `HRAG_EXTRACTION_LIMIT` | Default 20,000 Unicode characters |
-| `HRAG_EMBEDDING_LIMIT` | Default 4,000 Unicode characters |
+| `HRAG_EMBEDDING_LIMIT` | Default 10,000 Unicode characters |
 | `HRAG_EMBEDDING_DIMENSIONS` | Default 1536; explicitly requested and verified; must be supported by the model |
 | `HRAG_GRAPH_LIMIT` | Default 50, maximum 50 graph evidence rows |
 | `HRAG_VECTOR_LIMIT` | Default 12, maximum 100 vector matches |
