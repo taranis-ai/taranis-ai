@@ -28,6 +28,7 @@ TASK_FUNCTION_MAP = {
     "collector_task": "worker.collectors.collector_tasks.collector_task",
     "bot_task": "worker.bots.bot_tasks.bot_task",
     "cleanup_token_blacklist": "worker.misc.misc_tasks.cleanup_token_blacklist",
+    "cleanup_task_history": "worker.misc.misc_tasks.cleanup_task_history",
 }
 
 
@@ -102,6 +103,17 @@ def compute_next(spec: dict[str, Any], base_ts: float) -> float:
     raise ValueError("CronTaskSpec must provide exactly one of cron or interval")
 
 
+def _resolve_task(job_id: str, func_path: str) -> str | None:
+    if not func_path:
+        logger.warning(f"Skipping cron job {job_id} because func_path is missing")
+        return None
+    task = TASK_FUNCTION_MAP.get(func_path, func_path)
+    if "." not in task:
+        logger.error(f"Skipping cron job {job_id}: unknown task {func_path!r}. Add it to TASK_FUNCTION_MAP or use a dotted import path.")
+        return None
+    return task
+
+
 def _enqueue_key(job_id: str) -> str:
     return f"{ENQUEUE_KEY_PREFIX}{job_id}"
 
@@ -115,10 +127,8 @@ def _enqueue_due_job(
 ) -> str | None:
     queue_name = spec["queue_name"]
     queue = queues.setdefault(queue_name, Queue(queue_name, connection=redis))
-    func_path = str(spec.get("func_path") or "")
-    task = TASK_FUNCTION_MAP.get(func_path, func_path)
+    task = _resolve_task(job_id, str(spec.get("func_path") or ""))
     if not task:
-        logger.warning(f"Skipping cron job {job_id} because func_path is missing")
         next_ts = compute_next(spec, due_ts)
         redis.zadd(NEXT_KEY, {job_id: next_ts})
         return None
