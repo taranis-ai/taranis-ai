@@ -134,10 +134,19 @@ class TestEndToEndUser(BaseE2ETest):
                     core_request_client.post(f"/discussions/story/{story_id}", json_data={"body": f"Reply {index}"})
                 thread.reload()
                 thread.get_by_role("link", name="Older comments").click()
+                stale_editor = context.new_page()
+                stale_editor.goto(thread.url)
+                stale_editor.locator("summary").filter(has_text="Edit comment").click()
+                stale_editor.get_by_role("textbox", name="Edit comment").fill("Keep this unsent edit")
+
                 thread.get_by_label("Confirm deletion").check()
                 thread.get_by_role("button", name="Delete comment").click()
                 expect(thread.locator("#comments li")).to_have_count(20)
                 expect(thread.locator("#comments")).to_contain_text("Reply 19")
+
+                stale_editor.get_by_role("button", name="Save comment").click()
+                expect(stale_editor.get_by_text("That comment or discussion is no longer available.", exact=True)).to_be_visible()
+                expect(stale_editor.get_by_role("textbox", name="Unsent comment")).to_have_value("Keep this unsent edit")
         finally:
             core_request_client.delete(f"/assess/stories/{story_id}")
 

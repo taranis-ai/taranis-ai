@@ -183,7 +183,16 @@ def post_comment(kind: str, parent_id: str) -> ResponseReturnValue:
 
     context, _ = _section(kind, parent_id, preview=preview and htmx, page=page, scope=scope)
     if message:
-        context.update(failed_action=action, failed_comment_id=comment_id, action_error=message, comment_draft=draft)
+        show_error_above_thread = context["load_error"] or (
+            action != "post" and not any(item["id"] == comment_id and item[f"can_{action}"] for item in context["discussion"]["items"])
+        )
+        context.update(
+            failed_action=action,
+            failed_comment_id=comment_id,
+            action_error=message,
+            comment_draft=draft,
+            show_error_above_thread=show_error_above_thread,
+        )
         return _full_thread(context), status
 
     context["action_status"] = {"post": "Comment posted.", "edit": "Comment updated.", "delete": "Comment deleted."}[action]
