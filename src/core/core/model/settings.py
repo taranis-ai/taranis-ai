@@ -3,7 +3,7 @@ from copy import deepcopy
 from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from models.hrag import EmbeddingSettings, ExtractionReasoningEffort
+from models.hrag import EmbeddingSettings, ExtractionReasoningEffort, HragIndexIntervalMinutes
 from models.llm import LLM_BOT_FEATURES, LLM_FEATURES, LLMEndpoint, LLMProvider
 from pydantic import TypeAdapter
 from sqlalchemy import event
@@ -81,6 +81,7 @@ class Settings(BaseModel):
             merged.setdefault(f"llm_{feature}_endpoint", "")
         merged.setdefault("chat_max_stories", 5)
         merged.setdefault("hrag_extraction_reasoning_effort", "low")
+        merged.setdefault("hrag_index_interval_minutes", 60)
         for key, value in (
             EmbeddingSettings(hrag_embedding_limit=Config.HRAG_EMBEDDING_LIMIT, hrag_vector_limit=Config.HRAG_VECTOR_LIMIT)
             .model_dump()
@@ -173,6 +174,17 @@ class Settings(BaseModel):
                 update_data["chat_max_stories"] = value
             except (TypeError, ValueError):
                 return {"error": "Maximum stories must be between 1 and 20"}, 400
+        if "hrag_index_interval_minutes" in update_data:
+            try:
+                update_data["hrag_index_interval_minutes"] = TypeAdapter(HragIndexIntervalMinutes).validate_python(
+                    update_data["hrag_index_interval_minutes"]
+                )
+            except ValueError:
+                return {"error": "HRAG indexing interval must be between 0 and 525600 minutes"}, 400
+        interval_changed = (
+            update_data.get("hrag_index_interval_minutes", current_settings["hrag_index_interval_minutes"])
+            != current_settings["hrag_index_interval_minutes"]
+        )
         embedding_keys = set(EmbeddingSettings.model_fields)
         if embedding_keys.intersection(update_data):
             try:
@@ -211,15 +223,16 @@ class Settings(BaseModel):
             endpoint_id = current_settings.get("llm_extraction_endpoint") or current_settings.get("llm_default_endpoint")
             if endpoint_id:
                 schedule_check("llm", endpoint_id)
-        if Config.HRAG_ENABLED and (embedding_keys - {"hrag_vector_limit", "hrag_chunks_per_item"}).intersection(update_data):
+        if interval_changed:
             from core.managers.queue_manager import queue_manager
 
-            queue_manager.enqueue_task("misc", "hrag_reconcile", job_timeout=720)
+            queue_manager.schedule_hrag_indexing()
         return {"message": "Successfully updated settings", "settings": settings.to_dict()["settings"]}, 200
 
     @classmethod
     def _validate_llm_settings(cls, values: dict) -> None:
         EmbeddingSettings.model_validate(values)
+        values["hrag_index_interval_minutes"] = TypeAdapter(HragIndexIntervalMinutes).validate_python(values["hrag_index_interval_minutes"])
         endpoints = {key: LLMProvider.model_validate(value).model_dump() for key, value in values["llm_endpoints"].items()}
         names = [endpoint["name"].casefold() for endpoint in endpoints.values()]
         if len(names) != len(set(names)):

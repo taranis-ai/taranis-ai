@@ -3,7 +3,7 @@
 import math
 import re
 from hashlib import sha256
-from typing import Literal, Self
+from typing import Annotated, Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -14,6 +14,8 @@ EMBEDDING_CONTENT_LIMIT = 10_000
 EXTRACTION_CONTENT_LIMIT = 20_000
 HRAG_SCHEMA_VERSION = "v2"
 HRAG_EXTRACTION_SCHEMA_VERSION = "v5"
+
+type HragIndexIntervalMinutes = Annotated[int, Field(ge=0, le=525600)]
 
 type ReasoningEffort = Literal["none", "minimal", "low", "medium", "high", "xhigh", "max"]
 type ExtractionReasoningEffort = ReasoningEffort | Literal["default"]

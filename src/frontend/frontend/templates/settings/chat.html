@@ -10,6 +10,8 @@
       <input type="hidden" name="csrf_token" value="{{ request.cookies.get(config['JWT_ACCESS_CSRF_COOKIE_NAME'], '') }}" />
       {{ form_input('Maximum stories per answer', 'settings[chat_max_stories]', current_settings.chat_max_stories, type='number', preserve=False, min_value=1, max_value=20, data_testid='settings-chat-max-stories') }}
       {% if config["HRAG_ENABLED"] %}
+        {{ form_input('HRAG indexing interval (minutes)', 'settings[hrag_index_interval_minutes]', current_settings.hrag_index_interval_minutes, type='number', preserve=False, min_value=0, max_value=525600, required=True, data_testid='settings-hrag-index-interval') }}
+        <p class="mb-4 text-sm text-base-content/70">Default: 60 minutes. Set to 0 for manual indexing only. Use Start indexing below to run immediately. Automatic indexing requires the scheduler to be running.</p>
         {% set effort_options = [] %}
         {% for value, label in hrag_reasoning_efforts.items() %}
           {% set _ = effort_options.append({'id': value, 'name': label}) %}
@@ -21,7 +23,7 @@
         {{ form_input('Chunk size (characters)', 'settings[hrag_chunk_size]', current_settings.hrag_chunk_size, type='number', preserve=False, min_value=500, max_value=20000, required=True, data_testid='settings-hrag-chunk-size') }}
         {{ form_input('Chunk overlap (characters)', 'settings[hrag_chunk_overlap]', current_settings.hrag_chunk_overlap, type='number', preserve=False, min_value=0, max_value=10000, required=True, data_testid='settings-hrag-chunk-overlap') }}
         {{ form_input('Maximum indexed characters per NewsItem', 'settings[hrag_embedding_limit]', current_settings.hrag_embedding_limit, type='number', preserve=False, min_value=1, max_value=200000, required=True) }}
-        <p class="mb-4 text-sm text-base-content/70">Chunks follow paragraph and sentence boundaries. Overlap must be less than half the chunk size. Saving these indexing options queues a replacement index; activate it below when ready. The active index remains searchable. Disabled chunking embeds one bounded passage per NewsItem.</p>
+        <p class="mb-4 text-sm text-base-content/70">Chunks follow paragraph and sentence boundaries. Overlap must be less than half the chunk size. Changed indexing options apply at the next scheduled or manual run; activate the replacement index below when ready. The active index remains searchable. Disabled chunking embeds one bounded passage per NewsItem.</p>
         {{ form_input('Maximum retrieved chunks', 'settings[hrag_vector_limit]', current_settings.hrag_vector_limit, type='number', preserve=False, min_value=1, max_value=100, required=True) }}
         {{ form_input('Maximum chunks per NewsItem', 'settings[hrag_chunks_per_item]', current_settings.hrag_chunks_per_item, type='number', preserve=False, min_value=1, max_value=100, required=True) }}
         <p class="mb-4 text-sm text-base-content/70">Retrieval limits apply to the next question without rebuilding the index.</p>

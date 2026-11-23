@@ -18,7 +18,7 @@ from pydantic import (
 )
 
 from models.base import TaranisBaseModel
-from models.hrag import EmbeddingSettings, ExtractionReasoningEffort
+from models.hrag import EmbeddingSettings, ExtractionReasoningEffort, HragIndexIntervalMinutes
 from models.task import CronTaskSpec, Task
 from models.types import (
     BOT_TYPES,
@@ -226,6 +226,7 @@ class User(TaranisBaseModel):
 
 
 class TaranisConfig(TaranisBaseModel, EmbeddingSettings):
+    hrag_index_interval_minutes: HragIndexIntervalMinutes = 60
     default_collector_proxy: AnyUrl | Literal[""] = ""
     default_collector_interval: str = ""
     rss_collector_max_entries: int = Field(default=42, ge=1)

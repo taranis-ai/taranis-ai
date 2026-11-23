@@ -178,8 +178,6 @@ class QueueManager:
             from core.service.endpoint_health import schedule_all
 
             schedule_all()
-            if Config.HRAG_ENABLED:
-                self.enqueue_task("misc", "hrag_reconcile", job_timeout=720)
             return True
         except Exception:
             logger.exception("Failed to restore queue runtime state")
@@ -289,9 +287,34 @@ class QueueManager:
                 queue_name="misc",
             ),
         )
-        if Config.HRAG_ENABLED:
-            specs += (CronSpec(job_id="hrag_reconcile", cron="* * * * *", func_path="hrag_reconcile", queue_name="misc"),)
+        if hrag_spec := QueueManager._get_hrag_cron_spec():
+            specs += (hrag_spec,)
         return {spec.job_id: spec for spec in specs}
+
+    @staticmethod
+    def _get_hrag_cron_spec() -> CronSpec | None:
+        if not Config.HRAG_ENABLED:
+            return None
+        from core.model.settings import Settings
+
+        minutes = Settings.get_settings()["hrag_index_interval_minutes"]
+        if not minutes:
+            return None
+        return CronSpec(
+            job_id="hrag_reconcile",
+            interval=minutes * 60,
+            func_path="hrag_reconcile",
+            queue_name="misc",
+            job_options={"job_timeout": 720},
+            meta={"name": "Reconcile HRAG index"},
+        )
+
+    def schedule_hrag_indexing(self) -> bool:
+        if not Config.QUEUE_ENABLED or self.error or self._redis is None:
+            return False
+        if spec := self._get_hrag_cron_spec():
+            return self.register_cron_job(spec)
+        return self.unregister_cron_job("hrag_reconcile")
 
     def _get_registered_cron_job_ids(self) -> set[str]:
         if self.error or not self._redis:
@@ -1384,7 +1407,7 @@ class QueueManager:
         return entry
 
     def _get_cron_schedule_entries(self) -> list[dict[str, Any]]:
-        """Fetch cron-based schedule entries from the current RQ-backed configuration."""
+        """Fetch recurring schedule entries from the current RQ-backed configuration."""
         if not self._redis:
             return []
 
@@ -1410,6 +1433,23 @@ class QueueManager:
                     cron_schedule=TASK_HISTORY_CLEANUP_CRON,
                 )
             )
+            if hrag_spec := self._get_hrag_cron_spec():
+                next_ts = self._redis.zscore(CRON_NEXT_KEY, hrag_spec.job_id)
+                result = self._get_latest_task_result(exact_ids={hrag_spec.job_id}, prefixes=["cron_hrag_reconcile_"])
+                all_jobs.append(
+                    {
+                        "id": hrag_spec.job_id,
+                        "name": "Reconcile HRAG index",
+                        "queue": "misc",
+                        "type": "scheduled",
+                        "schedule": f"Every {(hrag_spec.interval or 0) // 60} minutes",
+                        "next_run_time": datetime.fromtimestamp(float(next_ts), UTC) if next_ts is not None else None,
+                        "last_run": result.last_run if result else None,
+                        "last_success": result.last_success if result else None,
+                        "last_status": result.status if result else None,
+                        "last_reason": StoredTaskResult.model_validate(result).result.reason if result else None,
+                    }
+                )
         except Exception as e:
             logger.warning(f"Failed to fetch cron schedules: {e}")
             # Don't fail the whole request if cron scheduler is not available
@@ -1619,13 +1659,14 @@ class QueueManager:
                     "name": "Cleanup Task History",
                 }
             )
-            if Config.HRAG_ENABLED:
+            if hrag_spec := self._get_hrag_cron_spec():
                 cron_jobs.append(
                     {
                         "task": "hrag_reconcile",
                         "queue": "misc",
                         "task_id": "hrag_reconcile",
-                        "cron": "* * * * *",
+                        "interval": hrag_spec.interval,
+                        "job_options": hrag_spec.job_options,
                         "args": [],
                         "name": "Reconcile HRAG index",
                     }
