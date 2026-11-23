@@ -2,7 +2,6 @@ import json
 from typing import Any
 
 from flask import flash, render_template, request
-from flask_jwt_extended import get_jwt_identity
 from models.admin import Organization, Role, Settings, User
 
 from frontend.auth import admin_required
@@ -24,7 +23,6 @@ class UserView(AdminBaseView):
         dpl = DataPersistenceLayer()
         base_context["organizations"] = dpl.get_objects(Organization)
         base_context["roles"] = dpl.get_objects(Role)
-        base_context["current_user"] = get_jwt_identity()
         settings = dpl.get_first(Settings)
         base_context["onboarding_enabled_default"] = settings.settings.onboarding_enabled if settings else True
         return base_context

@@ -1,6 +1,6 @@
 <div class="text-3xl font-bold mb-4">Edit User</div>
 
-{% if user.username == current_user %}
+{% if current_user and user.username == current_user.username %}
   <!-- warn if current_user is edited -->
   <div role="alert" class="alert alert-warning mb-4 items-center">
     {{ heroicon_outline("exclamation-triangle") }}
