@@ -1,13 +1,7 @@
 import re
 from collections import Counter, defaultdict
-from pathlib import Path
-
-import yaml
-
-from core.__init__ import create_app
 
 
-OPENAPI_PATH = Path(__file__).resolve().parents[1] / "core" / "static" / "openapi3_1.yaml"
 IGNORED_PATHS = {"/"}
 
 
@@ -17,9 +11,8 @@ def _canonical_path(path: str) -> str:
     return re.sub(r"\{[^}]+\}", "{}", path)
 
 
-def _load_openapi_paths() -> dict[str, set[str]]:
-    with OPENAPI_PATH.open("r", encoding="utf-8") as handle:
-        spec = yaml.safe_load(handle)
+def _load_openapi_paths(app) -> dict[str, set[str]]:
+    spec = app.api_doc
 
     paths: dict[str, set[str]] = defaultdict(set)
     for path, operations in spec["paths"].items():
@@ -32,9 +25,8 @@ def _load_openapi_paths() -> dict[str, set[str]]:
     return paths
 
 
-def _load_openapi_operations() -> tuple[dict[tuple[str, str], str], list[str], list[tuple[str, str]]]:
-    with OPENAPI_PATH.open("r", encoding="utf-8") as handle:
-        spec = yaml.safe_load(handle)
+def _load_openapi_operations(app) -> tuple[dict[tuple[str, str], str], list[str], list[tuple[str, str]]]:
+    spec = app.api_doc
 
     operations: dict[tuple[str, str], str] = {}
     operation_ids: list[str] = []
@@ -91,14 +83,16 @@ def _load_route_endpoints(app) -> dict[tuple[str, str], str]:
         for method in rule.methods:
             if method in {"HEAD", "OPTIONS"}:
                 continue
-            endpoints[(canonical, method.upper())] = rule.endpoint
+            endpoint = rule.endpoint
+            if rule.endpoint.startswith("tasks."):
+                endpoint = endpoint.removesuffix(f"_{method.lower()}")
+            endpoints[(canonical, method.upper())] = endpoint
 
     return endpoints
 
 
-def test_openapi_covers_app_routes():
-    app = create_app(initial_setup=False)
-    spec_paths = _load_openapi_paths()
+def test_openapi_covers_app_routes(app):
+    spec_paths = _load_openapi_paths(app)
     app_routes = _load_routes(app)
 
     missing_paths = sorted(path for path in app_routes if path not in spec_paths)
@@ -118,9 +112,8 @@ def test_openapi_covers_app_routes():
     )
 
 
-def test_openapi_operation_ids_match_view_funcs():
-    app = create_app(initial_setup=False)
-    spec_operations, operation_ids, missing_operation_ids = _load_openapi_operations()
+def test_openapi_operation_ids_match_view_funcs(app):
+    spec_operations, operation_ids, missing_operation_ids = _load_openapi_operations(app)
     route_endpoints = _load_route_endpoints(app)
 
     mismatches = sorted(
@@ -140,6 +133,55 @@ def test_openapi_operation_ids_match_view_funcs():
         duplicates,
         missing_operation_ids,
     )
+
+
+def test_task_openapi_uses_shared_models_and_pending_response(app):
+    paths = app.api_doc["paths"]
+    submission = paths["/tasks"]["post"]
+    retrieval = paths["/tasks/{task_id}"]["get"]
+
+    assert submission["requestBody"]["content"]["application/json"]["schema"]["$ref"] == "#/components/schemas/TaskSubmission"
+    assert app.api_doc["components"]["schemas"]["TaskSubmission"]["oneOf"] == [{"required": ["id"]}, {"required": ["task_id"]}]
+    assert submission["responses"]["200"]["content"]["application/json"]["schema"]["$ref"] == "#/components/schemas/TaskResponse"
+    assert "400" in submission["responses"] and "422" not in submission["responses"]
+    assert submission["security"] == [{"APIKey": []}]
+    assert paths["/tasks/user"]["get"]["security"] == [{"UserAuth": []}]
+    assert retrieval["responses"]["404"]["content"]["application/json"]["schema"]["$ref"] == "#/components/schemas/MissingTaskResponse"
+
+    assert (
+        paths["/tasks"]["get"]["responses"]["200"]["content"]["application/json"]["schema"]["$ref"]
+        == "#/components/schemas/TaskHistoryResponse"
+    )
+    assert (
+        paths["/tasks"]["delete"]["responses"]["400"]["content"]["application/json"]["schema"]["$ref"]
+        == "#/components/schemas/TaskErrorResponse"
+    )
+    assert (
+        paths["/tasks/{task_id}"]["delete"]["responses"]["200"]["content"]["application/json"]["schema"]["$ref"]
+        == "#/components/schemas/TaskDeleteResponse"
+    )
+    assert (
+        paths["/tasks/runs"]["get"]["responses"]["200"]["content"]["application/json"]["schema"]["$ref"]
+        == "#/components/schemas/UserTaskList"
+    )
+    assert (
+        paths["/tasks/user"]["get"]["responses"]["200"]["content"]["application/json"]["schema"]["$ref"]
+        == "#/components/schemas/UserTaskList"
+    )
+    job_ids = next(parameter for parameter in paths["/tasks/runs"]["get"]["parameters"] if parameter["name"] == "job_ids")
+    assert job_ids["schema"]["anyOf"][0]["type"] == "array"
+    assert job_ids.get("style", "form") == "form" and job_ids.get("explode", True) is True
+
+
+def test_task_auth_runs_before_validation_and_dispatch(app, api_header, auth_header_user_permissions):
+    client = app.test_client(use_cookies=False)
+    assert client.get("/api/tasks?limit=invalid").status_code == 401
+    assert client.get("/api/tasks?limit=invalid", headers=api_header).status_code == 400
+    assert client.delete("/api/tasks/user", headers=auth_header_user_permissions).status_code == 403
+    response = client.delete("/api/tasks", headers=api_header)
+    assert response.status_code == 400
+    assert response.get_json() == {"error": "No task_id provided"}
+    assert client.options("/api/tasks").status_code == 200
 
 
 def _format_failure(

@@ -973,6 +973,7 @@ class TestWorkerTaskResults:
         [
             ('{"secret":"submitted-secret",', "No data provided"),
             ('"submitted-secret"', "No data provided"),
+            (json.dumps('{"id":"task-1","status":"SUCCESS","result":{"message":"ok"}}'), "No data provided"),
             (None, "No data provided"),
             ([], "No data provided"),
             (123, "No data provided"),
@@ -1487,7 +1488,7 @@ class TestWorkerTaskResults:
             assert source_response.status_code == 200
             assert source_response.get_json()["http_validators"] == validators
 
-            history_response = client.get("/api/tasks", headers=api_header)
+            history_response = client.get("/api/tasks", query_string={"limit": 0, "offset": "ignored"}, headers=api_header)
             assert history_response.status_code == 200
 
             history = history_response.get_json()

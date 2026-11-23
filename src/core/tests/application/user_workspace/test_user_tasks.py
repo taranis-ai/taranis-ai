@@ -357,7 +357,7 @@ def test_completed_runs_includes_background_jobs_and_filters_without_exposing_pa
 
         # Exact selections are independent of broad searches and apply before pagination.
         selected_ids = job_ids[:3]
-        selected = client.get("/api/tasks/runs", query_string={"job_ids": selected_ids, "limit": 1}, headers=api_header)
+        selected = client.get("/api/tasks/runs", query_string={"job_ids": selected_ids, "limit": 1, "offset": "ignored"}, headers=api_header)
         assert selected.json["total_count"] == 2
         assert selected.json["items"] == response.json["items"]
         selected_next = client.get("/api/tasks/runs", query_string={"job_ids": selected_ids, "limit": 1, "page": 2}, headers=api_header)

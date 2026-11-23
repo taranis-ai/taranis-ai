@@ -2,7 +2,7 @@ import json
 from datetime import UTC, datetime
 from typing import Annotated, Any, Literal
 
-from pydantic import AliasChoices, ConfigDict, Field, ValidationInfo, field_validator, model_validator
+from pydantic import AliasChoices, ConfigDict, Field, ValidationInfo, WithJsonSchema, field_validator, model_validator
 from pydantic import BaseModel as PydanticBaseModel
 
 from models.base import TaranisBaseModel
@@ -88,6 +88,11 @@ class UserTaskResult(TaranisBaseModel):
     retryable: bool = False
 
 
+TaskTimestamp = Annotated[
+    datetime, WithJsonSchema({"type": "string", "description": "ISO 8601 timestamp with optional UTC offset."}, mode="serialization")
+]
+
+
 class Task(TaranisBaseModel):
     """Task execution result model"""
 
@@ -105,8 +110,8 @@ class Task(TaranisBaseModel):
     worker_type: str | None = None
     result: TaskResult | None = None
     status: str | None = None
-    last_run: datetime | None = None
-    last_success: datetime | None = None
+    last_run: TaskTimestamp | None = None
+    last_success: TaskTimestamp | None = None
 
 
 class TaskResponse(TaranisBaseModel):
@@ -121,12 +126,42 @@ class TaskResponse(TaranisBaseModel):
     worker_type: str | None
     result: TaskResult
     status: str | None
-    last_run: datetime | None
-    last_success: datetime | None
+    last_run: TaskTimestamp | None
+    last_success: TaskTimestamp | None
 
 
 class MissingTaskResponse(TaranisBaseModel):
     status: Literal["PENDING"]
+
+
+class TaskPath(TaranisBaseModel):
+    task_id: str
+
+
+class TaskDeleteResponse(TaranisBaseModel):
+    message: str
+
+
+class TaskErrorResponse(TaranisBaseModel):
+    error: str
+
+
+class TaskHistoryFilter(TaranisBaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    search: str | None = None
+    page: int | None = None
+    limit: int | None = None
+    sort: str | None = None
+    order: str | None = None
+    fetch_all: str | None = Field(default=None, description="Skip pagination when the value is true.")
+
+    @model_validator(mode="before")
+    @classmethod
+    def ignore_paging_when_fetching_all(cls, value: Any) -> Any:
+        if isinstance(value, dict) and value.get("fetch_all") == "true":
+            return {key: item for key, item in value.items() if key not in ("page", "limit")}
+        return value
 
 
 class UserTask(TaranisBaseModel):
@@ -145,7 +180,7 @@ class UserTask(TaranisBaseModel):
     worker_type: str | None = None
     result: UserTaskResult
     status: str
-    last_run: datetime
+    last_run: TaskTimestamp
 
 
 class UserTaskList(TaranisBaseModel):
@@ -157,6 +192,8 @@ class UserTaskList(TaranisBaseModel):
 
 
 class UserTaskFilter(TaranisBaseModel):
+    model_config = ConfigDict(extra="ignore")
+
     search: str | None = None
     page: int = 1
     limit: int = 20
@@ -231,7 +268,13 @@ class TaskSubmission(TaranisBaseModel):
     _model_name = "task_submission"
     _pretty_name = "Task Submission"
 
-    model_config = ConfigDict(extra="forbid", populate_by_name=True, coerce_numbers_to_str=False)
+    @staticmethod
+    def _document_id_alias(schema: dict[str, Any]) -> None:
+        schema["properties"]["task_id"] = schema["properties"]["id"].copy()
+        schema["required"].remove("id")
+        schema["oneOf"] = [{"required": ["id"]}, {"required": ["task_id"]}]
+
+    model_config = ConfigDict(extra="forbid", populate_by_name=True, coerce_numbers_to_str=False, json_schema_extra=_document_id_alias)
 
     id: str = Field(min_length=1, validation_alias=AliasChoices("id", "task_id"), serialization_alias="id")
     name: str | None = None

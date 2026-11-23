@@ -14,12 +14,19 @@ on:
     paths:
       - ".github/workflows/linting_openapi.yaml"
       - "src/core/core/static/openapi3_1.yaml"
+      - "src/core/core/__init__.py"
+      - "src/core/core/api/static.py"
+      - "src/core/core/api/task.py"
+      - "src/core/core/managers/api_manager.py"
+      - "src/core/pyproject.toml"
+      - "src/core/uv.lock"
+      - "src/models/models/base.py"
+      - "src/models/models/task.py"
 
 permissions:
   contents: read
 
 env:
-  UV_NO_SYNC: true
   UV_FROZEN: true
 
 jobs:
@@ -31,6 +38,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
+          fetch-depth: 0
 
       - name: Install uv
         uses: astral-sh/setup-uv@v10.3.0
@@ -40,5 +48,39 @@ jobs:
       - name: Set up Python
         run: uv python install
 
-      - name: Validate OpenAPI spec
-        run: uvx --from openapi-spec-validator openapi-spec-validator src/core/core/static/openapi3_1.yaml
+      - name: Export current merged spec
+        working-directory: src/core
+        env:
+          SQLALCHEMY_DATABASE_URI: sqlite:////tmp/taranis-openapi.db
+          QUEUE_ENABLED: "false"
+        run: uv run flask --app core:granian_app openapi --format yaml --output "$RUNNER_TEMP/current-openapi.yaml"
+
+      - name: Validate current merged spec
+        run: uvx --from openapi-spec-validator openapi-spec-validator "$RUNNER_TEMP/current-openapi.yaml"
+
+      - name: Install oasdiff
+        if: github.event_name == 'pull_request'
+        run: |
+          curl -fsSL https://github.com/oasdiff/oasdiff/releases/download/v1.38.0/oasdiff_1.38.0_linux_amd64.tar.gz -o "$RUNNER_TEMP/oasdiff.tar.gz"
+          echo '613037fd6a1d3362a1b742d6d86c338c0eb5ab3511f4942ce3948e78720ea2da  '"$RUNNER_TEMP/oasdiff.tar.gz" | sha256sum --check
+          tar -xzf "$RUNNER_TEMP/oasdiff.tar.gz" -C "$RUNNER_TEMP" oasdiff
+          chmod +x "$RUNNER_TEMP/oasdiff"
+
+      - name: Export base spec
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          SQLALCHEMY_DATABASE_URI: sqlite:////tmp/taranis-openapi-base.db
+          QUEUE_ENABLED: "false"
+        run: |
+          if git grep -q -F flask-openapi "$BASE_SHA" -- src/core/pyproject.toml; then
+            git worktree add --detach "$RUNNER_TEMP/base" "$BASE_SHA"
+            (cd "$RUNNER_TEMP/base/src/core" && uv run flask --app core:granian_app openapi --format yaml --output "$RUNNER_TEMP/base-openapi.yaml")
+          else
+            git show "$BASE_SHA:src/core/core/static/openapi3_1.yaml" > "$RUNNER_TEMP/base-openapi.yaml"
+          fi
+
+      - name: Report Task contract changes
+        if: github.event_name == 'pull_request'
+        run: |
+          "$RUNNER_TEMP/oasdiff" breaking "$RUNNER_TEMP/base-openapi.yaml" "$RUNNER_TEMP/current-openapi.yaml" --match-path '^/tasks(/|$)'
