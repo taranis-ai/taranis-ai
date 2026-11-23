@@ -54,6 +54,9 @@ class DemoChatProvider(BaseHTTPRequestHandler):
             return
         payload = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
         if payload["input"] == "Reply with OK.":
+            if not payload.get("model"):
+                self.send_json({"error": {"message": "Private provider detail: model is required"}}, status=400)
+                return
             self.reply([{"type": "message", "role": "assistant", "content": [{"type": "output_text", "text": "OK"}]}])
             return
         context = json.loads(next(item["content"] for item in payload["input"] if item.get("role") == "user"))
@@ -117,9 +120,9 @@ class DemoChatProvider(BaseHTTPRequestHandler):
     def reply(self, output):
         self.send_json({"status": "completed", "output": output})
 
-    def send_json(self, payload):
+    def send_json(self, payload, status=200):
         body = json.dumps(payload).encode()
-        self.send_response(200)
+        self.send_response(status)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()

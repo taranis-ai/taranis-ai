@@ -3,8 +3,8 @@
 from llm_bot.client import UpstreamLLMError
 from llm_bot.decisions_client import ChoiceQuestion
 from llm_bot.tasks.llm_utils import LLMTask
-from models.llm import EmbeddingDimensionMismatch, EmbeddingDimensions, LLMProvider
-from niquests.exceptions import RequestException
+from models.llm import EmbeddingDimensionMismatch, EmbeddingDimensions, EndpointFormatCheck, LLMProvider
+from niquests.exceptions import ConnectionError, HTTPError, RequestException, SSLError, Timeout
 from pydantic import TypeAdapter
 from rq import Retry, get_current_job
 
@@ -51,12 +51,12 @@ def check_endpoint(kind: str, endpoint_id: str, check_id: str):
         logger.exception("Endpoint check could not contact Core")
         raise RuntimeError("Endpoint check could not contact Core") from None
     if not healthy:
-        message = (
-            EmbeddingDimensionMismatch.public_message
-            if details.get("failure_reason") == "embedding_dimensions_mismatch"
-            else "Endpoint check failed"
-        )
-        raise RuntimeError(message)
+        failures = [
+            EndpointFormatCheck.model_validate(check).public_message(api_format)
+            for api_format, check in details.get("formats", {}).items()
+            if check["status"] == "down"
+        ]
+        raise RuntimeError("Endpoint check failed. " + " ".join(failures))
 
 
 def probe(
@@ -67,7 +67,6 @@ def probe(
     extraction: dict | None = None,
     details: dict | None = None,
 ) -> bool | Retry:
-    text = "Reply with OK."
     if details is None:
         details = {}
     if kind != "llm":
@@ -75,26 +74,45 @@ def probe(
     try:
         if "api_formats" in config:
             provider = LLMProvider.model_validate({"name": "Probe", **config})
-            healthy = True
-            pending = None
-            for api_format in provider.api_formats:
-                state = batch_state.setdefault(api_format, {}) if batch_state is not None else None
-                if state is not None and "healthy" in state:
-                    details.update({key: state[key] for key in ("embedding_dimensions", "failure_reason") if key in state})
-                    healthy = healthy and state["healthy"]
-                    continue
-                format_details = {}
-                result = probe(kind, provider.for_format(api_format), state, save_batch_state, extraction, format_details)
-                details.update(format_details)
-                if isinstance(result, Retry):
-                    pending = result
-                    continue
-                if state is not None:
-                    state.update(healthy=result, **format_details)
-                    if save_batch_state:
-                        save_batch_state()
-                healthy = healthy and result
-            return pending if pending is not None else healthy
+            formats = {api_format: provider.for_format(api_format) for api_format in provider.api_formats}
+        else:
+            formats = {config["api_format"]: config}
+    except (ValueError, TypeError, KeyError):
+        logger.exception("Invalid endpoint check configuration")
+        return False
+    healthy = True
+    pending = None
+    checks = details.setdefault("formats", {})
+    for api_format, endpoint in formats.items():
+        state = batch_state.setdefault(api_format, {}) if batch_state is not None else None
+        if state is not None and "healthy" in state:
+            result = state["healthy"]
+            format_details = state
+        else:
+            format_details = {}
+            result = _probe_format(endpoint, state, save_batch_state, extraction, format_details)
+            if state is not None and not isinstance(result, Retry):
+                state.update(healthy=result, **format_details)
+                if save_batch_state:
+                    save_batch_state()
+        check = {"status": "pending" if isinstance(result, Retry) else "up" if result else "down"}
+        if not result:
+            check["failure_reason"] = format_details.get("failure_reason", "invalid_response")
+            if format_details.get("http_status") is not None:
+                check["http_status"] = format_details["http_status"]
+        checks[api_format] = check
+        if "embedding_dimensions" in format_details:
+            details["embedding_dimensions"] = format_details["embedding_dimensions"]
+        if isinstance(result, Retry):
+            pending = result
+        else:
+            healthy = healthy and result
+    return pending if pending is not None else healthy
+
+
+def _probe_format(config: dict, batch_state: dict | None, save_batch_state, extraction: dict | None, details: dict) -> bool | Retry:
+    text = "Reply with OK."
+    try:
         if config["api_format"] in {"systemone", "openai_decisions"}:
             client = get_decisions_client({"llm_endpoint": {"name": "Probe", **config}})
             questions = {"probe": ChoiceQuestion("Choose OK.", {"OK": "The requested answer", "other": "Any other answer"})}
@@ -162,9 +180,41 @@ def probe(
         logger.exception("Endpoint embedding dimension check failed")
         details["failure_reason"] = "embedding_dimensions_mismatch"
         return False
-    except (RequestException, ValueError, TypeError, KeyError, IndexError, BatchExecutionError, LLMTaskError, UpstreamLLMError):
-        logger.exception(f"Endpoint probe failed for {kind}")
-        return False
+    except HTTPError as exc:
+        logger.exception("Endpoint HTTP check failed")
+        status = (exc.response.status_code or 0) if exc.response is not None else 0
+        if 400 <= status <= 599:
+            details["http_status"] = status
+        reason = {
+            401: "authentication_failed",
+            402: "billing_required",
+            403: "forbidden",
+            404: "not_found",
+            408: "timeout",
+            429: "rate_limited",
+        }.get(status, "service_unavailable" if status >= 500 else "http_error")
+        if status in {400, 422}:
+            reason = "request_rejected" if config.get("model") else "model_missing"
+        details["failure_reason"] = reason
+    except Timeout:
+        logger.exception("Endpoint check timed out")
+        details["failure_reason"] = "timeout"
+    except SSLError:
+        logger.exception("Endpoint TLS check failed")
+        details["failure_reason"] = "tls_failed"
+    except (ConnectionError, RequestException):
+        logger.exception("Endpoint connection check failed")
+        details["failure_reason"] = "connection_failed"
+    except BatchExecutionError:
+        logger.exception("Endpoint batch check failed")
+        details["failure_reason"] = "batch_failed"
+    except LLMTaskError:
+        logger.exception("Endpoint inference check failed")
+        details["failure_reason"] = "provider_error"
+    except (ValueError, TypeError, KeyError, IndexError, UpstreamLLMError):
+        logger.exception("Endpoint output check failed")
+        details["failure_reason"] = "invalid_response"
+    return False
 
 
 def _valid_responses_result(result: dict) -> bool:

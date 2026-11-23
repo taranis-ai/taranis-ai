@@ -149,11 +149,23 @@ def test_endpoint_health_lifecycle(client, auth_header, api_header, app, db_pers
             assert current_configuration("embedding", indexing_settings) is None
             state = read_state("llm", endpoint_id)
 
-            result = {"check_id": state["check_id"], "healthy": False}
+            result = {
+                "check_id": state["check_id"],
+                "healthy": False,
+                "formats": {
+                    "responses": {"status": "down", "failure_reason": "model_missing", "http_status": 400},
+                    "embeddings": {"status": "up"},
+                },
+            }
             assert client.post(route, json=result, headers=api_header).json == {"accepted": True}
             public = client.get("/api/settings/settings", headers=auth_header)
             assert "private-health-key" not in public.text
             assert public.json["items"][0]["settings"]["llm_endpoints"][endpoint_id]["health"]["status"] == "down"
+            health_result = public.json["items"][0]["settings"]["llm_endpoints"][endpoint_id]["health"]
+            assert "Responses (HTTP 400)" in health_result["message"] and "no model ID configured" in health_result["message"]
+            assert health_result["formats"]["embeddings"] == {"status": "up", "message": "Embeddings: Check succeeded."}
+            invalid_result = {**result, "formats": {"responses": {"status": "down", "failure_reason": "private provider body"}}}
+            assert client.post(route, json=invalid_result, headers=api_header).status_code == 400
             assert client.get("/api/health").status_code == 503
 
             response = client.post(
@@ -181,6 +193,7 @@ def test_endpoint_health_lifecycle(client, auth_header, api_header, app, db_pers
             assert bot_id in {bot["id"] for bot in failures}
 
             result["healthy"] = True
+            result["formats"] = {key: {"status": "up"} for key in result["formats"]}
             assert client.post(route, json=result, headers=api_header).json == {"accepted": True}
             assert client.get("/api/health").status_code == 200
             assert client.get(f"/api/config/bots/{bot_id}", headers=auth_header).json["endpoint_health"]["status"] == "up"

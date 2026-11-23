@@ -180,7 +180,12 @@ class EndpointHealth(MethodView):
         except ValidationError:
             return {"error": "Invalid endpoint check result"}, 400
         accepted = record_result(
-            kind, endpoint_id, data.check_id, data.healthy, embedding_dimensions=data.embedding_dimensions, failure_reason=data.failure_reason
+            kind,
+            endpoint_id,
+            data.check_id,
+            data.healthy,
+            embedding_dimensions=data.embedding_dimensions,
+            formats={key: value.model_dump(exclude_none=True) for key, value in data.formats.items()},
         )
         return {"accepted": accepted}, 200
 

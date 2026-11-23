@@ -1,4 +1,5 @@
 import json
+import time
 import uuid
 from datetime import UTC, datetime
 from urllib.parse import parse_qs, urlparse
@@ -1639,7 +1640,7 @@ class TestEndToEndAdmin(BaseE2ETest):
                 core_request_client.delete(f"/assess/stories/{cleanup_id}", raise_for_status=False)
 
     @pytest.mark.e2e_full_stack
-    def test_admin_settings(self, logged_in_page, tmp_path, pre_seed_stories):
+    def test_admin_settings(self, logged_in_page, tmp_path, pre_seed_stories, core_request_client):
         page = logged_in_page
         settings_update_url = url_for("admin_settings.settings_action", action="settings", _external=True)
         settings_form = page.locator("#settings-container form#admin-settings-form")
@@ -1929,7 +1930,11 @@ class TestEndToEndAdmin(BaseE2ETest):
             expect(form.get_by_label("Name", exact=False)).to_have_value("E2E shared model")
             expect(form.get_by_label("API key", exact=False)).to_have_value("")
             reset_htmx_state(page)
-            form.get_by_label("Provider base URL").fill("https://provider.example/v1")
+            local_provider = not external_core_api_url()
+            form.get_by_label("Provider base URL").fill("http://demo-llm:8080/v1" if local_provider else "https://provider.example/v1")
+            if local_provider:
+                form.get_by_label("Enable Embeddings", exact=True).check()
+                form.get_by_label("Embeddings model", exact=True).fill("probe-model")
             form.get_by_label("API key", exact=False).fill("e2e-private-key")
             with_htmx_wait(page, lambda: form.get_by_role("button", name="Add Endpoint", exact=True).click())
             endpoint = section.locator("details").filter(has=page.locator("summary", has_text="E2E shared model"))
@@ -1947,7 +1952,26 @@ class TestEndToEndAdmin(BaseE2ETest):
             expect(endpoint).to_contain_text("An API key is saved.")
             endpoint.get_by_label("Endpoint state").select_option("true")
             with_htmx_wait(page, lambda: endpoint.get_by_role("button", name="Save Endpoint", exact=True).click())
+            if local_provider:
+                deadline = time.monotonic() + 30
+                while time.monotonic() < deadline:
+                    values = core_request_client.json_request("GET", "/settings/settings")["items"][0]["settings"]["llm_endpoints"]
+                    checked = next(value for value in values.values() if value["name"] == "E2E shared model")["health"]
+                    if checked["status"] == "down":
+                        break
+                    time.sleep(0.2)
+                else:
+                    pytest.fail("Endpoint format check did not finish")
+                page.reload()
             endpoint.locator("summary").click()
+            if local_provider:
+                responses_status = endpoint.locator('[data-test-id="llm-format-responses"]').get_by_role("status")
+                expect(responses_status).to_contain_text("Responses (HTTP 400)")
+                expect(responses_status).to_contain_text("no model ID configured")
+                expect(endpoint.locator('[data-test-id="llm-format-embeddings"]').get_by_role("status")).to_have_text(
+                    "Embeddings: Check succeeded."
+                )
+                expect(endpoint).not_to_contain_text("Private provider detail")
             expect(endpoint.get_by_label("Endpoint state")).to_have_value("true")
             expect(endpoint).to_contain_text("An API key is saved.")
             with page.expect_response(

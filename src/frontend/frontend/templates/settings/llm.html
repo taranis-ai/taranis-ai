@@ -59,6 +59,9 @@
                            {% if api_config.enabled | default(api_format in formats) %}checked{% endif %} />
                     Enable {{ label }}
                   </label>
+                  {% set format_check = endpoint.health.formats.get(api_format) if endpoint.health and endpoint.health.formats else none %}
+                  {% if format_check %}<p class="text-sm mb-3 {{ 'text-success' if format_check.status == 'up' else 'text-error' if format_check.status == 'down' else 'text-base-content/70' }}"
+                                          role="status">{{ format_check.message }}</p>{% endif %}
                   {{ form_input(label ~ ' model', 'api_formats[' ~ api_format ~ '][model]', api_config.model | default(''), preserve=False, floating=False, required=False, placeholder='Provider model ID', input_id='llm-' ~ endpoint_id ~ '-' ~ api_format ~ '-model') }}
                   {% if api_format == "embeddings" %}
                     {{ form_input('Embedding dimensions', 'api_formats[embeddings][dimensions]', api_config.dimensions | default('', true), type='number', preserve=False, floating=False, required=False, min_value=1, max_value=16000, placeholder='Automatic', input_id='llm-' ~ endpoint_id ~ '-embeddings-dimensions') }}
@@ -84,6 +87,9 @@
                          {% if decisions_config.enabled | default(decisions_wire_format in formats) %}checked{% endif %} />
                   Enable Decisions
                 </label>
+                {% set decisions_check = endpoint.health.formats.get(decisions_wire_format) if endpoint.health and endpoint.health.formats else none %}
+                {% if decisions_check %}<p class="text-sm mb-3 {{ 'text-success' if decisions_check.status == 'up' else 'text-error' if decisions_check.status == 'down' else 'text-base-content/70' }}"
+                                           role="status">{{ decisions_check.message }}</p>{% endif %}
                 {{ form_select('Decisions API format', 'decisions[api_format]', decisions_format, options=[{'id': 'systemone', 'name': 'System One (vLLM / llama.cpp)'}, {'id': 'openrouter', 'name': 'OpenRouter'}, {'id': 'openai_decisions', 'name': 'OpenAI'}], input_id='llm-' ~ endpoint_id ~ '-decisions-format') }}
                 {{ form_input('Decisions model', 'decisions[model]', decisions_config.model | default(''), preserve=False, floating=False, required=False, placeholder='Provider model ID', input_id='llm-' ~ endpoint_id ~ '-decisions-model') }}
                 <fieldset x-show="!isOpenRouter" :disabled="isOpenRouter">
@@ -95,7 +101,7 @@
                 <p class="text-sm text-base-content/70">Use System One for self-hosted /v1/systemone servers with a supported decision model, OpenRouter for its hosted models, or OpenAI for servers using OpenAI's /v1/decisions schema.</p>
               </fieldset>
             </div>
-            <p class="text-sm text-base-content/70 mb-4">Each enabled format uses its own model. Blank models use the provider default. Decisions URLs default to /systemone or /decisions under the provider base URL; use a full URL override for a different path. Responses is preferred over Chat Completions when both are enabled.</p>
+            <p class="text-sm text-base-content/70 mb-4">Each enabled format uses its own model. Blank models work only if the provider has a default; otherwise enter a model ID or disable that API format. Decisions URLs default to /systemone or /decisions under the provider base URL; use a full URL override for a different path. Responses is preferred over Chat Completions when both are enabled.</p>
             {{ form_select('Processing mode', 'processing_mode', endpoint.processing_mode | default('realtime'), options=[{'id': 'realtime', 'name': 'Realtime'}, {'id': 'openrouter_batch', 'name': 'OpenRouter batch'}], input_id='llm-' ~ endpoint_id ~ '-processing_mode') }}
             <p class="text-sm text-base-content/70 mb-4">
               OpenRouter batch uses /batches for background bots and can take up to 24 hours. Use https://openrouter.ai/api/v1 and a model that supports batch processing. Chat requires realtime processing. Decisions always uses realtime processing, even when other formats use batch. The same endpoint can serve Chat, sentiment, topic classification, and HRAG relationship verification with different models.

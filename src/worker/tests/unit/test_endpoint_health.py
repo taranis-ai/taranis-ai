@@ -75,7 +75,10 @@ def test_batch_endpoint_check_waits_for_inference(requests_mock, monkeypatch, ap
         json={"status": "completed", "results": [{"custom_id": other_id, "response": {"status_code": 200, "body": other_body}}]},
     )
     check_endpoint("llm", "test-id", "current-check")
-    assert saved.last_request.json() == {"check_id": "current-check", "healthy": True, "embedding_dimensions": 2}
+    reported = saved.last_request.json()
+    assert reported["check_id"] == "current-check" and reported["healthy"] is True and reported["embedding_dimensions"] == 2
+    assert set(reported["formats"]) == set(config["api_formats"])
+    assert all(check["status"] == "up" for check in reported["formats"].values())
     assert submitted.call_count == 2
     assert decisions.call_count == 1
     assert completed.call_count == 1
@@ -146,12 +149,15 @@ def test_endpoint_check_failure_and_recovery(requests_mock, kind, config, url, r
             {"json": result},
         ],
     )
-    for _ in range(3):
-        with pytest.raises(RuntimeError, match="^Endpoint check failed$"):
+    for reason in ("connection_failed", "authentication_failed", "invalid_response"):
+        with pytest.raises(RuntimeError, match="^Endpoint check failed") as failure:
             check_endpoint(kind, "test-id", "current-check")
-        assert saved.last_request.json() == {"check_id": "current-check", "healthy": False}
+        reported = saved.last_request.json()
+        assert reported["check_id"] == "current-check" and reported["healthy"] is False
+        assert reported["formats"][config["api_format"]]["failure_reason"] == reason
+        assert "private" not in str(failure.value) and "private" not in saved.last_request.text
     requests_mock.get(route, json={"config": {}})
-    with pytest.raises(RuntimeError, match="^Endpoint check failed$"):
+    with pytest.raises(RuntimeError, match="^Endpoint check failed"):
         check_endpoint(kind, "test-id", "current-check")
     assert saved.last_request.json() == {"check_id": "current-check", "healthy": False}
     requests_mock.get(
@@ -177,10 +183,10 @@ def test_endpoint_check_failure_and_recovery(requests_mock, kind, config, url, r
         check_endpoint(kind, "test-id", "current-check")
         assert upstream.last_request.json()["dimensions"] == 2
         requests_mock.get(route, json={"config": {**config, "dimensions": 3}})
-        with pytest.raises(RuntimeError, match="^Embedding output dimensions do not match"):
+        with pytest.raises(RuntimeError, match="^Endpoint check failed.*Embeddings"):
             check_endpoint(kind, "test-id", "current-check")
         assert saved.last_request.json()["healthy"] is False
-        assert saved.last_request.json()["failure_reason"] == "embedding_dimensions_mismatch"
+        assert saved.last_request.json()["formats"]["embeddings"]["failure_reason"] == "embedding_dimensions_mismatch"
     extra_format = "responses" if config["api_format"] in {"systemone", "openai_decisions"} else "systemone"
     extra_url = "https://other-path.test/v1" if extra_format == "responses" else "https://other-path.test/api/classify"
     extra_result = (
@@ -201,6 +207,12 @@ def test_endpoint_check_failure_and_recovery(requests_mock, kind, config, url, r
     assert saved.last_request.json()["healthy"] is True
     assert extra.last_request.json()["model"] == "other-model"
     requests_mock.post(extra.last_request.url, status_code=503)
-    with pytest.raises(RuntimeError, match="^Endpoint check failed$"):
+    with pytest.raises(RuntimeError, match="^Endpoint check failed"):
         check_endpoint(kind, "test-id", "combined-check")
     assert saved.last_request.json()["healthy"] is False
+    assert saved.last_request.json()["formats"][config["api_format"]]["status"] == "up"
+    assert saved.last_request.json()["formats"][extra_format] == {
+        "status": "down",
+        "failure_reason": "service_unavailable",
+        "http_status": 503,
+    }
