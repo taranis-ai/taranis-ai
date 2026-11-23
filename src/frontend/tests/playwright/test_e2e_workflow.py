@@ -37,8 +37,11 @@ def demo_chat_provider(core_request_client):
             "/settings/settings",
             json_data={
                 "settings": {
-                    f"llm_{feature}_endpoint": endpoint["id"]
-                    for feature in ("chat", "graph_planning", "extraction", "extraction_verification", "embedding")
+                    **{
+                        f"llm_{feature}_endpoint": endpoint["id"]
+                        for feature in ("chat", "graph_planning", "extraction", "extraction_verification", "embedding")
+                    },
+                    "hrag_relationship_verification_enabled": True,
                 }
             },
         )
@@ -90,8 +93,11 @@ def demo_chat_provider(core_request_client):
                 "/settings/settings",
                 json_data={
                     "settings": {
-                        f"llm_{feature}_endpoint": settings.get(f"llm_{feature}_endpoint", "")
-                        for feature in ("chat", "graph_planning", "extraction", "extraction_verification", "embedding")
+                        **{
+                            f"llm_{feature}_endpoint": settings.get(f"llm_{feature}_endpoint", "")
+                            for feature in ("chat", "graph_planning", "extraction", "extraction_verification", "embedding")
+                        },
+                        "hrag_relationship_verification_enabled": settings["hrag_relationship_verification_enabled"],
                     }
                 },
             )

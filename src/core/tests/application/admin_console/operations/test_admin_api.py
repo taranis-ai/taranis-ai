@@ -266,6 +266,7 @@ class TestAdminApi(BaseTest):
                     "hrag_chunk_overlap": "100",
                     "hrag_chunking_enabled": "false",
                     "hrag_vector_limit": "8",
+                    "hrag_relationship_verification_enabled": "false",
                 }
             },
             auth_header,
@@ -275,6 +276,11 @@ class TestAdminApi(BaseTest):
         current = client.get(self.concat_url("settings"), headers=auth_header).json["items"][0]["settings"]
         assert current["hrag_chunk_size"] == 1000 and current["hrag_chunk_overlap"] == 100
         assert current["hrag_chunking_enabled"] is False and current["hrag_vector_limit"] == 8
+        assert current["hrag_relationship_verification_enabled"] is False
+        invalid = client.patch(
+            self.concat_url("settings"), json={"settings": {"hrag_relationship_verification_enabled": "invalid"}}, headers=auth_header
+        )
+        assert invalid.status_code == 400
         assert client.post(self.concat_url(f"llm-endpoints/{endpoint_id}/delete"), json={}, headers=auth_header).status_code == 409
         for incompatible_format in ("responses", "chat_completions"):
             response = client.post(

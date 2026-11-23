@@ -52,16 +52,18 @@ def current_configuration(pipeline: str, settings: dict) -> dict | None:
             "overlap": embedding_settings.hrag_chunk_overlap,
         }
     if pipeline == "extraction":
-        verifier = Settings.get_llm_endpoint("extraction_verification", settings)
-        if not verifier or verifier["processing_mode"] != "realtime":
-            return None
         configuration["reasoning_effort"] = (
             None if settings["hrag_extraction_reasoning_effort"] == "default" else settings["hrag_extraction_reasoning_effort"]
         )
-        configuration["verification"] = {
-            "endpoint_id": settings.get("llm_extraction_verification_endpoint") or settings.get("llm_default_endpoint"),
-            **{key: verifier[key] for key in ("base_url", "model", "api_format")},
-        }
+        configuration["verification"] = None
+        if settings["hrag_relationship_verification_enabled"]:
+            verifier = Settings.get_llm_endpoint("extraction_verification", settings)
+            if not verifier or verifier["processing_mode"] != "realtime":
+                return None
+            configuration["verification"] = {
+                "endpoint_id": settings.get("llm_extraction_verification_endpoint") or settings.get("llm_default_endpoint"),
+                **{key: verifier[key] for key in ("base_url", "model", "api_format")},
+            }
     return configuration
 
 
@@ -70,7 +72,8 @@ def generation_endpoint(generation: HragGeneration) -> dict | None:
 
 
 def generation_verification_endpoint(generation: HragGeneration) -> dict | None:
-    return _frozen_endpoint(generation.config["verification"], "extraction_verification")
+    configuration = generation.config["verification"]
+    return _frozen_endpoint(configuration, "extraction_verification") if configuration else None
 
 
 def _frozen_endpoint(configuration: dict, feature: str) -> dict | None:
@@ -101,7 +104,7 @@ def reconcile() -> dict:
     except Exception:
         projected_keys = None
         logger.exception("HRAG graph reconciliation unavailable")
-    # Serialize generation creation and bounded scans across cron/startup requests.
+    # Serialize generation creation and bounded scans across indexing passes.
     db.session.execute(db.select(Settings).with_for_update()).scalar_one()
     settings = Settings.get_settings()
     selected = []
@@ -123,7 +126,8 @@ def reconcile() -> dict:
     generations = [
         generation
         for generation in generations
-        if generation_endpoint(generation) and (generation.pipeline == "embedding" or generation_verification_endpoint(generation))
+        if generation_endpoint(generation)
+        and (generation.pipeline == "embedding" or generation.config["verification"] is None or generation_verification_endpoint(generation))
     ]
     for generation in generations:
         items = list(db.session.scalars(db.select(NewsItem).where(NewsItem.id > generation.cursor).order_by(NewsItem.id).limit(500)))
@@ -209,7 +213,7 @@ def claim(work_id: str) -> dict | None:
     if not generation or not item or not (endpoint := generation_endpoint(generation)):
         return None
     verification_endpoint = generation_verification_endpoint(generation) if generation.pipeline == "extraction" else None
-    if generation.pipeline == "extraction" and verification_endpoint is None:
+    if generation.pipeline == "extraction" and generation.config["verification"] is not None and verification_endpoint is None:
         return None
     expected = fingerprint(item, generation)
     if expected != work.fingerprint:
@@ -328,8 +332,13 @@ def index_status(news_item_ids: list[str] | None = None) -> dict:
             }
         )
     errors = []
-    if Config.HRAG_ENABLED and current_configuration("extraction", Settings.get_settings()) is None:
-        errors.append("Assign compatible realtime HRAG extraction and relationship verification endpoints in LLM Endpoints.")
+    settings = Settings.get_settings()
+    if Config.HRAG_ENABLED and current_configuration("extraction", settings) is None:
+        errors.append(
+            "Assign compatible realtime extraction and Decisions verification endpoints, or disable relationship verification."
+            if settings["hrag_relationship_verification_enabled"]
+            else "Assign a compatible realtime HRAG extraction endpoint in LLM Endpoints."
+        )
     return IndexStatus(enabled=Config.HRAG_ENABLED, generations=generations, configuration_errors=errors).model_dump()
 
 

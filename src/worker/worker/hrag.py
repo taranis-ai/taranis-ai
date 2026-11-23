@@ -59,12 +59,12 @@ async def infer(job: IndexJob) -> dict:
     client = get_llm_client({"llm_endpoint": job.endpoint.model_dump()}, reasoning_effort=job.reasoning_effort)
     proposals = await task.run(client)
     resolved = proposals.resolve(job.content, quarantine_invalid_relations=True)
-    if job.verification_endpoint is None:
-        raise RuntimeError("HRAG relationship verification is not configured")
-    verifier = get_decisions_client({"llm_endpoint": job.verification_endpoint.model_dump()})
-    result = await verify_extraction(job.content, resolved, verifier)
+    result = resolved
+    if job.verification_endpoint is not None:
+        verifier = get_decisions_client({"llm_endpoint": job.verification_endpoint.model_dump()})
+        result = await verify_extraction(job.content, resolved, verifier)
     logger.info(
-        f"HRAG extraction: quarantined={len(proposals.relations) - len(resolved.relations)} "
+        f"HRAG extraction: verification={job.verification_endpoint is not None} quarantined={len(proposals.relations) - len(resolved.relations)} "
         f"rejected={len(resolved.relations) - len(result.relations)} accepted={len(result.relations)}"
     )
     return result.model_dump()

@@ -2,7 +2,7 @@ from datetime import timedelta
 from unittest.mock import Mock
 
 import pytest
-from models.hrag import ChunkEmbedding, EvidenceReference, ExtractionResult, IndexSubmission
+from models.hrag import ChunkEmbedding, EvidenceReference, ExtractionResult, IndexJob, IndexSubmission
 
 from core.config import Config
 from core.managers.db_manager import db
@@ -42,6 +42,7 @@ def configured_index(db_persistent_session, monkeypatch):
             "llm_extraction_endpoint": "extract",
             "llm_embedding_endpoint": "embed",
             "llm_extraction_verification_endpoint": "verify",
+            "hrag_relationship_verification_enabled": True,
         }
     )
     monkeypatch.setattr(Settings, "get_settings", classmethod(lambda cls: settings))
@@ -126,6 +127,31 @@ def test_durable_index_lifecycle_cutoffs_retries_and_generations(configured_inde
         assert indexing.generation_verification_endpoint(original_generation) is None
         assert indexing.current_configuration("extraction", configured_index) is None
         assert indexing.current_configuration("embedding", configured_index) is not None
+        configured_index["hrag_relationship_verification_enabled"] = False
+        configured_index["llm_extraction_verification_endpoint"] = ""
+        del configured_index["llm_endpoints"]["verify"]
+        indexing.reconcile()
+        unverified = db.session.scalar(
+            db.select(HragGeneration).where(HragGeneration.pipeline == "extraction").order_by(HragGeneration.created.desc())
+        )
+        assert unverified.id not in {original_generation.id, replacement.id}
+        assert unverified.config["verification"] is None and not unverified.active
+        assert original_generation.active
+        assert indexing.index_status()["configuration_errors"] == []
+        unverified_work = db.session.scalar(
+            db.select(HragWork).where(HragWork.generation_id == unverified.id, HragWork.news_item_id == item.id)
+        )
+        job = IndexJob.model_validate(indexing.claim(unverified_work.id))
+        assert job.verification_endpoint is None
+        assert (
+            indexing.submit(unverified_work.id, IndexSubmission(token=job.token, fingerprint=job.fingerprint, extraction=ExtractionResult()))[
+                1
+            ]
+            == 200
+        )
+        configured_index["hrag_relationship_verification_enabled"] = True
+        assert indexing.current_configuration("extraction", configured_index) is None
+        assert indexing.index_status()["configuration_errors"]
         db.session.delete(item)
         db.session.commit()
         assert not list(db.session.scalars(db.select(HragWork).where(HragWork.news_item_id == item.id)))

@@ -379,8 +379,10 @@ class IndexJob(HragContract):
         if self.pipeline == "extraction":
             if self.endpoint.api_format not in {"responses", "chat_completions"} or self.endpoint.processing_mode != "realtime":
                 raise ValueError("Extraction requires a realtime generative endpoint")
-            if self.verification_endpoint is None or not self.verification_endpoint.is_decisions:
-                raise ValueError("Extraction requires a Decisions verification endpoint")
+            if self.verification_endpoint is not None and (
+                not self.verification_endpoint.is_decisions or self.verification_endpoint.processing_mode != "realtime"
+            ):
+                raise ValueError("Relationship verification requires a realtime Decisions endpoint")
         else:
             if self.endpoint.api_format != "embeddings" or self.endpoint.processing_mode != "realtime":
                 raise ValueError("Embedding requires a realtime embedding endpoint")

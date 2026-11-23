@@ -101,3 +101,12 @@ def test_worker_claim_extraction_and_cached_retry(requests_mock, monkeypatch):
         index_item("test-work")
     assert submitted.last_request.json()["failed"] is True
     assert submitted.last_request.json()["extraction"] is None
+
+    requests_mock.post(route, json={**job, "verification_endpoint": None})
+    verified_calls = verification.await_count
+    index_item("test-work")
+    unverified = submitted.last_request.json()["extraction"]
+    assert len(unverified["relations"]) == 2
+    assert all(relation["assertion"] == "affirmed" for relation in unverified["relations"])
+    assert unverified["relations"][0]["evidence"]["quote"] == content
+    assert verification.await_count == verified_calls

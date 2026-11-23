@@ -82,6 +82,7 @@ class Settings(BaseModel):
         merged.setdefault("chat_max_stories", 5)
         merged.setdefault("hrag_extraction_reasoning_effort", "low")
         merged.setdefault("hrag_index_interval_minutes", 60)
+        merged.setdefault("hrag_relationship_verification_enabled", False)
         for key, value in (
             EmbeddingSettings(hrag_embedding_limit=Config.HRAG_EMBEDDING_LIMIT, hrag_vector_limit=Config.HRAG_VECTOR_LIMIT)
             .model_dump()
@@ -174,6 +175,13 @@ class Settings(BaseModel):
                 update_data["chat_max_stories"] = value
             except (TypeError, ValueError):
                 return {"error": "Maximum stories must be between 1 and 20"}, 400
+        if "hrag_relationship_verification_enabled" in update_data:
+            try:
+                update_data["hrag_relationship_verification_enabled"] = TypeAdapter(bool).validate_python(
+                    update_data["hrag_relationship_verification_enabled"]
+                )
+            except ValueError:
+                return {"error": "Invalid HRAG relationship verification setting"}, 400
         if "hrag_index_interval_minutes" in update_data:
             try:
                 update_data["hrag_index_interval_minutes"] = TypeAdapter(HragIndexIntervalMinutes).validate_python(
@@ -232,6 +240,7 @@ class Settings(BaseModel):
     @classmethod
     def _validate_llm_settings(cls, values: dict) -> None:
         EmbeddingSettings.model_validate(values)
+        values["hrag_relationship_verification_enabled"] = TypeAdapter(bool).validate_python(values["hrag_relationship_verification_enabled"])
         values["hrag_index_interval_minutes"] = TypeAdapter(HragIndexIntervalMinutes).validate_python(values["hrag_index_interval_minutes"])
         endpoints = {key: LLMProvider.model_validate(value).model_dump() for key, value in values["llm_endpoints"].items()}
         names = [endpoint["name"].casefold() for endpoint in endpoints.values()]

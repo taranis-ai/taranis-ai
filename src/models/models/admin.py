@@ -227,6 +227,7 @@ class User(TaranisBaseModel):
 
 class TaranisConfig(TaranisBaseModel, EmbeddingSettings):
     hrag_index_interval_minutes: HragIndexIntervalMinutes = 60
+    hrag_relationship_verification_enabled: bool = False
     default_collector_proxy: AnyUrl | Literal[""] = ""
     default_collector_interval: str = ""
     rss_collector_max_entries: int = Field(default=42, ge=1)
