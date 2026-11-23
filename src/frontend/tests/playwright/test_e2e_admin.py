@@ -2054,7 +2054,9 @@ class TestEndToEndAdmin(BaseE2ETest):
             effort = page.get_by_role("combobox", name="HRAG extraction reasoning", exact=True)
             expect(effort).to_have_value("low")
             effort.select_option("default")
-            verification = page.get_by_role("combobox", name="HRAG relationship verification", exact=True)
+            verification = page.get_by_test_id("settings-chat-form").get_by_role(
+                "combobox", name="HRAG relationship verification", exact=True
+            )
             expect(verification).to_have_value("false")
             verification.select_option("true")
             interval = page.get_by_test_id("settings-hrag-index-interval")
