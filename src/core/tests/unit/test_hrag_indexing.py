@@ -103,11 +103,17 @@ def test_durable_index_lifecycle_cutoffs_retries_and_generations(configured_inde
         assert indexing.submit(extraction.id, failure)[1] == 200
         assert extraction.status == "pending" and extraction.retry_after > HragWork.utcnow()
 
-        configured_index["llm_endpoints"]["embed"]["api_formats"]["embeddings"]["model"] = "replacement"
+        configured_index["llm_endpoints"]["embed"]["api_formats"]["embeddings"]["dimensions"] = 2
         indexing.reconcile()
         generations = list(db.session.scalars(db.select(HragGeneration).where(HragGeneration.pipeline == "embedding")))
         assert len(generations) == 2
         pending = next(g for g in generations if not g.active)
+        assert pending.config["dimensions"] == 2
+        active_embedding = db.session.get(HragGeneration, embedding.generation_id)
+        assert active_embedding.active and active_embedding.config["dimensions"] == 3
+        assert indexing.generation_endpoint(active_embedding)["dimensions"] == 3
+        pending_work = db.session.scalar(db.select(HragWork).where(HragWork.generation_id == pending.id, HragWork.news_item_id == item.id))
+        assert indexing.claim(pending_work.id)["dimensions"] == 2
         assert indexing.activate(pending.id)[1] == 409
         db.session.rollback()
         configured_index["llm_endpoints"]["verify"]["api_key"] = "rotated-key"

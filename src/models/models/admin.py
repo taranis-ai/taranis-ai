@@ -19,6 +19,7 @@ from pydantic import (
 
 from models.base import TaranisBaseModel
 from models.hrag import EmbeddingSettings, ExtractionReasoningEffort, HragIndexIntervalMinutes
+from models.llm import DEFAULT_EMBEDDING_DIMENSIONS
 from models.task import CronTaskSpec, Task
 from models.types import (
     BOT_TYPES,
@@ -274,6 +275,7 @@ class Settings(TaranisBaseModel):
     _cache_timeout = 30
     id: str | None = Field(default=None, frozen=True, exclude=True)
     settings: TaranisConfig = Field(default_factory=TaranisConfig)
+    embedding_dimensions_default: int = DEFAULT_EMBEDDING_DIMENSIONS
 
 
 class WordListEntry(TaranisBaseModel):

@@ -21,7 +21,7 @@ def test_batch_endpoint_check_waits_for_inference(requests_mock, monkeypatch, ap
     }
     other_format = "chat_completions" if api_format == "responses" else "responses"
     config["api_formats"] = {
-        "embeddings": {"model": "embed-model"},
+        "embeddings": {"model": "embed-model", "dimensions": 2},
         "systemone": {"model": "topic-model", "base_url": "https://batch.test/api/classify"},
         api_format: {"model": config["model"]},
         other_format: {"model": config["model"]},
@@ -32,7 +32,7 @@ def test_batch_endpoint_check_waits_for_inference(requests_mock, monkeypatch, ap
         json={"answers": {"probe": {"type": "choice", "choice": "OK", "probabilities": {"OK": 1.0, "other": 0.0}}}},
     )
     route = f"{Config.TARANIS_CORE_URL}/worker/endpoint-health/llm/test-id"
-    requests_mock.get(route, json={"config": config, "embedding_dimensions": 2})
+    requests_mock.get(route, json={"config": config, "embedding_dimensions": 3})
     saved = requests_mock.post(route, json={"accepted": True})
     submitted = requests_mock.post(
         f"{config['base_url']}/batches",

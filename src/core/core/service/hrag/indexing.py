@@ -34,7 +34,7 @@ def current_configuration(pipeline: str, settings: dict) -> dict | None:
     endpoint_id = settings.get(f"llm_{pipeline}_endpoint") or settings.get("llm_default_endpoint")
     embedding_settings = EmbeddingSettings.model_validate(settings)
     limit = Config.HRAG_EXTRACTION_LIMIT if pipeline == "extraction" else embedding_settings.hrag_embedding_limit
-    if not 1 <= limit <= 200_000 or not 1 <= Config.HRAG_EMBEDDING_DIMENSIONS <= 16000:
+    if not 1 <= limit <= 200_000:
         return None
     configuration = {
         "endpoint_id": endpoint_id,
@@ -43,7 +43,7 @@ def current_configuration(pipeline: str, settings: dict) -> dict | None:
         "api_format": endpoint["api_format"],
         "limit": limit,
         "schema": HRAG_EXTRACTION_SCHEMA_VERSION if pipeline == "extraction" else HRAG_SCHEMA_VERSION,
-        "dimensions": Config.HRAG_EMBEDDING_DIMENSIONS if pipeline == "embedding" else 0,
+        "dimensions": (endpoint.get("dimensions") or Config.HRAG_EMBEDDING_DIMENSIONS) if pipeline == "embedding" else 0,
     }
     if pipeline == "embedding":
         configuration["chunking"] = {
@@ -88,6 +88,8 @@ def _frozen_endpoint(configuration: dict, feature: str) -> dict | None:
     endpoint = normalized.for_feature(feature)
     if not endpoint or endpoint["processing_mode"] != "realtime":
         return None
+    if feature == "embedding":
+        endpoint["dimensions"] = configuration["dimensions"]
     # Freeze model and destination for this generation; rotate credentials independently.
     return {**endpoint, **{key: configuration[key] for key in ("base_url", "model", "api_format")}}
 

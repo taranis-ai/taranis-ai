@@ -60,6 +60,10 @@
                     Enable {{ label }}
                   </label>
                   {{ form_input(label ~ ' model', 'api_formats[' ~ api_format ~ '][model]', api_config.model | default(''), preserve=False, floating=False, required=False, placeholder='Provider model ID', input_id='llm-' ~ endpoint_id ~ '-' ~ api_format ~ '-model') }}
+                  {% if api_format == "embeddings" %}
+                    {{ form_input('Embedding dimensions', 'api_formats[embeddings][dimensions]', api_config.dimensions | default('', true), type='number', preserve=False, floating=False, required=False, min_value=1, max_value=16000, placeholder='Server default: ' ~ settings.embedding_dimensions_default, input_id='llm-' ~ endpoint_id ~ '-embeddings-dimensions') }}
+                    <p class="text-sm text-base-content/70 mb-4">Choose an output size supported by this model. Blank uses the server default ({{ settings.embedding_dimensions_default }}). Changing dimensions builds a replacement embedding index at the next indexing pass; activate it when ready.</p>
+                  {% endif %}
                   {{ form_input(label ~ ' URL override', 'api_formats[' ~ api_format ~ '][base_url]', api_config.base_url | default(''), type='url', preserve=False, floating=False, required=False, placeholder='Use provider base URL', input_id='llm-' ~ endpoint_id ~ '-' ~ api_format ~ '-url') }}
                 </fieldset>
               {% endfor %}

@@ -98,7 +98,11 @@ def probe(
             client.parse_response(response.json(), questions)
             return True
         if config["api_format"] == "embeddings":
-            create_embedding("Synthetic endpoint check", {**config, "timeout": min(config["timeout"], 120)}, embedding_dimensions)
+            create_embedding(
+                "Synthetic endpoint check",
+                {**config, "timeout": min(config["timeout"], 120)},
+                config.get("dimensions") or embedding_dimensions,
+            )
             return True
         chat = config["api_format"] == "chat_completions"
         if config.get("processing_mode") == "openrouter_batch":

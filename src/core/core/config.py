@@ -9,6 +9,7 @@ from models.cache_contract import (
     CACHE_KEY_PREFIX_DEFAULT,
 )
 from models.hrag import EMBEDDING_CONTENT_LIMIT
+from models.llm import DEFAULT_EMBEDDING_DIMENSIONS, EmbeddingDimensions
 from pydantic import Field, SecretStr, ValidationInfo, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
@@ -47,7 +48,7 @@ class Settings(BaseSettings):
     HRAG_NEO4J_DATABASE: str = "neo4j"
     HRAG_EXTRACTION_LIMIT: int = Field(default=20_000, ge=1, le=200_000)
     HRAG_EMBEDDING_LIMIT: int = Field(default=EMBEDDING_CONTENT_LIMIT, ge=1, le=200_000)
-    HRAG_EMBEDDING_DIMENSIONS: int = Field(default=1536, ge=1, le=16000)
+    HRAG_EMBEDDING_DIMENSIONS: EmbeddingDimensions = DEFAULT_EMBEDDING_DIMENSIONS
     HRAG_GRAPH_LIMIT: int = Field(default=50, ge=1, le=50)
     HRAG_VECTOR_LIMIT: int = Field(default=12, ge=1, le=100)
 

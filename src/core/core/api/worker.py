@@ -163,7 +163,8 @@ class EndpointHealth(MethodView):
             response = jsonify(
                 {
                     "config": config,
-                    "embedding_dimensions": Config.HRAG_EMBEDDING_DIMENSIONS if Config.HRAG_ENABLED else None,
+                    "embedding_dimensions": config.get("api_formats", {}).get("embeddings", {}).get("dimensions")
+                    or (Config.HRAG_EMBEDDING_DIMENSIONS if Config.HRAG_ENABLED else None),
                     "extraction": extraction_probe(endpoint_id),
                 }
             )

@@ -109,6 +109,26 @@ def test_endpoint_health_lifecycle(client, auth_header, api_header, app, db_pers
             monkeypatch.setattr(Config, "HRAG_ENABLED", False)
             snapshot = client.get(route, query_string={"check_id": state["check_id"]}, headers=api_header).json
             assert snapshot["embedding_dimensions"] is None and snapshot["extraction"] is None
+            for invalid_dimensions in (0, 16001):
+                response = client.post(
+                    endpoint_url,
+                    json={"api_formats": {"responses": {}, "embeddings": {"dimensions": invalid_dimensions}}},
+                    headers=auth_header,
+                )
+                assert response.status_code == 400
+            for dimensions, expected in (("256", 256), ("", None)):
+                response = client.post(
+                    endpoint_url,
+                    json={"api_formats": {"responses": {}, "embeddings": {"dimensions": dimensions}}},
+                    headers=auth_header,
+                )
+                assert response.status_code == 200
+                state = read_state("llm", endpoint_id)
+                snapshot = client.get(route, query_string={"check_id": state["check_id"]}, headers=api_header).json
+                assert snapshot["embedding_dimensions"] == expected
+                public = client.get("/api/settings/settings", headers=auth_header).json["items"][0]
+                assert public["embedding_dimensions_default"] == 1024
+                assert public["settings"]["llm_endpoints"][endpoint_id]["api_formats"]["embeddings"].get("dimensions") == expected
             assert client.get("/api/health").json["services"]["worker_endpoints"] == "down"
 
             result = {"check_id": state["check_id"], "healthy": False}

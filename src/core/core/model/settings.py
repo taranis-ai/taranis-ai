@@ -100,6 +100,7 @@ class Settings(BaseModel):
             endpoint["health"] = get_status("llm", endpoint_id, dict(endpoint))
             endpoint["api_key_configured"] = bool(endpoint.pop("api_key", ""))
         data["settings"] = public_settings
+        data["embedding_dimensions_default"] = Config.HRAG_EMBEDDING_DIMENSIONS
         return data
 
     @classmethod
@@ -344,7 +345,7 @@ class Settings(BaseModel):
                 endpoint = LLMProvider.model_validate({**existing, **submitted}).model_dump()
             except (TypeError, ValueError):
                 return {
-                    "error": "Invalid LLM endpoint. Check the name, base URL, model, API format, processing mode, and positive timeout."
+                    "error": "Invalid LLM endpoint. Check the name, base URL, model, API format, dimensions (1–16000), processing mode, and positive timeout."
                 }, 400
             if any(item["name"].casefold() == endpoint["name"].casefold() for key, item in endpoints.items() if key != endpoint_id):
                 return {"error": "An LLM endpoint with this name already exists"}, 400

@@ -1,7 +1,11 @@
-from typing import Literal
+from typing import Annotated, Literal
 from urllib.parse import urlparse
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+
+DEFAULT_EMBEDDING_DIMENSIONS = 1536
+type EmbeddingDimensions = Annotated[int, Field(ge=1, le=16000)]
 
 
 LLM_FEATURES = {
@@ -34,6 +38,7 @@ class LLMEndpoint(BaseModel):
     base_url: str = Field(min_length=1)
     enabled: bool = True
     model: str = ""
+    dimensions: EmbeddingDimensions | None = Field(default=None, exclude_if=lambda value: value is None)
     api_format: Literal["responses", "chat_completions", "systemone", "openai_decisions", "embeddings"] = "responses"
     processing_mode: Literal["realtime", "openrouter_batch"] = "realtime"
     api_key: str = Field(default="", repr=False)
@@ -45,6 +50,8 @@ class LLMEndpoint(BaseModel):
 
     @model_validator(mode="after")
     def validate_transport(self):
+        if self.dimensions is not None and self.api_format != "embeddings":
+            raise ValueError("Dimensions apply only to embeddings")
         if (self.is_decisions or self.api_format == "embeddings") and self.processing_mode != "realtime":
             raise ValueError("Decisions endpoints require realtime processing")
         if not self.is_decisions and urlparse(self.base_url).path.endswith(("/decisions", "/systemone")):
@@ -84,6 +91,12 @@ class LLMAPIConfig(BaseModel):
 
     model: str = ""
     base_url: str = ""
+    dimensions: EmbeddingDimensions | None = Field(default=None, exclude_if=lambda value: value is None)
+
+    @field_validator("dimensions", mode="before")
+    @classmethod
+    def normalize_dimensions(cls, value):
+        return None if value == "" else value
 
     @field_validator("base_url")
     @classmethod
@@ -153,6 +166,7 @@ class LLMProvider(BaseModel):
             enabled=self.enabled,
             api_format=api_format,
             model=config.model,
+            dimensions=config.dimensions,
             processing_mode="realtime" if api_format in DECISIONS_FORMATS or api_format == "embeddings" else self.processing_mode,
             api_key=self.api_key,
             timeout=self.timeout,
