@@ -67,9 +67,9 @@ def query_embedding(question: str, endpoint: dict, dimensions: int, deadline: fl
     with transport._response(client.build_request(question, dimensions=endpoint.get("dimensions"))) as response:
         response.raise_for_status()
         vector = client.parse_response(response.json())[0]
-        if len(vector) != dimensions:
-            raise EmbeddingDimensionMismatch(EmbeddingDimensionMismatch.public_message)
-        return EmbeddingResult(embedding=vector)
+    if len(vector) != dimensions:
+        raise EmbeddingDimensionMismatch(EmbeddingDimensionMismatch.public_message)
+    return EmbeddingResult(embedding=vector)
 
 
 def run_inference(coroutine, deadline: float):
