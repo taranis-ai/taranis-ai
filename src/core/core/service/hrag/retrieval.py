@@ -29,7 +29,7 @@ from core.model.settings import Settings
 from core.model.story import Story
 from core.model.user import User
 from core.service.hrag.indexing import fingerprint, generation_endpoint
-from core.service.hrag.stores import graph_search, search_chunk_vectors, vector_search
+from core.service.hrag.stores import graph_search, search_chunk_vectors
 
 
 LIMIT_NOTICE = (
@@ -121,11 +121,10 @@ def evidence_from_reference(reference: EvidenceReference, authorized: dict[str, 
     branch = "graph" if generation.pipeline == "extraction" else "vector"
     content = bounded_content(item.content, generation.config["limit"])
     quote, assertion, description = content, None, ""
-    if branch == "vector" and reference.chunk_index is not None:
-        chunking = generation.config.get("chunking")
-        if not chunking:
+    if branch == "vector":
+        if reference.chunk_index is None:
             return None
-        chunks = split_content(content, **chunking)
+        chunks = split_content(content, **generation.config["chunking"])
         if reference.chunk_index >= len(chunks):
             return None
         span = chunks[reference.chunk_index]
@@ -255,10 +254,7 @@ def retrieve(context: dict, user_id: str, settings: dict, deadline: float, strea
         if any(generation_id != embedding_generation_id for _, generation_id in authorized.values()):
             raise ValueError("Embedding generation changed during retrieval")
         limit = settings["hrag_vector_limit"]
-        if "chunking" in generation.config:
-            matches = search_chunk_vectors(vector.embedding, list(authorized), limit, settings["hrag_chunks_per_item"])
-        else:
-            matches = [(work_id, None) for work_id in vector_search(vector.embedding, list(authorized), limit)]
+        matches = search_chunk_vectors(vector.embedding, list(authorized), limit, settings["hrag_chunks_per_item"])
         references = [
             EvidenceReference(citation=f"V{index + 1}", work_id=work_id, fingerprint=authorized[work_id][0], chunk_index=chunk_index)
             for index, (work_id, chunk_index) in enumerate(matches)

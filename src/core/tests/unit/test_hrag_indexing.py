@@ -139,12 +139,12 @@ def test_runtime_chunk_sizes_build_independent_generations(configured_index, mon
     story = create_story(news_items=[build_news_item_payload(content=content)])
     saved = Mock()
     monkeypatch.setattr(indexing, "save_chunks", saved)
-    sizes = (2000, 500, 3000)
+    layouts = ((2000, True), (500, True), (3000, True), (500, False))
     counts = []
     original_active = None
     try:
-        for size in sizes:
-            configured_index.update(hrag_chunk_size=size, hrag_chunk_overlap=100)
+        for size, enabled in layouts:
+            configured_index.update(hrag_chunk_size=size, hrag_chunk_overlap=100, hrag_chunking_enabled=enabled)
             indexing.reconcile()
             generation = db.session.scalar(
                 db.select(HragGeneration).where(HragGeneration.pipeline == "embedding").order_by(HragGeneration.created.desc())
@@ -159,6 +159,8 @@ def test_runtime_chunk_sizes_build_independent_generations(configured_index, mon
             )
             job = indexing.claim(work.id)
             counts.append(len(job["chunks"]))
+            if not enabled:
+                assert job["chunks"] == [{"start": 0, "end": len(content)}]
             chunks = [ChunkEmbedding(**span, embedding=[1, 0, 0]) for span in job["chunks"]]
             submission = IndexSubmission(token=job["token"], fingerprint=job["fingerprint"], chunks=chunks)
             invalid = submission.model_copy(deep=True)
@@ -173,6 +175,7 @@ def test_runtime_chunk_sizes_build_independent_generations(configured_index, mon
             assert evidence.quote == content[chunks[-1].start : chunks[-1].end]
             assert evidence.chunk_index == len(chunks) - 1
         assert counts[1] > counts[0] > counts[2]
+        assert counts[3] == 1
         remaining = list(db.session.scalars(db.select(HragWork).where(HragWork.generation_id == generation.id, HragWork.status != "ready")))
         for pending in remaining:
             job = indexing.claim(pending.id)

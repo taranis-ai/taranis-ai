@@ -55,12 +55,19 @@ def test_worker_claim_extraction_and_cached_retry(requests_mock, monkeypatch):
     index_item("test-work")
     assert inference.await_count == 2
     requests_mock.post(
-        route, json={**job, "pipeline": "embedding", "dimensions": 3, "endpoint": {**job["endpoint"], "api_format": "embeddings"}}
+        route,
+        json={
+            **job,
+            "pipeline": "embedding",
+            "dimensions": 3,
+            "endpoint": {**job["endpoint"], "api_format": "embeddings"},
+            "chunks": [{"start": 0, "end": len(content)}],
+        },
     )
     embedding = requests_mock.post("https://provider.invalid/v1/embeddings", json={"data": [{"embedding": [1, 0, 0]}]})
     index_item("test-work")
-    assert embedding.last_request.json() == {"input": content, "encoding_format": "float", "dimensions": 3}
-    assert submitted.last_request.json()["vector"]["embedding"] == [1, 0, 0]
+    assert embedding.last_request.json() == {"input": [content], "encoding_format": "float", "dimensions": 3}
+    assert submitted.last_request.json()["chunks"] == [{"start": 0, "end": len(content), "embedding": [1, 0, 0]}]
     for vector in ([1, 0], [float("nan"), 1, 0]):
         requests_mock.post("https://provider.invalid/v1/embeddings", json={"data": [{"embedding": vector}]})
         with pytest.raises(RuntimeError, match="^HRAG indexing failed; retry scheduled$"):
@@ -82,7 +89,6 @@ def test_worker_claim_extraction_and_cached_retry(requests_mock, monkeypatch):
     )
     index_item("test-work")
     assert embedding.last_request.json()["input"] == ["Acme", "did not attack Beta."]
-    assert submitted.last_request.json()["vector"] is None
     assert submitted.last_request.json()["chunks"] == [
         {"start": 0, "end": 4, "embedding": [1, 0, 0]},
         {"start": 5, "end": len(content), "embedding": [0, 1, 0]},

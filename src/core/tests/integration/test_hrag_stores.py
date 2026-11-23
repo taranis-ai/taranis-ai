@@ -45,17 +45,8 @@ def hrag_stores(monkeypatch):
 def test_authorized_paths_vector_ranking_projection_retry_and_deletion(hrag_stores):
     prefix = hrag_stores
     ids = [str(uuid.uuid4()) for _ in range(3)]
-    for work_id, vector in zip(ids, ([1, 0, 0], [0.9, 0.1, 0], [0, 1, 0]), strict=True):
+    for work_id in ids:
         db.session.execute(text("INSERT INTO hrag_work (id) VALUES (:id)"), {"id": work_id})
-        stores.save_vector(work_id, vector)
-    db.session.commit()
-    assert stores.vector_search([1, 0, 0], ids[1:], 1) == [ids[1]]  # Hidden nearest neighbor cannot consume the limit.
-    stores.save_vector(ids[1], [0, 0, 1])
-    db.session.commit()
-    db.session.execute(text("DELETE FROM hrag_work WHERE id = :id"), {"id": ids[1]})
-    db.session.commit()
-    assert stores.vector_search([1, 0, 0], ids[1:], 3) == [ids[2]]
-
     for work_id in (ids[0], ids[2]):
         stores.save_chunks(
             work_id, [ChunkEmbedding(start=0, end=10, embedding=[1, 0, 0]), ChunkEmbedding(start=8, end=20, embedding=[0.9, 0.1, 0])]

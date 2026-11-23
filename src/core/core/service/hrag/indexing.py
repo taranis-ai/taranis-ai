@@ -7,7 +7,6 @@ from datetime import timedelta
 from models.hrag import (
     HRAG_EXTRACTION_SCHEMA_VERSION,
     HRAG_SCHEMA_VERSION,
-    EmbeddingResult,
     EmbeddingSettings,
     IndexStatus,
     IndexSubmission,
@@ -22,7 +21,7 @@ from core.managers.db_manager import db
 from core.model.hrag import HragGeneration, HragWork
 from core.model.news_item import NewsItem
 from core.model.settings import Settings
-from core.service.hrag.stores import graph_document_keys, project_graph, prune_graph, save_chunks, save_vector
+from core.service.hrag.stores import graph_document_keys, project_graph, prune_graph, save_chunks
 
 
 PIPELINES = ("embedding", "extraction")
@@ -71,8 +70,7 @@ def generation_endpoint(generation: HragGeneration) -> dict | None:
 
 
 def generation_verification_endpoint(generation: HragGeneration) -> dict | None:
-    configuration = generation.config.get("verification")
-    return _frozen_endpoint(configuration, "extraction_verification") if configuration else None
+    return _frozen_endpoint(generation.config["verification"], "extraction_verification")
 
 
 def _frozen_endpoint(configuration: dict, feature: str) -> dict | None:
@@ -237,7 +235,7 @@ def claim(work_id: str) -> dict | None:
         "dimensions": generation.config["dimensions"],
         "cached_result": work.result,
         "chunks": [chunk.model_dump() for chunk in split_content(content, **generation.config["chunking"])]
-        if "chunking" in generation.config
+        if generation.pipeline == "embedding"
         else [],
     }
     db.session.commit()
@@ -265,7 +263,7 @@ def submit(work_id: str, submission: IndexSubmission) -> tuple[dict, int]:
         return {"message": "HRAG retry scheduled"}, 200
     content = bounded_content(item.content, generation.config["limit"])
     if generation.pipeline == "extraction":
-        if submission.extraction is None or submission.vector is not None or submission.chunks is not None:
+        if submission.extraction is None or submission.chunks is not None:
             return {"error": "Expected extraction result"}, 400
         try:
             result = submission.extraction.validate_content(content)
@@ -280,23 +278,15 @@ def submit(work_id: str, submission: IndexSubmission) -> tuple[dict, int]:
     else:
         if submission.extraction is not None:
             return {"error": "Expected embedding result"}, 400
-        if "chunking" in generation.config:
-            expected = split_content(content, **generation.config["chunking"])
-            chunks = submission.chunks
-            if submission.vector is not None or chunks is None or len(chunks) != len(expected):
-                return {"error": "Expected chunk embeddings"}, 400
-            if any((chunk.start, chunk.end) != (span.start, span.end) for chunk, span in zip(chunks, expected, strict=True)):
-                return {"error": "Invalid chunk offsets"}, 400
-            if any(len(chunk.embedding) != generation.config["dimensions"] for chunk in chunks):
-                return {"error": "Unexpected embedding dimensions"}, 400
-            save_chunks(work.id, chunks)
-        else:
-            if submission.vector is None or submission.chunks is not None:
-                return {"error": "Expected embedding result"}, 400
-            result_vector = EmbeddingResult.model_validate(submission.vector)
-            if len(result_vector.embedding) != generation.config["dimensions"]:
-                return {"error": "Unexpected embedding dimensions"}, 400
-            save_vector(work.id, result_vector.embedding)
+        expected = split_content(content, **generation.config["chunking"])
+        chunks = submission.chunks
+        if chunks is None or len(chunks) != len(expected):
+            return {"error": "Expected chunk embeddings"}, 400
+        if any((chunk.start, chunk.end) != (span.start, span.end) for chunk, span in zip(chunks, expected, strict=True)):
+            return {"error": "Invalid chunk offsets"}, 400
+        if any(len(chunk.embedding) != generation.config["dimensions"] for chunk in chunks):
+            return {"error": "Unexpected embedding dimensions"}, 400
+        save_chunks(work.id, chunks)
         work.result = None
     # Content can change while Neo4j is updated. Never reactivate a stale submission.
     db.session.flush()
@@ -318,6 +308,7 @@ def submit(work_id: str, submission: IndexSubmission) -> tuple[dict, int]:
 def index_status(news_item_ids: list[str] | None = None) -> dict:
     generations = []
     for generation in db.session.scalars(db.select(HragGeneration).order_by(HragGeneration.created)):
+        chunking = generation.config["chunking"] if generation.pipeline == "embedding" else None
         query = db.select(HragWork.status, db.func.count()).where(HragWork.generation_id == generation.id)
         if news_item_ids:
             query = query.where(HragWork.news_item_id.in_(news_item_ids))
@@ -330,9 +321,9 @@ def index_status(news_item_ids: list[str] | None = None) -> dict:
                 "model": generation.config["model"],
                 "scanned": generation.scanned,
                 "counts": counts,
-                "chunk_size": generation.config.get("chunking", {}).get("size"),
-                "chunk_overlap": generation.config.get("chunking", {}).get("overlap"),
-                "chunking_enabled": generation.config.get("chunking", {}).get("enabled"),
+                "chunk_size": chunking["size"] if chunking else None,
+                "chunk_overlap": chunking["overlap"] if chunking else None,
+                "chunking_enabled": chunking["enabled"] if chunking else None,
                 "content_limit": generation.config["limit"],
             }
         )

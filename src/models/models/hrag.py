@@ -355,7 +355,6 @@ class IndexSubmission(HragContract):
     token: str = Field(min_length=1, max_length=64)
     fingerprint: str = Field(min_length=64, max_length=64)
     extraction: ExtractionResult | None = None
-    vector: EmbeddingResult | None = None
     chunks: list[ChunkEmbedding] | None = Field(default=None, max_length=2000)
     failed: bool = False
 
@@ -380,6 +379,13 @@ class IndexJob(HragContract):
                 raise ValueError("Extraction requires a realtime generative endpoint")
             if self.verification_endpoint is None or not self.verification_endpoint.is_decisions:
                 raise ValueError("Extraction requires a Decisions verification endpoint")
+        else:
+            if self.endpoint.api_format != "embeddings" or self.endpoint.processing_mode != "realtime":
+                raise ValueError("Embedding requires a realtime embedding endpoint")
+            if self.dimensions < 1 or not self.chunks:
+                raise ValueError("Embedding requires dimensions and source chunks")
+            if any(chunk.end > len(self.content) or not self.content[chunk.start : chunk.end].strip() for chunk in self.chunks):
+                raise ValueError("Invalid embedding chunk offsets")
         return self
 
 

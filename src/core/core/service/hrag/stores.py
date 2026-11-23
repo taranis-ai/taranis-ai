@@ -17,16 +17,9 @@ def initialize_vectors(engine):
     if not Config.HRAG_ENABLED:
         return
     if engine.dialect.name != "postgresql":
-        return  # Unit fixtures use SQLite; production retrieval requires PostgreSQL.
+        return
     with engine.begin() as connection:
         connection.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
-        connection.execute(
-            text("""CREATE TABLE IF NOT EXISTS hrag_vector (
-            work_id varchar(36) PRIMARY KEY REFERENCES hrag_work(id) ON DELETE CASCADE,
-            embedding vector NOT NULL
-        )""")
-        )
-
         connection.execute(
             text("""CREATE TABLE IF NOT EXISTS hrag_chunk_vector (
             work_id varchar(36) NOT NULL REFERENCES hrag_work(id) ON DELETE CASCADE,
@@ -67,25 +60,6 @@ def search_chunk_vectors(vector: list[float], allowed_ids: list[str], limit: int
         (row[0], row[1])
         for row in db.session.execute(query, {"ids": allowed_ids, "vector": json.dumps(vector), "limit": limit, "per_item": per_item})
     ]
-
-
-def save_vector(work_id: str, vector: list[float]):
-    if db.engine.dialect.name != "postgresql":
-        return
-    db.session.execute(
-        text("""INSERT INTO hrag_vector (work_id, embedding) VALUES (:id, CAST(:vector AS vector))
-        ON CONFLICT (work_id) DO UPDATE SET embedding = excluded.embedding"""),
-        {"id": work_id, "vector": json.dumps(vector)},
-    )
-
-
-def vector_search(vector: list[float], allowed_ids: list[str], limit: int) -> list[str]:
-    if not allowed_ids:
-        return []
-    # Exact search over the authorized generation avoids ANN post-filter underfill.
-    statement = text("""SELECT work_id FROM hrag_vector WHERE work_id = ANY(:ids)
-        ORDER BY embedding <=> CAST(:vector AS vector), work_id LIMIT :limit""").bindparams(bindparam("ids", type_=ARRAY(String())))
-    return list(db.session.scalars(statement, {"ids": allowed_ids, "vector": json.dumps(vector), "limit": limit}))
 
 
 @contextmanager

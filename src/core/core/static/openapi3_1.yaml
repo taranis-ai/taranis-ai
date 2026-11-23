@@ -9416,7 +9416,7 @@ paths:
       - APIKey: []
       tags: [bots]
       operationId: worker.hrag_work.put
-      description: Submit a validated extraction, chunk embeddings, or single-vector result, or report failure. Repeated accepted submissions are idempotent; obsolete tokens and fingerprints are rejected.
+      description: Submit a validated extraction or chunk embeddings, or report failure. Repeated accepted submissions are idempotent; obsolete tokens and fingerprints are rejected.
       requestBody:
         required: true
         content:
@@ -9456,15 +9456,6 @@ paths:
                         minItems: 1
                         maxItems: 16000
                         items: {type: number}
-                vector:
-                  type: [object, 'null']
-                  properties:
-                    embedding:
-                      type: array
-                      minItems: 1
-                      maxItems: 16000
-                      items:
-                        type: number
       responses:
         '200':
           description: Result accepted, already accepted, or retry scheduled
