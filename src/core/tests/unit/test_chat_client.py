@@ -36,19 +36,27 @@ def _chat_response(text: str) -> requests.Response:
     return _response({"choices": [{"finish_reason": "stop", "message": {"role": "assistant", "content": text}}]})
 
 
-def test_query_embedding_requests_generation_dimensions(app, configured_chat, monkeypatch):
+def test_query_embedding_automatic_and_explicit_dimensions(app, configured_chat, monkeypatch):
+    from models.llm import EmbeddingDimensionMismatch
+
     from core.service.hrag.retrieval import query_embedding
 
-    endpoint = Settings.get_llm_endpoint("chat")
+    endpoint = {**Settings.get_llm_endpoint("chat"), "api_format": "embeddings"}
 
     def post(url, **kwargs):
         assert url == endpoint["base_url"] + "/embeddings"
-        assert kwargs["json"]["dimensions"] == 3
+        assert kwargs["json"].get("dimensions") == endpoint.get("dimensions")
+        if endpoint.get("dimensions") is None:
+            assert "dimensions" not in kwargs["json"]
         assert kwargs["json"]["input"] == "Which incidents?"
         assert kwargs["json"]["encoding_format"] == "float"
         return _response({"data": [{"embedding": [1, 0, 0]}]})
 
     monkeypatch.setattr(requests, "post", post)
+    assert query_embedding("Which incidents?", endpoint, 3, time.monotonic() + 30).embedding == [1, 0, 0]
+    with pytest.raises(EmbeddingDimensionMismatch):
+        query_embedding("Which incidents?", endpoint, 4, time.monotonic() + 30)
+    endpoint["dimensions"] = 3
     assert query_embedding("Which incidents?", endpoint, 3, time.monotonic() + 30).embedding == [1, 0, 0]
 
 
