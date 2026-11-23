@@ -1745,7 +1745,7 @@ class TestEndToEndUser(BaseE2ETest):
                 page.get_by_role("textbox", name="Date *", exact=True).fill("2026-02-05")
                 page.get_by_role("textbox", name="Time *", exact=True).fill("11:11")
                 page.get_by_role("textbox", name="Date Time *").fill("2026-02-05T11:11")
-                page.get_by_label("TLP Level * Clear Green Amber").select_option("clear")
+                page.get_by_label("TLP Level").select_option("clear")
                 page.locator("div").filter(has_text="Stories Remove all Report").nth(4).click()
                 page.get_by_placeholder("CVE field*").fill("CVE-2026-24888")
                 page.get_by_placeholder("CVSS field*").fill("1")
