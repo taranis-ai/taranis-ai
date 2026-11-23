@@ -65,7 +65,14 @@ class TestRBAC:
         user = User.find_by_name("user")
         grant_acl(role, ItemType.OSINT_SOURCE, source.id)
         generation = HragGeneration.from_dict(
-            {"id": "security-embedding", "pipeline": "embedding", "config": {"limit": 4000}, "active": True, "cursor": "", "scanned": True}
+            {
+                "id": "security-embedding",
+                "pipeline": "embedding",
+                "config": {"limit": 10000, "chunking": {"enabled": True, "size": 2000, "overlap": 200}},
+                "active": True,
+                "cursor": "",
+                "scanned": True,
+            }
         )
         db.session.add(generation)
         works = []
@@ -76,13 +83,15 @@ class TestRBAC:
                     "generation_id": generation.id,
                     "fingerprint": fingerprint(news_item, generation),
                     "status": "ready",
-                    "result": {"embedding": [1, 0, 0]},
+                    "result": None,
                 }
             )
             db.session.add(work)
             works.append(work)
         db.session.commit()
-        reference = EvidenceReference(citation="V1", work_id=works[0].id, fingerprint=works[0].fingerprint, support_ids=[works[1].graph_key])
+        reference = EvidenceReference(
+            citation="V1", work_id=works[0].id, fingerprint=works[0].fingerprint, support_ids=[works[1].graph_key], chunk_index=0
+        )
         allowed = authorized_work(user)
         assert works[0].id in allowed and works[1].id not in allowed
         assert evidence_from_reference(reference, allowed) is None
