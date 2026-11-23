@@ -17,6 +17,7 @@ from models.hrag import (
     extraction_vocabulary,
     split_content,
 )
+from models.llm import EmbeddingDimensionMismatch
 from sqlalchemy import select
 from sqlalchemy.orm import defer
 
@@ -63,9 +64,12 @@ def query_embedding(question: str, endpoint: dict, dimensions: int, deadline: fl
 
     client = EmbeddingClient(base_url=endpoint["base_url"], api_key=endpoint["api_key"], model=endpoint["model"], timeout=endpoint["timeout"])
     transport = ProviderTransport(client.base_url, client.path, client.api_key, client.timeout, deadline)
-    with transport._response(client.build_request(question, dimensions=dimensions)) as response:
+    with transport._response(client.build_request(question, dimensions=endpoint.get("dimensions"))) as response:
         response.raise_for_status()
-        return EmbeddingResult(embedding=client.parse_response(response.json(), dimensions=dimensions)[0])
+        vector = client.parse_response(response.json())[0]
+        if len(vector) != dimensions:
+            raise EmbeddingDimensionMismatch(EmbeddingDimensionMismatch.public_message)
+        return EmbeddingResult(embedding=vector)
 
 
 def run_inference(coroutine, deadline: float):
@@ -261,12 +265,20 @@ def retrieve(context: dict, user_id: str, settings: dict, deadline: float, strea
         ]
         result.evidence.extend(reauthorize(references, user_id, result.filters))
         vector_ok = True
+    except EmbeddingDimensionMismatch:
+        db.session.rollback()
+        logger.error("HRAG query embedding dimensions changed")
+        result.notices.append(EmbeddingDimensionMismatch.public_message)
     except Exception:
         db.session.rollback()
         logger.error("HRAG vector retrieval failed")
         result.notices.append("Vector retrieval is unavailable; the answer uses graph evidence where available.")
     if not graph_ok and not vector_ok:
-        raise ChatProviderError("HRAG retrieval failed")
+        raise ChatProviderError(
+            EmbeddingDimensionMismatch.public_message
+            if EmbeddingDimensionMismatch.public_message in result.notices
+            else "HRAG retrieval failed"
+        )
     return result
 
 

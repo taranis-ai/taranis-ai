@@ -21,6 +21,8 @@ if TYPE_CHECKING:
 
 RETRY_INTERVALS = [10, 30, 120, 300]
 MESSAGES = {
+    "embedding_dimensions_mismatch": "Embedding output does not match the configured dimensions. Clear the dimension override for Automatic, or choose a supported size.",
+    "embedding_dimensions_unsupported": "Embedding output exceeds the supported size of 16000 dimensions. Select a smaller output size.",
     "pending": "Endpoint check pending.",
     "up": "Endpoint check succeeded.",
     "down": "Endpoint check failed. Check the URL, credentials, model, and service availability. Save to test again.",
@@ -77,7 +79,14 @@ def get_status(kind: str, endpoint_id: str, config: dict) -> dict:
     status = state.get("status", "pending") if state.get("fingerprint") == fingerprint(config) else "pending"
     if not Config.QUEUE_ENABLED:
         status = "n/a"
-    return {"status": status, "message": MESSAGES[status], "checked_at": state.get("checked_at")}
+    current = state.get("fingerprint") == fingerprint(config)
+    message = MESSAGES.get(state.get("failure_reason") or "", MESSAGES[status]) if current and status == "down" else MESSAGES[status]
+    return {
+        "status": status,
+        "message": message,
+        "checked_at": state.get("checked_at") if current else None,
+        "embedding_dimensions": state.get("embedding_dimensions") if current else None,
+    }
 
 
 def bot_status(bot: "Bot") -> dict | None:
@@ -129,7 +138,9 @@ def schedule_all() -> None:
         schedule_check("llm", endpoint_id)
 
 
-def record_result(kind: str, endpoint_id: str, check_id: str, healthy: bool) -> bool:
+def record_result(
+    kind: str, endpoint_id: str, check_id: str, healthy: bool, *, embedding_dimensions: int | None = None, failure_reason: str | None = None
+) -> bool:
     qm = getattr(queue_manager, "queue_manager", None)
     if not Config.QUEUE_ENABLED or not qm or not qm.redis:
         return False
@@ -144,7 +155,12 @@ def record_result(kind: str, endpoint_id: str, check_id: str, healthy: bool) -> 
             state = json.loads(pipe.get(key) or "{}")
             if state.get("check_id") != check_id or state.get("fingerprint") != fingerprint(config):
                 return False
-            state.update(status="up" if healthy else "down", checked_at=datetime.now(UTC).isoformat())
+            state.update(
+                status="up" if healthy else "down",
+                checked_at=datetime.now(UTC).isoformat(),
+                embedding_dimensions=embedding_dimensions,
+                failure_reason=failure_reason,
+            )
             pipe.multi()
             pipe.set(key, json.dumps(state))
             pipe.execute()

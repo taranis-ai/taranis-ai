@@ -16,7 +16,6 @@ from tests.application.support.builders import build_news_item_payload, create_s
 @pytest.fixture
 def configured_index(db_persistent_session, monkeypatch):
     monkeypatch.setattr(Config, "HRAG_ENABLED", True)
-    monkeypatch.setattr(Config, "HRAG_EMBEDDING_DIMENSIONS", 3)
     settings = Settings.with_defaults(
         {
             "llm_endpoints": {
@@ -29,7 +28,7 @@ def configured_index(db_persistent_session, monkeypatch):
                 "embed": {
                     "name": "Embedding",
                     "base_url": "https://example.invalid/v1",
-                    "api_formats": {"embeddings": {"model": "embed"}},
+                    "api_formats": {"embeddings": {"model": "embed", "dimensions": 3}},
                     "enabled": True,
                 },
                 "verify": {

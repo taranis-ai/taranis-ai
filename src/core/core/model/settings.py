@@ -100,7 +100,6 @@ class Settings(BaseModel):
             endpoint["health"] = get_status("llm", endpoint_id, dict(endpoint))
             endpoint["api_key_configured"] = bool(endpoint.pop("api_key", ""))
         data["settings"] = public_settings
-        data["embedding_dimensions_default"] = Config.HRAG_EMBEDDING_DIMENSIONS
         return data
 
     @classmethod

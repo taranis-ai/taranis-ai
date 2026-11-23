@@ -83,8 +83,6 @@ def test_endpoint_health_lifecycle(client, auth_header, api_header, app, db_pers
             assert snapshot.headers["Cache-Control"] == "no-store"
             assert snapshot.json["config"]["api_key"] == endpoint["api_key"]
             monkeypatch.setattr(Config, "HRAG_ENABLED", True)
-            monkeypatch.setattr(Config, "HRAG_EMBEDDING_DIMENSIONS", 1024)
-            assert client.get(route, query_string={"check_id": state["check_id"]}, headers=api_header).json["embedding_dimensions"] == 1024
             assert (
                 client.patch(
                     "/api/settings/settings", json={"settings": {"llm_extraction_endpoint": endpoint_id}}, headers=auth_header
@@ -108,7 +106,7 @@ def test_endpoint_health_lifecycle(client, auth_header, api_header, app, db_pers
             )
             monkeypatch.setattr(Config, "HRAG_ENABLED", False)
             snapshot = client.get(route, query_string={"check_id": state["check_id"]}, headers=api_header).json
-            assert snapshot["embedding_dimensions"] is None and snapshot["extraction"] is None
+            assert snapshot["extraction"] is None
             for invalid_dimensions in (0, 16001):
                 response = client.post(
                     endpoint_url,
@@ -125,11 +123,31 @@ def test_endpoint_health_lifecycle(client, auth_header, api_header, app, db_pers
                 assert response.status_code == 200
                 state = read_state("llm", endpoint_id)
                 snapshot = client.get(route, query_string={"check_id": state["check_id"]}, headers=api_header).json
-                assert snapshot["embedding_dimensions"] == expected
+                assert snapshot["config"]["api_formats"]["embeddings"].get("dimensions") == expected
                 public = client.get("/api/settings/settings", headers=auth_header).json["items"][0]
-                assert public["embedding_dimensions_default"] == 1024
                 assert public["settings"]["llm_endpoints"][endpoint_id]["api_formats"]["embeddings"].get("dimensions") == expected
             assert client.get("/api/health").json["services"]["worker_endpoints"] == "down"
+
+            from core.service.hrag.indexing import current_configuration
+
+            indexing_settings = {**Settings.get_settings(), "llm_embedding_endpoint": endpoint_id}
+            assert current_configuration("embedding", indexing_settings) is None
+            detected = {"check_id": state["check_id"], "healthy": True, "embedding_dimensions": 512}
+            assert client.post(route, json=detected, headers=api_header).json == {"accepted": True}
+            configuration = current_configuration("embedding", indexing_settings)
+            assert configuration["dimensions"] == 512 and configuration["automatic_dimensions"]
+            public = client.get("/api/settings/settings", headers=auth_header).json["items"][0]
+            assert public["settings"]["llm_endpoints"][endpoint_id]["health"]["embedding_dimensions"] == 512
+            assert (
+                client.post(
+                    endpoint_url, json={"api_formats": {"responses": {}, "embeddings": {"model": "new-embedding"}}}, headers=auth_header
+                ).status_code
+                == 200
+            )
+            assert client.post(route, json=detected, headers=api_header).json == {"accepted": False}
+            indexing_settings = {**Settings.get_settings(), "llm_embedding_endpoint": endpoint_id}
+            assert current_configuration("embedding", indexing_settings) is None
+            state = read_state("llm", endpoint_id)
 
             result = {"check_id": state["check_id"], "healthy": False}
             assert client.post(route, json=result, headers=api_header).json == {"accepted": True}

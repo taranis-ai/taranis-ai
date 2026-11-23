@@ -4,8 +4,18 @@ from urllib.parse import urlparse
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
-DEFAULT_EMBEDDING_DIMENSIONS = 1536
 type EmbeddingDimensions = Annotated[int, Field(ge=1, le=16000)]
+
+
+class EmbeddingDimensionMismatch(ValueError):
+    public_message = "Embedding output dimensions do not match the index or configured override. Check the model and rebuild the index."
+
+
+class EndpointCheckResult(BaseModel):
+    check_id: str
+    healthy: bool = Field(strict=True)
+    embedding_dimensions: EmbeddingDimensions | None = None
+    failure_reason: Literal["embedding_dimensions_mismatch", "embedding_dimensions_unsupported"] | None = None
 
 
 LLM_FEATURES = {

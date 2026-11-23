@@ -13,6 +13,7 @@ from models.hrag import (
     IndexSubmission,
     extraction_vocabulary,
 )
+from models.llm import EmbeddingDimensionMismatch
 
 from worker.core_api import CoreApi
 from worker.embedding import create_embeddings
@@ -90,8 +91,11 @@ def index_item(work_id: str):
             submission.extraction = ExtractionResult.model_validate(result)
         if core.api_put(route, submission.model_dump(mode="json")) is None:
             raise RuntimeError("HRAG submission unavailable")
-    except Exception:
+    except Exception as exc:
         logger.exception("HRAG indexing failed")
         # A lost callback is recovered by the PostgreSQL lease and periodic reconciliation.
         core.api_put(route, IndexSubmission(token=job.token, fingerprint=job.fingerprint, failed=True).model_dump())
-        raise RuntimeError("HRAG indexing failed; retry scheduled") from None
+        message = "HRAG indexing failed; retry scheduled"
+        if isinstance(exc, EmbeddingDimensionMismatch):
+            message = EmbeddingDimensionMismatch.public_message
+        raise RuntimeError(message) from None

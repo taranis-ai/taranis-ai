@@ -31,11 +31,20 @@ def current_configuration(pipeline: str, settings: dict) -> dict | None:
     endpoint = Settings.get_llm_endpoint(pipeline, settings)
     if not endpoint or endpoint["processing_mode"] != "realtime":
         return None
-    endpoint_id = settings.get(f"llm_{pipeline}_endpoint") or settings.get("llm_default_endpoint")
+    endpoint_id = settings.get(f"llm_{pipeline}_endpoint") or settings.get("llm_default_endpoint") or ""
     embedding_settings = EmbeddingSettings.model_validate(settings)
     limit = Config.HRAG_EXTRACTION_LIMIT if pipeline == "extraction" else embedding_settings.hrag_embedding_limit
     if not 1 <= limit <= 200_000:
         return None
+    dimensions = 0
+    if pipeline == "embedding":
+        from core.service.endpoint_health import get_status
+
+        dimensions = endpoint.get("dimensions") or get_status("llm", endpoint_id, settings["llm_endpoints"][endpoint_id]).get(
+            "embedding_dimensions"
+        )
+        if dimensions is None:
+            return None
     configuration = {
         "endpoint_id": endpoint_id,
         "base_url": endpoint["base_url"],
@@ -43,9 +52,10 @@ def current_configuration(pipeline: str, settings: dict) -> dict | None:
         "api_format": endpoint["api_format"],
         "limit": limit,
         "schema": HRAG_EXTRACTION_SCHEMA_VERSION if pipeline == "extraction" else HRAG_SCHEMA_VERSION,
-        "dimensions": (endpoint.get("dimensions") or Config.HRAG_EMBEDDING_DIMENSIONS) if pipeline == "embedding" else 0,
+        "dimensions": dimensions,
     }
     if pipeline == "embedding":
+        configuration["automatic_dimensions"] = endpoint.get("dimensions") is None
         configuration["chunking"] = {
             "enabled": embedding_settings.hrag_chunking_enabled,
             "size": embedding_settings.hrag_chunk_size,
@@ -89,7 +99,7 @@ def _frozen_endpoint(configuration: dict, feature: str) -> dict | None:
     if not endpoint or endpoint["processing_mode"] != "realtime":
         return None
     if feature == "embedding":
-        endpoint["dimensions"] = configuration["dimensions"]
+        endpoint["dimensions"] = None if configuration.get("automatic_dimensions") else configuration["dimensions"]
     # Freeze model and destination for this generation; rotate credentials independently.
     return {**endpoint, **{key: configuration[key] for key in ("base_url", "model", "api_format")}}
 
@@ -341,6 +351,8 @@ def index_status(news_item_ids: list[str] | None = None) -> dict:
             if settings["hrag_relationship_verification_enabled"]
             else "Assign a compatible realtime HRAG extraction endpoint in LLM Endpoints."
         )
+    if Config.HRAG_ENABLED and current_configuration("embedding", settings) is None:
+        errors.append("Assign an embedding endpoint and wait for its dimension check to complete. Save the endpoint to run the check again.")
     return IndexStatus(enabled=Config.HRAG_ENABLED, generations=generations, configuration_errors=errors).model_dump()
 
 

@@ -15,7 +15,6 @@ services:
       HRAG_ENABLED: "${TARANIS_E2E_HRAG_ENABLED:-false}"
       HRAG_NEO4J_URI: bolt://neo4j:7687
       HRAG_NEO4J_PASSWORD: hrag-test-password
-      HRAG_EMBEDDING_DIMENSIONS: "3"
       REDIS_URL: redis://redis:6379/0
       REDIS_PASSWORD: ""
       PRE_SEED_PASSWORD_ADMIN: admin

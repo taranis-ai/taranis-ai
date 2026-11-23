@@ -163,8 +163,6 @@ class EndpointHealth(MethodView):
             response = jsonify(
                 {
                     "config": config,
-                    "embedding_dimensions": config.get("api_formats", {}).get("embeddings", {}).get("dimensions")
-                    or (Config.HRAG_EMBEDDING_DIMENSIONS if Config.HRAG_ENABLED else None),
                     "extraction": extraction_probe(endpoint_id),
                 }
             )
@@ -173,12 +171,17 @@ class EndpointHealth(MethodView):
 
     @api_key_required
     def post(self, kind: str, endpoint_id: str):
+        from models.llm import EndpointCheckResult
+
         from core.service.endpoint_health import record_result
 
-        data = request.get_json(silent=True)
-        if not isinstance(data, dict) or not isinstance(data.get("check_id"), str) or not isinstance(data.get("healthy"), bool):
+        try:
+            data = EndpointCheckResult.model_validate(request.get_json(silent=True))
+        except ValidationError:
             return {"error": "Invalid endpoint check result"}, 400
-        accepted = record_result(kind, endpoint_id, data["check_id"], data["healthy"])
+        accepted = record_result(
+            kind, endpoint_id, data.check_id, data.healthy, embedding_dimensions=data.embedding_dimensions, failure_reason=data.failure_reason
+        )
         return {"accepted": accepted}, 200
 
 

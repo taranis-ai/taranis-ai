@@ -3,8 +3,9 @@
 from llm_bot.client import UpstreamLLMError
 from llm_bot.decisions_client import ChoiceQuestion
 from llm_bot.tasks.llm_utils import LLMTask
-from models.llm import LLMProvider
+from models.llm import EmbeddingDimensionMismatch, EmbeddingDimensions, LLMProvider
 from niquests.exceptions import RequestException
+from pydantic import TypeAdapter
 from rq import Retry, get_current_job
 
 from worker.core_api import CoreApi
@@ -36,20 +37,26 @@ def check_endpoint(kind: str, endpoint_id: str, check_id: str):
             if not job:
                 raise RuntimeError("Batch endpoint checks require a queued job")
             state = job.meta.setdefault("llm_batch_probe", {})
-        healthy = probe(kind, config, state, job.save_meta if job else None, snapshot.get("embedding_dimensions"), snapshot.get("extraction"))
+        details = {}
+        healthy = probe(kind, config, state, job.save_meta if job else None, snapshot.get("extraction"), details)
         if isinstance(healthy, Retry):
             return healthy
         if state is not None:
             assert job is not None
             job.meta.pop("llm_batch_probe", None)
             job.save_meta()
-        if core.api_post(route, {"check_id": check_id, "healthy": healthy}) is None:
+        if core.api_post(route, {"check_id": check_id, "healthy": healthy, **details}) is None:
             raise RuntimeError("Could not save endpoint check result")
     except RequestException:
         logger.exception("Endpoint check could not contact Core")
         raise RuntimeError("Endpoint check could not contact Core") from None
     if not healthy:
-        raise RuntimeError("Endpoint check failed")
+        message = (
+            EmbeddingDimensionMismatch.public_message
+            if details.get("failure_reason") == "embedding_dimensions_mismatch"
+            else "Endpoint check failed"
+        )
+        raise RuntimeError(message)
 
 
 def probe(
@@ -57,10 +64,12 @@ def probe(
     config: dict,
     batch_state: dict | None = None,
     save_batch_state=None,
-    embedding_dimensions: int | None = None,
     extraction: dict | None = None,
+    details: dict | None = None,
 ) -> bool | Retry:
     text = "Reply with OK."
+    if details is None:
+        details = {}
     if kind != "llm":
         return False
     try:
@@ -71,14 +80,17 @@ def probe(
             for api_format in provider.api_formats:
                 state = batch_state.setdefault(api_format, {}) if batch_state is not None else None
                 if state is not None and "healthy" in state:
+                    details.update({key: state[key] for key in ("embedding_dimensions", "failure_reason") if key in state})
                     healthy = healthy and state["healthy"]
                     continue
-                result = probe(kind, provider.for_format(api_format), state, save_batch_state, embedding_dimensions, extraction)
+                format_details = {}
+                result = probe(kind, provider.for_format(api_format), state, save_batch_state, extraction, format_details)
+                details.update(format_details)
                 if isinstance(result, Retry):
                     pending = result
                     continue
                 if state is not None:
-                    state["healthy"] = result
+                    state.update(healthy=result, **format_details)
                     if save_batch_state:
                         save_batch_state()
                 healthy = healthy and result
@@ -98,11 +110,14 @@ def probe(
             client.parse_response(response.json(), questions)
             return True
         if config["api_format"] == "embeddings":
-            create_embedding(
-                "Synthetic endpoint check",
-                {**config, "timeout": min(config["timeout"], 120)},
-                config.get("dimensions") or embedding_dimensions,
+            vector = create_embedding(
+                "Synthetic endpoint check", {**config, "timeout": min(config["timeout"], 120)}, config.get("dimensions")
             )
+            try:
+                details["embedding_dimensions"] = TypeAdapter(EmbeddingDimensions).validate_python(len(vector))
+            except ValueError:
+                details["failure_reason"] = "embedding_dimensions_unsupported"
+                return False
             return True
         chat = config["api_format"] == "chat_completions"
         if config.get("processing_mode") == "openrouter_batch":
@@ -143,6 +158,10 @@ def probe(
                 for choice in result.get("choices", [])
             )
         return _valid_responses_result(result)
+    except EmbeddingDimensionMismatch:
+        logger.exception("Endpoint embedding dimension check failed")
+        details["failure_reason"] = "embedding_dimensions_mismatch"
+        return False
     except (RequestException, ValueError, TypeError, KeyError, IndexError, BatchExecutionError, LLMTaskError, UpstreamLLMError):
         logger.exception(f"Endpoint probe failed for {kind}")
         return False

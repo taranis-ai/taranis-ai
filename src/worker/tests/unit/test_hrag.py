@@ -66,11 +66,12 @@ def test_worker_claim_extraction_and_cached_retry(requests_mock, monkeypatch):
     )
     embedding = requests_mock.post("https://provider.invalid/v1/embeddings", json={"data": [{"embedding": [1, 0, 0]}]})
     index_item("test-work")
-    assert embedding.last_request.json() == {"input": [content], "encoding_format": "float", "dimensions": 3}
+    assert embedding.last_request.json() == {"input": [content], "encoding_format": "float"}
     assert submitted.last_request.json()["chunks"] == [{"start": 0, "end": len(content), "embedding": [1, 0, 0]}]
     for vector in ([1, 0], [float("nan"), 1, 0]):
         requests_mock.post("https://provider.invalid/v1/embeddings", json={"data": [{"embedding": vector}]})
-        with pytest.raises(RuntimeError, match="^HRAG indexing failed; retry scheduled$"):
+        message = "^Embedding output dimensions do not match" if len(vector) == 2 else "^HRAG indexing failed; retry scheduled$"
+        with pytest.raises(RuntimeError, match=message):
             index_item("test-work")
         assert submitted.last_request.json()["failed"] is True
         assert "NaN" not in submitted.last_request.text

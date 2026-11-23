@@ -21,7 +21,7 @@ def test_batch_endpoint_check_waits_for_inference(requests_mock, monkeypatch, ap
     }
     other_format = "chat_completions" if api_format == "responses" else "responses"
     config["api_formats"] = {
-        "embeddings": {"model": "embed-model", "dimensions": 2},
+        "embeddings": {"model": "embed-model"},
         "systemone": {"model": "topic-model", "base_url": "https://batch.test/api/classify"},
         api_format: {"model": config["model"]},
         other_format: {"model": config["model"]},
@@ -32,7 +32,7 @@ def test_batch_endpoint_check_waits_for_inference(requests_mock, monkeypatch, ap
         json={"answers": {"probe": {"type": "choice", "choice": "OK", "probabilities": {"OK": 1.0, "other": 0.0}}}},
     )
     route = f"{Config.TARANIS_CORE_URL}/worker/endpoint-health/llm/test-id"
-    requests_mock.get(route, json={"config": config, "embedding_dimensions": 3})
+    requests_mock.get(route, json={"config": config})
     saved = requests_mock.post(route, json={"accepted": True})
     submitted = requests_mock.post(
         f"{config['base_url']}/batches",
@@ -75,14 +75,14 @@ def test_batch_endpoint_check_waits_for_inference(requests_mock, monkeypatch, ap
         json={"status": "completed", "results": [{"custom_id": other_id, "response": {"status_code": 200, "body": other_body}}]},
     )
     check_endpoint("llm", "test-id", "current-check")
-    assert saved.last_request.json() == {"check_id": "current-check", "healthy": True}
+    assert saved.last_request.json() == {"check_id": "current-check", "healthy": True, "embedding_dimensions": 2}
     assert submitted.call_count == 2
     assert decisions.call_count == 1
     assert completed.call_count == 1
     assert decisions.last_request.json()["model"] == "topic-model"
     assert embeddings.call_count == 1
     assert embeddings.last_request.json()["model"] == "embed-model"
-    assert embeddings.last_request.json()["dimensions"] == 2
+    assert "dimensions" not in embeddings.last_request.json()
     assert "llm_batch_probe" not in job.meta
 
 
@@ -134,7 +134,7 @@ def test_endpoint_check_failure_and_recovery(requests_mock, kind, config, url, r
     route = f"{Config.TARANIS_CORE_URL}/worker/endpoint-health/{kind}/test-id"
     requests_mock.get(
         route,
-        json={"config": config, "embedding_dimensions": 2, "extraction": {"api_format": config["api_format"], "reasoning_effort": "none"}},
+        json={"config": config, "extraction": {"api_format": config["api_format"], "reasoning_effort": "none"}},
     )
     saved = requests_mock.post(route, json={"accepted": True})
     upstream = requests_mock.post(
@@ -156,7 +156,7 @@ def test_endpoint_check_failure_and_recovery(requests_mock, kind, config, url, r
     assert saved.last_request.json() == {"check_id": "current-check", "healthy": False}
     requests_mock.get(
         route,
-        json={"config": config, "embedding_dimensions": 2, "extraction": {"api_format": config["api_format"], "reasoning_effort": "none"}},
+        json={"config": config, "extraction": {"api_format": config["api_format"], "reasoning_effort": "none"}},
     )
     check_endpoint(kind, "test-id", "current-check")
     assert saved.last_request.json()["healthy"] is True
@@ -171,11 +171,16 @@ def test_endpoint_check_failure_and_recovery(requests_mock, kind, config, url, r
     check_endpoint(kind, "test-id", "old-check")
     assert upstream.call_count == 4
     if config["api_format"] == "embeddings":
+        assert "dimensions" not in upstream.last_request.json()
+        assert saved.last_request.json()["embedding_dimensions"] == 2
+        requests_mock.get(route, json={"config": {**config, "dimensions": 2}})
+        check_endpoint(kind, "test-id", "current-check")
         assert upstream.last_request.json()["dimensions"] == 2
-        requests_mock.get(route, json={"config": config, "embedding_dimensions": 3})
-        with pytest.raises(RuntimeError, match="^Endpoint check failed$"):
+        requests_mock.get(route, json={"config": {**config, "dimensions": 3}})
+        with pytest.raises(RuntimeError, match="^Embedding output dimensions do not match"):
             check_endpoint(kind, "test-id", "current-check")
         assert saved.last_request.json()["healthy"] is False
+        assert saved.last_request.json()["failure_reason"] == "embedding_dimensions_mismatch"
     extra_format = "responses" if config["api_format"] in {"systemone", "openai_decisions"} else "systemone"
     extra_url = "https://other-path.test/v1" if extra_format == "responses" else "https://other-path.test/api/classify"
     extra_result = (

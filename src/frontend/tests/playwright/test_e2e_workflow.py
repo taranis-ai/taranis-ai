@@ -83,6 +83,8 @@ def demo_chat_provider(core_request_client):
             time.sleep(0.5)
         else:
             pytest.fail("HRAG backfill did not complete")
+        checked_settings = core_request_client.json_request("GET", "/settings/settings")["items"][0]["settings"]
+        assert checked_settings["llm_endpoints"][endpoint["id"]]["health"]["embedding_dimensions"] == 3
         for generation in generations:
             if not generation["active"]:
                 core_request_client.post("/settings/hrag", json_data={"action": "activate", "generation_id": generation["id"]})
