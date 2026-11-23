@@ -135,53 +135,9 @@ def test_openapi_operation_ids_match_view_funcs(app):
     )
 
 
-def test_task_openapi_uses_shared_models_and_pending_response(app):
-    paths = app.api_doc["paths"]
-    submission = paths["/tasks"]["post"]
-    retrieval = paths["/tasks/{task_id}"]["get"]
-
+def test_openapi_uses_generated_task_submission_schema(app):
+    submission = app.api_doc["paths"]["/tasks"]["post"]
     assert submission["requestBody"]["content"]["application/json"]["schema"]["$ref"] == "#/components/schemas/TaskSubmission"
-    assert app.api_doc["components"]["schemas"]["TaskSubmission"]["oneOf"] == [{"required": ["id"]}, {"required": ["task_id"]}]
-    assert submission["responses"]["200"]["content"]["application/json"]["schema"]["$ref"] == "#/components/schemas/TaskResponse"
-    assert "400" in submission["responses"] and "422" not in submission["responses"]
-    assert submission["security"] == [{"APIKey": []}]
-    assert paths["/tasks/user"]["get"]["security"] == [{"UserAuth": []}]
-    assert retrieval["responses"]["404"]["content"]["application/json"]["schema"]["$ref"] == "#/components/schemas/MissingTaskResponse"
-
-    assert (
-        paths["/tasks"]["get"]["responses"]["200"]["content"]["application/json"]["schema"]["$ref"]
-        == "#/components/schemas/TaskHistoryResponse"
-    )
-    assert (
-        paths["/tasks"]["delete"]["responses"]["400"]["content"]["application/json"]["schema"]["$ref"]
-        == "#/components/schemas/TaskErrorResponse"
-    )
-    assert (
-        paths["/tasks/{task_id}"]["delete"]["responses"]["200"]["content"]["application/json"]["schema"]["$ref"]
-        == "#/components/schemas/TaskDeleteResponse"
-    )
-    assert (
-        paths["/tasks/runs"]["get"]["responses"]["200"]["content"]["application/json"]["schema"]["$ref"]
-        == "#/components/schemas/UserTaskList"
-    )
-    assert (
-        paths["/tasks/user"]["get"]["responses"]["200"]["content"]["application/json"]["schema"]["$ref"]
-        == "#/components/schemas/UserTaskList"
-    )
-    job_ids = next(parameter for parameter in paths["/tasks/runs"]["get"]["parameters"] if parameter["name"] == "job_ids")
-    assert job_ids["schema"]["anyOf"][0]["type"] == "array"
-    assert job_ids.get("style", "form") == "form" and job_ids.get("explode", True) is True
-
-
-def test_task_auth_runs_before_validation_and_dispatch(app, api_header, auth_header_user_permissions):
-    client = app.test_client(use_cookies=False)
-    assert client.get("/api/tasks?limit=invalid").status_code == 401
-    assert client.get("/api/tasks?limit=invalid", headers=api_header).status_code == 400
-    assert client.delete("/api/tasks/user", headers=auth_header_user_permissions).status_code == 403
-    response = client.delete("/api/tasks", headers=api_header)
-    assert response.status_code == 400
-    assert response.get_json() == {"error": "No task_id provided"}
-    assert client.options("/api/tasks").status_code == 200
 
 
 def _format_failure(

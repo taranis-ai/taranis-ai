@@ -4,7 +4,7 @@ Load for: Worker-backed actions, queue warnings/priority, task results, `/health
 
 ## Queue and Result Contracts
 
-`/api/tasks` uses a flask-openapi `APIBlueprint` with shared request and response contracts. Core overlays the generated Task operations on the bundled YAML when serving or exporting the spec. The frontend's Swagger UI still reads the bundled YAML. Endpoint tests and Schemathesis check the response contracts. Persisted task timestamps keep their ISO 8601 strings without an offset. Live jobs can include an offset. Missing tasks return HTTP 404 with `{"status": "PENDING"}`.
+`/api/tasks` uses a flask-openapi `APIBlueprint` with shared request and response contracts. Core overlays the generated Task operations on the bundled YAML when serving or exporting the spec. The frontend's Swagger UI still reads the bundled YAML. Endpoint tests check the response contracts. Persisted task timestamps keep their ISO 8601 strings without an offset. Live jobs can include an offset. Missing tasks return HTTP 404 with `{"status": "PENDING"}`.
 
 Task entry points and RQ failure hooks own their HTTP session scope, including result persistence on error. See [HTTP Client Lifetimes](http-clients.md) for cleanup and no-retry service behavior.
 

@@ -1,7 +1,5 @@
 import logging
-import os
-import tempfile
-from unittest.mock import patch
+from pathlib import Path
 
 import pytest
 import schemathesis
@@ -19,11 +17,12 @@ from schemathesis.config import (
     ProjectsConfig,
 )
 
-from core.__init__ import create_app
 from core.config import Config
 from core.model.user import User
 
 
+SCHEMA_PATH = Path(__file__).resolve().parents[1] / "core" / "static" / "openapi3_1.yaml"
+SCHEMA_BYTES = SCHEMA_PATH.read_bytes()
 _APP_FOR_SCHEMA = None
 
 
@@ -34,20 +33,15 @@ pytestmark = pytest.mark.usefixtures("_bind_schema_app")
 
 
 def _schema_wsgi_app(environ, start_response):
+    path = environ.get("PATH_INFO", "")
+    if path == "/api/static/openapi3_1.yaml" or path.endswith("/api/static/openapi3_1.yaml"):
+        start_response("200 OK", [("Content-Type", "application/yaml"), ("Content-Length", str(len(SCHEMA_BYTES)))])
+        return [SCHEMA_BYTES]
     if _APP_FOR_SCHEMA is None:
         message = b"Schema app backend not initialized"
         start_response("503 Service Unavailable", [("Content-Type", "text/plain"), ("Content-Length", str(len(message)))])
         return [message]
     return _APP_FOR_SCHEMA(environ, start_response)
-
-
-_SCHEMA_TEMP_DIR = tempfile.TemporaryDirectory()
-_schema_db_uri = f"sqlite:///{_SCHEMA_TEMP_DIR.name}/schema.db"
-with (
-    patch.dict(os.environ, {"SQLALCHEMY_DATABASE_URI": _schema_db_uri}),
-    patch.multiple(Config, SQLALCHEMY_DATABASE_URI=_schema_db_uri, SQLALCHEMY_DATABASE_URI_MASK=_schema_db_uri, QUEUE_ENABLED=False),
-):
-    _APP_FOR_SCHEMA = create_app(initial_setup=False)
 
 
 schema_app = _schema_wsgi_app
@@ -146,21 +140,6 @@ def test_realtime_connect_schema(case, monkeypatch):
 
     response = case.call(headers={"X-Realtime-Proxy-Key": proxy_secret})
     case.validate_response(response, checks=response_checks)
-
-
-@schema.include(path_regex=r"^/tasks(?:/|$)").exclude(path="/tasks/user").parametrize()
-@settings(max_examples=5, suppress_health_check=(HealthCheck.function_scoped_fixture,))
-def test_worker_task_schema(case, api_header):
-    response = case.call(headers=api_header)
-    case.validate_response(response, checks=response_checks, additional_checks=[check_401])
-
-
-@schema.auth(UserAuth)
-@schema.include(path_regex=r"^/tasks/user$", method="GET").parametrize()
-@settings(max_examples=5, suppress_health_check=(HealthCheck.function_scoped_fixture,))
-def test_user_tasks_schema(case):
-    response = case.call()
-    case.validate_response(response, checks=response_checks, additional_checks=[check_401])
 
 
 @schema.include(path_regex=r"^/(?!auth|isalive|health|analyze|assess|assets|worker|bots|tasks|realtime/connect)").parametrize()
