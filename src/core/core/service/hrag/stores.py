@@ -4,7 +4,7 @@ import json
 from contextlib import contextmanager
 from typing import LiteralString
 
-from models.hrag import ChunkEmbedding, ExtractionResult, GraphPlan, entity_identity
+from models.hrag import RELATION_ENDPOINTS, ChunkEmbedding, ExtractionResult, GraphPlan, entity_identity
 from neo4j import GraphDatabase, Query
 from sqlalchemy import String, bindparam, text
 from sqlalchemy.dialects.postgresql import ARRAY
@@ -97,7 +97,11 @@ def project_graph(index_id: str, fingerprint: str, news_item_id: str, generation
         def write(tx):
             # Lock this projection before replacing assertions; duplicate callbacks serialize.
             tx.run("MERGE (d:Document {key: $key}) SET d.index_id = $id, d.lock = true", key=key, id=index_id).consume()
-            tx.run("MATCH ()-[r:ASSERTION {key: $key}]->() DELETE r", key=key).consume()
+            tx.run(
+                "MATCH (:Entity)-[r:$any($relations) {key: $key}]->(:Entity) DELETE r",
+                key=key,
+                relations=list(RELATION_ENDPOINTS),
+            ).consume()
             tx.run("MATCH (d:Document {key: $key})-[r:MENTIONS]->() DELETE r", key=key).consume()
             tx.run(
                 """MERGE (d:Document {key: $key}) SET d.index_id = $id
@@ -111,8 +115,8 @@ def project_graph(index_id: str, fingerprint: str, news_item_id: str, generation
             tx.run(
                 """UNWIND $relations AS relation
                 MATCH (s:Entity {id: relation.source}), (t:Entity {id: relation.target})
-                CREATE (s)-[r:ASSERTION]->(t)
-                SET r.key = $key, r.index_id = $id, r.kind = relation.type,
+                CREATE (s)-[r:$(relation.type)]->(t)
+                SET r.key = $key, r.index_id = $id,
                     r.assertion = relation.assertion, r.idx = relation.index, r.date = relation.date""",
                 key=key,
                 id=index_id,
@@ -131,10 +135,10 @@ def compile_graph(plan: GraphPlan) -> LiteralString:
               AND (size($types) = 0 OR n.entity_type IN $types)
             RETURN DISTINCT [{key: d.key, index_id: d.index_id, idx: null}] AS evidence
             ORDER BY evidence[0].key LIMIT $limit"""
-    return """MATCH p=(n:Entity)-[:ASSERTION*1..3]-(m:Entity)
+    return """MATCH p=(n:Entity)-[*1..3]-(m:Entity)
         WHERE length(p) <= $hops AND all(r IN relationships(p) WHERE r.key IN $allowed
-            AND (size($relations) = 0 OR r.kind IN $relations)
-            AND (length(p) = 1 OR (r.assertion = 'affirmed' AND r.kind <> 'ALIAS_OF')))
+            AND type(r) IN $relations
+            AND (length(p) = 1 OR (r.assertion = 'affirmed' AND type(r) <> 'ALIAS_OF')))
           AND (size($names) = 0 OR any(name IN $names WHERE n.name CONTAINS name))
           AND (size($types) = 0 OR n.entity_type IN $types)
         RETURN DISTINCT [r IN relationships(p) | {key: r.key, index_id: r.index_id, idx: r.idx}] AS evidence
@@ -151,7 +155,7 @@ def graph_search(plan: GraphPlan, allowed_keys: list[str], limit: int, timeout: 
             hops=plan.hops,
             names=plan.names,
             types=plan.entity_types,
-            relations=plan.relationships,
+            relations=plan.relationships or list(RELATION_ENDPOINTS),
             limit=limit,
         )
         return [record["evidence"] for record in result]
@@ -159,7 +163,11 @@ def graph_search(plan: GraphPlan, allowed_keys: list[str], limit: int, timeout: 
 
 def prune_graph(valid_keys: list[str]):
     with graph_driver() as driver, driver.session(database=Config.HRAG_NEO4J_DATABASE) as session:
-        session.run("MATCH ()-[r:ASSERTION]->() WHERE NOT r.key IN $keys DELETE r", keys=valid_keys).consume()
+        session.run(
+            "MATCH (:Entity)-[r:$any($relations)]->(:Entity) WHERE NOT r.key IN $keys DELETE r",
+            keys=valid_keys,
+            relations=list(RELATION_ENDPOINTS),
+        ).consume()
         session.run("MATCH (d:Document) WHERE NOT d.key IN $keys DETACH DELETE d", keys=valid_keys).consume()
         session.run("MATCH (n:Entity) WHERE NOT (n)--() DELETE n").consume()
 

@@ -37,7 +37,7 @@ def hrag_stores(monkeypatch):
             conn.execute(text(f'DROP SCHEMA "{schema}" CASCADE'))
         with stores.graph_driver() as driver:
             driver.execute_query("MATCH (d:Document) WHERE d.index_id STARTS WITH $prefix DETACH DELETE d", prefix=schema)
-            driver.execute_query("MATCH ()-[r:ASSERTION]->() WHERE r.index_id STARTS WITH $prefix DELETE r", prefix=schema)
+            driver.execute_query("MATCH (:Entity)-[r]->(:Entity) WHERE r.index_id STARTS WITH $prefix DELETE r", prefix=schema)
             driver.execute_query("MATCH (n:Entity) WHERE NOT (n)--() DELETE n")
         db.engine.dispose()
 
@@ -91,14 +91,30 @@ def test_authorized_paths_vector_ranking_projection_retry_and_deletion(hrag_stor
         stores.project_graph(index_id, "current", str(index), prefix, result)
         stores.project_graph(index_id, "current", str(index), prefix, result)  # Idempotent replay.
         keys.append(f"{index_id}:current")
+    with stores.graph_driver() as driver:
+        rows, _, _ = driver.execute_query(
+            "MATCH (:Entity)-[r]->(:Entity) WHERE r.key IN $keys RETURN type(r) AS type, properties(r) AS properties",
+            keys=keys,
+        )
+        assert len(rows) == 3
+        assert all(row["type"] == "EXPLOITS" and "kind" not in row["properties"] for row in rows)
     plan = GraphPlan(names=["Alpha"], hops=3)
     full = stores.graph_search(plan, keys, 50)
     assert any(len(path) == 2 for path in full)
     assert not any(row["key"] == keys[2] for path in full for row in path)
     filtered = stores.graph_search(plan, [keys[0]], 50)
     assert len(filtered) == 1 and len(filtered[0]) == 1
+    assert stores.graph_search(GraphPlan(names=["Alpha"], relationships=["EXPLOITS"]), [keys[0]], 50) == filtered
+    assert stores.graph_search(GraphPlan(names=["Alpha"], relationships=["USES"]), keys, 50) == []
+    assert stores.graph_search(GraphPlan(names=["Alpha"], hops=0), [keys[0]], 50) == [
+        [{"key": keys[0], "index_id": f"{prefix}-0", "idx": None}]
+    ]
     assert stores.graph_search(GraphPlan(names=["'; MATCH (n) DETACH DELETE n //"]), keys, 50) == []
     assert stores.graph_search(plan, [], 50) == []
     # A stale callback creates its own fingerprint projection and cannot replace current evidence.
     stores.project_graph(f"{prefix}-0", "old", "0", prefix, result)
     assert stores.graph_search(plan, [keys[0]], 50) == filtered
+    stores.prune_graph(keys[:1])
+    assert stores.graph_document_keys() == {keys[0]}
+    assert stores.graph_search(plan, keys, 50) == filtered
+    assert stores.graph_search(GraphPlan(names=["Beta"], hops=0), keys, 50) == []
