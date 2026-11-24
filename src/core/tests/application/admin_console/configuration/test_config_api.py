@@ -1635,6 +1635,49 @@ class TestProductTypes(BaseTest):
         finally:
             client.delete(self.concat_url(f"product-types/{product_type_id}"), headers=auth_header)
 
+    def test_product_type_saves_report_template_compatibility_warnings(self, app, client, auth_header):
+        from core.model.report_item_type import ReportItemType
+
+        with app.app_context():
+            osint_report_type = ReportItemType.get_by_title("OSINT Report")
+            cert_report_type = ReportItemType.get_by_title("CERT Report")
+            assert osint_report_type is not None
+            assert cert_report_type is not None
+            osint_report_type_id, cert_report_type_id = osint_report_type.id, cert_report_type.id
+
+        incompatible_warning = "The template uses 'Data', which is not available for report type 'OSINT Report'."
+        payload = {
+            "title": f"template-compatibility-{uuid.uuid4().hex[:8]}",
+            "type": "html_presenter",
+            "parameters": {"TEMPLATE_PATH": "cert_at_daily_report.html"},
+            "report_types": [osint_report_type_id],
+        }
+        response = client.post(self.concat_url("product-types"), json=payload, headers=auth_header)
+        assert response.status_code == 201
+        assert response.json["warnings"] == [incompatible_warning]
+
+        product_type_id = response.json["id"]
+        try:
+            response = client.patch(
+                self.concat_url(f"product-types/{product_type_id}"), json={"title": f"{payload['title']}-renamed"}, headers=auth_header
+            )
+            assert response.status_code == 200
+            assert response.json["warnings"] == [incompatible_warning]
+
+            response = client.put(
+                self.concat_url(f"product-types/{product_type_id}"),
+                json=payload | {"report_types": [cert_report_type_id]},
+                headers=auth_header,
+            )
+            assert response.status_code == 200
+            assert response.json["warnings"] == []
+
+            response = client.put(self.concat_url(f"product-types/{product_type_id}"), json=payload, headers=auth_header)
+            assert response.status_code == 200
+            assert response.json["warnings"] == [incompatible_warning]
+        finally:
+            client.delete(self.concat_url(f"product-types/{product_type_id}"), headers=auth_header)
+
     def test_get_product_types(self, client, auth_header, cleanup_product_types):
         product_type_type = cleanup_product_types["type"]
         response = self.assert_get_ok(client, uri=f"product-types?search={product_type_type}", auth_header=auth_header)

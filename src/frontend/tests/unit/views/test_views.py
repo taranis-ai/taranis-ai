@@ -21,6 +21,7 @@ from frontend.cache import add_user_to_cache, cache
 from frontend.cache_models import CacheObject
 from frontend.config import Config
 from frontend.views.admin_views.dashboard_views import AdminDashboardView
+from frontend.views.admin_views.publisher_views import ProductTypeView
 from frontend.views.admin_views.report_type_views import ReportItemTypeView
 from frontend.views.admin_views.source_views import SourceView
 from frontend.views.admin_views.word_list_views import WordListView
@@ -826,6 +827,43 @@ def test_report_item_type_submitted_form_model_uses_shared_normalization(app):
     assert attribute_groups[0].title == "Indicators"
     assert len(attribute_groups[0].attribute_group_items) == 1
     assert attribute_groups[0].attribute_group_items[0].title == "Domain"
+
+
+def test_product_type_save_shows_template_compatibility_warnings_in_form(authenticated_client, responses_mock, mock_core_get_endpoints):
+    product_type_id = "product-type-1"
+    core_url = f"{Config.TARANIS_CORE_URL}/config/product-types/{product_type_id}"
+    warning = "The template uses 'Data', which is not available for report type 'OSINT Report'."
+    saved = {"message": "Product type updated", "id": product_type_id}
+    responses_mock.patch(core_url, json=saved | {"warnings": [warning]})
+    responses_mock.patch(core_url, json=saved | {"warnings": []})
+    responses_mock.get(
+        core_url,
+        json={
+            "id": product_type_id,
+            "title": "CERT Daily",
+            "type": "html_presenter",
+            "parameters": {"TEMPLATE_PATH": "cert_at_daily_report.html"},
+            "report_types": ["report-type-1"],
+        },
+    )
+    edit_route = ProductTypeView.get_edit_route(product_type_id=product_type_id)
+    form = {
+        "title": "CERT Daily",
+        "type": "html_presenter",
+        "report_types[]": "report-type-1",
+        "parameters[TEMPLATE_PATH]": "cert_at_daily_report.html",
+    }
+
+    incompatible = authenticated_client.post(edit_route, data=form)
+    compatible = authenticated_client.post(edit_route, data=form)
+
+    assert compatible.status_code == 302
+    assert compatible.location == ProductTypeView.get_base_route()
+    assert incompatible.status_code == 200
+    tree = html.fromstring(incompatible.text)
+    assert [item.text_content().strip() for item in tree.xpath('//*[@data-test-id="product-type-template-warnings"]//li')] == [warning]
+    assert tree.xpath('//form[@id="product_type-form"]/@action') == [edit_route]
+    assert tree.xpath('//*[@id="notification-message"]/text()') == ["Product type updated"]
 
 
 def test_osint_source_form_shows_current_icon_and_delete_option(app):

@@ -1,6 +1,7 @@
 from typing import Any, ClassVar
 
 from flask import render_template, request
+from flask.typing import ResponseReturnValue
 from models.admin import ProductType, PublisherPreset, ReportItemType, Template
 from models.types import PRESENTER_TYPES, PUBLISHER_TYPES
 from werkzeug.exceptions import HTTPException
@@ -106,6 +107,20 @@ class ProductTypeView(AdminBaseView):
             raise
         except Exception as exc:
             return None, str(exc)
+
+    @classmethod
+    def handle_submit_success(cls, object_id: str, core_response: dict) -> ResponseReturnValue:
+        product_type_id = core_response.get("id") or object_id
+        template_warnings = core_response.get("warnings")
+        if not template_warnings or cls.is_create_object_id(product_type_id):
+            return super().handle_submit_success(object_id, core_response)
+
+        # Saved, but stay on the form so the template compatibility warnings remain visible.
+        cls._invalidate_model_cache(product_type_id)
+        context = cls.get_item_context(product_type_id)
+        context["notification"] = cls.get_notification_from_dict(core_response)
+        context["template_warnings"] = template_warnings
+        return render_template(cls.get_edit_template(), **context), 200
 
     @classmethod
     def get_columns(cls):

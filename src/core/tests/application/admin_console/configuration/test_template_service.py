@@ -1,9 +1,67 @@
 import base64
+from pathlib import Path
 
 import pytest
 
 from core.config import Config
+from core.managers.pre_seed_data import product_types as seeded_product_types
 from core.service import template_service
+
+
+PRESENTER_TEMPLATES = Path(template_service.__file__).resolve().parents[1] / "static" / "presenter_templates"
+CERT_DAILY_TEMPLATE = (PRESENTER_TEMPLATES / "cert_at_daily_report.html").read_text(encoding="utf-8")
+PDF_TEMPLATE = (PRESENTER_TEMPLATES / "pdf_template.html").read_text(encoding="utf-8")
+SEEDED_TEMPLATE_PRODUCT_TYPES = [seed for seed in seeded_product_types if "TEMPLATE_PATH" in seed.get("parameters", {})]
+
+
+def _seeded_report_types(titles: list[str]) -> list:
+    from core.model.report_item_type import ReportItemType
+
+    report_types = []
+    for title in titles:
+        report_type = ReportItemType.get_by_title(title)
+        assert report_type is not None, f"Seeded report type {title!r} is missing"
+        report_types.append(report_type)
+    return report_types
+
+
+@pytest.mark.parametrize(
+    ("template_content", "report_type_titles", "expected_warnings"),
+    [
+        pytest.param(CERT_DAILY_TEMPLATE, ["CERT Report"], [], id="compatible"),
+        pytest.param(
+            CERT_DAILY_TEMPLATE,
+            ["OSINT Report"],
+            ["The template uses 'Data', which is not available for report type 'OSINT Report'."],
+            id="missing-attribute-group",
+        ),
+        pytest.param(PDF_TEMPLATE, ["OSINT Report", "CERT Report"], [], id="generic-template"),
+        pytest.param("{% for item in %}", ["OSINT Report"], ["The template has a syntax error."], id="syntax-error"),
+        pytest.param(
+            "{{ data.report_items[0].revision + 'x' }}",
+            ["OSINT Report"],
+            ["The template could not be rendered for report type 'OSINT Report'."],
+            id="render-error",
+        ),
+    ],
+)
+def test_check_template_compatibility(app, template_content, report_type_titles, expected_warnings):
+    with app.app_context():
+        report_types = _seeded_report_types(report_type_titles)
+
+        assert template_service.check_template_compatibility(template_content, report_types) == expected_warnings
+
+
+@pytest.mark.parametrize("seed", SEEDED_TEMPLATE_PRODUCT_TYPES, ids=lambda seed: seed["parameters"]["TEMPLATE_PATH"])
+def test_seeded_product_type_templates_match_their_report_types(app, seed):
+    from core.model.product_type import ProductType
+
+    with app.app_context():
+        product_type = ProductType.filter_by_title(seed["title"])
+        assert product_type is not None
+        assert {report_type.title for report_type in product_type.report_types} == set(seed["report_types"])
+
+        assert template_service.product_type_compatibility_warnings(product_type) == []
 
 
 def test_build_validation_and_content_accepts_memoryview():

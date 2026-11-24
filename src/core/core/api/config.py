@@ -44,7 +44,13 @@ from core.model import (
 )
 from core.model.permission import Permission
 from core.service.cache_invalidation import invalidate_frontend_cache_on_success
-from core.service.template_service import build_template_response, build_templates_list, create_or_update_template, validate_template_content
+from core.service.template_service import (
+    build_template_response,
+    build_templates_list,
+    create_or_update_template,
+    product_type_compatibility_warnings,
+    validate_template_content,
+)
 from core.service.worker_parameters import reveal_parameter
 
 
@@ -222,6 +228,13 @@ class ReportItemTypes(MethodView):
         return response, status
 
 
+def _with_product_type_warnings(response: dict, status: int, type_id: str) -> tuple[dict, int]:
+    if status in (200, 201):
+        product = product_type.ProductType.get(type_id)
+        response["warnings"] = product_type_compatibility_warnings(product) if product else []
+    return response, status
+
+
 class ProductTypes(MethodView):
     @auth_required("CONFIG_PRODUCT_TYPE_ACCESS")
     @extract_args("search", "page", "limit", "sort", "order", "fetch_all")
@@ -235,7 +248,8 @@ class ProductTypes(MethodView):
         try:
             product = product_type.ProductType.add(request.json)
             _invalidate_admin_cache(201)
-            return jsonify({"message": "Product type created", "id": product.id}), 201
+            response, status = _with_product_type_warnings({"message": "Product type created", "id": product.id}, 201, product.id)
+            return jsonify(response), status
         except InvalidPresenterTemplatePathError as e:
             db.session.rollback()
             logger.warning("Invalid product type template path: %s", e)
@@ -258,7 +272,7 @@ class ProductTypes(MethodView):
         try:
             response, status = product_type.ProductType.update(type_id, request.json)
             _invalidate_admin_cache(status)
-            return response, status
+            return _with_product_type_warnings(response, status, type_id)
         except InvalidPresenterTemplatePathError as e:
             db.session.rollback()
             logger.warning("Invalid product type template path: %s", e)
@@ -281,7 +295,7 @@ class ProductTypes(MethodView):
         try:
             response, status = product_type.ProductType.update(type_id, request.json or {}, patch=True)
             _invalidate_admin_cache(status)
-            return response, status
+            return _with_product_type_warnings(response, status, type_id)
         except (InvalidPresenterTemplatePathError, ValueError) as exc:
             db.session.rollback()
             logger.warning("Invalid product type patch payload: %s", exc)
