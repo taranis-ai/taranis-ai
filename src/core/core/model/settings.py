@@ -154,6 +154,8 @@ class Settings(BaseModel):
         for feature in ("embedding", "extraction", "extraction_verification", "graph_planning"):
             if endpoint_id := update_data.get(f"llm_{feature}_endpoint"):
                 provider = LLMProvider.model_validate(current_settings["llm_endpoints"][endpoint_id])
+                if feature == "extraction_verification" and (not provider.enabled or not provider.supports(feature)):
+                    return {"error": "HRAG relationship verification requires an enabled realtime Decisions endpoint."}, 400
                 if not provider.supports(feature) or (provider.for_feature(feature) or {}).get("processing_mode") != "realtime":
                     return {"error": "HRAG requires a compatible realtime endpoint"}, 400
         if cls._chat_uses_batch({**current_settings, **update_data}):
@@ -182,6 +184,17 @@ class Settings(BaseModel):
                 )
             except ValueError:
                 return {"error": "Invalid HRAG relationship verification setting"}, 400
+        verification_settings = {**current_settings, **update_data}
+        if (
+            verification_settings["hrag_relationship_verification_enabled"]
+            and {"hrag_relationship_verification_enabled", "llm_extraction_verification_endpoint", "llm_default_endpoint"}.intersection(
+                update_data
+            )
+            and not cls.get_llm_endpoint("extraction_verification", verification_settings)
+        ):
+            return {
+                "error": "Enable a realtime Decisions endpoint and assign it to HRAG relationship verification before enabling verification."
+            }, 400
         if "hrag_index_interval_minutes" in update_data:
             try:
                 update_data["hrag_index_interval_minutes"] = TypeAdapter(HragIndexIntervalMinutes).validate_python(

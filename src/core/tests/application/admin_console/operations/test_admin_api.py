@@ -249,10 +249,20 @@ class TestAdminApi(BaseTest):
                     "llm_extraction_verification_endpoint": endpoint_id,
                     "llm_sentiment_endpoint": endpoint_id,
                     "hrag_extraction_reasoning_effort": "low",
+                    "hrag_relationship_verification_enabled": True,
                 }
             },
             auth_header,
         )
+        self.assert_post_ok(client, f"llm-endpoints/{endpoint_id}", {"enabled": False}, auth_header)
+        for invalid_settings in (
+            {"hrag_relationship_verification_enabled": True},
+            {"llm_extraction_verification_endpoint": endpoint_id},
+        ):
+            invalid = client.patch(self.concat_url("settings"), json={"settings": invalid_settings}, headers=auth_header)
+            assert invalid.status_code == 400 and "Decisions endpoint" in invalid.json["error"]
+        self.assert_patch_ok(client, "settings", {"settings": {"hrag_relationship_verification_enabled": False}}, auth_header)
+        self.assert_post_ok(client, f"llm-endpoints/{endpoint_id}", {"enabled": True}, auth_header)
         invalid = client.patch(
             self.concat_url("settings"), json={"settings": {"hrag_extraction_reasoning_effort": "private-invalid"}}, headers=auth_header
         )

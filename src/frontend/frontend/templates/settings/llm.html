@@ -17,10 +17,24 @@
         hx-patch="{{ links.update_settings | admin_action }}"
         data-test-id="llm-assignments">
     <input type="hidden" name="csrf_token" value="{{ request.cookies.get(config['JWT_ACCESS_CSRF_COOKIE_NAME'], '') }}" />
-    {{ form_select('Default endpoint', 'settings[llm_default_endpoint]', current_settings.llm_default_endpoint, options=[{'id': '', 'name': 'Not configured'}] + endpoint_options, required=False) }}
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    {{ form_select('Default endpoint', 'settings[llm_default_endpoint]', current_settings.llm_default_endpoint, options=[{'id': '', 'name': 'Not configured'}] + endpoint_options, required=False, stacked=True) }}
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-x-6">
       {% for feature, label in llm_features.items() %}
-        {{ form_select(label, 'settings[llm_' ~ feature ~ '_endpoint]', current_settings['llm_' ~ feature ~ '_endpoint'], options=[{'id': '', 'name': 'Use default'}] + endpoint_options, required=False) }}
+        <div class="min-w-0">
+          {% set options = endpoint_options %}
+          {% if feature == "extraction_verification" %}
+            {% set options = verification_endpoint_options | list %}
+            {% set selected = current_settings.llm_extraction_verification_endpoint %}
+            {% if selected and selected not in (options | map(attribute="id") | list) %}
+              {% set _ = options.append({'id': selected, 'name': endpoints[selected].name ~ ' (unavailable)'}) %}
+            {% endif %}
+          {% endif %}
+          {{ form_select(label, 'settings[llm_' ~ feature ~ '_endpoint]', current_settings['llm_' ~ feature ~ '_endpoint'], options=[{'id': '', 'name': 'Use default'}] + options, required=False, stacked=True) }}
+          {% if feature == "extraction_verification" %}
+            <p class="-mt-3 mb-5 text-sm text-base-content/70">Optional; used only when relationship verification is enabled in Chat settings. Requires an enabled endpoint with a Decisions API format. A generative model alone cannot verify relationships.</p>
+            {% if not verification_endpoint_options %}<p class="mb-4 text-sm text-warning">No enabled Decisions endpoint is available. Enable Decisions on an endpoint below before enabling verification.</p>{% endif %}
+          {% endif %}
+        </div>
       {% endfor %}
     </div>
     <button class="btn btn-primary" type="submit">Save Assignments</button>

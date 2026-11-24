@@ -6,10 +6,10 @@
   </div>
 {% endmacro %}
 
-{% macro form_select(label, name, value, options=[], input_id=None, required=True, disabled=False, width='w-full', data_testid=None) %}
+{% macro form_select(label, name, value, options=[], input_id=None, required=True, disabled=False, width='w-full', data_testid=None, stacked=False) %}
   {# djlint:off #}
-  <label class="select mb-5 {{ width }}">
-    <span class="label">{{ label }}
+  <label class="{{ 'flex flex-col items-stretch gap-2' if stacked else 'select' }} mb-5 {{ width }}">
+    <span class="label {% if stacked %}whitespace-normal{% endif %}">{{ label }}
       {% if required %}<span aria-hidden="true" class="text-error">*</span>{% endif %}
     </span>
     <select id="{% if input_id %}{{ input_id }}{% else %}{{ name }}{% endif %}"

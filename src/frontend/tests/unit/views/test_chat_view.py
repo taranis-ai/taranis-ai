@@ -81,7 +81,7 @@ def test_chat_history_escapes_answers_and_builds_doseq_assess_link(
 
 
 def test_new_chat_pushes_conversation_url(authenticated_client_basic, responses, app):
-    conversation = _conversation()
+    conversation = _conversation("Evidence [G1].")
     app.config["HRAG_ENABLED"] = True
     conversation["messages"][0]["mode"] = "hrag"
     conversation["messages"][0]["hrag_result"] = {
@@ -115,6 +115,8 @@ def test_new_chat_pushes_conversation_url(authenticated_client_basic, responses,
     assert 'name="mode"' in response.text and '<option value="hrag" selected' in response.text
     assert "&lt;script&gt;private()&lt;/script&gt;" in response.text
     assert "Partial evidence" in response.text
+    assert 'title="Evidence title">[1]</a>' in response.text
+    assert "[G1]" not in response.text
     assert 'data-testid="chat-hrag-evidence"' in response.text
     assert '"mode": "hrag"' in responses.calls[0].request.body.decode()
     app.config["HRAG_ENABLED"] = False

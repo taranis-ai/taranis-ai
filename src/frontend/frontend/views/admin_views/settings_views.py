@@ -8,7 +8,7 @@ from flask import current_app, g, render_template, request, url_for
 from flask.typing import ResponseReturnValue
 from models.admin import Settings
 from models.hrag import EXTRACTION_REASONING_EFFORTS, IndexAction, IndexStatus
-from models.llm import LLM_API_FORMATS, LLM_FEATURES
+from models.llm import LLM_API_FORMATS, LLM_FEATURES, LLMProvider
 from pydantic import ValidationError
 
 from frontend.core_api import CoreApi
@@ -36,6 +36,13 @@ class SettingsView(AdminBaseView):
         base_context["_is_admin"] = cls._is_admin
         base_context["settings"] = dpl.get_first(Settings)
         base_context["llm_features"] = LLM_FEATURES
+        endpoints = base_context["settings"].settings.llm_endpoints if base_context["settings"] else {}
+        base_context["verification_endpoint_options"] = [
+            {"id": endpoint_id, "name": endpoint["name"]}
+            for endpoint_id, endpoint in endpoints.items()
+            if endpoint.get("enabled", True)
+            and any(api_format in endpoint.get("api_formats", {}) for api_format in LLMProvider.feature_formats("extraction_verification"))
+        ]
         base_context["hrag_reasoning_efforts"] = EXTRACTION_REASONING_EFFORTS
         base_context["llm_api_formats"] = LLM_API_FORMATS
         base_context["llm_form"] = getattr(g, "llm_form", None)

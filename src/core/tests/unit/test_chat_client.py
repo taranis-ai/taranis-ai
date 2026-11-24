@@ -139,6 +139,8 @@ def test_story_search_supplies_context_and_saves_answer(configured_chat, db_pers
         assert kwargs["headers"]["Authorization"] == "Bearer test-secret"
         assert args[0].endswith("/chat/completions" if configured_chat == "chat_completions" else "/responses")
         requests_sent.append(kwargs["json"])
+        system_prompt = kwargs["json"]["messages"][0]["content"] if configured_chat == "chat_completions" else kwargs["json"]["instructions"]
+        assert "Always write your answer in English" in system_prompt
         if len(requests_sent) == 1:
             if configured_chat == "chat_completions":
                 assert "input" not in kwargs["json"] and "store" not in kwargs["json"]
@@ -249,6 +251,9 @@ def test_hrag_turn_switching_partial_retrieval_and_live_history(configured_chat,
     from core.service.hrag import retrieval
     from core.service.hrag.indexing import fingerprint
 
+    original_profile = dict(admin_user.profile or {})
+    admin_user.profile = {**original_profile, "language": "de"}
+    db.session.commit()
     monkeypatch.setattr(retrieval.Config, "HRAG_ENABLED", True)
     story = create_story(news_items=[build_news_item_payload(content="Acme reported an incident.")])
     story.read = False
@@ -299,10 +304,13 @@ def test_hrag_turn_switching_partial_retrieval_and_live_history(configured_chat,
 
     def post(*args, **kwargs):
         payload = kwargs["json"]
+        system_prompt = payload["messages"][0]["content"] if configured_chat == "chat_completions" else payload["instructions"]
         messages = payload.get("messages") or payload["input"]
         context = json.loads(messages[-1]["content"])
         contexts.append(context)
         response_format = payload.get("text", {}).get("format") or payload.get("response_format", {}).get("json_schema", {})
+        if response_format.get("name") != "graph_query_generation_response":
+            assert "Always write your answer in German" in system_prompt
         if isinstance(payload.get("tool_choice"), dict):
             assert "available_filters" in context
             arguments = json.dumps({"source": ["unknown-source"]} if invalid_filters else {"read": False})
@@ -396,6 +404,7 @@ def test_hrag_turn_switching_partial_retrieval_and_live_history(configured_chat,
     finally:
         if conversation:
             ChatService.delete_conversation(conversation["id"], admin_user)
+        admin_user.profile = original_profile
         db.session.delete(generation)
         db.session.delete(story)
         db.session.commit()

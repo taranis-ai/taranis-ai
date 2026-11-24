@@ -2089,7 +2089,6 @@ class TestEndToEndAdmin(BaseE2ETest):
                 "combobox", name="HRAG relationship verification", exact=True
             )
             expect(verification).to_have_value("false")
-            verification.select_option("true")
             interval = page.get_by_test_id("settings-hrag-index-interval")
             expect(interval).to_have_value("60")
             interval.fill("90")
@@ -2099,8 +2098,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             page.reload()
             page.get_by_test_id("settings-chat-section").locator("summary").click()
             expect(effort).to_have_value("default")
-            expect(verification).to_have_value("true")
-            verification.select_option("false")
+            expect(verification).to_have_value("false")
             expect(interval).to_have_value("90")
             interval.fill("0")
             expect(page.get_by_test_id("settings-hrag-chunk-size")).to_have_value("500")

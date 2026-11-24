@@ -50,22 +50,32 @@
                data-testid="chat-message-{{ message.role }}">
             <div class="chat-header mb-1">
               {% if message.role == "user" %}{{ _("You") }}{% else %}{{ _("Taranis Chat") }}{% endif %}
+              {% if message.mode == "hrag" and message.role == "assistant" %}<span class="badge badge-ghost badge-xs ml-1"
+                                                                                   title="{{ _('Uses graph and semantic evidence') }}">HRAG</span>{% endif %}
               <time datetime="{{ message.created }}" class="text-xs opacity-60">{{ message.created | format_datetime }}</time>
             </div>
-            <div class="chat-bubble whitespace-pre-wrap break-words {% if message.role == 'user' %}chat-bubble-primary{% endif %}">{{ message.content }}</div>
+            <div class="chat-bubble whitespace-pre-wrap break-words {% if message.role == 'user' %}chat-bubble-primary{% endif %}">{% if message.content_parts %}{% for part in message.content_parts %}{% if part.citation %}<a class="link link-primary" href="{{ part.citation.assess_url }}" title="{{ part.citation.title }}">[{{ part.citation.citation_number }}]</a>{% else %}{{ part.text }}{% endif %}{% endfor %}{% else %}{{ message.content }}{% endif %}</div>
             {% if message.hrag_result and message.role == "assistant" %}
-              <div class="chat-footer mt-2 space-y-2 text-sm">
+              <div class="chat-footer mt-3 flex w-full min-w-0 flex-col items-stretch gap-3 text-sm">
                 {% for notice in message.hrag_result.notices %}<p>{{ notice }}</p>{% endfor %}
                 {% for branch, label in [('graph', _('Graph evidence')), ('vector', _('Similar passages'))] %}
-                  <details class="rounded-box border border-base-300 p-2" data-testid="chat-hrag-evidence">
+                  <details class="w-full min-w-0 rounded-box border border-base-300 p-3" data-testid="chat-hrag-evidence">
                     <summary class="cursor-pointer font-semibold">{{ label }}</summary>
                     {% for evidence in message.hrag_result.evidence if evidence.branch == branch %}
                       <div class="mt-3" data-testid="chat-hrag-citation">
-                        <a class="link link-primary" href="{{ evidence.assess_url }}">[{{ evidence.citation }}] {{ evidence.title }}</a>
-                        {% if evidence.description %}<p>{{ evidence.description }} ({{ evidence.assertion }})</p>{% endif %}
-                        <blockquote class="mt-1 whitespace-pre-wrap border-l-2 border-base-300 pl-2">
-                          {{ evidence.quote }}
-                        </blockquote>
+                        <a class="link link-primary"
+                           href="{{ evidence.assess_url }}">[{{ evidence.citation_number }}] {{ evidence.title }}</a>
+                        {% if evidence.branch == "graph" and not evidence.description %}
+                          <p class="mt-2 text-xs text-base-content/60">{{ _("Entity mentions in this source; no relationship was retrieved.") }}</p>
+                          <ul class="mt-1 list-inside list-disc break-words">
+                            {% for name in evidence.quote.splitlines() %}<li>{{ name | trim }}</li>{% endfor %}
+                          </ul>
+                        {% else %}
+                          {% if evidence.description %}<p class="mt-2 font-medium">{{ evidence.description }} ({{ evidence.assertion }})</p>{% endif %}
+                          <blockquote class="mt-2 whitespace-pre-wrap break-words border-l-2 border-base-300 pl-3">
+                            {{- evidence.quote | trim -}}
+                          </blockquote>
+                        {% endif %}
                         {% if evidence.truncated %}<p class="text-xs">{{ _("Only the beginning of this item was indexed.") }}</p>{% endif %}
                       </div>
                     {% endfor %}

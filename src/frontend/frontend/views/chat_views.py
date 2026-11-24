@@ -1,3 +1,4 @@
+import re
 import uuid
 from typing import Any
 from urllib.parse import urlencode
@@ -44,8 +45,25 @@ class ChatView(BaseView):
                 assess_url = url_for("assess.assess")
                 data["assess_url"] = f"{assess_url}?{query_string}" if query_string else assess_url
             if message.hrag_result:
-                for evidence in data["hrag_result"]["evidence"]:
+                citations = {}
+                evidence_items = data["hrag_result"]["evidence"]
+                known_ids = {evidence["citation"] for evidence in evidence_items}
+                cited_ids = [match.group(1) for match in re.finditer(r"\[([GV]\d+)\]", message.content) if match.group(1) in known_ids]
+                citation_order = dict.fromkeys([*cited_ids, *(evidence["citation"] for evidence in evidence_items)])
+                numbers = {citation: number for number, citation in enumerate(citation_order, start=1)}
+                for evidence in evidence_items:
                     evidence["assess_url"] = url_for("assess.assess") + "?" + urlencode({"story_ids": evidence["story_id"]})
+                    evidence["citation_number"] = numbers[evidence["citation"]]
+                    citations[evidence["citation"]] = evidence
+                parts = []
+                start = 0
+                for match in re.finditer(r"\[([GV]\d+)\]", message.content):
+                    if evidence := citations.get(match.group(1)):
+                        parts.append({"text": message.content[start : match.start()]})
+                        parts.append({"citation": evidence})
+                        start = match.end()
+                parts.append({"text": message.content[start:]})
+                data["content_parts"] = parts
             messages.append(data)
         return messages
 
