@@ -327,3 +327,60 @@ def test_get_dashboard_data_includes_top_sources(session, monkeypatch):
 
     user.profile["dashboard"]["source_distribution_limit"] = 0
     assert DashboardService.get_dashboard_data(user=user)["items"][0]["top_sources"] == []
+
+
+def test_trending_clusters_limits_to_top_five_per_type_with_deterministic_tiebreak(app, client, auth_header):
+    tag_type = _unique_value("trend-limit-type")
+    story_ids = []
+
+    with app.app_context():
+        from core.managers.db_manager import db
+
+        now = BaseModel.utcnow().replace(microsecond=0)
+        tag_counts = [
+            (_unique_value("tag-1"), 10),
+            (_unique_value("tag-2"), 8),
+            (_unique_value("tag-3"), 6),
+            (_unique_value("tag-4"), 4),
+            (_unique_value("tag-5-alpha"), 2),
+            (_unique_value("tag-6-zeta"), 2),
+        ]
+        stories = []
+        for idx in range(10):
+            story = create_story(
+                created=(now - timedelta(days=1)).isoformat(),
+                news_items=[build_news_item_payload(title_prefix=f"Limit {idx}")],
+            )
+            story.created = now - timedelta(days=1)
+            story.news_items[0].published = story.created
+            stories.append(story)
+        db.session.commit()
+
+        for tag_name, count in tag_counts:
+            for story in stories[:count]:
+                story.news_items[0].set_tags([{"name": tag_name, "tag_type": tag_type}], replace=False)
+
+        story_ids = [story.id for story in stories]
+        expected_top_five = [name for name, _ in tag_counts[:5]]
+
+    try:
+        response = client.get("/api/dashboard/trending-clusters", headers=auth_header, query_string={"days": 7})
+        payload = response.get_json()
+        assert response.status_code == 200
+
+        cluster = next(item for item in payload["items"] if item["name"] == tag_type)
+        assert [tag["name"] for tag in cluster["tags"]] == expected_top_five
+        assert cluster["size"] == 30
+    finally:
+        with app.app_context():
+            from core.managers.db_manager import db
+
+            for story_id in story_ids:
+                story = Story.get(story_id)
+                if story is None:
+                    continue
+                for news_item in list(story.news_items):
+                    news_item.set_tags([], replace=True, update_story=False)
+                    db.session.delete(news_item)
+                db.session.delete(story)
+            db.session.commit()
