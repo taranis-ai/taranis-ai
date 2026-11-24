@@ -10,6 +10,8 @@ Weekly counts run from Monday 00:00 UTC through now, inclusive, excluding future
 
 Dashboard `health_status.core.debug` comes from the shared Core health response and reflects Core's `Config.DEBUG`. The admin health card consumes that existing snapshot without another Core request.
 
+The Admin Dashboard shows the durable collector stop independently of service health. Stop and resume invalidate the dashboard cache and publish `collectors.changed`. The admin page reads collector status directly, even when statistics come from the dashboard cache or are unavailable. Open dashboards refresh only the status warning, including on realtime reconnect.
+
 Source distribution respects per-user `show_charts` and `source_distribution_limit` (default 3, non-negative integer). Zero disables it, including Other; positive limits group remaining sources as Other. Profile saves invalidate the dashboard cache. The authenticated query uses the user profile; calls without a user retain the default.
 
 The source query caps its SQL limit at the total news-item count, so even configured integers beyond the database's binding range show all available sources without overflowing. No fixed product maximum applies.

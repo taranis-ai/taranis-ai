@@ -1,0 +1,14 @@
+<div id="collector-status"
+     hx-get="{{ url_for('admin.collector_status') }}"
+     hx-trigger="realtime:collectors.changed from:document, realtime:resync from:document, realtime:connected from:document"
+     hx-sync="this:queue last"
+     hx-swap="outerHTML">
+  {% if collectors_stopped %}
+    <div class="alert alert-warning mb-4" role="status">
+      <span><strong>Collector stop is active.</strong> New collector jobs are blocked until an administrator selects Resume collectors.</span>
+      <a class="link" href="{{ url_for('admin.osint_sources') }}">Check progress on OSINT Sources</a>
+    </div>
+  {% elif collectors_stopped is none %}
+    <p class="alert alert-warning mb-4">Collector status unavailable.</p>
+  {% endif %}
+</div>

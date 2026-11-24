@@ -1,5 +1,6 @@
 {% from "macros/forms.html" import form_input, form_textarea, form_fileinput, form_select %}
 {% from "macros/worker.html" import worker_status %}
+{% set collector_status = collector_status | default({}) %}
 {% set osint_id = osint_source.id | default("0", true) %}
 {% set form_error = form_error | default({}) %}
 {% set read_only = true if osint_id == "manual" else false %}
@@ -16,9 +17,11 @@
             Bulk Create
           </a>
         {% else %}
-          <a class="btn btn-outline" href="{{ url_for('admin.osint_source_preview', osint_source_id=osint_id) }}">Preview</a>
+          <a class="btn btn-outline"
+             href="{{ url_for('admin.osint_source_preview', osint_source_id=osint_id) }}">{{ "View saved preview" if collector_status.stopped else "Preview" }}</a>
           <button type="button"
                   class="btn btn-secondary"
+                  {% if collector_status.stopped is not sameas false %}disabled{% endif %}
                   hx-post="{{ url_for('admin.collect_osint_source', osint_source_id=osint_id) }}"
                   hx-target="#notification-bar"
                   hx-status:400="target:#notification-bar"

@@ -7,6 +7,7 @@ Load for: Persistent core settings, `Settings.get_settings()`, defaults, or sett
 - `Settings.get_settings()` caches a detached snapshot per SQLAlchemy session/transaction and returns deep copies, including nested custom values.
 - Flush, commit, rollback, and savepoint completion clear it. Pending writes bypass caching to preserve autoflush; missing rows are never cached.
 - No cross-request/process cache, Redis, or TTL: unchanged transactions reuse the first read; external changes appear in subsequent transactions subject to isolation.
+- Collector control reads the singleton directly and serializes changes with a row lock. Workers read `/worker/collector-state` with their API key. Signed-in users read `/settings/collectors`. Only the dedicated stop/resume actions may write its state. See [OSINT Source Management](osint-source-management.md#emergency-collector-stop).
 - Initialization and onboarding follow [Initial User Onboarding](initial-user-onboarding.md).
 
 ## Code and Tests

@@ -4,7 +4,7 @@ from core.api import config as config_api
 from core.api.config import OSINTSourcePreview
 
 
-def test_preview_response_uses_live_rq_status_without_requeue(monkeypatch):
+def test_preview_response_uses_live_rq_status_without_requeue(monkeypatch, session):
     task_id = "source_preview_123"
     queue_manager = Mock()
     queue_manager.get_task.return_value = {"id": task_id, "status": "STARTED"}, 202
@@ -19,7 +19,7 @@ def test_preview_response_uses_live_rq_status_without_requeue(monkeypatch):
     queue_manager.preview_osint_source.assert_not_called()
 
 
-def test_preview_response_requeues_when_task_not_found(monkeypatch):
+def test_preview_response_requeues_when_task_not_found(monkeypatch, session):
     task_id = "source_preview_123"
     scheduled_response = {"message": "Preview for source 123 scheduled", "id": task_id, "status": "STARTED"}
     queue_manager = Mock()

@@ -8,6 +8,8 @@ The new-item route starts with a three-way chooser (From file, From URL, Manuall
 
 Manual entry requires either title or content. Blank Published defaults to current UTC time. Identity and duplicate rules belong in [Fuzzy Deduplication](fuzzy-deduplication.md).
 
+The instance-wide collector stop disables From URL. A stale form receives a 409 notification and retains its draft. See [OSINT Source Management](osint-source-management.md#emergency-collector-stop).
+
 URL collection defaults to a single article with automatic extraction and direct requests. Linked-article mode requires a container XPath and a positive item limit; the limit is submitted only in that mode. The frontend normalizes parameters through [Worker Parameters](worker-parameters.md) before contacting Core; the single-article worker path independently expands effective values. Explicit TLP applies to every returned item. Request headers are omitted from task descriptions.
 
 Validation failures target notifications without replacing the editor or clearing inputs. File uploads are validated by parsing JSON regardless of MIME type; invalid JSON/encoding returns 400, unexpected local failures return 500, and Core failures preserve its status. Successful imports return to Assess. See [Story Export](story-export.md) for formats and import semantics.

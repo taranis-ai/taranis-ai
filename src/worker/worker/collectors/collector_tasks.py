@@ -6,8 +6,10 @@ Functions for collecting news from OSINT sources.
 from contextlib import contextmanager
 from typing import Any
 
+from models.task import COLLECTION_STOPPED_MESSAGE
 from models.worker_parameters import effective_parameter_values
 from rq import get_current_job
+from rq.job import Job
 
 import worker.collectors
 from worker.collectors.base_collector import BaseCollector, NoChangeError
@@ -34,6 +36,16 @@ def collector_log_fmt(logger: TaranisLogger, collector_formatter: TaranisLogForm
         yield
     finally:
         stream_handler.setFormatter(old_fmt)
+
+
+def require_collection_enabled(job: Job | None) -> None:
+    state = CoreApi().get_collector_state()
+    if state is None:
+        raise RuntimeError("Collector status unavailable. Collection was skipped.")
+    if state.stopped:
+        raise RuntimeError(COLLECTION_STOPPED_MESSAGE)
+    if state.resumed_at != (job.meta.get("collector_resumed_at", 0) if job else 0):
+        raise RuntimeError("Collector job predates the last resume and was skipped.")
 
 
 class Collector:
@@ -124,6 +136,7 @@ def collector_task(osint_source_id: str, manual: bool = False):
         RuntimeError: If collection fails
     """
     job = get_current_job()
+    require_collection_enabled(job)
     core_api = CoreApi()
     collector = Collector()
 
@@ -310,6 +323,7 @@ def collector_preview(osint_source_id: str):
         Preview data from the collector
     """
     job = get_current_job()
+    require_collection_enabled(job)
     collector = Collector()
     source = collector.get_source(osint_source_id)
     source["parameters"] = effective_parameter_values(source["type"], source.get("parameters", {}))
@@ -375,6 +389,7 @@ def collector_preview(osint_source_id: str):
 @task_started
 def fetch_single_news_item(parameters: dict[str, Any]):
     job = get_current_job()
+    require_collection_enabled(job)
     collector = worker.collectors.SimpleWebCollector()
     worker_type = "simple_web_collector"
     collector_parameters = parameters["parameters"]

@@ -122,6 +122,12 @@ class Sources(MethodView):
             return {"error": "Internal server error"}, 500
 
 
+class WorkerCollectorState(MethodView):
+    @api_key_required
+    def get(self):
+        return Settings.get_collector_state().model_dump()
+
+
 class CronJobs(MethodView):
     @api_key_required
     def get(self):
@@ -494,6 +500,7 @@ def initialize(app: Flask):
     worker_bp.add_url_rule("/osint-sources", view_func=Sources.as_view("osint_sources_all_worker"))
     worker_bp.add_url_rule("/osint-sources/<string:source_id>", view_func=Sources.as_view("osint_sources_worker"))
     worker_bp.add_url_rule("/osint-sources/<string:source_id>/icon", view_func=SourceIcon.as_view("osint_sources_worker_icon"))
+    worker_bp.add_url_rule("/collector-state", view_func=WorkerCollectorState.as_view("collector_state"))
     worker_bp.add_url_rule("/cron-jobs", view_func=CronJobs.as_view("cron_jobs_worker"))
     worker_bp.add_url_rule("/tasks/history/cleanup", view_func=TaskHistoryCleanup.as_view("task_history_cleanup_worker"))
     worker_bp.add_url_rule("/tasks/changed", view_func=TaskChanges.as_view("task_changes_worker"))

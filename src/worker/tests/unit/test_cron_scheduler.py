@@ -118,6 +118,37 @@ def test_scheduler_restores_empty_redis_and_retries_core_failure(requests_mock, 
     assert redis_conn.zscore(NEXT_KEY, "cleanup_token_blacklist") == 1030.0
 
 
+def test_cron_skips_stopped_collector_slots_and_stamps_first_run_after_resume(requests_mock, monkeypatch):
+    connection = fakeredis.FakeRedis()
+    monkeypatch.setattr(cron_scheduler, "get_redis_connection", lambda *_args: connection)
+    monkeypatch.setattr(cron_scheduler.time, "time", lambda: 1000.0)
+    monkeypatch.setattr(cron_scheduler.time, "sleep", Mock(side_effect=RuntimeError("end poll")))
+    status_url = f"{Config.TARANIS_CORE_URL}/worker/collector-state"
+    requests_mock.get(status_url, json={"stopped": True, "resumed_at": 0})
+    requests_mock.post(f"{Config.TARANIS_CORE_URL}/worker/tasks/changed", json={})
+    for job_id, queue, task in [("source", "collectors", "collector_task"), ("cleanup", "misc", "cleanup_task_history")]:
+        connection.hset(DEFS_KEY, job_id, json.dumps({"queue_name": queue, "func_path": task, "interval": 30}))
+        connection.zadd(NEXT_KEY, {job_id: 999})
+    with pytest.raises(RuntimeError, match="end poll"):
+        cron_scheduler.run_scheduler()
+    collectors = Queue("collectors", connection=connection)
+    assert collectors.count == 0
+    assert connection.zscore(NEXT_KEY, "source") == 1030
+    assert Queue("misc", connection=connection).count == 1
+
+    # Cron was offline for both the resume and the next occurrence.
+    monkeypatch.setattr(cron_scheduler.time, "time", lambda: 1100.0)
+    requests_mock.get(status_url, json={"stopped": False, "resumed_at": 1060})
+    with pytest.raises(RuntimeError, match="end poll"):
+        cron_scheduler.run_scheduler()
+    assert collectors.count == 0
+    assert connection.zscore(NEXT_KEY, "source") == 1090
+    with pytest.raises(RuntimeError, match="end poll"):
+        cron_scheduler.run_scheduler()
+    assert collectors.jobs[0].id == "cron_source_1090"
+    assert collectors.jobs[0].meta["collector_resumed_at"] == 1060
+
+
 def test_sync_next_index_skips_invalid_specs_without_crashing():
     redis_conn = fakeredis.FakeRedis(decode_responses=False)
     base_ts = 1000.0

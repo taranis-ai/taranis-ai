@@ -3,13 +3,14 @@ import json
 import os
 import time
 from datetime import UTC, datetime
+from functools import cache
 from typing import Any
 
 from croniter import croniter
 from models.task import CronTaskSpec
 from pydantic import ValidationError
 from redis import Redis
-from redis.exceptions import RedisError
+from redis.exceptions import RedisError, WatchError
 from rq import Queue
 
 from worker import get_redis_connection
@@ -103,6 +104,19 @@ def compute_next(spec: dict[str, Any], base_ts: float) -> float:
     raise ValueError("CronTaskSpec must provide exactly one of cron or interval")
 
 
+def _advance_skipped_slot(redis: Redis, job_id: str, due_ts: float, next_ts: float) -> None:
+    # A source edit may have already replaced this slot while cron was reading Core.
+    with redis.pipeline() as pipe:
+        try:
+            pipe.watch(NEXT_KEY)
+            if pipe.zscore(NEXT_KEY, job_id) == due_ts:
+                pipe.multi()
+                pipe.zadd(NEXT_KEY, {job_id: next_ts})
+                pipe.execute()
+        except WatchError:
+            return  # The next poll reads the updated schedule.
+
+
 def _resolve_task(job_id: str, func_path: str) -> str | None:
     if not func_path:
         logger.warning(f"Skipping cron job {job_id} because func_path is missing")
@@ -124,6 +138,7 @@ def _enqueue_due_job(
     job_id: str,
     spec: dict[str, Any],
     due_ts: float,
+    collector_resumed_at: float | None = None,
 ) -> str | None:
     queue_name = spec["queue_name"]
     queue = queues.setdefault(queue_name, Queue(queue_name, connection=redis))
@@ -138,6 +153,8 @@ def _enqueue_due_job(
     # Preserve scheduler dashboard labels where available.
     if spec.get("meta") and "meta" not in job_options:
         job_options["meta"] = spec["meta"]
+    if collector_resumed_at is not None:
+        job_options["meta"] = {**job_options.get("meta", {}), "collector_resumed_at": collector_resumed_at}
 
     # Deterministic enough for queue dedupe while still carrying the logical cron job id.
     due_slot = int(due_ts)
@@ -202,6 +219,8 @@ def run_scheduler(
             due_ids = _sync_response(redis.zrangebyscore(NEXT_KEY, min=0, max=now_ts, start=0, num=100), "redis.zrangebyscore")
             changed = False
             user_ids: set[str] = set()
+            # All due collectors in this poll share one Core read. Workers recheck at execution.
+            collector_state = cache(CoreApi().get_collector_state)
             for raw_job_id in due_ids:
                 if not renew_leader(redis, node_id, ttl_seconds=ttl_seconds):
                     break
@@ -214,8 +233,18 @@ def run_scheduler(
                     continue
 
                 try:
-                    due_ts = float(redis.zscore(NEXT_KEY, job_id) or now_ts)
-                    if due_ts <= now_ts and _enqueue_due_job(redis, queues, job_id, spec, due_ts):
+                    due_ts = redis.zscore(NEXT_KEY, job_id)
+                    if due_ts is None or due_ts > now_ts:
+                        continue
+                    resumed_at = None
+                    if spec["queue_name"] == "collectors":
+                        state = collector_state()
+                        if state is None or state.stopped or due_ts < state.resumed_at:
+                            base_ts = state.resumed_at if state and not state.stopped else now_ts
+                            _advance_skipped_slot(redis, job_id, due_ts, compute_next(spec, base_ts))
+                            continue
+                        resumed_at = state.resumed_at
+                    if _enqueue_due_job(redis, queues, job_id, spec, due_ts, resumed_at):
                         changed = True
                         meta = (spec.get("job_options") or {}).get("meta", spec.get("meta")) or {}
                         if user_id := meta.get("user_id"):

@@ -45,14 +45,19 @@
       {% if not is_edit %}
         <p class="text-sm text-base-content/70">Choose one creation method: import a JSON file, collect from a URL, or write a news item manually.</p>
         <div x-show="!method" class="divide-y divide-base-200 rounded-box border border-base-200 bg-base-100">
+          {% set url_description = "Collect an article from its web address." %}
+          {% if collectors_stopped is not sameas false %}
+            {% set url_description = 'URL collection is stopped by an administrator.' if collectors_stopped else 'Collector status unavailable.' %}
+          {% endif %}
           {% for value, label, description, icon in [
             ('file', 'From file', 'Import stories or news items from a JSON file.', 'document-arrow-up'),
-            ('url', 'From URL', 'Collect an article from its web address.', 'link'),
+            ('url', 'From URL', url_description, 'link'),
             ('manual', 'Manually', 'Write a news item from scratch.', 'pencil-square')
           ] %}
             <button type="button"
                     class="flex w-full items-center gap-4 p-5 text-left hover:bg-base-200 focus-visible:outline focus-visible:outline-primary"
                     aria-label="{{ label }}"
+                    {% if value == 'url' and collectors_stopped is not sameas false %}disabled{% endif %}
                     aria-describedby="{{ value }}-choice-description"
                     x-ref="{{ value }}Choice"
                     @click="choose('{{ value }}')">

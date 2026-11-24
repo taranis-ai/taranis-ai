@@ -4787,6 +4787,8 @@ paths:
             application/json:
               schema:
                 type: object
+        '409':
+          description: Collection is stopped
         '401':
           $ref: '#/components/responses/401Unauthorized'
   /config/osint-sources/collect:
@@ -4814,6 +4816,8 @@ paths:
             application/json:
               schema:
                 type: object
+        '409':
+          description: Collection is stopped
         '401':
           $ref: '#/components/responses/401Unauthorized'
   /config/curated-osint-source-lists:
@@ -6313,6 +6317,8 @@ paths:
                 type: object
         '400':
           description: invalid request
+        '409':
+          description: Collection is stopped
         '401':
           $ref: '#/components/responses/401Unauthorized'
         '403':
@@ -7843,6 +7849,8 @@ paths:
             application/json:
               schema:
                 type: object
+        '409':
+          description: Collection is stopped and no saved preview is available
         '401':
           $ref: '#/components/responses/401Unauthorized'
         '403':
@@ -7877,6 +7885,8 @@ paths:
                 type: object
         '400':
           description: invalid request
+        '409':
+          description: Collection is stopped
         '401':
           $ref: '#/components/responses/401Unauthorized'
         '403':
@@ -9107,6 +9117,57 @@ paths:
           description: forbidden
         '404':
           $ref: '#/components/responses/404NotFound'
+  /settings/collectors:
+    get:
+      tags: [config]
+      security:
+      - UserAuth: []
+      operationId: settings.collector_control.get
+      description: Read the instance-wide collector stop.
+      parameters:
+      - name: progress
+        in: query
+        schema:
+          type: boolean
+        description: Include the remaining collector job count while stopped.
+      responses:
+        '200':
+          description: Current collector state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CollectorState'
+                properties:
+                  remaining_jobs:
+                    type: [integer, 'null']
+                    description: Null when queue status is unavailable.
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+  /settings/collectors/{action}:
+    parameters:
+    - name: action
+      in: path
+      required: true
+      schema:
+        type: string
+        enum: [stop, resume]
+    post:
+      tags: [config]
+      security:
+      - UserAuth: []
+      operationId: settings.collector_control.post
+      description: Stop collectors until an administrator explicitly resumes them. Requires ADMIN_OPERATIONS.
+      responses:
+        '200':
+          description: Requested state confirmed
+        '202':
+          description: The stop is active and interruption is pending or unconfirmed
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: Administrator operations permission required
+        '409':
+          description: Resume requires confirmation that all collector jobs have stopped
   /settings/clear-queues:
     post:
       security:
@@ -9695,6 +9756,22 @@ paths:
           description: forbidden
         '404':
           $ref: '#/components/responses/404NotFound'
+  /worker/collector-state:
+    get:
+      tags: [collectors]
+      security:
+      - APIKey: []
+      operationId: worker.collector_state.get
+      description: Read the stop state and last resume time before starting a collector.
+      responses:
+        '200':
+          description: Current collector state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CollectorState'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
   /worker/cron-jobs:
     post:
       security:
@@ -10273,6 +10350,15 @@ paths:
           $ref: '#/components/responses/404NotFound'
 components:
   schemas:
+    CollectorState:
+      type: object
+      required: [stopped, resumed_at]
+      properties:
+        stopped:
+          type: boolean
+        resumed_at:
+          type: number
+          description: Unix timestamp of the last explicit resume, or zero before the first resume.
     chat_turn_request:
       type: object
       additionalProperties: false
