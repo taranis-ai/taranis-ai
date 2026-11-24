@@ -48,6 +48,11 @@ def build_user_profile_key(prefix: str, username: str) -> str:
     return build_cache_key(prefix, username, CACHE_USER_PROFILE_MODEL_NAME, CACHE_PROFILE_KIND, "self")
 
 
+def build_analyst_review_state_key(prefix: str, username: str, run_id: str) -> str:
+    # Outside the "<prefix>:" cache namespace so cache invalidation never deletes review state.
+    return f"{prefix}_state:analyst-review:{username}:{run_id}"
+
+
 def build_namespace_pattern(prefix: str) -> str:
     return f"{prefix}:*"
 
