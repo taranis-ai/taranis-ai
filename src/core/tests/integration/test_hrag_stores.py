@@ -36,9 +36,9 @@ def hrag_stores(monkeypatch):
         with db.engine.begin() as conn:
             conn.execute(text(f'DROP SCHEMA "{schema}" CASCADE'))
         with stores.graph_driver() as driver:
-            driver.execute_query("MATCH (d:HDocument) WHERE d.index_id STARTS WITH $prefix DETACH DELETE d", prefix=schema)
-            driver.execute_query("MATCH ()-[r:H_ASSERTION]->() WHERE r.index_id STARTS WITH $prefix DELETE r", prefix=schema)
-            driver.execute_query("MATCH (n:HEntity) WHERE NOT (n)--() DELETE n")
+            driver.execute_query("MATCH (d:Document) WHERE d.index_id STARTS WITH $prefix DETACH DELETE d", prefix=schema)
+            driver.execute_query("MATCH ()-[r:ASSERTION]->() WHERE r.index_id STARTS WITH $prefix DELETE r", prefix=schema)
+            driver.execute_query("MATCH (n:Entity) WHERE NOT (n)--() DELETE n")
         db.engine.dispose()
 
 

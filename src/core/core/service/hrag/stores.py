@@ -91,27 +91,27 @@ def project_graph(index_id: str, fingerprint: str, news_item_id: str, generation
         for index, r in enumerate(result.relations)
     ]
     with graph_driver() as driver, driver.session(database=Config.HRAG_NEO4J_DATABASE) as session:
-        session.run("CREATE CONSTRAINT hrag_entity_id IF NOT EXISTS FOR (n:HEntity) REQUIRE n.id IS UNIQUE").consume()
-        session.run("CREATE CONSTRAINT hrag_document_key IF NOT EXISTS FOR (n:HDocument) REQUIRE n.key IS UNIQUE").consume()
+        session.run("CREATE CONSTRAINT hrag_entity_id IF NOT EXISTS FOR (n:Entity) REQUIRE n.id IS UNIQUE").consume()
+        session.run("CREATE CONSTRAINT hrag_document_key IF NOT EXISTS FOR (n:Document) REQUIRE n.key IS UNIQUE").consume()
 
         def write(tx):
             # Lock this projection before replacing assertions; duplicate callbacks serialize.
-            tx.run("MERGE (d:HDocument {key: $key}) SET d.index_id = $id, d.lock = true", key=key, id=index_id).consume()
-            tx.run("MATCH ()-[r:H_ASSERTION {key: $key}]->() DELETE r", key=key).consume()
-            tx.run("MATCH (d:HDocument {key: $key})-[r:H_MENTIONS]->() DELETE r", key=key).consume()
+            tx.run("MERGE (d:Document {key: $key}) SET d.index_id = $id, d.lock = true", key=key, id=index_id).consume()
+            tx.run("MATCH ()-[r:ASSERTION {key: $key}]->() DELETE r", key=key).consume()
+            tx.run("MATCH (d:Document {key: $key})-[r:MENTIONS]->() DELETE r", key=key).consume()
             tx.run(
-                """MERGE (d:HDocument {key: $key}) SET d.index_id = $id
+                """MERGE (d:Document {key: $key}) SET d.index_id = $id
                 WITH d UNWIND $mentions AS mention
-                MERGE (n:HEntity {id: mention.id}) SET n.name = mention.name, n.entity_type = mention.type
-                MERGE (d)-[:H_MENTIONS]->(n)""",
+                MERGE (n:Entity {id: mention.id}) SET n.name = mention.name, n.entity_type = mention.type
+                MERGE (d)-[:MENTIONS]->(n)""",
                 key=key,
                 id=index_id,
                 mentions=mentions,
             ).consume()
             tx.run(
                 """UNWIND $relations AS relation
-                MATCH (s:HEntity {id: relation.source}), (t:HEntity {id: relation.target})
-                CREATE (s)-[r:H_ASSERTION]->(t)
+                MATCH (s:Entity {id: relation.source}), (t:Entity {id: relation.target})
+                CREATE (s)-[r:ASSERTION]->(t)
                 SET r.key = $key, r.index_id = $id, r.kind = relation.type,
                     r.assertion = relation.assertion, r.idx = relation.index, r.date = relation.date""",
                 key=key,
@@ -125,13 +125,13 @@ def project_graph(index_id: str, fingerprint: str, news_item_id: str, generation
 def compile_graph(plan: GraphPlan) -> LiteralString:
     """Select a fixed query; every plan value is a bound parameter."""
     if plan.hops == 0:
-        return """MATCH (d:HDocument)-[:H_MENTIONS]->(n:HEntity)
+        return """MATCH (d:Document)-[:MENTIONS]->(n:Entity)
             WHERE d.key IN $allowed
               AND (size($names) = 0 OR any(name IN $names WHERE n.name CONTAINS name))
               AND (size($types) = 0 OR n.entity_type IN $types)
             RETURN DISTINCT [{key: d.key, index_id: d.index_id, idx: null}] AS evidence
             ORDER BY evidence[0].key LIMIT $limit"""
-    return """MATCH p=(n:HEntity)-[:H_ASSERTION*1..3]-(m:HEntity)
+    return """MATCH p=(n:Entity)-[:ASSERTION*1..3]-(m:Entity)
         WHERE length(p) <= $hops AND all(r IN relationships(p) WHERE r.key IN $allowed
             AND (size($relations) = 0 OR r.kind IN $relations)
             AND (length(p) = 1 OR (r.assertion = 'affirmed' AND r.kind <> 'ALIAS_OF')))
@@ -159,11 +159,11 @@ def graph_search(plan: GraphPlan, allowed_keys: list[str], limit: int, timeout: 
 
 def prune_graph(valid_keys: list[str]):
     with graph_driver() as driver, driver.session(database=Config.HRAG_NEO4J_DATABASE) as session:
-        session.run("MATCH ()-[r:H_ASSERTION]->() WHERE NOT r.key IN $keys DELETE r", keys=valid_keys).consume()
-        session.run("MATCH (d:HDocument) WHERE NOT d.key IN $keys DETACH DELETE d", keys=valid_keys).consume()
-        session.run("MATCH (n:HEntity) WHERE NOT (n)--() DELETE n").consume()
+        session.run("MATCH ()-[r:ASSERTION]->() WHERE NOT r.key IN $keys DELETE r", keys=valid_keys).consume()
+        session.run("MATCH (d:Document) WHERE NOT d.key IN $keys DETACH DELETE d", keys=valid_keys).consume()
+        session.run("MATCH (n:Entity) WHERE NOT (n)--() DELETE n").consume()
 
 
 def graph_document_keys() -> set[str]:
     with graph_driver() as driver, driver.session(database=Config.HRAG_NEO4J_DATABASE) as session:
-        return {row["key"] for row in session.run(Query("MATCH (d:HDocument) RETURN d.key AS key", timeout=30))}
+        return {row["key"] for row in session.run(Query("MATCH (d:Document) RETURN d.key AS key", timeout=30))}
