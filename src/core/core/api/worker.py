@@ -516,29 +516,29 @@ class HragReconcile(MethodView):
             return {"error": "HRAG reconciliation failed"}, 503
 
 
-class HragIndexWork(MethodView):
+class HragIndex(MethodView):
     @api_key_required
-    def post(self, work_id: str):
+    def post(self, index_id: str):
         from core.service.hrag.indexing import claim
 
         try:
-            payload = claim(work_id)
+            payload = claim(index_id)
             response = make_response(payload or {"skip": True}, 200)
             response.headers["Cache-Control"] = "no-store"
             return response
         except Exception:
             db.session.rollback()
             logger.exception("HRAG claim failed")
-            return {"error": "HRAG work unavailable"}, 503
+            return {"error": "HRAG index unavailable"}, 503
 
     @api_key_required
-    def put(self, work_id: str):
+    def put(self, index_id: str):
         from models.hrag import IndexSubmission
 
         from core.service.hrag.indexing import submit
 
         try:
-            result, status = submit(work_id, IndexSubmission.model_validate(request.get_json(silent=True)))
+            result, status = submit(index_id, IndexSubmission.model_validate(request.get_json(silent=True)))
             if status >= 400:
                 db.session.rollback()
             return result, status
@@ -555,7 +555,7 @@ def initialize(app: Flask):
     worker_bp = Blueprint("worker", __name__, url_prefix=f"{Config.APPLICATION_ROOT}api/worker")
 
     worker_bp.add_url_rule("/hrag/reconcile", view_func=HragReconcile.as_view("hrag_reconcile"))
-    worker_bp.add_url_rule("/hrag/work/<string:work_id>", view_func=HragIndexWork.as_view("hrag_work"))
+    worker_bp.add_url_rule("/hrag/index/<string:index_id>", view_func=HragIndex.as_view("hrag_index"))
     worker_bp.add_url_rule("/osint-sources", view_func=Sources.as_view("osint_sources_all_worker"))
     worker_bp.add_url_rule("/osint-sources/<string:source_id>", view_func=Sources.as_view("osint_sources_worker"))
     worker_bp.add_url_rule("/osint-sources/<string:source_id>/icon", view_func=SourceIcon.as_view("osint_sources_worker_icon"))

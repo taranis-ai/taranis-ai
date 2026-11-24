@@ -1,4 +1,4 @@
-"""RQ execution only; durable work and authorization remain in core."""
+"""RQ execution only; durable index records and authorization remain in core."""
 
 import asyncio
 
@@ -73,12 +73,12 @@ async def infer(job: IndexJob) -> dict:
 
 @instrument_job
 @http_session_scope()
-def index_item(work_id: str):
+def index_item(index_id: str):
     core = CoreApi()
-    route = f"/worker/hrag/work/{work_id}"
+    route = f"/worker/hrag/index/{index_id}"
     payload = core.api_post(route)
     if payload is None:
-        raise RuntimeError("HRAG work unavailable")
+        raise RuntimeError("HRAG index unavailable")
     if payload.get("skip"):
         return
     job = IndexJob.model_validate(payload)

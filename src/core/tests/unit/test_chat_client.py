@@ -245,7 +245,7 @@ def test_turn_deadline_closes_continuously_streaming_response(configured_chat, m
 
 def test_hrag_turn_switching_partial_retrieval_and_live_history(configured_chat, db_persistent_session, admin_user, monkeypatch, caplog):
     from core.managers.db_manager import db
-    from core.model.hrag import HragGeneration, HragMessage, HragWork
+    from core.model.hrag import HragGeneration, HragIndex, HragMessage
     from core.service.hrag import retrieval
     from core.service.hrag.indexing import fingerprint
 
@@ -267,7 +267,7 @@ def test_hrag_turn_switching_partial_retrieval_and_live_history(configured_chat,
         }
     )
     db.session.add(generation)
-    work = HragWork.from_dict(
+    index_record = HragIndex.from_dict(
         {
             "news_item_id": item.id,
             "generation_id": generation.id,
@@ -279,14 +279,14 @@ def test_hrag_turn_switching_partial_retrieval_and_live_history(configured_chat,
             },
         }
     )
-    db.session.add(work)
+    db.session.add(index_record)
     db.session.commit()
-    work_id, graph_key = work.id, work.graph_key
+    index_id, graph_key = index_record.id, index_record.graph_key
     graph_calls = []
 
     def graph_search(plan, keys, limit, timeout):
         graph_calls.append(keys)
-        return [[{"key": graph_key, "work_id": work_id, "idx": None}]]
+        return [[{"key": graph_key, "index_id": index_id, "idx": None}]]
 
     monkeypatch.setattr(retrieval, "graph_search", graph_search)
     contexts = []

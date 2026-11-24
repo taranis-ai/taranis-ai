@@ -9390,9 +9390,9 @@ paths:
           $ref: '#/components/responses/401Unauthorized'
         '503':
           description: Reconciliation unavailable
-  /worker/hrag/work/{work_id}:
+  /worker/hrag/index/{index_id}:
     parameters:
-    - name: work_id
+    - name: index_id
       in: path
       required: true
       schema:
@@ -9402,20 +9402,20 @@ paths:
       security:
       - APIKey: []
       tags: [bots]
-      operationId: worker.hrag_work.post
-      description: Claim a work lease. Returns skip or bounded content, pipeline, token, fingerprint, dimensions, embedding chunk source offsets, endpoint credentials and optional cached extraction. Responses use Cache-Control no-store.
+      operationId: worker.hrag_index.post
+      description: Claim an index lease. Returns skip or bounded content, pipeline, token, fingerprint, dimensions, embedding chunk source offsets, endpoint credentials and optional cached extraction. Responses use Cache-Control no-store.
       responses:
         '200':
-          description: Claimed work or skip
+          description: Claimed index record or skip
         '401':
           $ref: '#/components/responses/401Unauthorized'
         '503':
-          description: Work unavailable
+          description: Index unavailable
     put:
       security:
       - APIKey: []
       tags: [bots]
-      operationId: worker.hrag_work.put
+      operationId: worker.hrag_index.put
       description: Submit a validated extraction or chunk embeddings, or report failure. Repeated accepted submissions are idempotent; obsolete tokens and fingerprints are rejected.
       requestBody:
         required: true
@@ -9464,7 +9464,7 @@ paths:
         '401':
           $ref: '#/components/responses/401Unauthorized'
         '404':
-          description: HRAG work unavailable
+          description: HRAG index unavailable
         '409':
           description: Stale HRAG result
         '503':

@@ -21,27 +21,27 @@ def initialize_vectors(engine):
     with engine.begin() as connection:
         connection.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
         connection.execute(
-            text("""CREATE TABLE IF NOT EXISTS hrag_chunk_vector (
-            work_id varchar(36) NOT NULL REFERENCES hrag_work(id) ON DELETE CASCADE,
+            text("""CREATE TABLE IF NOT EXISTS news_item_chunk_embedding (
+            index_id varchar(36) NOT NULL REFERENCES hrag_index(id) ON DELETE CASCADE,
             chunk_index integer NOT NULL,
             start_offset integer NOT NULL,
             end_offset integer NOT NULL,
             embedding vector NOT NULL,
-            PRIMARY KEY (work_id, chunk_index)
+            PRIMARY KEY (index_id, chunk_index)
         )""")
         )
 
 
-def save_chunks(work_id: str, chunks: list[ChunkEmbedding]):
+def save_chunks(index_id: str, chunks: list[ChunkEmbedding]):
     if db.engine.dialect.name != "postgresql":
         return
-    db.session.execute(text("DELETE FROM hrag_chunk_vector WHERE work_id = :id"), {"id": work_id})
+    db.session.execute(text("DELETE FROM news_item_chunk_embedding WHERE index_id = :id"), {"id": index_id})
     if chunks:
         db.session.execute(
-            text("""INSERT INTO hrag_chunk_vector (work_id, chunk_index, start_offset, end_offset, embedding)
+            text("""INSERT INTO news_item_chunk_embedding (index_id, chunk_index, start_offset, end_offset, embedding)
             VALUES (:id, :index, :start, :end, CAST(:vector AS vector))"""),
             [
-                {"id": work_id, "index": index, "start": chunk.start, "end": chunk.end, "vector": json.dumps(chunk.embedding)}
+                {"id": index_id, "index": index, "start": chunk.start, "end": chunk.end, "vector": json.dumps(chunk.embedding)}
                 for index, chunk in enumerate(chunks)
             ],
         )
@@ -51,11 +51,11 @@ def search_chunk_vectors(vector: list[float], allowed_ids: list[str], limit: int
     if not allowed_ids:
         return []
     query = text("""WITH ranked AS (
-        SELECT work_id, chunk_index, embedding <=> CAST(:vector AS vector) AS distance,
-        row_number() OVER (PARTITION BY work_id ORDER BY embedding <=> CAST(:vector AS vector), chunk_index) AS item_rank
-        FROM hrag_chunk_vector WHERE work_id = ANY(:ids)
-    ) SELECT work_id, chunk_index FROM ranked WHERE item_rank <= :per_item
-    ORDER BY distance, work_id, chunk_index LIMIT :limit""").bindparams(bindparam("ids", type_=ARRAY(String())))
+        SELECT index_id, chunk_index, embedding <=> CAST(:vector AS vector) AS distance,
+        row_number() OVER (PARTITION BY index_id ORDER BY embedding <=> CAST(:vector AS vector), chunk_index) AS item_rank
+        FROM news_item_chunk_embedding WHERE index_id = ANY(:ids)
+    ) SELECT index_id, chunk_index FROM ranked WHERE item_rank <= :per_item
+    ORDER BY distance, index_id, chunk_index LIMIT :limit""").bindparams(bindparam("ids", type_=ARRAY(String())))
     return [
         (row[0], row[1])
         for row in db.session.execute(query, {"ids": allowed_ids, "vector": json.dumps(vector), "limit": limit, "per_item": per_item})
@@ -74,8 +74,8 @@ def graph_driver():
         yield driver
 
 
-def project_graph(work_id: str, fingerprint: str, news_item_id: str, generation: str, result: ExtractionResult):
-    key = f"{work_id}:{fingerprint}"
+def project_graph(index_id: str, fingerprint: str, news_item_id: str, generation: str, result: ExtractionResult):
+    key = f"{index_id}:{fingerprint}"
     entities = {entity.id: entity for entity in result.entities}
     identities = {eid: entity_identity(entity, news_item_id, generation + fingerprint) for eid, entity in entities.items()}
     mentions = [{"id": identities[e.id], "name": e.name.casefold(), "type": e.type} for e in result.entities]
@@ -96,26 +96,26 @@ def project_graph(work_id: str, fingerprint: str, news_item_id: str, generation:
 
         def write(tx):
             # Lock this projection before replacing assertions; duplicate callbacks serialize.
-            tx.run("MERGE (d:HDocument {key: $key}) SET d.work_id = $id, d.lock = true", key=key, id=work_id).consume()
+            tx.run("MERGE (d:HDocument {key: $key}) SET d.index_id = $id, d.lock = true", key=key, id=index_id).consume()
             tx.run("MATCH ()-[r:H_ASSERTION {key: $key}]->() DELETE r", key=key).consume()
             tx.run("MATCH (d:HDocument {key: $key})-[r:H_MENTIONS]->() DELETE r", key=key).consume()
             tx.run(
-                """MERGE (d:HDocument {key: $key}) SET d.work_id = $id
+                """MERGE (d:HDocument {key: $key}) SET d.index_id = $id
                 WITH d UNWIND $mentions AS mention
                 MERGE (n:HEntity {id: mention.id}) SET n.name = mention.name, n.entity_type = mention.type
                 MERGE (d)-[:H_MENTIONS]->(n)""",
                 key=key,
-                id=work_id,
+                id=index_id,
                 mentions=mentions,
             ).consume()
             tx.run(
                 """UNWIND $relations AS relation
                 MATCH (s:HEntity {id: relation.source}), (t:HEntity {id: relation.target})
                 CREATE (s)-[r:H_ASSERTION]->(t)
-                SET r.key = $key, r.work_id = $id, r.kind = relation.type,
+                SET r.key = $key, r.index_id = $id, r.kind = relation.type,
                     r.assertion = relation.assertion, r.idx = relation.index, r.date = relation.date""",
                 key=key,
-                id=work_id,
+                id=index_id,
                 relations=relations,
             ).consume()
 
@@ -129,7 +129,7 @@ def compile_graph(plan: GraphPlan) -> LiteralString:
             WHERE d.key IN $allowed
               AND (size($names) = 0 OR any(name IN $names WHERE n.name CONTAINS name))
               AND (size($types) = 0 OR n.entity_type IN $types)
-            RETURN DISTINCT [{key: d.key, work_id: d.work_id, idx: null}] AS evidence
+            RETURN DISTINCT [{key: d.key, index_id: d.index_id, idx: null}] AS evidence
             ORDER BY evidence[0].key LIMIT $limit"""
     return """MATCH p=(n:HEntity)-[:H_ASSERTION*1..3]-(m:HEntity)
         WHERE length(p) <= $hops AND all(r IN relationships(p) WHERE r.key IN $allowed
@@ -137,7 +137,7 @@ def compile_graph(plan: GraphPlan) -> LiteralString:
             AND (length(p) = 1 OR (r.assertion = 'affirmed' AND r.kind <> 'ALIAS_OF')))
           AND (size($names) = 0 OR any(name IN $names WHERE n.name CONTAINS name))
           AND (size($types) = 0 OR n.entity_type IN $types)
-        RETURN DISTINCT [r IN relationships(p) | {key: r.key, work_id: r.work_id, idx: r.idx}] AS evidence
+        RETURN DISTINCT [r IN relationships(p) | {key: r.key, index_id: r.index_id, idx: r.idx}] AS evidence
         ORDER BY size(evidence), evidence[0].key LIMIT $limit"""
 
 

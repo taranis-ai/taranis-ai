@@ -1,4 +1,4 @@
-"""PostgreSQL owns work, leases, generation activation and stale-result checks."""
+"""PostgreSQL owns index records, leases, generation activation and stale-result checks."""
 
 import hashlib
 import json
@@ -18,7 +18,7 @@ from models.hrag import (
 from core.config import Config
 from core.log import logger
 from core.managers.db_manager import db
-from core.model.hrag import HragGeneration, HragWork
+from core.model.hrag import HragGeneration, HragIndex
 from core.model.news_item import NewsItem
 from core.model.settings import Settings
 from core.service.hrag.stores import graph_document_keys, project_graph, prune_graph, save_chunks
@@ -145,64 +145,66 @@ def reconcile() -> dict:
         items = list(db.session.scalars(db.select(NewsItem).where(NewsItem.id > generation.cursor).order_by(NewsItem.id).limit(500)))
         for item in items:
             expected = fingerprint(item, generation)
-            work = db.session.scalar(db.select(HragWork).where(HragWork.news_item_id == item.id, HragWork.generation_id == generation.id))
-            if work is None:
-                work = HragWork.from_dict(
+            index_record = db.session.scalar(
+                db.select(HragIndex).where(HragIndex.news_item_id == item.id, HragIndex.generation_id == generation.id)
+            )
+            if index_record is None:
+                index_record = HragIndex.from_dict(
                     {"news_item_id": item.id, "generation_id": generation.id, "fingerprint": expected, "status": "pending"}
                 )
-                db.session.add(work)
-            elif work.fingerprint != expected:
-                work.fingerprint, work.status, work.result, work.token = expected, "pending", None, None
-                work.attempts, work.retry_after, work.lease_until = 0, None, None
-            work.truncated = len(item.content or "") > generation.config["limit"]
+                db.session.add(index_record)
+            elif index_record.fingerprint != expected:
+                index_record.fingerprint, index_record.status, index_record.result, index_record.token = expected, "pending", None, None
+                index_record.attempts, index_record.retry_after, index_record.lease_until = 0, None, None
+            index_record.truncated = len(item.content or "") > generation.config["limit"]
         generation.cursor = items[-1].id if len(items) == 500 else ""
         generation.scanned = generation.scanned or len(items) < 500
     if projected_keys is not None:
-        for work in db.session.scalars(
-            db.select(HragWork)
+        for index_record in db.session.scalars(
+            db.select(HragIndex)
             .join(HragGeneration)
-            .where(HragGeneration.pipeline == "extraction", HragWork.status == "ready", HragWork.result.is_not(None))
+            .where(HragGeneration.pipeline == "extraction", HragIndex.status == "ready", HragIndex.result.is_not(None))
         ):
-            if work.graph_key not in projected_keys:
-                work.status, work.token, work.lease_until = "pending", None, None
-    now = HragWork.utcnow()
-    # Reissue lost Redis work only after its PostgreSQL lease expires.
+            if index_record.graph_key not in projected_keys:
+                index_record.status, index_record.token, index_record.lease_until = "pending", None, None
+    now = HragIndex.utcnow()
+    # Reissue lost Redis indexing jobs only after its PostgreSQL lease expires.
     job_ids = []
     for pipeline in PIPELINES:
         eligible = db.session.scalars(
-            db.select(HragWork)
+            db.select(HragIndex)
             .where(
-                HragWork.generation_id.in_([g.id for g in generations if g.pipeline == pipeline]),
-                HragWork.status != "ready",
-                db.or_(HragWork.lease_until.is_(None), HragWork.lease_until < now),
-                db.or_(HragWork.retry_after.is_(None), HragWork.retry_after <= now),
+                HragIndex.generation_id.in_([g.id for g in generations if g.pipeline == pipeline]),
+                HragIndex.status != "ready",
+                db.or_(HragIndex.lease_until.is_(None), HragIndex.lease_until < now),
+                db.or_(HragIndex.retry_after.is_(None), HragIndex.retry_after <= now),
             )
-            .order_by(HragWork.updated, HragWork.id)
+            .order_by(HragIndex.updated, HragIndex.id)
             .limit(50)
         )
-        for work in eligible:
-            work.status = "queued"
-            work.token = None
-            work.lease_until = now + timedelta(minutes=15)
-            job_ids.append(("embeddings" if pipeline == "embedding" else "hrag", work.id))
+        for index_record in eligible:
+            index_record.status = "queued"
+            index_record.token = None
+            index_record.lease_until = now + timedelta(minutes=15)
+            job_ids.append(("embeddings" if pipeline == "embedding" else "hrag", index_record.id))
     db.session.commit()
     from core.managers.queue_manager import queue_manager
 
     queued = 0
-    for queue, work_id in job_ids:
-        if queue_manager.enqueue_task(queue, "hrag_index", work_id=work_id, job_timeout=720, result_ttl=0):
+    for queue, index_id in job_ids:
+        if queue_manager.enqueue_task(queue, "hrag_index", index_id=index_id, job_timeout=720, result_ttl=0):
             queued += 1
         else:
-            work = db.session.get(HragWork, work_id)
-            if work and work.status == "queued":
-                work.lease_until = None
+            index_record = db.session.get(HragIndex, index_id)
+            if index_record and index_record.status == "queued":
+                index_record.lease_until = None
                 db.session.commit()
     # Pruning is best effort. Authorization never depends on projection cleanup.
     try:
         keys = [
-            work.graph_key
-            for work in db.session.scalars(
-                db.select(HragWork).join(HragGeneration).where(HragGeneration.pipeline == "extraction", HragWork.result.is_not(None))
+            index_record.graph_key
+            for index_record in db.session.scalars(
+                db.select(HragIndex).join(HragGeneration).where(HragGeneration.pipeline == "extraction", HragIndex.result.is_not(None))
             )
         ]
         db.session.rollback()
@@ -212,44 +214,44 @@ def reconcile() -> dict:
     return {"queued": queued}
 
 
-def claim(work_id: str) -> dict | None:
+def claim(index_id: str) -> dict | None:
     if not Config.HRAG_ENABLED:
         return None
-    work = db.session.scalar(db.select(HragWork).where(HragWork.id == work_id).with_for_update())
-    if work is None or work.status == "ready":
+    index_record = db.session.scalar(db.select(HragIndex).where(HragIndex.id == index_id).with_for_update())
+    if index_record is None or index_record.status == "ready":
         return None
-    if work.status == "running" and work.lease_until and work.lease_until > HragWork.utcnow():
+    if index_record.status == "running" and index_record.lease_until and index_record.lease_until > HragIndex.utcnow():
         return None
-    generation = db.session.get(HragGeneration, work.generation_id)
-    item = db.session.get(NewsItem, work.news_item_id)
+    generation = db.session.get(HragGeneration, index_record.generation_id)
+    item = db.session.get(NewsItem, index_record.news_item_id)
     if not generation or not item or not (endpoint := generation_endpoint(generation)):
         return None
     verification_endpoint = generation_verification_endpoint(generation) if generation.pipeline == "extraction" else None
     if generation.pipeline == "extraction" and generation.config["verification"] is not None and verification_endpoint is None:
         return None
     expected = fingerprint(item, generation)
-    if expected != work.fingerprint:
-        work.fingerprint, work.result, work.attempts = expected, None, 0
+    if expected != index_record.fingerprint:
+        index_record.fingerprint, index_record.result, index_record.attempts = expected, None, 0
     content = bounded_content(item.content, generation.config["limit"])
-    work.truncated = len(item.content or "") > generation.config["limit"]
+    index_record.truncated = len(item.content or "") > generation.config["limit"]
     if not content.strip():
-        work.status, work.result, work.lease_until = "ready", None, None
+        index_record.status, index_record.result, index_record.lease_until = "ready", None, None
         db.session.commit()
         return None
-    work.status, work.token = "running", HragWork.uuid7_str()
-    work.lease_until = HragWork.utcnow() + timedelta(minutes=15)
-    work.attempts += 1
+    index_record.status, index_record.token = "running", HragIndex.uuid7_str()
+    index_record.lease_until = HragIndex.utcnow() + timedelta(minutes=15)
+    index_record.attempts += 1
     payload = {
-        "id": work.id,
-        "token": work.token,
-        "fingerprint": work.fingerprint,
+        "id": index_record.id,
+        "token": index_record.token,
+        "fingerprint": index_record.fingerprint,
         "pipeline": generation.pipeline,
         "content": content,
         "endpoint": endpoint,
         "verification_endpoint": verification_endpoint,
         "reasoning_effort": generation.config.get("reasoning_effort"),
         "dimensions": generation.config["dimensions"],
-        "cached_result": work.result,
+        "cached_result": index_record.result,
         "chunks": [chunk.model_dump() for chunk in split_content(content, **generation.config["chunking"])]
         if generation.pipeline == "embedding"
         else [],
@@ -258,23 +260,23 @@ def claim(work_id: str) -> dict | None:
     return payload
 
 
-def submit(work_id: str, submission: IndexSubmission) -> tuple[dict, int]:
-    work = db.session.scalar(db.select(HragWork).where(HragWork.id == work_id).with_for_update())
-    if not Config.HRAG_ENABLED or work is None:
-        return {"error": "HRAG work unavailable"}, 404
-    if work.token != submission.token or work.fingerprint != submission.fingerprint:
+def submit(index_id: str, submission: IndexSubmission) -> tuple[dict, int]:
+    index_record = db.session.scalar(db.select(HragIndex).where(HragIndex.id == index_id).with_for_update())
+    if not Config.HRAG_ENABLED or index_record is None:
+        return {"error": "HRAG index unavailable"}, 404
+    if index_record.token != submission.token or index_record.fingerprint != submission.fingerprint:
         return {"error": "Stale HRAG result"}, 409
-    generation = db.session.get(HragGeneration, work.generation_id)
-    item = db.session.scalar(db.select(NewsItem).where(NewsItem.id == work.news_item_id).with_for_update())
-    if item is None or generation is None or fingerprint(item, generation) != work.fingerprint:
+    generation = db.session.get(HragGeneration, index_record.generation_id)
+    item = db.session.scalar(db.select(NewsItem).where(NewsItem.id == index_record.news_item_id).with_for_update())
+    if item is None or generation is None or fingerprint(item, generation) != index_record.fingerprint:
         return {"error": "Stale HRAG result"}, 409
-    if work.status == "ready":
+    if index_record.status == "ready":
         return {"message": "HRAG result already accepted"}, 200
     if submission.failed:
-        work.status = "pending"
-        work.retry_after = HragWork.utcnow() + timedelta(seconds=min(3600, 30 * 2 ** min(work.attempts, 7)))
-        work.lease_until = None
-        work.updated = HragWork.utcnow()
+        index_record.status = "pending"
+        index_record.retry_after = HragIndex.utcnow() + timedelta(seconds=min(3600, 30 * 2 ** min(index_record.attempts, 7)))
+        index_record.lease_until = None
+        index_record.updated = HragIndex.utcnow()
         db.session.commit()
         return {"message": "HRAG retry scheduled"}, 200
     content = bounded_content(item.content, generation.config["limit"])
@@ -285,10 +287,10 @@ def submit(work_id: str, submission: IndexSubmission) -> tuple[dict, int]:
             result = submission.extraction.validate_content(content)
         except ValueError:
             return {"error": "Invalid evidence passages"}, 400
-        work.result = result.model_dump()
+        index_record.result = result.model_dump()
         # Freeze identifiers before commit expires ORM state; a concurrent edit
         # must never label an old result with a newly assigned fingerprint.
-        projection = (work.id, work.fingerprint, item.id, generation.id)
+        projection = (index_record.id, index_record.fingerprint, item.id, generation.id)
         db.session.commit()
         project_graph(*projection, result)
     else:
@@ -302,21 +304,21 @@ def submit(work_id: str, submission: IndexSubmission) -> tuple[dict, int]:
             return {"error": "Invalid chunk offsets"}, 400
         if any(len(chunk.embedding) != generation.config["dimensions"] for chunk in chunks):
             return {"error": "Unexpected embedding dimensions"}, 400
-        save_chunks(work.id, chunks)
-        work.result = None
+        save_chunks(index_record.id, chunks)
+        index_record.result = None
     # Content can change while Neo4j is updated. Never reactivate a stale submission.
     db.session.flush()
     db.session.expire_all()
-    work = db.session.scalar(db.select(HragWork).where(HragWork.id == work_id).with_for_update())
-    if work is None or work.token != submission.token or work.fingerprint != submission.fingerprint:
+    index_record = db.session.scalar(db.select(HragIndex).where(HragIndex.id == index_id).with_for_update())
+    if index_record is None or index_record.token != submission.token or index_record.fingerprint != submission.fingerprint:
         db.session.rollback()
         return {"error": "Stale HRAG result"}, 409
-    item = db.session.get(NewsItem, work.news_item_id)
-    if item is None or fingerprint(item, generation) != work.fingerprint:
+    item = db.session.get(NewsItem, index_record.news_item_id)
+    if item is None or fingerprint(item, generation) != index_record.fingerprint:
         db.session.rollback()
         return {"error": "Stale HRAG result"}, 409
-    work.status, work.lease_until, work.retry_after = "ready", None, None
-    work.updated = HragWork.utcnow()
+    index_record.status, index_record.lease_until, index_record.retry_after = "ready", None, None
+    index_record.updated = HragIndex.utcnow()
     db.session.commit()
     return {"message": "HRAG result accepted"}, 200
 
@@ -325,10 +327,10 @@ def index_status(news_item_ids: list[str] | None = None) -> dict:
     generations = []
     for generation in db.session.scalars(db.select(HragGeneration).order_by(HragGeneration.created)):
         chunking = generation.config["chunking"] if generation.pipeline == "embedding" else None
-        query = db.select(HragWork.status, db.func.count()).where(HragWork.generation_id == generation.id)
+        query = db.select(HragIndex.status, db.func.count()).where(HragIndex.generation_id == generation.id)
         if news_item_ids:
-            query = query.where(HragWork.news_item_id.in_(news_item_ids))
-        counts = dict(db.session.execute(query.group_by(HragWork.status)).all())
+            query = query.where(HragIndex.news_item_id.in_(news_item_ids))
+        counts = dict(db.session.execute(query.group_by(HragIndex.status)).all())
         generations.append(
             {
                 "id": generation.id,
@@ -362,8 +364,10 @@ def activate(generation_id: str) -> tuple[dict, int]:
     if not generation or not generation.scanned:
         return {"error": "Generation backfill is incomplete"}, 409
     for item in db.session.scalars(db.select(NewsItem)):
-        work = db.session.scalar(db.select(HragWork).where(HragWork.news_item_id == item.id, HragWork.generation_id == generation.id))
-        if not work or work.status != "ready" or work.fingerprint != fingerprint(item, generation):
+        index_record = db.session.scalar(
+            db.select(HragIndex).where(HragIndex.news_item_id == item.id, HragIndex.generation_id == generation.id)
+        )
+        if not index_record or index_record.status != "ready" or index_record.fingerprint != fingerprint(item, generation):
             return {"error": "Generation backfill is incomplete"}, 409
     db.session.execute(db.update(HragGeneration).where(HragGeneration.pipeline == generation.pipeline).values(active=False))
     generation.active = True
@@ -377,8 +381,8 @@ def reprocess(generation_id: str) -> tuple[dict, int]:
         return {"error": "Generation not found"}, 404
     generation.cursor, generation.scanned = "", False
     db.session.execute(
-        db.update(HragWork)
-        .where(HragWork.generation_id == generation_id)
+        db.update(HragIndex)
+        .where(HragIndex.generation_id == generation_id)
         .values(status="pending", token=None, result=None, lease_until=None, retry_after=None, attempts=0)
     )
     db.session.commit()

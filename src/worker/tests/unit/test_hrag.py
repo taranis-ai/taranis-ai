@@ -8,10 +8,10 @@ from worker.hrag import index_item
 
 
 def test_worker_claim_extraction_and_cached_retry(requests_mock, monkeypatch):
-    route = f"{Config.TARANIS_CORE_URL}/worker/hrag/work/test-work"
+    route = f"{Config.TARANIS_CORE_URL}/worker/hrag/index/test-index"
     content = "Acme did not attack Beta."
     job = {
-        "id": "test-work",
+        "id": "test-index",
         "token": "lease",
         "fingerprint": "a" * 64,
         "pipeline": "extraction",
@@ -41,7 +41,7 @@ def test_worker_claim_extraction_and_cached_retry(requests_mock, monkeypatch):
         }
     )
     monkeypatch.setattr("llm_bot.decisions_client.DecisionsClient.create_decision", verification)
-    index_item("test-work")
+    index_item("test-index")
     stored = submitted.last_request.json()["extraction"]
     assert stored["entities"][0]["evidence"] == {"start": 0, "end": 4, "quote": "Acme"}
     assert stored["relations"][0]["evidence"] == {"start": 0, "end": len(content), "quote": content}
@@ -52,7 +52,7 @@ def test_worker_claim_extraction_and_cached_retry(requests_mock, monkeypatch):
     assert inference.await_count == 2
     assert content in inference.call_args_list[0].args[1]
     requests_mock.post(route, json={**job, "cached_result": stored})
-    index_item("test-work")
+    index_item("test-index")
     assert inference.await_count == 2
     requests_mock.post(
         route,
@@ -65,14 +65,14 @@ def test_worker_claim_extraction_and_cached_retry(requests_mock, monkeypatch):
         },
     )
     embedding = requests_mock.post("https://provider.invalid/v1/embeddings", json={"data": [{"embedding": [1, 0, 0]}]})
-    index_item("test-work")
+    index_item("test-index")
     assert embedding.last_request.json() == {"input": [content], "encoding_format": "float"}
     assert submitted.last_request.json()["chunks"] == [{"start": 0, "end": len(content), "embedding": [1, 0, 0]}]
     for vector in ([1, 0], [float("nan"), 1, 0]):
         requests_mock.post("https://provider.invalid/v1/embeddings", json={"data": [{"embedding": vector}]})
         message = "^Embedding output dimensions do not match" if len(vector) == 2 else "^HRAG indexing failed; retry scheduled$"
         with pytest.raises(RuntimeError, match=message):
-            index_item("test-work")
+            index_item("test-index")
         assert submitted.last_request.json()["failed"] is True
         assert "NaN" not in submitted.last_request.text
     requests_mock.post(
@@ -88,7 +88,7 @@ def test_worker_claim_extraction_and_cached_retry(requests_mock, monkeypatch):
     embedding = requests_mock.post(
         "https://provider.invalid/v1/embeddings", json={"data": [{"index": 1, "embedding": [0, 1, 0]}, {"index": 0, "embedding": [1, 0, 0]}]}
     )
-    index_item("test-work")
+    index_item("test-index")
     assert embedding.last_request.json()["input"] == ["Acme", "did not attack Beta."]
     assert submitted.last_request.json()["chunks"] == [
         {"start": 0, "end": 4, "embedding": [1, 0, 0]},
@@ -99,13 +99,13 @@ def test_worker_claim_extraction_and_cached_retry(requests_mock, monkeypatch):
     inference.return_value = {"output_text": json.dumps(compact)}
     verification.side_effect = RuntimeError("private verification failure")
     with pytest.raises(RuntimeError, match="^HRAG indexing failed; retry scheduled$"):
-        index_item("test-work")
+        index_item("test-index")
     assert submitted.last_request.json()["failed"] is True
     assert submitted.last_request.json()["extraction"] is None
 
     requests_mock.post(route, json={**job, "verification_endpoint": None})
     verified_calls = verification.await_count
-    index_item("test-work")
+    index_item("test-index")
     unverified = submitted.last_request.json()["extraction"]
     assert len(unverified["relations"]) == 2
     assert all(relation["assertion"] == "affirmed" for relation in unverified["relations"])

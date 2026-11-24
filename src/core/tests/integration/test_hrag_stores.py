@@ -29,15 +29,15 @@ def hrag_stores(monkeypatch):
     with app.app_context():
         with db.engine.begin() as conn:
             conn.execute(text(f'CREATE SCHEMA "{schema}"'))
-            conn.execute(text("CREATE TABLE hrag_work (id varchar(36) PRIMARY KEY)"))
+            conn.execute(text("CREATE TABLE hrag_index (id varchar(36) PRIMARY KEY)"))
         stores.initialize_vectors(db.engine)
         yield schema
         db.session.remove()
         with db.engine.begin() as conn:
             conn.execute(text(f'DROP SCHEMA "{schema}" CASCADE'))
         with stores.graph_driver() as driver:
-            driver.execute_query("MATCH (d:HDocument) WHERE d.work_id STARTS WITH $prefix DETACH DELETE d", prefix=schema)
-            driver.execute_query("MATCH ()-[r:H_ASSERTION]->() WHERE r.work_id STARTS WITH $prefix DELETE r", prefix=schema)
+            driver.execute_query("MATCH (d:HDocument) WHERE d.index_id STARTS WITH $prefix DETACH DELETE d", prefix=schema)
+            driver.execute_query("MATCH ()-[r:H_ASSERTION]->() WHERE r.index_id STARTS WITH $prefix DELETE r", prefix=schema)
             driver.execute_query("MATCH (n:HEntity) WHERE NOT (n)--() DELETE n")
         db.engine.dispose()
 
@@ -45,11 +45,11 @@ def hrag_stores(monkeypatch):
 def test_authorized_paths_vector_ranking_projection_retry_and_deletion(hrag_stores):
     prefix = hrag_stores
     ids = [str(uuid.uuid4()) for _ in range(3)]
-    for work_id in ids:
-        db.session.execute(text("INSERT INTO hrag_work (id) VALUES (:id)"), {"id": work_id})
-    for work_id in (ids[0], ids[2]):
+    for index_id in ids:
+        db.session.execute(text("INSERT INTO hrag_index (id) VALUES (:id)"), {"id": index_id})
+    for index_id in (ids[0], ids[2]):
         stores.save_chunks(
-            work_id, [ChunkEmbedding(start=0, end=10, embedding=[1, 0, 0]), ChunkEmbedding(start=8, end=20, embedding=[0.9, 0.1, 0])]
+            index_id, [ChunkEmbedding(start=0, end=10, embedding=[1, 0, 0]), ChunkEmbedding(start=8, end=20, embedding=[0.9, 0.1, 0])]
         )
     db.session.commit()
     assert stores.search_chunk_vectors([1, 0, 0], [ids[2]], 3, 1) == [(ids[2], 0)]
@@ -57,7 +57,7 @@ def test_authorized_paths_vector_ranking_projection_retry_and_deletion(hrag_stor
     stores.save_chunks(ids[2], [ChunkEmbedding(start=0, end=20, embedding=[0, 1, 0])])
     db.session.commit()
     assert stores.search_chunk_vectors([1, 0, 0], [ids[2]], 3, 2) == [(ids[2], 0)]
-    db.session.execute(text("DELETE FROM hrag_work WHERE id = :id"), {"id": ids[2]})
+    db.session.execute(text("DELETE FROM hrag_index WHERE id = :id"), {"id": ids[2]})
     db.session.commit()
     assert stores.search_chunk_vectors([1, 0, 0], [ids[2]], 3, 2) == []
 
@@ -87,10 +87,10 @@ def test_authorized_paths_vector_ranking_projection_retry_and_deletion(hrag_stor
                 ],
             }
         ).validate_content(content)
-        work_id = f"{prefix}-{index}"
-        stores.project_graph(work_id, "current", str(index), prefix, result)
-        stores.project_graph(work_id, "current", str(index), prefix, result)  # Idempotent replay.
-        keys.append(f"{work_id}:current")
+        index_id = f"{prefix}-{index}"
+        stores.project_graph(index_id, "current", str(index), prefix, result)
+        stores.project_graph(index_id, "current", str(index), prefix, result)  # Idempotent replay.
+        keys.append(f"{index_id}:current")
     plan = GraphPlan(names=["Alpha"], hops=3)
     full = stores.graph_search(plan, keys, 50)
     assert any(len(path) == 2 for path in full)

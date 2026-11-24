@@ -24,7 +24,7 @@ from sqlalchemy.orm import defer
 from core.config import Config
 from core.log import logger
 from core.managers.db_manager import db
-from core.model.hrag import HragGeneration, HragWork
+from core.model.hrag import HragGeneration, HragIndex
 from core.model.news_item import NewsItem
 from core.model.settings import Settings
 from core.model.story import Story
@@ -79,43 +79,48 @@ def run_inference(coroutine, deadline: float):
     return asyncio.run(bounded())
 
 
-def iter_authorized_work(user: User, pipeline: str | None = None, filters: dict | None = None, ids: list[str] | None = None):
+def iter_authorized_indexes(user: User, pipeline: str | None = None, filters: dict | None = None, ids: list[str] | None = None):
     """Apply ACL, story/item TLP and live content checks before ranking or limits."""
     story_query = Story.visible_query(user, Story.get_filter_query({**(filters or {}), "_user": user})).with_only_columns(Story.id)
     query = (
-        select(HragWork, HragGeneration, NewsItem)
-        .join(HragGeneration, HragGeneration.id == HragWork.generation_id)
-        .join(NewsItem, NewsItem.id == HragWork.news_item_id)
-        .where(HragGeneration.active, HragWork.status == "ready", NewsItem.story_id.in_(story_query))
+        select(HragIndex, HragGeneration, NewsItem)
+        .join(HragGeneration, HragGeneration.id == HragIndex.generation_id)
+        .join(NewsItem, NewsItem.id == HragIndex.news_item_id)
+        .where(HragGeneration.active, HragIndex.status == "ready", NewsItem.story_id.in_(story_query))
     )
     if pipeline:
         query = query.where(HragGeneration.pipeline == pipeline)
     if ids is not None:
-        query = query.where(HragWork.id.in_(ids))
+        query = query.where(HragIndex.id.in_(ids))
     accessible_tlps = user.get_highest_tlp().get_accessible_levels()
-    query = query.options(defer(HragWork.result)).execution_options(yield_per=200)
-    for work, generation, item in db.session.execute(query):
+    query = query.options(defer(HragIndex.result)).execution_options(yield_per=200)
+    for index_record, generation, item in db.session.execute(query):
         if (
             item.tlp_level.value in accessible_tlps
             and item.allowed_with_acl(user, require_write_access=False)
             and item.story
             and item.story.tlp_level.value in accessible_tlps
             and bool(bounded_content(item.content, generation.config["limit"]).strip())
-            and work.fingerprint == fingerprint(item, generation)
+            and index_record.fingerprint == fingerprint(item, generation)
         ):
-            yield work, generation, item
+            yield index_record, generation, item
 
 
-def authorized_work(user: User, pipeline: str | None = None, filters: dict | None = None, ids: list[str] | None = None) -> dict[str, tuple]:
-    return {work.id: (work, generation, item) for work, generation, item in iter_authorized_work(user, pipeline, filters, ids)}
+def authorized_indexes(
+    user: User, pipeline: str | None = None, filters: dict | None = None, ids: list[str] | None = None
+) -> dict[str, tuple]:
+    return {
+        index_record.id: (index_record, generation, item)
+        for index_record, generation, item in iter_authorized_indexes(user, pipeline, filters, ids)
+    }
 
 
 def evidence_from_reference(reference: EvidenceReference, authorized: dict[str, tuple]) -> RetrievalEvidence | None:
-    record = authorized.get(reference.work_id)
+    record = authorized.get(reference.index_id)
     if not record:
         return None
-    work, generation, item = record
-    if reference.fingerprint != work.fingerprint:
+    index_record, generation, item = record
+    if reference.fingerprint != index_record.fingerprint:
         return None
     for key in reference.support_ids:
         support_id, _, expected = key.partition(":")
@@ -134,7 +139,7 @@ def evidence_from_reference(reference: EvidenceReference, authorized: dict[str, 
         span = chunks[reference.chunk_index]
         quote = content[span.start : span.end]
     if branch == "graph":
-        result = ExtractionResult.model_validate(work.result).validate_content(content)
+        result = ExtractionResult.model_validate(index_record.result).validate_content(content)
         if reference.relation_index is not None:
             if reference.relation_index >= len(result.relations):
                 return None
@@ -167,9 +172,10 @@ def reauthorize(references: list[EvidenceReference], user_id: str, filters: dict
     if not user or "ASSESS_ACCESS" not in user.get_permissions():
         return []
     ids = list(
-        {reference.work_id for reference in references} | {key.partition(":")[0] for reference in references for key in reference.support_ids}
+        {reference.index_id for reference in references}
+        | {key.partition(":")[0] for reference in references for key in reference.support_ids}
     )
-    authorized = authorized_work(user, filters=filters, ids=ids)
+    authorized = authorized_indexes(user, filters=filters, ids=ids)
     result = [evidence for reference in references if (evidence := evidence_from_reference(reference, authorized))]
     db.session.rollback()
     return result
@@ -203,7 +209,7 @@ def retrieve(context: dict, user_id: str, settings: dict, deadline: float, strea
             raise ValueError("User unavailable")
         if not db.session.scalar(db.select(HragGeneration.id).where(HragGeneration.active, HragGeneration.pipeline == "extraction")):
             raise ValueError("Graph generation unavailable")
-        keys = [work.graph_key for work, _, _ in iter_authorized_work(user, "extraction", result.filters)]
+        keys = [index_record.graph_key for index_record, _, _ in iter_authorized_indexes(user, "extraction", result.filters)]
         db.session.rollback()
         paths = graph_search(plan, keys, min(50, max(1, Config.HRAG_GRAPH_LIMIT)), max(0.001, min(30, deadline - time.monotonic())))
         references = []
@@ -219,7 +225,7 @@ def retrieve(context: dict, user_id: str, settings: dict, deadline: float, strea
                 additions.append(
                     EvidenceReference(
                         citation=f"G{len(references) + len(additions) + 1}",
-                        work_id=row["work_id"],
+                        index_id=row["index_id"],
                         fingerprint=row["key"].partition(":")[2],
                         support_ids=supports,
                         relation_index=row["idx"],
@@ -253,15 +259,16 @@ def retrieve(context: dict, user_id: str, settings: dict, deadline: float, strea
         if user is None:
             raise ValueError("User unavailable")
         authorized = {
-            work.id: (work.fingerprint, generation.id) for work, generation, _ in iter_authorized_work(user, "embedding", result.filters)
+            index_record.id: (index_record.fingerprint, generation.id)
+            for index_record, generation, _ in iter_authorized_indexes(user, "embedding", result.filters)
         }
         if any(generation_id != embedding_generation_id for _, generation_id in authorized.values()):
             raise ValueError("Embedding generation changed during retrieval")
         limit = settings["hrag_vector_limit"]
         matches = search_chunk_vectors(vector.embedding, list(authorized), limit, settings["hrag_chunks_per_item"])
         references = [
-            EvidenceReference(citation=f"V{index + 1}", work_id=work_id, fingerprint=authorized[work_id][0], chunk_index=chunk_index)
-            for index, (work_id, chunk_index) in enumerate(matches)
+            EvidenceReference(citation=f"V{index + 1}", index_id=index_id, fingerprint=authorized[index_id][0], chunk_index=chunk_index)
+            for index, (index_id, chunk_index) in enumerate(matches)
         ]
         result.evidence.extend(reauthorize(references, user_id, result.filters))
         vector_ok = True

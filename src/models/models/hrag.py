@@ -395,7 +395,7 @@ class IndexJob(HragContract):
 
 class EvidenceReference(HragContract):
     citation: str
-    work_id: str
+    index_id: str
     fingerprint: str
     # Each graph path is authorized as a whole, including intermediate assertions.
     support_ids: list[str] = Field(default_factory=list, max_length=4)

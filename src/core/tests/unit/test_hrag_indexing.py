@@ -6,7 +6,7 @@ from models.hrag import ChunkEmbedding, EvidenceReference, ExtractionResult, Ind
 
 from core.config import Config
 from core.managers.db_manager import db
-from core.model.hrag import HragGeneration, HragWork
+from core.model.hrag import HragGeneration, HragIndex
 from core.model.settings import Settings
 from core.service.hrag import indexing
 from core.service.hrag.retrieval import evidence_from_reference
@@ -48,7 +48,7 @@ def configured_index(db_persistent_session, monkeypatch):
     monkeypatch.setattr("core.managers.queue_manager.queue_manager.enqueue_task", Mock(return_value=True))
     monkeypatch.setattr(indexing, "prune_graph", Mock())
     monkeypatch.setattr(indexing, "project_graph", Mock())
-    monkeypatch.setattr(indexing, "graph_document_keys", lambda: {w.graph_key for w in db.session.scalars(db.select(HragWork))})
+    monkeypatch.setattr(indexing, "graph_document_keys", lambda: {w.graph_key for w in db.session.scalars(db.select(HragIndex))})
     yield settings
     db.session.rollback()
     db.session.execute(db.delete(HragGeneration))
@@ -63,15 +63,15 @@ def test_durable_index_lifecycle_cutoffs_retries_and_generations(configured_inde
         from core.managers.queue_manager import queue_manager
 
         assert {call.args[0] for call in queue_manager.enqueue_task.call_args_list} == {"embeddings", "hrag"}
-        works = {
+        indexes = {
             db.session.get(HragGeneration, w.generation_id).pipeline: w
-            for w in db.session.scalars(db.select(HragWork).where(HragWork.news_item_id == item.id))
+            for w in db.session.scalars(db.select(HragIndex).where(HragIndex.news_item_id == item.id))
         }
-        extraction, embedding = works["extraction"], works["embedding"]
+        extraction, embedding = indexes["extraction"], indexes["embedding"]
         assert db.session.get(HragGeneration, extraction.generation_id).config["schema"] == "v5"
         assert db.session.get(HragGeneration, embedding.generation_id).config["schema"] == "v2"
         assert db.session.get(HragGeneration, embedding.generation_id).config["limit"] == 10000
-        original = {kind: work.fingerprint for kind, work in works.items()}
+        original = {kind: index_record.fingerprint for kind, index_record in indexes.items()}
         job = indexing.claim(extraction.id)
         assert job and indexing.claim(extraction.id) is None
         assert job["reasoning_effort"] == "low"
@@ -83,7 +83,7 @@ def test_durable_index_lifecycle_cutoffs_retries_and_generations(configured_inde
         item.content += "Outside both cutoffs"
         db.session.commit()
         indexing.reconcile()
-        assert {kind: work.fingerprint for kind, work in works.items()} == original
+        assert {kind: index_record.fingerprint for kind, index_record in indexes.items()} == original
         assert extraction.status == "ready"
 
         item.content = "a" * 10000 + "changed inside extraction"
@@ -94,13 +94,13 @@ def test_durable_index_lifecycle_cutoffs_retries_and_generations(configured_inde
         assert indexing.submit(extraction.id, result)[1] == 409
         db.session.rollback()
         # Simulate a lost RQ job and an expired durable lease.
-        extraction.lease_until = HragWork.utcnow() - timedelta(seconds=1)
+        extraction.lease_until = HragIndex.utcnow() - timedelta(seconds=1)
         db.session.commit()
         assert indexing.reconcile()["queued"] >= 1
         fresh = indexing.claim(extraction.id)
         failure = IndexSubmission(token=fresh["token"], fingerprint=fresh["fingerprint"], failed=True)
         assert indexing.submit(extraction.id, failure)[1] == 200
-        assert extraction.status == "pending" and extraction.retry_after > HragWork.utcnow()
+        assert extraction.status == "pending" and extraction.retry_after > HragIndex.utcnow()
 
         configured_index["llm_endpoints"]["embed"]["api_formats"]["embeddings"]["dimensions"] = 2
         indexing.reconcile()
@@ -111,8 +111,10 @@ def test_durable_index_lifecycle_cutoffs_retries_and_generations(configured_inde
         active_embedding = db.session.get(HragGeneration, embedding.generation_id)
         assert active_embedding.active and active_embedding.config["dimensions"] == 3
         assert indexing.generation_endpoint(active_embedding)["dimensions"] == 3
-        pending_work = db.session.scalar(db.select(HragWork).where(HragWork.generation_id == pending.id, HragWork.news_item_id == item.id))
-        assert indexing.claim(pending_work.id)["dimensions"] == 2
+        pending_index = db.session.scalar(
+            db.select(HragIndex).where(HragIndex.generation_id == pending.id, HragIndex.news_item_id == item.id)
+        )
+        assert indexing.claim(pending_index.id)["dimensions"] == 2
         assert indexing.activate(pending.id)[1] == 409
         db.session.rollback()
         configured_index["llm_endpoints"]["verify"]["api_key"] = "rotated-key"
@@ -143,15 +145,15 @@ def test_durable_index_lifecycle_cutoffs_retries_and_generations(configured_inde
         assert unverified.config["verification"] is None and not unverified.active
         assert original_generation.active
         assert indexing.index_status()["configuration_errors"] == []
-        unverified_work = db.session.scalar(
-            db.select(HragWork).where(HragWork.generation_id == unverified.id, HragWork.news_item_id == item.id)
+        unverified_index = db.session.scalar(
+            db.select(HragIndex).where(HragIndex.generation_id == unverified.id, HragIndex.news_item_id == item.id)
         )
-        job = IndexJob.model_validate(indexing.claim(unverified_work.id))
+        job = IndexJob.model_validate(indexing.claim(unverified_index.id))
         assert job.verification_endpoint is None
         assert (
-            indexing.submit(unverified_work.id, IndexSubmission(token=job.token, fingerprint=job.fingerprint, extraction=ExtractionResult()))[
-                1
-            ]
+            indexing.submit(
+                unverified_index.id, IndexSubmission(token=job.token, fingerprint=job.fingerprint, extraction=ExtractionResult())
+            )[1]
             == 200
         )
         configured_index["hrag_relationship_verification_enabled"] = True
@@ -159,7 +161,7 @@ def test_durable_index_lifecycle_cutoffs_retries_and_generations(configured_inde
         assert indexing.index_status()["configuration_errors"]
         db.session.delete(item)
         db.session.commit()
-        assert not list(db.session.scalars(db.select(HragWork).where(HragWork.news_item_id == item.id)))
+        assert not list(db.session.scalars(db.select(HragIndex).where(HragIndex.news_item_id == item.id)))
     finally:
         db.session.delete(story)
         db.session.commit()
@@ -185,10 +187,10 @@ def test_runtime_chunk_sizes_build_independent_generations(configured_index, mon
             else:
                 assert db.session.get(HragGeneration, original_active).active
                 assert not generation.active
-            work = db.session.scalar(
-                db.select(HragWork).where(HragWork.generation_id == generation.id, HragWork.news_item_id == story.news_items[0].id)
+            index_record = db.session.scalar(
+                db.select(HragIndex).where(HragIndex.generation_id == generation.id, HragIndex.news_item_id == story.news_items[0].id)
             )
-            job = indexing.claim(work.id)
+            job = indexing.claim(index_record.id)
             counts.append(len(job["chunks"]))
             if not enabled:
                 assert job["chunks"] == [{"start": 0, "end": len(content)}]
@@ -196,18 +198,22 @@ def test_runtime_chunk_sizes_build_independent_generations(configured_index, mon
             submission = IndexSubmission(token=job["token"], fingerprint=job["fingerprint"], chunks=chunks)
             invalid = submission.model_copy(deep=True)
             invalid.chunks[0].end -= 1
-            assert indexing.submit(work.id, invalid)[1] == 400
+            assert indexing.submit(index_record.id, invalid)[1] == 400
             db.session.rollback()
-            assert indexing.submit(work.id, submission)[1] == 200
+            assert indexing.submit(index_record.id, submission)[1] == 200
             assert saved.call_args.args[1] == chunks
-            assert indexing.submit(work.id, submission)[1] == 200
-            reference = EvidenceReference(citation="V1", work_id=work.id, fingerprint=work.fingerprint, chunk_index=len(chunks) - 1)
-            evidence = evidence_from_reference(reference, {work.id: (work, generation, story.news_items[0])})
+            assert indexing.submit(index_record.id, submission)[1] == 200
+            reference = EvidenceReference(
+                citation="V1", index_id=index_record.id, fingerprint=index_record.fingerprint, chunk_index=len(chunks) - 1
+            )
+            evidence = evidence_from_reference(reference, {index_record.id: (index_record, generation, story.news_items[0])})
             assert evidence.quote == content[chunks[-1].start : chunks[-1].end]
             assert evidence.chunk_index == len(chunks) - 1
         assert counts[1] > counts[0] > counts[2]
         assert counts[3] == 1
-        remaining = list(db.session.scalars(db.select(HragWork).where(HragWork.generation_id == generation.id, HragWork.status != "ready")))
+        remaining = list(
+            db.session.scalars(db.select(HragIndex).where(HragIndex.generation_id == generation.id, HragIndex.status != "ready"))
+        )
         for pending in remaining:
             job = indexing.claim(pending.id)
             if job:

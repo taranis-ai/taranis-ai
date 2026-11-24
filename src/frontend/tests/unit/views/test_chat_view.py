@@ -88,7 +88,7 @@ def test_new_chat_pushes_conversation_url(authenticated_client_basic, responses,
         "evidence": [
             {
                 "citation": "G1",
-                "work_id": "work",
+                "index_id": "index",
                 "fingerprint": "fingerprint",
                 "branch": "graph",
                 "news_item_id": "item",

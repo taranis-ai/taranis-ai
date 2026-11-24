@@ -20,8 +20,10 @@ class HragGeneration(BaseModel):
     created: Mapped[datetime] = db.Column(db.DateTime, nullable=False, default=BaseModel.utcnow)
 
 
-class HragWork(BaseModel):
-    __tablename__ = "hrag_work"
+class HragIndex(BaseModel):
+    """Indexing state and results for one NewsItem in one generation."""
+
+    __tablename__ = "hrag_index"
     __table_args__ = (db.UniqueConstraint("generation_id", "news_item_id"),)
 
     id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), primary_key=True, default=BaseModel.uuid7_str)
