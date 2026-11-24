@@ -15,7 +15,7 @@ def enable_analyst_review(user: UserProfile) -> None:
 
 
 def state_key(username: str, run_id: str) -> str:
-    return build_analyst_review_state_key(cache.key_prefix, username, run_id)
+    return build_analyst_review_state_key(username, run_id)
 
 
 def review_state(story_ids: list[str]) -> dict:

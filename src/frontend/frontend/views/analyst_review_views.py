@@ -45,7 +45,7 @@ class AnalystReviewView:
 
     @staticmethod
     def _cache_key(run_id: str) -> str:
-        return build_analyst_review_state_key(cache.key_prefix, current_user.username, run_id)
+        return build_analyst_review_state_key(current_user.username, run_id)
 
     @staticmethod
     def _testing_state_store() -> dict[str, dict[str, Any]] | None:
