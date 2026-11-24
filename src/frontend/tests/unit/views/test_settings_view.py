@@ -6,6 +6,55 @@ from lxml import html
 from frontend.config import Config
 
 
+def test_llm_assignments_filter_capabilities_and_preserve_unavailable_selection(authenticated_client, responses_mock):
+    provider = {"base_url": "https://provider.example/v1", "enabled": True}
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/settings/settings",
+        json={
+            "items": [
+                {
+                    "settings": {
+                        "llm_endpoints": {
+                            "generative": {**provider, "name": "Generative provider", "api_formats": {"responses": {}}},
+                            "embedding": {**provider, "name": "Embedding provider", "api_formats": {"embeddings": {}}},
+                            "decisions": {**provider, "name": "Decisions provider", "api_formats": {"systemone": {}}},
+                            "disabled": {**provider, "name": "Disabled provider", "enabled": False, "api_formats": {"responses": {}}},
+                            "batch": {
+                                **provider,
+                                "name": "Batch provider",
+                                "processing_mode": "openrouter_batch",
+                                "api_formats": {"responses": {}},
+                            },
+                        },
+                        "llm_default_endpoint": "generative",
+                        "llm_embedding_endpoint": "generative",
+                    }
+                }
+            ],
+            "total_count": 1,
+        },
+    )
+    response = authenticated_client.get(url_for("admin_settings.settings"))
+    assert response.status_code == 200
+    selects = {
+        select.get("name"): {option.get("value"): option.text for option in select.xpath("./option")}
+        for select in html.fromstring(response.text).xpath('.//form[@data-test-id="llm-assignments"]//select')
+    }
+    assert selects["settings[llm_chat_endpoint]"] == {"": "Use default", "generative": "Generative provider"}
+    assert selects["settings[llm_embedding_endpoint]"] == {
+        "": "Use default",
+        "embedding": "Embedding provider",
+        "generative": "Generative provider (unavailable)",
+    }
+    assert selects["settings[llm_extraction_verification_endpoint]"] == {"": "Use default", "decisions": "Decisions provider"}
+    assert selects["settings[llm_sentiment_endpoint]"] == {"": "Use default", "decisions": "Decisions provider"}
+    assert selects["settings[llm_summarization_endpoint]"] == {
+        "": "Use default",
+        "generative": "Generative provider",
+        "batch": "Batch provider",
+    }
+
+
 def test_hrag_indexing_start_refresh_and_failures(authenticated_client, responses_mock):
     route = url_for("admin_settings.hrag_indexing")
     upstream = f"{Config.TARANIS_CORE_URL}/settings/hrag"

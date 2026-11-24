@@ -37,12 +37,16 @@ class SettingsView(AdminBaseView):
         base_context["settings"] = dpl.get_first(Settings)
         base_context["llm_features"] = LLM_FEATURES
         endpoints = base_context["settings"].settings.llm_endpoints if base_context["settings"] else {}
-        base_context["verification_endpoint_options"] = [
-            {"id": endpoint_id, "name": endpoint["name"]}
-            for endpoint_id, endpoint in endpoints.items()
-            if endpoint.get("enabled", True)
-            and any(api_format in endpoint.get("api_formats", {}) for api_format in LLMProvider.feature_formats("extraction_verification"))
-        ]
+        base_context["llm_feature_endpoint_options"] = {
+            feature: [
+                {"id": endpoint_id, "name": endpoint["name"]}
+                for endpoint_id, endpoint in endpoints.items()
+                if endpoint.get("enabled", True)
+                and any(api_format in endpoint.get("api_formats", {}) for api_format in LLMProvider.feature_formats(feature))
+                and (feature not in {"chat", "extraction", "graph_planning"} or endpoint.get("processing_mode", "realtime") == "realtime")
+            ]
+            for feature in LLM_FEATURES
+        }
         base_context["hrag_reasoning_efforts"] = EXTRACTION_REASONING_EFFORTS
         base_context["llm_api_formats"] = LLM_API_FORMATS
         base_context["llm_form"] = getattr(g, "llm_form", None)

@@ -2019,7 +2019,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             assignments.get_by_label("Default endpoint").select_option("")
             with_htmx_wait(page, lambda: assignments.get_by_role("button", name="Save Assignments").click())
             endpoint.locator("summary").click()
-            endpoint.get_by_label("Endpoint state").select_option("false")
+            endpoint.get_by_label("Endpoint state").select_option("true")
             endpoint.get_by_label("Responses model", exact=True).fill("response-model")
             endpoint.get_by_label("Enable Embeddings", exact=True).check()
             endpoint.get_by_label("Embeddings model", exact=True).fill("embedding-model")
