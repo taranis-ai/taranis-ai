@@ -1,6 +1,6 @@
 from typing import Any, ClassVar
 
-from flask import render_template, request
+from flask import flash, get_flashed_messages, render_template, request
 from flask.typing import ResponseReturnValue
 from models.admin import ProductType, PublisherPreset, ReportItemType, Template
 from models.types import PRESENTER_TYPES, PUBLISHER_TYPES
@@ -96,6 +96,7 @@ class ProductTypeView(AdminBaseView):
             ),
         }
         base_context["template_options"] = cls.get_template_options()
+        base_context["template_warnings"] = get_flashed_messages(category_filter=["warning"])
         return base_context
 
     @classmethod
@@ -115,12 +116,12 @@ class ProductTypeView(AdminBaseView):
         if not template_warnings or cls.is_create_object_id(product_type_id):
             return super().handle_submit_success(object_id, core_response)
 
-        # Saved, but stay on the form so the template compatibility warnings remain visible.
+        # Saved: redirect to the edit page (Post/Redirect/Get) and show the warnings there.
         cls._invalidate_model_cache(product_type_id)
-        context = cls.get_item_context(product_type_id)
-        context["notification"] = cls.get_notification_from_dict(core_response)
-        context["template_warnings"] = template_warnings
-        return render_template(cls.get_edit_template(), **context), 200
+        cls.add_flash_notification(core_response)
+        for warning in template_warnings:
+            flash(warning, "warning")
+        return cls.redirect_htmx(cls.get_edit_route(**{cls._get_object_key(): product_type_id}))
 
     @classmethod
     def get_columns(cls):
