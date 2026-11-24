@@ -37,6 +37,7 @@ from core.service.story_operations import StoryOperationsService
 
 class Story(BaseModel):
     __tablename__ = "story"
+    __table_args__ = (db.Index("ix_story_created", "created").ddl_if(dialect="postgresql"),)
 
     id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), primary_key=True, default=BaseModel.uuid7_str)
     title: Mapped[str] = db.Column(db.String())

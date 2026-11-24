@@ -61,6 +61,9 @@ services:
     #   - "${TARANIS_CORE_PORT:-8081}:${TARANIS_CORE_LISTEN_PORT:-8080}"
     environment:
       DB_URL: "${DB_URL:-database}"
+      SQLALCHEMY_POOL_SIZE: "${SQLALCHEMY_POOL_SIZE:-5}"
+      SQLALCHEMY_MAX_OVERFLOW: "${SQLALCHEMY_MAX_OVERFLOW:-5}"
+      SQLALCHEMY_POOL_TIMEOUT: "${SQLALCHEMY_POOL_TIMEOUT:-30}"
       DB_DATABASE: "${DB_DATABASE:-taranis}"
       DB_USER: "${DB_USER:-taranis}"
       DB_PASSWORD: "${POSTGRES_PASSWORD:-taranis}"
@@ -121,7 +124,14 @@ services:
       POSTGRES_DB: "${DB_DATABASE:-taranis}"
       POSTGRES_USER: "${DB_USER:-taranis}"
       POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-taranis}"
-    command: ["postgres", "-c", "shared_buffers=${DB_SHARED_BUFFERS:-64MB}", "-c", "max_connections=${DB_MAX_CONNECTIONS:-1000}"]
+    command:
+      - postgres
+      - -c
+      - shared_buffers=${DB_SHARED_BUFFERS:-128MB}
+      - -c
+      - max_connections=${DB_MAX_CONNECTIONS:-100}
+      - -c
+      - autovacuum_analyze_scale_factor=${DB_AUTOVACUUM_ANALYZE_SCALE_FACTOR:-0.05}
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-taranis} -d ${DB_DATABASE:-taranis}"]
       interval: 10s

@@ -262,7 +262,37 @@ Each component has a Containerfile:
 
 ### `database`
 
-Any configuration options are available at [https://hub.docker.com/\_/postgres](https://hub.docker.com/_/postgres).
+#### PostgreSQL tuning
+
+The bundled PostgreSQL 18 service uses these starting values for installations where the database shares a host with Core and workers. Set overrides in the Compose `.env` and run `docker compose up -d --wait`. Changing the database command restarts PostgreSQL on its existing volume.
+
+| Compose variable | Default | How to size it |
+| --- | --- | --- |
+| `DB_SHARED_BUFFERS` | `128MB` | Caches frequently read story, news-item and index pages. For a dedicated database with at least 1 GiB RAM, start near 25% of its memory budget. A 2 GiB database container could start at `512MB`. |
+| `DB_MAX_CONNECTIONS` | `100` | Budget for all Core processes, other database clients, maintenance and reserved slots. Check peak connections before upgrading a scaled deployment from the old 1,000-slot default. |
+| `DB_AUTOVACUUM_ANALYZE_SCALE_FACTOR` | `0.05` | Refreshes planner statistics after roughly 5% of a table changes plus the base threshold. This helps the planner track new stories and tag distributions during collection. |
+| `SQLALCHEMY_POOL_SIZE` / `SQLALCHEMY_MAX_OVERFLOW` | `5` / `5` | Each Core process keeps up to five pooled connections and can open five more for a burst. The stock two-process Core can use up to 20. |
+| `SQLALCHEMY_POOL_TIMEOUT` | `30` seconds | Maximum wait for a free connection in a saturated Core pool. |
+
+For Kubernetes, apply server settings through the external PostgreSQL service or its operator. Size Core's connection budget as **peak Core pods × Granian processes per pod × (pool size + overflow)**, including overlapping pods during rollouts. Helm exposes `config.sqlalchemyPoolSize`, `config.sqlalchemyMaxOverflow` and `config.sqlalchemyPoolTimeout`. Raw manifests expose the corresponding environment variables in `taranis-config`. With a shared database server, the administrator can scope statistics tuning to Taranis tables, for example `ALTER TABLE news_item_tag SET (autovacuum_analyze_scale_factor = 0.05)`.
+
+Check the following during a typical collection burst and compare Assess page latency before and after tuning. Growing `n_mod_since_analyze` alongside poor row estimates in `EXPLAIN (ANALYZE, BUFFERS)` points to stale statistics. If dead rows accumulate across vacuum cycles, inspect long transactions and autovacuum on the affected table. Keep `work_mem` conservative because several sorts or hashes in each active session can use it simultaneously. [PostgreSQL memory settings](https://www.postgresql.org/docs/18/runtime-config-resource.html), [vacuum and analyze thresholds](https://www.postgresql.org/docs/18/runtime-config-vacuum.html).
+
+```sql
+SELECT state, count(*) FROM pg_stat_activity
+WHERE backend_type = 'client backend' GROUP BY state;
+
+SELECT relname, n_live_tup, n_dead_tup, n_mod_since_analyze, last_autovacuum, last_autoanalyze
+FROM pg_stat_user_tables
+WHERE relname IN ('story', 'news_item', 'news_item_tag');
+```
+
+Core creates a B-tree on `story.created` for the default Assess feed and recent-date filters. On a large existing installation, the index build can delay story writes during startup. To build ahead of the rollout, run the following once in the Taranis schema outside a transaction. Verify `indisvalid` is true before starting the new Core. If a concurrent build fails, drop the invalid index and retry. [PostgreSQL index builds](https://www.postgresql.org/docs/18/sql-createindex.html#SQL-CREATEINDEX-CONCURRENTLY).
+
+```sql
+CREATE INDEX CONCURRENTLY ix_story_created ON story (created);
+SELECT indisvalid FROM pg_index WHERE indexrelid = 'ix_story_created'::regclass;
+```
 
 ### `core`
 

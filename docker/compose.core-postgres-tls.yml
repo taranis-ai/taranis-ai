@@ -19,20 +19,6 @@ services:
 
   database:
     entrypoint: ["/bin/sh", "/postgres-tls/postgres-entrypoint.sh"]
-    command:
-      [
-        "postgres",
-        "-c",
-        "shared_buffers=${DB_SHARED_BUFFERS:-64MB}",
-        "-c",
-        "max_connections=${DB_MAX_CONNECTIONS:-1000}",
-        "-c",
-        "ssl=on",
-        "-c",
-        "ssl_cert_file=/var/lib/postgresql/server.crt",
-        "-c",
-        "ssl_key_file=/var/lib/postgresql/server.key",
-      ]
     volumes:
       - "database_data:/var/lib/postgresql"
       - "${TARANIS_POSTGRES_TLS_DIR:?set TARANIS_POSTGRES_TLS_DIR}/:/tls:ro"
