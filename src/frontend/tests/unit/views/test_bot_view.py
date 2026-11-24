@@ -8,6 +8,7 @@ from lxml import html
 from models.admin import Bot
 from models.types import BOT_TYPES
 
+from frontend import create_app
 from frontend.config import Config
 from frontend.views.admin_views.admin_base_view import AdminBaseView
 from frontend.views.admin_views.bot_views import BotView, render_bot_run_order
@@ -122,7 +123,8 @@ def test_worker_parameter_form_renders_native_boolean_and_object_values(app):
     assert tlp.xpath('./option[@value="clear"]')
 
 
-def test_bot_form_renders_state_buttons_and_run_action(app):
+def test_bot_form_renders_state_buttons_and_run_action():
+    app = create_app({"TESTING": True, "APPLICATION_ROOT": "/custom-prefix"})
     bot = Bot.model_construct(
         id="42",
         name="Test bot",
@@ -134,12 +136,12 @@ def test_bot_form_renders_state_buttons_and_run_action(app):
         status=None,
     )
 
-    with app.test_request_context("/"):
+    with app.test_request_context("/", base_url="http://localhost"):
         rendered = render_template(
             "bot/bot_form.html",
             bot=bot,
             submit_text="Update Bot",
-            form_action='hx-put="/frontend/admin/bots/42"',
+            form_action='hx-put="/custom-prefix/admin/bots/42"',
             bot_types=[],
             parameters=[],
             parameter_values={},
@@ -148,8 +150,8 @@ def test_bot_form_renders_state_buttons_and_run_action(app):
     tree = html.fromstring(rendered)
     assert tree.xpath('//input[@name="id"][@type="hidden"][@value="42"]')
     assert not tree.xpath('//input[@name="enabled"]')
-    enabled_buttons = tree.xpath('//button[@hx-post="/frontend/admin/toggle_bot_state/42/enabled"][normalize-space()="Enabled"]')
-    disabled_buttons = tree.xpath('//button[@hx-post="/frontend/admin/toggle_bot_state/42/disabled"][normalize-space()="Disabled"]')
+    enabled_buttons = tree.xpath('//button[@hx-post="/custom-prefix/admin/toggle_bot_state/42/enabled"][normalize-space()="Enabled"]')
+    disabled_buttons = tree.xpath('//button[@hx-post="/custom-prefix/admin/toggle_bot_state/42/disabled"][normalize-space()="Disabled"]')
     assert enabled_buttons
     assert disabled_buttons
     assert enabled_buttons[0].get("hx-swap") == "outerHTML"
