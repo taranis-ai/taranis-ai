@@ -1517,7 +1517,12 @@ class QueueManager:
             logger.error("QueueManager not initialized, cannot register cron job")
             return False
 
-        payload = json.dumps(spec.model_dump(mode="json"))
+        func_path = TASK_MAP.get(spec.func_path, spec.func_path)
+        if "." not in func_path:
+            logger.error(f"Cron job {spec.job_id} has unknown task {spec.func_path}")
+            return False
+
+        payload = json.dumps(spec.model_copy(update={"func_path": func_path}).model_dump(mode="json"))
         next_ts: float | None = None
         try:
             next_ts = croniter(spec.cron, datetime.now(UTC)).get_next(float) if spec.cron else time.time() + (spec.interval or 0)

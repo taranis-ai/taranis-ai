@@ -319,3 +319,19 @@ def test_scheduler_batches_notices_after_enqueuing_and_stops_when_leadership_is_
         cron_scheduler.run_scheduler()
     assert Queue("misc", connection=connection).count == 101
     assert connection.zscore(NEXT_KEY, "source-001") == 999.0
+
+
+def test_enqueue_due_job_accepts_core_resolved_dotted_paths():
+    redis_conn = fakeredis.FakeRedis(decode_responses=False)
+    dotted = "worker.misc.misc_tasks.cleanup_task_history"
+    rq_job_id = _enqueue_due_job(
+        redis_conn,
+        {"misc": Queue("misc", connection=redis_conn)},
+        "housekeeping:cleanup_task_history",
+        {"func_path": dotted, "queue": "misc", "cron": "0 3 * * *"},
+        10800.0,
+    )
+    assert rq_job_id is not None
+    job = Queue("misc", connection=redis_conn).fetch_job(rq_job_id)
+    assert job is not None
+    assert job.func_name == dotted
