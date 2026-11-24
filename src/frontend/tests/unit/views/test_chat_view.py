@@ -81,7 +81,7 @@ def test_chat_history_escapes_answers_and_builds_doseq_assess_link(
 
 
 def test_new_chat_pushes_conversation_url(authenticated_client_basic, responses, app):
-    conversation = _conversation("Evidence [G1].")
+    conversation = _conversation("Evidence [V1], also [G1]. Another source [V2].")
     app.config["HRAG_ENABLED"] = True
     conversation["messages"][0]["mode"] = "hrag"
     conversation["messages"][0]["hrag_result"] = {
@@ -95,7 +95,29 @@ def test_new_chat_pushes_conversation_url(authenticated_client_basic, responses,
                 "story_id": "story",
                 "title": "Evidence title",
                 "quote": "<script>private()</script>",
-            }
+            },
+            {
+                "citation": "V1",
+                "index_id": "embedding-index",
+                "fingerprint": "fingerprint",
+                "branch": "vector",
+                "chunk_index": 0,
+                "news_item_id": "item",
+                "story_id": "story",
+                "title": "Evidence title",
+                "quote": "Supporting passage",
+            },
+            {
+                "citation": "V2",
+                "index_id": "other-index",
+                "fingerprint": "other-fingerprint",
+                "branch": "vector",
+                "chunk_index": 0,
+                "news_item_id": "other-item",
+                "story_id": "story",
+                "title": "Other source",
+                "quote": "Another passage",
+            },
         ],
         "notices": ["Partial evidence"],
     }
@@ -115,8 +137,11 @@ def test_new_chat_pushes_conversation_url(authenticated_client_basic, responses,
     assert 'name="mode"' in response.text and '<option value="hrag" selected' in response.text
     assert "&lt;script&gt;private()&lt;/script&gt;" in response.text
     assert "Partial evidence" in response.text
-    assert 'title="Evidence title">[1]</a>' in response.text
-    assert "[G1]" not in response.text
+    assert response.text.count('title="Evidence title">[1]</a>') == 2
+    assert response.text.count(">[1] Evidence title</a>") == 2
+    assert 'title="Other source">[2]</a>' in response.text
+    assert ">[2] Other source</a>" in response.text
+    assert "[G1]" not in response.text and "[V1]" not in response.text and "[V2]" not in response.text
     assert 'data-testid="chat-hrag-evidence"' in response.text
     assert '"mode": "hrag"' in responses.calls[0].request.body.decode()
     app.config["HRAG_ENABLED"] = False

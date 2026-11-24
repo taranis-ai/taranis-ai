@@ -47,13 +47,14 @@ class ChatView(BaseView):
             if message.hrag_result:
                 citations = {}
                 evidence_items = data["hrag_result"]["evidence"]
-                known_ids = {evidence["citation"] for evidence in evidence_items}
-                cited_ids = [match.group(1) for match in re.finditer(r"\[([GV]\d+)\]", message.content) if match.group(1) in known_ids]
+                sources = {evidence["citation"]: evidence["news_item_id"] for evidence in evidence_items}
+                cited_ids = [match.group(1) for match in re.finditer(r"\[([GV]\d+)\]", message.content) if match.group(1) in sources]
                 citation_order = dict.fromkeys([*cited_ids, *(evidence["citation"] for evidence in evidence_items)])
-                numbers = {citation: number for number, citation in enumerate(citation_order, start=1)}
+                source_order = dict.fromkeys(sources[citation] for citation in citation_order)
+                numbers = {source: number for number, source in enumerate(source_order, start=1)}
                 for evidence in evidence_items:
                     evidence["assess_url"] = url_for("assess.assess") + "?" + urlencode({"story_ids": evidence["story_id"]})
-                    evidence["citation_number"] = numbers[evidence["citation"]]
+                    evidence["citation_number"] = numbers[evidence["news_item_id"]]
                     citations[evidence["citation"]] = evidence
                 parts = []
                 start = 0
