@@ -9,6 +9,7 @@ from urllib.parse import parse_qs, urlparse
 import pytest
 from flask import render_template, url_for
 from lxml import html
+from lxml.html import fromstring
 from models.admin import OSINTSource, ReportItemType
 from models.task import Task, TaskResult
 from models.types import COLLECTOR_TYPES
@@ -842,6 +843,8 @@ def test_osint_source_form_shows_current_icon_and_delete_option(app):
     )
 
     with app.test_request_context("/"):
+        enable_url = url_for("admin.toggle_osint_source_state", osint_source_id=osint_source.id, new_state="enabled")
+        disable_url = url_for("admin.toggle_osint_source_state", osint_source_id=osint_source.id, new_state="disabled")
         html = render_template(
             "osint_source/osint_source_form.html",
             model_name="osint_source",
@@ -868,8 +871,8 @@ def test_osint_source_form_shows_current_icon_and_delete_option(app):
     assert "Preview" in html
     assert "Collect" in html
     assert "checked" in html
-    assert 'hx-post="/frontend/admin/toggle_source_state/source-with-icon/enabled"' in html
-    assert 'hx-post="/frontend/admin/toggle_source_state/source-with-icon/disabled"' in html
+    assert f'hx-post="{enable_url}"' in html
+    assert f'hx-post="{disable_url}"' in html
     assert html.count('hx-swap="outerHTML"') >= 3
 
 
@@ -911,12 +914,35 @@ def test_osint_source_form_disables_rank_for_manual_source(app):
     assert "source_collect/manual" not in html
 
 
-def test_admin_dashboard_renders_health_card(authenticated_client, auth_user, responses_mock, monkeypatch):
+@pytest.mark.parametrize(
+    ("frontend_debug", "core_debug", "health_available", "badge_visible"),
+    [
+        (False, False, True, False),
+        (False, True, True, True),
+        (True, False, True, False),
+        (True, True, True, True),
+        (False, None, True, False),
+        (False, None, False, False),
+        (True, None, False, False),
+    ],
+)
+def test_admin_dashboard_renders_health_card(
+    authenticated_client, auth_user, responses_mock, monkeypatch, frontend_debug, core_debug, health_available, badge_visible
+):
     cache.clear()
     add_user_to_cache(auth_user.model_dump(mode="json"))
 
+    monkeypatch.setattr(Config, "DEBUG", frontend_debug)
+    monkeypatch.setitem(authenticated_client.application.config, "DEBUG", not frontend_debug)
     monkeypatch.setattr(Config, "BUILD_DATE", datetime.fromisoformat("2025-01-16T08:45:00+00:00"))
     monkeypatch.setattr(Config, "GIT_INFO", {"tag": "1.3.5", "HEAD": "front456", "branch": "master"})
+
+    health_status = {
+        "healthy": False,
+        "services": {"database": "up", "seed_data": "up", "broker": "down", "workers": "down"},
+    }
+    if core_debug is not None:
+        health_status["core"] = {"debug": core_debug}
 
     responses_mock.get(
         f"{Config.TARANIS_CORE_URL}{AdminDashboardView.model._core_endpoint}",
@@ -931,15 +957,7 @@ def test_admin_dashboard_renders_health_card(authenticated_client, auth_user, re
                     "latest_collected": "2025-01-14T21:16:42.699574+01:00",
                     "schedule_length": 4,
                     "conflict_count": 0,
-                    "health_status": {
-                        "healthy": False,
-                        "services": {
-                            "database": "up",
-                            "seed_data": "up",
-                            "broker": "down",
-                            "workers": "down",
-                        },
-                    },
+                    "health_status": health_status if health_available else None,
                     "task_status_totals": {
                         "successes": 3,
                         "failures": 1,
@@ -984,6 +1002,19 @@ def test_admin_dashboard_renders_health_card(authenticated_client, auth_user, re
     assert "Pre-seeded" in html
     assert "Redis" in html
     assert "Workers" in html
+    assert html.count('data-test-id="debug-mode-badge"') == int(badge_visible)
+    health_card = fromstring(html).xpath('//div[div/span[text()="System Health"]]')[0]
+    assert len(health_card.xpath('.//div[span[text()="Core"]]/span[@data-test-id="debug-mode-badge"]')) == int(badge_visible)
+
+    restored = authenticated_client.get(
+        AdminDashboardView.get_base_route(), headers={"HX-Request": "true", "HX-History-Restore-Request": "true"}
+    )
+    assert restored.status_code == 200
+    assert restored.text.count('data-test-id="debug-mode-badge"') == int(badge_visible)
+    core_urls = [call.request.url.split("?")[0] for call in responses_mock.calls]
+    assert core_urls.count(f"{Config.TARANIS_CORE_URL}/dashboard") == 1
+    assert f"{Config.TARANIS_CORE_URL}/health" not in core_urls
+    assert f"{Config.TARANIS_CORE_URL}/isalive" not in core_urls
 
 
 def test_persistent_notification_has_no_timeout_animation(app):

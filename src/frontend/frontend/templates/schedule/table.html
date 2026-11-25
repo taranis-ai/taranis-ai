@@ -1,17 +1,12 @@
 {% macro refreshable_table(container_id, table_id, data, columns, base_url, empty_message, filters="") %}
   {% from "macros/table.html" import table_controls, table_header, table_search_bar %}
-  <div id="{{ container_id }}"
-       class="table-container"
-       data-base-url="{{ base_url }}"
-       hx-get="{{ base_url }}{{ request.query_string.decode() and '?' ~ request.query_string.decode() }}"
-       hx-trigger="scheduler:refresh"
-       hx-select="#{{ container_id }}"
-       hx-swap="outerHTML">
-    <div class="mb-4">{{ table_search_bar(container_id, base_url, filters=filters) }}</div>
+  {% set target_id = "scheduler-content" %}
+  <div id="{{ container_id }}" class="table-container" hx-sync:inherited="#scheduler-dashboard:replace">
+    <div class="mb-4">{{ table_search_bar(target_id, base_url, preserve_params=['tab', 'limit', 'order'] if not filters else [], filters=filters, sync_target='#scheduler-dashboard') }}</div>
     <div class="overflow-x-auto">
       <table class="table shadow table-zebra table-sm" id="{{ table_id }}" data-testid="{{ table_id }}">
         <thead>
-          <tr>{% for column in columns %}{{ table_header(column, container_id, base_url) }}{% endfor %}</tr>
+          <tr>{% for column in columns %}{{ table_header(column, target_id, base_url) }}{% endfor %}</tr>
         </thead>
         <tbody>
           {% if data %}
@@ -26,7 +21,7 @@
             </tr>
           {% endif %}
         </tbody>
-        <tfoot hx-select:inherited="#{{ container_id }}" hx-target:inherited="#{{ container_id }}" hx-swap:inherited="outerHTML">
+        <tfoot hx-select:inherited="#{{ target_id }}" hx-target:inherited="#{{ target_id }}" hx-swap:inherited="outerHTML">
           <tr>
             <td colspan="{{ columns|length }}">
               <div class="flex justify-center">{{ table_controls(base_url=base_url, data=data) }}</div>
@@ -35,17 +30,5 @@
         </tfoot>
       </table>
     </div>
-  </div>
-{% endmacro %}
-
-{% macro refreshable_table_placeholder(container_id, base_url) %}
-  <div id="{{ container_id }}"
-       class="table-container"
-       data-base-url="{{ base_url }}"
-       hx-get="{{ base_url }}"
-       hx-trigger="scheduler:refresh"
-       hx-select="#{{ container_id }}"
-       hx-swap="outerHTML">
-    <p class="py-4 text-center">Loading...</p>
   </div>
 {% endmacro %}

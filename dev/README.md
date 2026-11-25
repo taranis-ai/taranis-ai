@@ -1,39 +1,5 @@
 # Taranis AI Development setup
 
-Dependency updates use [Renovate](https://docs.renovatebot.com/) with [`.github/renovate.json`](../.github/renovate.json). Each Python component explicitly selects the established Ruff rule baseline so a Ruff upgrade does not silently enable new rules; rule-set migrations should be reviewed separately.
-
-## Record the landing-page video
-
-Run `./dev/record_workflow_video.py` from the repository root to record the full analyst workflow, including scripted Chat, and export one `taranis-walkthrough-video.webm`.
-Install `uv` and `ffmpeg` first and use the normal Playwright/Compose test setup. The script prints the final absolute path on success.
-See the [Playwright recording guide](../src/frontend/tests/playwright/README.md#record-the-landing-page-workflow) for output and pacing options.
-
-## Optional local signoff
-
-This repo accepts either a successful `test and lint` workflow run or a successful local `gh signoff` on the current PR head commit. See [basecamp/gh-signoff](https://github.com/basecamp/gh-signoff/blob/main/README.md) for upstream details.
-
-Setup:
-
-```bash
-gh auth login
-gh extension install basecamp/gh-signoff
-```
-
-Workflow:
-
-1. Commit the completed feature so the worktree is clean.
-2. Run `./dev/test_push_signoff.sh` from the repository root. It prepares component environments, runs the complete local lint, unit test, and E2E pipeline, then pushes and calls `gh signoff` after validation passes.
-3. If validation fails, fix and commit the problem, then run `./dev/test_push_signoff.sh` again. Every E2E run uses a fresh isolated Compose stack.
-4. If you do not use local signoff, the normal `test and lint` GitHub Actions workflow remains the fallback path.
-
-On macOS, the pipeline and worker startup script add Homebrew's library directory to `DYLD_FALLBACK_LIBRARY_PATH` so WeasyPrint can load GLib and Pango. For manual worker commands or `uv run pytest`, set it in the same terminal first:
-
-```bash
-export DYLD_FALLBACK_LIBRARY_PATH="$(brew --prefix)/lib${DYLD_FALLBACK_LIBRARY_PATH:+:$DYLD_FALLBACK_LIBRARY_PATH}"
-```
-
-If Pango is not installed, run `brew install pango` first (the automated setup installs it).
-
 ## Easy Mode
 
 The automated setup supports macOS, Ubuntu, and Debian 13. macOS requires Homebrew; the setup uses Podman for containers. The bootstrap downloads pinned uv and Ruff installers and verifies their SHA-256 checksums before execution.
@@ -45,25 +11,34 @@ git clone git@github.com:taranis-ai/taranis-ai.git
 cd taranis-ai
 ```
 
-Copy env.dev to worker and core
-
-```bash
-cp dev/env.dev src/core/.env
-cp dev/env.dev src/worker/.env
-```
-
-`dev/env.dev` keeps redis-py's default RESP3 protocol. Taranis disables Redis maintenance notifications in its Python clients, so local `REDIS_URL` values no longer need `?protocol=2`. Remove that query parameter from existing component `.env` files; `start_dev.sh` only copies missing `.env` files.
-
-Development Redis disables RDB snapshots and AOF logging and mounts `/data` as
-RAM-backed `tmpfs`. Recreate it with `docker compose -f dev/compose.yml up -d redis`
-to apply the configuration. Frontend caches refill on demand. With
-`WITH_CRON_RQ=1`, cron asks Core to restore recurring schedules after Redis loses
-state; with cron stopped, restart Core to rebuild them. Pending one-off jobs,
-retries, delayed MISP pushes, and unfinished bot chains are lost and must be rerun.
+### Start development
 
 ```bash
 ./dev/start_dev.sh
 ```
+
+`start_dev.sh` creates missing component `.env` files from `dev/env.dev` but never overwrites existing ones. If you have `.env` files from an older setup, remove any `?protocol=2` query parameter from `REDIS_URL`; it is no longer needed.
+
+### Create sample data
+
+Sign in as an administrator (the default User role cannot manage OSINT sources) and go to **Settings** → **OSINT Sources** → **Curated sources**. Select your preferred lists and click **Add selected lists**, then go back to **OSINT Sources** and hit the button **Collect all**.
+
+### Stop development
+
+
+Stop docker container
+Note to podman users: Use `podman-compose` instead of `docker compose`
+
+```bash
+docker compose -f dev/compose.yml down -d
+```
+
+Stop all tmux sessions belonging to taranis
+
+```bash
+tmux kill-session -t =taranis
+```
+
 
 ## Hard Mode
 
@@ -109,7 +84,7 @@ This starts local Redis without authentication and a pinned Centrifugo instance.
 Centrifugo uses host port `8001` to leave `8000` available for local LLM inference. If you override `TARANIS_CENTRIFUGO_PORT`, update the realtime upstream in your installed Nginx configuration too. Existing setups must recopy `dev/nginx.conf`, validate with `nginx -t`, and reload Nginx after updating the Compose service.
 Queue state is not persisted across local Redis restarts in this dev setup.
 Browsers connect through the local NGINX ingress at `http://local.taranis.ai/sse`.
-Centrifugo reaches Core through Podman's `host.containers.internal` address; set `TARANIS_CORE_PORT` when Core does not use port `5001`.
+Centrifugo reaches Core through `host.containers.internal`, explicitly mapped to the host gateway for Docker and Podman; set `TARANIS_CORE_PORT` when Core does not use port `5001`.
 When `/sse` is unavailable, the browser retries eight times with exponential backoff and then requires a page reload; an internal connect-proxy error does not display a data-change notice.
 
 To start the optional Grafana LGTM telemetry stack as well:
@@ -250,6 +225,49 @@ flask run
 
 Taranis AI should be reachable on _local.taranis.ai_.
 
+## Dependency updates
+
+Dependency updates use [Renovate](https://docs.renovatebot.com/) with [`.github/renovate.json`](../.github/renovate.json). Each Python component explicitly selects the established Ruff rule baseline so a Ruff upgrade does not silently enable new rules; rule-set migrations should be reviewed separately.
+
+## Development Redis
+
+
+Development Redis disables RDB snapshots and AOF logging and mounts `/data` as RAM-backed `tmpfs`, so queue state is not persisted across restarts. Recreate it with `docker compose -f dev/compose.yml up -d redis` (Podman: `podman-compose -f dev/compose.yml up -d redis`) to apply the configuration.
+
+Frontend caches refill on demand. With `WITH_CRON_RQ=1`, cron asks Core to restore recurring schedules after Redis loses state; with cron stopped, restart Core to rebuild them. Pending one-off jobs, retries, delayed MISP pushes, and unfinished bot chains are lost and must be rerun.
+
+## Record the landing-page video
+
+Run `./dev/record_workflow_video.py` from the repository root to record the full analyst workflow, including scripted Chat, and export one `taranis-walkthrough-video.webm`.
+Install `uv` and `ffmpeg` first and use the normal Playwright/Compose test setup. The script prints the final absolute path on success.
+See the [Playwright recording guide](../src/frontend/tests/playwright/README.md#record-the-landing-page-workflow) for output and pacing options.
+
+## Optional local signoff
+
+This repo accepts either a successful `test and lint` workflow run or a successful local `gh signoff` on the current PR head commit. See [basecamp/gh-signoff](https://github.com/basecamp/gh-signoff/blob/main/README.md) for upstream details.
+
+Setup:
+
+```bash
+gh auth login
+gh extension install basecamp/gh-signoff
+```
+
+Workflow:
+
+1. Commit the completed feature so the worktree is clean.
+2. Run `./dev/test_push_signoff.sh` from the repository root. It prepares component environments, runs the complete local lint, unit test, and E2E pipeline, then pushes and calls `gh signoff` after validation passes.
+3. If validation fails, fix and commit the problem, then run `./dev/test_push_signoff.sh` again. Every E2E run uses a fresh isolated Compose stack.
+4. If you do not use local signoff, the normal `test and lint` GitHub Actions workflow remains the fallback path.
+
+On macOS, the pipeline and worker startup script add Homebrew's library directory to `DYLD_FALLBACK_LIBRARY_PATH` so WeasyPrint can load GLib and Pango. For manual worker commands or `uv run pytest`, set it in the same terminal first:
+
+```bash
+export DYLD_FALLBACK_LIBRARY_PATH="$(brew --prefix)/lib${DYLD_FALLBACK_LIBRARY_PATH:+:$DYLD_FALLBACK_LIBRARY_PATH}"
+```
+
+If Pango is not installed, run `brew install pango` first (the automated setup installs it).
+
 ## Development Tools
 
 ### Branch development database
@@ -315,6 +333,12 @@ When you update a source/bot schedule in the database (via the UI or API):
 1. The change is immediately saved to the database
 2. Core updates the cron definition in Redis
 3. The cron scheduler picks up the change on the next poll cycle
+
+Scheduler and My Tasks use current, uncached reads on realtime events. Tab navigation replaces one Scheduler content panel, preserving the current query during refresh. Continuous events are throttled with a final refresh, and acknowledged reconnects recover missed changes. Failed refreshes show an error notification while retaining the current table/cards. When realtime is unavailable, use the visible Refresh control. Cron sends one task-change notice per batch and renews its leadership lease before each enqueue. Core also batches notices during bulk cron reconciliation, source/bot registration, source import/curated loading/deletion, Collect All, and word-list gathering, so publisher outages do not add a network timeout for every item.
+
+Core broadcasts task hints to all affected owner channels in one request, alongside one scheduler broadcast. Queue Failures batches Redis job reads. Scheduler completion notices exclude endpoint probes and retain the newest 500 observations per tab; older unresolved observations are discarded without announcing completion.
+
+Dependent jobs remain visible in Scheduled Jobs and My Tasks while RQ moves them from the deferred registry to the queue.
 
 ### RQ Dashboard
 

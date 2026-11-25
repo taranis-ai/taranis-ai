@@ -12,6 +12,7 @@ from worker.core_api import CoreApi, build_failure_task_result, build_success_ta
 from worker.http_client import http_session_scope
 from worker.log import logger
 from worker.misc.wordlist_update import update_wordlist
+from worker.task_events import task_started
 from worker.telemetry import instrument_job
 
 
@@ -21,6 +22,7 @@ TASK_HISTORY_CLEANUP_TASK_ID = "cleanup_task_history"
 
 @instrument_job
 @http_session_scope()
+@task_started
 def cleanup_token_blacklist(*_args: object, reschedule: bool = False, **_kwargs: object):
     """Clean up expired tokens from the blacklist.
 
@@ -98,6 +100,7 @@ def _reschedule_cleanup():
 
 @instrument_job
 @http_session_scope()
+@task_started
 def gather_word_list(word_list_id: str):
     """Gather and update a word list.
 
@@ -134,6 +137,7 @@ def gather_word_list(word_list_id: str):
 
 @instrument_job
 @http_session_scope()
+@task_started
 def cleanup_task_history():
     logger.info("Cleaning up task history")
     job = get_current_job()

@@ -1,0 +1,48 @@
+{% macro live_table_refresh(change_event, refresh_event, refresh_url, target_id) %}
+  {# The owner survives table swaps. Track navigation separately because aborting an earlier HTMX request releases its shared queue. #}
+  {# djlint:off #}
+  x-data='{
+    targetId: {{ target_id | tojson }},
+    refreshEvent: {{ refresh_event | tojson }},
+    navigationRequestId: 0,
+    navigationPending: false,
+    refreshPending: false,
+    prepareRequest(event) {
+      const ctx = event.detail.ctx;
+      const table = document.getElementById(this.targetId);
+      if (ctx.sourceElement === this.$el) {
+        if (this.navigationPending) {
+          this.refreshPending = true;
+          event.preventDefault();
+          return;
+        }
+        ctx.request.action = table.dataset.refreshUrl;
+        ctx.target = table;
+        ctx.select = "#" + table.id;
+      } else if (table.contains(ctx.target)) {
+        this.navigationPending = true;
+        ctx.navigationRequestId = ++this.navigationRequestId;
+      }
+    },
+    finishNavigation(ctx) {
+      if (!this.navigationPending || ctx.navigationRequestId !== this.navigationRequestId) return;
+      this.navigationPending = false;
+      if (this.refreshPending) {
+        this.refreshPending = false;
+        // Let HTMX release the completed request before issuing the saved refresh.
+        this.$nextTick(() => this.$dispatch(this.refreshEvent));
+      }
+    }
+  }'
+  {# djlint:on #}
+  @htmx:before:request="prepareRequest($event)"
+  @htmx:before:swap="if ($event.detail.ctx.navigationRequestId && $event.detail.ctx.navigationRequestId !== navigationRequestId) $event.preventDefault()"
+  {# Successful swaps emit from the inserted table; failures retain the original request source. #}
+  @htmx:after:swap="finishNavigation($event.detail.ctx)"
+  @htmx:finally:request="finishNavigation($event.detail.ctx)"
+  hx-get="{{ refresh_url }}"
+  hx-trigger="{{ change_event }} from:document throttle:300ms, realtime:resync from:document throttle:300ms, realtime:connected from:document throttle:300ms, {{ refresh_event }}"
+  hx-sync="this:queue last"
+  hx-swap="outerHTML"
+  hx-status:5xx="target:#notification-bar select:#notification-bar swap:outerHTML"
+{% endmacro %}

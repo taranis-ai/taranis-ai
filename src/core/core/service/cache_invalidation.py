@@ -35,6 +35,8 @@ SCOPE_MODEL_NAMES: dict[str, tuple[str, ...]] = {
         "queue_status",
         "worker_stats",
         "task_history_response",
+        "task_run",
+        "user_task",
     ),
     SCOPE_SCHEDULE_STATUS: (
         "job",

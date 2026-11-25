@@ -171,6 +171,14 @@ paths:
                     type: boolean
                     examples:
                     - true
+                  core:
+                    type: object
+                    properties:
+                      debug:
+                        type: boolean
+                        description: whether Core's configured application DEBUG setting is enabled
+                        examples:
+                        - false
                   services:
                     type: object
                     properties:
@@ -206,6 +214,14 @@ paths:
                     type: boolean
                     examples:
                     - false
+                  core:
+                    type: object
+                    properties:
+                      debug:
+                        type: boolean
+                        description: whether Core's configured application DEBUG setting is enabled
+                        examples:
+                        - false
                   services:
                     type: object
                     properties:
@@ -957,80 +973,6 @@ paths:
           $ref: '#/components/responses/401Unauthorized'
         '403':
           description: forbidden
-        '404':
-          $ref: '#/components/responses/404NotFound'
-  /analyze/report-items/{report_item_id}/locks:
-    parameters:
-    - name: report_item_id
-      in: path
-      required: true
-      schema:
-        type: string
-    get:
-      security:
-      - UserAuth: []
-      tags:
-      - analyze
-      operationId: analyze.report_item_locks.get
-      description: get a report item's field locks
-      responses:
-        '200':
-          description: the report item's field locks
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/report_item_lock'
-        '400':
-          description: invalid request
-        '401':
-          $ref: '#/components/responses/401Unauthorized'
-        '404':
-          $ref: '#/components/responses/404NotFound'
-  /analyze/report-items/{report_item_id}/lock:
-    parameters:
-    - name: report_item_id
-      in: path
-      required: true
-      schema:
-        type: string
-    put:
-      security:
-      - UserAuth: []
-      tags:
-      - analyze
-      description: lock the specified field
-      operationId: analyze.report_item_lock.put
-      responses:
-        '200':
-          description: the locked field as a SSE
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/report_item_lock'
-        '400':
-          description: invalid request
-        '401':
-          $ref: '#/components/responses/401Unauthorized'
-        '404':
-          $ref: '#/components/responses/404NotFound'
-    delete:
-      security:
-      - UserAuth: []
-      tags:
-      - analyze
-      description: unlock the specified field
-      operationId: analyze.report_item_lock.delete
-      responses:
-        '200':
-          description: the locked field as a SSE
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/report_item_lock'
-        '400':
-          description: invalid request
-        '401':
-          $ref: '#/components/responses/401Unauthorized'
         '404':
           $ref: '#/components/responses/404NotFound'
   /analyze/report-items/{report_item_id}/clone:
@@ -2821,6 +2763,16 @@ paths:
       - APIKey: []
       - UserAuth: []
       parameters:
+      - name: job_ids
+        in: query
+        required: false
+        description: Restrict results to exact job IDs before pagination. Repeat the parameter for multiple IDs. Omit it for all jobs; an empty value matches no jobs.
+        style: form
+        explode: true
+        schema:
+          type: array
+          items:
+            type: string
       - name: search
         in: query
         required: false
@@ -6375,6 +6327,13 @@ paths:
       - assess
       description: update news items ungroup
       operationId: assess.ungroup_news_items.put
+      parameters:
+      - name: confirm
+        in: query
+        required: false
+        description: Confirm removing stories that this request would empty from their reports
+        schema:
+          type: boolean
       requestBody:
         required: true
         content:
@@ -6393,9 +6352,33 @@ paths:
         '401':
           $ref: '#/components/responses/401Unauthorized'
         '403':
-          description: forbidden
+          description: forbidden, or "User is not allowed to update report" when an emptied story belongs to a report the user cannot update
         '404':
           $ref: '#/components/responses/404NotFound'
+        '409':
+          description: the request would empty stories assigned to reports; repeat with confirm=true to remove them from these reports
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - error
+                - reports
+                properties:
+                  error:
+                    type: string
+                  reports:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                      - id
+                      - title
+                      properties:
+                        id:
+                          type: string
+                        title:
+                          type: string
   /assess/news-items/{news_item_id}/attributes:
     parameters:
     - name: news_item_id
@@ -8937,7 +8920,7 @@ paths:
       - UserAuth: []
       tags:
       - dashboard
-      description: delete tag
+      description: delete a tag from all news items; requires ADMIN_OPERATIONS
       operationId: dashboard.delete-tag.delete
       responses:
         '200':
@@ -9332,6 +9315,55 @@ paths:
           $ref: '#/components/responses/401Unauthorized'
         '403':
           description: forbidden
+  /settings/llm-model-suggestions:
+    get:
+      security:
+      - UserAuth: []
+      tags: [config]
+      operationId: settings.llm_model_suggestions.get
+      description: >-
+        List suggested model IDs by API format using the supplied effective URLs.
+        Unsupported or unavailable catalogs yield no suggestions. Requires ADMIN_OPERATIONS.
+      parameters:
+      - name: responses
+        in: query
+        schema: {type: string}
+      - name: chat_completions
+        in: query
+        schema: {type: string}
+      - name: systemone
+        in: query
+        schema: {type: string}
+      - name: openai_decisions
+        in: query
+        schema: {type: string}
+      - name: processing_mode
+        in: query
+        schema:
+          type: string
+          enum: [realtime, openrouter_batch]
+          default: realtime
+      responses:
+        '200':
+          description: Suggestions keyed by API format
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: array
+                  items:
+                    type: object
+                    required: [id, name]
+                    properties:
+                      id: {type: string}
+                      name: {type: string}
+        '400':
+          description: Invalid model suggestions request
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: ADMIN_OPERATIONS required
   /settings/llm-endpoints:
     post:
       security:
@@ -9747,6 +9779,44 @@ paths:
           description: forbidden
         '404':
           $ref: '#/components/responses/404NotFound'
+  /worker/tasks/changed:
+    post:
+      security:
+      - APIKey: []
+      description: invalidate scheduler and owner task views after RQ state changes
+      operationId: worker.task_changes_worker.post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                user_ids:
+                  type: array
+                  maxItems: 100
+                  items:
+                    type: string
+                    minLength: 1
+                    maxLength: 36
+      responses:
+        '200':
+          description: task views invalidated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '400':
+          description: invalid task change notice
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
   /worker/tasks/history/cleanup:
     post:
       security:
@@ -11714,16 +11784,6 @@ components:
                   type:
                   - string
                   - 'null'
-    report_item_lock:
-      type: object
-      properties:
-        locked:
-          type: boolean
-        lock_time:
-          type: string
-          format: date-time
-        report_item_id:
-          type: string
     validation_status:
       type: object
       properties:

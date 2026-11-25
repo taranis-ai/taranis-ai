@@ -1478,6 +1478,14 @@ def test_assess_saved_filter_update_button_reuses_save_endpoint(authenticated_cl
     assert json.loads(update_values) == {"name": "Shift queue"}
     assert update_button.get("disabled") is None
 
+    share_link = tree.xpath('//*[@data-testid="saved-filter-url"]')[0]
+    expected_path = url_for("assess.assess", search="old")
+    assert share_link.text_content().strip() == expected_path
+    assert share_link.get("href") == expected_path
+    assert share_link.get("title") == expected_path
+    apply_link = tree.xpath('//*[@data-testid="saved-filter-actions"]//a[normalize-space()="Apply"]')[0]
+    assert apply_link.get("href") == expected_path
+
 
 def test_table_search_bar_uses_form_level_search_trigger(app):
     with app.test_request_context("/frontend/admin/osint-sources?search=alpha"):
@@ -1856,3 +1864,89 @@ def test_handle_news_item_response_returns_notification_and_content(app, monkeyp
 
     assert result.status_code == 200  # type: ignore
     assert result.get_data(as_text=True) == "notification<div>content</div>"  # type: ignore
+
+
+def test_ungroup_news_item_conflict_opens_confirmation_dialog(authenticated_client, responses_mock, htmx_header):
+    responses_mock.put(
+        f"{Config.TARANIS_CORE_URL}/assess/news-items/ungroup",
+        json={"error": "Ungrouping removes the story from reports", "reports": [{"id": "report-1", "title": "Weekly <CERT> report"}]},
+        status=409,
+    )
+
+    response = authenticated_client.post(
+        url_for("assess.ungroup", story_id="story-1"), headers=htmx_header, data={"news_item_ids[]": ["news-1"]}
+    )
+
+    assert response.status_code == 200
+    assert response.headers["HX-Retarget"] == "body"
+    assert response.headers["HX-Reswap"] == "beforeend"
+    assert response.headers["HX-Reselect"] == "#ungroup_confirm_dialog"
+    dialog = html.fromstring(response.text).xpath('//dialog[@id="ungroup_confirm_dialog"]')[0]
+    assert dialog.xpath('.//*[@data-test-id="affected-reports"]//li')[0].text_content().strip() == "Weekly <CERT> report"
+    confirm_button = dialog.xpath('.//*[@data-test-id="ungroup-confirm"]')[0]
+    assert json.loads(confirm_button.get("hx-vals")) == {"news_item_ids[]": ["news-1"], "confirm": "true"}
+
+
+def test_confirmed_ungroup_news_item_error_only_returns_notification(authenticated_client, responses_mock, htmx_header):
+    responses_mock.put(
+        f"{Config.TARANIS_CORE_URL}/assess/news-items/ungroup?confirm=true",
+        json={"error": "User is not allowed to update report"},
+        status=403,
+    )
+
+    response = authenticated_client.post(
+        url_for("assess.ungroup", story_id="story-1"),
+        headers=htmx_header,
+        data={"news_item_ids[]": ["news-1"], "confirm": "true"},
+    )
+
+    assert response.status_code == 403
+    assert parse_qs(urlparse(responses_mock.calls[0].request.url).query) == {"confirm": ["true"]}
+    notification = html.fromstring(response.text)
+    assert notification.get("id") == "notification-bar"
+    assert notification.get("hx-swap-oob") is None
+    assert "User is not allowed to update report" in notification.text_content()
+
+
+def test_confirmed_ungroup_news_item_connection_error_returns_server_error(authenticated_client, responses_mock, htmx_header):
+    responses_mock.put(
+        f"{Config.TARANIS_CORE_URL}/assess/news-items/ungroup?confirm=true",
+        body=RequestException("private transport detail"),
+    )
+
+    response = authenticated_client.post(
+        url_for("assess.ungroup", story_id="story-1"),
+        headers=htmx_header,
+        data={"news_item_ids[]": ["news-1"], "confirm": "true"},
+    )
+
+    # A non-2xx status routes the error to the notification bar instead of being swapped as a success.
+    assert response.status_code == 500
+    assert "Failed to ungroup news item." in response.text
+    assert "private transport detail" not in response.text
+
+
+@pytest.mark.parametrize(
+    ("core_kwargs", "status", "message"),
+    [
+        ({"json": {"error": "NewsItem not found"}, "status": 404}, 404, "NewsItem not found"),
+        ({"json": {"error": "User does not have write access to this news item"}, "status": 403}, 403, "write access"),
+        ({"json": {"error": "Story is assigned to a report"}, "status": 400}, 400, "Story is assigned to a report"),
+        ({"body": RequestException("private transport detail")}, 500, "Failed to delete news item"),
+    ],
+    ids=["missing", "forbidden", "in-report", "connection-error"],
+)
+def test_delete_news_item_error_only_returns_notification(authenticated_client, responses_mock, htmx_header, core_kwargs, status, message):
+    responses_mock.delete(f"{Config.TARANIS_CORE_URL}/assess/news-items/news-1", **core_kwargs)
+    # Without a story ID, rendering a story card would request the story list as if it were a story.
+    responses_mock.get(f"{Config.TARANIS_CORE_URL}/assess/stories/", json={"items": [], "counts": {"total_count": 0}})
+
+    response = authenticated_client.delete(url_for("assess.delete_news_item", news_item_id="news-1"), headers=htmx_header)
+
+    assert response.status_code == status
+    assert [call.request.method for call in responses_mock.calls] == ["DELETE"]
+    notification = html.fromstring(response.text)
+    assert notification.get("id") == "notification-bar"
+    assert notification.get("hx-swap-oob") is None
+    assert message in notification.text_content()
+    assert "private transport detail" not in response.text

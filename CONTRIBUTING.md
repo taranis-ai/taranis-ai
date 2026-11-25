@@ -58,13 +58,13 @@ changes alter the implementation.
 Human contributors must complete the contributor
 confirmations themselves or explicitly authorize an agent to record them.
 
-Include a concise explanation of the change and actual validation results in
-the description. Identify checks not run and explain why. For features, follow
-the full signoff procedure in the development workflow. Highlight important
-decisions, risks, and useful verification steps; include screenshots for UI
-changes and migration or rollback notes where relevant. Include a human
-review-time estimate.
+Include a concise explanation of the change in the description. Keep test/lint
+results, counts, commands, CI status, and signoff details out of PR titles and
+descriptions. For features, complete the full signoff procedure in the development
+workflow before creating a ready-for-review PR. Highlight important decisions
+and risks; include screenshots for UI changes and migration or rollback notes
+where relevant. Include a human review-time estimate.
 
-Keep the description, prompt disclosure, and validation evidence current when
-review changes alter the implementation. Rerun applicable validation for the
+Keep the description and prompt disclosure current when review changes alter
+the implementation. Rerun applicable validation for the
 updated changes; earlier results do not establish that the revised code passes.

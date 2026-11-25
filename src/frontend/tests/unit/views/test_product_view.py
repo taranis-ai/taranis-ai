@@ -116,14 +116,18 @@ def test_product_list_does_not_load_editor_catalogs():
 
 def test_product_view_preselects_report_from_query(app):
     product_type = ProductTypeChoice(id="product-type-1", title="CERT Daily Report")
-    report = ReportItem.model_construct(id="report-1", title="Selected report", report_item_type_id="report-type-1")
+    report = ReportItem.model_construct(
+        id="report-1", title="Selected report", report_item_type_id="report-type-1", stories=["story-1", "story-2"]
+    )
     product_instance = Product.model_construct(
         id="product-1",
         title="Existing product",
         description="existing",
         product_type_id="product-type-1",
         report_items=["report-2"],
-        supported_reports=[{"id": "report-2", "title": "Already selected"}],
+        supported_reports=[
+            {"id": "report-2", "title": "Already selected", "created": "2026-11-06T09:01:07.847773+00:00", "stories": ["s1", "s2", "s3"]}
+        ],
     )
 
     with patch("frontend.views.product_views.DataPersistenceLayer") as persistence_cls:
@@ -146,7 +150,10 @@ def test_product_view_preselects_report_from_query(app):
         call(ProductTypeChoice, PagingData(query_params={"report_ids": ["report-1", "report-2"]}).set_fetch_all()),
     ]
     assert context["selected_report_items"] == ["report-2", "report-1"]
-    assert context["supported_reports"] == [{"id": "report-2", "title": "Already selected"}, report.model_dump(mode="json")]
+    assert context["supported_reports"] == [
+        {"id": "report-2", "title": "Already selected", "created": "2026-11-06T09:01:07", "stories": ["s1", "s2", "s3"], "story_count": 3},
+        {**report.model_dump(mode="json"), "story_count": 2},
+    ]
 
 
 def test_product_view_uses_core_choices_cached_by_report_selection(app, responses_mock, test_cache_backend):
@@ -263,7 +270,7 @@ def test_product_copy_prefills_only_creation_fields(app, report_items):
         report_items=report_items,
     )
     assert context["selected_report_items"] == report_items
-    assert context["supported_reports"] == source.supported_reports
+    assert context["supported_reports"] == [{**report, "story_count": 0} for report in source.supported_reports]
     assert context["is_edit"] is False
     assert context["submit_text"] == "Create Product"
     assert "hx-post=" in markup and "hx-put=" not in markup

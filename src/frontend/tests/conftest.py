@@ -118,6 +118,7 @@ def auth_user():
         permissions=["ADMIN_OPERATIONS", "ASSESS_ACCESS", "ASSESS_UPDATE", "ANALYZE_ACCESS", "PUBLISH_ACCESS", "ASSETS_ACCESS"],
         profile=ProfileSettings(),
         roles=[{"id": "1", "name": "Admin"}],
+        allowed_tlp_levels=["red", "amber+strict", "amber", "green", "clear"],
     )
 
 
@@ -131,6 +132,7 @@ def auth_user_basic():
         permissions=["ASSESS_ACCESS", "ASSESS_UPDATE", "ANALYZE_ACCESS", "PUBLISH_ACCESS", "ASSETS_ACCESS"],
         profile=ProfileSettings(),
         roles=[{"id": "2", "name": "User"}],
+        allowed_tlp_levels=["clear"],
     )
 
 

@@ -564,7 +564,7 @@ _DEFINITIONS = (
     _definition(WORKER_TYPES.SENTIMENT_ANALYSIS_BOT, "Sentiment Analysis Bot", "Bot for analyzing sentiment", SentimentAnalysisBotParameters),
     _definition(
         WORKER_TYPES.CYBERSEC_CLASSIFIER_BOT,
-        "Topic classification bot",
+        "Topic Classifier",
         "Bot for classifying news items into general and security topics",
         CybersecClassifierBotParameters,
     ),

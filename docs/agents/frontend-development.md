@@ -13,18 +13,22 @@ Shared controls own selection, accessibility, styling, and shortcut behavior acr
 Shared row actions have accessible names. Delete actions retain native CSRF-protected POST forms and explicitly target notifications on HTMX 400/4xx/5xx failures.
 Native delete dispatch rejects create placeholder IDs with 405 before contacting Core.
 
+The admin health card shows a Core-labelled debug badge from the existing dashboard's `health_status.core.debug` (Core's `Config.DEBUG`); missing health data hides it. It adds no HTTP requests and uses the dashboard's existing 30-second cache. Frontend debug, Flask CLI overrides, and Worker debug do not contribute.
+
 ## HTMX and Forms
 
 Taranis uses HTMX 4:
 
 - Attributes apply only to their element unless explicitly marked `:inherited`.
 - Lifecycle names use colons (`htmx:config:request`, `htmx:after:swap`); request/swap context is `event.detail.ctx`, and the swap target is `ctx.target`.
+- htmx 4 silently ignores htmx 2 attribute names. Disable elements during a request with `hx-disable` (htmx 2 `hx-disabled-elt`); `hx-ignore` stops htmx processing. `tests/unit/test_htmx_attribute_names.py` rejects renamed or removed names.
+- `hx-disable` only takes effect once the request is actually sent, i.e. after `hx-confirm` has been accepted. It does not prevent a second confirmation on a double click, but it blocks further clicks while the confirmed request is pending.
 - Authenticated pages swap 400 validation responses into the normal target and suppress other 4xx/5xx swaps. Intentional error rendering needs local `hx-status:400`, `hx-status:4xx`, and `hx-status:5xx` target rules, plus compatible select/swap rules.
 - Complete table-container responses require `outerHTML` on that container; notification-only actions must receive only notifications. Error responses must not inherit an append or table-selection swap.
 
 Shared table navigation retains native links/GET forms and `restoreSearchAfterSwap`; `hx-preserve` does not replace request-derived search restoration. Page-size events stay local to the form. Import controls retain the list URL for refresh after success. Assess token filters still require JavaScript.
 
-HTML responses vary on `HX-Request` and `HX-Target`, including in DEBUG, so HTTP caches select the matching response instead of serving an HTMX fragment for a full-page request. Production dynamic responses also retain `Cache-Control: no-store`.
+History restoration requests render the full page even when HTMX sends `HX-Request`, so browser Back/Forward retains the page shell and realtime listeners. HTML responses vary on `HX-Request`, `HX-Target`, and `HX-History-Restore-Request`, including in DEBUG, so HTTP caches select the matching response instead of serving an HTMX fragment for a full-page request. Production dynamic responses also retain `Cache-Control: no-store`.
 
 Preserve selected IDs and retry context on validation errors. Report/clustering dialogs close only on success. Non-HTMX forms retain CSRF protection and safe result/retry redirects.
 

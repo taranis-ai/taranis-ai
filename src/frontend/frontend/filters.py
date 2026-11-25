@@ -11,6 +11,8 @@ from jinja2 import pass_context
 from markupsafe import Markup, escape
 from models.admin import OSINTSource
 from models.assess import Story
+from models.types import BOT_TYPES
+from models.worker_parameters import get_worker_definition
 
 
 __all__ = [
@@ -89,8 +91,12 @@ def human_readable_trigger(trigger):
 
 
 def render_count(item, field: str) -> int:
-    if hasattr(item, field) and isinstance(getattr(item, field), list):
-        return len(getattr(item, field))
+    """Return the length of a list field, an integer field unchanged, or 0 for anything else."""
+    value = getattr(item, field, None)
+    if isinstance(value, list):
+        return len(value)
+    if isinstance(value, int):
+        return value
     return 0
 
 
@@ -142,6 +148,8 @@ def render_truncated(item, field: str) -> str:
 
 def render_item_type(item) -> str:
     if hasattr(item, "type") and item.type:
+        if isinstance(item.type, BOT_TYPES):
+            return get_worker_definition(item.type.value).name
         return item.type.split("_")[0].capitalize()
     return "Unknown"
 

@@ -47,7 +47,7 @@ bots = [
         "parameters": {},
     },
     {
-        "name": "Topic Classifier Bot",
+        "name": "Topic Classifier",
         "description": "Bot for classifying news items into general and security topics",
         "type": "CYBERSEC_CLASSIFIER_BOT",
     },

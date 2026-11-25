@@ -29,6 +29,7 @@ dependencies = [
     "granian",
     "psycopg",
     "requests",
+    "niquests",
     "authlib",
     "setuptools",
     "taranis-models",
@@ -122,6 +123,7 @@ exclude = [
 
 [tool.pyright]
 typeCheckingMode = "standard"
+reportUnknownVariableType = "none"
 reportConstantRedefinition = "error"
 reportDuplicateImport = "error"
 reportMissingTypeStubs = "warning"
@@ -141,6 +143,9 @@ reportIncompatibleMethodOverride = "none"
 
 [tool.uv]
 config-settings = { editable_mode = "compat" }
+# Keep Niquests' urllib3 fork from replacing the urllib3 used by Requests.
+no-binary-package = ["urllib3-future"]
+extra-build-variables = { "urllib3-future" = { URLLIB3_NO_OVERRIDE = "1" } }
 exclude-newer = "1 week"
 # Allow security updates to the certificate bundle and image decoders without the release delay.
 exclude-newer-package = { fuzzbite = "2026-09-15T00:00:00Z", certifi = false, pillow = false }

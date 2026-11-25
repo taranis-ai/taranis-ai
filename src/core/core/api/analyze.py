@@ -8,7 +8,6 @@ from core.log import logger
 from core.managers import asset_manager, queue_manager
 from core.managers.auth_manager import auth_required
 from core.managers.realtime_publisher import realtime_publisher
-from core.managers.report_item_lock_service import report_item_lock_service
 from core.model import report_item, report_item_type
 from core.model.revision import ReportRevision
 from core.service.cache_invalidation import SCOPE_PUBLISH_VIEWS, SCOPE_REPORT_VIEWS, invalidate_frontend_cache_on_success
@@ -32,7 +31,7 @@ class ReportEditor(MethodView):
 class ReportStories(MethodView):
     @auth_required("ANALYZE_ACCESS")
     def get(self, report_item_id: str):
-        return report_item.ReportItem.get_story_ids(report_item_id)
+        return report_item.ReportItem.get_story_ids(report_item_id, current_user)
 
     @auth_required("ANALYZE_UPDATE")
     def put(self, report_item_id: str):
@@ -105,14 +104,15 @@ class ReportItem(MethodView):
             logger.debug("No data in request")
             return {"error": "No data in request"}, 400
         updated_report, status = report_item.ReportItem.update_report_item(report_item_id, request_data, current_user)
-        if status == 200:
-            realtime_publisher.report_item_changed(report_item_id, current_user.organization_id)
-            ProductService.autopublish_product(report_item_id, user_id=current_user.id)
-            invalidate_frontend_cache_on_success(
-                status,
-                scopes=(SCOPE_REPORT_VIEWS, SCOPE_PUBLISH_VIEWS),
-                object_ids={"report": report_item_id},
-            )
+        if status != 200:
+            return make_response(jsonify(updated_report), status)
+        realtime_publisher.report_item_changed(report_item_id, current_user.organization_id)
+        ProductService.autopublish_product(report_item_id, user_id=current_user.id)
+        invalidate_frontend_cache_on_success(
+            status,
+            scopes=(SCOPE_REPORT_VIEWS, SCOPE_PUBLISH_VIEWS),
+            object_ids={"report": report_item_id},
+        )
 
         return make_response(jsonify({"message": "Report item updated", "id": updated_report.get("id"), "report": updated_report}), status)
 
@@ -190,38 +190,6 @@ class CloneReportItem(MethodView):
             invalidate_frontend_cache_on_success(status, scopes=(SCOPE_REPORT_VIEWS,))
 
         return make_response(jsonify(result), status)
-
-
-class ReportItemLocks(MethodView):
-    @auth_required("ANALYZE_UPDATE")
-    def get(self, report_item_id: str):
-        return jsonify(report_item_lock_service.to_report_item_json(report_item_id))
-
-
-class ReportItemLock(MethodView):
-    @auth_required("ANALYZE_UPDATE")
-    def put(self, report_item_id: str):
-        user = current_user
-        if not user:
-            return abort(401, "User not found")
-        try:
-            response, status = report_item_lock_service.lock(report_item_id, user.id, user.organization_id)
-            return make_response(jsonify(response), status)
-        except Exception as ex:
-            logger.exception("Failed to lock report item %s: %s", report_item_id, ex)
-            return {"error": "Failed to lock report item"}, 500
-
-    @auth_required("ANALYZE_UPDATE")
-    def delete(self, report_item_id: str):
-        user = current_user
-        if not user:
-            return abort(401, "User not found")
-        try:
-            response, status = report_item_lock_service.unlock(report_item_id, user.organization_id)
-            return make_response(jsonify(response), status)
-        except Exception as ex:
-            logger.exception("Failed to unlock report item %s: %s", report_item_id, ex)
-            return {"error": "Failed to unlock report item"}, 500
 
 
 class ReportItemRevisions(MethodView):
@@ -311,8 +279,6 @@ def initialize(app: Flask):
     )
     analyze_bp.add_url_rule("/report-items/<string:report_item_id>/clone", view_func=CloneReportItem.as_view("clone_report_item"))
     analyze_bp.add_url_rule("/report-items/<string:report_item_id>/stories", view_func=ReportStories.as_view("report_stories"))
-    analyze_bp.add_url_rule("/report-items/<string:report_item_id>/locks", view_func=ReportItemLocks.as_view("report_item_locks"))
-    analyze_bp.add_url_rule("/report-items/<string:report_item_id>/lock", view_func=ReportItemLock.as_view("report_item_lock"))
     analyze_bp.add_url_rule("/report-items/<string:report_item_id>/revisions", view_func=ReportItemRevisions.as_view("report_item_revisions"))
     analyze_bp.add_url_rule(
         "/report-items/<string:report_item_id>/revisions/<int:revision_number>",

@@ -5,6 +5,7 @@ from markupsafe import Markup, escape
 from models.admin import Bot, Settings, WordList
 from models.llm import LLM_BOT_FEATURES
 from models.types import BOT_TYPES
+from models.worker_parameters import get_worker_definition
 from werkzeug.exceptions import HTTPException
 
 from frontend.auth import admin_required
@@ -58,8 +59,7 @@ class BotView(AdminBaseView):
     _index = 110
 
     bot_types: ClassVar[dict[str, dict[str, str]]] = {
-        member.name.lower(): {"id": member.name.lower(), "name": " ".join(part.capitalize() for part in member.name.split("_"))}
-        for member in BOT_TYPES
+        member.value: {"id": member.value, "name": get_worker_definition(member.value).name} for member in BOT_TYPES
     }
 
     @classmethod
@@ -252,7 +252,7 @@ class BotView(AdminBaseView):
         return [
             {
                 "id": bot.id,
-                "name": f"{bot.name} ({_bot_type_name(bot)})",
+                "name": f"{bot.name} ({cls.bot_types[_bot_type_name(bot).lower()]['name']})",
                 "enabled": "true" if bot.enabled else "false",
             }
             for bot in bots

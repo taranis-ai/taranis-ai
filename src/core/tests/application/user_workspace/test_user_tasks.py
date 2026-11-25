@@ -1,5 +1,6 @@
 import uuid
 from datetime import UTC, datetime, timedelta
+from unittest.mock import Mock, call
 
 import pytest
 from redis.exceptions import RedisError
@@ -13,12 +14,15 @@ def test_story_task_lifecycle_is_visible_only_to_its_owner(
 ):
     from rq.job import Job
 
+    from core.managers.realtime_publisher import realtime_publisher
     from core.model.user import User
     from tests.application.support.builders import build_news_item_payload, create_story
 
     story = create_story(news_items=[build_news_item_payload()])
     story_id = story.id
     user_id = User.find_by_name("user").id
+    publication = Mock(return_value=True)
+    monkeypatch.setattr(realtime_publisher, "publish", publication)
     manager = app.extensions["rq"]
     queue = manager.get_queue("bots")
     history_id = f"previous-{story_id}"
@@ -28,6 +32,12 @@ def test_story_task_lifecycle_is_visible_only_to_its_owner(
         "/api/assess/stories/botactions", json={"story_id": story_id, "bot_id": action}, headers=auth_header_user_permissions
     )
     assert response.status_code == 200
+    publication.assert_has_calls(
+        [
+            call("global:events", "scheduler.changed", "invalidated"),
+            call([f"user:#{user_id}"], "task.changed", "invalidated"),
+        ]
+    )
     job = queue.get_jobs()[0]
     # Private queue configuration must never enter either public task projection.
     job.meta["checkpoint"] = {"secret": "private-provider-configuration"}
@@ -85,10 +95,19 @@ def test_story_task_lifecycle_is_visible_only_to_its_owner(
     active = client.get("/api/config/workers/active", query_string={"search": story_id}, headers=auth_header).json
     assert [item["id"] for item in active["items"]] == [job.id]
     assert active["items"][0]["name"] == live["name"]
+    assert active["items"][0]["tracks_completion"] is True
 
     payload = _task_payload(job.id, user_id=user_id, status=outcome)
     payload.update(name=job.meta["name"], task=job.meta["task"], worker_id=job.meta["worker_id"], worker_type=job.meta["worker_type"])
+    publication.reset_mock()
     assert client.post("/api/tasks", json=payload, headers=api_header).status_code == 200
+    publication.assert_has_calls(
+        [
+            call("global:events", "scheduler.changed", "invalidated"),
+            call([f"user:#{user_id}"], "task.changed", "invalidated"),
+        ]
+    )
+    assert "private-provider-configuration" not in str(publication.call_args_list)
     completed = client.get("/api/tasks/user", query_string={"search": story_id}, headers=auth_header_user_permissions).json["items"]
     assert [item["status"] for item in completed if item["job_id"] == job.id] == [outcome]
     assert next(item for item in completed if item["job_id"] == job.id)["name"] == live["name"]
@@ -299,7 +318,7 @@ def test_user_tasks_requires_authentication(client):
     assert client.get("/api/tasks/user").status_code == 401
 
 
-def test_completed_runs_includes_background_jobs_and_filters_without_exposing_payloads(app, client, api_header):
+def test_completed_runs_includes_background_jobs_and_filters_without_exposing_payloads(app, client, api_header, auth_header_user_permissions):
     prefix = f"completed-{uuid.uuid4().hex}"
     job_ids = [f"{prefix}-{suffix}" for suffix in ("success", "failure", "active")]
     try:
@@ -335,6 +354,26 @@ def test_completed_runs_includes_background_jobs_and_filters_without_exposing_pa
         assert next_page.json["total_count"] == 102
         assert len(next_page.json["items"]) == 2
         assert {item["id"] for item in bounded.json["items"]}.isdisjoint(item["id"] for item in next_page.json["items"])
+
+        # Exact selections are independent of broad searches and apply before pagination.
+        selected_ids = job_ids[:3]
+        selected = client.get("/api/tasks/runs", query_string={"job_ids": selected_ids, "limit": 1}, headers=api_header)
+        assert selected.json["total_count"] == 2
+        assert selected.json["items"] == response.json["items"]
+        selected_next = client.get("/api/tasks/runs", query_string={"job_ids": selected_ids, "limit": 1, "page": 2}, headers=api_header)
+        assert selected_next.json["total_count"] == 2
+        assert [item["job_id"] for item in selected_next.json["items"]] == [job_ids[0]]
+        selected_success = client.get(
+            "/api/tasks/runs", query_string={"job_ids": selected_ids, "status": "SUCCESS", "search": prefix}, headers=api_header
+        )
+        assert selected_success.json["total_count"] == 1
+        assert selected_success.json["items"] == selected_next.json["items"]
+        for unmatched_id in (prefix, f"{prefix}%", ""):
+            unmatched = client.get("/api/tasks/runs", query_string={"job_ids": unmatched_id}, headers=api_header)
+            assert unmatched.status_code == 200
+            assert unmatched.json == {"items": [], "total_count": 0, "live_tasks_available": True}
+
+        assert client.get("/api/tasks/runs", query_string={"job_ids": selected_ids}, headers=auth_header_user_permissions).status_code == 403
         assert client.get("/api/tasks/runs").status_code == 401
     finally:
         _delete_tasks(app, job_ids)
