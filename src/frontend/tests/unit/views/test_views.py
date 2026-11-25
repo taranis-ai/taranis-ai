@@ -843,6 +843,8 @@ def test_osint_source_form_shows_current_icon_and_delete_option(app):
     )
 
     with app.test_request_context("/"):
+        enable_url = url_for("admin.toggle_osint_source_state", osint_source_id=osint_source.id, new_state="enabled")
+        disable_url = url_for("admin.toggle_osint_source_state", osint_source_id=osint_source.id, new_state="disabled")
         html = render_template(
             "osint_source/osint_source_form.html",
             model_name="osint_source",
@@ -869,8 +871,8 @@ def test_osint_source_form_shows_current_icon_and_delete_option(app):
     assert "Preview" in html
     assert "Collect" in html
     assert "checked" in html
-    assert 'hx-post="/frontend/admin/toggle_source_state/source-with-icon/enabled"' in html
-    assert 'hx-post="/frontend/admin/toggle_source_state/source-with-icon/disabled"' in html
+    assert f'hx-post="{enable_url}"' in html
+    assert f'hx-post="{disable_url}"' in html
     assert html.count('hx-swap="outerHTML"') >= 3
 
 

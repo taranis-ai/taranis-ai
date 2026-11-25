@@ -150,6 +150,7 @@ class User(BaseModel):
             profile=profile,
             effective_timezone=profile.timezone or "UTC",
             pending_onboarding_tasks=self._pending_onboarding_tasks(profile, permissions),
+            allowed_tlp_levels=self.get_highest_tlp().get_accessible_levels(),
         )
 
     def mark_last_login(self) -> None:

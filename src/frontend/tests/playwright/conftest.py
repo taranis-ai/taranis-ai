@@ -645,17 +645,6 @@ def forward_console_and_page_errors_non_admin(request, non_admin_logged_in_page)
     yield from _forward_console_and_page_errors(request, non_admin_logged_in_page, extra_allow_patterns=allow_patterns)
 
 
-@pytest.fixture
-def forward_console_and_page_errors_non_admin_report_forbidden(request, non_admin_logged_in_page):
-    yield from _forward_console_and_page_errors(
-        request,
-        non_admin_logged_in_page,
-        extra_allow_patterns=[
-            r"(?i)\[console\.error\].*/report/.*Failed to load resource: the server responded with a status of 403 \(forbidden\)",
-        ],
-    )
-
-
 @pytest.fixture(scope="session")
 def stories_date_descending_important(core_request_client):
     allow_requests_passthru()

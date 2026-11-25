@@ -1558,7 +1558,7 @@ class TestEndToEndUser(BaseE2ETest):
                 expect(page.get_by_role("textbox", name="Date", exact=True)).to_have_attribute("type", "date")
                 expect(page.get_by_role("textbox", name="Time", exact=True)).to_have_attribute("type", "time")
                 expect(page.get_by_role("textbox", name="Date Time")).to_have_attribute("type", "datetime-local")
-                expect(page.get_by_label("TLP Level Clear Green Amber")).to_be_visible()
+                expect(page.get_by_label("TLP Level")).to_be_visible()
                 expect(page.get_by_role("heading", name="Technical References and")).to_be_visible()
                 expect(page.get_by_text('Unsupported attribute type "')).to_be_visible()
                 expect(page.get_by_text("Attachment editing is not yet")).to_be_visible()
@@ -1605,7 +1605,7 @@ class TestEndToEndUser(BaseE2ETest):
                 page.get_by_role("textbox", name="Date", exact=True).fill("2026-02-05")
                 page.get_by_role("textbox", name="Time", exact=True).fill("11:11")
                 page.get_by_role("textbox", name="Date Time").fill("2026-02-05T11:11")
-                # page.get_by_label("TLP Level Clear Green Amber").select_option("red")
+                # page.get_by_label("TLP Level").select_option("red")
                 page.locator("div").filter(has_text="Stories Remove all Report").nth(4).click()
                 page.get_by_placeholder("CVE field").fill("CVE-2026-24888")
                 page.get_by_placeholder("CVSS field").fill("1")
@@ -1629,7 +1629,7 @@ class TestEndToEndUser(BaseE2ETest):
                 page.get_by_role("textbox", name="Date", exact=True).fill("")
                 page.get_by_role("textbox", name="Time", exact=True).fill("")
                 page.get_by_role("textbox", name="Date Time").fill("")
-                page.get_by_label("TLP Level Clear Green Amber").select_option("clear")
+                page.get_by_label("TLP Level").select_option("clear")
                 page.get_by_placeholder("CVE field").fill("")
                 page.get_by_placeholder("CVSS field").fill("")
                 page.get_by_test_id("save-report").click()
@@ -1655,7 +1655,7 @@ class TestEndToEndUser(BaseE2ETest):
                 expect(page.get_by_role("textbox", name="Date", exact=True)).to_be_empty()
                 expect(page.get_by_role("textbox", name="Time", exact=True)).to_be_empty()
                 expect(page.get_by_role("textbox", name="Date Time")).to_be_empty()
-                expect(page.get_by_label("TLP Level Clear Green Amber")).to_have_value("clear")
+                expect(page.get_by_label("TLP Level")).to_have_value("clear")
                 expect(page.get_by_placeholder("CVE field")).to_be_empty()
                 expect(page.get_by_placeholder("CVSS field")).to_be_empty()
                 expect(page.locator("#report_form")).to_contain_text("Use the NVD CVSS calculator to determine the score.")
@@ -1745,7 +1745,7 @@ class TestEndToEndUser(BaseE2ETest):
                 page.get_by_role("textbox", name="Date *", exact=True).fill("2026-02-05")
                 page.get_by_role("textbox", name="Time *", exact=True).fill("11:11")
                 page.get_by_role("textbox", name="Date Time *").fill("2026-02-05T11:11")
-                page.get_by_label("TLP Level * Clear Green Amber").select_option("clear")
+                page.get_by_label("TLP Level").select_option("clear")
                 page.locator("div").filter(has_text="Stories Remove all Report").nth(4).click()
                 page.get_by_placeholder("CVE field*").fill("CVE-2026-24888")
                 page.get_by_placeholder("CVSS field*").fill("1")
@@ -1801,78 +1801,27 @@ class TestEndToEndUser(BaseE2ETest):
         go_to_analyze()
         check_various_report_type_fields()
 
-    def test_user_report_vanishes_with_higher_tlp(
+    def test_user_report_tlp_choices_match_clearance(
         self,
         non_admin_logged_in_page: Page,
         forward_console_and_page_errors_non_admin,
         pre_seed_report_type_all_attribute_types_optional,
     ):
         page = non_admin_logged_in_page
-        report_title = f"tlp_clear_report_{uuid.uuid4().hex[:8]}"
 
         page.goto(url_for("analyze.analyze", _external=True))
         expect(page.get_by_test_id("analyze")).to_be_visible()
 
         page.get_by_test_id("new-report-button").click()
         expect(page.get_by_role("heading", name="Create Report")).to_be_visible()
-        page.get_by_role("textbox", name="Title").fill(report_title)
+        page.get_by_role("textbox", name="Title").fill(f"tlp_clear_report_{uuid.uuid4().hex[:8]}")
         page.get_by_test_id("report-type-select").select_option(label=self.ALL_ATTRIBUTE_REPORT_TYPE_LABEL)
         page.get_by_test_id("save-report").click()
-        page.get_by_test_id("report-id").inner_text().split("ID: ")[1]
         dismiss_notifications(page)
 
-        page.get_by_label("TLP Level Clear Green Amber").select_option("clear")
-        page.get_by_test_id("save-report").click()
-        expect(page.get_by_label("TLP Level Clear Green Amber")).to_have_value("clear")
-        dismiss_notifications(page)
-
-        page.get_by_role("link", name="Analyze").click()
-        self.assert_item_in_table(page, "report-table", report_title)
-
-        self.open_table_item(page, "report-table", report_title)
-        page.get_by_label("TLP Level Clear Green Amber").select_option("green")
-        page.get_by_test_id("save-report").click()
-        expect(page.get_by_test_id("analyze")).to_be_visible()
-
-        page.get_by_role("link", name="Analyze").click()
-        expect(page.get_by_test_id("analyze")).to_be_visible()
-        self.assert_item_not_in_table(page, "report-table", report_title)
-
-    def test_user_report_detail_is_forbidden_after_higher_tlp(
-        self,
-        non_admin_logged_in_page: Page,
-        forward_console_and_page_errors_non_admin_report_forbidden,
-        pre_seed_report_type_all_attribute_types_optional,
-    ):
-        page = non_admin_logged_in_page
-        report_title = f"tlp_clear_report_detail_{uuid.uuid4().hex[:8]}"
-
-        page.goto(url_for("analyze.analyze", _external=True))
-        expect(page.get_by_test_id("analyze")).to_be_visible()
-
-        page.get_by_test_id("new-report-button").click()
-        expect(page.get_by_role("heading", name="Create Report")).to_be_visible()
-        page.get_by_role("textbox", name="Title").fill(report_title)
-        page.get_by_test_id("report-type-select").select_option(label=self.ALL_ATTRIBUTE_REPORT_TYPE_LABEL)
-        page.get_by_test_id("save-report").click()
-        page.get_by_test_id("report-id").inner_text().split("ID: ")[1]
-        dismiss_notifications(page)
-
-        page.get_by_label("TLP Level Clear Green Amber").select_option("clear")
-        page.get_by_test_id("save-report").click()
-        expect(page.get_by_label("TLP Level Clear Green Amber")).to_have_value("clear")
-        dismiss_notifications(page)
-
-        page.get_by_role("link", name="Analyze").click()
-        self.assert_item_in_table(page, "report-table", report_title)
-        self.open_table_item(page, "report-table", report_title)
-        report_id = page.url.rstrip("/").split("/")[-1]
-
-        page.get_by_label("TLP Level Clear Green Amber").select_option("green")
-        page.get_by_test_id("save-report").click()
-        expect(page.get_by_test_id("analyze")).to_be_visible()
-        page.goto(url_for("analyze.report", report_id=report_id, _external=True))
-        expect(page.get_by_text("403 - Access denied")).to_be_visible()
+        tlp_select = page.get_by_label("TLP Level")
+        expect(tlp_select).to_have_value("clear")
+        expect(tlp_select.locator("option")).to_have_text(["Clear"])
 
     def test_publish(
         self,

@@ -543,6 +543,23 @@ def test_rq_scheduled_collector_cron(
 
 
 @pytest.mark.e2e_ci
+def test_rq_scheduled_task_history_cleanup_cron(
+    worker_process: None,
+    cron_process: None,
+    rq_harness: RqE2EHarness,
+) -> None:
+    cron_job_id = "cleanup_task_history"
+    rq_harness.assert_cron_registration(cron_job_id, expected_cron="0 3 * * *")
+    forced_due_timestamp = rq_harness.force_cron_job_due(cron_job_id)
+
+    _, payload = rq_harness.wait_for_cron_task_result(cron_job_id)
+    assert payload.get("status") == "SUCCESS"
+    assert payload.get("task") == cron_job_id
+    _, next_run_after_execution = rq_harness.assert_cron_registration(cron_job_id, expected_cron="0 3 * * *")
+    assert next_run_after_execution > forced_due_timestamp
+
+
+@pytest.mark.e2e_ci
 def test_rq_osint_cron_update_immediately_refreshes_next_run(
     rq_harness: RqE2EHarness,
     rss_server: str,

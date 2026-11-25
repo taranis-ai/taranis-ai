@@ -654,6 +654,9 @@ class ReportItem(BaseModel):
 
         if attributes_data := data.pop("attributes", None):
             report_item.update_attributes(attributes_data)
+            if not report_item._allowed_with_tlp(user):
+                db.session.rollback()
+                return {"error": "TLP is above your clearance"}, 403
 
         if normalized_story_ids is not None:
             report_item.update_stories(normalized_story_ids, stories_to_attach)
