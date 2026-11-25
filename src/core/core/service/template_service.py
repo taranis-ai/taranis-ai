@@ -25,6 +25,7 @@ type TemplateContent = str | bytes | bytearray | memoryview | None
 
 TEMPLATE_SYNTAX_ERROR_WARNING = "The template has a syntax error."
 TEMPLATE_UNREADABLE_WARNING = "The template file could not be read."
+TEMPLATE_EMPTY_WARNING = "The template file is empty."
 TEMPLATE_CHECK_FAILED_WARNING = "Template compatibility could not be checked."
 REPORT_TYPES_INCOMPATIBLE_WARNING = "The template may not work with one or more of the selected report types."
 
@@ -176,6 +177,9 @@ def product_type_compatibility_warnings(product_type: ProductType, *, show_repor
         template_content = get_template_content(template_path)
         if not isinstance(template_content, str):
             return [TEMPLATE_UNREADABLE_WARNING]
+        if not template_content:
+            # Jinja renders an empty template, but BasePresenter.generate() rejects it.
+            return [TEMPLATE_EMPTY_WARNING]
         product = {
             "type": str(product_type.type),
             "type_id": product_type.id,

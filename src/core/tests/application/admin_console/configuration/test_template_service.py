@@ -70,6 +70,25 @@ def test_seeded_product_type_templates_match_their_report_types(app, seed):
         assert template_service.product_type_compatibility_warnings(product_type) == []
 
 
+@pytest.mark.parametrize(
+    ("template_content", "expected_warnings"),
+    [
+        pytest.param("", ["The template file is empty."], id="empty-presenter-rejects"),
+        pytest.param("\n", [], id="whitespace-presenter-renders"),
+    ],
+)
+def test_product_type_warns_on_empty_template(app, monkeypatch, template_content, expected_warnings):
+    from core.model.product_type import ProductType
+
+    seed = SEEDED_TEMPLATE_PRODUCT_TYPES[0]
+    monkeypatch.setattr(template_service, "get_template_content", lambda path: template_content)
+    with app.app_context():
+        product_type = ProductType.filter_by_title(seed["title"])
+        assert product_type is not None
+
+        assert template_service.product_type_compatibility_warnings(product_type) == expected_warnings
+
+
 def test_build_validation_and_content_accepts_memoryview():
     encoded_content, validation_status = template_service._build_validation_and_content(memoryview(b"Hello {{ name }}"))
 
