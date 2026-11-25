@@ -4,7 +4,7 @@
 {% block content %}
   <div id="source_preview">
     {% if task_result %}
-      {% if task_result.status == "STARTED" %}
+      {% if task_result.status in ["STARTED", "QUEUED", "DEFERRED", "SCHEDULED", "READY_TO_ENQUEUE"] %}
         <div class="alert alert-info my-5 mx-5"
              hx-get
              hx-trigger='realtime:osint_source.preview.finished[detail.resource.id=={{ osint_source_id|tojson }}] from:document, realtime:resync from:document, every 20s'
@@ -29,12 +29,24 @@
           </div>
           <button type="button"
                   class="btn btn-primary btn-sm"
+                  {% if preview_paused %}disabled{% endif %}
                   hx-post="{{ url_for('admin.osint_source_preview_retrigger', osint_source_id=osint_source_id) }}"
                   hx-target="#source_preview"
                   hx-swap="outerHTML"
                   hx-select="#source_preview">Retrigger preview</button>
         </div>
       {% endif %}
+    {% elif preview_paused %}
+      <div class="alert alert-warning my-5 mx-5">
+        {% if request.method == "POST" %}
+          Collection is stopped.
+          <a class="link" href="{{ url_for('admin.osint_source_preview', osint_source_id=osint_source_id) }}">View saved preview</a>
+        {% else %}
+          No saved preview. Collection is stopped.
+        {% endif %}
+      </div>
+    {% elif preview_unavailable %}
+      <div class="alert alert-error my-5 mx-5">Preview unavailable.</div>
     {% else %}
       <div class="alert alert-info my-5 mx-5">
         <p>No results found for this OSINT source.</p>

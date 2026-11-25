@@ -11,9 +11,37 @@
 {% set actions = actions | default([]) %}
 {% set filter_manual = request.args.get("filter_manual", "true") %}
 
+{% macro collector_button(action, label, confirmation) %}
+  <button type="button"
+          class="btn btn-outline {{ 'btn-error' if action == 'stop' else 'btn-warning' }}"
+          hx-post="{{ url_for('admin.change_collector_state', **dict(request.args, action=action)) }}"
+          hx-target="#{{ table_container }}"
+          hx-swap="outerHTML"
+          hx-status:4xx="target:#notification-bar"
+          hx-status:5xx="target:#notification-bar"
+          hx-disable="this"
+          data-confirm-title="{{ label }}?"
+          data-confirm-confirm="{{ label }}"
+          hx-confirm="{{ confirmation }}">{{ label }}</button>
+{% endmacro %}
+
 <div id="{{ table_container }}"
      class="table-container"
      x-data="{ selectedItems: [], exportUrl: '{{ url_for('admin.export_osint_sources') }}' }">
+  {% if collector_status.stopped %}
+    <div class="alert alert-warning mb-4" role="status">
+      <span><strong>Collector stop is active.</strong> Collection stays stopped across restarts until an administrator selects Resume collectors.</span>
+      {% if collector_status.remaining_jobs is none %}
+        <span>Queue status unavailable. Active jobs may still fetch articles. Retry interruption.</span>
+      {% elif collector_status.remaining_jobs %}
+        <span>Active jobs may still fetch articles. Refresh to check interruption progress.</span>
+      {% else %}
+        <span>The queue reports no waiting or active collector jobs.</span>
+      {% endif %}
+    </div>
+  {% elif collector_status.stopped is not sameas false %}
+    <p class="alert alert-warning mb-4">Collector status unavailable.</p>
+  {% endif %}
   {% call table_decoration("source", model_name, table_container, routes=routes, searchbar=false, force_delete=true, delete_name="sources") %}
     <div class="grow-0">
       <div class="join gap-1" hx-target:inherited="#form-container">
@@ -23,10 +51,17 @@
                 hx-status:400="target:#notification-bar"
                 hx-status:4xx="target:#notification-bar"
                 hx-status:5xx="target:#notification-bar"
+                {% if collector_status.stopped is not sameas false %}disabled{% endif %}
                 class="btn btn-outline">
           {{ heroicon_outline("arrows-pointing-in", class="h-5 w-5") }}
           Collect All
         </button>
+        {% if current_user and "ADMIN_OPERATIONS" in current_user.permissions %}
+          {% if not collector_status.stopped or collector_status.remaining_jobs != 0 %}
+            {{ collector_button('stop', 'Retry interruption' if collector_status.stopped else 'Stop collectors', 'Collection stays stopped across restarts until an administrator selects Resume collectors. Taranis will try to cancel waiting jobs and interrupt active runs.') }}
+          {% endif %}
+          {% if collector_status.stopped %}{{ collector_button('resume', 'Resume collectors', 'Resume collection and allow external fetches again?') }}{% endif %}
+        {% endif %}
         <button hx-get="{{ url_for('admin.curated_osint_source_lists') }}"
                 class="btn btn-outline btn-secondary tooltip"
                 data-tip="Choose and add sources from curated lists"

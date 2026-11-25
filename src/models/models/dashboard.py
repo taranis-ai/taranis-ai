@@ -70,6 +70,7 @@ class Dashboard(TaranisBaseModel):
     report_items_completed: int = 0
     report_items_in_progress: int = 0
     latest_collected: datetime | None = None
+    collectors_stopped: bool | None = None
     schedule_length: int | None = None
     conflict_count: int | None = None
     health_status: DashboardHealth | None = None

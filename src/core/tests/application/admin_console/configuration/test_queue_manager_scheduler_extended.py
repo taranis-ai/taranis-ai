@@ -203,7 +203,7 @@ def test_get_task_returns_success_payload(monkeypatch):
     assert response == {"id": "source_preview_123", "status": "SUCCESS", "result": [{"title": "Preview item"}]}
 
 
-def test_preview_osint_source_purges_existing_preview_artifacts(monkeypatch):
+def test_preview_osint_source_purges_existing_preview_artifacts(monkeypatch, session):
     purged_calls: list[tuple[set[str], list[str]]] = []
 
     class FakeJob:

@@ -4,7 +4,7 @@ from urllib.parse import urlencode
 
 import niquests as requests
 from models.product import WorkerProduct as Product
-from models.task import TaskChangeNotice, TaskResult, TaskSubmission
+from models.task import CollectorState, TaskChangeNotice, TaskResult, TaskSubmission
 from niquests.typing import MultiPartFilesAltType
 from opentelemetry.propagate import inject
 from pydantic import ValidationError
@@ -146,11 +146,11 @@ class CoreApi:
         response = http_request("POST", url=url, headers=self.get_request_headers(), verify=self.verify, json=json_data, timeout=self.timeout)
         return self.check_response(response, url)
 
-    def api_get(self, url: str, params=None):
+    def api_get(self, url: str, params=None, *, timeout: int | None = None):
         url = f"{self.api_url}{url}"
         if params:
             url += f"?{urlencode(params, doseq=True)}"
-        response = http_request("GET", url=url, headers=self.get_request_headers(), verify=self.verify, timeout=self.timeout)
+        response = http_request("GET", url=url, headers=self.get_request_headers(), verify=self.verify, timeout=timeout or self.timeout)
         return self.check_response(response, url)
 
     def api_delete(self, url: str):
@@ -287,6 +287,14 @@ class CoreApi:
             return response if response and isinstance(response, list) else None
         except requests.exceptions.RequestException:
             logger.exception("Can't get all bots")
+            return None
+
+    def get_collector_state(self) -> CollectorState | None:
+        try:
+            # Cron also polls other queues. A slow Core must not consume its leadership lease.
+            return CollectorState.model_validate(self.api_get("/worker/collector-state", timeout=min(5, self.timeout)))
+        except (requests.exceptions.RequestException, ValidationError):
+            logger.warning("Could not verify collector status")
             return None
 
     def get_cron_jobs(self) -> list[dict] | None:

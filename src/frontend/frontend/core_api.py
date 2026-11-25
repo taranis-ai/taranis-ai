@@ -174,12 +174,14 @@ class CoreApi:
     def load_curated_osint_source_lists(self, list_names: list[str]):
         return self.api_post("/config/curated-osint-source-lists", json_data={"list_names": list_names})
 
+    def get_collector_status(self, *, progress: bool = False) -> dict:
+        result = self.api_get("/settings/collectors", params={"progress": "true"} if progress else None)
+        return result if isinstance(result, dict) else {}
+
     def get_osint_source_preview(self, osint_source_id: str):
         try:
-            return self.api_get(f"/config/osint-sources/{osint_source_id}/preview")
-        except HTTPException:
-            raise
-        except Exception as e:
+            return self.session.get(f"{self.api_url}/config/osint-sources/{osint_source_id}/preview", timeout=self.timeout)
+        except requests.RequestException as e:
             logger.error(f"Retrieving OSINT source preview failed: {e}")
             return None
 

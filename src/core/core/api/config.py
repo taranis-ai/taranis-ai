@@ -43,6 +43,7 @@ from core.model import (
     word_list,
 )
 from core.model.permission import Permission
+from core.model.settings import Settings
 from core.service.cache_invalidation import invalidate_frontend_cache_on_success
 from core.service.template_service import build_template_response, build_templates_list, create_or_update_template, validate_template_content
 from core.service.worker_parameters import reveal_parameter
@@ -862,12 +863,8 @@ class OSINTSources(MethodView):
 class OSINTSourceCollect(MethodView):
     @auth_required("CONFIG_OSINT_SOURCE_UPDATE")
     def post(self, source_id: str | None = None):
-        if error := queue_manager.queue_manager.queue_action_error():
-            return error
         if source_id:
-            if source := osint_source.OSINTSource.get(source_id):
-                return queue_manager.queue_manager.collect_osint_source(source_id, task_id=source.task_id, user_id=current_user.id)
-            return {"error": "OSINT Source not found"}, 404
+            return queue_manager.queue_manager.collect_osint_source(source_id, user_id=current_user.id)
         return queue_manager.queue_manager.collect_all_osint_sources(user_id=current_user.id)
 
 
@@ -882,8 +879,10 @@ class OSINTSourcePreview(MethodView):
 
         if result := task.Task.get(task_id):
             return result.to_dict(), 200
+        if Settings.get_collector_state().stopped:
+            return {"error": "No saved preview. Collection is stopped."}, 409
         preview_result, status = queue_manager.queue_manager.get_task(task_id)
-        if status == 202:
+        if status == 202 and preview_result.get("status") not in {"STOPPED", "CANCELED"}:
             return preview_result, status
         if user_id is None:
             return queue_manager.queue_manager.preview_osint_source(source_id)

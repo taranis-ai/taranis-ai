@@ -13,6 +13,57 @@ from core.model.bot import Bot
 from core.model.osint_source import OSINTSource
 
 
+def test_collector_stop_persists_across_queue_recovery_and_requires_explicit_resume(
+    app, client, session, redis_client, auth_header, auth_header_user_permissions, api_header, fake_source, monkeypatch
+):
+    from core.model.task import Task
+
+    control = "/api/settings/collectors"
+    sources = "/api/config/osint-sources"
+    manager = app.extensions["rq"]
+    queue = manager.get_queue("collectors")
+    pending = queue.enqueue("worker.collectors.collector_tasks.collector_task", fake_source)
+    bot = manager.get_queue("bots").enqueue("worker.bots.bot_tasks.bot_task")
+    assert client.post(f"{control}/stop", headers=auth_header_user_permissions).status_code == 403
+    with monkeypatch.context() as offline:
+        offline.setattr(redis_client.connection_pool.connection_kwargs["server"], "connected", False)
+        assert client.post(f"{control}/stop", headers=auth_header).status_code == 202
+        assert client.get(control, headers=auth_header_user_permissions, query_string={"progress": "true"}).json["remaining_jobs"] is None
+        assert client.post(f"{control}/resume", headers=auth_header).status_code == 409
+    assert client.post(f"{control}/stop", headers=auth_header).status_code == 200
+    assert pending.is_canceled
+    assert bot.is_queued
+    redis_client.flushall()
+    assert manager.restore_runtime_state()
+    assert client.get("/api/worker/collector-state", headers=api_header).json["stopped"] is True
+    assert client.patch("/api/settings/settings", headers=auth_header, json={"settings": {"collector_state": {}}}).status_code == 400
+    preview = f"{sources}/{fake_source}/preview"
+    for url in (f"{sources}/collect", f"{sources}/{fake_source}/collect", preview):
+        assert client.post(url, headers=auth_header).status_code == 409
+    assert client.get(preview, headers=auth_header).status_code == 409
+    assert (
+        client.post("/api/assess/news-items/fetch", headers=auth_header, json={"parameters": {"WEB_URL": "https://example.com"}}).status_code
+        == 409
+    )
+    Task.add_or_update(
+        {
+            "id": f"source_preview_{fake_source}",
+            "task": "collector_preview",
+            "status": "PREVIEW",
+            "result": {"message": "Saved preview", "data": [{"title": "Stored title"}]},
+        }
+    )
+    assert client.get(preview, headers=auth_header).json["result"]["data"] == [{"title": "Stored title"}]
+    assert queue.count == 0
+    assert client.post(f"{control}/resume", headers=auth_header_user_permissions).status_code == 403
+    assert client.post(f"{control}/resume", headers=auth_header).status_code == 200
+    resumed = client.get(control, headers=auth_header_user_permissions).json
+    assert resumed["stopped"] is False
+    assert resumed["resumed_at"] > 0
+    assert client.post(f"{sources}/{fake_source}/collect", headers=auth_header).status_code == 200
+    assert queue.jobs[0].meta["collector_resumed_at"] == resumed["resumed_at"]
+
+
 def test_get_scheduled_jobs_includes_cleanup_cron(app, redis_client, monkeypatch):
     monkeypatch.setattr(OSINTSource, "get_enabled_schedule_entries", classmethod(lambda cls: []))
     monkeypatch.setattr(Bot, "get_enabled_schedule_entries", classmethod(lambda cls: []))
@@ -276,7 +327,7 @@ def test_core_startup_without_redis_requires_explicit_queue_disable(
     assert response.json == {"error": "Queue is disabled"}
     assert manager.get_task("missing") == ({"error": "Queue is disabled"}, 503)
     assert manager.execute_bot_task("invalid.id") == ({"error": "Queue is disabled"}, 503)
-    assert manager.collect_osint_source("missing", "missing") == ({"error": "Queue is disabled"}, 503)
+    assert manager.collect_osint_source("missing") == ({"error": "Queue is disabled"}, 503)
     assert manager.post_collection_bots("missing", story_ids=[]) == ({"error": "Queue is disabled"}, 503)
     assert manager.schedule_bot_dependents("missing") == ({"error": "Queue is disabled"}, 503)
 

@@ -4,6 +4,7 @@ from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from models.llm import LLM_BOT_FEATURES, LLM_FEATURES, LLMEndpoint, LLMProvider
+from models.task import CollectorState
 from sqlalchemy import event
 from sqlalchemy.orm import Mapped, Session
 
@@ -83,6 +84,7 @@ class Settings(BaseModel):
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
         public_settings = deepcopy(self.with_defaults(self.settings))
+        public_settings.pop("collector_state", None)
         from core.service.endpoint_health import get_status
 
         for endpoint_id, endpoint in public_settings["llm_endpoints"].items():
@@ -96,9 +98,7 @@ class Settings(BaseModel):
         if not isinstance(data, dict):
             return {"error": "Invalid settings payload"}, 400
 
-        settings = cls.get_first(
-            db.select(cls).filter_by(singleton_key=cls.SINGLETON_KEY).with_for_update().execution_options(populate_existing=True)
-        )
+        settings = cls.get_settings_entry(for_update=True)
         if settings is None:
             logger.debug("No Settings entry found")
             return {"error": "Error updating settings"}, 404
@@ -157,6 +157,8 @@ class Settings(BaseModel):
             except (TypeError, ValueError):
                 return {"error": "Maximum stories must be between 1 and 20"}, 400
 
+        if "collector_state" in update_data:
+            return {"error": "Manage the collector stop on OSINT Sources"}, 400
         if update_data:
             onboarding_changed = (
                 "onboarding_enabled" in update_data and update_data["onboarding_enabled"] != current_settings["onboarding_enabled"]
@@ -218,9 +220,7 @@ class Settings(BaseModel):
 
     @classmethod
     def save_llm_endpoint(cls, data: dict | None, endpoint_id: str | None = None, *, delete: bool = False) -> tuple[dict, int]:
-        entry = cls.get_first(
-            db.select(cls).filter_by(singleton_key=cls.SINGLETON_KEY).with_for_update().execution_options(populate_existing=True)
-        )
+        entry = cls.get_settings_entry(for_update=True)
         if entry is None:
             return {"error": "Settings not found"}, 404
         values = cls.with_defaults(entry.settings)
@@ -301,7 +301,7 @@ class Settings(BaseModel):
 
     @classmethod
     def initialize(cls):
-        if settings := cls.get_settings_entry():
+        if settings := cls.get_settings_entry(for_update=True):
             onboarding_missing = "onboarding_enabled" not in (settings.settings or {})
             settings.settings = cls.with_defaults(settings.settings)
             cls._validate_llm_settings(settings.settings)
@@ -325,6 +325,13 @@ class Settings(BaseModel):
             User.set_onboarding_enabled_for_all(settings.settings["onboarding_enabled"])
 
         db.session.commit()
+
+    @classmethod
+    def get_collector_state(cls, *, for_update: bool = False) -> CollectorState:
+        # Read just the control state. Workers must fail closed if the singleton is missing.
+        query = db.select(cls.settings["collector_state"]).filter_by(singleton_key=cls.SINGLETON_KEY)
+        state = db.session.execute(cls._lock_settings_row(query) if for_update else query).scalar_one()
+        return CollectorState.model_validate(state) if state is not None else CollectorState(stopped=False, resumed_at=0)
 
     @classmethod
     def get_settings(cls) -> dict:
@@ -394,8 +401,16 @@ class Settings(BaseModel):
                 data[key] = value
 
     @classmethod
-    def get_settings_entry(cls) -> "Settings | None":
-        return cls.get_first(db.select(cls).filter_by(singleton_key=cls.SINGLETON_KEY))
+    def _lock_settings_row(cls, query):
+        if db.engine.dialect.name == "sqlite":
+            # SQLite ignores FOR UPDATE. Acquire the write lock before reading the shared JSON.
+            db.session.execute(db.update(cls).where(cls.singleton_key == cls.SINGLETON_KEY).values(singleton_key=cls.SINGLETON_KEY))
+        return query.with_for_update().execution_options(populate_existing=True)
+
+    @classmethod
+    def get_settings_entry(cls, *, for_update: bool = False) -> "Settings | None":
+        query = db.select(cls).filter_by(singleton_key=cls.SINGLETON_KEY)
+        return cls.get_first(cls._lock_settings_row(query) if for_update else query)
 
     @classmethod
     def get(cls, item_id):

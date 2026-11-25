@@ -43,7 +43,7 @@ from croniter import croniter
 from flask import Flask
 from models.admin import CronSpec
 from models.scheduler import JobFilter, ScheduledJob, StoredTaskResult
-from models.task import FAILURE_MESSAGES
+from models.task import COLLECTION_STOPPED_MESSAGE, FAILURE_MESSAGES
 from opentelemetry.propagate import inject
 from pydantic import TypeAdapter
 from redis import Redis
@@ -52,13 +52,15 @@ from redis.exceptions import ConnectionError as RedisConnectionError
 from redis.exceptions import TimeoutError as RedisTimeoutError
 from redis.maint_notifications import MaintNotificationsConfig
 from rq import Queue
-from rq.exceptions import NoSuchJobError
+from rq.command import send_stop_execution_command
+from rq.exceptions import InvalidJobOperation, NoSuchJobError
 from rq.job import Dependency, Job, JobStatus
 from rq.registry import DeferredJobRegistry, ReadyJobRegistry, ScheduledJobRegistry, StartedJobRegistry
 from sqlalchemy import select
 
 from core.config import Config
 from core.log import logger
+from core.model.settings import Settings
 from core.service.simple_web_collector import get_simple_web_collector_url
 from core.service.task_events import batch_task_changes, notify_task_change
 
@@ -579,6 +581,8 @@ class QueueManager:
         deadline = time.time() + timeout if timeout is not None else None
         while True:
             job.refresh()
+            if job.get_status(refresh=False) in {JobStatus.STOPPED, JobStatus.CANCELED}:
+                return {"error": "The collection request was interrupted."}, 409
             if job.is_finished:
                 return job.result
             if job.is_failed:
@@ -721,14 +725,72 @@ class QueueManager:
             return {"error": self.error}, 500
         return None
 
-    def collect_osint_source(self, source_id: str, task_id: str, user_id: str | None = None):
+    @batch_task_changes()
+    def _cancel_waiting_collector_jobs(self, queue: Queue) -> None:
+        for job_id in self._pending_job_ids(queue):
+            # A job can start or finish between the registry read and cancellation.
+            with queue.connection.pipeline() as pipe, contextlib.suppress(WatchError, NoSuchJobError, InvalidJobOperation):
+                pipe.watch(Job.key_for(job_id))
+                job = queue.fetch_job(job_id)
+                if job is None or job.get_status(refresh=False) not in {
+                    JobStatus.QUEUED,
+                    JobStatus.SCHEDULED,
+                    JobStatus.DEFERRED,
+                    JobStatus.READY_TO_ENQUEUE,
+                }:
+                    continue
+                pipe.multi()
+                job.cancel(pipeline=pipe)
+                pipe.execute()
+                user_id = job.meta.get("user_id")
+                notify_task_change([user_id] if user_id else None)
+
+    def interrupt_collector_jobs(self) -> int | None:
+        """Request interruption and report how much work RQ still sees."""
+        queue = self.get_queue("collectors")
+        if queue is None:
+            return None
+        try:
+            for job_id, execution_id in queue.started_job_registry.get_job_and_execution_ids(cleanup=False):
+                with contextlib.suppress(InvalidJobOperation):
+                    send_stop_execution_command(queue.connection, job_id, execution_id)
+            self._cancel_waiting_collector_jobs(queue)
+        except Exception:
+            logger.exception("Could not interrupt collector jobs")
+            return None
+        return self.remaining_collector_jobs()
+
+    def remaining_collector_jobs(self) -> int | None:
+        queue = self.get_queue("collectors")
+        if queue is None:
+            return None
+        try:
+            # An atomic snapshot follows jobs as RQ moves them between queues and registries.
+            with queue.connection.pipeline() as pipe:
+                pipe.llen(queue.key)
+                pipe.llen(queue.intermediate_queue_key)
+                for registry in (
+                    queue.deferred_job_registry,
+                    queue.scheduled_job_registry,
+                    queue.ready_job_registry,
+                    queue.started_job_registry,
+                ):
+                    pipe.zcard(registry.key)
+                return sum(pipe.execute())
+        except Exception:
+            logger.exception("Could not verify collector jobs")
+            return None
+
+    def collect_osint_source(self, source_id: str, user_id: str | None = None):
         """Trigger OSINT source collection"""
         from core.model.osint_source import OSINTSource
         from core.service.worker_parameters import effective_parameters
 
+        state = Settings.get_collector_state()
+        if state.stopped:
+            return {"error": COLLECTION_STOPPED_MESSAGE}, 409
         if error := self.queue_action_error():
             return error
-
         if not (source := OSINTSource.get(source_id)):
             return {"error": "OSINT source not found"}, 404
         try:
@@ -742,16 +804,13 @@ class QueueManager:
             "collector_task",
             source_id,
             True,
-            job_id=task_id,
-            meta=self._build_task_meta(
+            job_id=source.task_id,
+            meta={"collector_resumed_at": state.resumed_at}
+            | self._build_task_meta(
                 "collector_task",
                 user_id=user_id,
                 worker_id=source_id,
-                worker_type=self._resolve_worker_type(
-                    OSINTSource.get,
-                    source_id,
-                    fallback="collector_task",
-                ),
+                worker_type=source.type.value,
             ),
         ):
             logger.info(f"Collect for source {source_id} scheduled")
@@ -764,9 +823,12 @@ class QueueManager:
         from core.model.osint_source import OSINTSource
         from core.service.worker_parameters import effective_parameters
 
+        # Serialize the decision to discard the previous preview with Stop.
+        state = Settings.get_collector_state(for_update=True)
+        if state.stopped:
+            return {"error": COLLECTION_STOPPED_MESSAGE}, 409
         if error := self.queue_action_error():
             return error
-
         if not (source := OSINTSource.get(source_id)):
             return {"error": "OSINT source not found"}, 404
         try:
@@ -782,15 +844,12 @@ class QueueManager:
             "collector_preview",
             source_id,
             job_id=task_id,
-            meta=self._build_task_meta(
+            meta={"collector_resumed_at": state.resumed_at}
+            | self._build_task_meta(
                 "collector_preview",
                 user_id=user_id,
                 worker_id=source_id,
-                worker_type=self._resolve_worker_type(
-                    OSINTSource.get,
-                    source_id,
-                    fallback="collector_task",
-                ),
+                worker_type=source.type.value,
             ),
         ):
             logger.info(f"Preview for source {source_id} scheduled")
@@ -830,13 +889,17 @@ class QueueManager:
         return f"fetch_single_news_item_{payload_hash}"
 
     def fetch_single_news_item(self, parameters: dict[str, Any], user_id: str | None = None):
+        state = Settings.get_collector_state()
+        if state.stopped:
+            return {"error": COLLECTION_STOPPED_MESSAGE}, 409
         url = get_simple_web_collector_url(parameters)
         job = self.enqueue_task(
             "collectors",
             "fetch_single_news_item",
             parameters,
             job_id=self._get_single_fetch_job_id(parameters),
-            meta=self._build_task_meta(
+            meta={"collector_resumed_at": state.resumed_at}
+            | self._build_task_meta(
                 "collector_task",
                 user_id=user_id,
                 worker_id=self._get_single_fetch_url(parameters),
@@ -862,9 +925,11 @@ class QueueManager:
         from core.model.osint_source import OSINTSource
         from core.service.worker_parameters import effective_parameters
 
-        if self.error:
-            return {"error": self.error}, 503 if not Config.QUEUE_ENABLED else 500
-
+        state = Settings.get_collector_state()
+        if state.stopped:
+            return {"error": COLLECTION_STOPPED_MESSAGE}, 409
+        if error := self.queue_action_error():
+            return error
         sources = OSINTSource.get_all_for_collector()
         for source in sources:
             try:
@@ -879,7 +944,8 @@ class QueueManager:
                 source.id,
                 True,
                 job_id=source.task_id,
-                meta=self._build_task_meta(
+                meta={"collector_resumed_at": state.resumed_at}
+                | self._build_task_meta(
                     "collector_task",
                     user_id=user_id,
                     worker_id=source.id,

@@ -4,6 +4,7 @@
   const SUPPORTED_TYPES = new Set([
     "assess.changed",
     "scheduler.changed",
+    "collectors.changed",
     "task.changed",
     "report.item.changed",
     "product.rendered",

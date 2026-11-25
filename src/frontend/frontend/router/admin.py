@@ -184,6 +184,8 @@ def init(app: Flask):
     admin_bp.add_url_rule("/source_groups/<string:osint_source_group_id>", view_func=SourceGroupView.as_view("edit_osint_source_group"))
 
     admin_bp.add_url_rule("/sources", view_func=SourceView.as_view("osint_sources"))
+    admin_bp.add_url_rule("/sources/collectors/<any(stop,resume):action>", view_func=SourceView.change_collector_state, methods=["POST"])
+    admin_bp.add_url_rule("/dashboard/collector-status", view_func=AdminDashboardView.collector_status)
     admin_bp.add_url_rule("/sources/bulk", view_func=BulkCreateOSINTSources.as_view("bulk_create_osint_sources"))
     admin_bp.add_url_rule("/sources/<string:osint_source_id>", view_func=SourceView.as_view("edit_osint_source"))
     admin_bp.add_url_rule("/source_parameters/<string:osint_source_id>", view_func=OSINTSourceParameterAPI.as_view("osint_source_parameters"))

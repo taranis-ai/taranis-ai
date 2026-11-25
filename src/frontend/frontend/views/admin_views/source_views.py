@@ -12,7 +12,7 @@ from requests import RequestException
 from requests import Response as RequestsResponse
 from werkzeug.exceptions import HTTPException
 
-from frontend.auth import admin_required
+from frontend.auth import admin_required, auth_required
 from frontend.config import Config
 from frontend.core_api import CoreApi
 from frontend.data_persistence import DataPersistenceLayer
@@ -77,9 +77,12 @@ class SourceView(AdminBaseView):
         parameters = {}
         parameter_values = {}
 
+        collector_status = CoreApi().get_collector_status(progress=True)
+        stopped = collector_status.get("stopped")
+        base_context["collector_status"] = collector_status
         osint_source_actions = [
             {
-                "label": "Preview",
+                "label": "View saved preview" if stopped else "Preview",
                 "icon": "eye",
                 "method": "post",
                 "url": url_for("admin.osint_source_preview", osint_source_id=""),
@@ -121,7 +124,7 @@ class SourceView(AdminBaseView):
         base_context["worker_parameters_selected"] = bool(collector and collector.type)
         base_context["collector_types"] = cls.collector_types.values()
         base_context["icon_accept"] = Config.OSINT_SOURCE_ICON_ALLOWED_MIMETYPES
-        base_context["actions"] = osint_source_actions
+        base_context["actions"] = [action for action in osint_source_actions if stopped is False or action["label"] != "Collect"]
         base_context["secret_reveal_url"] = (
             f"{Config.TARANIS_BASE_PATH.rstrip('/')}/api/config/parameter-secrets/sources/{collector.id}"
             if collector and collector.id
@@ -412,6 +415,18 @@ class SourceView(AdminBaseView):
         return cls.redirect_htmx(cls.get_base_route())
 
     @classmethod
+    @auth_required("ADMIN_OPERATIONS")
+    def change_collector_state(cls, action: str):
+        try:
+            response = CoreApi().api_post(f"/settings/collectors/{action}")
+        except RequestException:
+            return cls.render_response_notification({"error": "Collector status unavailable."}), 502
+        if not response.ok:
+            return cls.get_notification_from_response(response), response.status_code
+        table, status = cls.table_view()
+        return cls.get_notification_from_response(response) + table, status
+
+    @classmethod
     def _collect_source_view(cls, response: RequestsResponse | None):
         if response is None:
             logger.error("Failed to start OSINT source collection")
@@ -439,20 +454,26 @@ class SourceView(AdminBaseView):
     @classmethod
     @admin_required()
     def get_osint_source_preview_view(cls, osint_source_id: str):
-        task_result = None
-        response = CoreApi().get_osint_source_preview(osint_source_id)
-        if isinstance(response, dict):
-            task_result = Task.model_validate(response)
-        return render_template("osint_source/osint_source_preview.html", task_result=task_result, osint_source_id=osint_source_id)
+        return cls.render_preview(osint_source_id, CoreApi().get_osint_source_preview(osint_source_id))
 
     @classmethod
     @admin_required()
     def retrigger_osint_source_preview_view(cls, osint_source_id: str):
-        task_result = None
-        response = CoreApi().retrigger_osint_source_preview(osint_source_id)
-        if isinstance(response, dict):
-            task_result = Task.model_validate(response)
-        return render_template("osint_source/osint_source_preview.html", task_result=task_result, osint_source_id=osint_source_id)
+        return cls.render_preview(osint_source_id, CoreApi().retrigger_osint_source_preview(osint_source_id))
+
+    @staticmethod
+    def render_preview(source_id: str, response: RequestsResponse | None):
+        task = Task.model_validate(response.json()) if response is not None and response.ok else None
+        paused = response is not None and response.status_code == 409
+        if task and task.status == "FAILURE":
+            paused = CoreApi().get_collector_status().get("stopped") is not False
+        return render_template(
+            "osint_source/osint_source_preview.html",
+            task_result=task,
+            osint_source_id=source_id,
+            preview_paused=paused,
+            preview_unavailable=task is None and not paused,
+        ), 200 if task or paused else (response.status_code if response is not None else 502)
 
     @classmethod
     def delete_view(cls, object_id: str) -> ResponseReturnValue:

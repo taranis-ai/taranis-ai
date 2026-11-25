@@ -1,9 +1,16 @@
+from time import time
+
 from flask import Blueprint, Flask, jsonify, request, url_for
 from flask.views import MethodView
+from models.task import CollectorState
+from redis.exceptions import RedisError
 
 from core.config import Config
+from core.log import logger
 from core.managers import queue_manager
 from core.managers.auth_manager import auth_required
+from core.managers.db_manager import db
+from core.managers.realtime_publisher import realtime_publisher
 from core.model.settings import Settings
 from core.service.admin import AdminService
 from core.service.cache_invalidation import cache_invalidation_service, invalidate_frontend_cache_on_success
@@ -37,6 +44,55 @@ class ResetDatabase(MethodView):
     @auth_required("ADMIN_OPERATIONS")
     def post(self):
         return {"error": "TODO IMPLEMENT"}, 501
+
+
+class CollectorControl(MethodView):
+    @auth_required()
+    def get(self):
+        state = Settings.get_collector_state()
+        response = state.model_dump()
+        if state.stopped and request.args.get("progress") == "true":
+            response["remaining_jobs"] = queue_manager.queue_manager.remaining_collector_jobs()
+        return response, 200
+
+    @auth_required("ADMIN_OPERATIONS")
+    def post(self, action: str):
+        entry = Settings.get_settings_entry(for_update=True)
+        if entry is None:
+            return {"error": "Collector status unavailable."}, 503
+        state = Settings.get_collector_state()
+        stop = action == "stop"
+        manager = queue_manager.queue_manager
+        changed = state.stopped != stop
+        if changed:
+            if not stop and manager.remaining_collector_jobs() != 0:
+                return {"error": "Resume after the collector queue is reachable and interruptions are confirmed."}, 409
+            state = CollectorState(stopped=stop, resumed_at=state.resumed_at if stop else time())
+            entry.settings = {**entry.settings, "collector_state": state.model_dump()}
+            db.session.commit()
+            realtime_publisher.publish("global:events", "collectors.changed", "updated")
+
+        # Stop is already visible. Hold the lock only while interrupting this collection period.
+        if stop and Settings.get_collector_state(for_update=True).stopped:
+            response = self._stop_response(manager.interrupt_collector_jobs())
+            db.session.commit()
+        else:
+            response = {"message": "Collection is enabled."}, 200
+        if changed:
+            try:
+                invalidate_frontend_cache_on_success(200, models=("dashboard",))
+            except RedisError:
+                logger.warning("Could not invalidate the dashboard cache after changing the collector stop")
+        return response
+
+    @staticmethod
+    def _stop_response(remaining: int | None):
+        duration = "Collection stays stopped until an administrator selects Resume collectors."
+        if remaining is None:
+            return {"message": f"{duration} Queue status unavailable. Retry interruption."}, 202
+        if remaining:
+            return {"message": f"{duration} Waiting for active jobs to stop."}, 202
+        return {"message": f"{duration} The queue reports no waiting or active collector jobs."}, 200
 
 
 class ClearQueues(MethodView):
@@ -157,6 +213,9 @@ def initialize(app: Flask):
     settings_bp.add_url_rule("/delete-stories", view_func=DeleteStories.as_view("delete_stories"))
     settings_bp.add_url_rule("/ungroup-stories", view_func=UngroupStories.as_view("ungroup_all_stories"))
     settings_bp.add_url_rule("/reset-database", view_func=ResetDatabase.as_view("reset_database"))
+    control = CollectorControl.as_view("collector_control")
+    settings_bp.add_url_rule("/collectors", view_func=control, methods=["GET"])
+    settings_bp.add_url_rule("/collectors/<any(stop,resume):action>", view_func=control, methods=["POST"])
     settings_bp.add_url_rule("/clear-queues", view_func=ClearQueues.as_view("clear_queue"))
     settings_bp.add_url_rule(
         "/rebuild-story-search-vectors",

@@ -7,6 +7,7 @@ from core.model.news_item import NewsItem
 from core.model.news_item_conflict import NewsItemConflict
 from core.model.product import Product
 from core.model.report_item import ReportItem
+from core.model.settings import Settings
 from core.model.story import Story
 from core.model.story_conflict import StoryConflict
 from core.model.task import Task
@@ -50,6 +51,7 @@ class DashboardService:
                     "report_items_in_progress": report_items_in_progress,
                     "latest_collected": latest_collected,
                     "schedule_length": schedule_length,
+                    "collectors_stopped": Settings.get_collector_state().stopped,
                     "conflict_count": conflict_count,
                     "health_status": health_status,
                     "task_status_totals": task_status_totals,

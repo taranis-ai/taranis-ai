@@ -1275,7 +1275,8 @@ class StoryView(BaseView):
     @classmethod
     def _render_news_item_view(cls, news_item_id: str) -> str:
         news_item = DataPersistenceLayer().get_object(NewsItem, news_item_id) if news_item_id != "0" else NewsItem.model_construct(id="")
-        return render_template("assess/news_item_create.html", news_item=news_item)
+        status = CoreApi().get_collector_status() if news_item_id == "0" else {}
+        return render_template("assess/news_item_create.html", news_item=news_item, collectors_stopped=status.get("stopped"))
 
     @classmethod
     @auth_required()
@@ -1509,6 +1510,8 @@ class StoryView(BaseView):
                     cls.render_response_notification({"error": "An XPath selecting article links is required for linked articles."}), 400
                 )
             core_response = CoreApi().api_post("/assess/news-items/fetch", json_data=payload)
+            if core_response.status_code == 409:
+                return make_response(cls.get_notification_from_response(core_response), 409)
             return cls.news_item_edit_view(core_response)
         except ValidationError as exc:
             logger.exception("Invalid URL collection settings")

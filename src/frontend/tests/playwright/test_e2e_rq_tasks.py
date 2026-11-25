@@ -4,7 +4,7 @@ import subprocess
 import time
 import uuid
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any, cast
 from urllib.parse import parse_qs, urlparse
 
@@ -19,6 +19,8 @@ from rq.job import Job
 from rq.results import Result
 
 from tests.core_requests import CoreRequestClient
+from tests.external_e2e import external_core_api_url, external_frontend_base_url
+from tests.playwright.e2e_harness import compose_logs
 from tests.playwright.notification_helpers import dismiss_notifications
 
 
@@ -498,6 +500,113 @@ def test_rq_cleanup_token_blacklist(
 
 
 @pytest.mark.e2e_ci
+@pytest.mark.skipif(external_core_api_url() or external_frontend_base_url(), reason="Collector stop requires an isolated instance")
+def test_emergency_collector_stop(logged_in_page, worker_process, rq_harness: RqE2EHarness, rss_server: str):
+    page = logged_in_page
+    dashboard = page.context.new_page()
+    editor = page.context.new_page()
+    dashboard.goto(url_for("admin.dashboard", _external=True))
+    editor.goto(url_for("assess.get_news_item", news_item_id="0", _external=True))
+    editor.get_by_role("button", name="From URL", exact=True).click()
+    editor.locator("#create-from-url").fill("https://example.invalid/article")
+    page.goto(url_for("admin.osint_sources", _external=True))
+
+    source_id = rq_harness.create_osint_source(
+        {"name": "Stop preview check", "type": "RSS_COLLECTOR", "parameters": {"FEED_URL": rss_server, "REFRESH_INTERVAL": "0 0 1 1 *"}}
+    )
+    preview = page.context.new_page()
+    collectors = rq_harness.queue("collectors")
+    active = collectors.enqueue("time.sleep", 90, job_timeout=100)
+    deadline = time.monotonic() + 15
+    while not active.is_started and time.monotonic() < deadline:
+        time.sleep(0.1)
+    assert active.is_started
+    preview.goto(url_for("admin.osint_source_preview", osint_source_id=source_id, _external=True))
+    expect(preview.locator("#source_preview")).to_contain_text("currently being processed")
+    waiting = collectors.enqueue_in(timedelta(minutes=5), "operator.add", 1, 2)
+    unrelated = rq_harness.queue("misc").enqueue("operator.add", 1, 2)
+    try:
+        page.get_by_role("button", name="Stop collectors", exact=True).click()
+        expect(page.locator(".swal2-popup")).to_contain_text("until an administrator selects Resume collectors")
+        page.locator(".swal2-confirm").click()
+        expect(page.get_by_role("button", name="Resume collectors", exact=True)).to_be_visible()
+        # The isolated stack omits Centrifugo. Deliver the same invalidation to the open tab.
+        dashboard.evaluate("document.dispatchEvent(new CustomEvent('realtime:collectors.changed'))")
+        expect(dashboard.locator("#collector-status")).to_contain_text("Collector stop is active")
+        assert rq_harness.wait_for_job_result(unrelated.id).return_value == 3
+        assert active.is_stopped
+        assert waiting.is_canceled
+        preview.evaluate("document.dispatchEvent(new CustomEvent('realtime:resync'))")
+        expect(preview.locator("#source_preview")).to_contain_text("No saved preview. Collection is stopped.")
+        preview.reload()
+        expect(preview.locator("#source_preview [hx-trigger]")).to_have_count(0)
+        rq_harness.update_osint_source(source_id, {"parameters": {"FEED_URL": rss_server, "REFRESH_INTERVAL": "0 5 1 1 *"}})
+
+        with editor.expect_response(url_for("assess.create_news_item", _external=True)) as submission:
+            editor.locator("#collect-url-submit").click()
+        assert submission.value.status == 409
+        expect(editor.locator("#create-from-url")).to_have_value("https://example.invalid/article")
+        editor.reload()
+        expect(editor.get_by_role("button", name="From URL", exact=True)).to_be_disabled()
+        expect(editor.get_by_role("button", name="From file", exact=True)).to_be_enabled()
+
+        page.get_by_role("button", name="Resume collectors", exact=True).click()
+        page.locator(".swal2-confirm").click()
+        expect(page.get_by_role("button", name="Stop collectors", exact=True)).to_be_visible()
+        dashboard.reload()
+        expect(dashboard.locator("#collector-status")).not_to_contain_text("Collector stop is active")
+        rq_harness.assert_cron_registration(f"osint_source_{source_id}", expected_cron="0 5 1 1 *")
+    finally:
+        rq_harness.core_client.post("/settings/collectors/resume", raise_for_status=False)
+        rq_harness.core_client.delete(f"/config/osint-sources/{source_id}", params={"force": "true"})
+        dashboard.close()
+        editor.close()
+        preview.close()
+
+
+@pytest.mark.e2e_ci
+@pytest.mark.skipif(external_core_api_url() or external_frontend_base_url(), reason="Collector stop requires an isolated instance")
+def test_read_saved_content_without_contacting_stopped_source(
+    logged_in_page,
+    worker_process,
+    rq_harness: RqE2EHarness,
+    rss_server,
+    docker_compose_command,
+    docker_compose_file,
+    docker_compose_project_name,
+):
+    marker = uuid.uuid4().hex
+    feed_url = f"{rss_server}?probe={marker}"
+    source_id = rq_harness.create_osint_source(
+        {"name": f"Saved preview {marker}", "type": "RSS_COLLECTOR", "parameters": {"FEED_URL": feed_url, "REFRESH_INTERVAL": "0 0 1 1 *"}}
+    )
+    title = f"Stored news {marker}"
+    item = rq_harness.create_news_item({"title": title, "content": "Saved text", "source": "manual", "link": feed_url})
+    core = rq_harness.core_client
+    page = logged_in_page
+    preview_url = url_for("admin.osint_source_preview", osint_source_id=source_id, _external=True)
+
+    def source_requests():
+        return compose_logs(docker_compose_command, docker_compose_file, "testdata", project_name=docker_compose_project_name).count(marker)
+
+    try:
+        core.post(f"/config/osint-sources/{source_id}/preview")
+        rq_harness.wait_for_job_result(f"source_preview_{source_id}")
+        requests_before_stop = source_requests()
+        assert requests_before_stop > 0
+        core.post("/settings/collectors/stop")
+        page.goto(preview_url)
+        expect(page.locator("#source_preview")).to_contain_text("Fixture Item")
+        page.goto(url_for("assess.get_news_item", news_item_id=item["news_item_ids"][0], _external=True))
+        expect(page.locator('input[name="title"]')).to_have_value(title)
+        assert source_requests() == requests_before_stop
+    finally:
+        core.post("/settings/collectors/resume", raise_for_status=False)
+        core.delete(f"/assess/stories/{item['story_id']}", raise_for_status=False)
+        core.delete(f"/config/osint-sources/{source_id}", params={"force": "true"})
+
+
+@pytest.mark.e2e_ci
 def test_rq_scheduled_collector_cron(
     worker_process: None,
     cron_process: None,
@@ -526,7 +635,9 @@ def test_rq_scheduled_collector_cron(
         time.sleep(0.1)
     rq_harness.assert_cron_registration(cron_job_id, expected_cron=cron_expression)
     assert redis_conn.hexists("rq:cron:def", "cleanup_task_history")
-    forced_due_timestamp = rq_harness.force_cron_job_due(cron_job_id)
+    # Use a current slot. Earlier slots can predate an explicit collector resume.
+    forced_due_timestamp = time.time()
+    redis_conn.zadd(CRON_NEXT_KEY, {cron_job_id: forced_due_timestamp})
 
     _, payload = rq_harness.wait_for_cron_task_result(cron_job_id)
     status = payload.get("status")

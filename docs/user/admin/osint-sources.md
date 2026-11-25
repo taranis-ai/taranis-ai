@@ -25,6 +25,16 @@ OSINT Sources define where collectors gather data from. Administrators can:
 
 Use **Source Rank** to prioritize or classify sources for analyst workflows. Upload an icon when source identity should be visible on Story and News Item cards.
 
+## Stop or resume collection
+
+On **OSINT Sources**, an administrator with the `ADMIN_OPERATIONS` permission can select **Stop collectors**. The stop applies to the whole instance and persists across restarts until an administrator selects **Resume collectors**. The Admin Dashboard shows a warning while the stop is active.
+
+The stop blocks scheduled collection, **Collect**, **Collect All**, live source previews, and **From URL** in the news item editor. Saved news and completed previews remain readable. Manual news entry and JSON file import remain available.
+
+Stopping cancels waiting collector jobs and requests interruption of active jobs. OSINT Sources shows whether interruption is confirmed. If the queue is unreachable, the stop still takes effect. Use **Retry interruption** when the queue is available again. Resuming allows manual collection immediately and preserves each source's enabled state and schedule. Missed slots are skipped.
+
+Deploy the updated Core, worker and cron services together before relying on the stop. Active jobs can make further requests until interruption succeeds. A fetch may already have processed content. Patch affected components and investigate suspected compromise before resuming. Opening a publisher link in a browser or generating a PDF with external resources can still make network requests.
+
 ## Preview a source
 
 Use **Preview** from the source editor or table actions to run the collector without storing the result in Assess. Preview results are shown as Story cards. If a preview fails, use **Retrigger preview** after adjusting the source configuration.

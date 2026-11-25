@@ -18,6 +18,12 @@ Load for: Source administration, bulk creation/deletion, curated lists, source g
 
 - Source details show rolling collection counts for the trailing 24 hours, 7 days, or 30 days, defaulting to week, alongside the lifetime news-item count. Use `NewsItem.collected`, never `NewsItem.published`.
 
+## Emergency collector stop
+
+OSINT Sources exposes a persistent, instance-wide stop to `ADMIN_OPERATIONS`. The stop survives service restarts until an administrator resumes collection. Core cancels waiting collector jobs and requests interruption of active RQ executions. Runs admitted before a stop cannot fetch after resume. Source configurations and other queues are independent. The Admin Dashboard displays the stop even while interruptions await confirmation.
+
+Scheduled and manual collection, new previews, and Assess URL fetches all honor the stop. Preview GET serves a stored result during a stop and otherwise returns 409. Manual entry, JSON imports and reading saved articles stay available. An active run can make further requests until interrupted. A response already being processed may have reached a vulnerable decoder. Verify deployed fixes and investigate suspected compromise before resuming. Browser navigation and external assets fetched by PDF presenters are outside this control.
+
 ## Code and Tests
 
 `src/frontend/frontend/views/admin_views/source_views.py`, `src/frontend/frontend/templates/osint_source/`, `src/core/core/model/osint_source.py`, `src/core/core/api/config.py`, `src/core/core/static/curated_osint_sources.json`.

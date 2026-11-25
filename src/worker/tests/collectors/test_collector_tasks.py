@@ -7,12 +7,30 @@ from worker.collectors import collector_tasks
 from worker.config import Config
 
 
+pytestmark = pytest.mark.usefixtures("collection_enabled")
+
+
+@pytest.fixture
+def collection_enabled(requests_mock):
+    requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/collector-state", json={"stopped": False, "resumed_at": 0})
+
+
 @pytest.fixture
 def current_job(monkeypatch, mock_job):
     mock_job.meta = {}
     mock_job.save_meta = lambda: None
     monkeypatch.setattr(collector_tasks, "get_current_job", lambda: mock_job)
     return mock_job
+
+
+@pytest.mark.parametrize("state", [{"stopped": True, "resumed_at": 0}, {"stopped": False, "resumed_at": 1}, {}])
+def test_url_fetch_checks_collector_stop_before_contacting_source(current_job, requests_mock, state):
+    requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/collector-state", json=state)
+    url = "https://example.com/article"
+    article = requests_mock.get(url, text="Article")
+    with pytest.raises(RuntimeError, match="stopped|predates|unavailable"):
+        collector_tasks.fetch_single_news_item({"parameters": {"WEB_URL": url}})
+    assert not article.called
 
 
 def test_collector_task_missing_source_is_recorded_as_failure(current_job, requests_mock):

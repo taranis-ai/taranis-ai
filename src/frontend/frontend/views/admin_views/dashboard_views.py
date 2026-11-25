@@ -5,7 +5,9 @@ from flask.typing import ResponseReturnValue
 from models.dashboard import Dashboard
 from werkzeug.exceptions import HTTPException
 
+from frontend.auth import admin_required
 from frontend.config import Config
+from frontend.core_api import CoreApi
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.log import logger
 from frontend.views.admin_views.admin_base_view import AdminBaseView
@@ -27,28 +29,33 @@ class AdminDashboardView(AdminBaseView):
 
     @classmethod
     def static_view(cls):
-        error = None
+        collectors_stopped = CoreApi().get_collector_status().get("stopped")
         data_persistence = DataPersistenceLayer()
         try:
             dashboard = data_persistence.get_first(Dashboard)
         except HTTPException:
             raise
-        except Exception as exc:
+        except Exception:
+            logger.exception("Could not retrieve dashboard statistics")
             dashboard = None
-            error = str(exc)
 
-        if error or not dashboard:
-            logger.error(f"Error retrieving {cls.model_name()} items: {error}")
-            return render_template("errors/404.html", error="No Dashboard items found"), 404
         template = cls.get_list_template()
+        if not dashboard:
+            return render_template(template, data=None, collectors_stopped=collectors_stopped), 404
         context = {
             "data": dashboard,
+            "collectors_stopped": collectors_stopped,
             "dashboard_health": cls.get_dashboard_health(dashboard),
             "release_info": cls.get_release_info(),
             "health_badge_classes": cls.get_health_badge_classes(),
-            **cls._common_context(error),
+            **cls._common_context(),
         }
         return render_template(template, **context), 200
+
+    @staticmethod
+    @admin_required()
+    def collector_status():
+        return render_template("admin_dashboard/collector_status.html", collectors_stopped=CoreApi().get_collector_status().get("stopped"))
 
     @classmethod
     def get_build_info(cls) -> dict[str, str]:

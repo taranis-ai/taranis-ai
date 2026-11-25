@@ -115,7 +115,7 @@ def pre_seed_llm_endpoints():
     from core.model.settings import Settings
 
     Settings.initialize()
-    settings = Settings.get_settings_entry()
+    settings = Settings.get_settings_entry(for_update=True)
     assert settings is not None
     endpoint = LLMProvider(
         name="internal", base_url="http://llm-inference:8000/v1", api_formats={"chat_completions": {}}, enabled=not Config.DEBUG

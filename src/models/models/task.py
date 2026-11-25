@@ -29,6 +29,17 @@ FAILURE_MESSAGES = {
 TASK_CHANGE_MAX_USERS = 100
 
 
+COLLECTION_STOPPED_MESSAGE = "Collection is stopped by an administrator."
+
+
+class CollectorState(PydanticBaseModel):
+    """The resume timestamp identifies jobs admitted during the current collection period."""
+
+    model_config = ConfigDict(strict=True, allow_inf_nan=False)
+    stopped: bool
+    resumed_at: float
+
+
 class TaskChangeNotice(TaranisBaseModel):
     """Owners whose task views changed; an empty list refreshes only the scheduler."""
 
