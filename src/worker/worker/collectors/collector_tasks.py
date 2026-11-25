@@ -13,7 +13,7 @@ import worker.collectors
 from worker.collectors.base_collector import BaseCollector, NoChangeError
 from worker.collectors.base_web_collector import HTTPNotModifiedError
 from worker.collectors.mastodon_collector import MastodonCollectorError
-from worker.collectors.rss_collector import EmptyRSSFeedError, RSSCollector
+from worker.collectors.rss_collector import EmptyRSSFeedError, RSSArticleFetchError, RSSCollector
 from worker.core_api import CoreApi, build_failure_task_result, build_success_task_result, build_task_result
 from worker.http_client import http_session_scope
 from worker.log import TaranisLogFormatter, TaranisLogger, logger
@@ -174,7 +174,8 @@ def collector_task(osint_source_id: str, manual: bool = False):
                 data=_collector_result_data(osint_source_id, manual, collector_impl),
             )
         except NoChangeError as e:
-            if isinstance(collector_impl, RSSCollector) and (warning := collector_impl.entry_limit_warning):
+            if isinstance(collector_impl, RSSCollector) and (rss_warning := collector_impl.collection_warning):
+                reason, warning = rss_warning
                 return _persist_and_return_result(
                     job,
                     core_api,
@@ -182,7 +183,7 @@ def collector_task(osint_source_id: str, manual: bool = False):
                     worker_id=osint_source_id,
                     worker_type=worker_type,
                     meta_status="WARNING",
-                    reason="rss_entry_limit",
+                    reason=reason,
                     data=_collector_result_data(osint_source_id, manual, collector_impl),
                 )
             previous_status = source.get("status")
@@ -227,8 +228,8 @@ def collector_task(osint_source_id: str, manual: bool = False):
                 reason="collector_not_modified",
                 data=_collector_result_data(osint_source_id, manual, collector_impl),
             )
-        except MastodonCollectorError as e:
-            logger.error(f"Mastodon collector task failed: {task_description}")
+        except (MastodonCollectorError, RSSArticleFetchError) as e:
+            logger.error(f"Collector task failed: {task_description}")
             if job:
                 core_api.save_task_result(
                     job.id,
@@ -270,9 +271,9 @@ def collector_task(osint_source_id: str, manual: bool = False):
         core_api.run_post_collection_bots(osint_source_id, story_ids=sorted(collector_impl.affected_story_ids))
 
     reason = None
-    if isinstance(collector_impl, RSSCollector) and (warning := collector_impl.entry_limit_warning):
+    if isinstance(collector_impl, RSSCollector) and (rss_warning := collector_impl.collection_warning):
         task_status = "WARNING"
-        reason = "rss_entry_limit"
+        reason, warning = rss_warning
         result_message = f"{result_message} {warning}"
         if job:
             job.meta["status"] = task_status
@@ -327,8 +328,8 @@ def collector_preview(osint_source_id: str):
         except NoChangeError as e:
             logger.info(f"No changes detected: {e}")
             preview_result = []
-        except MastodonCollectorError as e:
-            logger.error(f"Mastodon collector preview failed: {task_description}")
+        except (MastodonCollectorError, RSSArticleFetchError) as e:
+            logger.error(f"Collector preview failed: {task_description}")
             if job:
                 collector.core_api.save_task_result(
                     job.id,

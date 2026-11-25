@@ -2,6 +2,7 @@ from copy import deepcopy
 from unittest.mock import MagicMock
 
 import pytest
+from niquests.exceptions import ReadTimeout
 
 from worker.collectors import collector_tasks
 from worker.config import Config
@@ -271,6 +272,49 @@ def test_rss_entry_limit_warning_and_recovery(
     assert feed_requests[1].headers["If-None-Match"] == '"feed"'
     assert feed_requests[2].headers["If-None-Match"] == '"feed"'
     assert "If-None-Match" not in feed_requests[3].headers
+
+
+@pytest.mark.parametrize("publish_message", ["News items added", "All news items were skipped", None])
+def test_rss_article_failures(current_job, requests_mock, publish_message):
+    feed_url = "https://example.com/feed"
+    article_url = "https://example.com/article/"
+    source = {
+        "id": "source-1",
+        "type": "rss_collector",
+        "parameters": {"FEED_URL": feed_url},
+        "rss_collector_max_entries": 3,
+        "http_validators": {"url": feed_url},
+    }
+    entries = "".join(f"<item><title>Item {i}</title><link>{article_url}{i}</link></item>" for i in range(4))
+    requests_mock.get(feed_url, text=f"<rss version='2.0'><channel>{entries}</channel></rss>", headers={"ETag": '"feed"'})
+    failed_article = requests_mock.get(f"{article_url}1", status_code=404, reason="private upstream text")
+    for index in (0, 2):
+        if publish_message is None:
+            requests_mock.get(f"{article_url}{index}", exc=ReadTimeout("private upstream text"))
+        else:
+            requests_mock.get(f"{article_url}{index}", text="<p>Article content</p>")
+    requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/osint-sources/source-1", json=source)
+    story_ids = ["story-1"] if publish_message == "News items added" else []
+    publish = requests_mock.post(f"{Config.TARANIS_CORE_URL}/worker/news-items", json={"message": publish_message, "story_ids": story_ids})
+    bots = requests_mock.put(f"{Config.TARANIS_CORE_URL}/worker/post-collection-bots", json={})
+    tasks = requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
+
+    if publish_message is None:
+        with pytest.raises(RuntimeError, match="Could not fetch any linked articles"):
+            collector_tasks.collector_task("source-1")
+        assert publish.call_count == 0
+        assert tasks.last_request.json()["status"] == "FAILURE"
+    else:
+        collector_tasks.collector_task("source-1")
+        assert [item["title"] for item in publish.last_request.json()] == ["Item 0", "Item 2"]
+        assert tasks.last_request.json()["status"] == "WARNING"
+    assert bots.call_count == len(story_ids)
+    assert failed_article.call_count == 1
+    result = tasks.last_request.json()["result"]
+    assert result["reason"] == "rss_article_fetch_failed"
+    assert "1 additional entries were skipped" in result["message"]
+    assert "private upstream text" not in result["message"]
+    assert result["data"]["http_validators"]["etag"] == '"feed"'
 
 
 def test_rss_parse_failure_cleans_up_persists_failure_and_skips_bots(
