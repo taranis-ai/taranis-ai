@@ -231,7 +231,11 @@ class ReportItemTypes(MethodView):
 def _with_product_type_warnings(response: dict, status: int, type_id: str) -> tuple[dict, int]:
     if status in (200, 201):
         product = product_type.ProductType.get(type_id)
-        response["warnings"] = product_type_compatibility_warnings(product) if product else []
+        # Report Type titles are only exposed to callers who may read Report Types.
+        show_report_type_titles = "CONFIG_REPORT_TYPE_ACCESS" in current_user.get_permissions()
+        response["warnings"] = (
+            product_type_compatibility_warnings(product, show_report_type_titles=show_report_type_titles) if product else []
+        )
     return response, status
 
 

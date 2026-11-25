@@ -1678,6 +1678,33 @@ class TestProductTypes(BaseTest):
         finally:
             client.delete(self.concat_url(f"product-types/{product_type_id}"), headers=auth_header)
 
+    def test_product_type_warnings_hide_report_type_titles_without_report_type_access(self, app, client, auth_header, monkeypatch):
+        from core.model.report_item_type import ReportItemType
+        from core.model.user import User
+
+        report_type_titles = ["OSINT Report", "CERT Report"]
+        with app.app_context():
+            report_types = [ReportItemType.get_by_title(title) for title in report_type_titles]
+            report_type_ids = [report_type.id for report_type in report_types if report_type is not None]
+        assert len(report_type_ids) == len(report_type_titles)
+
+        payload = {
+            "title": f"template-compatibility-{uuid.uuid4().hex[:8]}",
+            "type": "html_presenter",
+            "parameters": {"TEMPLATE_PATH": "cert_at_daily_report.html"},
+            "report_types": report_type_ids,
+        }
+        get_permissions = User.get_permissions
+        monkeypatch.setattr(User, "get_permissions", lambda user: [p for p in get_permissions(user) if p != "CONFIG_REPORT_TYPE_ACCESS"])
+
+        response = client.post(self.concat_url("product-types"), json=payload, headers=auth_header)
+        try:
+            assert response.status_code == 201
+            assert response.json["warnings"] == ["The template may not work with one or more of the selected report types."]
+            assert not any(title in warning for warning in response.json["warnings"] for title in report_type_titles)
+        finally:
+            client.delete(self.concat_url(f"product-types/{response.json['id']}"), headers=auth_header)
+
     def test_get_product_types(self, client, auth_header, cleanup_product_types):
         product_type_type = cleanup_product_types["type"]
         response = self.assert_get_ok(client, uri=f"product-types?search={product_type_type}", auth_header=auth_header)

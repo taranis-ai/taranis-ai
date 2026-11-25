@@ -26,6 +26,7 @@ type TemplateContent = str | bytes | bytearray | memoryview | None
 TEMPLATE_SYNTAX_ERROR_WARNING = "The template has a syntax error."
 TEMPLATE_UNREADABLE_WARNING = "The template file could not be read."
 TEMPLATE_CHECK_FAILED_WARNING = "Template compatibility could not be checked."
+REPORT_TYPES_INCOMPATIBLE_WARNING = "The template may not work with one or more of the selected report types."
 
 
 class ValidationStatus(TypedDict):
@@ -167,7 +168,7 @@ def build_templates_list(order: str | None = None) -> list[TemplateResponse]:
     return items
 
 
-def product_type_compatibility_warnings(product_type: ProductType) -> list[str]:
+def product_type_compatibility_warnings(product_type: ProductType, *, show_report_type_titles: bool = True) -> list[str]:
     """Warn about report types the configured template cannot render. Never raises; saving stays allowed."""
     if not (template_path := product_type._get_template_path()):
         return []
@@ -181,7 +182,9 @@ def product_type_compatibility_warnings(product_type: ProductType) -> list[str]:
             "mime_type": product_type.get_mimetype(),
             "parameters": effective_parameters(product_type.type, product_type.parameters),
         }
-        return check_template_compatibility(template_content, product_type.report_types, product)
+        return check_template_compatibility(
+            template_content, product_type.report_types, product, show_report_type_titles=show_report_type_titles
+        )
     except Exception:
         logger.exception("Template compatibility check failed for product type %s", product_type.id)
         return [TEMPLATE_CHECK_FAILED_WARNING]
@@ -191,11 +194,14 @@ def check_template_compatibility(
     template_content: str,
     report_types: Iterable[ReportItemType],
     product: dict[str, Any] | None = None,
+    *,
+    show_report_type_titles: bool = True,
 ) -> list[str]:
     """Render the template like the presenter worker once per report type and return curated warnings.
 
     Each render uses a sample product with one empty report of that type, shaped like `Product.to_worker_dict()`.
-    `product` overrides product-level sample values such as `parameters`. Never raises.
+    `product` overrides product-level sample values such as `parameters`. Without `show_report_type_titles`,
+    report-type-specific warnings collapse into one generic warning. Never raises.
     """
     env = ImmutableSandboxedEnvironment(
         autoescape=False,
@@ -225,6 +231,8 @@ def check_template_compatibility(
         except Exception:
             logger.exception("Template could not be rendered with report type %s", report_type.title)
             warnings.append(f"The template could not be rendered for report type '{report_type.title}'.")
+    if warnings and not show_report_type_titles:
+        return [REPORT_TYPES_INCOMPATIBLE_WARNING]
     return warnings
 
 

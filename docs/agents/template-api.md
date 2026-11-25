@@ -6,7 +6,7 @@ Load for: Template service, presenter template administration, template response
 
 Detail/list responses contain `name`, nullable base64 `content`, and `validation_status`. Creation requests use `name`; update/delete routes use the filename. Sorting uses `name_asc` and `name_desc` case-insensitively. Missing or unreadable templates retain their validation status and null content.
 
-Product Type POST/PUT/PATCH responses include `warnings` from `check_template_compatibility`: the template renders like `BasePresenter` (sandbox, `StrictUndefined`) once per Report Type with an empty sample report shaped like `Product.to_worker_dict()`. Warnings never block saving, contain only curated text (Jinja's error message, which can hold template-computed values, is only logged), and seeds skip the check. The admin form stays open to show them.
+Product Type POST/PUT/PATCH responses include `warnings` from `check_template_compatibility`: the template renders like `BasePresenter` (sandbox, `StrictUndefined`) once per Report Type with an empty sample report shaped like `Product.to_worker_dict()`. Warnings never block saving, contain only curated text (Jinja's error message, which can hold template-computed values, is only logged), and seeds skip the check. Callers without `CONFIG_REPORT_TYPE_ACCESS` get one generic warning instead of Report Type titles. The admin form stays open to show them.
 
 ## Code Paths
 
