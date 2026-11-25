@@ -506,10 +506,17 @@ class Reports(MethodView):
 class HragReconcile(MethodView):
     @api_key_required
     def post(self):
+        from models.hrag import IndexAction
+
         from core.service.hrag.indexing import reconcile
 
         try:
-            return reconcile(), 200
+            payload = IndexAction.model_validate(request.get_json(silent=True) or {"action": "reconcile"})
+            if payload.action != "reconcile":
+                return {"error": "Invalid HRAG reconciliation request"}, 400
+            return reconcile(payload.generation_id or None), 200
+        except ValidationError:
+            return {"error": "Invalid HRAG reconciliation request"}, 400
         except Exception:
             db.session.rollback()
             logger.exception("HRAG reconciliation failed")

@@ -9382,10 +9382,27 @@ paths:
       - APIKey: []
       tags: [bots]
       operationId: worker.hrag_reconcile.post
-      description: Reconcile durable work with current inputs and graph projections, queue eligible jobs, and prune deleted evidence.
+      description: Reconcile durable index records with current inputs and graph projections. Scans continue in bounded jobs and completed index jobs dispatch remaining pending items. An optional generation ID limits the pass to that generation.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [action]
+              properties:
+                action:
+                  type: string
+                  enum: [reconcile]
+                generation_id:
+                  type: string
+                  maxLength: 64
       responses:
         '200':
           description: Number of queued jobs; zero when HRAG is disabled
+        '400':
+          description: Invalid reconciliation request
         '401':
           $ref: '#/components/responses/401Unauthorized'
         '503':

@@ -4,42 +4,33 @@ import json
 import re
 
 from llm_bot.decisions_client import ChoiceQuestion, DecisionsClient
-from models.hrag import EvidenceSpan, ExtractedRelation, ExtractionResult
+from models.hrag import RELATION_DESCRIPTIONS, EvidenceSpan, ExtractedRelation, ExtractionResult
 
 
 QUESTIONS_PER_REQUEST = 64
 ACCEPTANCE_THRESHOLD = 0.8
 
-# These meanings are part of extraction schema v5. Change its version when
-# verification semantics or acceptance policy changes.
-RELATION_MEANINGS = {
-    "USES": ("uses", "The source uses the target tool, malware, technology or technique."),
-    "ATTACKS": ("attacks", "The source carries out an attack against the target."),
-    "TARGETS": ("targets for an attack", "The source explicitly selects the target as an attack objective."),
-    "EXPLOITS": ("exploits", "The source exploits the target vulnerability."),
-    "ABUSES": ("abuses or misuses", "The source misuses or abuses the target technical resource."),
-    "ATTRIBUTED_TO": ("is attributed to", "The source malware, campaign or incident is attributed to the target actor."),
-    "PARTICIPATES_IN": ("participates in", "The source takes part in the target event, campaign or incident."),
-    "LOCATED_IN": (
-        "is geographically located in",
-        "The source is geographically located in the target place; activity affecting a place does not establish actor location.",
-    ),
-    "OCCURRED_IN": ("took place in", "The source event or incident occurred in the target place."),
-    "BELONGS_TO_SECTOR": ("operates in the sector", "The source actor operates in the target industry sector."),
-    "MITIGATES": ("mitigates", "The source defensive action mitigates the target threat, vulnerability or incident."),
-    "HAS_CAPABILITY": ("has the capability", "The source explicitly has the target ability, without inferring it from associations."),
-    "MOTIVATED_BY": ("is motivated by", "The source is explicitly motivated by the target objective."),
-    "ALIAS_OF": ("is an alias for", "The source and target names explicitly refer to the same entity."),
-    "AFFILIATED_WITH": (
-        "is affiliated with",
-        "The source has an explicitly stated organizational, professional or political affiliation with the target.",
-    ),
-    "OWNS": ("owns", "The source owns the target organization or technical resource."),
-    "PRODUCES": ("produces", "The source creates or produces the target product, tool or malware."),
-    "SERVES_AS_C2": (
-        "serves as command-and-control infrastructure for",
-        "The source technical resource is command-and-control infrastructure for the target malware, campaign or incident.",
-    ),
+# Verification shares extraction meanings. Bump the extraction schema version
+# when verification semantics or acceptance policy changes.
+RELATION_VERBS = {
+    "USES": "uses",
+    "ATTACKS": "attacks",
+    "TARGETS": "targets for an attack",
+    "EXPLOITS": "exploits",
+    "ABUSES": "abuses or misuses",
+    "ATTRIBUTED_TO": "is attributed to",
+    "PARTICIPATES_IN": "participates in",
+    "LOCATED_IN": "is geographically located in",
+    "OCCURRED_IN": "took place in",
+    "BELONGS_TO_SECTOR": "operates in the sector",
+    "MITIGATES": "mitigates",
+    "HAS_CAPABILITY": "has the capability",
+    "MOTIVATED_BY": "is motivated by",
+    "ALIAS_OF": "is an alias for",
+    "AFFILIATED_WITH": "is affiliated with",
+    "OWNS": "owns",
+    "PRODUCES": "produces",
+    "SERVES_AS_C2": "serves as command-and-control infrastructure for",
 }
 
 
@@ -71,7 +62,7 @@ async def verify_extraction(content: str, result: ExtractionResult, client: Deci
             evidence.append(span)
             passage_id = f"p{index}"
             passages[passage_id] = span.quote
-            verb, meaning = RELATION_MEANINGS[relation.type]
+            verb, meaning = RELATION_VERBS[relation.type], RELATION_DESCRIPTIONS[relation.type]
             statement = f"{source.name} {verb} {target.name}"
             questions[f"relation_{index}"] = ChoiceQuestion(
                 instructions=(

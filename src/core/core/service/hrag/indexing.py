@@ -26,6 +26,7 @@ from core.service.hrag.stores import graph_document_keys, project_graph, prune_g
 
 
 PIPELINES = ("embedding", "extraction")
+SCAN_BATCH_SIZE = 500
 
 
 def current_configuration(pipeline: str, settings: dict) -> dict | None:
@@ -113,7 +114,7 @@ def fingerprint(item: NewsItem, generation: HragGeneration) -> str:
     return input_fingerprint(bounded_content(item.content, generation.config["limit"]), identity)
 
 
-def reconcile() -> dict:
+def reconcile(generation_id: str | None = None) -> dict:
     if not Config.HRAG_ENABLED:
         return {"queued": 0}
     try:
@@ -125,30 +126,33 @@ def reconcile() -> dict:
     db.session.execute(db.select(Settings).with_for_update()).scalar_one()
     settings = Settings.get_settings()
     selected = []
-    for pipeline in PIPELINES:
+    for pipeline in PIPELINES if generation_id is None else ():
         config = current_configuration(pipeline, settings)
         if not config:
             continue
-        generation_id = hashlib.sha256(json.dumps({"pipeline": pipeline, **config}, sort_keys=True).encode()).hexdigest()
-        generation = db.session.get(HragGeneration, generation_id)
+        new_generation_id = hashlib.sha256(json.dumps({"pipeline": pipeline, **config}, sort_keys=True).encode()).hexdigest()
+        generation = db.session.get(HragGeneration, new_generation_id)
         if generation is None:
             active = db.session.scalar(db.select(HragGeneration.id).where(HragGeneration.pipeline == pipeline, HragGeneration.active))
             generation = HragGeneration.from_dict(
-                {"id": generation_id, "pipeline": pipeline, "config": config, "active": not active, "cursor": "", "scanned": False}
+                {"id": new_generation_id, "pipeline": pipeline, "config": config, "active": not active, "cursor": "", "scanned": False}
             )
             db.session.add(generation)
             db.session.flush()
         selected.append(generation.id)
-    generations = list(db.session.scalars(db.select(HragGeneration).where(db.or_(HragGeneration.id.in_(selected), HragGeneration.active))))
-    generations = [
-        generation
-        for generation in generations
-        if generation_endpoint(generation)
-        and (generation.pipeline != "extraction" or generation.config["schema"] == HRAG_EXTRACTION_SCHEMA_VERSION)
-        and (generation.pipeline == "embedding" or generation.config["verification"] is None or generation_verification_endpoint(generation))
-    ]
+    generations = list(
+        db.session.scalars(
+            db.select(HragGeneration).where(
+                HragGeneration.id == generation_id if generation_id else db.or_(HragGeneration.id.in_(selected), HragGeneration.active)
+            )
+        )
+    )
+    generations = [generation for generation in generations if _can_index(generation)]
+    continuations = []
     for generation in generations:
-        items = list(db.session.scalars(db.select(NewsItem).where(NewsItem.id > generation.cursor).order_by(NewsItem.id).limit(500)))
+        items = list(
+            db.session.scalars(db.select(NewsItem).where(NewsItem.id > generation.cursor).order_by(NewsItem.id).limit(SCAN_BATCH_SIZE))
+        )
         for item in items:
             expected = fingerprint(item, generation)
             index_record = db.session.scalar(
@@ -163,8 +167,10 @@ def reconcile() -> dict:
                 index_record.fingerprint, index_record.status, index_record.result, index_record.token = expected, "pending", None, None
                 index_record.attempts, index_record.retry_after, index_record.lease_until = 0, None, None
             index_record.truncated = len(item.content or "") > generation.config["limit"]
-        generation.cursor = items[-1].id if len(items) == 500 else ""
-        generation.scanned = generation.scanned or len(items) < 500
+        generation.cursor = items[-1].id if len(items) == SCAN_BATCH_SIZE else ""
+        generation.scanned = generation.scanned or len(items) < SCAN_BATCH_SIZE
+        if generation.cursor:
+            continuations.append(generation.id)
     if projected_keys is not None:
         for index_record in db.session.scalars(
             db.select(HragIndex)
@@ -173,38 +179,14 @@ def reconcile() -> dict:
         ):
             if index_record.graph_key not in projected_keys:
                 index_record.status, index_record.token, index_record.lease_until = "pending", None, None
-    now = HragIndex.utcnow()
-    # Reissue lost Redis indexing jobs only after its PostgreSQL lease expires.
-    job_ids = []
-    for pipeline in PIPELINES:
-        eligible = db.session.scalars(
-            db.select(HragIndex)
-            .where(
-                HragIndex.generation_id.in_([g.id for g in generations if g.pipeline == pipeline]),
-                HragIndex.status != "ready",
-                db.or_(HragIndex.lease_until.is_(None), HragIndex.lease_until < now),
-                db.or_(HragIndex.retry_after.is_(None), HragIndex.retry_after <= now),
-            )
-            .order_by(HragIndex.updated, HragIndex.id)
-            .limit(50)
-        )
-        for index_record in eligible:
-            index_record.status = "queued"
-            index_record.token = None
-            index_record.lease_until = now + timedelta(minutes=15)
-            job_ids.append(("embeddings" if pipeline == "embedding" else "hrag", index_record.id))
+    generation_ids = {pipeline: [generation.id for generation in generations if generation.pipeline == pipeline] for pipeline in PIPELINES}
     db.session.commit()
+    queued = sum(_dispatch_pending(ids) for ids in generation_ids.values())
     from core.managers.queue_manager import queue_manager
 
-    queued = 0
-    for queue, index_id in job_ids:
-        if queue_manager.enqueue_task(queue, "hrag_index", index_id=index_id, job_timeout=720, result_ttl=0):
+    for continuation in continuations:
+        if queue_manager.enqueue_task("misc", "hrag_reconcile", generation_id=continuation, job_timeout=720):
             queued += 1
-        else:
-            index_record = db.session.get(HragIndex, index_id)
-            if index_record and index_record.status == "queued":
-                index_record.lease_until = None
-                db.session.commit()
     # Pruning is best effort. Authorization never depends on projection cleanup.
     try:
         keys = [
@@ -218,6 +200,60 @@ def reconcile() -> dict:
     except Exception:
         logger.exception("HRAG graph cleanup failed")
     return {"queued": queued}
+
+
+def _can_index(generation: HragGeneration) -> bool:
+    return bool(
+        generation_endpoint(generation)
+        and (generation.pipeline != "extraction" or generation.config["schema"] == HRAG_EXTRACTION_SCHEMA_VERSION)
+        and (generation.pipeline == "embedding" or generation.config["verification"] is None or generation_verification_endpoint(generation))
+    )
+
+
+def _dispatch_pending(generation_ids: list[str], limit: int = 50) -> int:
+    if not Config.HRAG_ENABLED or not generation_ids:
+        return 0
+    generations = db.session.scalars(db.select(HragGeneration).where(HragGeneration.id.in_(generation_ids)))
+    pipelines = {generation.id: generation.pipeline for generation in generations if _can_index(generation)}
+    now = HragIndex.utcnow()
+    eligible = db.session.scalars(
+        db.select(HragIndex)
+        .where(
+            HragIndex.generation_id.in_(pipelines),
+            HragIndex.status != "ready",
+            db.or_(HragIndex.lease_until.is_(None), HragIndex.lease_until < now),
+            db.or_(HragIndex.retry_after.is_(None), HragIndex.retry_after <= now),
+        )
+        .order_by(HragIndex.updated, HragIndex.id)
+        .limit(limit)
+        .with_for_update(skip_locked=True)
+    )
+    jobs = []
+    for index_record in eligible:
+        index_record.status, index_record.token = "queued", None
+        index_record.lease_until = now + timedelta(minutes=15)
+        jobs.append(("embeddings" if pipelines[index_record.generation_id] == "embedding" else "hrag", index_record.id))
+    db.session.commit()
+    from core.managers.queue_manager import queue_manager
+
+    queued = 0
+    for queue, index_id in jobs:
+        if queue_manager.enqueue_task(queue, "hrag_index", index_id=index_id, job_timeout=720, result_ttl=0):
+            queued += 1
+        else:
+            index_record = db.session.get(HragIndex, index_id)
+            if index_record and index_record.status == "queued":
+                index_record.lease_until = None
+                db.session.commit()
+    return queued
+
+
+def _continue_indexing(generation_id: str):
+    try:
+        _dispatch_pending([generation_id], limit=1)
+    except Exception:
+        db.session.rollback()
+        logger.exception("HRAG batch dispatch failed; reconciliation will recover pending items")
 
 
 def claim(index_id: str) -> dict | None:
@@ -245,6 +281,7 @@ def claim(index_id: str) -> dict | None:
     if not content.strip():
         index_record.status, index_record.result, index_record.lease_until = "ready", None, None
         db.session.commit()
+        _continue_indexing(generation.id)
         return None
     index_record.status, index_record.token = "running", HragIndex.uuid7_str()
     index_record.lease_until = HragIndex.utcnow() + timedelta(minutes=15)
@@ -289,6 +326,7 @@ def submit(index_id: str, submission: IndexSubmission) -> tuple[dict, int]:
         index_record.lease_until = None
         index_record.updated = HragIndex.utcnow()
         db.session.commit()
+        _continue_indexing(generation.id)
         return {"message": "HRAG retry scheduled"}, 200
     content = bounded_content(item.content, generation.config["limit"])
     if generation.pipeline == "extraction":
@@ -331,6 +369,7 @@ def submit(index_id: str, submission: IndexSubmission) -> tuple[dict, int]:
     index_record.status, index_record.lease_until, index_record.retry_after = "ready", None, None
     index_record.updated = HragIndex.utcnow()
     db.session.commit()
+    _continue_indexing(generation.id)
     return {"message": "HRAG result accepted"}, 200
 
 
@@ -390,6 +429,8 @@ def reprocess(generation_id: str) -> tuple[dict, int]:
     generation = db.session.get(HragGeneration, generation_id)
     if not generation:
         return {"error": "Generation not found"}, 404
+    if not _can_index(generation):
+        return {"error": "Generation is unavailable; configure its endpoint or build a current extraction generation"}, 409
     generation.cursor, generation.scanned = "", False
     db.session.execute(
         db.update(HragIndex)
@@ -397,4 +438,8 @@ def reprocess(generation_id: str) -> tuple[dict, int]:
         .values(status="pending", token=None, result=None, lease_until=None, retry_after=None, attempts=0)
     )
     db.session.commit()
+    from core.managers.queue_manager import queue_manager
+
+    if not queue_manager.enqueue_task("misc", "hrag_reconcile", generation_id=generation_id, job_timeout=720):
+        return {"error": "HRAG reprocessing could not be queued; retry the action"}, 503
     return {"message": "HRAG reprocessing scheduled"}, 200

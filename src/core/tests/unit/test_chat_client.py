@@ -340,7 +340,7 @@ def test_hrag_turn_switching_partial_retrieval_and_live_history(configured_chat,
         elif response_format.get("name") == "hrag_response":
             if invalid_citations:
                 invalid_replies.append(context)
-                invalid = json.dumps({"answer": "private-provider-detail [G999]", "citations": ["G999"], "insufficient_evidence": False})
+                invalid = json.dumps({"answer": "private-provider-detail [G999]", "citations": ["G1"], "insufficient_evidence": False})
                 return _chat_response(invalid) if configured_chat == "chat_completions" else _response({"output_text": invalid})
             assert "Acme" in context["graph_facts"][0]["fact"]
             answer = json.dumps({"answer": expected_answer, "citations": ["G1"], "insufficient_evidence": False})

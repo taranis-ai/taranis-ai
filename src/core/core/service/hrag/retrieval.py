@@ -142,11 +142,15 @@ def evidence_from_reference(reference: EvidenceReference, authorized: dict[str, 
         span = chunks[reference.chunk_index]
         quote = content[span.start : span.end]
     if branch == "graph":
-        result = (
-            ExtractionResult.model_validate(index_record.result)
-            .validate_content(content)
-            .validate_profile(extraction_profile(item.get_classification()))
-        )
+        try:
+            result = (
+                ExtractionResult.model_validate(index_record.result)
+                .validate_content(content)
+                .validate_profile(extraction_profile(item.get_classification()))
+            )
+        except ValueError:
+            logger.warning("HRAG extraction evidence failed validation")
+            return None
         if reference.relation_index is not None:
             if reference.relation_index >= len(result.relations):
                 return None

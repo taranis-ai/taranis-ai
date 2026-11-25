@@ -1,10 +1,12 @@
 """Stream only the answer field, then validate the complete grounded response."""
 
+import re
+from dataclasses import replace
 from typing import TYPE_CHECKING
 
-from llm_bot.schemas import HragRequest
+from llm_bot.schemas import HragRequest, HragResponse
 from llm_bot.tasks.hrag import prepare_hrag
-from llm_bot.tasks.llm_utils import MissingOutputTextError
+from llm_bot.tasks.llm_utils import InvalidLLMOutputError, MissingOutputTextError
 from pydantic_core import from_json
 
 from core.service.hrag.retrieval import run_inference
@@ -63,8 +65,20 @@ def synthesize(question: str, history: list[dict], result: "HragResult", client:
             ],
         }
     )
+    task = prepare_hrag(request)
+    parse_response = task.parse_response
+    supplied_ids = {evidence.citation for evidence in result.evidence}
+
+    def parse(body: dict) -> HragResponse:
+        answer = parse_response(body)
+        inline_ids = set(re.findall(r"\[([GV]\d+)\]", answer.answer))
+        if inline_ids - supplied_ids or inline_ids != set(answer.citations):
+            raise InvalidLLMOutputError("Answer citations do not match supplied evidence")
+        return answer
+
+    task = replace(task, parse_response=parse)
     try:
-        answer = run_inference(prepare_hrag(request).run(AnswerClient(client, stream)), client.deadline)
+        answer = run_inference(task.run(AnswerClient(client, stream)), client.deadline)
     except (ValueError, MissingOutputTextError):
         from core.service.chat import ChatProviderError
 

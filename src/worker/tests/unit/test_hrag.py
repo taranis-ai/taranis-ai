@@ -4,10 +4,13 @@ from unittest.mock import AsyncMock
 import pytest
 
 from worker.config import Config
-from worker.hrag import index_item
+from worker.hrag import index_item, reconcile_index
 
 
 def test_worker_claim_extraction_and_cached_retry(requests_mock, monkeypatch):
+    reconciliation = requests_mock.post(f"{Config.TARANIS_CORE_URL}/worker/hrag/reconcile", json={"queued": 1})
+    reconcile_index("generation")
+    assert reconciliation.last_request.json() == {"action": "reconcile", "generation_id": "generation"}
     route = f"{Config.TARANIS_CORE_URL}/worker/hrag/index/test-index"
     content = "Acme did not attack Beta."
     job = {
@@ -49,6 +52,7 @@ def test_worker_claim_extraction_and_cached_retry(requests_mock, monkeypatch):
     assert len(stored["relations"]) == 1
     assert verification.await_count == 1
     assert set(verification.call_args.args[1]) == {"relation_0", "relation_1"}
+    assert "cyberattack" in verification.call_args.args[1]["relation_0"].instructions
     assert inference.await_count == 2
     assert content in inference.call_args_list[0].args[1]
     requests_mock.post(route, json={**job, "cached_result": stored})

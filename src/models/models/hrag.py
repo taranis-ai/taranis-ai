@@ -13,7 +13,7 @@ from models.llm import LLMEndpoint
 EMBEDDING_CONTENT_LIMIT = 10_000
 EXTRACTION_CONTENT_LIMIT = 20_000
 HRAG_SCHEMA_VERSION = "v2"
-HRAG_EXTRACTION_SCHEMA_VERSION = "v6"
+HRAG_EXTRACTION_SCHEMA_VERSION = "v7"
 
 type ExtractionProfile = Literal["general", "cybersecurity"]
 

@@ -28,8 +28,9 @@ from worker.telemetry import instrument_job
 
 @instrument_job
 @http_session_scope()
-def reconcile_index():
-    if CoreApi().api_post("/worker/hrag/reconcile") is None:
+def reconcile_index(generation_id: str | None = None):
+    payload = {"action": "reconcile", "generation_id": generation_id} if generation_id else None
+    if CoreApi().api_post("/worker/hrag/reconcile", payload) is None:
         raise RuntimeError("HRAG reconciliation unavailable")
 
 

@@ -69,7 +69,7 @@ def test_durable_index_lifecycle_cutoffs_retries_and_generations(configured_inde
             for w in db.session.scalars(db.select(HragIndex).where(HragIndex.news_item_id == item.id))
         }
         extraction, embedding = indexes["extraction"], indexes["embedding"]
-        assert db.session.get(HragGeneration, extraction.generation_id).config["schema"] == "v6"
+        assert db.session.get(HragGeneration, extraction.generation_id).config["schema"] == "v7"
         assert db.session.get(HragGeneration, embedding.generation_id).config["schema"] == "v2"
         assert db.session.get(HragGeneration, embedding.generation_id).config["limit"] == 10000
         original = {kind: index_record.fingerprint for kind, index_record in indexes.items()}
@@ -78,9 +78,16 @@ def test_durable_index_lifecycle_cutoffs_retries_and_generations(configured_inde
         assert job["reasoning_effort"] == "low"
         assert job["extraction_profile"] == "cybersecurity"
         assert job["verification_endpoint"]["model"] == "verify"
-        result = IndexSubmission(token=job["token"], fingerprint=job["fingerprint"], extraction=ExtractionResult())
+        initial = CompactExtractionResult.model_validate({"entities": [{"id": "a", "name": "a", "type": "ORG"}]}).resolve(job["content"])
+        result = IndexSubmission(token=job["token"], fingerprint=job["fingerprint"], extraction=initial)
         assert indexing.submit(extraction.id, result)[1] == 200
         assert indexing.submit(extraction.id, result)[1] == 200
+        reference = EvidenceReference(citation="G1", index_id=extraction.id, fingerprint=extraction.fingerprint)
+        authorized = {extraction.id: (extraction, db.session.get(HragGeneration, extraction.generation_id), item)}
+        assert evidence_from_reference(reference, authorized).quote == "a"
+        extraction.result = {"entities": [{**initial.entities[0].model_dump(), "evidence": {"start": 0, "end": 1, "quote": "x"}}]}
+        assert evidence_from_reference(reference, authorized) is None
+        extraction.result = initial.model_dump()
         item.title, item.review = "Edited title", "Reviewed"
         item.content += "Outside both cutoffs"
         db.session.commit()
@@ -256,6 +263,48 @@ def test_runtime_chunk_sizes_build_independent_generations(configured_index, mon
         assert indexing.activate(generation.id)[1] == 200
         assert not db.session.get(HragGeneration, original_active).active
         assert db.session.get(HragGeneration, generation.id).active
+    finally:
+        db.session.delete(story)
+        db.session.commit()
+
+
+def test_backfill_drains_dispatch_batches_and_continues_scans(configured_index, monkeypatch):
+    from core.managers.queue_manager import queue_manager
+
+    story = create_story(news_items=[build_news_item_payload(content=f"Index item {number}.") for number in range(51)])
+    item_ids = [item.id for item in story.news_items]
+    try:
+        indexing.reconcile()
+        generations = list(db.session.scalars(db.select(HragGeneration)))
+        for generation in generations:
+            records = list(db.session.scalars(db.select(HragIndex).where(HragIndex.generation_id == generation.id)))
+            assert sum(record.status == "queued" for record in records) == 50
+            assert sum(record.status == "pending" for record in records) > 0
+            assert sum(record.news_item_id in item_ids for record in records) == 51
+            for _ in records:
+                record = next(record for record in records if record.status == "queued")
+                job = indexing.claim(record.id)
+                if job is None:
+                    assert record.status == "ready"
+                    continue
+                submission = IndexSubmission(token=job["token"], fingerprint=job["fingerprint"])
+                if generation.pipeline == "extraction":
+                    submission.extraction = ExtractionResult()
+                else:
+                    submission.chunks = [ChunkEmbedding(**span, embedding=[1, 0, 0]) for span in job["chunks"]]
+                assert indexing.submit(record.id, submission)[1] == 200
+            assert all(record.status == "ready" for record in records)
+        generation = next(generation for generation in generations if generation.pipeline == "embedding")
+        assert indexing.reprocess(generation.id)[1] == 200
+        assert queue_manager.enqueue_task.call_args.kwargs["generation_id"] == generation.id
+        monkeypatch.setattr(indexing, "SCAN_BATCH_SIZE", 25)
+        for _ in range(2):
+            indexing.reconcile(generation.id)
+            assert generation.cursor and not generation.scanned
+            assert queue_manager.enqueue_task.call_args.kwargs["generation_id"] == generation.id
+        indexing.reconcile(generation.id)
+        assert generation.cursor == "" and generation.scanned
+        assert len(list(db.session.scalars(db.select(HragGeneration)))) == 2
     finally:
         db.session.delete(story)
         db.session.commit()
