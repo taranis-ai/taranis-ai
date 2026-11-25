@@ -13,7 +13,7 @@ import worker.collectors
 from worker.collectors.base_collector import BaseCollector, NoChangeError
 from worker.collectors.base_web_collector import BaseWebCollector, HTTPNotModifiedError, LinkedArticleFetchError
 from worker.collectors.mastodon_collector import MastodonCollectorError
-from worker.collectors.rss_collector import EmptyRSSFeedError, RSSCollector
+from worker.collectors.rss_collector import EmptyRSSFeedError, RSSArticleFetchError
 from worker.core_api import CoreApi, build_failure_task_result, build_success_task_result, build_task_result
 from worker.http_client import http_session_scope
 from worker.log import TaranisLogFormatter, TaranisLogger, logger
@@ -196,14 +196,13 @@ def collector_task(osint_source_id: str, manual: bool = False):
                 previous_data = previous_result.get("data")
                 previous_data = previous_data if isinstance(previous_data, dict) else {}
                 previous_validators = previous_data.get("http_validators")
-                preserve_entry_limit = (
+                preserve_warning = (
                     previous_task_status == "WARNING"
-                    and previous_result.get("reason") == "rss_entry_limit"
-                    and isinstance(collector_impl, RSSCollector)
+                    and previous_result.get("reason") in ("rss_entry_limit", RSSArticleFetchError.reason, LinkedArticleFetchError.reason)
                     and isinstance(previous_validators, dict)
                     and previous_validators.get("url") == e.url
                 )
-                preserve_previous_result = preserve_http_failure or preserve_empty_feed or preserve_entry_limit
+                preserve_previous_result = preserve_http_failure or preserve_empty_feed or preserve_warning
                 if preserve_previous_result:
                     result_data = dict(previous_data)
                     result_data.update(_collector_result_data(osint_source_id, manual, collector_impl))

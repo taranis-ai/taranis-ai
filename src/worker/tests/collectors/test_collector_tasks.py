@@ -316,6 +316,18 @@ def test_rss_article_failures(current_job, requests_mock, publish_message):
     assert "private upstream text" not in result["message"]
     assert result["data"]["http_validators"]["etag"] == '"feed"'
 
+    if publish_message is not None:
+        warning_task = tasks.last_request.json()
+        source.update(status=warning_task, http_validators=result["data"]["http_validators"])
+        requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/osint-sources/source-1", json=source)
+        unchanged_feed = requests_mock.get(feed_url, status_code=304)
+
+        collector_tasks.collector_task("source-1")
+
+        assert tasks.last_request.json() == warning_task
+        assert unchanged_feed.last_request.headers["If-None-Match"] == '"feed"'
+        assert publish.call_count == failed_article.call_count == 1
+
 
 @pytest.fixture(params=["rss_collector", "simple_web_collector"])
 def digest_source(request, requests_mock):
@@ -337,7 +349,7 @@ def digest_source(request, requests_mock):
     else:
         source["parameters"].update(WEB_URL=digest_url, XPATH="//main")
         body = f"<main>{links}</main>"
-    requests_mock.get(digest_url, text=body)
+    requests_mock.get(digest_url, text=body, headers={"ETag": '"digest"'})
     requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/osint-sources/source-1", json=source)
     return source
 
@@ -363,6 +375,17 @@ def test_digest_publishes_usable_articles_and_warns(current_job, requests_mock, 
     assert "Some linked articles could not be fetched (1 skipped)." in message
     if digest_source["type"] == "rss_collector":
         assert "1 additional entries were skipped." in message
+
+    validators = task["result"]["data"]["http_validators"]
+    digest_source.update(status=task, http_validators=validators)
+    requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/osint-sources/source-1", json=digest_source)
+    unchanged_digest = requests_mock.get(validators["url"], status_code=304)
+
+    collector_tasks.collector_task(digest_source["id"])
+
+    assert tasks.last_request.json() == task
+    assert unchanged_digest.last_request.headers["If-None-Match"] == '"digest"'
+    assert publish.call_count == 1
 
 
 def test_digest_fails_without_publishing_when_every_link_fails(current_job, requests_mock, digest_source):
