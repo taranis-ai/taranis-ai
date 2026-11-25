@@ -1,5 +1,6 @@
 import base64
 import json
+import secrets
 from datetime import datetime
 from io import BytesIO
 from typing import Any, cast
@@ -881,6 +882,32 @@ def test_product_type_save_redirects_to_edit_page_with_template_compatibility_wa
     compatible = authenticated_client.post(edit_route, data=form)
     assert compatible.status_code == 302
     assert compatible.location == ProductTypeView.get_base_route()
+
+
+def test_product_type_save_caps_flashed_template_warnings(authenticated_client, responses_mock, mock_core_get_endpoints):
+    product_type_id = "product-type-1"
+    core_url = f"{Config.TARANIS_CORE_URL}/config/product-types/{product_type_id}"
+    # Random titles: Flask compresses the session cookie, so repeated characters would not grow it.
+    warnings = [f"The template uses a value that is not available for report type '{secrets.token_urlsafe(750)}'." for _ in range(8)]
+    responses_mock.patch(core_url, json={"message": "Product type updated", "id": product_type_id, "warnings": warnings})
+    responses_mock.get(
+        core_url,
+        json={"id": product_type_id, "title": "CERT Daily", "type": "html_presenter", "parameters": {}, "report_types": []},
+    )
+    edit_route = ProductTypeView.get_edit_route(product_type_id=product_type_id)
+    form = {"title": "CERT Daily", "type": "html_presenter", "parameters[TEMPLATE_PATH]": "cert_at_daily_report.html"}
+
+    saved = authenticated_client.post(edit_route, data=form)
+
+    assert saved.status_code == 302
+    session_cookies = [header for header in saved.headers.getlist("Set-Cookie") if header.startswith("session=")]
+    assert session_cookies
+    assert all(len(header) < 4000 for header in session_cookies)
+    tree = html.fromstring(authenticated_client.get(edit_route).text)
+    shown = [item.text_content().strip() for item in tree.xpath('//*[@data-test-id="product-type-template-warnings"]//li')]
+    assert len(shown) == 6
+    assert all(len(warning) <= 200 for warning in shown[:5])
+    assert shown[-1] == "... and 3 more warnings."
 
 
 def test_osint_source_form_shows_current_icon_and_delete_option(app):

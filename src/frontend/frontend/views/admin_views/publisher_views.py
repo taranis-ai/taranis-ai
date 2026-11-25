@@ -68,6 +68,9 @@ class ProductTypeView(AdminBaseView):
     model = ProductType
     icon = "envelope"
     _index = 150
+    # Flashed messages live in the session cookie; keep them well below the browser's cookie size limit.
+    _max_flashed_warnings = 5
+    _max_flashed_warning_length = 200
 
     presenter_types: ClassVar[dict[str, dict[str, str]]] = {
         member.name.lower(): {"id": member.name.lower(), "name": " ".join(part.capitalize() for part in member.name.split("_"))}
@@ -119,8 +122,12 @@ class ProductTypeView(AdminBaseView):
         # Saved: redirect to the edit page (Post/Redirect/Get) and show the warnings there.
         cls._invalidate_model_cache(product_type_id)
         cls.add_flash_notification(core_response)
-        for warning in template_warnings:
+        for warning in template_warnings[: cls._max_flashed_warnings]:
+            if len(warning) > cls._max_flashed_warning_length:
+                warning = f"{warning[: cls._max_flashed_warning_length - 3]}..."
             flash(warning, "warning")
+        if (hidden := len(template_warnings) - cls._max_flashed_warnings) > 0:
+            flash(f"... and {hidden} more warning{'s' if hidden > 1 else ''}.", "warning")
         return cls.redirect_htmx(cls.get_edit_route(**{cls._get_object_key(): product_type_id}))
 
     @classmethod
