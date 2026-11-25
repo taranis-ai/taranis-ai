@@ -189,12 +189,13 @@ class TestSourcesConfigApi(BaseTest):
             client.delete(self.concat_url(f"osint-sources/{source_id}"), headers=auth_header)
 
     @staticmethod
-    def _stored_use_feed_content(app, source_ids: list[str]) -> list[bool | None]:
+    def _stored_use_feed_content(app, source_ids: list[str]) -> dict[str, bool | None]:
         from core.managers.db_manager import db
         from core.model.osint_source import OSINTSource
 
         with app.app_context():
-            return [db.session.get(OSINTSource, source_id).parameters.get("USE_FEED_CONTENT") for source_id in source_ids]
+            sources = [db.session.get(OSINTSource, source_id) for source_id in source_ids]
+            return {source.name: source.parameters.get("USE_FEED_CONTENT") for source in sources}
 
     def test_import_osint_sources_v4_keeps_use_feed_content(self, client, auth_header, app):
         cases = [
@@ -218,7 +219,7 @@ class TestSourcesConfigApi(BaseTest):
                 for idx, (parameters, _) in enumerate(cases)
             ],
         }
-        expected = [value for _, value in cases]
+        expected = {f"V4 Feed Content {idx}": value for idx, (_, value) in enumerate(cases)}
 
         source_ids = self.assert_post_ok(client, uri="import-osint-sources", json_data=payload, auth_header=auth_header).json["sources"]
         reimported_ids: list[str] = []
@@ -260,7 +261,7 @@ class TestSourcesConfigApi(BaseTest):
 
         source_ids = self.assert_post_ok(client, uri="import-osint-sources", json_data=payload, auth_header=auth_header).json["sources"]
         try:
-            assert self._stored_use_feed_content(app, source_ids) == [value for _, value in cases]
+            assert self._stored_use_feed_content(app, source_ids) == {f"V3 Feed Content {idx}": value for idx, (_, value) in enumerate(cases)}
         finally:
             for source_id in source_ids:
                 client.delete(self.concat_url(f"osint-sources/{source_id}"), headers=auth_header)
