@@ -1,4 +1,5 @@
 import json
+import re
 from unittest.mock import call, patch
 from urllib.parse import parse_qs, urlsplit
 from uuid import uuid4
@@ -81,6 +82,41 @@ def test_product_view_always_shows_last_publication_section(app, last_published_
         assert 'rel="noopener noreferrer"' in markup
 
 
+def test_product_view_replaces_render_with_hidden_story_warning(app):
+    warning = "Some linked reports or stories are restricted, so the render can't be shown or downloaded."
+    product = Product.model_construct(
+        id="product-1",
+        title="Existing product",
+        product_type_id="product-type-1",
+        report_items=["report-1"],
+        supported_reports=[],
+        render_result=None,
+        render_access_warning=warning,
+        report_access_warning="Some linked reports contain stories you are not allowed to read; only title and description can be edited.",
+        mime_type="text/plain",
+    )
+
+    with app.test_request_context("/publish/product-1"):
+        markup = render_template(
+            "publish/product.html",
+            product=product,
+            product_types=[],
+            publishers=[],
+            selected_report_items=["report-1"],
+            supported_reports=[],
+            submit_text="Update Product",
+            is_edit=True,
+            form_action='hx-put="/frontend/publish/product-1"',
+        )
+
+    tree = html.fromstring(markup)
+    assert warning in tree.xpath('//*[@data-testid="product-render-access-warning"]')[0].text_content()
+    assert not tree.xpath('//*[@data-testid="download-product"]')
+    assert "No rendered Product Found" not in markup
+    assert tree.xpath('//button[@id="render_button"][@disabled]')
+    assert tree.xpath('//fieldset[@disabled]//button[contains(., "Publish (manually)")]')
+
+
 def test_product_download_streams_core_response(authenticated_client, responses_mock):
     product_id = "product-download-test"
     expected_content = b"binary-product" * 10000
@@ -104,6 +140,24 @@ def test_product_download_streams_core_response(authenticated_client, responses_
     finally:
         response.close()
     assert responses_mock.calls[0].response.raw.closed
+
+
+def test_product_list_hides_restricted_story_counts(authenticated_client, responses_mock):
+    items = [
+        {"id": "product-1", "title": "Readable", "product_type_id": "type-1", "type": "TEXT_PRESENTER", "story_count": 2},
+        {"id": "product-2", "title": "Restricted", "product_type_id": "type-1", "type": "TEXT_PRESENTER", "story_count": None},
+    ]
+    responses_mock.get(re.compile(rf"{re.escape(Config.TARANIS_CORE_URL)}/publish/products(\?.*)?$"), json={"items": items, "total_count": 2})
+
+    response = authenticated_client.get("/publish")
+
+    assert response.status_code == 200
+    tree = html.fromstring(response.data)
+    restricted = tree.xpath('//*[@data-testid="restricted-story-count"]')
+    assert len(restricted) == 1
+    # List cells clip CSS tooltips, so the list relies on the browser's native tooltip.
+    assert restricted[0].get("title") == restricted[0].get("aria-label") == "Permission denied story count"
+    assert "Restricted" in restricted[0].xpath("string(ancestor::tr)")
 
 
 def test_product_list_does_not_load_editor_catalogs():
@@ -207,14 +261,18 @@ def test_product_with_restricted_reports_opens_saves_and_explains_locked_actions
     assert opened.status_code == 200
     tree = html.fromstring(opened.data)
     assert warning in tree.get_element_by_id("product-report-access-warning").text_content()
-    assert "Report Type permissions or TLP clearance" in tree.get_element_by_id("product-report-access-help").text_content()
+    assert "TLP clearance, or access to linked stories" in tree.get_element_by_id("product-report-access-help").text_content()
     assert tree.xpath('//button[@aria-label="Why editing is limited"][@aria-describedby="product-report-access-help"]')
     assert tree.xpath('//fieldset[@disabled]//select[@name="product_type_id"]')
     assert tree.xpath('//fieldset[@disabled]//button[contains(., "Publish")]')
     assert tree.xpath('//button[@id="render_button"][@disabled]')
     assert tree.xpath('//button[@disabled][contains(., "Create copy")]')
     assert not tree.xpath("//*[@data-product-report-items-enhanced]")
-    assert tree.xpath('//section//li[text()="Visible report"]')
+    rows = tree.xpath('//*[@data-testid="locked-report-item"]')
+    assert [row.xpath("string(td[1])").strip() for row in rows] == product["report_items"]
+    assert rows[0].xpath("string(td[2])").strip() == "Visible report"
+    assert [cell.strip() for cell in rows[1].xpath("td[position()>1]//text()") if cell.strip()] == ["🚫"]
+    assert rows[1].xpath('.//*[@aria-label="Permission denied story count"]')
     assert tree.xpath('//input[@name="report_items[]"]/@value') == product["report_items"]
 
     saved_product = {**product, "title": "Updated title", "description": "Updated description"}

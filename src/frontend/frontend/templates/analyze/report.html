@@ -152,6 +152,26 @@
               </div>
             </header>
 
+            {% set restricted_story_ids = report.restricted_story_ids | default([]) %}
+            {% if restricted_story_ids %}
+              {% set restricted_count = restricted_story_ids | length %}
+              <div class="alert alert-warning flex-col items-start" role="note" data-testid="report-restricted-stories">
+                <p>
+                  {% if restricted_count == 1 %}
+                    {{ _("You are not allowed to read 1 story in this report due to permissions. Story ID:") }}
+                  {% else %}
+                    {{ _("You are not allowed to read %(count)s stories in this report due to permissions. Story IDs:", count=restricted_count) }}
+                  {% endif %}
+                </p>
+                <ul class="list-disc ml-5 text-sm">
+                  {% for story_id in restricted_story_ids %}
+                    <li>
+                      <code>{{ story_id }}</code>
+                    </li>
+                  {% endfor %}
+                </ul>
+              </div>
+            {% endif %}
             {% if stories %}
               <div class="space-y-3" data-testid="report-stories">
                 {% for story in stories %}
@@ -159,7 +179,7 @@
                   {{ analyze_story_card(story, report.used_story_ids | default([])) }}
                 {% endfor %}
               </div>
-            {% else %}
+            {% elif not restricted_story_ids %}
               <div class="alert alert-info">No stories assigned to this report.</div>
             {% endif %}
           </section>

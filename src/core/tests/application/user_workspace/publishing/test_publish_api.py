@@ -99,6 +99,7 @@ class TestPublishApi(BaseTest):
         full = self.assert_get_ok(client, f"products/{product_id}", auth_header).get_json()
         metadata = self.assert_get_ok(client, f"product-metadata/{product_id}", auth_header).get_json()
         assert full.pop("render_result") == base64.b64encode(b"Old product render").decode()
+        assert full.pop("render_access_warning") is None
         assert metadata == full
 
     def test_product_type_choices_filter_by_all_selected_reports(self, client, session, auth_header):

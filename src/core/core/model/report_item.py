@@ -628,8 +628,7 @@ class ReportItem(BaseModel):
         return {"message": "Successfully updated Report Item", "report": new_report}, status
 
     def update_stories(self, story_ids: list[str], stories_to_add: list[Story] | None = None):
-        """ Replace the report's stories with `story_ids`.
-        """
+        """Replace the report's stories with `story_ids`."""
         if stories_to_add is None:
             stories_to_add, _ = self._resolve_stories_to_attach(story_ids, None)
         new_story_ids_set = set(story_ids)

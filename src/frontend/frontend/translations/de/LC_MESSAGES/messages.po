@@ -685,6 +685,10 @@ msgstr "Passwort konnte nicht geändert werden."
 msgid "Failed to update profile settings."
 msgstr "Profileinstellungen konnten nicht aktualisiert werden."
 
+#: frontend/templates/partials/restricted_story_count.html:2
+msgid "Permission denied story count"
+msgstr "Berechtigung verweigert die Anzahl der Stories"
+
 #~ msgid "Ask a question or search the stories available to you in Taranis."
 #~ msgstr ""
 
