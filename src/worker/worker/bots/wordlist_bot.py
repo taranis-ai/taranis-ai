@@ -8,6 +8,11 @@ from .base_bot import BaseBot
 from .tagging_content import _news_item_content_for_tagging
 
 
+def _fold_for_shortlist(text: str) -> str:
+    # re.IGNORECASE groups I, i, İ and ı together. Plain casefold() splits that group.
+    return text.replace("İ", "i").replace("ı", "i").casefold()
+
+
 class _AhoCorasickMatcher:
     """Single-pass multi-pattern matcher used to shortlist dictionary entries."""
 
@@ -23,7 +28,7 @@ class _AhoCorasickMatcher:
             if not pattern:
                 self._empty_patterns.append(pattern)
                 continue
-            key = pattern.casefold() if ignore_case else pattern
+            key = _fold_for_shortlist(pattern) if ignore_case else pattern
             deduped.setdefault(key, []).append(pattern)
 
         for key, originals in deduped.items():
@@ -57,7 +62,7 @@ class _AhoCorasickMatcher:
     def shortlist(self, text: str) -> set[str]:
         """Return candidate original patterns that appear in *text*."""
         candidates = set(self._empty_patterns)
-        haystack = text.casefold() if self._ignore_case else text
+        haystack = _fold_for_shortlist(text) if self._ignore_case else text
         state = 0
         for ch in haystack:
             while state and ch not in self._next[state]:
@@ -111,9 +116,7 @@ class WordlistBot(BaseBot):
         matcher = _AhoCorasickMatcher(list(entry_set), ignore_case=bool(ignore_case & re.IGNORECASE))
         return entry_set, matcher
 
-    def _find_tags_for_stories(
-        self, data, word_list_entries, override_existing_tags, ignore_case
-    ) -> dict[str, dict[str, str]]:
+    def _find_tags_for_stories(self, data, word_list_entries, override_existing_tags, ignore_case) -> dict[str, dict[str, str]]:
         prepared = self._prepare_matcher(word_list_entries, ignore_case)
         found_tags = {}
         for story in data:

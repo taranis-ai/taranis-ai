@@ -17,6 +17,8 @@ def test_wordlist_bot_matches_multiword_overlapping_unicode_and_preserves_last_c
         {"value": "Exchange", "category": "old_cat"},
         {"value": "Exchange", "category": "product"},
         {"value": "Exchange Server", "category": "platform"},
+        {"value": "Intel", "category": "vendor"},
+        {"value": "İstanbul", "category": "city"},
         {"value": "Straße", "category": "unicode"},
         {"value": "ExistingTag", "category": "new_cat"},
     ]
@@ -27,8 +29,8 @@ def test_wordlist_bot_matches_multiword_overlapping_unicode_and_preserves_last_c
                 {
                     "id": "item-1",
                     "story_id": "story-1",
-                    "title": "Microsoft EXCHANGE SERVER in STRASSE",
-                    "review": "",
+                    "title": "Microsoft EXCHANGE SERVER on ıntel",
+                    "review": "STRASSE in Istanbul",
                     "content": "ExistingTag stays if override is false",
                     "tags": {"ExistingTag": "keep"},
                 }
@@ -40,7 +42,8 @@ def test_wordlist_bot_matches_multiword_overlapping_unicode_and_preserves_last_c
     assert found["item-1"] == {
         "Exchange": "product",
         "Exchange Server": "platform",
-        "Straße": "unicode",
+        "Intel": "vendor",
+        "İstanbul": "city",
     }
     assert saved == [("item-1", "story-1", found["item-1"])]
 
