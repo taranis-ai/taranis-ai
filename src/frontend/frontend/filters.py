@@ -33,6 +33,7 @@ __all__ = [
     "render_item_validation_status",
     "render_parameter",
     "render_source_parameter",
+    "render_story_count",
     "render_truncated",
     "render_validation_status",
     "render_worker_status",
@@ -98,6 +99,16 @@ def render_count(item, field: str) -> int:
     if isinstance(value, int):
         return value
     return 0
+
+
+def render_story_count(item, field: str) -> Markup | int:
+    """Like `render_count`, but a missing count means the user may not see it.
+
+    List cells truncate their content, which clips CSS tooltips, so the browser's native tooltip is used.
+    """
+    if getattr(item, field, None) is None:
+        return Markup(render_template("partials/restricted_story_count.html", native_tooltip=True))
+    return render_count(item, field)
 
 
 def _guess_mime_pure_py(b64: str) -> str:

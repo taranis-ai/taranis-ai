@@ -27,6 +27,8 @@ class Product(BaseModel):
     __tablename__ = "product"
 
     RESTRICTED_REPORTS_MESSAGE = "Some linked reports are restricted; only title and description can be edited."
+    RESTRICTED_STORIES_MESSAGE = "Some linked reports contain stories you are not allowed to read; only title and description can be edited."
+    RESTRICTED_RENDER_MESSAGE = "Some linked reports or stories are restricted, so the render can't be shown or downloaded."
 
     id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), primary_key=True, default=BaseModel.uuid7_str)
     title: Mapped[str] = db.Column(db.String(), nullable=False)
@@ -110,15 +112,32 @@ class Product(BaseModel):
         query = RoleBasedAccessService.filter_report_query_with_tlp(query, user)
         return report_ids != set(db.session.execute(query).scalars())
 
-    def get_action_error(self, user_id: str | None) -> str | None:
+    def has_hidden_stories(self, user: User | None) -> bool:
+        """Whether a linked Report the user can read contains stories they can't read; restricted Reports are checked separately."""
+        if user is None or not self.report_items:
+            return False
+        return db.session.execute(self._hidden_story_product_ids_query([self.id], user).limit(1)).first() is not None
+
+    def get_access_restriction(self, user: User | None) -> str | None:
+        """Why the user may only edit title and description: restricted linked Reports, or hidden Stories in readable ones."""
+        if self.has_restricted_reports(user):
+            return self.RESTRICTED_REPORTS_MESSAGE
+        if self.has_hidden_stories(user):
+            return self.RESTRICTED_STORIES_MESSAGE
+        return None
+
+    def get_action_error(self, user_id: str | None, *, allow_restricted_content: bool = False) -> str | None:
+        """Why the user may not act on this product. Autopublish allows restricted content: the user never sees the render."""
         if user_id is None:
             return None
         user = User.get(user_id)
         if not user or not self.product_type.allowed_with_acl(user, require_write_access=False):
             return "User is not allowed to access product"
-        if self.has_restricted_reports(user):
-            logger.info("Blocked product action for user %s: product %s has restricted reports", user_id, self.id)
-            return self.RESTRICTED_REPORTS_MESSAGE
+        if allow_restricted_content:
+            return None
+        if restriction := self.get_access_restriction(user):
+            logger.info("Blocked product action for user %s: product %s has restricted report content", user_id, self.id)
+            return restriction
         return None
 
     @classmethod
@@ -179,9 +198,12 @@ class Product(BaseModel):
         )
         products = cls.get_filtered(query) or []
         items = cls.to_list(products)
-        story_counts = cls.get_story_counts([product.id for product in products], user)
+        product_ids = [product.id for product in products]
+        story_counts = cls.get_story_counts(product_ids, user)
+        restricted_ids = cls.get_restricted_ids(product_ids, user)
         for item in items:
-            item["story_count"] = story_counts.get(item["id"], 0)
+            # Users who can't read every linked report and story get no story count at all.
+            item["story_count"] = None if item["id"] in restricted_ids else story_counts.get(item["id"], 0)
 
         response: dict[str, Any] = {"items": items}
         if with_count:
@@ -222,10 +244,13 @@ class Product(BaseModel):
 
     def to_detail_dict(self, user: User | None = None, *, include_render: bool = True) -> dict[str, Any]:
         data = self.to_dict()
-        data["report_access_warning"] = self.RESTRICTED_REPORTS_MESSAGE if self.has_restricted_reports(user) else None
+        restriction = self.get_access_restriction(user)
+        data["report_access_warning"] = restriction
         data["supported_reports"] = [r.to_supported_products_dict() for r in self.get_supported_reports(user)]
         if include_render:
-            data["render_result"] = self.render_result
+            # The stored render holds the full content of every linked report, so restricted users can't see it.
+            data["render_result"] = None if restriction else self.render_result
+            data["render_access_warning"] = self.RESTRICTED_RENDER_MESSAGE if restriction else None
         data["mime_type"] = self.product_type.get_mimetype() if self.product_type else None
         return data
 
@@ -300,7 +325,7 @@ class Product(BaseModel):
         if user and not product.product_type.allowed_with_acl(user, require_write_access=False):
             return {"error": "User is not allowed to access product"}, 403
 
-        if product.has_restricted_reports(user):
+        if restriction := product.get_access_restriction(user):
             locked_values = {
                 "product_type_id": product.product_type_id,
                 "auto_publish": product.auto_publish,
@@ -308,14 +333,14 @@ class Product(BaseModel):
             }
             changed_reports = "report_items" in data and set(data["report_items"] or []) != {report.id for report in product.report_items}
             if changed_reports or any(key in data and data[key] != value for key, value in locked_values.items()):
-                return {"error": cls.RESTRICTED_REPORTS_MESSAGE}, 403
+                return {"error": restriction}, 403
             if title := data.get("title"):
                 product.title = title
             if "description" in data:
                 product.description = data["description"]
             db.session.commit()
             return {
-                "message": "Product details updated. Rendering was skipped because some linked reports are restricted.",
+                "message": "Product details updated. Rendering was skipped because of restricted report content.",
                 "id": product.id,
                 "product": product.to_detail_dict(user=user),
             }, 200
@@ -381,6 +406,30 @@ class Product(BaseModel):
         )
         query = query.where(ProductReportItem.product_id.in_(product_ids)).group_by(ProductReportItem.product_id)
         return dict(db.session.execute(query).tuples().all())
+
+    @classmethod
+    def get_restricted_ids(cls, product_ids: list[str], user: User | None) -> set[str]:
+        """Products with a linked Report the user can't access, or a Story they can't read in an accessible one."""
+        if user is None or not product_ids:
+            return set()
+        readable_reports = db.select(ReportItem.id).outerjoin(ReportItemType)
+        readable_reports = RoleBasedAccessService.filter_query_with_acl(
+            readable_reports, RBACQuery(user=user, resource_type=ItemType.REPORT_ITEM_TYPE)
+        )
+        readable_reports = RoleBasedAccessService.filter_report_query_with_tlp(readable_reports, user)
+        restricted_reports = db.select(ProductReportItem.product_id).where(
+            ProductReportItem.product_id.in_(product_ids), ProductReportItem.report_item_id.not_in(readable_reports)
+        )
+        hidden_stories = cls._hidden_story_product_ids_query(product_ids, user)
+        return set(db.session.execute(restricted_reports).scalars()) | set(db.session.execute(hidden_stories).scalars())
+
+    @classmethod
+    def _hidden_story_product_ids_query(cls, product_ids: list[str], user: User) -> Select:
+        """Products whose accessible linked Reports contain a Story the user can't read."""
+        return cls._accessible_story_query(db.select(ProductReportItem.product_id).select_from(ProductReportItem), user).where(
+            ProductReportItem.product_id.in_(product_ids),
+            ReportItemStory.story_id.not_in(Story.visible_query(user, db.select(Story.id))),
+        )
 
     @staticmethod
     def _accessible_story_query(query: Select, user: User | None) -> Select:

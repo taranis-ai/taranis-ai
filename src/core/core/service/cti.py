@@ -40,7 +40,8 @@ class CTIService:
         report = ReportItem.get(report_id)
         if not report:
             return {"error": "Report Item not found"}, 404
-        news_items = [news_item for story in report.stories for news_item in story.news_items]
+        hidden_story_ids = report.get_hidden_story_ids(user)
+        news_items = [news_item for story in report.stories if story.id not in hidden_story_ids for news_item in story.news_items]
         return cls._response("report", report_id, news_items), 200
 
     @classmethod

@@ -1809,7 +1809,7 @@ class QueueManager:
 
         if not (product := Product.get(product_id)) or not product.product_type:
             return {"error": "Product not found"}, 404
-        if user_id and (error := product.get_action_error(user_id)):
+        if user_id and (error := product.get_action_error(user_id, allow_restricted_content=True)):
             return {"error": error}, 403
         if not (publisher := PublisherPreset.get(auto_publisher_id)):
             return {"error": "Publisher preset not found"}, 404
