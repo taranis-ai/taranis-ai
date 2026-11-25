@@ -1,4 +1,5 @@
 from weasyprint import HTML
+from weasyprint.urls import URLFetcher
 
 from .base_presenter import BasePresenter
 
@@ -19,11 +20,11 @@ class PDFPresenter(BasePresenter):
         output_text = super().generate(product, template, parameters)
 
         try:
-            html = HTML(string=output_text)
+            html = HTML(string=output_text, url_fetcher=URLFetcher(allowed_protocols=[]))
             data = html.write_pdf(target=None, finisher=self._remove_weasyprint_signature)
         except Exception as error:
             BasePresenter.print_exception(self, error)
-            raise ValueError(f"PDF generation failed: {error}") from error
+            raise ValueError("PDF generation failed") from error
 
         if not data:
             raise ValueError("PDF generation failed: No data returned")

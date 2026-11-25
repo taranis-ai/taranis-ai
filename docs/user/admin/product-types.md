@@ -22,6 +22,8 @@ All crucial fields are editable, with the most important being Type, Template, a
 
 Template paths are validated before use. A Product Type cannot render a Report Type unless that Report Type is associated with the Product Type.
 
+PDF templates can include CSS in `<style>` elements. During PDF generation the worker skips resources referenced by URL, including linked stylesheets, images, fonts, and attachments. This also applies to local files and `data:` URLs. Ordinary hyperlinks can still appear in the PDF.
+
 ![product-type-edit](../images/product_type_edit.png)
 
 ## Create new Product Types

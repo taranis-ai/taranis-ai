@@ -1,4 +1,6 @@
 import json
+from unittest.mock import Mock
+from urllib.request import OpenerDirector
 
 import pytest
 from jinja2.exceptions import SecurityError
@@ -36,7 +38,7 @@ def test_base_presenter_preserves_analyst_summary_html(base_presenter):
 
 def test_pdf_presenter_successful_render(pdf_presenter, fixed_datetime, monkeypatch):
     class FakeHTML:
-        def __init__(self, string):
+        def __init__(self, string, url_fetcher):
             self.string = string
 
         def write_pdf(self, target=None, finisher=None):
@@ -61,35 +63,35 @@ def test_pdf_presenter_successful_render(pdf_presenter, fixed_datetime, monkeypa
     assert product["current_date"] == "2025-01-02"
 
 
-def test_pdf_presenter_failed_render(pdf_presenter, fixed_datetime, monkeypatch):
-    class FakeHTML:
-        def __init__(self, string):
-            raise RuntimeError("Serious Error")
+def test_pdf_presenter_skips_url_resources(pdf_presenter, monkeypatch):
+    opener = Mock(side_effect=OSError("Unexpected resource request"))
+    monkeypatch.setattr(OpenerDirector, "open", opener)
+    template = """
+        <link rel="stylesheet" href="https://example.invalid/report.css">
+        <h1>Report</h1>
+        <img src="file:///example/logo.png"><img src="http://example.invalid/logo.png">
+        <img src="data:image/png;base64,AA==">
+    """
 
-    monkeypatch.setattr(pdfp, "HTML", FakeHTML, raising=True)
+    pdf = pdf_presenter.generate({}, template)
+
+    assert pdf.startswith(b"%PDF-")
+    opener.assert_not_called()
+
+
+def test_pdf_presenter_failed_render(pdf_presenter, fixed_datetime, monkeypatch):
+    monkeypatch.setattr(pdfp, "HTML", Mock(side_effect=RuntimeError("Serious Error")))
 
     product = {"title": "A Test Report"}
     template = "<h1>{{ data.title }}</h1><small>{{ data.current_date }}</small>"
 
     with pytest.raises(ValueError) as exception:
         _ = pdf_presenter.generate(product, template)
-    assert str(exception.value) == "PDF generation failed: Serious Error"
+    assert str(exception.value) == "PDF generation failed"
 
 
 def test_pdf_presenter_no_data(pdf_presenter, fixed_datetime, monkeypatch):
-    class FakeHTML:
-        def __init__(self, string):
-            self.string = string
-
-        def write_pdf(self, target=None, finisher=None):
-            assert finisher is not None
-            fake_pdf = FakePDF()
-            fake_pdf.info = {"Producer": "WeasyPrint 68.1", "Title": "A Test Report"}
-            finisher(object(), fake_pdf)
-            assert fake_pdf.info == {"Title": "A Test Report"}
-            return ""
-
-    monkeypatch.setattr(pdfp, "HTML", FakeHTML, raising=True)
+    monkeypatch.setattr(pdfp.HTML, "write_pdf", Mock(return_value=b""))
 
     product = {"title": "A Test Report"}
     template = "<h1>{{ data.title }}</h1><small>{{ data.current_date }}</small>"
