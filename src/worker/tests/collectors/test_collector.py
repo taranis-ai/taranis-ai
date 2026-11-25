@@ -384,7 +384,7 @@ def test_simple_web_collector_basic(simple_web_collector_mock, simple_web_collec
 def test_gather_news_items_uses_playwright(browser_web_collector_mock, browser_web_collector_instance):
     from models.assess import NewsItem
 
-    from tests.testdata import web_collector_result_content, web_collector_result_title
+    from tests.testdata import web_collector_result_content, web_collector_result_title, web_collector_source_xpath
 
     browser_web_collector_instance.web_url = "https://raw.example.com/testweb.html"
     last_modified = "Tue, 11 Aug 2026 09:07:03 GMT"
@@ -399,9 +399,11 @@ def test_gather_news_items_uses_playwright(browser_web_collector_mock, browser_w
         browser_web_collector_instance.web_url,
         manual=False,
     )
-    browser_web_collector_instance.xpath = ""
+    browser_web_collector_instance.xpath = web_collector_source_xpath
     items = browser_web_collector_instance.gather_news_items()
-    browser_web_collector_mock.fetch_content_with_js.assert_called_once_with(browser_web_collector_instance.web_url, "")
+    browser_web_collector_mock.fetch_content_with_js.assert_called_once_with(
+        browser_web_collector_instance.web_url, web_collector_source_xpath
+    )
     browser_web_collector_mock.stop_playwright_if_needed.assert_called_once()
     assert "If-Modified-Since" not in browser_web_collector_mock.request_headers
 
@@ -410,7 +412,7 @@ def test_gather_news_items_uses_playwright(browser_web_collector_mock, browser_w
     assert len(items) == 1
     assert isinstance(items[0], NewsItem)
     assert story.title == web_collector_result_title
-    assert story.content.startswith(web_collector_result_content)
+    assert story.content.lstrip().startswith(web_collector_result_content)
     assert story.link == browser_web_collector_instance.web_url
     assert story.source == browser_web_collector_instance.web_url
     assert story.published.isoformat() == "2026-08-11T09:07:03"

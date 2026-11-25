@@ -318,7 +318,7 @@ class BaseWebCollector(BaseCollector):
         )
 
     def extract_web_content(self, web_url: str, xpath: str = "") -> dict[str, Any]:
-        web_content, published_date = self.fetch_article_content(web_url)
+        web_content, published_date = self.fetch_article_content(web_url, xpath)
         content = ""
         if xpath and web_content:
             content = self.xpath_extraction(web_content, xpath)
