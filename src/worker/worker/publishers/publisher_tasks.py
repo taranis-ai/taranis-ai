@@ -184,6 +184,7 @@ def _get_publisher_impl(pub_type: str) -> BasePublisher:
     publishers = {
         "taranis_publisher": worker.publishers.TaranisPublisher(),
         "email_publisher": worker.publishers.EMAILPublisher(),
+        "webhook_publisher": worker.publishers.WebhookPublisher(),
         "wordpress_publisher": worker.publishers.WORDPRESSPublisher(),
         "ftp_publisher": worker.publishers.FTPPublisher(),
         "sftp_publisher": worker.publishers.SFTPPublisher(),

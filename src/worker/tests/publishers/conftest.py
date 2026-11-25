@@ -2,6 +2,7 @@ import socket
 from threading import Event, Thread, current_thread
 from types import SimpleNamespace
 from unittest.mock import patch
+from wsgiref.simple_server import make_server
 
 import mockssh
 import paramiko
@@ -342,3 +343,36 @@ def stalled_tcp_server():
         listener.close()
         thread.join(timeout=5)
         assert not thread.is_alive(), "Stalled TCP server did not stop"
+
+
+@pytest.fixture
+def webhook_receiver():
+    requests = []
+    release = Event()
+
+    def receive(environ, start_response):
+        size = int(environ.get("CONTENT_LENGTH") or 0)
+        path = environ["PATH_INFO"]
+        requests.append(
+            (environ["REQUEST_METHOD"], path, environ.get("HTTP_AUTHORIZATION"), environ["CONTENT_TYPE"], environ["wsgi.input"].read(size))
+        )
+        if path.endswith("/redirect"):
+            start_response("307 Temporary Redirect", [("Location", "/redirect-target")])
+        elif path.endswith("/reject"):
+            start_response("403 Forbidden", [])
+            return [b"private-receiver-response"]
+        else:
+            if path.endswith("/stall"):
+                release.wait(5)
+            start_response("204 No Content", [])
+        return []
+
+    with make_server("127.0.0.1", 0, receive) as server:
+        thread = Thread(target=server.serve_forever, kwargs={"poll_interval": 0.02})
+        thread.start()
+        try:
+            yield f"http://127.0.0.1:{server.server_port}/private-route", requests
+        finally:
+            release.set()
+            server.shutdown()
+            thread.join()
