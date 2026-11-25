@@ -98,6 +98,7 @@
     <div class="grid grid-cols-12 gap-4">
       <div class="col-span-12 {% if is_edit %}lg:col-span-6{% else %}lg:col-span-12{% endif %} px-2">
         <form id="product_form"
+              @submit.capture="confirmDiscardCommentDraft($event)"
               method="post"
               action="{{ form_action }}"
               {% if is_edit %}hx-put="{{ form_action }}"{% else %}hx-post="{{ form_action }}"{% endif %}

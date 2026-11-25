@@ -30,7 +30,7 @@ Shared table navigation retains native links/GET forms and `restoreSearchAfterSw
 
 History restoration requests render the full page even when HTMX sends `HX-Request`, so browser Back/Forward retains the page shell and realtime listeners. HTML responses vary on `HX-Request`, `HX-Target`, and `HX-History-Restore-Request`, including in DEBUG, so HTTP caches select the matching response instead of serving an HTMX fragment for a full-page request. Production dynamic responses also retain `Cache-Control: no-store`.
 
-Preserve selected IDs and retry context on validation errors. Report/clustering dialogs close only on success. Non-HTMX forms retain CSRF protection and safe result/retry redirects. Native comment submissions from a Story, Report, or Product preview open the discussion in a new tab to preserve unsaved editor fields.
+Preserve selected IDs and retry context on validation errors. Report/clustering dialogs close only on success. Non-HTMX forms retain CSRF protection and safe result/retry redirects. Native comment submissions from a Story, Report, or Product preview open the discussion in a new tab to preserve unsaved editor fields. Submitting the parent form prompts before discarding an unfinished reply or edit.
 
 ## Specific Integration Traps
 

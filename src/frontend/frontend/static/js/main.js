@@ -10,6 +10,17 @@ function getCSRFToken() {
   return cookieName ? getCookieValue(cookieName) : undefined;
 }
 
+function confirmDiscardCommentDraft(event) {
+  const fields = document.querySelectorAll("#comments textarea[name=body]");
+  if (
+    Array.from(fields).some((field) => field.value !== field.defaultValue) &&
+    !window.confirm("Discard your unfinished comment changes and continue?")
+  ) {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  }
+}
+
 function getConfirmOptions(el, question) {
   const documentLabels = document.body?.dataset || {};
   const title = el.getAttribute("data-confirm-title") || question;

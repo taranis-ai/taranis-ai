@@ -221,6 +221,7 @@
   <div class="grid gap-4 grid-cols-1 xl:grid-cols-5">
     <div class="min-w-0 space-y-6 {{ column_class }}">
       <form id="story-edit-form"
+            @submit.capture="confirmDiscardCommentDraft($event)"
             class="card bg-base-100 shadow-xl border border-base-200"
             method="post"
             action="{{ form_action }}"

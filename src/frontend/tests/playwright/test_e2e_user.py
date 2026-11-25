@@ -587,6 +587,10 @@ class TestEndToEndUser(BaseE2ETest):
             expect(editor).to_be_focused()
             expect(comment.locator("p").filter(has_text="Test analyst comment")).not_to_be_visible()
             editor.fill("Discarded edit")
+            page.once("dialog", lambda dialog: dialog.dismiss())
+            with page.expect_event("dialog"):
+                page.get_by_role("button", name="Save changes").click()
+            expect(editor).to_have_value("Discarded edit")
             comment.get_by_role("button", name="Cancel").click()
             edit.click()
             expect(editor).to_have_value("Test analyst comment")
@@ -1990,11 +1994,15 @@ class TestEndToEndUser(BaseE2ETest):
 
         render_requests = []
         page.on("request", lambda request: render_requests.append(request.url) if request.method == "POST" else None)
+        page.locator("#comments > summary").click()
+        page.get_by_role("textbox", name="Comment text").fill("Unfinished product comment")
         page.get_by_placeholder("Description").fill("Updated before rendering")
         page.locator("#render_button").click()
         dirty_dialog = page.locator("#dirty_dialog")
         expect(dirty_dialog).to_be_visible()
-        with_htmx_wait(page, lambda: dirty_dialog.get_by_role("button", name="Save and Continue").click())
+        page.once("dialog", lambda dialog: dialog.accept())
+        with page.expect_event("dialog"):
+            with_htmx_wait(page, lambda: dirty_dialog.get_by_role("button", name="Save and Continue").click())
         expect(dirty_dialog).not_to_be_visible()
         expect(page.get_by_placeholder("Description")).to_have_value("Updated before rendering")
         assert not any(url.endswith("/render") for url in render_requests)
