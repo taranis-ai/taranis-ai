@@ -1,0 +1,7 @@
+<div id="{{ field_prefix }}-model-suggestions">
+  {% for api_format, models in suggestions.items() if models %}
+    <datalist id="{{ field_prefix }}-{{ api_format }}-models">
+      {% for model in models %}<option value="{{ model.id }}" label="{{ model.name }}"></option>{% endfor %}
+    </datalist>
+  {% endfor %}
+</div>
