@@ -1705,6 +1705,30 @@ class TestProductTypes(BaseTest):
         finally:
             client.delete(self.concat_url(f"product-types/{response.json['id']}"), headers=auth_header)
 
+    def test_product_type_save_succeeds_when_warning_lookup_fails(self, app, client, auth_header, monkeypatch):
+        from core.model.product_type import ProductType
+
+        def failing_get(cls, item_id):
+            raise RuntimeError("lookup failed")
+
+        title = f"template-compatibility-{uuid.uuid4().hex[:8]}"
+        payload = {"title": title, "type": "html_presenter", "parameters": {"TEMPLATE_PATH": "cert_at_daily_report.html"}}
+        monkeypatch.setattr(ProductType, "get", classmethod(failing_get))
+
+        response = client.post(self.concat_url("product-types"), json=payload, headers=auth_header)
+        monkeypatch.undo()
+        try:
+            assert response.status_code == 201
+            assert response.json["warnings"] == ["Template compatibility could not be checked."]
+            with app.app_context():
+                assert ProductType.filter_by_title(title) is not None
+        finally:
+            with app.app_context():
+                saved = ProductType.filter_by_title(title)
+                saved_id = saved.id if saved else None
+            if saved_id:
+                client.delete(self.concat_url(f"product-types/{saved_id}"), headers=auth_header)
+
     def test_get_product_types(self, client, auth_header, cleanup_product_types):
         product_type_type = cleanup_product_types["type"]
         response = self.assert_get_ok(client, uri=f"product-types?search={product_type_type}", auth_header=auth_header)

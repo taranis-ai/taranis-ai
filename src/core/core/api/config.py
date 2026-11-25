@@ -45,6 +45,7 @@ from core.model import (
 from core.model.permission import Permission
 from core.service.cache_invalidation import invalidate_frontend_cache_on_success
 from core.service.template_service import (
+    TEMPLATE_CHECK_FAILED_WARNING,
     build_template_response,
     build_templates_list,
     create_or_update_template,
@@ -229,13 +230,19 @@ class ReportItemTypes(MethodView):
 
 
 def _with_product_type_warnings(response: dict, status: int, type_id: str) -> tuple[dict, int]:
-    if status in (200, 201):
+    if status not in (200, 201):
+        return response, status
+    # Best effort: the save is already committed, so a failure here must not turn into an error response.
+    try:
         product = product_type.ProductType.get(type_id)
         # Report Type titles are only exposed to callers who may read Report Types.
         show_report_type_titles = "CONFIG_REPORT_TYPE_ACCESS" in current_user.get_permissions()
         response["warnings"] = (
             product_type_compatibility_warnings(product, show_report_type_titles=show_report_type_titles) if product else []
         )
+    except Exception:
+        logger.exception("Template compatibility warnings failed for product type %s", type_id)
+        response["warnings"] = [TEMPLATE_CHECK_FAILED_WARNING]
     return response, status
 
 
