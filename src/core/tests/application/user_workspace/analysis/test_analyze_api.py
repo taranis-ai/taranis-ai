@@ -301,6 +301,35 @@ class TestAnalyzeApi(BaseTest):
         assert response.json["message"] == "Report item updated"
         assert response.json["report"]["title"] == "Updated Report Title"
 
+    def test_update_report_rejects_tlp_above_user_clearance(
+        self, app, client, auth_header, auth_header_user_permissions, cleanup_report_item
+    ):
+        from core.managers.db_manager import db
+        from core.model.report_item import AttributeType, ReportItem, ReportItemAttribute
+
+        report_id = str(uuid7())
+        self.assert_post_ok(client, "report-items", json_data=cleanup_report_item | {"id": report_id}, auth_header=auth_header)
+        with app.app_context():
+            report = ReportItem.get(report_id)
+            assert report is not None
+            tlp_attribute = ReportItemAttribute(title="TLP", attribute_type=AttributeType.TLP, value="clear")
+            report.attributes.append(tlp_attribute)
+            db.session.commit()
+            tlp_attribute_id = str(tlp_attribute.id)
+
+        def tlp_value(report_json):
+            attributes = [attr for group in report_json["grouped_attributes"] for attr in group["attributes"]]
+            return next(attr["value"] for attr in attributes if str(attr["id"]) == tlp_attribute_id)
+
+        url = f"report-items/{report_id}"
+        response = client.put(self.concat_url(url), json={"attributes": {tlp_attribute_id: "green"}}, headers=auth_header_user_permissions)
+        assert response.status_code == 403
+        assert response.get_json() == {"error": "TLP is above your clearance"}
+        assert tlp_value(self.assert_get_ok(client, url, auth_header_user_permissions).get_json()) == "clear"
+
+        response = self.assert_put_ok(client, url, json_data={"attributes": {tlp_attribute_id: "green"}}, auth_header=auth_header)
+        assert tlp_value(response.get_json()["report"]) == "green"
+
     def test_clone_report(self, client, auth_header, cleanup_report_item):
         """
         POST to /api/analyze/report-items/<report_id>/clone endpoint to clone an existing report.
