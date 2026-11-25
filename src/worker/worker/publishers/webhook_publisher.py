@@ -2,12 +2,19 @@ from base64 import b64decode
 from typing import Any
 
 from models.product import WorkerProduct
+from niquests import Response
 from niquests.exceptions import Timeout
 from rq.timeouts import JobTimeoutException
 
 from worker.http_client import http_request
 from worker.publishers.base_publisher import BasePublisher
 from worker.publishers.network import PublisherNetworkTimeout, effective_network_timeout, is_network_timeout
+
+
+def _discard_redirect_location(response: Response, **_kwargs) -> None:
+    # Even with redirects disabled, Niquests reads the body to prepare Response.next when Location is present.
+    # This publisher only uses the status. Leave the body unread so closing the response releases it immediately.
+    response.headers.pop("Location", None)
 
 
 class WebhookPublisher(BasePublisher):
@@ -38,6 +45,7 @@ class WebhookPublisher(BasePublisher):
                 parameters["WEBHOOK_URL"],
                 external=True,
                 follow_redirects=False,
+                hooks={"response": [_discard_redirect_location]},
                 headers=headers,
                 timeout=effective_network_timeout(parameters),
                 verify=True,

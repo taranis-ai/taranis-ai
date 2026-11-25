@@ -357,7 +357,10 @@ def webhook_receiver():
             (environ["REQUEST_METHOD"], path, environ.get("HTTP_AUTHORIZATION"), environ["CONTENT_TYPE"], environ["wsgi.input"].read(size))
         )
         if path.endswith("/redirect"):
-            start_response("307 Temporary Redirect", [("Location", "/redirect-target")])
+            write = start_response("307 Temporary Redirect", [("Location", "/redirect-target"), ("Content-Length", "2")])
+            write(b"x")
+            release.wait(5)
+            return [b"x"]
         elif path.endswith("/reject"):
             start_response("403 Forbidden", [])
             return [b"private-receiver-response"]
