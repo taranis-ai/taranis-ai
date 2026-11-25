@@ -8,12 +8,15 @@ Load for: RSS/Simple Web conditional requests, ETag/Last-Modified, 304 results, 
 - Only a primary-resource 200 replaces validators. A primary-resource 304 preserves them and reports `NOT_MODIFIED`, except it must retain a preceding failure, the `rss_feed_empty` reason/message, or an RSS entry-limit `WARNING` for the same URL. Unchanged content cannot prove recovery. `HTTPNotModifiedError` identifies the URL and whether it is the primary resource; duplicate-only publication and secondary-resource 304s do not retain prior source health.
 - Validator state is source-keyed runtime data, independent of task retention, exposed as worker-only `http_validators` and returned in task results. Do not put it in editable parameters or derive it from task times.
 - Feed fetch/parse and publish failures propagate to `collector_task` and persist FAILURE. See [RSS Source Health](rss-source-health.md) for linked-article request failures. Post-collection bots receive only IDs successfully committed during this run, including progress before partial ingestion failure; no affected IDs means no bot dispatch. Cleanup must still run and must not return from `finally`. See [Fuzzy Deduplication](fuzzy-deduplication.md) for content-change detection.
+- RSS and Simple Web digest splitting skip linked-article request failures, including unexpected 304s, and submit usable articles in one batch. Partial runs warn with the skipped-link count even when Core skips the entire batch. Link failures with no usable articles fail before publication. Both collectors use the reason `digest_article_fetch_failed` for digest link failures.
 
 ## Network Failures
 
 Direct requests and icons share the task's external Niquests pool; cookies persist only within a redirect chain. Session ownership and connect/read timeout policy are defined in [HTTP Client Lifetimes](http-clients.md). HTTP validators remain request-local and retain the contracts above.
 
 Connection failures/timeouts in `send_get_request` return static DNS/network/`PROXY_SERVER` guidance without claiming a definite cause or retrying. Log details at ERROR and tracebacks at DEBUG; suppress displayed exception chains. Preserve HTTP request exception types for RT’s per-item fallback. Shared collector tests cover diagnostics/logging; RT tests cover continued collection.
+
+Browser fetches also raise on HTTP errors, unexpected 304s, network navigation failures, and timeouts. Primary-page failures reach the task failure path. RSS entries and digest links use their existing per-article handling.
 
 ## Date Fallbacks
 

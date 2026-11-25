@@ -8,7 +8,7 @@ import niquests as requests
 from bs4 import BeautifulSoup
 from models.assess import NewsItem
 
-from worker.collectors.base_web_collector import BaseWebCollector, HTTPNotModifiedError, parse_datetime
+from worker.collectors.base_web_collector import BaseWebCollector, HTTPNotModifiedError, LinkedArticleFetchError, parse_datetime
 from worker.collectors.playwright_manager import PlaywrightManager
 from worker.log import logger
 
@@ -27,14 +27,8 @@ class EmptyRSSFeedError(RSSCollectorError):
         super().__init__(f"RSS feed {feed_url} returned no news items")
 
 
-class RSSArticleFetchError(RSSCollectorError):
+class RSSArticleFetchError(LinkedArticleFetchError):
     reason = "rss_article_fetch_failed"
-
-    def __init__(self, failed_entries: int, entry_limit_warning: str | None):
-        self.public_message = f"Could not fetch any linked articles ({failed_entries} failed)."
-        if entry_limit_warning:
-            self.public_message = f"{self.public_message} {entry_limit_warning}"
-        super().__init__(self.public_message)
 
 
 class RSSCollector(BaseWebCollector):
@@ -51,7 +45,6 @@ class RSSCollector(BaseWebCollector):
         self.use_feed_content: bool = False
         self.max_entries: int = 42
         self.skipped_entries: int | None = None
-        self.failed_entries = 0
 
         logger_trafilatura: logging.Logger = logging.getLogger("trafilatura")
         logger_trafilatura.setLevel(logging.WARNING)
@@ -62,7 +55,6 @@ class RSSCollector(BaseWebCollector):
     def parse_source(self, source: dict):
         self.news_items = []
         self.skipped_entries = None
-        self.failed_entries = 0
         super().parse_source(source)
         params = source.get("parameters", {})
 
@@ -85,11 +77,11 @@ class RSSCollector(BaseWebCollector):
     @property
     def collection_warning(self) -> tuple[str, str] | None:
         entry_limit = self.entry_limit_warning
-        if self.failed_entries:
-            message = f"Some linked articles could not be fetched ({self.failed_entries} skipped)."
+        if article_warning := super().collection_warning:
+            reason, message = article_warning
             if entry_limit:
                 message = f"{message} {entry_limit}"
-            return RSSArticleFetchError.reason, message
+            return reason if self.digest_splitting else RSSArticleFetchError.reason, message
         if entry_limit:
             return "rss_entry_limit", entry_limit
         return None
@@ -254,10 +246,10 @@ class RSSCollector(BaseWebCollector):
             try:
                 self.news_items.append(self.parse_feed_entry(feed_entry, source, feed_updated))
             except (requests.exceptions.RequestException, HTTPNotModifiedError) as exc:
-                self.failed_entries += 1
+                self.failed_articles += 1
                 logger.warning(f"Failed to fetch linked RSS article {feed_entry.get('link', '')}: {exc}")
-        if self.failed_entries and not self.news_items:
-            raise RSSArticleFetchError(self.failed_entries, self.entry_limit_warning)
+        if self.failed_articles and not self.news_items:
+            raise RSSArticleFetchError(self.failed_articles, self.entry_limit_warning)
         return self.news_items
 
     def gather_news_items(self, feed: feedparser.FeedParserDict, source: dict) -> list[NewsItem]:
@@ -292,7 +284,7 @@ class RSSCollector(BaseWebCollector):
 
         validator_date = self.http_validators.get("last_modified") if self.http_validators else None
         published_fallback = feed_updated or (parse_datetime(validator_date) if validator_date else None)
-        return self.parse_digests(published_fallback)
+        return self.parse_digests(published_fallback, entry_limit_warning=self.entry_limit_warning)
 
     def get_digest_url_list(self, feed_entries: list[feedparser.FeedParserDict]) -> list:
         return [

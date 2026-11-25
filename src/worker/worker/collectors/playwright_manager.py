@@ -1,5 +1,7 @@
+import traceback
 from urllib.parse import urlparse
 
+from niquests.exceptions import HTTPError, RequestException, Timeout
 from playwright.sync_api import Browser, BrowserContext, Error, Page, Playwright, TimeoutError, sync_playwright
 
 from worker.log import logger
@@ -69,18 +71,20 @@ class PlaywrightManager:
         try:
             response = page.goto(url)
             if response:
+                if response.status == 304 or response.status >= 400:
+                    raise HTTPError(f"Browser navigation returned HTTP {response.status}")
                 last_modified = response.header_value("Last-Modified")
 
             if xpath:
-                locator = page.locator(f"xpath={xpath}")
-                locator.wait_for(state="visible")
-                return page.content() or "", last_modified
-
-            page.wait_for_load_state("networkidle")
+                page.locator(f"xpath={xpath}").wait_for(state="visible")
+            else:
+                page.wait_for_load_state("networkidle")
+            return page.content() or "", last_modified
         except TimeoutError as e:
-            logger.error(
-                f"Fetching content with JS for {url} with {xpath=} has timed out, invalid XPath could be the reason, check for details. \nDetails: \n{e!s}"
-            )
+            logger.error(f"Browser request timed out for {url} with {xpath=}: {e}")
+            logger.debug(traceback.format_exc())
+            raise Timeout("The browser request timed out. See worker logs for details.") from None
         except Error as e:
             logger.error(f"Error fetching content with JS: {e!s}")
-        return page.content() or "", last_modified
+            logger.debug(traceback.format_exc())
+            raise RequestException("The browser could not load the page. See worker logs for details.") from None
