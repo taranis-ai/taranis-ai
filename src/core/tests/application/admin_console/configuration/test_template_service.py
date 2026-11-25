@@ -32,8 +32,14 @@ def _seeded_report_types(titles: list[str]) -> list:
         pytest.param(
             CERT_DAILY_TEMPLATE,
             ["OSINT Report"],
-            ["The template uses 'Data', which is not available for report type 'OSINT Report'."],
+            ["The template uses a value that is not available for report type 'OSINT Report'."],
             id="missing-attribute-group",
+        ),
+        pytest.param(
+            "{{ data[data.title] }}",
+            ["OSINT Report"],
+            ["The template uses a value that is not available for report type 'OSINT Report'."],
+            id="dynamic-lookup-does-not-leak-computed-key",
         ),
         pytest.param(PDF_TEMPLATE, ["OSINT Report", "CERT Report"], [], id="generic-template"),
         pytest.param("{% for item in %}", ["OSINT Report"], ["The template has a syntax error."], id="syntax-error"),

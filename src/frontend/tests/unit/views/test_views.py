@@ -835,7 +835,7 @@ def test_product_type_save_redirects_to_edit_page_with_template_compatibility_wa
     product_type_id = "product-type-1"
     core_base_url = f"{Config.TARANIS_CORE_URL}/config/product-types"
     core_url = f"{core_base_url}/{product_type_id}"
-    warning = "The template uses 'Data', which is not available for report type 'OSINT Report'."
+    warning = "The template uses a value that is not available for report type 'OSINT Report'."
     responses_mock.post(core_base_url, json={"message": "Product type created", "id": product_type_id, "warnings": [warning]}, status=201)
     saved = {"message": "Product type updated", "id": product_type_id}
     responses_mock.patch(core_url, json=saved | {"warnings": [warning]})

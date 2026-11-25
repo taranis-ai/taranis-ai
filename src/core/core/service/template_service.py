@@ -1,6 +1,5 @@
 import base64
 import binascii
-import re
 from collections.abc import Iterable
 from datetime import UTC, datetime
 from typing import Any, TypedDict
@@ -27,11 +26,6 @@ type TemplateContent = str | bytes | bytearray | memoryview | None
 TEMPLATE_SYNTAX_ERROR_WARNING = "The template has a syntax error."
 TEMPLATE_UNREADABLE_WARNING = "The template file could not be read."
 TEMPLATE_CHECK_FAILED_WARNING = "Template compatibility could not be checked."
-# Jinja's UndefinedError messages, e.g. "'dict object' has no attribute 'Data'" or "'foo' is undefined".
-_MISSING_KEY_PATTERNS = (
-    re.compile(r"has no attribute '(?P<key>[^']+)'$"),
-    re.compile(r"^'(?P<key>[^']+)' is undefined$"),
-)
 
 
 class ValidationStatus(TypedDict):
@@ -225,8 +219,9 @@ def check_template_compatibility(
         try:
             template.render(data=_sample_product(report_type, product))
         except UndefinedError as exc:
+            # The message may contain values computed by the template, so it stays in the log only.
             logger.info("Template is incompatible with report type %s: %s", report_type.title, exc)
-            warnings.append(_undefined_value_warning(report_type.title, exc))
+            warnings.append(f"The template uses a value that is not available for report type '{report_type.title}'.")
         except Exception:
             logger.exception("Template could not be rendered with report type %s", report_type.title)
             warnings.append(f"The template could not be rendered for report type '{report_type.title}'.")
@@ -263,11 +258,3 @@ def _sample_report_item(report_type: ReportItemType) -> dict[str, Any]:
     )
     report_item.created = report_item.last_updated = ReportItem.utcnow()
     return report_item.to_product_dict()
-
-
-def _undefined_value_warning(report_type_title: str, exc: UndefinedError) -> str:
-    message = exc.message or ""
-    for pattern in _MISSING_KEY_PATTERNS:
-        if match := pattern.search(message):
-            return f"The template uses '{match['key']}', which is not available for report type '{report_type_title}'."
-    return f"The template uses a value that is not available for report type '{report_type_title}'."

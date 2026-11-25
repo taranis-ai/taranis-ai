@@ -1645,7 +1645,7 @@ class TestProductTypes(BaseTest):
             assert cert_report_type is not None
             osint_report_type_id, cert_report_type_id = osint_report_type.id, cert_report_type.id
 
-        incompatible_warning = "The template uses 'Data', which is not available for report type 'OSINT Report'."
+        incompatible_warning = "The template uses a value that is not available for report type 'OSINT Report'."
         payload = {
             "title": f"template-compatibility-{uuid.uuid4().hex[:8]}",
             "type": "html_presenter",
