@@ -16,7 +16,7 @@ Direct requests and icons share the task's external Niquests pool; cookies persi
 
 Connection failures/timeouts in `send_get_request` return static DNS/network/`PROXY_SERVER` guidance without claiming a definite cause or retrying. Log details at ERROR and tracebacks at DEBUG; suppress displayed exception chains. Preserve HTTP request exception types for RT’s per-item fallback. Shared collector tests cover diagnostics/logging; RT tests cover continued collection.
 
-Browser fetches also raise on HTTP errors, unexpected 304s, network navigation failures, and timeouts. A configured extraction XPath makes the browser wait for the selector to become visible. Primary-page failures reach the task failure path. RSS entries and digest links use their existing per-article handling.
+Browser fetches also raise on HTTP errors, unexpected 304s, network navigation failures, and timeouts. A configured extraction XPath makes the browser wait for its first match to become visible, matching extraction. Primary-page failures reach the task failure path. RSS entries and digest links use their existing per-article handling.
 
 ## Date Fallbacks
 

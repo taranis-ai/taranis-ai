@@ -76,7 +76,7 @@ class PlaywrightManager:
                 last_modified = response.header_value("Last-Modified")
 
             if xpath:
-                page.locator(f"xpath={xpath}").wait_for(state="visible")
+                page.locator(f"xpath={xpath}").first.wait_for(state="visible")
             else:
                 page.wait_for_load_state("networkidle")
             return page.content() or "", last_modified

@@ -427,6 +427,22 @@ def test_simple_web_collector_xpath(simple_web_collector_mock, simple_web_collec
     assert result is None
 
 
+@pytest.mark.parametrize("xpath", ["//article[1]", "//article"], ids=["single-match", "multiple-matches"])
+def test_browser_xpath_collects_first_match(simple_web_collector, xpath):
+    source = {
+        "id": "test_source",
+        "parameters": {
+            "WEB_URL": "data:text/html,<article>First article</article><article>Second article</article>",
+            "BROWSER_MODE": True,
+            "XPATH": xpath,
+        },
+    }
+
+    [item] = simple_web_collector.preview_collector(source)
+
+    assert item["content"] == "First article"
+
+
 def test_simple_web_collector_with_additional_headers(simple_web_collector_mock, simple_web_collector):
     from tests.testdata import web_collector_source_data
 
