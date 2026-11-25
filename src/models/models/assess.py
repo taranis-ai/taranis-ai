@@ -449,9 +449,11 @@ class StoryUpdatePayload(TaranisBaseModel):
 
     @model_validator(mode="before")
     @classmethod
-    def omit_unconfigured_misp_auto_update(cls, value: Any) -> Any:
+    def validate_update_fields(cls, value: Any) -> Any:
         if not isinstance(value, dict):
             return value
+        if "comments" in value:
+            raise ValueError("To add a Story comment, POST to /api/discussions/story/{story_id} with a body field.")
         normalized = dict(value)
         misp_auto_update = normalized.get("misp_auto_update")
         if isinstance(misp_auto_update, dict) and not misp_auto_update.get("connector_id") and not misp_auto_update.get("enabled"):

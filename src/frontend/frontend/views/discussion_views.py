@@ -196,5 +196,6 @@ def post_comment(kind: str, parent_id: str) -> ResponseReturnValue:
         return _full_thread(context), status
 
     context["action_status"] = {"post": "Comment posted.", "edit": "Comment updated.", "delete": "Comment deleted."}[action]
+    context["preserve_reply"] = action in {"edit", "delete"}
     # The change succeeded even if reloading failed. Keep the success status visible and offer a reload.
     return render_template("discussion/section.html", **context), 200

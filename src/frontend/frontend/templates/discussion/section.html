@@ -106,12 +106,14 @@
                   {% if comment.can_delete %}
                     <form {{ comment_form_attrs('delete', comment.id) }} hx-confirm="Delete this comment?" data-confirm-confirm="Delete">
                       {{ hidden_fields('delete', comment.id) }}
-                      <noscript>
-                        <label class="text-sm">
-                          <input type="checkbox" required>
-                          Confirm deletion
-                        </label>
-                      </noscript>
+                      {% if not request.headers.get("HX-Request") %}
+                        <noscript>
+                          <label class="text-sm">
+                            <input type="checkbox" required>
+                            Confirm deletion
+                          </label>
+                        </noscript>
+                      {% endif %}
                       <button class="btn btn-ghost btn-xs btn-square text-error"
                               type="submit"
                               aria-label="Delete comment"
@@ -165,7 +167,9 @@
       <p class="my-1 text-sm text-base-content/70">No comments yet.</p>
     {% endif %}
     <div class="flex flex-wrap items-baseline justify-between gap-x-3 border-t border-base-300 py-1">
-      <details class="group/composer min-w-0 open:w-full"
+      <details id="comment-composer"
+               class="group/composer min-w-0 open:w-full"
+               {% if preserve_reply %}hx-preserve{% endif %}
                {% if not discussion_preview or not discussion.total_count or failed_action == 'post' %}open{% endif %}>
         <summary class="btn btn-ghost btn-xs">
           {{ heroicon_mini("chevron-right", class="size-3 group-open/composer:rotate-90") }}
