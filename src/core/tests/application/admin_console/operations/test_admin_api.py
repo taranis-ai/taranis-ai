@@ -227,7 +227,7 @@ class TestAdminApi(BaseTest):
                 assert response.status_code == 400
             response = client.post(
                 "/api/config/bots",
-                json={"name": "Invalid topics", "type": "cybersec_classifier_bot", "parameters": {"LLM_ENDPOINT": incompatible_id}},
+                json={"name": "Invalid topics", "type": "topic_classifier_bot", "parameters": {"LLM_ENDPOINT": incompatible_id}},
                 headers=auth_header,
             )
             assert response.status_code == 400
@@ -297,7 +297,7 @@ class TestAdminApi(BaseTest):
                 endpoint_url, json={"base_url": "https://provider.example/v1", "api_format": incompatible_format}, headers=auth_header
             )
             assert response.status_code == 400
-        bot = client.post("/api/config/bots", json={"name": "Topics", "type": "cybersec_classifier_bot"}, headers=auth_header)
+        bot = client.post("/api/config/bots", json={"name": "Topics", "type": "topic_classifier_bot"}, headers=auth_header)
         assert bot.status_code == 201
         worker = client.get(f"/api/worker/bots/{bot.json['id']}", headers={"Authorization": "Bearer test_key"})
         assert worker.json["llm_endpoint"]["api_format"] == api_format

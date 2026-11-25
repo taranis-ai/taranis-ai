@@ -1,7 +1,16 @@
 from itertools import pairwise
 
 import pytest
-from models.hrag import CompactExtractionResult, ExtractionResult, bounded_content, entity_identity, input_fingerprint, split_content
+from models.hrag import (
+    CompactExtractionResult,
+    ExtractionResult,
+    bounded_content,
+    entity_identity,
+    extraction_profile,
+    extraction_vocabulary,
+    input_fingerprint,
+    split_content,
+)
 from pydantic import ValidationError
 
 
@@ -86,3 +95,40 @@ def test_character_chunks_preserve_unicode_offsets_and_full_coverage():
     assert len(split_content(content, 500, 100)) > len(split_content(content, 3000, 100))
     assert [(span.start, span.end) for span in split_content(content, 500, 100, False)] == [(0, len(content))]
     assert split_content(" \n", 500, 100) == []
+
+
+def test_topic_profiles_distinguish_cyber_campaigns_from_ordinary_events():
+    general = extraction_vocabulary(extraction_profile("general news"))
+    cyber = extraction_vocabulary(extraction_profile("threat intelligence"))
+    assert "PARTICIPATES_IN" not in {relation["name"] for relation in general["relation_types"]}
+    participation = next(relation for relation in cyber["relation_types"] if relation["name"] == "PARTICIPATES_IN")
+    assert set(participation["target_types"]) == {"CAMPAIGN", "INCIDENT"}
+    assert extraction_profile("none") == extraction_profile("disinformation") == "cybersecurity"
+    assert extraction_profile("other") == "general"
+    campaign = {
+        "entities": [{"id": "a", "name": "APT29", "type": "GROUP"}, {"id": "c", "name": "Example", "type": "CAMPAIGN"}],
+        "relations": [
+            {"source_id": "a", "target_id": "c", "type": "PARTICIPATES_IN", "quote": "APT29 joined Example.", "assertion": "affirmed"}
+        ],
+    }
+    extraction = CompactExtractionResult.model_validate(campaign)
+    assert len(extraction.resolve("APT29 joined Example.", profile="cybersecurity").relations) == 1
+    with pytest.raises(ValueError, match="outside its topic profile"):
+        extraction.resolve("APT29 joined Example.", profile="general")
+    event = {
+        "entities": [{"id": "a", "name": "Donald Trump", "type": "PER"}, {"id": "c", "name": "Abend der Legenden", "type": "EVENT"}],
+        "relations": [
+            {
+                "source_id": "a",
+                "target_id": "c",
+                "type": "PARTICIPATES_IN",
+                "quote": "Donald Trump besucht Abend der Legenden.",
+                "assertion": "affirmed",
+            }
+        ],
+    }
+    for profile in ("general", "cybersecurity"):
+        result = CompactExtractionResult.model_validate(event).resolve(
+            "Donald Trump besucht Abend der Legenden.", profile=profile, quarantine_invalid_relations=True
+        )
+        assert len(result.entities) == 2 and result.relations == []

@@ -30,7 +30,7 @@ LLM_BOT_FEATURES = {
     "summary_bot": "summarization",
     "nlp_bot": "ner",
     "sentiment_analysis_bot": "sentiment",
-    "cybersec_classifier_bot": "classification",
+    "topic_classifier_bot": "classification",
 }
 
 

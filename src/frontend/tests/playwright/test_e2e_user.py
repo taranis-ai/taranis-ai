@@ -618,7 +618,7 @@ class TestEndToEndUser(BaseE2ETest):
             page.on("request", record_refresh)
             for bot_type, selector in (
                 ("SENTIMENT_ANALYSIS_BOT", "#story-ai-sentiment"),
-                ("CYBERSEC_CLASSIFIER_BOT", "#story-ai-classification"),
+                ("TOPIC_CLASSIFIER_BOT", "#story-ai-classification"),
                 ("NLP_BOT", f"#news-item-tags-{news_item_id}"),
                 ("SUMMARY_BOT", "#story-ai-summary"),
             ):

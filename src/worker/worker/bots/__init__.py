@@ -1,5 +1,4 @@
 from worker.bots.analyst_bot import AnalystBot
-from worker.bots.cybersec_classifier_bot import CyberSecClassifierBot
 from worker.bots.grouping_bot import GroupingBot
 from worker.bots.intelowl_bot import IntelOwlBot
 from worker.bots.ioc_bot import IOCBot
@@ -8,12 +7,12 @@ from worker.bots.sentiment_analysis_bot import SentimentAnalysisBot
 from worker.bots.story_bot import StoryBot
 from worker.bots.summary_bot import SummaryBot
 from worker.bots.tagging_bot import TaggingBot
+from worker.bots.topic_classifier_bot import TopicClassifierBot
 from worker.bots.wordlist_bot import WordlistBot
 
 
 __all__ = [
     "AnalystBot",
-    "CyberSecClassifierBot",
     "GroupingBot",
     "IOCBot",
     "IntelOwlBot",
@@ -22,5 +21,6 @@ __all__ = [
     "StoryBot",
     "SummaryBot",
     "TaggingBot",
+    "TopicClassifierBot",
     "WordlistBot",
 ]

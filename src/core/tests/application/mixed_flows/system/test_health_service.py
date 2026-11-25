@@ -209,9 +209,9 @@ def test_endpoint_health_lifecycle(client, auth_header, api_header, app, db_pers
             assert current["status"] == "pending"
             assert client.post(route, json={"check_id": current["check_id"], "healthy": True}, headers=api_header).json["accepted"]
 
-            for bot_type in ("nlp_bot", "sentiment_analysis_bot", "cybersec_classifier_bot"):
+            for bot_type in ("nlp_bot", "sentiment_analysis_bot", "topic_classifier_bot"):
                 selected_endpoint_id = endpoint_id
-                if bot_type in {"cybersec_classifier_bot", "sentiment_analysis_bot"}:
+                if bot_type in {"topic_classifier_bot", "sentiment_analysis_bot"}:
                     response = client.post(
                         "/api/settings/llm-endpoints",
                         json={**endpoint, "name": f"{bot_type} health", "api_format": "systemone", "enabled": True},

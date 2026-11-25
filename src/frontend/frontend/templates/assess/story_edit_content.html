@@ -15,9 +15,9 @@
 {% from "assess/news_item_card.html" import news_item_card %}
 {% from "assess/story_actions.html" import story_edit_actions with context %}
 {% from "assess/bot_result_refresh.html" import bot_result_fragment, bot_result_refresh %}
-{% set refresh_bot_types = ["SUMMARY_BOT", "SENTIMENT_ANALYSIS_BOT", "CYBERSEC_CLASSIFIER_BOT", "WORDLIST_BOT", "IOC_BOT", "NLP_BOT", "TAGGING_BOT"] %}
+{% set refresh_bot_types = ["SUMMARY_BOT", "SENTIMENT_ANALYSIS_BOT", "TOPIC_CLASSIFIER_BOT", "WORDLIST_BOT", "IOC_BOT", "NLP_BOT", "TAGGING_BOT"] %}
 {% set completed_bot_types = request.args.getlist('bot_types') | select('in', refresh_bot_types) | list %}
-{% set generated_keys = completed_bot_types + (['classification'] if 'CYBERSEC_CLASSIFIER_BOT' in completed_bot_types else []) + (['sentiment'] if 'SENTIMENT_ANALYSIS_BOT' in completed_bot_types else []) %}
+{% set generated_keys = completed_bot_types + (['classification'] if 'TOPIC_CLASSIFIER_BOT' in completed_bot_types else []) + (['sentiment'] if 'SENTIMENT_ANALYSIS_BOT' in completed_bot_types else []) %}
 {% set generated_attributes = namespace(items=[]) %}
 {% for attribute in story_attributes if attribute.key in generated_keys %}
   {% set generated_attributes.items = generated_attributes.items + [attribute] %}
@@ -324,7 +324,7 @@
           <div class="card-body space-y-4">
             <h3 class="card-title text-lg">Story status</h3>
             <div class="flex flex-wrap gap-3 text-sm">
-              <span {{ bot_result_fragment('story-ai-classification', ['CYBERSEC_CLASSIFIER_BOT']) }}
+              <span {{ bot_result_fragment('story-ai-classification', ['TOPIC_CLASSIFIER_BOT']) }}
                     class="badge badge-outline badge-lg">Classification · {{ story_classification }}</span>
               <span {{ bot_result_fragment('story-ai-sentiment', ['SENTIMENT_ANALYSIS_BOT']) }}
                     class="{{ sentiment_chip_class }}">Sentiment · {{ story_sentiment_status }}</span>
@@ -383,7 +383,7 @@
                   hx-status:4xx="target:#notification-bar"
                   hx-status:5xx="target:#notification-bar"
                   hx-swap="outerHTML">
-              <input type="hidden" name="bot_id" value="cybersec_classifier_bot">
+              <input type="hidden" name="bot_id" value="topic_classifier_bot">
               <button type="submit"
                       class="btn btn-outline btn-accent h-auto min-h-10 whitespace-normal py-2"
                       {% if not story.can_edit %}disabled{% endif %}>Topic classification</button>

@@ -1,4 +1,4 @@
-"""Backend-independent HRAG extraction contracts and fixed v1 vocabulary."""
+"""Backend-independent HRAG extraction contracts and topic-specific vocabularies."""
 
 import math
 import re
@@ -13,7 +13,15 @@ from models.llm import LLMEndpoint
 EMBEDDING_CONTENT_LIMIT = 10_000
 EXTRACTION_CONTENT_LIMIT = 20_000
 HRAG_SCHEMA_VERSION = "v2"
-HRAG_EXTRACTION_SCHEMA_VERSION = "v5"
+HRAG_EXTRACTION_SCHEMA_VERSION = "v6"
+
+type ExtractionProfile = Literal["general", "cybersecurity"]
+
+
+def extraction_profile(classification: str) -> ExtractionProfile:
+    # Unknown and overlapping topics retain the extended vocabulary.
+    return "general" if classification in {"general news", "other"} else "cybersecurity"
+
 
 type HragIndexIntervalMinutes = Annotated[int, Field(ge=0, le=525600)]
 
@@ -90,7 +98,7 @@ RELATION_ENDPOINTS: dict[str, tuple[frozenset[str], frozenset[str]]] = {
     "EXPLOITS": (ACTORS | TECHNICAL | {"CAMPAIGN", "INCIDENT"}, frozenset({"VULNERABILITY"})),
     "ABUSES": (ACTORS | {"MALWARE", "CAMPAIGN", "INCIDENT"}, TECHNICAL),
     "ATTRIBUTED_TO": (frozenset({"MALWARE", "CAMPAIGN", "INCIDENT"}), ACTORS),
-    "PARTICIPATES_IN": (ACTORS | TECHNICAL | {"INCIDENT"}, OCCURRENCES),
+    "PARTICIPATES_IN": (ACTORS | TECHNICAL | {"INCIDENT"}, frozenset({"CAMPAIGN", "INCIDENT"})),
     "LOCATED_IN": (ACTORS | TECHNICAL | PLACES, PLACES),
     "OCCURRED_IN": (OCCURRENCES, PLACES),
     "BELONGS_TO_SECTOR": (ACTORS, frozenset({"SECTOR"})),
@@ -103,6 +111,36 @@ RELATION_ENDPOINTS: dict[str, tuple[frozenset[str], frozenset[str]]] = {
     "PRODUCES": (ACTORS, TECHNICAL),
     "SERVES_AS_C2": (TECHNICAL, frozenset({"MALWARE", "CAMPAIGN", "INCIDENT"})),
 }
+
+GENERAL_ENTITY_TYPES = frozenset({"PER", "ORG", "GPE", "PRODUCT", "EVENT", "SECTOR", "LOCATION"})
+GENERAL_RELATION_TYPES = frozenset({"LOCATED_IN", "OCCURRED_IN", "BELONGS_TO_SECTOR", "AFFILIATED_WITH", "OWNS", "PRODUCES"})
+RELATION_DESCRIPTIONS = {
+    "USES": "Explicit use of a technical resource, tactic or technique in a cybersecurity context.",
+    "ATTACKS": "An explicitly stated cyberattack against the target; exclude military, verbal and political attacks.",
+    "TARGETS": "An explicitly stated intended target of malicious cyber activity; not necessarily a successful attack.",
+    "EXPLOITS": "Explicit exploitation of a security vulnerability; do not infer exploitation from a vulnerability mention.",
+    "ABUSES": "Explicit misuse of a legitimate technical resource for malicious cyber activity.",
+    "ATTRIBUTED_TO": "The source explicitly attributes malware, a cyber campaign or a security incident to an actor.",
+    "PARTICIPATES_IN": "Explicit involvement in a cybersecurity campaign or incident. Exclude ordinary events, attendance, co-occurrence and inferred association.",
+    "LOCATED_IN": "An explicitly stated location of the source entity; do not infer location from other associations.",
+    "OCCURRED_IN": "The event, campaign or incident explicitly took place in the target location.",
+    "BELONGS_TO_SECTOR": "The source explicitly identifies the actor as belonging to the target industry or sector.",
+    "MITIGATES": "A defensive action explicitly reduces or addresses the target cybersecurity threat or vulnerability.",
+    "HAS_CAPABILITY": "An explicitly stated cyber capability; do not infer abilities from tools, affiliations or reputation.",
+    "MOTIVATED_BY": "An explicitly attributed motivation for cyber activity; never infer intent.",
+    "ALIAS_OF": "The source explicitly identifies two names as the same entity, with matching entity types.",
+    "AFFILIATED_WITH": "An explicitly stated organizational affiliation; not mere co-occurrence or event attendance.",
+    "OWNS": "Explicit ownership of the target organization, product or technical resource.",
+    "PRODUCES": "The source explicitly develops, manufactures or produces the target product or technical resource.",
+    "SERVES_AS_C2": "Technical infrastructure explicitly provides command and control for malware, a cyber campaign or incident.",
+}
+
+
+def relationship_instructions(profile: ExtractionProfile = "cybersecurity") -> str:
+    relations = GENERAL_RELATION_TYPES if profile == "general" else RELATION_ENDPOINTS.keys()
+    return "Relationship meanings (require explicit source evidence):\n" + "\n".join(
+        f"{name}: {description}" for name, description in RELATION_DESCRIPTIONS.items() if name in relations
+    )
 
 
 class HragContract(BaseModel):
@@ -187,6 +225,14 @@ class ExtractionResult(HragContract):
                 raise ValueError("Vulnerability identifier is absent from its evidence")
         return self
 
+    def validate_profile(self, profile: ExtractionProfile) -> Self:
+        if profile == "general" and (
+            any(entity.type not in GENERAL_ENTITY_TYPES for entity in self.entities)
+            or any(relation.type not in GENERAL_RELATION_TYPES for relation in self.relations)
+        ):
+            raise ValueError("Extraction contains types outside its topic profile")
+        return self
+
     def ner_tags(self) -> dict[str, str]:
         """Project compatible tags; omit ambiguous names as standalone NER does."""
         labels: dict[str, set[str]] = {}
@@ -212,7 +258,9 @@ class CompactExtractionResult(HragContract):
     entities: list[EntityMention] = Field(default_factory=list, max_length=1000)
     relations: list[QuotedRelation] = Field(default_factory=list, max_length=2000)
 
-    def resolve(self, content: str, *, quarantine_invalid_relations: bool = False) -> ExtractionResult:
+    def resolve(
+        self, content: str, *, quarantine_invalid_relations: bool = False, profile: ExtractionProfile = "cybersecurity"
+    ) -> ExtractionResult:
         entities = []
         for entity in self.entities:
             if entity.type == "VULNERABILITY" and re.fullmatch(r"CVE-\d{4}-\d{4,}", entity.name, re.IGNORECASE):
@@ -225,7 +273,7 @@ class CompactExtractionResult(HragContract):
             entities.append(ExtractedEntity(**entity.model_dump(), evidence=evidence))
         # Entity failures still enter the shared repair path. A malformed proposal
         # must not prevent independent, valid relationships from being verified.
-        result = ExtractionResult(entities=entities).validate_content(content)
+        result = ExtractionResult(entities=entities).validate_content(content).validate_profile(profile)
         by_id = {entity.id: entity for entity in entities}
         relations = []
         for relation in self.relations:
@@ -234,7 +282,7 @@ class CompactExtractionResult(HragContract):
                     **relation.model_dump(exclude={"quote"}), evidence=EvidenceSpan.from_quote(content, relation.quote)
                 )
                 endpoints = {key: by_id[key] for key in (relation.source_id, relation.target_id) if key in by_id}
-                ExtractionResult(entities=list(endpoints.values()), relations=[resolved]).validate_content(content)
+                ExtractionResult(entities=list(endpoints.values()), relations=[resolved]).validate_content(content).validate_profile(profile)
                 relations.append(resolved)
             except ValueError:
                 if not quarantine_invalid_relations:
@@ -367,6 +415,7 @@ class IndexJob(HragContract):
     fingerprint: str
     pipeline: Literal["extraction", "embedding"]
     content: str
+    extraction_profile: ExtractionProfile = "cybersecurity"
     endpoint: LLMEndpoint
     verification_endpoint: LLMEndpoint | None = None
     reasoning_effort: ReasoningEffort | None = None
@@ -421,12 +470,15 @@ class HragResult(HragContract):
     filters: dict = Field(default_factory=dict)
 
 
-def extraction_vocabulary() -> dict:
+def extraction_vocabulary(profile: ExtractionProfile = "cybersecurity") -> dict:
+    entities = GENERAL_ENTITY_TYPES if profile == "general" else ALL_ENTITIES
+    relations = GENERAL_RELATION_TYPES if profile == "general" else RELATION_ENDPOINTS.keys()
     return {
-        "entity_types": [{"name": name, "description": description} for name, description in ENTITY_DESCRIPTIONS.items()],
+        "entity_types": [{"name": name, "description": description} for name, description in ENTITY_DESCRIPTIONS.items() if name in entities],
         "relation_types": [
-            {"name": name, "source_types": sorted(source), "target_types": sorted(target)}
+            {"name": name, "source_types": sorted(source & entities), "target_types": sorted(target & entities)}
             for name, (source, target) in RELATION_ENDPOINTS.items()
+            if name in relations
         ],
     }
 

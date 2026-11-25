@@ -2,11 +2,12 @@ from datetime import timedelta
 from unittest.mock import Mock
 
 import pytest
-from models.hrag import ChunkEmbedding, EvidenceReference, ExtractionResult, IndexJob, IndexSubmission
+from models.hrag import ChunkEmbedding, CompactExtractionResult, EvidenceReference, ExtractionResult, IndexJob, IndexSubmission
 
 from core.config import Config
 from core.managers.db_manager import db
 from core.model.hrag import HragGeneration, HragIndex
+from core.model.news_item_attribute import NewsItemAttribute
 from core.model.settings import Settings
 from core.service.hrag import indexing
 from core.service.hrag.retrieval import evidence_from_reference
@@ -68,13 +69,14 @@ def test_durable_index_lifecycle_cutoffs_retries_and_generations(configured_inde
             for w in db.session.scalars(db.select(HragIndex).where(HragIndex.news_item_id == item.id))
         }
         extraction, embedding = indexes["extraction"], indexes["embedding"]
-        assert db.session.get(HragGeneration, extraction.generation_id).config["schema"] == "v5"
+        assert db.session.get(HragGeneration, extraction.generation_id).config["schema"] == "v6"
         assert db.session.get(HragGeneration, embedding.generation_id).config["schema"] == "v2"
         assert db.session.get(HragGeneration, embedding.generation_id).config["limit"] == 10000
         original = {kind: index_record.fingerprint for kind, index_record in indexes.items()}
         job = indexing.claim(extraction.id)
         assert job and indexing.claim(extraction.id) is None
         assert job["reasoning_effort"] == "low"
+        assert job["extraction_profile"] == "cybersecurity"
         assert job["verification_endpoint"]["model"] == "verify"
         result = IndexSubmission(token=job["token"], fingerprint=job["fingerprint"], extraction=ExtractionResult())
         assert indexing.submit(extraction.id, result)[1] == 200
@@ -85,6 +87,34 @@ def test_durable_index_lifecycle_cutoffs_retries_and_generations(configured_inde
         indexing.reconcile()
         assert {kind: index_record.fingerprint for kind, index_record in indexes.items()} == original
         assert extraction.status == "ready"
+
+        classification = NewsItemAttribute(key="classification", value="general news")
+        item.attributes.append(classification)
+        db.session.commit()
+        assert indexing.submit(extraction.id, result)[1] == 409
+        db.session.rollback()
+        indexing.reconcile()
+        assert extraction.fingerprint != original["extraction"]
+        assert embedding.fingerprint == original["embedding"]
+        job = indexing.claim(extraction.id)
+        assert job["extraction_profile"] == "general"
+        cyber_only = CompactExtractionResult.model_validate(
+            {
+                "entities": [{"id": "a", "name": "a", "type": "ORG"}, {"id": "b", "name": "b", "type": "ORG"}],
+                "relations": [{"source_id": "a", "target_id": "b", "type": "ATTACKS", "quote": "a", "assertion": "affirmed"}],
+            }
+        ).resolve(job["content"])
+        assert (
+            indexing.submit(extraction.id, IndexSubmission(token=job["token"], fingerprint=job["fingerprint"], extraction=cyber_only))[1]
+            == 400
+        )
+        result = IndexSubmission(token=job["token"], fingerprint=job["fingerprint"], extraction=ExtractionResult())
+        assert indexing.submit(extraction.id, result)[1] == 200
+        original["extraction"] = extraction.fingerprint
+        classification.value = "other"
+        db.session.commit()
+        indexing.reconcile()
+        assert extraction.status == "ready" and extraction.fingerprint == original["extraction"]
 
         item.content = "a" * 10000 + "changed inside extraction"
         db.session.commit()

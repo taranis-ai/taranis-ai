@@ -2,6 +2,7 @@
 
 import asyncio
 import time
+from dataclasses import replace
 
 from llm_bot.embedding_client import EmbeddingClient
 from llm_bot.schemas import GraphQueryGenerationRequest
@@ -14,7 +15,9 @@ from models.hrag import (
     HragResult,
     RetrievalEvidence,
     bounded_content,
+    extraction_profile,
     extraction_vocabulary,
+    relationship_instructions,
     split_content,
 )
 from models.llm import EmbeddingDimensionMismatch
@@ -139,7 +142,11 @@ def evidence_from_reference(reference: EvidenceReference, authorized: dict[str, 
         span = chunks[reference.chunk_index]
         quote = content[span.start : span.end]
     if branch == "graph":
-        result = ExtractionResult.model_validate(index_record.result).validate_content(content)
+        result = (
+            ExtractionResult.model_validate(index_record.result)
+            .validate_content(content)
+            .validate_profile(extraction_profile(item.get_classification()))
+        )
         if reference.relation_index is not None:
             if reference.relation_index >= len(result.relations):
                 return None
@@ -200,7 +207,9 @@ def retrieve(context: dict, user_id: str, settings: dict, deadline: float, strea
         request = GraphQueryGenerationRequest.model_validate(
             {"question": context["latest_message"], "schema": extraction_vocabulary(), "context": context}
         )
-        proposed = run_inference(prepare_graph_query_generation(request).run(client), deadline)
+        task = prepare_graph_query_generation(request)
+        task = replace(task, system_input=task.system_input + "\n\n" + relationship_instructions())
+        proposed = run_inference(task.run(client), deadline)
         plan = GraphPlan.model_validate(proposed.model_dump())
         plan_ok = True
         stream.stage("searching")

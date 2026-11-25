@@ -111,3 +111,11 @@ def test_worker_claim_extraction_and_cached_retry(requests_mock, monkeypatch):
     assert all(relation["assertion"] == "affirmed" for relation in unverified["relations"])
     assert unverified["relations"][0]["evidence"]["quote"] == content
     assert verification.await_count == verified_calls
+    requests_mock.post(route, json={**job, "verification_endpoint": None, "extraction_profile": "general"})
+    index_item("test-index")
+    general = submitted.last_request.json()["extraction"]
+    assert [relation["type"] for relation in general["relations"]] == ["OWNS"]
+    schema = json.loads(inference.call_args.args[1])["schema"]
+    assert "PARTICIPATES_IN" not in {relation["name"] for relation in schema["relation_types"]}
+    assert "CAMPAIGN" not in {entity["name"] for entity in schema["entity_types"]}
+    assert "OWNS: Explicit ownership" in inference.call_args.args[0]

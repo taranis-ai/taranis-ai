@@ -186,7 +186,7 @@ def _bot_for_config(bot_config: dict):
         "intel_owl_bot": worker.bots.IntelOwlBot,
         "summary_bot": worker.bots.SummaryBot,
         "sentiment_analysis_bot": worker.bots.SentimentAnalysisBot,
-        "cybersec_classifier_bot": worker.bots.CyberSecClassifierBot,
+        "topic_classifier_bot": worker.bots.TopicClassifierBot,
     }
 
     bot_class = bots.get(bot_type)

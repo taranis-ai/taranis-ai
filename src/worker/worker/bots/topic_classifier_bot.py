@@ -9,11 +9,10 @@ from worker.llm import get_decisions_client, run_decisions_tasks
 from .base_bot import BaseBot
 
 
-class CyberSecClassifierBot(BaseBot):
+class TopicClassifierBot(BaseBot):
     def __init__(self):
         super().__init__()
-        # Keep the persisted worker type so existing schedules and dependencies still resolve.
-        self.type = "CYBERSEC_CLASSIFIER_BOT"
+        self.type = "TOPIC_CLASSIFIER_BOT"
         self.name = "Topic classification bot"
 
     def execute(self, parameters: dict | None = None) -> dict:

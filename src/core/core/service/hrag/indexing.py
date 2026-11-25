@@ -11,6 +11,7 @@ from models.hrag import (
     IndexStatus,
     IndexSubmission,
     bounded_content,
+    extraction_profile,
     input_fingerprint,
     split_content,
 )
@@ -62,6 +63,7 @@ def current_configuration(pipeline: str, settings: dict) -> dict | None:
             "overlap": embedding_settings.hrag_chunk_overlap,
         }
     if pipeline == "extraction":
+        configuration["topic_profiles"] = True
         configuration["reasoning_effort"] = (
             None if settings["hrag_extraction_reasoning_effort"] == "default" else settings["hrag_extraction_reasoning_effort"]
         )
@@ -105,7 +107,10 @@ def _frozen_endpoint(configuration: dict, feature: str) -> dict | None:
 
 
 def fingerprint(item: NewsItem, generation: HragGeneration) -> str:
-    return input_fingerprint(bounded_content(item.content, generation.config["limit"]), generation.id)
+    identity = generation.id
+    if generation.pipeline == "extraction" and generation.config.get("topic_profiles"):
+        identity += "\0" + extraction_profile(item.get_classification())
+    return input_fingerprint(bounded_content(item.content, generation.config["limit"]), identity)
 
 
 def reconcile() -> dict:
@@ -139,6 +144,7 @@ def reconcile() -> dict:
         generation
         for generation in generations
         if generation_endpoint(generation)
+        and (generation.pipeline != "extraction" or generation.config["schema"] == HRAG_EXTRACTION_SCHEMA_VERSION)
         and (generation.pipeline == "embedding" or generation.config["verification"] is None or generation_verification_endpoint(generation))
     ]
     for generation in generations:
@@ -226,6 +232,8 @@ def claim(index_id: str) -> dict | None:
     item = db.session.get(NewsItem, index_record.news_item_id)
     if not generation or not item or not (endpoint := generation_endpoint(generation)):
         return None
+    if generation.pipeline == "extraction" and generation.config["schema"] != HRAG_EXTRACTION_SCHEMA_VERSION:
+        return None
     verification_endpoint = generation_verification_endpoint(generation) if generation.pipeline == "extraction" else None
     if generation.pipeline == "extraction" and generation.config["verification"] is not None and verification_endpoint is None:
         return None
@@ -247,6 +255,7 @@ def claim(index_id: str) -> dict | None:
         "fingerprint": index_record.fingerprint,
         "pipeline": generation.pipeline,
         "content": content,
+        "extraction_profile": extraction_profile(item.get_classification()),
         "endpoint": endpoint,
         "verification_endpoint": verification_endpoint,
         "reasoning_effort": generation.config.get("reasoning_effort"),
@@ -270,6 +279,8 @@ def submit(index_id: str, submission: IndexSubmission) -> tuple[dict, int]:
     item = db.session.scalar(db.select(NewsItem).where(NewsItem.id == index_record.news_item_id).with_for_update())
     if item is None or generation is None or fingerprint(item, generation) != index_record.fingerprint:
         return {"error": "Stale HRAG result"}, 409
+    if generation.pipeline == "extraction" and generation.config["schema"] != HRAG_EXTRACTION_SCHEMA_VERSION:
+        return {"error": "Stale HRAG extraction schema"}, 409
     if index_record.status == "ready":
         return {"message": "HRAG result already accepted"}, 200
     if submission.failed:
@@ -284,9 +295,9 @@ def submit(index_id: str, submission: IndexSubmission) -> tuple[dict, int]:
         if submission.extraction is None or submission.chunks is not None:
             return {"error": "Expected extraction result"}, 400
         try:
-            result = submission.extraction.validate_content(content)
+            result = submission.extraction.validate_content(content).validate_profile(extraction_profile(item.get_classification()))
         except ValueError:
-            return {"error": "Invalid evidence passages"}, 400
+            return {"error": "Invalid extraction evidence or topic profile"}, 400
         index_record.result = result.model_dump()
         # Freeze identifiers before commit expires ORM state; a concurrent edit
         # must never label an old result with a newly assigned fingerprint.

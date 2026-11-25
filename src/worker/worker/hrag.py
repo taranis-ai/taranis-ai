@@ -1,6 +1,7 @@
 """RQ execution only; durable index records and authorization remain in core."""
 
 import asyncio
+from dataclasses import replace
 
 from llm_bot.schemas import EntityRelationshipExtractionRequest
 from llm_bot.tasks.entity_relationship_extraction import prepare_entity_relationship_extraction
@@ -12,6 +13,7 @@ from models.hrag import (
     IndexJob,
     IndexSubmission,
     extraction_vocabulary,
+    relationship_instructions,
 )
 from models.llm import EmbeddingDimensionMismatch
 
@@ -48,18 +50,19 @@ async def infer(job: IndexJob) -> dict:
 
     def validate(result: CompactExtractionResult) -> CompactExtractionResult:
         try:
-            result.resolve(job.content, quarantine_invalid_relations=True)
+            result.resolve(job.content, quarantine_invalid_relations=True, profile=job.extraction_profile)
             return result
         except ValueError as exc:
             raise InvalidLLMOutputError("Evidence does not match source content") from exc
 
     request = EntityRelationshipExtractionRequest.model_validate(
-        {"text": job.content, "schema": extraction_vocabulary(), "reasoning_effort": job.reasoning_effort}
+        {"text": job.content, "schema": extraction_vocabulary(job.extraction_profile), "reasoning_effort": job.reasoning_effort}
     )
     task = prepare_entity_relationship_extraction(request, result_model=CompactExtractionResult, validate=validate)
+    task = replace(task, system_input=task.system_input + "\n\n" + relationship_instructions(job.extraction_profile))
     client = get_llm_client({"llm_endpoint": job.endpoint.model_dump()}, reasoning_effort=job.reasoning_effort)
     proposals = await task.run(client)
-    resolved = proposals.resolve(job.content, quarantine_invalid_relations=True)
+    resolved = proposals.resolve(job.content, quarantine_invalid_relations=True, profile=job.extraction_profile)
     result = resolved
     if job.verification_endpoint is not None:
         verifier = get_decisions_client({"llm_endpoint": job.verification_endpoint.model_dump()})

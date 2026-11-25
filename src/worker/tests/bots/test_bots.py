@@ -242,11 +242,11 @@ def test_classification_bot(stories, requests_mock):
     parameters = {"llm_endpoint": endpoint, "_llm_batch_state": state, "CLASSIFICATION_THRESHOLD": 0.99}
     with patch.object(DecisionsClient, "create_decision", autospec=True) as provider:
         provider.return_value = {"category": scores}
-        result = bots.CyberSecClassifierBot().execute(parameters)
+        result = bots.TopicClassifierBot().execute(parameters)
         assert provider.await_count == 3
         client = provider.call_args.args[0]
         assert (client.url, client.model, client.api_key, client.timeout) == (endpoint["base_url"], "classifier", "classification-key", 45)
-        assert bots.CyberSecClassifierBot().execute(parameters) == result
+        assert bots.TopicClassifierBot().execute(parameters) == result
         assert provider.await_count == 3
     assert result["message"] == "Classified 3 news items"
     assert result["changes"]["story_attributes"] == {selected[0]["id"]: [{"key": "classification", "value": "general news"}]}

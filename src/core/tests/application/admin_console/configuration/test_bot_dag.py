@@ -114,7 +114,7 @@ def test_bot_timeouts_apply_to_manual_chained_and_cron_jobs(app, session, redis_
 @pytest.mark.parametrize(
     "bot_type, parameters",
     [
-        ("cybersec_classifier_bot", {}),
+        ("topic_classifier_bot", {}),
         ("tagging_bot", {"REGULAR_EXPRESSION": "test"}),
         ("intel_owl_bot", {"INTEL_OWL_URL": "https://intelowl.test", "INTEL_OWL_API_KEY": "test-key"}),
     ],
@@ -174,7 +174,7 @@ def test_duplicate_bot_types_use_instance_ids_in_dependencies(app, session):
                 "parameters": {},
             }
         )
-        dependent = _bot("cybersec_classifier_bot")
+        dependent = _bot("topic_classifier_bot")
         Bot.update(dependent.id, {"parameters": {"RUN_AFTER_BOTS": duplicate_ioc.id}})
 
         original_dependents, _ = Bot.get_dependent_run_graph(original_ioc.id)
