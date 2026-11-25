@@ -141,3 +141,34 @@ def test_osint_source_detail_rejects_invalid_collection_period(client, auth_head
 
     assert response.status_code == 400
     assert response.json == {"error": INVALID_COLLECTION_PERIOD_MESSAGE}
+
+
+@pytest.mark.usefixtures("app")
+def test_migrate_use_feed_content_keeps_saved_bools_and_migrates_legacy_values(session):
+    from core.managers.db_seed_manager import migrate_use_feed_content
+
+    def rss_source(name: str, **parameters) -> OSINTSource:
+        feed = {"FEED_URL": "https://example.com/feed.xml"}
+        source = OSINTSource(name=name, description="", type=COLLECTOR_TYPES.RSS_COLLECTOR, parameters=feed)
+        source.parameters = {**feed, **parameters}  # bypass normalization to keep legacy string values
+        return source
+
+    sources = {
+        "saved_true": rss_source("saved_true", USE_FEED_CONTENT=True, CONTENT_LOCATION=""),
+        "saved_false": rss_source("saved_false", USE_FEED_CONTENT=False, CONTENT_LOCATION="article"),
+        "missing_with_location": rss_source("missing_with_location", CONTENT_LOCATION="article"),
+        "missing_without_location": rss_source("missing_without_location"),
+        "legacy_string": rss_source("legacy_string", USE_FEED_CONTENT="false", CONTENT_LOCATION="article"),
+    }
+    session.add_all(sources.values())
+    session.commit()
+
+    migrate_use_feed_content()
+
+    assert {name: source.parameters["USE_FEED_CONTENT"] for name, source in sources.items()} == {
+        "saved_true": True,
+        "saved_false": False,
+        "missing_with_location": True,
+        "missing_without_location": False,
+        "legacy_string": False,
+    }
