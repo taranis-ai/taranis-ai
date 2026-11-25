@@ -6,7 +6,7 @@ from base64 import b64decode
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from sqlalchemy import String, cast, func
+from sqlalchemy import String, case, cast, func, null
 from sqlalchemy.orm import Mapped, contains_eager, deferred, joinedload, lazyload, load_only, relationship, selectinload
 from sqlalchemy.sql import Select
 
@@ -116,7 +116,7 @@ class Product(BaseModel):
         """Whether a linked Report the user can read contains stories they can't read; restricted Reports are checked separately."""
         if user is None or not self.report_items:
             return False
-        return db.session.execute(self._hidden_story_product_ids_query([self.id], user).limit(1)).first() is not None
+        return db.session.execute(self._hidden_story_product_ids_query(user, [self.id]).limit(1)).first() is not None
 
     def get_access_restriction(self, user: User | None) -> str | None:
         """Why the user may only edit title and description: restricted linked Reports, or hidden Stories in readable ones."""
@@ -127,7 +127,7 @@ class Product(BaseModel):
         return None
 
     def get_action_error(self, user_id: str | None, *, allow_restricted_content: bool = False) -> str | None:
-        """Why the user may not act on this product. Autopublish allows restricted content: the user never sees the render."""
+        """Why the user may not act on this product. Autopublish after a Report save allows restricted content."""
         if user_id is None:
             return None
         user = User.get(user_id)
@@ -182,6 +182,11 @@ class Product(BaseModel):
                 db.select(func.count(func.distinct(ReportItemStory.story_id))).select_from(ProductReportItem), user
             )
             column = story_count_query.where(ProductReportItem.product_id == cls.id).correlate(cls).scalar_subquery()
+            if user is not None:
+                # Restricted products have no story count; sorting by the hidden count would reveal it.
+                column = case((cls.id.in_(cls._restricted_product_ids_query(user)), null()), else_=column)
+                sort_key = column.desc() if descending else column.asc()
+                return query.order_by(None).order_by(sort_key.nulls_last(), cls.id.desc() if descending else cls.id.asc())
         else:
             return super()._add_sorting_to_query({"order": order}, query).order_by(cls.id.desc() if descending else cls.id.asc())
         return query.order_by(None).order_by(column.desc() if descending else column.asc(), cls.id.desc() if descending else cls.id.asc())
@@ -412,24 +417,28 @@ class Product(BaseModel):
         """Products with a linked Report the user can't access, or a Story they can't read in an accessible one."""
         if user is None or not product_ids:
             return set()
+        return set(db.session.execute(cls._restricted_product_ids_query(user, product_ids)).scalars())
+
+    @classmethod
+    def _restricted_product_ids_query(cls, user: User, product_ids: list[str] | None = None):
+        """IDs of products that are restricted for the user, optionally limited to `product_ids`."""
         readable_reports = db.select(ReportItem.id).outerjoin(ReportItemType)
         readable_reports = RoleBasedAccessService.filter_query_with_acl(
             readable_reports, RBACQuery(user=user, resource_type=ItemType.REPORT_ITEM_TYPE)
         )
         readable_reports = RoleBasedAccessService.filter_report_query_with_tlp(readable_reports, user)
-        restricted_reports = db.select(ProductReportItem.product_id).where(
-            ProductReportItem.product_id.in_(product_ids), ProductReportItem.report_item_id.not_in(readable_reports)
-        )
-        hidden_stories = cls._hidden_story_product_ids_query(product_ids, user)
-        return set(db.session.execute(restricted_reports).scalars()) | set(db.session.execute(hidden_stories).scalars())
+        restricted_reports = db.select(ProductReportItem.product_id).where(ProductReportItem.report_item_id.not_in(readable_reports))
+        if product_ids is not None:
+            restricted_reports = restricted_reports.where(ProductReportItem.product_id.in_(product_ids))
+        return restricted_reports.union(cls._hidden_story_product_ids_query(user, product_ids))
 
     @classmethod
-    def _hidden_story_product_ids_query(cls, product_ids: list[str], user: User) -> Select:
+    def _hidden_story_product_ids_query(cls, user: User, product_ids: list[str] | None = None) -> Select:
         """Products whose accessible linked Reports contain a Story the user can't read."""
-        return cls._accessible_story_query(db.select(ProductReportItem.product_id).select_from(ProductReportItem), user).where(
-            ProductReportItem.product_id.in_(product_ids),
-            ReportItemStory.story_id.not_in(Story.visible_query(user, db.select(Story.id))),
+        query = cls._accessible_story_query(db.select(ProductReportItem.product_id).select_from(ProductReportItem), user).where(
+            ReportItemStory.story_id.not_in(Story.visible_query(user, db.select(Story.id)))
         )
+        return query.where(ProductReportItem.product_id.in_(product_ids)) if product_ids is not None else query
 
     @staticmethod
     def _accessible_story_query(query: Select, user: User | None) -> Select:

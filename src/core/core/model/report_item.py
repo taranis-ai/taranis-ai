@@ -710,7 +710,8 @@ class ReportItem(BaseModel):
             value = attributes_data[attr_id_str]
             if hidden_story_ids and attr.attribute_type == AttributeType.STORY:
                 # Keep selections of hidden stories, which the user's editor never showed.
-                selected_ids = ReportStorySyncService.parse_story_ids(value)
+                # Users can't select or deselect hidden stories, so submitted hidden IDs are ignored.
+                selected_ids = [story_id for story_id in ReportStorySyncService.parse_story_ids(value) if story_id not in hidden_story_ids]
                 kept_ids = [story_id for story_id in ReportStorySyncService.parse_story_ids(attr.value) if story_id in hidden_story_ids]
                 value = ",".join(dict.fromkeys([*selected_ids, *kept_ids]))
             attr.value = value

@@ -1797,8 +1797,13 @@ class QueueManager:
             return transform(value) if transform else value
         return fallback
 
-    def autopublish_product(self, product_id: str, auto_publisher_id: str, user_id: str | None = None) -> tuple[dict[str, Any], int]:
-        """Render a product and publish it once rendering finishes."""
+    def autopublish_product(
+        self, product_id: str, auto_publisher_id: str, user_id: str | None = None, *, from_report_save: bool = False
+    ) -> tuple[dict[str, Any], int]:
+        """Render a product and publish it once rendering finishes.
+
+        After a Report save, autopublish also runs for products the user may not read: the user never sees the render.
+        """
         from core.model.product import Product
         from core.model.publisher_preset import PublisherPreset
         from core.service.worker_parameters import effective_parameters
@@ -1809,7 +1814,7 @@ class QueueManager:
 
         if not (product := Product.get(product_id)) or not product.product_type:
             return {"error": "Product not found"}, 404
-        if user_id and (error := product.get_action_error(user_id, allow_restricted_content=True)):
+        if user_id and (error := product.get_action_error(user_id, allow_restricted_content=from_report_save)):
             return {"error": error}, 403
         if not (publisher := PublisherPreset.get(auto_publisher_id)):
             return {"error": "Publisher preset not found"}, 404

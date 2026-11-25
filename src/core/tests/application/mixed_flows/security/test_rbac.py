@@ -795,6 +795,8 @@ class TestRBACAclBehavior:
 
     def test_report_stories_respect_story_acl(self, client, session, auth_header_user_permissions, monkeypatch):
         from core.managers import queue_manager
+        from core.model.asset import Asset, AssetVulnerability
+        from core.model.news_item_tag import NewsItemTag
         from core.model.permission import Permission
         from core.model.product import Product
         from core.model.product_type import ProductType
@@ -802,6 +804,8 @@ class TestRBACAclBehavior:
         from core.model.report_item import AttributeType, ReportItem, ReportItemAttribute
         from core.model.role import Role
         from core.model.role_based_access import ItemType
+        from core.model.user import User
+        from core.service.cti import CTIService
 
         allowed_source, allowed_story, _ = create_rbac_source_story("report-stories-allowed")
         _, hidden_story, _ = create_rbac_source_story("report-stories-hidden")
@@ -858,6 +862,19 @@ class TestRBACAclBehavior:
         assert revision.status_code == 200
         assert_only_allowed_story(revision.json["data"], with_attributes=False)
 
+        # Report and asset CTI only include indicators from readable stories.
+        for story, ip in ((allowed_story, "192.0.2.1"), (hidden_story, "192.0.2.2")):
+            story.news_items[0].tags.append(NewsItemTag(ip, "ip"))
+        asset = Asset("RBAC asset", "serial", "Asset linked to the shared report")
+        session.add(asset)
+        session.flush()
+        asset.vulnerabilities.append(AssetVulnerability(asset.id, shared_report.id))
+        db.session.commit()
+        report_cti = client.get(f"/api/analyze/report-items/{shared_report.id}/cti", headers=auth_header_user_permissions)
+        asset_cti = CTIService._asset_response(asset.id, [asset], User.find_by_name("user"))
+        for cti in (report_cti.json, asset_cti):
+            assert [ioc["value"] for ioc in cti["iocs"]] == ["192.0.2.1"]
+
         # Report lists keep counting hidden stories by ID.
         listed = client.get("/api/analyze/report-items", headers=auth_header_user_permissions, query_string={"search": shared_report.title})
         assert [set(item["stories"]) for item in listed.json["items"]] == [{allowed_story.id, hidden_story.id}]
@@ -913,9 +930,23 @@ class TestRBACAclBehavior:
         assert saved.json["report"]["stories"] == []
         assert saved.json["report"]["restricted_story_ids"] == [hidden_story.id]
         assert enqueue.called, "autopublish should still render and publish the product"
+        # The explicit auto-render endpoint is user-initiated and stays blocked.
+        enqueue.reset_mock()
+        assert client.get(f"/api/publish/products/auto-render/{shared_report.id}", headers=auth_header_user_permissions).status_code == 200
+        enqueue.assert_not_called()
         db.session.refresh(shared_report)
         assert [story.id for story in shared_report.stories] == [hidden_story.id]
         assert story_attribute.value == hidden_story.id
+        # Submitting a hidden story's ID can't select it either.
+        story_attribute.value = ""
+        db.session.commit()
+        client.put(
+            f"/api/analyze/report-items/{shared_report.id}",
+            headers=auth_header_user_permissions,
+            json={"attributes": {story_attribute.id: hidden_story.id}},
+        )
+        db.session.refresh(story_attribute)
+        assert story_attribute.value == ""
         ReportItem.add_stories(shared_report.id, [allowed_story.id], None)
 
         # Re-saving the report with its existing (partly hidden) stories still works.
@@ -950,6 +981,13 @@ class TestRBACAclBehavior:
         session.add(visible_product)
         session.commit()
         assert client.get(f"/api/publish/products/{visible_product.id}/render", headers=auth_header_user_permissions).status_code == 200
+        # Sorting by story count puts restricted products last instead of revealing their hidden count.
+        for order in ("story_count_desc", "story_count_asc"):
+            listed = client.get(
+                "/api/publish/products", headers=auth_header_user_permissions, query_string={"order": order, "fetch_all": "true"}
+            )
+            ids = [item["id"] for item in listed.json["items"]]
+            assert ids.index(visible_product.id) < ids.index(hidden_product.id)
 
         # A hidden story can't be smuggled in when creating a report either.
         new_report_id = str(uuid.uuid4())

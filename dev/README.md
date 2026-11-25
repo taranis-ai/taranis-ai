@@ -80,22 +80,21 @@ Each component under `src/` (`core`, `frontend`, `worker`, `models`) has its own
 ```bash
 (cd src/core && uv sync --all-extras --dev && uv run pytest)
 
-# A single file or test, inside a component directory
-uv run pytest tests/application/mixed_flows/security/test_rbac.py -k report_stories
+# A single file or test
+(cd src/core && uv run pytest tests/application/mixed_flows/security/test_rbac.py -k report_stories)
 ```
 
 ### Linting
 
-Ruff and the template linter, inside a component directory:
+Ruff and the template linter run inside a component directory, for example `cd src/core`:
 
 ```bash
 uv run ruff check          # lint
 uv run ruff check --fix    # lint and apply safe fixes
 uv run ruff format         # format
 
-# Frontend templates only
-
-cd src/frontend/ && uv run djlint --profile=jinja --check frontend/templates
+# Frontend templates only, inside src/frontend
+uv run djlint --profile=jinja --check frontend/templates
 ```
 
 ### Type-checking

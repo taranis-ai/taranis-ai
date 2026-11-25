@@ -108,7 +108,7 @@ class ReportItem(MethodView):
         if status != 200:
             return make_response(jsonify(updated_report), status)
         realtime_publisher.report_item_changed(report_item_id, current_user.organization_id)
-        ProductService.autopublish_product(report_item_id, user_id=current_user.id)
+        ProductService.autopublish_product(report_item_id, user_id=current_user.id, from_report_save=True)
         invalidate_frontend_cache_on_success(
             status,
             scopes=(SCOPE_REPORT_VIEWS, SCOPE_PUBLISH_VIEWS),

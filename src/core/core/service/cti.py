@@ -83,7 +83,15 @@ class CTIService:
                 report = vulnerability.report_item
                 if not report or not report.access_allowed(user, False):
                     continue
-                news_items_by_id.update({news_item.id: news_item for story in report.stories for news_item in story.news_items})
+                hidden_story_ids = report.get_hidden_story_ids(user)
+                news_items_by_id.update(
+                    {
+                        news_item.id: news_item
+                        for story in report.stories
+                        if story.id not in hidden_story_ids
+                        for news_item in story.news_items
+                    }
+                )
         return cls._response("asset", item_id, news_items_by_id.values(), extra_iocs=extra_iocs)
 
     @classmethod
