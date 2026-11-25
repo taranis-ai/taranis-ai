@@ -1,7 +1,7 @@
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from sqlalchemy import func
+from sqlalchemy import func, select
 
 from core.log import logger
 from core.managers.db_manager import db
@@ -102,31 +102,18 @@ class NewsItemTagService:
             ranked_stmt = ranked_stmt.where(NewsItemTagCluster.last_story_created >= start_date)
 
         ranked = ranked_stmt.subquery("ranked_clusters")
-        top_five = (
-            db.select(
-                ranked.c.tag_type,
-                ranked.c.tag_type_key,
-                ranked.c.name,
-                ranked.c.story_count,
-                ranked.c.rn,
-                func.sum(ranked.c.story_count).over(partition_by=ranked.c.tag_type_key).label("type_size"),
-            )
+        type_size = func.sum(ranked.c.story_count).over(partition_by=ranked.c.tag_type_key).label("type_size")
+        stmt = (
+            select(ranked.c.tag_type, ranked.c.tag_type_key, ranked.c.name, ranked.c.story_count, type_size)
             .where(ranked.c.rn <= 5)
-            .subquery("top_five_clusters")
+            .order_by(type_size.desc(), ranked.c.tag_type_key, ranked.c.rn)
         )
-        stmt = db.select(
-            top_five.c.tag_type,
-            top_five.c.tag_type_key,
-            top_five.c.name,
-            top_five.c.story_count,
-            top_five.c.type_size,
-        ).order_by(top_five.c.type_size.desc(), top_five.c.tag_type_key.asc(), top_five.c.rn.asc())
 
         largest_tag_types = {}
         for tag_type, tag_type_key, tag_name, story_count, total_size in db.session.execute(stmt).all():
             cluster = largest_tag_types.setdefault(
                 tag_type_key,
-                {"size": int(total_size), "tags": [], "name": tag_type},
+                {"size": total_size, "tags": [], "name": tag_type},
             )
             cluster["tags"].append({"name": tag_name, "size": story_count})
 
