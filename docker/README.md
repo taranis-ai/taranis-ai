@@ -271,12 +271,14 @@ The bundled PostgreSQL 18 service uses these starting values for installations w
 | `DB_SHARED_BUFFERS` | `128MB` | Caches frequently read story, news-item and index pages. For a dedicated database with at least 1 GiB RAM, start near 25% of its memory budget. A 2 GiB database container could start at `512MB`. |
 | `DB_MAX_CONNECTIONS` | `100` | Budget for all Core processes, other database clients, maintenance and reserved slots. Check peak connections before upgrading a scaled deployment from the old 1,000-slot default. |
 | `DB_AUTOVACUUM_ANALYZE_SCALE_FACTOR` | `0.05` | Refreshes planner statistics after roughly 5% of a table changes plus the base threshold. This helps the planner track new stories and tag distributions during collection. |
+| `DB_WAL_COMPRESSION` | `lz4` | Compresses full-page images in the write-ahead log (WAL). Article revisions touch article, tag and search-index pages. Check LZ4 support on custom primary, standby and recovery images. Use `pglz` or `off` if your recovery environment requires it. |
+| `DB_MAX_WAL_SIZE` | `2GB` | Allows more WAL between checkpoints during bulk collection. Use `1GB` on disk-constrained volumes or when a shorter crash-recovery window matters. Allow free space beyond this soft limit. |
 | `SQLALCHEMY_POOL_SIZE` / `SQLALCHEMY_MAX_OVERFLOW` | `5` / `5` | Each Core process keeps up to five pooled connections and can open five more for a burst. The stock two-process Core can use up to 20. |
 | `SQLALCHEMY_POOL_TIMEOUT` | `30` seconds | Maximum wait for a free connection in a saturated Core pool. |
 
 For Kubernetes, apply server settings through the external PostgreSQL service or its operator. Size Core's connection budget as **peak Core pods × Granian processes per pod × (pool size + overflow)**, including overlapping pods during rollouts. Helm exposes `config.sqlalchemyPoolSize`, `config.sqlalchemyMaxOverflow` and `config.sqlalchemyPoolTimeout`. Raw manifests expose the corresponding environment variables in `taranis-config`. With a shared database server, the administrator can scope statistics tuning to Taranis tables, for example `ALTER TABLE news_item_tag SET (autovacuum_analyze_scale_factor = 0.05)`.
 
-Check the following during a typical collection burst and compare Assess page latency before and after tuning. Growing `n_mod_since_analyze` alongside poor row estimates in `EXPLAIN (ANALYZE, BUFFERS)` points to stale statistics. If dead rows accumulate across vacuum cycles, inspect long transactions and autovacuum on the affected table. Keep `work_mem` conservative because several sorts or hashes in each active session can use it simultaneously. [PostgreSQL memory settings](https://www.postgresql.org/docs/18/runtime-config-resource.html), [vacuum and analyze thresholds](https://www.postgresql.org/docs/18/runtime-config-vacuum.html).
+Take samples before and after a typical collection burst. Compare the changes in the counters with Assess latency over the same interval.
 
 ```sql
 SELECT state, count(*) FROM pg_stat_activity
@@ -285,13 +287,23 @@ WHERE backend_type = 'client backend' GROUP BY state;
 SELECT relname, n_live_tup, n_dead_tup, n_mod_since_analyze, last_autovacuum, last_autoanalyze
 FROM pg_stat_user_tables
 WHERE relname IN ('story', 'news_item', 'news_item_tag');
+
+SELECT num_timed, num_requested, stats_reset FROM pg_stat_checkpointer;
+SELECT wal_bytes, wal_fpi, stats_reset FROM pg_stat_wal;
+SELECT temp_bytes, stats_reset FROM pg_stat_database WHERE datname = current_database();
 ```
 
-Core creates a B-tree on `story.created` for the default Assess feed and recent-date filters. On a large existing installation, the index build can delay story writes during startup. To build ahead of the rollout, run the following once in the Taranis schema outside a transaction. Verify `indisvalid` is true before starting the new Core. If a concurrent build fails, drop the invalid index and retry. [PostgreSQL index builds](https://www.postgresql.org/docs/18/sql-createindex.html#SQL-CREATEINDEX-CONCURRENTLY).
+- **Checkpoints and WAL.** If `num_requested` rises during imports, check PostgreSQL logs for WAL-triggered checkpoints. Increase `max_wal_size` when frequent checkpoints coincide with user-facing stalls and disk headroom permits. A longer interval can increase crash-recovery time. Compare `wal_bytes` and CPU for similar batches when selecting compression. [PostgreSQL checkpoint sizing](https://www.postgresql.org/docs/18/wal-configuration.html), [WAL compression](https://www.postgresql.org/docs/18/runtime-config-wal.html#GUC-WAL-COMPRESSION).
+- **Vacuum and analyze.** Growing `n_mod_since_analyze` alongside poor row estimates in `EXPLAIN (ANALYZE, BUFFERS)` points to stale statistics. If dead rows accumulate on `story` across vacuum cycles, check for long transactions first. For a large, frequently updated table, try `ALTER TABLE story SET (autovacuum_vacuum_scale_factor = 0.05)` and watch cleanup and I/O through the next collection cycle. [PostgreSQL vacuum settings](https://www.postgresql.org/docs/18/runtime-config-vacuum.html).
+- **Memory and storage.** If `temp_bytes` rises, identify the slow query and look for an on-disk sort or batched hash in its plan. Try `SET LOCAL work_mem = '16MB'` in a transaction for that query. A global increase multiplies across operations, parallel workers and sessions. Set `effective_cache_size` using the database's share of RAM available for PostgreSQL buffers and the filesystem cache. Test changes to `random_page_cost` on the actual disk or Kubernetes volume. [Memory settings](https://www.postgresql.org/docs/18/runtime-config-resource.html), [planner cost settings](https://www.postgresql.org/docs/18/runtime-config-query.html#RUNTIME-CONFIG-QUERY-CONSTANTS).
+
+Core creates separate B-trees on `story.created` and `story.updated` for Assess date sorting and range filters. Each change to an indexed timestamp also requires index maintenance. On a large existing installation, building the indexes during startup can delay story writes. To build ahead of the rollout, run each statement below separately in the Taranis schema outside a transaction. Verify both indexes are valid before starting the new Core. If a concurrent build fails, drop the invalid index and retry. [PostgreSQL index builds](https://www.postgresql.org/docs/18/sql-createindex.html#SQL-CREATEINDEX-CONCURRENTLY).
 
 ```sql
-CREATE INDEX CONCURRENTLY ix_story_created ON story (created);
-SELECT indisvalid FROM pg_index WHERE indexrelid = 'ix_story_created'::regclass;
+CREATE INDEX CONCURRENTLY IF NOT EXISTS ix_story_created ON story (created);
+CREATE INDEX CONCURRENTLY IF NOT EXISTS ix_story_updated ON story (updated);
+SELECT indexrelid::regclass, indisvalid FROM pg_index
+WHERE indexrelid IN ('ix_story_created'::regclass, 'ix_story_updated'::regclass);
 ```
 
 ### `core`

@@ -34,6 +34,10 @@ services:
       - max_connections=${DB_MAX_CONNECTIONS:-100}
       - -c
       - autovacuum_analyze_scale_factor=${DB_AUTOVACUUM_ANALYZE_SCALE_FACTOR:-0.05}
+      - -c
+      - wal_compression=${DB_WAL_COMPRESSION:-lz4}
+      - -c
+      - max_wal_size=${DB_MAX_WAL_SIZE:-2GB}
     healthcheck:
       test: ["CMD-SHELL", "sh -c 'pg_isready -U ${DB_USER:-taranis} -d ${DB_DATABASE:-taranis}'"]
       interval: 10s

@@ -1,4 +1,4 @@
-"""Index publication dates for Assess paging and range filters."""
+"""Index story publication and update dates for Assess paging and range filters."""
 
 from yoyo import step
 
@@ -9,5 +9,9 @@ steps = [
     step(
         "CREATE INDEX IF NOT EXISTS ix_story_created ON story (created)",
         "DROP INDEX IF EXISTS ix_story_created",
+    ),
+    step(
+        "CREATE INDEX IF NOT EXISTS ix_story_updated ON story (updated)",
+        "DROP INDEX IF EXISTS ix_story_updated",
     ),
 ]
