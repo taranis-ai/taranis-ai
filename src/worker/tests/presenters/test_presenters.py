@@ -63,20 +63,24 @@ def test_pdf_presenter_successful_render(pdf_presenter, fixed_datetime, monkeypa
     assert product["current_date"] == "2025-01-02"
 
 
-def test_pdf_presenter_skips_url_resources(pdf_presenter, monkeypatch):
+def test_pdf_presenter_skips_url_resources(pdf_presenter, monkeypatch, caplog):
     opener = Mock(side_effect=OSError("Unexpected resource request"))
     monkeypatch.setattr(OpenerDirector, "open", opener)
     template = """
-        <link rel="stylesheet" href="https://example.invalid/report.css">
+        <link rel="stylesheet" href="https://example.invalid/report.css?signature=test-signature">
+        <style>@color-profile --print { src: url("data:application/vnd.iccprofile;base64,AA==") }</style>
         <h1>Report</h1>
         <img src="file:///example/logo.png"><img src="http://example.invalid/logo.png">
-        <img src="data:image/png;base64,AA==">
+        <img src="data:image/png;base64,aW1hZ2UtcGF5bG9hZA==">
     """
 
-    pdf = pdf_presenter.generate({}, template)
+    with caplog.at_level("DEBUG"):
+        pdf = pdf_presenter.generate({}, template)
 
     assert pdf.startswith(b"%PDF-")
     opener.assert_not_called()
+    assert "aW1hZ2UtcGF5bG9hZA==" not in caplog.text
+    assert "test-signature" not in caplog.text
 
 
 def test_pdf_presenter_failed_render(pdf_presenter, fixed_datetime, monkeypatch):

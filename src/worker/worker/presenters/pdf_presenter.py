@@ -1,7 +1,18 @@
 from weasyprint import HTML
-from weasyprint.urls import URLFetcher
+from weasyprint.urls import URLFetcher, URLFetcherResponse, URLFetchingError
 
 from .base_presenter import BasePresenter
+
+
+class _BlockedResource(URLFetcherResponse):
+    def read(self, *args, **kwargs):
+        # WeasyPrint 70 handles color profile errors while reading the response.
+        raise URLFetchingError("PDF resource fetching is disabled")
+
+
+class _DisabledURLFetcher(URLFetcher):
+    def fetch(self, url, headers=None):
+        return _BlockedResource("about:blank")
 
 
 class PDFPresenter(BasePresenter):
@@ -20,7 +31,7 @@ class PDFPresenter(BasePresenter):
         output_text = super().generate(product, template, parameters)
 
         try:
-            html = HTML(string=output_text, url_fetcher=URLFetcher(allowed_protocols=[]))
+            html = HTML(string=output_text, url_fetcher=_DisabledURLFetcher())
             data = html.write_pdf(target=None, finisher=self._remove_weasyprint_signature)
         except Exception as error:
             BasePresenter.print_exception(self, error)
