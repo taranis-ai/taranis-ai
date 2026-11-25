@@ -95,6 +95,8 @@ class ReportPublishWorkflowService:
         override_error = cls._apply_attribute_overrides(report_item, attribute_overrides)
         if override_error:
             return override_error
+        if user and not report_item._allowed_with_tlp(user):
+            return {"error": "TLP is above your clearance"}, 403
 
         db.session.add(report_item)
         db.session.flush()

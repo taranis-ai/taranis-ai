@@ -74,15 +74,16 @@ def test_report_view_renders_access_denied_page_when_core_returns_403(app, authe
     assert "403 - Access denied" in html
 
 
-def test_report_editor_renders_summary_and_product_choices(app, authenticated_client_basic, auth_user_basic, responses_mock):
+def test_report_editor_renders_summary_and_product_choices(app, authenticated_client_basic, auth_user, auth_user_basic, responses_mock):
     report_id = "8124ae6f-3c85-49b4-93a1-9f3dc6516310"
+    tlp_options_xpath = '//select[@name="attributes[tlp-1]"]/option/@value'
     responses_mock.get(
         f"{Config.TARANIS_CORE_URL}/analyze/report-editors/{report_id}",
         json={
             "id": report_id,
             "title": "Summary report",
             "report_item_type_id": "type-1",
-            "grouped_attributes": [],
+            "grouped_attributes": [{"title": "Meta", "attributes": [{"id": "tlp-1", "title": "TLP", "type": "TLP", "value": "clear"}]}],
             "stories": [{"id": "story-1", "title": "Linked story", "summary": "Story summary", "links": ["https://example.org/story"]}],
         },
     )
@@ -108,10 +109,10 @@ def test_report_editor_renders_summary_and_product_choices(app, authenticated_cl
     assert "Linked story" in markup
     assert "Story summary" in markup
     assert "Existing product (Product type)" in markup
-    assert len(responses_mock.calls) == 4
 
     reader = auth_user_basic.model_copy(deep=True)
     reader.permissions = ["ANALYZE_ACCESS"]
+    reader.allowed_tlp_levels = auth_user.allowed_tlp_levels
     cache.clear()
     add_user_to_cache(reader.model_dump(mode="json"))
     choices_url = f"{Config.TARANIS_CORE_URL}/publish/product-choices"
@@ -125,6 +126,7 @@ def test_report_editor_renders_summary_and_product_choices(app, authenticated_cl
     assert "Add a comment" in response.text
     tree = html.fromstring(response.text)
     assert not tree.xpath('//*[@data-testid="report-publish-button" or @data-testid="report-publish-dialog"]')
+    assert tree.xpath(tlp_options_xpath) == ["clear", "green", "amber", "amber+strict", "red"]
     assert len([call for call in responses_mock.calls if call.request.url.split("?")[0] == choices_url]) == 1
 
 

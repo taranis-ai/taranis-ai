@@ -6,7 +6,7 @@ Load for: RoleBasedAccess, ACLs, TLP, content/reference visibility, source-group
 
 - ACLs restrict user-facing content/reference data, not admin/config management. Config routes use `CONFIG_*` permissions and must not pass `current_user` into ACL-aware model calls.
 - `ADMIN_OPERATIONS` bypasses RoleBasedAccess, but not role TLP restrictions. Never infer this bypass from the `Admin` role name.
-- Report queries require every TLP attribute to be readable, matching per-report access. Reports without TLP remain visible; red clearance retains its bypass. Shared checks keep lists, product restrictions, and type choices consistent without duplicate rows.
+- Report queries require every TLP attribute to be readable, matching per-report access. Reports without TLP remain visible; red clearance retains its bypass. Report updates and publish-workflow attribute overrides reject a TLP above the user's clearance with 403 and no changes; `UserProfile.allowed_tlp_levels` limits only the report editor's TLP choices. Shared checks keep lists, product restrictions, and type choices consistent without duplicate rows.
 - Source access comes from direct source ACLs or current source-group membership. A source-group `*` ACL includes all sources, even ungrouped ones. Read-only ACLs do not grant writes.
 - Assess content and source/group reference lists use the same visibility rules.
 - [Selected story exports](story-export.md) require read access to every linked source and both story/news-item TLP access; any unavailable selection fails without a partial download.

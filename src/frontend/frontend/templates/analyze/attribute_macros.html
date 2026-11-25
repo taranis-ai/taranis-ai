@@ -75,7 +75,7 @@
       </fieldset>
 
     {% elif attr.type == "TLP" %}
-      <div class="floating-label w-full">{{ tlp_levels(value, name=base_name, required=required) }}</div>
+      <div class="floating-label w-full">{{ tlp_levels(value, name=base_name, required=required, allowed=current_user.allowed_tlp_levels) }}</div>
 
       {# djlint:off #}
     {% elif attr.type in ['DATE', 'DATE_TIME', 'TIME'] %}
