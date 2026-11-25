@@ -4,7 +4,7 @@ Load for: Start analyst review, `/analyst-review/*`, `/api/assess/analyst-review
 
 ## Contracts
 
-- Start with an incomplete Report or create one with a title and Report Type. Core supplies a fixed newest-first snapshot of Shift/Unread Story IDs; frontend stores queue/progress in user-scoped Redis with a four-hour expiry.
+- Start with an incomplete Report or create one with a title and Report Type. Core supplies a fixed newest-first snapshot of Shift/Unread Story IDs; frontend stores queue/progress in user-scoped Redis with a four-hour expiry. State keys (`build_analyst_review_state_key`, `taranis:analyst-review:<user>:<run>`) use the `taranis:` runtime-state prefix, outside the `<CACHE_KEY_PREFIX>:*` cache namespace, so cache invalidation never deletes them.
 - Add attaches the Story, marks it read, and clears important in one core transaction, including membership-derived attributes/revisions. Dismiss marks read and clears important. Skip only advances Redis state.
 - Add/Dismiss require story write access: invisible stories return 404, read-only stories return 403. Add also requires report write access; read-only stories allow only Skip.
 - Advance Add/Dismiss only after core succeeds; failures retain the Story and progress. `A`/`D`/`S` use the shared Assess shortcut guard.

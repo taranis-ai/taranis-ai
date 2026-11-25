@@ -1,5 +1,6 @@
 from urllib.parse import urlparse
 
+from models.cache_contract import build_analyst_review_state_key
 from models.user import UserProfile
 
 from frontend.cache import add_user_to_cache, cache
@@ -11,6 +12,10 @@ def enable_analyst_review(user: UserProfile) -> None:
     review_user = user.model_copy(deep=True)
     review_user.permissions = sorted(set(review_user.permissions) | ANALYST_REVIEW_PERMISSIONS)
     add_user_to_cache(review_user.model_dump(mode="json"))
+
+
+def state_key(username: str, run_id: str) -> str:
+    return build_analyst_review_state_key(username, run_id)
 
 
 def review_state(story_ids: list[str]) -> dict:
@@ -67,7 +72,7 @@ def test_start_creates_fixed_review_snapshot(authenticated_client, auth_user, re
 
     assert response.status_code == 302
     run_id = urlparse(response.location).path.rsplit("/", 1)[-1]
-    state = cache.get(f"{cache.key_prefix}:analyst-review:{auth_user.username}:{run_id}")
+    state = cache.get(state_key(auth_user.username, run_id))
     assert state == review_state(["story-1", "story-2"])
 
 
@@ -75,7 +80,7 @@ def test_failed_mutation_does_not_advance_review(authenticated_client, auth_user
     enable_analyst_review(auth_user)
     run_id = "failed-action"
     state = review_state(["story-1", "story-2"])
-    cache.set(f"{cache.key_prefix}:analyst-review:{auth_user.username}:{run_id}", state)
+    cache.set(state_key(auth_user.username, run_id), state)
     mock_story(responses_mock, "story-1", "First Story")
     responses_mock.post(
         f"{Config.TARANIS_CORE_URL}/assess/analyst-review/actions",
@@ -91,14 +96,14 @@ def test_failed_mutation_does_not_advance_review(authenticated_client, auth_user
 
     assert response.status_code == 500
     assert "First Story" in response.get_data(as_text=True)
-    assert cache.get(f"{cache.key_prefix}:analyst-review:{auth_user.username}:{run_id}") == state
+    assert cache.get(state_key(auth_user.username, run_id)) == state
 
 
 def test_skip_advances_without_persisting_story(authenticated_client, auth_user, responses_mock):
     enable_analyst_review(auth_user)
     run_id = "skip-action"
     cache.set(
-        f"{cache.key_prefix}:analyst-review:{auth_user.username}:{run_id}",
+        state_key(auth_user.username, run_id),
         review_state(["story-1", "story-2"]),
     )
     mock_story(responses_mock, "story-1", "First Story")
@@ -115,6 +120,20 @@ def test_skip_advances_without_persisting_story(authenticated_client, auth_user,
     assert "Second Story" in html
     assert "1 of 2 reviewed" in html
     assert not [call for call in responses_mock.calls if call.request.method == "POST"]
-    state = cache.get(f"{cache.key_prefix}:analyst-review:{auth_user.username}:{run_id}")
+    state = cache.get(state_key(auth_user.username, run_id))
     assert state["story_ids"] == ["story-2"]
     assert state["reviewed"] == 1
+
+
+def test_review_state_survives_frontend_cache_namespace_clear(authenticated_client, auth_user, responses_mock):
+    run_id = "survives-clear"
+    cache.set(state_key(auth_user.username, run_id), review_state(["story-1"]))
+
+    cache.clear()  # same namespace pattern as core's invalidate_all() after background tasks
+
+    enable_analyst_review(auth_user)
+    mock_story(responses_mock, "story-1", "First Story")
+    response = authenticated_client.get(f"/analyst-review/{run_id}")
+
+    assert response.status_code == 200
+    assert "First Story" in response.get_data(as_text=True)
