@@ -860,14 +860,11 @@ class OSINTSource(BaseModel):
             if not isinstance(parameters, dict):
                 continue
 
-            content_location_value = str(parameters.get("CONTENT_LOCATION", ""))
-            has_use_feed_content = "USE_FEED_CONTENT" in parameters
-
-            if not content_location_value and not has_use_feed_content:
+            # Keep explicit values; derive from CONTENT_LOCATION only when missing.
+            if "USE_FEED_CONTENT" in parameters or "CONTENT_LOCATION" not in parameters:
                 continue
 
-            target_value = "true" if content_location_value and content_location_value.strip() else "false"
-            parameters["USE_FEED_CONTENT"] = target_value
+            parameters["USE_FEED_CONTENT"] = bool(str(parameters["CONTENT_LOCATION"]).strip())
 
         return sources
 
@@ -879,25 +876,21 @@ class OSINTSource(BaseModel):
                 continue
 
             content_location_value: str | None = None
-            use_feed_content_index: int | None = None
+            has_use_feed_content = False
 
-            for idx, parameter in enumerate(parameters):
+            for parameter in parameters:
                 if not isinstance(parameter, dict):
                     continue
                 if "CONTENT_LOCATION" in parameter:
                     content_location_value = str(parameter.get("CONTENT_LOCATION", ""))
                 if "USE_FEED_CONTENT" in parameter:
-                    use_feed_content_index = idx
+                    has_use_feed_content = True
 
-            if content_location_value is None and use_feed_content_index is None:
+            # Keep explicit values; derive from CONTENT_LOCATION only when missing.
+            if has_use_feed_content or content_location_value is None:
                 continue
 
-            target_value = "true" if content_location_value and content_location_value.strip() else "false"
-
-            if use_feed_content_index is not None:
-                parameters[use_feed_content_index]["USE_FEED_CONTENT"] = target_value
-            else:
-                parameters.append({"USE_FEED_CONTENT": target_value})
+            parameters.append({"USE_FEED_CONTENT": bool(content_location_value.strip())})
 
         return sources
 
