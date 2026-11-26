@@ -114,6 +114,9 @@
               {% if story.relevance and not compact_view %}
                 <span class="badge badge-outline badge-xs whitespace-nowrap">Relevance {{ story.relevance }}</span>
               {% endif %}
+              {% if story.image_count %}
+                <span class="badge badge-outline badge-xs whitespace-nowrap">Images: {{ story.image_count }}</span>
+              {% endif %}
               {% if news_count > 1 %}
                 <span class="badge badge-outline badge-xs whitespace-nowrap">{{ (news_count ~ ' items') if compact_view else ('News Items ' ~ news_count) }}</span>
               {% endif %}

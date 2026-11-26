@@ -202,6 +202,7 @@ class StoryService:
             selectinload(Story.misp_auto_update),
             selectinload(Story.news_items).selectinload(NewsItem.attributes),
             selectinload(Story.news_items).selectinload(NewsItem.tags),
+            selectinload(Story.news_items).selectinload(NewsItem.images),
             selectinload(Story.news_items).selectinload(NewsItem.osint_source),
         )
         return list(db.session.scalars(query).unique().all())

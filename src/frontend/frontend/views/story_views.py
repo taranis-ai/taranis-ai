@@ -1151,7 +1151,9 @@ class StoryView(BaseView):
     @auth_required("ASSESS_ACCESS")
     def story_fragment(cls, story_id: str, fragment: str):
         try:
-            story = DataPersistenceLayer().get_object(Story, story_id)
+            paging = PagingData(query_params={"story_ids": story_id, "limit": "1", "no_count": "true"})
+            stories = DataPersistenceLayer().get_objects(Story, paging)
+            story = stories[0] if stories else None
             if story is not None and fragment == "details":
                 cls._enhance_story_with_details(story, {source.id: source for source in cls.get_filter_lists().sources if source.id})
         except HTTPException:

@@ -1798,6 +1798,9 @@ def test_capture_retains_distinct_images_and_checks_access(client, session, api_
     role = Role.filter_by_name("User")
     role.tlp_level = TLPLevel.CLEAR
     acl = grant_acl(role, ItemType.OSINT_SOURCE, source.id, read_only=True)
+    overview = client.get("/api/assess/stories", query_string={"story_ids": story.id}, headers=auth_header_user_permissions).json["items"][0]
+    assert overview["image_count"] == 2
+    assert "images" not in overview["news_items"][0]
     url = f"/api/assess/images/{original.id}"
     assert client.get(url, headers=auth_header_user_permissions).mimetype == "image/png"
     acl.item_id = "unrelated-source"

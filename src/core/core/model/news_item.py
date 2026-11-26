@@ -288,18 +288,18 @@ class NewsItem(BaseModel):
             and (self.story is None or self.story.allowed_to_read(user))
         )
 
-    def to_detail_dict(self) -> dict[str, Any]:
-        data = self.to_dict()
+    def to_detail_dict(self, *, include_images: bool = True) -> dict[str, Any]:
+        data = self.to_dict(include_images=include_images)
         if self.osint_source and self.osint_source.key:
             data["osint_source_key"] = self.osint_source.key
         if attributes := self.attributes:
             data["attributes"] = [attribute.to_small_dict() for attribute in attributes]
         return data
 
-    def to_dict(self) -> dict[str, Any]:
+    def to_dict(self, *, include_images: bool = True) -> dict[str, Any]:
         data = super().to_dict()
         data.pop("fuzzy_hash", None)
-        if self.images:
+        if include_images and self.images:
             data["images"] = [image.to_image_metadata() for image in self.images]
         data["tags"] = [tag.to_dict() for tag in self.tags]
         data["attributes"] = [attribute.to_small_dict() for attribute in self.attributes]

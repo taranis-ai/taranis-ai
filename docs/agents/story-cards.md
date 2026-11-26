@@ -5,6 +5,7 @@ Load for: Assess or bookmark story-card metadata, source icons, or frontend stor
 ## Contracts
 
 - Source icons are served by an authenticated, user-catalog-scoped route with private ETag revalidation; icons are not repeated as base64 in every card. Missing/invisible sources return 404.
+- Overview cards and their expanded fragments use the story list payload. It includes a database count of images across linked items and omits image metadata. Detail and edit views load the individual images.
 - Unread, Important, and In Reports remain visible in compact cards; read stories have no read-status badge.
 - Unread cards use the primary border color; selection takes precedence with the info border color and matching background tint. Deselecting restores the unread or read border, including after card replacements.
 - Compact cards use one-line summaries and accessible icon actions, beside content at 48rem or wider and below otherwise. Publication date stays in the tooltip; relevance belongs to regular cards.

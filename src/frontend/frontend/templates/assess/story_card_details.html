@@ -1,4 +1,4 @@
-{% from "assess/news_item_card.html" import news_item_card, news_item_metadata, news_item_images %}
+{% from "assess/news_item_card.html" import news_item_card, news_item_metadata %}
 {% set news_items = story.news_items | default([]) %}
 {% set news_count = news_items | length %}
 <div x-init="detailsLoaded = true">
@@ -51,7 +51,6 @@
                 <span class="break-all">{{ item.link }}</span>
               </a>
             {% endif %}
-            {{ news_item_images(item) }}
             {{ news_item_metadata(item, story) }}
             {% if not loop.last %}<div class="divider"></div>{% endif %}
           {% endfor %}

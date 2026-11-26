@@ -969,8 +969,11 @@ class TestEndToEndUser(BaseE2ETest):
             )
             page.goto(url_for("assess.assess", search=caption, _external=True))
             card = page.get_by_test_id(f"story-card-{story_id}")
-            expect(card).to_have_count(1)
-            page.goto(url_for("assess.story", story_id=story_id, _external=True))
+            expect(card.get_by_text("Images: 1", exact=True)).to_be_visible()
+            card.get_by_test_id("toggle-summary").click()
+            expect(card.get_by_test_id(f"news-item-title-{story['news_items'][0]['id']}")).to_be_visible()
+            expect(card.get_by_role("region", name="Images")).to_have_count(0)
+            page.goto(url_for("assess.story_edit", story_id=story_id, _external=True))
             page.get_by_text("Open image 1", exact=True).click()
             expect(page.get_by_text(f"Image2Text: {caption}", exact=True)).to_be_visible()
         finally:

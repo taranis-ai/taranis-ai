@@ -14,7 +14,7 @@ from sqlalchemy import func, inspect, or_, select
 from sqlalchemy.dialects.postgresql import TSVECTOR
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.orm import Mapped, aliased, relationship, selectinload
+from sqlalchemy.orm import Mapped, aliased, column_property, relationship, selectinload, undefer
 from sqlalchemy.sql import Select
 from sqlalchemy.sql.expression import false, true
 
@@ -57,6 +57,15 @@ class Story(BaseModel):
     summary: Mapped[str] = db.Column(db.Text, default="")
     revision: Mapped[int] = db.Column(db.Integer, nullable=False, default=0)
     news_items: Mapped[list["NewsItem"]] = relationship("NewsItem")
+    image_count: Mapped[int] = column_property(
+        select(func.count())
+        .select_from(NewsItem)
+        .join(NewsItemImage, NewsItemImage.news_item_id == NewsItem.id)
+        .where(NewsItem.story_id == id)
+        .correlate_except(NewsItem, NewsItemImage)
+        .scalar_subquery(),
+        deferred=True,
+    )
     news_item_order: Mapped[list[str]] = db.Column(db.JSON, nullable=False, default=list)
     last_change: Mapped[str] = db.Column(db.String())
     attributes: Mapped[list["NewsItemAttribute"]] = relationship(
@@ -580,10 +589,10 @@ class Story(BaseModel):
             selectinload(cls.misp_auto_update),
             selectinload(cls.news_items).selectinload(NewsItem.attributes),
             selectinload(cls.news_items).selectinload(NewsItem.tags),
-            selectinload(cls.news_items).selectinload(NewsItem.images),
             selectinload(cls.news_items).selectinload(NewsItem.osint_source),
         )
         if filter_args.get("worker", False) or not user:
+            query = query.options(selectinload(cls.news_items).selectinload(NewsItem.images))
             return [s.to_worker_dict() for s in cls.get_filtered(query.options(*serialization_options)) or []], None
 
         story_ids = list(db.session.scalars(query.with_only_columns(cls.id)))
@@ -592,7 +601,7 @@ class Story(BaseModel):
             if story_ids:
                 query = query.order_by(db.case({story_id: position for position, story_id in enumerate(story_ids)}, value=cls.id))
 
-        query = query.options(*serialization_options)
+        query = query.options(*serialization_options, undefer(cls.image_count))
         writable_sources = set(
             db.session.scalars(
                 RoleBasedAccessService.filter_query_with_acl(
@@ -1556,7 +1565,12 @@ class Story(BaseModel):
         return ordered + [items[item_id] for item_id in sorted(items)]
 
     def to_dict(
-        self, user: User | None = None, writable_sources: set[str | None] | None = None, bookmarked: bool | None = None
+        self,
+        user: User | None = None,
+        writable_sources: set[str | None] | None = None,
+        bookmarked: bool | None = None,
+        *,
+        include_images: bool = False,
     ) -> dict[str, Any]:
         data = super().to_dict()
         if user is not None:
@@ -1565,7 +1579,11 @@ class Story(BaseModel):
         data.pop("news_item_order", None)
         data["tlp_level"] = self.tlp_level.value
         data["attributes"] = [attribute.to_small_dict() for attribute in self.attributes]
-        data["news_items"] = [news_item.to_detail_dict() for news_item in self.ordered_news_items]
+        data["news_items"] = [news_item.to_detail_dict(include_images=include_images) for news_item in self.ordered_news_items]
+        if not include_images:
+            data["image_count"] = self.image_count or 0
+        elif user:
+            data["image_count"] = sum(len(item.get("images", ())) for item in data["news_items"])
         data["tags"] = [tag.to_dict() for tag in self.tags]
         data["links"] = self.links
         if self.misp_auto_update:
@@ -1574,7 +1592,7 @@ class Story(BaseModel):
         return data
 
     def to_detail_dict(self, user: User | None = None) -> dict[str, Any]:
-        data = self.to_dict(user=user)
+        data = self.to_dict(user=user, include_images=True)
         data["detail_view"] = True
         data["in_reports_count"] = ReportItemStory.count(self.id)
         data["revision_count"] = self.get_revision_count()
@@ -1585,7 +1603,7 @@ class Story(BaseModel):
         return {"id": self.id, "title": self.title, "links": self.links}
 
     def to_export_dict(self) -> dict[str, Any]:
-        data = self.to_dict()
+        data = self.to_dict(include_images=True)
         data["attributes"] = [attribute.to_small_dict() for attribute in self.attributes]
         return data
 
@@ -1928,7 +1946,7 @@ class StoryBookmark(BaseModel):
     def _get_accessible_stories_by_id(cls, story_ids: list[str], user: User) -> dict[str, Story]:
         if not story_ids:
             return {}
-        query = Story.visible_query(user, Story.get_filter_query({"story_ids": story_ids}))
+        query = Story.visible_query(user, Story.get_filter_query({"story_ids": story_ids})).options(undefer(Story.image_count))
         return {story.id: story for story in db.session.execute(query).scalars().all()}
 
     @classmethod

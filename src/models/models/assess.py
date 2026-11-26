@@ -315,6 +315,7 @@ class Story(TaranisBaseModel):
     relevance: int | None = None
     relevance_override: int | None = None
     comments: str | None = None
+    image_count: int = 0
     in_reports_count: int | None = None
     bookmarked: bool = False
     tags: list[dict[str, Any]] | None = None
