@@ -66,20 +66,22 @@ def test_pdf_presenter_successful_render(pdf_presenter, fixed_datetime, monkeypa
 def test_pdf_presenter_skips_url_resources(pdf_presenter, monkeypatch, caplog):
     opener = Mock(side_effect=OSError("Unexpected resource request"))
     monkeypatch.setattr(OpenerDirector, "open", opener)
+    png_base64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4z8AAAAMBAQDJ/pLvAAAAAElFTkSuQmCC"
     template = """
         <link rel="stylesheet" href="https://example.invalid/report.css?signature=test-signature">
         <style>@color-profile --print { src: url("data:application/vnd.iccprofile;base64,AA==") }</style>
         <h1>Report</h1>
         <img src="file:///example/logo.png"><img src="http://example.invalid/logo.png">
-        <img src="data:image/png;base64,aW1hZ2UtcGF5bG9hZA==">
+        <img src="data:image/png;base64,{{ data.png }}">
     """
 
     with caplog.at_level("DEBUG"):
-        pdf = pdf_presenter.generate({}, template)
+        pdf = pdf_presenter.generate({"png": png_base64}, template)
 
     assert pdf.startswith(b"%PDF-")
+    assert b"/Subtype /Image" not in pdf
     opener.assert_not_called()
-    assert "aW1hZ2UtcGF5bG9hZA==" not in caplog.text
+    assert png_base64 not in caplog.text
     assert "test-signature" not in caplog.text
 
 
