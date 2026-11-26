@@ -281,7 +281,7 @@ Use the migration harness to reproduce production-like upgrades from the current
 
 This harness requires Podman, or Docker with `CONTAINER_CLI=docker`.
 
-The script creates a temporary git worktree from `origin/master`, or from the release ref passed as its first argument, starts a disposable PostgreSQL container, initializes and seeds a fresh base database, and copies it. It renames the copy's `public` schema to a unique test schema and sets the database's `search_path` before starting the current branch so pending yoyo migrations are applied. Hard-coded application schema references therefore fail during the upgrade. It finally runs a configurable pytest target against the migrated database, defaulting to `tests/unit`.
+The script creates a temporary git worktree from the base ref (default `origin/master`) and starts a disposable PostgreSQL container. It seeds two stories, each with a news item, a linked report, and a product, then copies the database. It renames the copy's `public` schema and sets the database's `search_path` before applying the current branch's migrations. Hard-coded application schema references therefore fail during the upgrade. The harness checks the sample titles and links directly in PostgreSQL before and after the upgrade, then runs the configured pytest target (default `tests/unit`).
 
 The development Compose database and this migration harness default to PostgreSQL 18.
 
