@@ -40,7 +40,8 @@ class NewsItemService:
             logger.debug("User does not have write access to this news item")
             return {"error": "User does not have write access to this news item"}, 403
         story_id = news_item.story_id
-        story = Story.get(story_id)
+        # Keep the report check below valid until commit; deleting the last item deletes the story.
+        story = Story.lock_many([story_id]).get(story_id)
         if not story:
             logger.debug(f"Story with id: {story_id} not found")
             return {"error": "Story not found"}, 404

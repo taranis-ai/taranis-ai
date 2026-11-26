@@ -78,7 +78,7 @@ class ReportPublishWorkflowService:
             return {"error": "Invalid report payload"}, 400
 
         story_ids = sanitized_report.get("stories", [])
-        stories, missing_story_ids = Story.get_visible_bulk(story_ids, user)
+        stories, missing_story_ids = Story.get_visible_bulk(story_ids, user, lock=True)
         if missing_story_ids:
             return {"error": "Story ids not found", "story_ids": missing_story_ids}, 400
 

@@ -1,9 +1,11 @@
 from datetime import datetime
 
 from sqlalchemy import func, select
+from sqlalchemy.dialects import postgresql
 
 from core.model.organization import Organization
 from core.model.report_item import ReportItem, ReportItemCpe
+from core.model.story import ReportItemStory, Story
 from core.model.task import Task
 from core.model.word_list import WordList, WordListEntry
 
@@ -33,6 +35,21 @@ def test_report_cpe_matches_return_each_report_once(session):
 
     assert ReportItem.get_by_cpe(["cpe-a", "cpe-b"]) == [report]
     assert ReportItem.get_by_cpe([]) == []
+
+
+def test_row_locks_compile_for_postgres(session):
+    # SQLite ignores FOR UPDATE, and PostgreSQL rejects it together with DISTINCT.
+    report_ids = select(ReportItemStory.report_item_id).where(ReportItemStory.story_id.in_(["story-a"]))
+    statements = [
+        ("story", Story.lock_select(["story-b", "story-a"])),
+        ("report_item", ReportItem.lock_select(["report-a"])),
+        ("report_item", ReportItem.lock_select(report_ids)),
+    ]
+
+    for table, statement in statements:
+        sql = str(statement.compile(dialect=postgresql.dialect()))
+        assert sql.endswith(f"ORDER BY {table}.id FOR UPDATE"), sql
+        assert "DISTINCT" not in sql, sql
 
 
 def test_word_list_entry_updates_skip_existing_values(session):

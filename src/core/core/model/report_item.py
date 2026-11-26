@@ -275,6 +275,19 @@ class ReportItem(BaseModel):
         )
         return list(db.session.execute(query).scalars())
 
+    @classmethod
+    def lock_select(cls, report_ids: list[str] | Select) -> Select:
+        """Lock report rows in id order, after the story locks (#1258). PostgreSQL rejects FOR UPDATE with DISTINCT."""
+        return db.select(cls).where(cls.id.in_(report_ids)).order_by(cls.id).with_for_update().execution_options(populate_existing=True)
+
+    @classmethod
+    def lock_for_stories(cls, story_ids: list[str]) -> list[ReportItem]:
+        """Lock and return every report that contains any of the given stories."""
+        if not story_ids:
+            return []
+        report_ids = db.select(ReportItemStory.report_item_id).where(ReportItemStory.story_id.in_(story_ids))
+        return list(db.session.execute(cls.lock_select(report_ids)).scalars())
+
     def get_revision_count(self) -> int:
         """Get the number of revisions for this report"""
         return self.revision or 0
@@ -400,7 +413,7 @@ class ReportItem(BaseModel):
             report_item.user_id = user.id
 
         if story_ids:
-            initial_stories, missing_story_ids = Story.get_visible_bulk(story_ids, user)
+            initial_stories, missing_story_ids = Story.get_visible_bulk(story_ids, user, lock=True)
             if user and missing_story_ids:
                 return cls._stories_not_found_error(missing_story_ids)
             report_item.stories = initial_stories
@@ -554,7 +567,7 @@ class ReportItem(BaseModel):
         """
         existing_story_ids = {story.id for story in self.stories}
         new_story_ids = [story_id for story_id in story_ids if story_id not in existing_story_ids]
-        return Story.get_visible_bulk(new_story_ids, user)
+        return Story.get_visible_bulk(new_story_ids, user, lock=True)
 
     @classmethod
     def add_stories(cls, report_id: str, story_ids: list[str], user: User) -> tuple[dict, int]:
@@ -630,7 +643,6 @@ class ReportItem(BaseModel):
         logger.debug(f"Updating Report Item {report_id} with data: {data}")
         if err or not report_item:
             return err, status
-        affected_stories = list(report_item.stories)
 
         # Validate stories before mutating anything, so a rejected request leaves the report untouched.
         normalized_story_ids: list[str] | None = None
@@ -640,6 +652,25 @@ class ReportItem(BaseModel):
             normalized_story_ids = cls._extract_story_ids(story_ids)
             if normalized_story_ids is None:
                 return {"error": "stories must be a list of story ids"}, 400
+
+        # Lock current and requested stories, then the report, so a concurrent merge or ungroup
+        # cannot rewrite the report's stories or STORY fields between reading and saving them.
+        # A story added before the report lock would be locked after the report; retry instead.
+        for _attempt in range(2):
+            locked_stories = Story.lock_many([*(story.id for story in report_item.stories), *(normalized_story_ids or [])])
+            if db.session.execute(cls.lock_select([report_item.id])).scalar_one_or_none() is None:
+                return {"error": "Report Item not Found"}, 404
+            if all(story.id in locked_stories for story in report_item.stories):
+                break
+            db.session.rollback()
+        else:
+            return {"error": "Report stories changed. Reload the report and try again."}, 409
+        # The locked report is current; its TLP may have changed since the first check.
+        if not report_item.access_allowed(user, True):
+            return {"error": "User is not allowed to update report"}, 403
+        affected_stories = list(report_item.stories)
+
+        if normalized_story_ids is not None:
             stories_to_attach, missing_story_ids = report_item._resolve_stories_to_attach(normalized_story_ids, user)
             if missing_story_ids:
                 return cls._stories_not_found_error(missing_story_ids)
