@@ -1174,6 +1174,17 @@ class StoryView(BaseView):
 
     @classmethod
     @auth_required("ASSESS_ACCESS")
+    def news_image(cls, image_id: str):
+        upstream = CoreApi().api_download(f"/assess/images/{image_id}")
+        if not upstream.ok:
+            abort(upstream.status_code)
+        response = CoreApi.stream_proxy(upstream, "image")
+        response.headers["Cache-Control"] = "private, no-store"
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        return response
+
+    @classmethod
+    @auth_required("ASSESS_ACCESS")
     def source_icon(cls, source_id: str):
         source = next((source for source in cls.get_filter_lists().sources if source.id == source_id), None)
         if not source or not source.icon:

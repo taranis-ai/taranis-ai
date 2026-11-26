@@ -913,6 +913,70 @@ class TestEndToEndUser(BaseE2ETest):
         finally:
             core_request_client.delete(f"/assess/stories/{story_id}", raise_for_status=False)
 
+    def test_open_and_search_news_item_image(self, non_admin_logged_in_page, core_request_client, api_header, fake_source):
+        page = non_admin_logged_in_page
+        allow_requests_passthru()
+        core = core_request_client
+        caption = f"Diagram {uuid.uuid4().hex}"
+        png = (Path(__file__).parent / "testdata/icon.png").read_bytes()
+        article = {
+            "osint_source_id": fake_source,
+            "title": f"Illustrated article {uuid.uuid4()}",
+            "captured_images": [{"source_url": "https://example.invalid/image.png", "data": b64encode(png).decode()}],
+        }
+        result = core.json_request("POST", "/worker/news-items", json_data=[article], headers=api_header, authenticated=False)
+        story_id = result["story_ids"][0]
+        bot_id = None
+        try:
+            story = core.json_request("GET", f"/assess/stories/{story_id}")
+            image_id = story["news_items"][0]["images"][0]["id"]
+            page.goto(url_for("assess.story", story_id=story_id, _external=True))
+            page.get_by_text("Open image 1", exact=True).click()
+            expect(page.get_by_text("No description yet.", exact=True)).to_be_visible()
+            expect(page.get_by_alt_text("Collected image 1")).to_have_js_property("naturalWidth", 16)
+            bot_id = core.json_request(
+                "POST",
+                "/config/bots",
+                json_data={
+                    "name": f"Image caption test {uuid.uuid4()}",
+                    "type": "image2text_bot",
+                    "enabled": False,
+                },
+            )["id"]
+            stage = {
+                "bot_id": bot_id,
+                "bot_type": "IMAGE2TEXT_BOT",
+                "story_ids": [story_id],
+                "result": {"changes": {"image_descriptions": {image_id: caption}}},
+            }
+            core.json_request(
+                "POST",
+                "/tasks",
+                headers=api_header,
+                authenticated=False,
+                json_data={
+                    "id": str(uuid.uuid4()),
+                    "task": f"bot_{bot_id}",
+                    "worker_type": "IMAGE2TEXT_BOT",
+                    "worker_id": bot_id,
+                    "status": "SUCCESS",
+                    "result": {
+                        "message": "Described one image",
+                        "data": {"story_revisions": {story_id: story["revision"]}, "bot_stages": [stage], "trigger_dependents": False},
+                    },
+                },
+            )
+            page.goto(url_for("assess.assess", search=caption, _external=True))
+            card = page.get_by_test_id(f"story-card-{story_id}")
+            expect(card).to_have_count(1)
+            page.goto(url_for("assess.story", story_id=story_id, _external=True))
+            page.get_by_text("Open image 1", exact=True).click()
+            expect(page.get_by_text(f"Image2Text: {caption}", exact=True)).to_be_visible()
+        finally:
+            if bot_id:
+                core.delete(f"/config/bots/{bot_id}", raise_for_status=False)
+            core.delete(f"/assess/stories/{story_id}", raise_for_status=False)
+
     def test_news_item_order(self, non_admin_logged_in_page, forward_console_and_page_errors_non_admin, core_request_client):
         page = non_admin_logged_in_page
         allow_requests_passthru()

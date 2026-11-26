@@ -343,6 +343,19 @@ class CoreApi:
     def get_connector_config(self, connector_id: str) -> dict | None:
         return self.api_get(f"/worker/connectors/{connector_id}")
 
+    def get_image(self, image_id: str) -> bytes:
+        response = http_request(
+            "GET",
+            url=f"{self.api_url}/worker/images/{image_id}",
+            headers=self.get_request_headers(),
+            verify=self.verify,
+            timeout=self.timeout,
+        )
+        response.raise_for_status()
+        if not response.content:
+            raise ValueError("Stored image is empty")
+        return response.content
+
     def get_product(self, product_id: str) -> dict | None:
         return self.api_get(f"/worker/products/{product_id}")
 

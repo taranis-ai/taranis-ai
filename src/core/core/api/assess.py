@@ -1,7 +1,7 @@
 from typing import Any
 from urllib.parse import unquote, urlparse
 
-from flask import Blueprint, Flask, request
+from flask import Blueprint, Flask, Response, request
 from flask.views import MethodView
 from flask_jwt_extended import current_user
 from models.assess import (
@@ -28,6 +28,7 @@ from core.managers.decorators import extract_args, validate_json
 from core.managers.realtime_publisher import realtime_publisher
 from core.model import bot, connector, news_item, news_item_tag, osint_source, report_item, story
 from core.model.filter_data import FilterData
+from core.model.news_item_image import NewsItemImage
 from core.model.story_conflict import StoryConflict
 from core.service.analyst_review import AnalystReviewService
 from core.service.cache_invalidation import (
@@ -140,6 +141,20 @@ class NewsItem(MethodView):
             realtime_publisher.assess_changed()
         invalidate_frontend_cache_on_success(code, scopes=(SCOPE_ASSESS_VIEWS, SCOPE_STORY_REPORT_VIEWS), object_ids={"news_item": item_id})
         return response, code
+
+
+class ImageContent(MethodView):
+    @auth_required("ASSESS_ACCESS")
+    def get(self, image_id: str):
+        image = NewsItemImage.get(image_id)
+        item = news_item.NewsItem.get(image.news_item_id) if image else None
+        if not image or not item or not item.story or not item.allowed_to_read(current_user):
+            return {"error": "Image not found"}, 404
+        return Response(
+            image.data,
+            mimetype=image.mime_type,
+            headers={"Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff", "Content-Disposition": "inline"},
+        )
 
 
 class NewsItemCTI(MethodView):
@@ -657,6 +672,7 @@ def initialize(app: Flask):
     assess_bp.add_url_rule("/filter-lists", view_func=FilterLists.as_view("filter_lists"))
     assess_bp.add_url_rule("/import", view_func=AssessImport.as_view("import"))
     assess_bp.add_url_rule("/news-items", view_func=NewsItems.as_view("news_items"))
+    assess_bp.add_url_rule("/images/<string:image_id>", view_func=ImageContent.as_view("image_content"))
     assess_bp.add_url_rule("/news-items/fetch", view_func=NewsItemFetch.as_view("news_item_fetch"))
     assess_bp.add_url_rule("/news-items/<string:item_id>", view_func=NewsItem.as_view("news_item"))
     assess_bp.add_url_rule("/news-items/<string:item_id>/cti", view_func=NewsItemCTI.as_view("news_item_cti"))

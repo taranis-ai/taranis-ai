@@ -28,3 +28,5 @@ Load for: Bot dependencies, `RUN_AFTER_COLLECTOR`, `RUN_AFTER_BOTS`, DAG preview
 `src/core/core/model/bot.py`, `src/core/core/managers/queue_manager.py`, `src/core/core/service/task.py`, `src/models/models/admin.py`, `src/worker/worker/bots/bot_tasks.py`, `src/frontend/frontend/views/admin_views/bot_views.py`.
 
 Tests: Core `test_bot_dag.py`, `test_bot_pipeline.py`, `test_worker_api.py`, `test_queue_manager_timeout.py`, and `test_queue_manager_scheduler_extended.py`; frontend `test_bot_view.py`/admin E2E; worker `tests/bots/test_bot_tasks.py`. Cover selection union/scope, completion, rollback/retries, real RQ deadlines, and shared realtime/batch context. Tagging workflows cover partial/empty uploads, resume, and failure for all four producers. Register only expected HTTP calls; avoid duplicate provider-error matrices.
+
+Image2Text selects stories with undescribed images. Per-image failures leave the stage incomplete and commit successful captions through the revision-checked result transaction. Worker snapshots carry image IDs and metadata; only the authenticated content endpoint reads the bytes.

@@ -1,4 +1,24 @@
 {% from "assess/bot_result_refresh.html" import bot_result_fragment %}
+{% macro news_item_images(item) %}
+  {% if item.images %}
+    <section aria-label="Images" class="space-y-2">
+      <h4 class="font-semibold">Images</h4>
+      {% for image in item.images %}
+        <details>
+          <summary class="cursor-pointer link">Open image {{ loop.index }}</summary>
+          <figure class="mt-2">
+            <img src="{{ url_for('assess.news_image', image_id=image.id) }}"
+                 loading="lazy"
+                 alt="Collected image {{ loop.index }}"
+                 class="max-h-[70vh] max-w-full object-contain">
+            <figcaption class="mt-2 whitespace-pre-line">{{ ('Image2Text: ' ~ image.description) if image.description else 'No description yet.' }}</figcaption>
+          </figure>
+        </details>
+      {% endfor %}
+    </section>
+  {% endif %}
+{% endmacro %}
+
 {% macro news_item_metadata(news_item, story) %}
   {% set source_name = (story.model_extra.source_names | default({})).get(news_item.osint_source_id) or news_item.source %}
   <div class="flex flex-wrap gap-2 text-xs text-base-content/60">
@@ -98,6 +118,7 @@
       {% if news_item.content %}
         <p class="text-sm leading-relaxed text-base-content/80 whitespace-pre-line highlight">{{ news_item.content }}</p>
       {% endif %}
+      {{ news_item_images(news_item) }}
       {% if edit_tags or news_item_tags %}
         <div {% if edit_tags %}{{ bot_result_fragment('news-item-tags-' ~ news_item.id, ['WORDLIST_BOT', 'IOC_BOT', 'NLP_BOT', 'TAGGING_BOT']) }}{% endif %}
              class="flex flex-wrap gap-1"

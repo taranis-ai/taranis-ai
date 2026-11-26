@@ -270,6 +270,9 @@ def collector_task(osint_source_id: str, manual: bool = False):
         core_api.run_post_collection_bots(osint_source_id, story_ids=sorted(collector_impl.affected_story_ids))
 
     reason = None
+    if collector_impl.skipped_images:
+        task_status = "WARNING"
+        reason = "images_skipped"
     if isinstance(collector_impl, RSSCollector) and (warning := collector_impl.entry_limit_warning):
         task_status = "WARNING"
         reason = "rss_entry_limit"
@@ -388,10 +391,20 @@ def fetch_single_news_item(parameters: dict[str, Any]):
     with collector_log_fmt(logger, formatter):
         try:
             parameters = {**parameters, "parameters": effective_parameter_values(worker_type, collector_parameters)}
-            preview_result = collector.preview_collector(parameters)
-            if tlp := parameters["parameters"].get("TLP_LEVEL"):
-                for item in preview_result:
-                    item["attributes"] = (item.get("attributes") or []) + [{"key": "TLP", "value": tlp}]
+            if parameters["parameters"].get("COLLECT_IMAGES"):
+                parameters["id"] = "manual"
+                collector.parse_source(parameters)
+                items = collector.gather_news_items()
+                if tlp := parameters["parameters"].get("TLP_LEVEL"):
+                    collector.add_tlp(items, tlp)
+                preview_result = collector.publish_with_images(items, parameters)
+                if collector.affected_story_ids:
+                    core_api.run_post_collection_bots("manual", sorted(collector.affected_story_ids))
+            else:
+                preview_result = collector.preview_collector(parameters)
+                if tlp := parameters["parameters"].get("TLP_LEVEL"):
+                    for item in preview_result:
+                        item["attributes"] = (item.get("attributes") or []) + [{"key": "TLP", "value": tlp}]
         except NoChangeError as e:
             logger.info(f"No changes detected: {e}")
             result_message = "No changes detected."
@@ -437,7 +450,7 @@ def fetch_single_news_item(parameters: dict[str, Any]):
         core_api.save_task_result(
             job.id,
             "collector_task",
-            "SUCCESS",
+            "WARNING" if collector.skipped_images else "SUCCESS",
             worker_id=worker_id,
             worker_type=worker_type,
             result=build_success_task_result(

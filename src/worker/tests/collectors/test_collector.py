@@ -730,3 +730,38 @@ def test_parse_parameters_error_cases(parameters, missing_field, expected_messag
     with pytest.raises(ValueError) as excinfo:
         collector.parse_parameters(parameters)
     assert expected_message in str(excinfo.value)
+
+
+def test_article_capture_follows_selected_content_and_checks_redirects(rss_collector, requests_mock, monkeypatch):
+    import socket
+
+    import feedparser
+
+    from worker.collectors.news_images import download_image
+
+    url = "https://feed.example/articles/1"
+    entry = feedparser.FeedParserDict(
+        link=url,
+        title="A diagram",
+        description='<aside><img src="/logo"></aside><main>Example<img src="chart.png"></main>',
+        links=[{"rel": "enclosure", "type": "image/png", "href": "/cover.png"}],
+    )
+    source = {"id": "source", "parameters": {"FEED_URL": url, "XPATH": "//main", "USE_FEED_CONTENT": True}}
+    rss_collector.parse_source(source)
+    assert not rss_collector.parse_feed_entry(entry, source).image_urls
+    source["parameters"]["COLLECT_IMAGES"] = True
+    rss_collector.parse_source(source)
+    item = rss_collector.parse_feed_entry(entry, source)
+    assert item.image_urls == ["https://feed.example/cover.png", "https://feed.example/articles/chart.png"]
+    monkeypatch.setattr("worker.collectors.news_images.get_environ_proxies", lambda _: {})
+    original_resolve = socket.getaddrinfo
+    monkeypatch.setattr(
+        socket,
+        "getaddrinfo",
+        lambda host, port, **kwargs: original_resolve("1.1.1.1" if host == "feed.example" else "127.0.0.1", port, **kwargs),
+    )
+    requests_mock.get(item.image_urls[0], content=b"stored bytes")
+    assert download_image(item.image_urls[0]) == b"stored bytes"
+    requests_mock.get(item.image_urls[1], status_code=302, headers={"Location": "http://localhost/private"})
+    with pytest.raises(ValueError, match="not public"):
+        download_image(item.image_urls[1])

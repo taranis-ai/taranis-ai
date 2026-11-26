@@ -76,6 +76,7 @@ class WorkerParameters(BaseModel):
 
 
 class WebCollectorParameters(WorkerParameters):
+    COLLECT_IMAGES: bool = Field(False, title="Collect images", description="Download and retain images attached to collected news items.")
     USER_AGENT: str = Field("", title="User agent", description="HTTP User-Agent header sent by the collector.")
     PROXY_SERVER: str = Field("", title="Proxy server", description="Optional proxy URL used for requests.")
     USE_GLOBAL_PROXY: bool = Field(False, title="Use global proxy", description="Use the globally configured proxy.")
@@ -102,6 +103,7 @@ class RSSCollectorParameters(WebCollectorParameters):
 
 
 class MastodonCollectorParameters(WorkerParameters):
+    COLLECT_IMAGES: bool = Field(False, title="Collect images", description="Download and retain images attached to collected news items.")
     INSTANCE_URL: str = Field(
         min_length=1,
         pattern=r"^https?://[^\s/@?#]+/?$",
@@ -554,6 +556,7 @@ _DEFINITIONS = (
     _definition(WORKER_TYPES.GROUPING_BOT, "Grouping Bot", "Bot for grouping news items into stories", GroupingBotParameters),
     _definition(WORKER_TYPES.NLP_BOT, "NLP Bot", "Bot for natural-language processing", NLPBotParameters),
     _definition(WORKER_TYPES.IOC_BOT, "IOC Bot", "Bot for extracting indicators of compromise", IOCBotParameters),
+    _definition(WORKER_TYPES.IMAGE2TEXT_BOT, "Image2Text", "Describe images attached to news items", BotParameters),
     _definition(WORKER_TYPES.INTEL_OWL_BOT, "IntelOwl Bot", "Bot for submitting observables to IntelOwl", IntelOwlBotParameters),
     _definition(WORKER_TYPES.TAGGING_BOT, "Tagging Bot", "Bot for tagging news items", TaggingBotParameters),
     _definition(WORKER_TYPES.STORY_BOT, "Story Clustering Bot", "Bot for story clustering", StoryBotParameters),

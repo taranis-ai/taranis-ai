@@ -438,6 +438,8 @@ def test_url_news_item_creation(logged_in_page, worker_process, core_request_cli
         form.locator('input[name="parameters[DIGEST_SPLITTING_LIMIT]"]').fill("1")
     else:
         expect(form.locator('input[name="parameters[DIGEST_SPLITTING_LIMIT]"]')).not_to_be_visible()
+    if splitting == "false":
+        form.get_by_role("checkbox", name="Collect images").check()
     form.locator('select[name="parameters[BROWSER_MODE]"]').select_option("true")
     form.locator('select[name="parameters[BROWSER_MODE]"]').select_option("false")
     form.locator('select[name="parameters[TLP_LEVEL]"]').select_option("green")

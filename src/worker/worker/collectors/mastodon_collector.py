@@ -13,6 +13,7 @@ from mastodon.errors import (
 from models.assess import NewsItem
 
 from worker.collectors.base_collector import BaseCollector, NoChangeError
+from worker.collectors.news_images import resolve_candidates
 from worker.log import logger
 
 
@@ -37,6 +38,7 @@ class MastodonCollector(BaseCollector):
         self.instance_url = ""
         self.timeline = ""
         self.target = ""
+        self.collect_images = False
         self.collection_mode = "complete"
         self.has_access_token = False
         self.mastodon_cursor: dict[str, str] | None = None
@@ -79,6 +81,7 @@ class MastodonCollector(BaseCollector):
 
     def _setup(self, source: dict[str, Any]) -> None:
         parameters = source["parameters"]
+        self.collect_images = parameters.get("COLLECT_IMAGES", False)
         self.instance_url = str(parameters["INSTANCE_URL"]).rstrip("/")
         self.timeline = str(parameters["TIMELINE"])
         self.collection_mode = str(parameters.get("COLLECTION_MODE", "complete"))
@@ -182,7 +185,13 @@ class MastodonCollector(BaseCollector):
         if not title:
             title = f"Mastodon post by {author or 'unknown account'}"
 
+        media_urls = [
+            str(media["url"])
+            for media in post.get("media_attachments") or []
+            if self.collect_images and media.get("type") == "image" and media.get("url")
+        ]
         return NewsItem(
+            image_urls=resolve_candidates(link, media_urls),
             osint_source_id=source_id,
             author=author,
             title=title,

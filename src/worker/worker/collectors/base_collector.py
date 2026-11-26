@@ -1,8 +1,12 @@
+import base64
+import json
 import re
 from typing import Any
 
 from models.assess import NewsItem
+from niquests.exceptions import RequestException
 
+from worker.collectors.news_images import download_image
 from worker.core_api import CoreApi
 from worker.log import logger
 
@@ -25,6 +29,7 @@ class BaseCollector:
         self.description = "Base abstract type for all collectors"
 
         self.core_api = CoreApi()
+        self.skipped_images = 0
         self.affected_story_ids: set[str] = set()
 
     def filter_by_word_list(self, news_items: list[NewsItem], word_lists: list) -> list[NewsItem]:
@@ -91,7 +96,49 @@ class BaseCollector:
             processed_stories.append(new_story)
         return processed_stories
 
+    def publish_with_images(self, items: list[NewsItem], source: dict) -> dict:
+        message = "All news items were skipped"
+        for item in self.process_news_items(items, source):
+            payload = item.model_dump(mode="json")
+            captures = []
+            # Leave room for the JSON envelope within Core's 50 MiB request limit.
+            remaining = 49 * 1024 * 1024 - len(json.dumps(payload).encode())
+            for url in item.image_urls:
+                try:
+                    blob = download_image(url, proxy_server=source["parameters"].get("PROXY_SERVER"))
+                    capture = {"source_url": url, "data": base64.b64encode(blob).decode("ascii")}
+                    size = len(capture["data"]) + len(json.dumps(url)) + 64
+                    if size > remaining:
+                        raise ValueError("Item image budget exceeded")
+                    remaining -= size
+                    captures.append(capture)
+                except (OSError, ValueError, RequestException):
+                    self.skipped_images += 1
+            payload["captured_images"] = captures
+            try:
+                result = self.core_api.add_news_items([payload])
+                if result:
+                    self.affected_story_ids.update(result.get("story_ids", []))
+                if not result or result.get("error"):
+                    raise RuntimeError("Cannot add news items")
+            except Exception:
+                if self.affected_story_ids:
+                    self.core_api.run_post_collection_bots(source["id"], sorted(self.affected_story_ids))
+                logger.exception("Could not publish collected article with images")
+                raise RuntimeError("Cannot add news items") from None
+            self.skipped_images += result.get("skipped_images", 0)
+            if result.get("story_ids"):
+                message = f"Collected {len(self.affected_story_ids)} stories"
+        if self.skipped_images:
+            message += f". Skipped {self.skipped_images} images"
+        return {"message": message, "story_ids": sorted(self.affected_story_ids)}
+
     def publish(self, news_items: list[NewsItem], source: dict):
+        if source.get("parameters", {}).get("COLLECT_IMAGES"):
+            result = self.publish_with_images(news_items, source)
+            if not self.affected_story_ids and not self.skipped_images:
+                raise NoChangeError("All news items were skipped")
+            return result["message"]
         news_items = self.process_news_items(news_items, source)
         logger.info(f"Publishing {len(news_items)} news items to core api")
         news_items_dicts = [item.model_dump(mode="json") for item in news_items]

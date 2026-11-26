@@ -11,6 +11,7 @@ from models.assess import NewsItem
 from trafilatura import extract, extract_metadata
 
 from worker.collectors.base_collector import BaseCollector, NoChangeError
+from worker.collectors.news_images import image_urls, resolve_candidates
 from worker.collectors.playwright_manager import PlaywrightManager
 from worker.config import Config
 from worker.core_api import IconFile
@@ -54,6 +55,8 @@ class BaseWebCollector(BaseCollector):
         self.split_digest_urls: list = []
 
         self.playwright_manager: PlaywrightManager | None = None
+        self.collect_images = False
+        self.article_base_url = ""
         self.browser_mode = False
         self.web_url: str = ""
         self.http_validators: dict[str, str | None] | None = None
@@ -124,6 +127,7 @@ class BaseWebCollector(BaseCollector):
             self.update_headers(additional_headers)
         if user_agent := source["parameters"].get("USER_AGENT", None):
             self.headers.update({"User-Agent": user_agent})
+        self.collect_images = source["parameters"].get("COLLECT_IMAGES", False)
         self.browser_mode = source["parameters"].get("BROWSER_MODE", False)
 
         self.osint_source_id = str(source["id"])
@@ -243,12 +247,14 @@ class BaseWebCollector(BaseCollector):
     def fetch_article_content(self, web_url: str, xpath: str = "") -> tuple[str, datetime.datetime | None] | tuple[Literal[""], None]:
         if self.browser_mode and self.playwright_manager:
             web_content, last_modified = self.playwright_manager.fetch_content_with_js(web_url, xpath)
+            self.article_base_url = self.playwright_manager.page.url if self.playwright_manager.page else web_url
             published_date = parse_datetime(last_modified) if last_modified else None
             return web_content, published_date
 
         modified_since = None if self.http_validators is not None else self.last_attempted
         response = self.send_get_request(web_url, modified_since)
 
+        self.article_base_url = response.url or web_url
         if not response.text:
             return "", None
 
@@ -297,6 +303,7 @@ class BaseWebCollector(BaseCollector):
             published=web_content["published_date"] or published_fallback,
             language=web_content["language"],
             review=web_content["review"],
+            image_urls=web_content.get("image_urls", []),
         )
 
     def extract_web_content(self, web_url: str, xpath: str = "") -> dict[str, Any]:
@@ -307,11 +314,28 @@ class BaseWebCollector(BaseCollector):
         elif web_content:
             content = extract(web_content, url=web_url)
 
-        if not content or not web_content:
+        urls = []
+        if self.collect_images and web_content:
+            markup = (
+                self.xpath_extraction(web_content, xpath, False)
+                if xpath
+                else extract(web_content, url=web_url, output_format="xml", include_images=True)
+            )
+            if markup:
+                urls = resolve_candidates(self.article_base_url or web_url, image_urls(markup))
+        if not web_content or (not content and not urls):
             return {"author": "", "title": "", "content": "", "published_date": None, "language": "", "review": ""}
 
         author, title = self.extract_meta(web_content, web_url)
-        return {"author": author, "title": title, "content": content, "published_date": published_date, "language": "", "review": ""}
+        return {
+            "author": author,
+            "title": title or (web_url if urls else ""),
+            "image_urls": urls,
+            "content": content,
+            "published_date": published_date,
+            "language": "",
+            "review": "",
+        }
 
     def get_urls(self, collector_url: str, html_content: str) -> list:
         soup = BeautifulSoup(html_content, "html.parser")

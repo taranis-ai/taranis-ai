@@ -40,3 +40,13 @@ This applies to worker news-item ingestion. Manual items, explicit Assess creati
 The PostgreSQL migration adds fingerprints and backfills them within the saved collection lookback window, using its default if not configured. It adds no collection timestamp columns and does not rewrite old article content or timestamps. Increasing the lookback after migration does not backfill previously excluded historical items.
 
 Detection covers articles actually retrieved during collection. A feed returning 304, entries outside its configured limit, and articles no longer listed are not independently revisited. Feed validators apply only to the feed URL, not to linked article requests. See [Fuzzy hash use cases](fuzzy-hash-use-cases.md) for scope and the future cross-source clustering proposal.
+
+## News-item images
+
+Enable **Collect images** on an RSS, Simple Web, or Mastodon source, or in Assess under **From URL**. Capture starts on the next collection that returns content. Each item keeps up to eight candidates per collection, including article images inside the configured XPath, image enclosures, and Mastodon attachments. The worker fetches images directly from public HTTP(S) destinations without source credentials. If a proxy is required for the image URL, it skips that image. Collection warnings report skipped images.
+
+Core accepts static JPEG, PNG, and WebP files up to 5 MiB and 20 megapixels each, within the existing request-size limit. Distinct captures stay with the news item until it is deleted, even if the publisher changes the image. Database backups include the image bytes, so monitor PostgreSQL and backup storage as more sources opt in. Story JSON transfers do not include the files.
+
+In Assess, expand the news item and open an image to read its Image2Text description. Searching the description finds the parent story. Viewing the image requires read access to that story and item.
+
+To enable captioning, install the service adapter in the worker environment and create an **Image2Text** bot in Admin. Select **Run after collector**, set a schedule, or run it manually. The worker loads the installed Python entry point named `describe` in group `taranis.image2text`. Its callable receives stored image bytes and their verified MIME type and returns a plain-text description. The adapter owns service authentication and transport. The external adapter is supplied separately. Without it, a run with pending images reports a configuration error and leaves them eligible for retry.

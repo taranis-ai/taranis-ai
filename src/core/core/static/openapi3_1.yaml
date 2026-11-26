@@ -1197,6 +1197,33 @@ paths:
           $ref: '#/components/responses/401Unauthorized'
         '404':
           $ref: '#/components/responses/404NotFound'
+  /assess/images/{image_id}:
+    parameters:
+      - name: image_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      security:
+        - UserAuth: []
+      tags: [assess]
+      description: Retrieve the stored bytes of a news-item image.
+      operationId: assess.image_content.get
+      responses:
+        "200":
+          description: Stored image
+          content:
+            image/png: {}
+            image/jpeg: {}
+            image/webp: {}
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: Access denied
+        "404":
+          $ref: "#/components/responses/404NotFound"
   /assess/news-items:
     post:
       security:
@@ -9954,6 +9981,33 @@ paths:
           description: forbidden
         '404':
           $ref: '#/components/responses/404NotFound'
+  /worker/images/{image_id}:
+    parameters:
+      - name: image_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      security:
+        - APIKey: []
+      tags: [worker]
+      description: Retrieve the stored bytes of a news-item image.
+      operationId: worker.image_worker.get
+      responses:
+        "200":
+          description: Stored image
+          content:
+            image/png: {}
+            image/jpeg: {}
+            image/webp: {}
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: Access denied
+        "404":
+          $ref: "#/components/responses/404NotFound"
   /worker/news-items:
     post:
       security:
@@ -9965,7 +10019,19 @@ paths:
         content:
           application/json:
             schema:
-              type: object
+              type: array
+              items:
+                type: object
+                properties:
+                  captured_images:
+                    type: array
+                    maxItems: 8
+                    items:
+                      type: object
+                      required: [source_url, data]
+                      properties:
+                        source_url: {type: string, format: uri}
+                        data: {type: string, contentEncoding: base64}
       responses:
         '200':
           description: success
@@ -11208,6 +11274,15 @@ components:
       type: object
       additionalProperties: false
       properties:
+        images:
+          type: array
+          readOnly: true
+          items:
+            type: object
+            properties:
+              id: {type: string, format: uuid}
+              mime_type: {type: string, enum: [image/jpeg, image/png, image/webp]}
+              description: {type: [string, "null"]}
         tlp_level:
           type: string
           readOnly: true

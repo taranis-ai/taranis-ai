@@ -14,6 +14,7 @@ def init(app: Flask):
 
     assess_bp.add_url_rule("/assess", view_func=StoryView.as_view("assess"))
     assess_bp.add_url_rule("/assess/display", view_func=StoryView.display_preferences, methods=["POST"], endpoint="display_preferences")
+    assess_bp.add_url_rule("/assess/images/<uuid:image_id>", view_func=StoryView.news_image, endpoint="news_image")
     assess_bp.add_url_rule("/assess/sources/<string:source_id>/icon", view_func=StoryView.source_icon, endpoint="source_icon")
     assess_bp.add_url_rule(
         "/story/<string:story_id>/details", view_func=StoryView.story_fragment, defaults={"fragment": "details"}, endpoint="story_details"

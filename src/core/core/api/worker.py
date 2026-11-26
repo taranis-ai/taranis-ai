@@ -17,6 +17,7 @@ from core.model.bot import Bot, BotIndexConflictError
 from core.model.connector import Connector
 from core.model.ioc import IOC
 from core.model.news_item import NewsItem
+from core.model.news_item_image import NewsItemImage
 from core.model.news_item_tag import NewsItemTag
 from core.model.osint_source import InvalidOSINTSourceIconError, OSINTSource
 from core.model.product import Product
@@ -56,6 +57,14 @@ class AddNewsItems(MethodView):
             200 if result.get("news_item_ids") else status, scopes=(SCOPE_ASSESS_VIEWS, SCOPE_STORY_REPORT_VIEWS)
         )
         return result, status
+
+
+class StoredImage(MethodView):
+    @api_key_required
+    def get(self, image_id: str):
+        if image := NewsItemImage.get(image_id):
+            return Response(image.data, mimetype=image.mime_type, headers={"Cache-Control": "no-store"})
+        return {"error": "Image not found"}, 404
 
 
 class Products(MethodView):
@@ -223,6 +232,7 @@ class Stories(MethodView):
             "limit",
             "worker",
             "exclude_attr",
+            "missing_image_description",
             "include_attr",
             "story_id",
             "story_ids",
@@ -270,6 +280,7 @@ class BotPipelineStories(MethodView):
             "limit",
             "worker",
             "exclude_attr",
+            "missing_image_description",
             "include_attr",
             "story_id",
             "story_ids",
@@ -503,6 +514,7 @@ def initialize(app: Flask):
     worker_bp.add_url_rule("/presenters/<string:presenter>", view_func=Presenters.as_view("presenters_worker"))
     worker_bp.add_url_rule("/publishers/<string:publisher>", view_func=Publishers.as_view("publishers_worker"))
     worker_bp.add_url_rule("/connectors/<string:connector_id>", view_func=Connectors.as_view("connectors_worker"))
+    worker_bp.add_url_rule("/images/<string:image_id>", view_func=StoredImage.as_view("image_worker"))
     worker_bp.add_url_rule("/news-items", view_func=AddNewsItems.as_view("news_items_worker"))
     worker_bp.add_url_rule("/endpoint-health/<string:kind>/<string:endpoint_id>", view_func=EndpointHealth.as_view("endpoint_health_worker"))
     worker_bp.add_url_rule("/bots", view_func=BotInfo.as_view("bots_worker"))

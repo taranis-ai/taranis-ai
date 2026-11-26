@@ -318,3 +318,27 @@ def test_sentiment_analysis_bot(stories, requests_mock, mock_job, monkeypatch, b
     for item_id, changes in result["changes"]["item_attributes"].items():
         attributes = {attr["key"]: attr["value"] for attr in changes}
         assert attributes == {"sentiment_category": "neutral", "sentiment_score": expected_scores[item_id]}
+
+
+def test_image2text_processes_only_missing_captions_and_preserves_partial_success(requests_mock, monkeypatch):
+    from worker.bots.image2text_bot import Image2TextBot
+
+    bot = Image2TextBot()
+    bot.pipeline_stories = [
+        {
+            "news_items": [
+                {"images": [{"id": "ok", "mime_type": "image/png"}, {"id": "failed"}, {"id": "old", "description": "Existing caption"}]}
+            ]
+        }
+    ]
+    requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/images/ok", content=b"input")
+    requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/images/failed", status_code=404)
+
+    def describe(data, mime):
+        assert (data, mime) == (b"input", "image/png")
+        return "A network diagram"
+
+    monkeypatch.setattr("worker.bots.image2text_bot.load_image2text_adapter", lambda: describe)
+    result = bot.execute()
+    assert result["changes"] == {"image_descriptions": {"ok": "A network diagram"}}
+    assert result["errors"] == ["failed"]

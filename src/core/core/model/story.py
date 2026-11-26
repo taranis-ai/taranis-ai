@@ -24,6 +24,7 @@ from core.model.base_model import UUID_STR_LENGTH, BaseModel
 from core.model.news_item import NewsItem
 from core.model.news_item_attribute import NewsItemAttribute
 from core.model.news_item_conflict import NewsItemConflict
+from core.model.news_item_image import NewsItemImage
 from core.model.news_item_tag import NewsItemTag
 from core.model.osint_source import OSINTSource, OSINTSourceGroup, OSINTSourceGroupOSINTSource
 from core.model.revision import StoryRevision
@@ -345,6 +346,9 @@ class Story(BaseModel):
         )
         query = db.select(cls)
 
+        if str(filter_args.get("missing_image_description", "")).lower() == "true":
+            query = query.where(cls.news_items.any(NewsItem.images.any(NewsItemImage.description.is_(None))))
+
         if item_id := filter_args.get("story_id"):
             return query.where(matching_items.exists(), cls.id == item_id)
 
@@ -480,7 +484,9 @@ class Story(BaseModel):
     def _add_sqlite_search_query(cls, search: str, query: Select) -> Select:
         pattern = f"%{search}%"
 
-        news_exists = cls.news_items.any(or_(NewsItem.title.ilike(pattern), NewsItem.content.ilike(pattern)))
+        news_exists = cls.news_items.any(
+            or_(NewsItem.title.ilike(pattern), NewsItem.content.ilike(pattern), NewsItem.images.any(NewsItemImage.description.ilike(pattern)))
+        )
 
         return query.where(
             or_(
@@ -574,6 +580,7 @@ class Story(BaseModel):
             selectinload(cls.misp_auto_update),
             selectinload(cls.news_items).selectinload(NewsItem.attributes),
             selectinload(cls.news_items).selectinload(NewsItem.tags),
+            selectinload(cls.news_items).selectinload(NewsItem.images),
             selectinload(cls.news_items).selectinload(NewsItem.osint_source),
         )
         if filter_args.get("worker", False) or not user:
@@ -717,7 +724,9 @@ class Story(BaseModel):
                 story.delete(story_id)
 
     @classmethod
-    def add(cls, data, user: User | None = None, actor: str | None = None) -> "tuple[dict[str, Any], int]":
+    def add(
+        cls, data, user: User | None = None, actor: str | None = None, *, captured_images: list[NewsItemImage] | None = None
+    ) -> "tuple[dict[str, Any], int]":
         try:
             if attributes := data.get("attributes"):
                 data["attributes"] = NewsItemAttribute.unify_attributes_to_old_format(attributes)
@@ -728,6 +737,8 @@ class Story(BaseModel):
             if resolved_actor is not None:
                 data = {**data, "last_change": resolved_actor}
             story = cls.from_dict(data)
+            if captured_images:
+                story.news_items[0].images.extend(captured_images)
             for news_item in story.news_items:
                 source = news_item.osint_source or OSINTSource.get(news_item.osint_source_id)
                 if source and cls._is_manual_source(source):
@@ -759,7 +770,9 @@ class Story(BaseModel):
             return {"error": "Failed to add story"}, 400
 
     @classmethod
-    def add_from_news_item(cls, news_item: AssessNewsItem, user: User | None = None) -> "tuple[dict, int]":
+    def add_from_news_item(
+        cls, news_item: AssessNewsItem, user: User | None = None, *, captured_images: list[NewsItemImage] | None = None
+    ) -> "tuple[dict, int]":
         if news_item_obj := NewsItem.get_by_payload_identity(news_item):
             logger.warning("Identical news item found. Skipping...")
             return {
@@ -773,7 +786,7 @@ class Story(BaseModel):
             "news_items": [news_item.to_core_dict()],
         }
 
-        return cls.add(data, user=user)
+        return cls.add(data, user=user, captured_images=captured_images)
 
     @classmethod
     def add_or_update_for_misp(cls, data: list[dict[str, Any]], force: bool = False) -> "tuple[dict[str, Any], int]":

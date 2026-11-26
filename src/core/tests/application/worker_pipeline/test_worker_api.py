@@ -1749,3 +1749,65 @@ class TestOSINTSourceScheduling:
                 from core.model.osint_source import OSINTSource
 
                 OSINTSource.delete(source_id)
+
+
+def test_capture_retains_distinct_images_and_checks_access(client, session, api_header, auth_header_user_permissions):
+    from base64 import b64encode
+    from io import BytesIO
+
+    from PIL import Image
+
+    from core.model.news_item_attribute import NewsItemAttribute
+    from core.model.role import Role, TLPLevel
+    from core.model.role_based_access import ItemType
+    from core.model.story import Story
+    from tests.application.support.builders import build_news_item_payload, create_osint_source
+    from tests.application.support.rbac import grant_acl
+
+    if session.get_bind().dialect.name == "sqlite":
+        session.get_bind().exec_driver_sql("BEGIN")
+    session().join_transaction_mode = "create_savepoint"
+    source = create_osint_source(rank=0)
+    article = build_news_item_payload(source.id)
+    captures = []
+    for color in ("red", "blue"):
+        buffer = BytesIO()
+        Image.new("RGB", (2, 3), color=color).save(buffer, format="PNG")
+        captures.append({"source_url": "https://example.org/figure", "data": b64encode(buffer.getvalue()).decode()})
+
+    def ingest(images, **changes):
+        response = client.post("/api/worker/news-items", json=[article | {"captured_images": images} | changes], headers=api_header)
+        assert response.status_code == 200
+        return response.json
+
+    initial = ingest([captures[0], captures[0], {"source_url": "https://example.org/invalid", "data": "AAAA"}])
+    assert initial["skipped_images"] == 1
+    story = Story.get(initial["story_ids"][0])
+    item = story.news_items[0]
+    original = item.images[0]
+    assert len(item.images) == 1
+    assert ingest(captures, published="2000-01-01")["counts"]["stale"] == 1
+    assert len(item.images) == 1
+    assert ingest(captures)["counts"]["updated"] == 1
+    assert ingest(captures)["counts"]["unchanged"] == 1
+    assert len(item.images) == 2
+    worker_url = f"/api/worker/images/{original.id}"
+    assert client.get(worker_url).status_code == 401
+    assert b64encode(client.get(worker_url, headers=api_header).data).decode() == captures[0]["data"]
+
+    role = Role.filter_by_name("User")
+    role.tlp_level = TLPLevel.CLEAR
+    acl = grant_acl(role, ItemType.OSINT_SOURCE, source.id, read_only=True)
+    url = f"/api/assess/images/{original.id}"
+    assert client.get(url, headers=auth_header_user_permissions).mimetype == "image/png"
+    acl.item_id = "unrelated-source"
+    session.commit()
+    assert client.get(url, headers=auth_header_user_permissions).status_code == 404
+    acl.item_id = source.id
+    story.upsert_attribute(NewsItemAttribute("tlp_override", "red"))
+    story.refresh_tlp()
+    session.commit()
+    assert client.get(url, headers=auth_header_user_permissions).status_code == 404
+    item.delete_item()
+    session.commit()
+    assert client.get(worker_url, headers=api_header).status_code == 404

@@ -19,6 +19,7 @@ from core.log import logger
 from core.managers.db_manager import db
 from core.model.base_model import UUID_STR_LENGTH, BaseModel
 from core.model.news_item_attribute import NewsItemAttribute
+from core.model.news_item_image import NewsItemImage
 from core.model.news_item_tag import NewsItemTag
 from core.model.osint_source import OSINTSource
 from core.model.role import TLPLevel
@@ -64,6 +65,7 @@ class NewsItem(BaseModel):
     attributes: Mapped[list["NewsItemAttribute"]] = relationship(
         "NewsItemAttribute", secondary="news_item_news_item_attribute", cascade="all, delete"
     )
+    images: Mapped[list[NewsItemImage]] = relationship(cascade="all, delete-orphan", order_by=NewsItemImage.id)
     tags: Mapped[list["NewsItemTag"]] = relationship("NewsItemTag", back_populates="news_item", cascade="all, delete")
 
     osint_source_id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("osint_source.id"), nullable=True, index=True)
@@ -274,14 +276,17 @@ class NewsItem(BaseModel):
     def get_for_api(cls, item_id: str, user: User | None = None) -> tuple[dict[str, Any], int]:
         logger.debug(f"Getting {cls.__name__} {item_id}")
         if item := cls.get(item_id):
-            if user and (
-                not item.allowed_with_acl(user, require_write_access=False)
-                or item.tlp_level.value not in user.get_highest_tlp().get_accessible_levels()
-                or (item.story and not item.story.allowed_to_read(user))
-            ):
+            if user and not item.allowed_to_read(user):
                 return {"error": "User does not have access to this news item"}, 403
             return item.to_detail_dict(), 200
         return {"error": f"{cls.__name__} not found"}, 404
+
+    def allowed_to_read(self, user: User) -> bool:
+        return (
+            self.allowed_with_acl(user, require_write_access=False)
+            and self.tlp_level.value in user.get_highest_tlp().get_accessible_levels()
+            and (self.story is None or self.story.allowed_to_read(user))
+        )
 
     def to_detail_dict(self) -> dict[str, Any]:
         data = self.to_dict()
@@ -294,6 +299,8 @@ class NewsItem(BaseModel):
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
         data.pop("fuzzy_hash", None)
+        if self.images:
+            data["images"] = [image.to_image_metadata() for image in self.images]
         data["tags"] = [tag.to_dict() for tag in self.tags]
         data["attributes"] = [attribute.to_small_dict() for attribute in self.attributes]
         data["tlp_level"] = self.tlp_level.value

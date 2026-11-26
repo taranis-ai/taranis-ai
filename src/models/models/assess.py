@@ -11,6 +11,7 @@ from pydantic import BeforeValidator, ConfigDict, Field, TypeAdapter, Validation
 
 from models.base import TaranisBaseModel
 from models.classification import Classification
+from models.news_image import MAX_IMAGE_COUNT, ImageMetadata
 from models.types import CONNECTOR_TYPES, TLPLevel
 
 
@@ -184,6 +185,8 @@ class NewsItem(TaranisBaseModel):
     _model_name = "news_item"
     _pretty_name = "News Item"
 
+    images: list[ImageMetadata] | None = None
+    image_urls: list[str] = Field(default_factory=list, exclude=True)
     osint_source_id: str
     id: str | None = None
     hash: str | None = None
@@ -268,6 +271,11 @@ class NewsItem(TaranisBaseModel):
 
     def to_core_dict(self) -> dict[str, Any]:
         return _dump_core_fields(self, NEWS_ITEM_IMPORT_FIELDS)
+
+
+class CollectedNewsItem(NewsItem):
+    # Individual image failures must not discard the rest of an article.
+    captured_images: list[Any] = Field(default_factory=list, max_length=MAX_IMAGE_COUNT, exclude=True, repr=False)
 
 
 class StoryTag(TaranisBaseModel):
