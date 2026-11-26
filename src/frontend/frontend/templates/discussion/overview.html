@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <div class="mx-auto max-w-4xl px-4 py-6 sm:px-8">
+    <h1 class="mb-4 text-2xl font-semibold">Discussion</h1>
+    <nav class="mb-4 flex flex-wrap gap-2" aria-label="Discussion types">
+      <a href="{{ url_for('discussion.overview') }}"
+         class="btn btn-sm {{ 'btn-primary' if not discussion_scope else 'btn-outline' }}"
+         {% if not discussion_scope %}aria-current="page"{% endif %}>All</a>
+      {% for kind, label in filters.items() %}
+        <a href="{{ url_for('discussion.overview', scope=kind) }}"
+           class="btn btn-sm {{ 'btn-primary' if discussion_scope == kind else 'btn-outline' }}"
+           {% if discussion_scope == kind %}aria-current="page"{% endif %}>{{ label }}</a>
+      {% endfor %}
+    </nav>
+    {% if load_error %}
+      <p class="rounded-box border border-base-300 p-4"
+         role="status">Could not load discussions. <a class="link"
+                                                      href="{{ request.url }}">Try again</a></p>
+    {% elif discussions %}
+      <ol class="divide-y divide-base-300 rounded-box border border-base-300 bg-base-100">
+        {% for item in discussions %}
+          <li class="min-w-0">
+            <a href="{{ url_for('discussion.thread', kind=item.kind, parent_id=item.parent_id, scope=discussion_scope) }}"
+               class="block px-4 py-3 hover:bg-base-200 focus-visible:outline-2 focus-visible:-outline-offset-2">
+              <div class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 text-sm text-base-content/70">
+                <span>{{ discussion_labels[item.kind][0] }}</span>
+                {% if item.created_at %}
+                  <time datetime="{{ item.created_at }}">{{ item.created_at | format_datetime }}</time>
+                {% else %}
+                  <span>Original time unknown</span>
+                {% endif %}
+              </div>
+              <h2 class="mt-1 font-semibold [overflow-wrap:anywhere]">{{ item.title or discussion_labels[item.kind][0] }}</h2>
+              <p class="mt-1 line-clamp-2 text-sm [overflow-wrap:anywhere]">
+                <span class="font-medium">{{ item.author or ("Unknown author" if not item.created_at else "Deleted user") }}</span>
+                <span class="text-base-content/70">· {{ item.excerpt }}</span>
+              </p>
+            </a>
+          </li>
+        {% endfor %}
+      </ol>
+    {% else %}
+      <p class="rounded-box border border-base-300 p-4 text-base-content/70">No discussions yet.</p>
+    {% endif %}
+    {% if not load_error and (discussion_page > 1 or has_more) %}
+      <nav class="mt-4 flex flex-wrap gap-2" aria-label="Discussion pages">
+        {% if discussion_page > 1 %}
+          <a class="btn btn-outline btn-sm"
+             href="{{ url_for('discussion.overview', scope=discussion_scope, page=discussion_page - 1) }}">Newer discussions</a>
+        {% endif %}
+        {% if has_more %}
+          <a class="btn btn-outline btn-sm"
+             href="{{ url_for('discussion.overview', scope=discussion_scope, page=discussion_page + 1) }}">Older discussions</a>
+        {% endif %}
+      </nav>
+    {% endif %}
+  </div>
+{% endblock content %}

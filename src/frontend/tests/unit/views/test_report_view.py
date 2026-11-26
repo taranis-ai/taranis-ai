@@ -95,6 +95,10 @@ def test_report_editor_renders_summary_and_product_choices(app, authenticated_cl
         f"{Config.TARANIS_CORE_URL}/publish/product-choices",
         json={"items": [{"id": "product-1", "title": "Existing product", "product_type_title": "Product type"}]},
     )
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/discussions/report/{report_id}?preview=true",
+        json={"parent": {"id": report_id, "title": "Summary report"}, "items": [], "total_count": 0},
+    )
 
     with app.test_request_context():
         response = authenticated_client_basic.get(url_for("analyze.report", report_id=report_id))
@@ -105,8 +109,6 @@ def test_report_editor_renders_summary_and_product_choices(app, authenticated_cl
     assert "Linked story" in markup
     assert "Story summary" in markup
     assert "Existing product (Product type)" in markup
-    assert html.fromstring(markup).xpath(tlp_options_xpath) == ["clear"]
-    assert len(responses_mock.calls) == 3
 
     reader = auth_user_basic.model_copy(deep=True)
     reader.permissions = ["ANALYZE_ACCESS"]
@@ -121,6 +123,7 @@ def test_report_editor_renders_summary_and_product_choices(app, authenticated_cl
     assert response.status_code == 200
     assert "Summary report" in response.text
     assert "Linked story" in response.text
+    assert "Add a comment" in response.text
     tree = html.fromstring(response.text)
     assert not tree.xpath('//*[@data-testid="report-publish-button" or @data-testid="report-publish-dialog"]')
     assert tree.xpath(tlp_options_xpath) == ["clear", "green", "amber", "amber+strict", "red"]

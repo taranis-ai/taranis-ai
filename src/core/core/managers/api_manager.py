@@ -24,6 +24,7 @@ def initialize(app):
     core_api.config.initialize(app)
     core_api.connectors.initialize(app)
     core_api.dashboard.initialize(app)
+    core_api.discussion.initialize(app)
     core_api.health.initialize(app)
     core_api.isalive.initialize(app)
     core_api.publish.initialize(app)

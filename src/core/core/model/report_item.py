@@ -520,7 +520,12 @@ class ReportItem(BaseModel):
 
     @classmethod
     def get_filter_query_with_acl(cls, filter_args: dict, user: User) -> Select:
-        query = cls.get_filter_query(filter_args)
+        return cls.visible_query(user, cls.get_filter_query(filter_args))
+
+    @classmethod
+    def visible_query(cls, user: User, query: Select | None = None) -> Select:
+        if query is None:
+            query = db.select(cls).outerjoin(ReportItemType, cls.report_item_type_id == ReportItemType.id)
         rbac = RBACQuery(user=user, resource_type=ItemType.REPORT_ITEM_TYPE)
         query = RoleBasedAccessService.filter_query_with_acl(query, rbac)
         return RoleBasedAccessService.filter_report_query_with_tlp(query, user)

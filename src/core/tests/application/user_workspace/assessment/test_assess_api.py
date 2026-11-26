@@ -624,6 +624,11 @@ class TestAssessStories(BaseTest):
         for key in ("TLP", "tlp_override"):
             response = client.patch(story_url, json={"attributes": [{"key": key, "value": "invalid"}]}, headers=auth_header)
             assert response.status_code == 400
+        for update in (client.put, client.patch):
+            response = update(story_url, json={"read": not original_read, "comments": "Analyst note"}, headers=auth_header)
+            assert response.status_code == 400
+            assert "/api/discussions/story/{story_id}" in response.get_json()["error"]
+        assert client.get(story_url, headers=auth_header).get_json()["read"] == original_read
         assess_changed.assert_not_called()
 
         try:

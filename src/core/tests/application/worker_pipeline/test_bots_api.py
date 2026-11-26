@@ -89,7 +89,6 @@ class TestBotsApi(BaseTest):
         assert response.get_json().get("read") == cleanup_story_update_data["read"]
         assert response.get_json().get("title") == cleanup_story_update_data["title"]
         assert response.get_json().get("description") == cleanup_story_update_data["description"]
-        assert response.get_json().get("comments") == cleanup_story_update_data["comments"]
         assert response.get_json().get("summary") == cleanup_story_update_data["summary"]
 
         attributes = sorted(response.get_json()["attributes"], key=lambda d: d["key"])
