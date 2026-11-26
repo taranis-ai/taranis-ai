@@ -78,9 +78,12 @@
         {% set endpoint = dict(endpoint, **llm_form) %}
       {% endif %}
       {% set endpoint_url = url_for('admin_settings.settings_action', action='llm-endpoints' ~ ('/' ~ endpoint_id if endpoint_id else '')) %}
+      {% set field_prefix = 'llm-' ~ endpoint_id %}
+      {% set endpoint_open = not endpoints or endpoint_id == llm_editing_endpoint %}
       <details class="collapse collapse-arrow border border-base-300 rounded-box"
+               id="{{ field_prefix }}-details"
                data-test-id="llm-endpoint"
-               {% if not endpoints or endpoint_id == llm_editing_endpoint %}open{% endif %}>
+               {% if endpoint_open %}open{% endif %}>
         <summary class="collapse-title font-semibold">
           {{ endpoint.name if endpoint_id else 'Add LLM Endpoint' }}
           {% if endpoint.health %}{{ endpoint_health_badge(endpoint.health) }}{% endif %}
@@ -109,7 +112,7 @@
                   {% set format_check = endpoint.health.formats.get(api_format) if endpoint.health and endpoint.health.formats else none %}
                   {% if format_check %}<p class="text-sm mb-3 {{ 'text-success' if format_check.status == 'up' else 'text-error' if format_check.status == 'down' else 'text-base-content/70' }}"
                                           role="status">{{ format_check.message }}</p>{% endif %}
-                  {{ form_input(label ~ ' model', 'api_formats[' ~ api_format ~ '][model]', api_config.model | default(''), preserve=False, floating=False, required=False, placeholder='Provider model ID', input_id='llm-' ~ endpoint_id ~ '-' ~ api_format ~ '-model') }}
+                  {{ form_input(label ~ ' model', 'api_formats[' ~ api_format ~ '][model]', api_config.model | default(''), preserve=False, floating=False, required=False, placeholder='Provider model ID', input_id=field_prefix ~ '-' ~ api_format ~ '-model', list_id=field_prefix ~ '-' ~ api_format ~ '-models' if api_format != 'embeddings' else none) }}
                   {% if api_format == "embeddings" %}
                     {{ form_input('Embedding dimensions', 'api_formats[embeddings][dimensions]', api_config.dimensions | default('', true), type='number', preserve=False, floating=False, required=False, min_value=1, max_value=16000, placeholder='Automatic', input_id='llm-' ~ endpoint_id ~ '-embeddings-dimensions') }}
                     <p class="text-sm text-base-content/70 mb-4">Leave blank for Automatic: the endpoint chooses its output size. Set a number only to request a specific size supported by the model. Changing dimensions builds a replacement embedding index at the next indexing pass; activate it when ready.</p>
@@ -120,7 +123,7 @@
               {% endfor %}
               {% set decisions_wire_format = 'openai_decisions' if 'openai_decisions' in formats and 'systemone' not in formats else 'systemone' %}
               {% set decisions_config = formats.get(decisions_wire_format, {}) %}
-              {% set decisions_format = 'openrouter' if decisions_wire_format == 'systemone' and decisions_config.base_url | default('') == 'https://openrouter.ai/api/alpha/decisions' else decisions_wire_format %}
+              {% set decisions_format = 'openrouter' if decisions_wire_format == 'systemone' and decisions_config.base_url | default('') == openrouter_decisions_url else decisions_wire_format %}
               <fieldset class="border border-base-300 rounded-box p-4 md:col-span-2"
                         data-test-id="llm-format-decisions"
                         x-data="{ isOpenRouter: false }"
@@ -138,7 +141,7 @@
                 {% if decisions_check %}<p class="text-sm mb-3 {{ 'text-success' if decisions_check.status == 'up' else 'text-error' if decisions_check.status == 'down' else 'text-base-content/70' }}"
                                            role="status">{{ decisions_check.message }}</p>{% endif %}
                 {{ form_select('Decisions API format', 'decisions[api_format]', decisions_format, options=[{'id': 'systemone', 'name': 'System One (vLLM / llama.cpp)'}, {'id': 'openrouter', 'name': 'OpenRouter'}, {'id': 'openai_decisions', 'name': 'OpenAI'}], input_id='llm-' ~ endpoint_id ~ '-decisions-format') }}
-                {{ form_input('Decisions model', 'decisions[model]', decisions_config.model | default(''), preserve=False, floating=False, required=False, placeholder='Provider model ID', input_id='llm-' ~ endpoint_id ~ '-decisions-model') }}
+                {{ form_input('Decisions model', 'decisions[model]', decisions_config.model | default(''), preserve=False, floating=False, required=False, placeholder='Provider model ID', input_id=field_prefix ~ '-decisions-model', list_id=field_prefix ~ '-decisions-models') }}
                 <fieldset x-show="!isOpenRouter" :disabled="isOpenRouter">
                   {{ form_input('Decisions URL override', 'decisions[base_url]', '' if decisions_format == 'openrouter' else decisions_config.base_url | default(''), type='url', preserve=False, floating=False, required=False, placeholder='Use provider base URL', input_id='llm-' ~ endpoint_id ~ '-decisions-url') }}
                 </fieldset>
@@ -148,7 +151,7 @@
                 <p class="text-sm text-base-content/70">Use System One for self-hosted /v1/systemone servers with a supported decision model, OpenRouter for its hosted models, or OpenAI for servers using OpenAI's /v1/decisions schema.</p>
               </fieldset>
             </div>
-            <p class="text-sm text-base-content/70 mb-4">Each enabled format uses its own model. Blank models work only if the provider has a default; otherwise enter a model ID or disable that API format. Decisions URLs default to /systemone or /decisions under the provider base URL; use a full URL override for a different path. Responses is preferred over Chat Completions when both are enabled.</p>
+            <p class="text-sm text-base-content/70 mb-4">Enter a model ID for each enabled format or choose a suggestion when available. Leave the model blank only if the provider supplies a default. Decisions URLs default to /systemone or /decisions under the provider base URL; use a full URL override for a different path. Responses is preferred over Chat Completions when both are enabled.</p>
             {{ form_select('Processing mode', 'processing_mode', endpoint.processing_mode | default('realtime'), options=[{'id': 'realtime', 'name': 'Realtime'}, {'id': 'openrouter_batch', 'name': 'OpenRouter batch'}], input_id='llm-' ~ endpoint_id ~ '-processing_mode') }}
             <p class="text-sm text-base-content/70 mb-4">
               OpenRouter batch uses /batches for background bots and can take up to 24 hours. Use https://openrouter.ai/api/v1 and a model that supports batch processing. Chat requires realtime processing. Decisions always uses realtime processing, even when other formats use batch. The same endpoint can serve Chat, sentiment, topic classification, and HRAG relationship verification with different models.
@@ -162,6 +165,15 @@
               </label>
             {% endif %}
             {{ form_input('Timeout (seconds)', 'timeout', endpoint.timeout | default(120), type='number', preserve=False, floating=False, min_value=1, input_id='llm-' ~ endpoint_id ~ '-timeout') }}
+            {% set catalog_inputs = ["base_url", "responses-url", "chat_completions-url", "decisions-format", "decisions-url", "processing_mode"] %}
+            <div hidden
+                 hx-get="{{ url_for('admin_settings.settings_action', action='llm-model-suggestions', endpoint_id=endpoint_id) }}"
+                 hx-trigger="{% if endpoint_open and endpoint.base_url %}load, {% endif %}toggle[event.target.open] from:#{{ field_prefix }}-details{% for field in catalog_inputs %}, change from:#{{ field_prefix }}-{{ field }}{% endfor %}"
+                 hx-include="{% for field in catalog_inputs %}#{{ field_prefix }}-{{ field }}{{ ', ' if not loop.last }}{% endfor %}"
+                 hx-target="this"
+                 hx-select="#{{ field_prefix }}-model-suggestions"
+                 hx-swap="innerHTML"
+                 hx-sync="this:replace"></div>
             <button class="btn btn-primary" type="submit">{{ 'Save Endpoint' if endpoint_id else 'Add Endpoint' }}</button>
           </form>
           {% if endpoint_id %}

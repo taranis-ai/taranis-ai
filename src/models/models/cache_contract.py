@@ -48,6 +48,12 @@ def build_user_profile_key(prefix: str, username: str) -> str:
     return build_cache_key(prefix, username, CACHE_USER_PROFILE_MODEL_NAME, CACHE_PROFILE_KIND, "self")
 
 
+def build_analyst_review_state_key(username: str, run_id: str) -> str:
+    # Runtime state under "taranis:" (like chat turns), outside the default frontend cache namespace ("taranis_frontend"),
+    # so cache invalidation does not delete it unless CACHE_KEY_PREFIX is set to "taranis".
+    return f"taranis:analyst-review:{username}:{run_id}"
+
+
 def build_namespace_pattern(prefix: str) -> str:
     return f"{prefix}:*"
 

@@ -11,6 +11,8 @@ class SettingsAction(MethodView):
         action_path = action.replace("_", "-")
         if action_path == "export-stories":
             return SettingsView.export_stories()
+        if action_path == "llm-model-suggestions":
+            return SettingsView.llm_model_suggestions()
         query_string = request.query_string.decode()
         action_url = f"/settings/{action_path}"
         if query_string:

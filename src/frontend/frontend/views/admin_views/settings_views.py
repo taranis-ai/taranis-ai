@@ -8,7 +8,7 @@ from flask import current_app, g, render_template, request, url_for
 from flask.typing import ResponseReturnValue
 from models.admin import Settings
 from models.hrag import EXTRACTION_REASONING_EFFORTS, IndexAction, IndexStatus
-from models.llm import LLM_API_FORMATS, LLM_FEATURES, LLMProvider
+from models.llm import DECISIONS_FORMATS, LLM_API_FORMATS, LLM_FEATURES, OPENROUTER_DECISIONS_URL, LLMProvider, resolve_format_base_url
 from pydantic import ValidationError
 
 from frontend.core_api import CoreApi
@@ -49,6 +49,7 @@ class SettingsView(AdminBaseView):
         }
         base_context["hrag_reasoning_efforts"] = EXTRACTION_REASONING_EFFORTS
         base_context["llm_api_formats"] = LLM_API_FORMATS
+        base_context["openrouter_decisions_url"] = OPENROUTER_DECISIONS_URL
         base_context["llm_form"] = getattr(g, "llm_form", None)
         base_context["llm_editing_endpoint"] = getattr(g, "llm_editing_endpoint", None)
         base_context["timezone_options"] = get_timezone_options()
@@ -183,13 +184,46 @@ class SettingsView(AdminBaseView):
         return notification, static_response
 
     @classmethod
+    def llm_model_suggestions(cls):
+        base_url = request.args.get("base_url", "").strip().rstrip("/")
+        params: dict[str, str] = {
+            api_format: request.args.get(f"api_formats[{api_format}][base_url]", "").strip() or base_url
+            for api_format in LLM_API_FORMATS
+            if api_format not in DECISIONS_FORMATS
+        }
+        decisions_format = request.args.get("decisions[api_format]", "systemone")
+        decisions_url = request.args.get("decisions[base_url]", "").strip()
+        if decisions_format == "openrouter":
+            decisions_format = "systemone"
+            decisions_url = OPENROUTER_DECISIONS_URL
+        if decisions_format in DECISIONS_FORMATS:
+            try:
+                params[decisions_format] = resolve_format_base_url(base_url, decisions_format, decisions_url)
+            except ValueError:
+                # Unsaved URLs can still be incomplete or malformed.
+                params[decisions_format] = ""
+        params["processing_mode"] = request.args.get("processing_mode", "realtime")
+
+        # Core owns the public catalog cache. The browser supplies unsaved URLs for this form.
+        suggestions = CoreApi().api_get("/settings/llm-model-suggestions", params=params) or {}
+        return render_template(
+            "settings/llm_model_suggestions.html",
+            field_prefix=f"llm-{request.args.get('endpoint_id', '')}",
+            suggestions={
+                "responses": suggestions.get("responses", []),
+                "chat_completions": suggestions.get("chat_completions", []),
+                "decisions": suggestions.get(decisions_format, []),
+            },
+        )
+
+    @classmethod
     def llm_endpoint_action(cls, action_url):
         payload = parse_formdata(request.form)
         if decisions := payload.pop("decisions", None):
             api_format = decisions.pop("api_format", "systemone")
             if api_format == "openrouter":
                 api_format = "systemone"
-                decisions["base_url"] = "https://openrouter.ai/api/alpha/decisions"
+                decisions["base_url"] = OPENROUTER_DECISIONS_URL
             payload.setdefault("api_formats", {})[api_format] = decisions
         submitted_formats = payload.get("api_formats")
         if "api_formats" in payload:
