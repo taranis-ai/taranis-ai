@@ -289,9 +289,13 @@ def test_confirmed_ungroup_clears_detached_story_from_report_story_attributes(
         assert reloaded.to_detail_dict()["used_story_ids"] == [story_to_keep.id]
         assert _report_revision_notes(report_id) == [*notes_before, "ungroup_news_items"]
 
-        latest_revision = db.session.execute(
-            db.select(ReportRevision).where(ReportRevision.report_item_id == report_id).order_by(ReportRevision.revision.desc())
-        ).scalars().first()
+        latest_revision = (
+            db.session.execute(
+                db.select(ReportRevision).where(ReportRevision.report_item_id == report_id).order_by(ReportRevision.revision.desc())
+            )
+            .scalars()
+            .first()
+        )
         assert latest_revision is not None
         assert latest_revision.data["used_story_ids"] == [story_to_keep.id]
     finally:

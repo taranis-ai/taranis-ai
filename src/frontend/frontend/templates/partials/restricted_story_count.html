@@ -1,0 +1,17 @@
+{# Table cells that truncate their content clip CSS tooltips; there, pass native_tooltip=true to use the browser's title tooltip. #}
+{% set restricted_story_count_label = _("Permission denied story count") %}
+{% if native_tooltip | default(false) %}
+  <span role="img"
+        class="cursor-help"
+        title="{{ restricted_story_count_label }}"
+        aria-label="{{ restricted_story_count_label }}"
+        data-testid="restricted-story-count">🚫</span>
+{% else %}
+  <span class="tooltip" data-tip="{{ restricted_story_count_label }}">
+    <span role="img"
+          tabindex="0"
+          class="cursor-help"
+          aria-label="{{ restricted_story_count_label }}"
+          data-testid="restricted-story-count">🚫</span>
+  </span>
+{% endif %}

@@ -85,6 +85,7 @@ def test_report_editor_renders_summary_and_product_choices(app, authenticated_cl
             "report_item_type_id": "type-1",
             "grouped_attributes": [{"title": "Meta", "attributes": [{"id": "tlp-1", "title": "TLP", "type": "TLP", "value": "clear"}]}],
             "stories": [{"id": "story-1", "title": "Linked story", "summary": "Story summary", "links": ["https://example.org/story"]}],
+            "restricted_story_ids": ["hidden-1", "hidden-2"],
         },
     )
     responses_mock.get(
@@ -106,6 +107,9 @@ def test_report_editor_renders_summary_and_product_choices(app, authenticated_cl
     assert "Story summary" in markup
     assert "Existing product (Product type)" in markup
     assert html.fromstring(markup).xpath(tlp_options_xpath) == ["clear"]
+    restricted_notice = html.fromstring(markup).xpath('//*[@data-testid="report-restricted-stories"]')[0]
+    assert "not allowed to read 2 stories" in restricted_notice.text_content()
+    assert restricted_notice.xpath(".//li/code/text()") == ["hidden-1", "hidden-2"]
     assert len(responses_mock.calls) == 3
 
     reader = auth_user_basic.model_copy(deep=True)

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, cast
 
@@ -80,6 +81,37 @@ class ReportRevision(BaseModel):
     @staticmethod
     def snapshot_report(report: ReportItem) -> dict[str, Any]:
         return report.to_detail_dict()
+
+    @staticmethod
+    def data_for_user(data: dict[str, Any], user: User) -> dict[str, Any]:
+        """Leave stories the user can't read out of a report snapshot, as the live report does."""
+        from core.model.report_item import ReportItem
+        from core.model.story import Story
+
+        def story_id(story: Any) -> Any:
+            return story.get("id") if isinstance(story, dict) else story
+
+        stories = data.get("stories") or []
+        attributes = [attribute for group in data.get("grouped_attributes") or [] for attribute in group.get("attributes") or []]
+        story_ids = {story_id(story) for story in stories} | set(data.get("used_story_ids") or [])
+        for attribute in attributes:
+            if attribute.get("type") == "STORY":
+                story_ids.update(story_id(choice) for choice in (attribute.get("render_data") or {}).get("story_choices") or [])
+        if not (hidden_story_ids := Story.get_hidden_ids((sid for sid in story_ids if isinstance(sid, str)), user)):
+            return data
+
+        data = copy.deepcopy(data)
+        data["stories"] = [story for story in stories if story_id(story) not in hidden_story_ids]
+        if "used_story_ids" in data:
+            data["used_story_ids"] = [sid for sid in data["used_story_ids"] or [] if sid not in hidden_story_ids]
+        for group in data.get("grouped_attributes") or []:
+            for attribute in group.get("attributes") or []:
+                if attribute.get("type") != "STORY":
+                    continue
+                attribute["value"] = ReportItem.without_story_ids(attribute.get("value"), hidden_story_ids)
+                if choices := (attribute.get("render_data") or {}).get("story_choices"):
+                    attribute["render_data"]["story_choices"] = [choice for choice in choices if story_id(choice) not in hidden_story_ids]
+        return data
 
     @classmethod
     def create_from_report(cls, report: ReportItem, created_by_id: str | None = None, note: str | None = None) -> ReportRevision:

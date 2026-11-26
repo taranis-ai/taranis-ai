@@ -88,7 +88,7 @@ class ReportItem(BaseModel):
         if user and not item.access_allowed(user, False):
             return {"error": "User is not allowed to read report"}, 403
 
-        return item.to_detail_dict(), 200
+        return item.to_detail_dict(user), 200
 
     @classmethod
     def get_story_ids(cls, item_id: str, user: User | None = None) -> tuple[dict[str, Any], int]:
@@ -160,18 +160,40 @@ class ReportItem(BaseModel):
             return {"error": "ReportItem not found"}, 404
         if not item.access_allowed(user, False):
             return {"error": "User is not allowed to read report"}, 403
+        hidden_story_ids = item.get_hidden_story_ids(user)
         data = BaseModel.to_dict(item)
-        data["grouped_attributes"] = item.get_grouped_attributes()
+        data["grouped_attributes"] = item.get_grouped_attributes(item.get_attribute_dict(hidden_story_ids))
         data["stories"] = [
             {"id": story.id, "title": story.title, "summary": story.summary, "important": story.important, "links": story.links}
             for story in item.stories
+            if story.id not in hidden_story_ids
         ]
-        data["used_story_ids"] = item._get_used_story_ids(item.attributes)
+        data["used_story_ids"] = item._get_used_story_ids(item.attributes, hidden_story_ids)
+        data["restricted_story_ids"] = item._restricted_story_ids(hidden_story_ids)
         data["revision_count"] = item.get_revision_count()
         return data, 200
 
-    def get_attribute_dict(self) -> list[dict[str, Any]]:
-        story_choices = [{"id": story.id, "title": story.title or story.id} for story in self.stories if story and story.id]
+    def get_hidden_story_ids(self, user: User | None) -> set[str]:
+        """Linked stories the user can't read in Assess (source ACL or TLP); reports expose only their IDs."""
+        return Story.get_hidden_ids((story.id for story in self.stories if story), user)
+
+    def _restricted_story_ids(self, hidden_story_ids: set[str]) -> list[str]:
+        return [story.id for story in self.stories if story and story.id in hidden_story_ids]
+
+    @staticmethod
+    def without_story_ids(value: Any, story_ids: set[str]) -> Any:
+        """Drop the given IDs from a comma-separated Story attribute value."""
+        if not story_ids or not value:
+            return value
+        return ",".join(story_id for story_id in ReportStorySyncService.parse_story_ids(value) if story_id not in story_ids)
+
+    def get_attribute_dict(self, hidden_story_ids: set[str] | None = None) -> list[dict[str, Any]]:
+        hidden_story_ids = hidden_story_ids or set()
+        story_choices = [
+            {"id": story.id, "title": story.title or story.id}
+            for story in self.stories
+            if story and story.id and story.id not in hidden_story_ids
+        ]
 
         attributes = []
         for attribute in self.attributes:
@@ -180,19 +202,21 @@ class ReportItem(BaseModel):
             render_data = dict(raw_render_data) if isinstance(raw_render_data, dict) else {}
             if attribute.attribute_type == AttributeType.STORY:
                 render_data["story_choices"] = story_choices
+                attr["value"] = self.without_story_ids(attr.get("value"), hidden_story_ids)
             attr["render_data"] = render_data
             attributes.append(attr)
 
         return attributes
 
     @staticmethod
-    def _get_used_story_ids(attributes: list[ReportItemAttribute]) -> list[str]:
+    def _get_used_story_ids(attributes: list[ReportItemAttribute], hidden_story_ids: set[str] | None = None) -> list[str]:
         used_story_ids: list[str] = []
         for attribute in attributes:
             if attribute.attribute_type != AttributeType.STORY:
                 continue
             used_story_ids.extend(ReportStorySyncService.parse_story_ids(attribute.value))
-        return list(dict.fromkeys(used_story_ids))
+        hidden_story_ids = hidden_story_ids or set()
+        return [story_id for story_id in dict.fromkeys(used_story_ids) if story_id not in hidden_story_ids]
 
     def get_grouped_attributes(self, attributes: list[dict[str, Any]] | None = None) -> list[dict[str, Any]]:
         attribute_dicts = attributes if attributes is not None else self.get_attribute_dict()
@@ -206,12 +230,16 @@ class ReportItem(BaseModel):
         grouped_attributes = self.get_grouped_attributes(attributes)
         return [(group["title"] or "") for group in grouped_attributes]
 
-    def to_detail_dict(self):
+    def to_detail_dict(self, user: User | None = None):
+        """Serialize the report; with a user, stories they can't read are listed only in `restricted_story_ids`."""
+        hidden_story_ids = self.get_hidden_story_ids(user)
         data = super().to_dict()
-        attributes = self.get_attribute_dict()
+        attributes = self.get_attribute_dict(hidden_story_ids)
         data["grouped_attributes"] = self.get_grouped_attributes(attributes)
-        data["stories"] = [story.to_report_dict() for story in self.stories if story]
-        data["used_story_ids"] = self._get_used_story_ids(self.attributes or [])
+        data["stories"] = [story.to_report_dict() for story in self.stories if story and story.id not in hidden_story_ids]
+        data["used_story_ids"] = self._get_used_story_ids(self.attributes or [], hidden_story_ids)
+        if user is not None:
+            data["restricted_story_ids"] = self._restricted_story_ids(hidden_story_ids)
         data["revision_count"] = self.get_revision_count()
         return data
 
@@ -374,7 +402,7 @@ class ReportItem(BaseModel):
         db.session.commit()
         return {
             "message": "Report cloned",
-            "report": new_report.to_detail_dict(),
+            "report": new_report.to_detail_dict(user),
             "id": new_report.id,
         }, 200
 
@@ -600,8 +628,7 @@ class ReportItem(BaseModel):
         return {"message": "Successfully updated Report Item", "report": new_report}, status
 
     def update_stories(self, story_ids: list[str], stories_to_add: list[Story] | None = None):
-        """ Replace the report's stories with `story_ids`.
-        """
+        """Replace the report's stories with `story_ids`."""
         if stories_to_add is None:
             stories_to_add, _ = self._resolve_stories_to_attach(story_ids, None)
         new_story_ids_set = set(story_ids)
@@ -631,6 +658,8 @@ class ReportItem(BaseModel):
         if err or not report_item:
             return err, status
         affected_stories = list(report_item.stories)
+        # The user never sees these stories, so a save must not drop them.
+        hidden_story_ids = report_item.get_hidden_story_ids(user)
 
         # Validate stories before mutating anything, so a rejected request leaves the report untouched.
         normalized_story_ids: list[str] | None = None
@@ -643,6 +672,7 @@ class ReportItem(BaseModel):
             stories_to_attach, missing_story_ids = report_item._resolve_stories_to_attach(normalized_story_ids, user)
             if missing_story_ids:
                 return cls._stories_not_found_error(missing_story_ids)
+            normalized_story_ids = [*normalized_story_ids, *sorted(hidden_story_ids.difference(normalized_story_ids))]
 
         if title := data.get("title"):
             retag_stories = True
@@ -653,7 +683,7 @@ class ReportItem(BaseModel):
             report_item.completed = completed
 
         if attributes_data := data.pop("attributes", None):
-            report_item.update_attributes(attributes_data)
+            report_item.update_attributes(attributes_data, hidden_story_ids=hidden_story_ids)
             if not report_item._allowed_with_tlp(user):
                 db.session.rollback()
                 return {"error": "TLP is above your clearance"}, 403
@@ -670,13 +700,21 @@ class ReportItem(BaseModel):
 
         logger.debug(f"Updated Report Item {report_item.id}")
 
-        return report_item.to_detail_dict(), 200
+        return report_item.to_detail_dict(user), 200
 
-    def update_attributes(self, attributes_data: dict, commit=False):
+    def update_attributes(self, attributes_data: dict, commit=False, hidden_story_ids: set[str] | None = None):
         for attr in self.attributes:
             attr_id_str = str(attr.id)
-            if attr_id_str in attributes_data:
-                attr.value = attributes_data[attr_id_str]
+            if attr_id_str not in attributes_data:
+                continue
+            value = attributes_data[attr_id_str]
+            if hidden_story_ids and attr.attribute_type == AttributeType.STORY:
+                # Keep selections of hidden stories, which the user's editor never showed.
+                # Users can't select or deselect hidden stories, so submitted hidden IDs are ignored.
+                selected_ids = [story_id for story_id in ReportStorySyncService.parse_story_ids(value) if story_id not in hidden_story_ids]
+                kept_ids = [story_id for story_id in ReportStorySyncService.parse_story_ids(attr.value) if story_id in hidden_story_ids]
+                value = ",".join(dict.fromkeys([*selected_ids, *kept_ids]))
+            attr.value = value
         if commit:
             db.session.commit()
 

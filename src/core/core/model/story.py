@@ -1,6 +1,6 @@
 import re
 from collections import Counter
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from datetime import datetime
 from typing import Any
 
@@ -869,6 +869,17 @@ class Story(BaseModel):
 
     def allowed_to_read(self, user: User) -> bool:
         return db.session.execute(self.visible_query(user).where(Story.id == self.id)).scalar() is not None
+
+    @classmethod
+    def get_hidden_ids(cls, story_ids: Iterable[str], user: User | None) -> set[str]:
+        """Return the ids of existing stories the user can't read; unknown ids are not included."""
+        unique_ids = set(story_ids)
+        if user is None or not unique_ids:
+            return set()
+        existing_query = db.select(cls.id).where(cls.id.in_(unique_ids))
+        existing_ids = set(db.session.execute(existing_query).scalars())
+        visible_ids = set(db.session.execute(cls.visible_query(user, existing_query)).scalars())
+        return existing_ids - visible_ids
 
     @classmethod
     def get_visible_bulk(cls, story_ids: list[str], user: User | None) -> tuple[list["Story"], list[str]]:

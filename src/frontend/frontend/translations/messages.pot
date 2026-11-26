@@ -660,3 +660,7 @@ msgstr ""
 #: frontend/views/user_views.py:67
 msgid "Failed to update profile settings."
 msgstr ""
+
+#: frontend/templates/partials/restricted_story_count.html:2
+msgid "Permission denied story count"
+msgstr ""

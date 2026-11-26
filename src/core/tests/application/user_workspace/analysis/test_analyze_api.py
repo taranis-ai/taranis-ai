@@ -542,9 +542,13 @@ class TestAnalyzeApi(BaseTest):
                 assert report.to_detail_dict()["used_story_ids"] == [story_b]
                 assert report.to_product_dict()["attributes"]["Analysis"]["Referenced Stories"] == story_b
 
-                latest_revision = db.session.execute(
-                    db.select(ReportRevision).where(ReportRevision.report_item_id == report_id).order_by(ReportRevision.revision.desc())
-                ).scalars().first()
+                latest_revision = (
+                    db.session.execute(
+                        db.select(ReportRevision).where(ReportRevision.report_item_id == report_id).order_by(ReportRevision.revision.desc())
+                    )
+                    .scalars()
+                    .first()
+                )
                 assert latest_revision is not None
                 assert latest_revision.data["used_story_ids"] == [story_b]
 
@@ -565,9 +569,13 @@ class TestAnalyzeApi(BaseTest):
                 story_attr = next(attr for attr in report.attributes if attr.attribute_type == AttributeType.STORY)
                 assert story_attr.value == ""
                 assert report.to_product_dict()["attributes"]["Analysis"]["Referenced Stories"] == ""
-                latest_revision = db.session.execute(
-                    db.select(ReportRevision).where(ReportRevision.report_item_id == report_id).order_by(ReportRevision.revision.desc())
-                ).scalars().first()
+                latest_revision = (
+                    db.session.execute(
+                        db.select(ReportRevision).where(ReportRevision.report_item_id == report_id).order_by(ReportRevision.revision.desc())
+                    )
+                    .scalars()
+                    .first()
+                )
                 assert latest_revision is not None
                 assert latest_revision.data["used_story_ids"] == []
         finally:

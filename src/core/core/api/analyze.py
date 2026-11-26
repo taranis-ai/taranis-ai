@@ -92,7 +92,8 @@ class ReportItem(MethodView):
             invalidate_frontend_cache_on_success(status, scopes=(SCOPE_REPORT_VIEWS,))
 
         return make_response(
-            jsonify({"message": "New report item created", "id": new_report_item.id, "report": new_report_item.to_detail_dict()}), status
+            jsonify({"message": "New report item created", "id": new_report_item.id, "report": new_report_item.to_detail_dict(current_user)}),
+            status,
         )
 
     @auth_required("ANALYZE_UPDATE")
@@ -107,7 +108,7 @@ class ReportItem(MethodView):
         if status != 200:
             return make_response(jsonify(updated_report), status)
         realtime_publisher.report_item_changed(report_item_id, current_user.organization_id)
-        ProductService.autopublish_product(report_item_id, user_id=current_user.id)
+        ProductService.autopublish_product(report_item_id, user_id=current_user.id, from_report_save=True)
         invalidate_frontend_cache_on_success(
             status,
             scopes=(SCOPE_REPORT_VIEWS, SCOPE_PUBLISH_VIEWS),
@@ -248,7 +249,7 @@ class ReportItemRevisionData(MethodView):
                 "created_by": revision.created_by.username if revision.created_by else None,
                 "created_by_id": revision.created_by_id,
                 "note": revision.note,
-                "data": revision.data,
+                "data": ReportRevision.data_for_user(revision.data, current_user),
             }, 200
 
         return {"error": "Revision not found"}, 404

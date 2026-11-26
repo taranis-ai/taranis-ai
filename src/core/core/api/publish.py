@@ -119,6 +119,8 @@ class ProductsRender(MethodView):
             return {"error": "Product not found"}, 404
         if not selected_product.product_type or not selected_product.product_type.allowed_with_acl(current_user, require_write_access=False):
             return {"error": "User is not allowed to read product"}, 403
+        if selected_product.get_access_restriction(current_user):
+            return {"error": product.Product.RESTRICTED_RENDER_MESSAGE}, 403
         return ProductService.get_render(product_id)
 
 

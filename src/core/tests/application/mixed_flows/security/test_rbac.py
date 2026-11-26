@@ -358,6 +358,14 @@ class TestRBACAclBehavior:
         assert set(detail.json["report_items"]) == original_report_ids
         assert report.title not in str(detail.json["supported_reports"])
         assert visible_report.id in {item["id"] for item in detail.json["supported_reports"]}
+        full_detail = client.get(f"/api/publish/products/{product.id}", headers=auth_header_user_permissions)
+        assert full_detail.json["render_result"] is None
+        assert full_detail.json["render_access_warning"] == Product.RESTRICTED_RENDER_MESSAGE
+        download = client.get(f"/api/publish/products/{product.id}/render", headers=auth_header_user_permissions)
+        assert download.status_code == 403
+        assert download.json == {"error": Product.RESTRICTED_RENDER_MESSAGE}
+        products_url = "/api/publish/products?search=Restricted product"
+        assert [item["story_count"] for item in client.get(products_url, headers=auth_header_user_permissions).json["items"]] == [None]
 
         payload = {
             "title": "Updated metadata",
@@ -408,6 +416,10 @@ class TestRBACAclBehavior:
         accessible = client.get(f"/api/publish/products/{product.id}", headers=auth_header_user_permissions)
         assert accessible.status_code == 200
         assert accessible.json["report_access_warning"] is None
+        assert accessible.json["render_result"] == "ZXhpc3RpbmcgcmVuZGVy"
+        assert accessible.json["render_access_warning"] is None
+        listed = client.get("/api/publish/products?search=Updated metadata", headers=auth_header_user_permissions)
+        assert [item["story_count"] for item in listed.json["items"]] == [0]
         assert original_report_ids <= {item["id"] for item in accessible.json["supported_reports"]}
         assert client.put(f"/api/publish/products/{product.id}", headers=auth_header_user_permissions, json=payload).status_code == 200
         enqueue.assert_called_once()
@@ -781,11 +793,19 @@ class TestRBACAclBehavior:
         assert response.json == {"error": "User does not have write access to all requested reports"}
         blocked_enqueue.assert_not_called()
 
-    def test_report_stories_respect_story_acl(self, client, session, auth_header_user_permissions):
+    def test_report_stories_respect_story_acl(self, client, session, auth_header_user_permissions, monkeypatch):
+        from core.managers import queue_manager
+        from core.model.asset import Asset, AssetVulnerability
+        from core.model.news_item_tag import NewsItemTag
         from core.model.permission import Permission
-        from core.model.report_item import ReportItem
+        from core.model.product import Product
+        from core.model.product_type import ProductType
+        from core.model.publisher_preset import PublisherPreset
+        from core.model.report_item import AttributeType, ReportItem, ReportItemAttribute
         from core.model.role import Role
         from core.model.role_based_access import ItemType
+        from core.model.user import User
+        from core.service.cti import CTIService
 
         allowed_source, allowed_story, _ = create_rbac_source_story("report-stories-allowed")
         _, hidden_story, _ = create_rbac_source_story("report-stories-hidden")
@@ -807,10 +827,127 @@ class TestRBACAclBehavior:
         assert response.status_code == 200
         assert response.json == {"report": {"story_ids": [allowed_story.id]}}
 
-        # Report detail embeds only id, title and links of stories.
+        story_attribute = ReportItemAttribute(
+            title="Referenced stories",
+            attribute_type=AttributeType.STORY,
+            group_title="Summary",
+            value=f"{hidden_story.id},{allowed_story.id}",
+        )
+        shared_report.attributes.append(story_attribute)
+        db.session.commit()
+
+        # Hidden stories appear only by ID in `restricted_story_ids`: no content, Story attribute choices or selections.
+        def assert_only_allowed_story(report_data, *, with_attributes=True):
+            assert [story["id"] for story in report_data["stories"]] == [allowed_story.id]
+            if with_attributes:
+                assert report_data.pop("restricted_story_ids") == [hidden_story.id]
+            assert hidden_story.id not in str(report_data)
+            if with_attributes:
+                assert report_data["used_story_ids"] == [allowed_story.id]
+                attributes = [attribute for group in report_data["grouped_attributes"] for attribute in group["attributes"]]
+                story_attr = next(attribute for attribute in attributes if attribute["type"] == "STORY")
+                assert story_attr["value"] == allowed_story.id
+                assert story_attr["render_data"]["story_choices"] == [{"id": allowed_story.id, "title": allowed_story.title}]
+
         detail = client.get(f"/api/analyze/report-items/{shared_report.id}", headers=auth_header_user_permissions)
         assert detail.status_code == 200
         assert all(set(story) == {"id", "title", "links"} for story in detail.json["stories"])
+        assert_only_allowed_story(detail.json)
+        editor = client.get(f"/api/analyze/report-editors/{shared_report.id}", headers=auth_header_user_permissions)
+        assert editor.status_code == 200
+        assert_only_allowed_story(editor.json)
+        revision = client.get(
+            f"/api/analyze/report-items/{shared_report.id}/revisions/{shared_report.revision}", headers=auth_header_user_permissions
+        )
+        assert revision.status_code == 200
+        assert_only_allowed_story(revision.json["data"], with_attributes=False)
+
+        # Report and asset CTI only include indicators from readable stories.
+        for story, ip in ((allowed_story, "192.0.2.1"), (hidden_story, "192.0.2.2")):
+            story.news_items[0].tags.append(NewsItemTag(ip, "ip"))
+        asset = Asset("RBAC asset", "serial", "Asset linked to the shared report")
+        session.add(asset)
+        session.flush()
+        asset.vulnerabilities.append(AssetVulnerability(asset.id, shared_report.id))
+        db.session.commit()
+        report_cti = client.get(f"/api/analyze/report-items/{shared_report.id}/cti", headers=auth_header_user_permissions)
+        asset_cti = CTIService._asset_response(asset.id, [asset], User.find_by_name("user"))
+        for cti in (report_cti.json, asset_cti):
+            assert [ioc["value"] for ioc in cti["iocs"]] == ["192.0.2.1"]
+
+        # Report lists keep counting hidden stories by ID.
+        listed = client.get("/api/analyze/report-items", headers=auth_header_user_permissions, query_string={"search": shared_report.title})
+        assert [set(item["stories"]) for item in listed.json["items"]] == [{allowed_story.id, hidden_story.id}]
+
+        # Products of such a report can't be read, downloaded, rendered, or published, allow only metadata edits, and
+        # list no story count; products without hidden stories still can. Autopublish keeps running.
+        enqueue = Mock()
+        monkeypatch.setattr(queue_manager.queue_manager, "enqueue_task", enqueue)
+        monkeypatch.setattr(queue_manager.queue_manager, "enqueue_at", enqueue)
+        product_type = ProductType.filter_by_title("Default TEXT Presenter")
+        publisher = PublisherPreset.get_first(db.select(PublisherPreset))
+        hidden_product = Product(
+            "Hidden story product", product_type.id, report_items=[shared_report.id], auto_publish=True, default_publisher=publisher.id
+        )
+        hidden_product.render_result = "ZXhpc3RpbmcgcmVuZGVy"
+        session.add(hidden_product)
+        session.commit()
+        product_url = f"/api/publish/products/{hidden_product.id}"
+        product_detail = client.get(product_url, headers=auth_header_user_permissions)
+        assert product_detail.status_code == 200
+        assert product_detail.json["render_result"] is None
+        assert product_detail.json["render_access_warning"] == Product.RESTRICTED_RENDER_MESSAGE
+        assert product_detail.json["report_access_warning"] == Product.RESTRICTED_STORIES_MESSAGE
+        products = client.get("/api/publish/products", headers=auth_header_user_permissions, query_string={"search": hidden_product.title})
+        assert [item["story_count"] for item in products.json["items"]] == [None]
+        download = client.get(f"{product_url}/render", headers=auth_header_user_permissions)
+        assert download.status_code == 403
+        assert download.json == {"error": Product.RESTRICTED_RENDER_MESSAGE}
+        for blocked in (
+            client.post(f"{product_url}/render", headers=auth_header_user_permissions),
+            client.post(f"{product_url}/publishers/{publisher.id}", headers=auth_header_user_permissions),
+            client.put(product_url, headers=auth_header_user_permissions, json={"title": "Changed", "report_items": []}),
+            client.put(product_url, headers=auth_header_user_permissions, json={"title": "Changed", "auto_publish": False}),
+        ):
+            assert blocked.status_code == 403
+            assert blocked.json == {"error": Product.RESTRICTED_STORIES_MESSAGE}
+        renamed = client.put(product_url, headers=auth_header_user_permissions, json={"title": "Renamed", "report_items": [shared_report.id]})
+        assert renamed.json["product"]["auto_publish"] is True
+        assert renamed.status_code == 200
+        session.expire_all()
+        assert hidden_product.title == "Renamed"
+        assert [report.id for report in hidden_product.report_items] == [shared_report.id]
+        assert hidden_product.render_result == "ZXhpc3RpbmcgcmVuZGVy"
+        enqueue.assert_not_called()
+
+        # Saving with no visible stories or selections keeps the hidden story linked and selected.
+        saved = client.put(
+            f"/api/analyze/report-items/{shared_report.id}",
+            headers=auth_header_user_permissions,
+            json={"stories": [], "attributes": {story_attribute.id: ""}},
+        )
+        assert saved.status_code == 200
+        assert saved.json["report"]["stories"] == []
+        assert saved.json["report"]["restricted_story_ids"] == [hidden_story.id]
+        assert enqueue.called, "autopublish should still render and publish the product"
+        # The explicit auto-render endpoint is user-initiated and stays blocked.
+        enqueue.reset_mock()
+        assert client.get(f"/api/publish/products/auto-render/{shared_report.id}", headers=auth_header_user_permissions).status_code == 200
+        enqueue.assert_not_called()
+        db.session.refresh(shared_report)
+        assert [story.id for story in shared_report.stories] == [hidden_story.id]
+        assert story_attribute.value == hidden_story.id
+        # Submitting a hidden story's ID can't select it either.
+        story_attribute.value = ""
+        db.session.commit()
+        client.put(
+            f"/api/analyze/report-items/{shared_report.id}",
+            headers=auth_header_user_permissions,
+            json={"attributes": {story_attribute.id: hidden_story.id}},
+        )
+        db.session.refresh(story_attribute)
+        assert story_attribute.value == ""
+        ReportItem.add_stories(shared_report.id, [allowed_story.id], None)
 
         # Re-saving the report with its existing (partly hidden) stories still works.
         response = client.put(stories_url, headers=auth_header_user_permissions, json=[allowed_story.id, hidden_story.id])
@@ -839,6 +976,18 @@ class TestRBACAclBehavior:
         assert response.status_code == 200
         db.session.refresh(own_report)
         assert [story.id for story in own_report.stories] == [allowed_story.id]
+        visible_product = Product("Visible story product", product_type.id, report_items=[own_report.id])
+        visible_product.render_result = "ZXhpc3RpbmcgcmVuZGVy"
+        session.add(visible_product)
+        session.commit()
+        assert client.get(f"/api/publish/products/{visible_product.id}/render", headers=auth_header_user_permissions).status_code == 200
+        # Sorting by story count puts restricted products last instead of revealing their hidden count.
+        for order in ("story_count_desc", "story_count_asc"):
+            listed = client.get(
+                "/api/publish/products", headers=auth_header_user_permissions, query_string={"order": order, "fetch_all": "true"}
+            )
+            ids = [item["id"] for item in listed.json["items"]]
+            assert ids.index(visible_product.id) < ids.index(hidden_product.id)
 
         # A hidden story can't be smuggled in when creating a report either.
         new_report_id = str(uuid.uuid4())

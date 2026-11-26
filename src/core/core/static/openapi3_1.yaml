@@ -474,7 +474,7 @@ paths:
       tags:
       - analyze
       operationId: analyze.report_editor.get
-      description: Read the report form with linked Story summaries. Requires ANALYZE_ACCESS and report ACL/TLP access. Full Story content remains available from the report-items detail endpoint.
+      description: Read the report form with linked Story summaries. Requires ANALYZE_ACCESS and report ACL/TLP access. Linked Stories the user cannot read appear only by ID in restricted_story_ids; they are omitted from stories and Story attribute values and choices. Full Story content remains available from the report-items detail endpoint.
       responses:
         '200':
           description: Report form fields, grouped_attributes, used_story_ids, revision_count, and stories containing only id, title, summary, important, and links.
@@ -5784,6 +5784,8 @@ paths:
           description: the product data as a download
         '401':
           $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: Product Type access denied, or a linked report or story is restricted for the user
         '404':
           $ref: '#/components/responses/404NotFound'
     post:
@@ -11686,10 +11688,16 @@ components:
           type: [string, 'null']
           readOnly: true
           description: >-
-            Present when linked reports are restricted by Report Type ACL or TLP.
+            Present when linked reports are restricted by Report Type ACL or TLP, or contain stories the user cannot read.
             Only title and description may be changed; report links, type, and publishing
             settings are preserved. Copying, rendering, and publishing are unavailable.
             Metadata saves do not queue rendering or change the existing render/publication.
+        render_access_warning:
+          type: [string, 'null']
+          readOnly: true
+          description: >-
+            Present whenever report_access_warning is set. The render is then omitted
+            from the detail response and cannot be downloaded.
         id:
           type: string
         title:

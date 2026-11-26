@@ -10,6 +10,7 @@
 {% set rendered_product = product.render_result %}
 {% set rendered_mime_type = product.mime_type %}
 {% set report_access_warning = report_access_warning | default(product.report_access_warning | default(none)) %}
+{% set render_access_warning = product.render_access_warning | default(none) %}
 
 {% set columns = [{'title': 'id', 'field': 'id', 'sortable': True, 'searchable': True}, {'title': 'title', 'field': 'title', 'sortable': True, 'searchable': True}, {'title': 'created', 'field': 'created', 'sortable': True, 'searchable': False}, {'title': 'stories', 'field': 'story_count', 'sortable': True, 'searchable': False}, {'title': 'completed', 'field': 'completed', 'sortable': True, 'searchable': False}] %}
 
@@ -80,7 +81,7 @@
         <p>{{ report_access_warning }}</p>
         <div class="tooltip tooltip-left">
           <div class="tooltip-content w-80 whitespace-normal text-left" role="tooltip" id="product-report-access-help">
-            Report Type permissions or TLP clearance block report links, type changes, publishing settings, copying, rendering,
+            Report Type permissions, TLP clearance, or access to linked stories block report links, type changes, publishing settings, copying, rendering,
             and publishing; saves preserve report links and existing output, and an administrator can review your access.
           </div>
           <button type="button"
@@ -118,14 +119,31 @@
           </div>
 
           {% if report_access_warning %}
-            <section class="mt-2" aria-describedby="product-report-access-warning">
+            <section class="mt-2" aria-describedby="product-report-access-warning" data-testid="locked-report-items">
               <h4 class="font-semibold">Report Items (locked)</h4>
-              <p>Restricted reports are hidden. All existing report links will be kept when you save.</p>
-              <ul class="list-disc ml-5">
-                {% for item in supported_report_items %}
-                  {% if item.id | string in selected_report_items %}<li>{{ item.title }}</li>{% endif %}
-                {% endfor %}
-              </ul>
+              <p>{{ _("Restricted reports show only their ID. All existing report links will be kept when you save.") }}</p>
+              <table class="table table-sm">
+                <thead>
+                  <tr>
+                    {% for col in columns %}<th scope="col">{{ col.title | capitalize }}</th>{% endfor %}
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for row in locked_report_rows | default([]) %}
+                    <tr data-testid="locked-report-item">
+                      {% for col in columns %}
+                        <td>
+                          {% if col.field == "story_count" and row.restricted %}
+                            {% include "partials/restricted_story_count.html" %}
+                          {% else %}
+                            {{ row[col.field] | default("") }}
+                          {% endif %}
+                        </td>
+                      {% endfor %}
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
               {% for report_id in selected_report_items %}<input type="hidden" name="report_items[]" value="{{ report_id }}">{% endfor %}
             </section>
           {% elif product.product_type_id or selected_report_items %}
@@ -243,7 +261,9 @@
       {% if is_edit %}
         <div class="col-span-12 lg:col-span-6 p-3">
           <div class="border rounded-md p-3 bg-base-50 min-h-40" id="preview" data-testid="product-render">
-            {% if rendered_product %}
+            {% if render_access_warning %}
+              <div class="alert alert-warning" role="note" data-testid="product-render-access-warning">{{ render_access_warning }}</div>
+            {% elif rendered_product %}
               {% if rendered_mime_type in ["text/html", "application/json", "text/plain"] %}
                 <div x-data="{ previewOpen: false }">
                   <button type="button"

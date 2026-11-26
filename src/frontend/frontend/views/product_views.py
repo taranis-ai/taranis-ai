@@ -10,7 +10,7 @@ from frontend.auth import auth_required
 from frontend.cache_models import PagingData
 from frontend.core_api import CoreApi
 from frontend.data_persistence import DataPersistenceLayer
-from frontend.filters import render_count, render_datetime, render_item_type
+from frontend.filters import render_count, render_datetime, render_item_type, render_story_count
 from frontend.log import logger
 from frontend.views.base_view import BaseView
 
@@ -66,7 +66,7 @@ class ProductView(BaseView):
                 "title": "Stories",
                 "field": "story_count",
                 "sortable": True,
-                "renderer": render_count,
+                "renderer": render_story_count,
                 "render_args": {"field": "story_count"},
             },
         ]
@@ -79,6 +79,12 @@ class ProductView(BaseView):
             row["created"] = created[:19]
         row["story_count"] = len(row.get("stories") or [])
         return row
+
+    @staticmethod
+    def _locked_report_rows(selected_report_ids: list[str], readable_rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """Rows for a locked editor: readable linked reports in full, restricted ones by ID only."""
+        readable_by_id = {str(row["id"]): row for row in readable_rows}
+        return [readable_by_id.get(report_id) or {"id": report_id, "restricted": True} for report_id in selected_report_ids]
 
     @classmethod
     def get_extra_context(cls, base_context: dict[str, Any]) -> dict[str, Any]:
@@ -134,6 +140,8 @@ class ProductView(BaseView):
 
         base_context["selected_report_items"] = selected_report_items
         base_context["supported_reports"] = [cls._supported_report_row(report) for report in supported_reports]
+        if report_access_warning:
+            base_context["locked_report_rows"] = cls._locked_report_rows(selected_report_items, base_context["supported_reports"])
 
         report_ids = [] if report_access_warning else sorted(set(selected_report_items))
         product_types: list[ProductTypeChoice] = []

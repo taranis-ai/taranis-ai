@@ -39,6 +39,72 @@ Stop all tmux sessions belonging to taranis
 tmux kill-session -t =taranis
 ```
 
+## Tests, linting and type-checks
+
+Consider to inspect `./dev/test_push_signoff.sh`, which runs the complete pipeline before a push.
+
+### e2e tests
+
+To run the whole suite of e2e tests, enter
+
+```bash
+cd src/frontend
+uv run pytest tests/playwright --e2e-ci
+```
+
+To run a single e2e test, pass its node ID (`file::class::test`):
+
+```bash
+cd src/frontend
+uv run pytest tests/playwright/test_e2e_user.py::TestEndToEndUser::test_publish --e2e-ci
+```
+
+Alternatively, select a test by name with `-k`, which matches any test whose name contains the given string:
+
+```bash
+uv run pytest tests/playwright/test_e2e_user.py --e2e-ci -k test_publish
+```
+
+Useful flags:
+
+- `--e2e-ci`: enables the e2e tests; without it they are skipped
+- `-k <expression>`: only run tests whose name matches the expression
+- `-s`: show log and print output live instead of capturing it
+
+### Unit tests
+
+Each component under `src/` (`core`, `frontend`, `worker`, `models`) has its own environment. Set it up once with `uv sync --all-extras --dev` in that directory.
+
+**Sample command sequence**
+
+```bash
+(cd src/core && uv sync --all-extras --dev && uv run pytest)
+
+# A single file or test
+(cd src/core && uv run pytest tests/application/mixed_flows/security/test_rbac.py -k report_stories)
+```
+
+### Linting
+
+Ruff and the template linter run inside a component directory, for example `cd src/core`:
+
+```bash
+uv run ruff check          # lint
+uv run ruff check --fix    # lint and apply safe fixes
+uv run ruff format         # format
+
+# Frontend templates only, inside src/frontend
+uv run djlint --profile=jinja --check frontend/templates
+```
+
+### Type-checking
+
+Pyrefly type-checks the changed Python files of all components. Run it from the repository root:
+
+```bash
+./dev/check_pyrefly.sh            # uncommitted and untracked changes
+./dev/check_pyrefly.sh --all      # all files
+```
 
 ## Hard Mode
 
