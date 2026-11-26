@@ -320,7 +320,7 @@ def test_sentiment_analysis_bot(stories, requests_mock, mock_job, monkeypatch, b
         assert attributes == {"sentiment_category": "neutral", "sentiment_score": expected_scores[item_id]}
 
 
-def test_image2text_processes_only_missing_captions_and_preserves_partial_success(requests_mock, monkeypatch):
+def test_image2text_processes_only_missing_captions_and_preserves_partial_success(requests_mock, monkeypatch, caplog):
     from worker.bots.image2text_bot import Image2TextBot
 
     bot = Image2TextBot()
@@ -339,6 +339,15 @@ def test_image2text_processes_only_missing_captions_and_preserves_partial_succes
         return "A network diagram"
 
     monkeypatch.setattr("worker.bots.image2text_bot.load_image2text_adapter", lambda: describe)
-    result = bot.execute()
+    state = {}
+    checkpoints = []
+    parameters = {"_llm_batch_state": state, "_save_llm_batch_state": lambda: checkpoints.append(state["image_descriptions"].copy())}
+    result = bot.execute(parameters)
     assert result["changes"] == {"image_descriptions": {"ok": "A network diagram"}}
     assert result["errors"] == ["failed"]
+    assert checkpoints == [{"ok": "A network diagram"}]
+    assert "Image2Text failed for image failed (HTTPError)" in caplog.text
+    requests_mock.reset_mock()
+    assert bot.execute(parameters) == result
+    assert [request.path for request in requests_mock.request_history] == ["/api/worker/images/failed"]
+    assert len(checkpoints) == 1

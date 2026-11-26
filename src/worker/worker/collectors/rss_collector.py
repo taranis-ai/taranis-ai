@@ -9,7 +9,7 @@ from bs4 import BeautifulSoup
 from models.assess import NewsItem
 
 from worker.collectors.base_web_collector import BaseWebCollector, parse_datetime
-from worker.collectors.news_images import image_urls, resolve_candidates
+from worker.collectors.news_images import document_base_url, image_urls, resolve_candidates
 from worker.collectors.playwright_manager import PlaywrightManager
 from worker.log import logger
 
@@ -180,7 +180,8 @@ class RSSCollector(BaseWebCollector):
             content = self.extract_content_from_feed(feed_entry, source)
             if self.collect_images and content:
                 markup = self.xpath_extraction(content, self.xpath, False) if self.xpath else content
-                urls.extend(image_urls(markup or ""))
+                base_url = document_base_url(content, urljoin(self.feed_url, link))
+                urls.extend(resolve_candidates(base_url, image_urls(markup or "")))
 
             if self.xpath and content and (extracted := self.xpath_extraction(content, self.xpath)):
                 content = extracted

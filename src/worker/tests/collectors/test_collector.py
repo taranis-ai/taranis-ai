@@ -732,8 +732,9 @@ def test_parse_parameters_error_cases(parameters, missing_field, expected_messag
     assert expected_message in str(excinfo.value)
 
 
-def test_article_capture_follows_selected_content_and_checks_redirects(rss_collector, requests_mock, monkeypatch):
+def test_article_capture_follows_selected_content_and_checks_redirects(rss_collector, monkeypatch):
     import socket
+    from unittest.mock import AsyncMock, MagicMock
 
     import feedparser
 
@@ -743,7 +744,7 @@ def test_article_capture_follows_selected_content_and_checks_redirects(rss_colle
     entry = feedparser.FeedParserDict(
         link=url,
         title="A diagram",
-        description='<aside><img src="/logo"></aside><main>Example<img src="chart.png"></main>',
+        description='<base href="/assets/"><aside><img src="/logo"></aside><main>Example<img src="chart.png"></main>',
         links=[{"rel": "enclosure", "type": "image/png", "href": "/cover.png"}],
     )
     source = {"id": "source", "parameters": {"FEED_URL": url, "XPATH": "//main", "USE_FEED_CONTENT": True}}
@@ -752,16 +753,39 @@ def test_article_capture_follows_selected_content_and_checks_redirects(rss_colle
     source["parameters"]["COLLECT_IMAGES"] = True
     rss_collector.parse_source(source)
     item = rss_collector.parse_feed_entry(entry, source)
-    assert item.image_urls == ["https://feed.example/cover.png", "https://feed.example/articles/chart.png"]
+    assert item.image_urls == ["https://feed.example/cover.png", "https://feed.example/assets/chart.png"]
     monkeypatch.setattr("worker.collectors.news_images.get_environ_proxies", lambda _: {})
     original_resolve = socket.getaddrinfo
     monkeypatch.setattr(
         socket,
         "getaddrinfo",
-        lambda host, port, **kwargs: original_resolve("1.1.1.1" if host == "feed.example" else "127.0.0.1", port, **kwargs),
+        lambda host, port, *args: original_resolve("1.1.1.1" if host == "feed.example" else "127.0.0.1", port, *args),
     )
-    requests_mock.get(item.image_urls[0], content=b"stored bytes")
-    assert download_image(item.image_urls[0]) == b"stored bytes"
-    requests_mock.get(item.image_urls[1], status_code=302, headers={"Location": "http://localhost/private"})
+
+    async def chunks(_size):
+        yield b"stored bytes"
+
+    response = MagicMock(spec=requests.AsyncResponse)
+    response.status_code = 200
+    response.headers = {}
+    response.is_redirect = False
+    response.iter_content.side_effect = chunks
+    send = AsyncMock(return_value=response)
+    monkeypatch.setattr(requests.adapters.AsyncHTTPAdapter, "send", send)
+    assert asyncio.run(download_image(item.image_urls[0])) == b"stored bytes"
+    response.is_redirect = True
+    response.headers = {"Location": "http://localhost/private"}
     with pytest.raises(ValueError, match="not public"):
-        download_image(item.image_urls[1])
+        asyncio.run(download_image(item.image_urls[1]))
+    assert send.await_count == 2
+
+    async def stalled_chunks(_size):
+        yield b"incomplete"
+        await asyncio.Event().wait()
+
+    response.is_redirect = False
+    response.iter_content.side_effect = stalled_chunks
+    monkeypatch.setattr("worker.collectors.news_images.IMAGE_TIMEOUT_SECONDS", 0.1)
+    assert asyncio.run(rss_collector._capture_images(item.image_urls[:1], None, 1024)) == []
+    assert rss_collector.skipped_images == 1
+    response.__aexit__.assert_awaited()

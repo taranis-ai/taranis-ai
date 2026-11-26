@@ -1,3 +1,4 @@
+import asyncio
 import base64
 import json
 import re
@@ -96,25 +97,37 @@ class BaseCollector:
             processed_stories.append(new_story)
         return processed_stories
 
+    async def _capture_images(self, urls: list[str], proxy_server: str | None, remaining: int) -> list[dict]:
+        slots = asyncio.Semaphore(3)
+
+        async def capture(url: str) -> dict | None:
+            async with slots:
+                try:
+                    blob = await download_image(url, proxy_server=proxy_server)
+                    return {"source_url": url, "data": base64.b64encode(blob).decode("ascii")}
+                except (OSError, ValueError, RequestException):
+                    return None
+
+        captures = []
+        for image in await asyncio.gather(*(capture(url) for url in urls)):
+            if image is not None:
+                size = len(image["data"]) + len(json.dumps(image["source_url"])) + 64
+                if size <= remaining:
+                    remaining -= size
+                    captures.append(image)
+                    continue
+            self.skipped_images += 1
+        return captures
+
     def publish_with_images(self, items: list[NewsItem], source: dict) -> dict:
         message = "All news items were skipped"
         for item in self.process_news_items(items, source):
             payload = item.model_dump(mode="json")
-            captures = []
             # Leave room for the JSON envelope within Core's 50 MiB request limit.
             remaining = 49 * 1024 * 1024 - len(json.dumps(payload).encode())
-            for url in item.image_urls:
-                try:
-                    blob = download_image(url, proxy_server=source["parameters"].get("PROXY_SERVER"))
-                    capture = {"source_url": url, "data": base64.b64encode(blob).decode("ascii")}
-                    size = len(capture["data"]) + len(json.dumps(url)) + 64
-                    if size > remaining:
-                        raise ValueError("Item image budget exceeded")
-                    remaining -= size
-                    captures.append(capture)
-                except (OSError, ValueError, RequestException):
-                    self.skipped_images += 1
-            payload["captured_images"] = captures
+            payload["captured_images"] = asyncio.run(
+                self._capture_images(item.image_urls, source["parameters"].get("PROXY_SERVER"), remaining)
+            )
             try:
                 result = self.core_api.add_news_items([payload])
                 if result:

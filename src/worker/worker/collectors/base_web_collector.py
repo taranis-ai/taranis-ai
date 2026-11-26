@@ -11,7 +11,7 @@ from models.assess import NewsItem
 from trafilatura import extract, extract_metadata
 
 from worker.collectors.base_collector import BaseCollector, NoChangeError
-from worker.collectors.news_images import image_urls, resolve_candidates
+from worker.collectors.news_images import document_base_url, image_urls, resolve_candidates
 from worker.collectors.playwright_manager import PlaywrightManager
 from worker.config import Config
 from worker.core_api import IconFile
@@ -316,13 +316,14 @@ class BaseWebCollector(BaseCollector):
 
         urls = []
         if self.collect_images and web_content:
+            base_url = document_base_url(web_content, self.article_base_url or web_url)
             markup = (
                 self.xpath_extraction(web_content, xpath, False)
                 if xpath
-                else extract(web_content, url=web_url, output_format="xml", include_images=True)
+                else extract(web_content, url=base_url, output_format="xml", include_images=True)
             )
             if markup:
-                urls = resolve_candidates(self.article_base_url or web_url, image_urls(markup))
+                urls = resolve_candidates(base_url, image_urls(markup))
         if not web_content or (not content and not urls):
             return {"author": "", "title": "", "content": "", "published_date": None, "language": "", "review": ""}
 

@@ -6,6 +6,7 @@ from niquests.exceptions import RequestException
 
 from worker.bot_api import BotServiceUnavailableError
 from worker.bots.base_bot import BaseBot
+from worker.log import logger
 
 
 class Image2TextAdapterUnavailable(BotServiceUnavailableError):
@@ -33,14 +34,16 @@ class Image2TextBot(BaseBot):
 
     def execute(self, parameters: dict | None = None) -> dict:
         adapter = None
-        descriptions = {}
+        parameters = parameters or {}
+        descriptions = parameters.get("_llm_batch_state", {}).setdefault("image_descriptions", {})
+        save_state = parameters.get("_save_llm_batch_state")
         errors = []
-        for story in self.get_stories(parameters or {}):
+        for story in self.get_stories(parameters):
             for item in story.get("news_items", []):
                 for image in item.get("images", []):
-                    if image.get("description"):
-                        continue
                     image_id = image["id"]
+                    if image.get("description") or image_id in descriptions:
+                        continue
                     if adapter is None:
                         adapter = load_image2text_adapter()
                     try:
@@ -49,9 +52,14 @@ class Image2TextBot(BaseBot):
                         caption = output.strip() if isinstance(output, str) else ""
                         if not caption or len(caption) > MAX_DESCRIPTION_LENGTH or "\x00" in caption:
                             raise ValueError("Invalid image description")
-                        descriptions[image_id] = caption
-                    except (RequestException, ValueError, BotServiceUnavailableError):
+                    except (RequestException, ValueError, BotServiceUnavailableError) as exc:
+                        logger.warning(f"Image2Text failed for image {image_id} ({type(exc).__name__})")
+                        logger.exception()
                         errors.append(image_id)
+                        continue
+                    descriptions[image_id] = caption
+                    if save_state:
+                        save_state()
         return {
             "message": f"Described {len(descriptions)} images. Failed: {len(errors)}.",
             "changes": {"image_descriptions": descriptions},
