@@ -563,6 +563,7 @@ class TestEndToEndUser(BaseE2ETest):
             page.get_by_role("heading", name="Attributes", exact=True).click()
             expect(bot_attribute).not_to_be_visible()
             page.get_by_role("button", name="Save changes").click()
+            expect(page.get_by_role("heading", name=edited_title, exact=True)).to_be_visible()
             page.get_by_role("link", name="Advanced").click()
             bot_attribute = page.get_by_test_id("attribute-value-input").last
             expect(bot_attribute).not_to_be_visible()
