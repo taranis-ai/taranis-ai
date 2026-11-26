@@ -17,7 +17,7 @@ Before keeping a new test, compare existing coverage and extend the nearest rele
 - Worker SFTP tests use a real local SSH server. The `sftp_mock` fixture and `SFTPTestHandler` handle the expected server-side EOF or connection reset when the client rejects a host key and join listener/connection threads during teardown. Keep thread warnings fatal in `src/worker/tests/publishers/test_sftp_publisher.py`; otherwise a leaked SSH thread can report its failure against an unrelated later test (including TAXII).
 - SFTP tests run in a per-test temporary working directory so uploads cannot contaminate later cases. Explicitly close the saved listener socket before joining: mockssh can skip `close()` when `shutdown()` fails on macOS.
 - Complete the SFTP fixture's initial SSH handshake before yielding the server. Otherwise a validation failure before connecting can close the listening socket before mockssh registers it with its selector.
-- Migration SQL must respect the active PostgreSQL schema. `dev/test_master_to_branch_migration.sh` renames the restored schema and sets the database search path before applying pending migrations, covering dynamically constructed SQL against a real database.
+- Migration SQL must respect the active PostgreSQL schema. `dev/test_master_to_branch_migration.sh` seeds two linked news item, story, report, and product examples before the dump. It verifies their titles and links after migrating the restored database in a non-default schema.
 
 ## Entry Points
 

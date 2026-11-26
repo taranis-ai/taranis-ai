@@ -35,6 +35,7 @@ run_core_db_setup() {
   local core_dir="$1"
   local database_url="$2"
   local label="$3"
+  local sample_action="$4"
 
   run_step "$label"
   (
@@ -44,16 +45,60 @@ run_core_db_setup() {
       DEBUG=true \
       DISABLE_SCHEDULER=true \
       TARANIS_CORE_SENTRY_DSN= \
-      uv run --frozen python - <<'PY'
+      uv run --frozen python - "$sample_action" <<'PY'
+import sys
+
 from flask import Flask
 
 from core.managers import db_manager
+from core.managers.db_manager import db
+from core.model.news_item import NewsItem
+from core.model.product import Product
+from core.model.product_type import ProductTypeReportType
+from core.model.report_item import ReportItem
+from core.model.story import Story
+
+
+# Each row follows a product back to its report, story, and source news item.
+samples = [
+    ("Flood bulletin", "Flood assessment", "River levels rising", "Gauge reaches flood stage"),
+    ("Port bulletin", "Port assessment", "Harbor reopens", "Ferry service resumes"),
+]
+
+
+def seed_samples():
+    type_pair = db.session.execute(db.select(ProductTypeReportType).limit(1)).scalar_one()
+    for product_title, report_title, story_title, news_title in samples:
+        story = Story(title=story_title, news_items=[NewsItem(title=news_title)])
+        report = ReportItem(title=report_title, report_item_type_id=type_pair.report_item_type_id)
+        report.stories = [story]
+        product = Product(title=product_title, product_type_id=type_pair.product_type_id)
+        product.report_items = [report]
+        db.session.add(product)
+    db.session.commit()
+
+
+def verify_samples():
+    query = (
+        db.select(Product.title, ReportItem.title, Story.title, NewsItem.title)
+        .select_from(Product)
+        .join(Product.report_items)
+        .join(ReportItem.stories)
+        .join(Story.news_items)
+        .where(Product.title.in_([sample[0] for sample in samples]))
+    )
+    rows = db.session.execute(query).all()
+    if sorted(rows) != sorted(samples):
+        raise SystemExit(f"Migration sample mismatch. Expected {samples!r}, found {rows!r}")
 
 
 app = Flask(__name__)
 app.config.from_object("core.config.Config")
 with app.app_context():
     db_manager.initialize(app, initial_setup=True)
+    if sys.argv[1] == "seed":
+        seed_samples()
+    verify_samples()
 PY
   )
 }
@@ -181,7 +226,7 @@ echo "Current branch: $CURRENT_REF"
 echo "Master database: $(masked_url "$MASTER_DATABASE_URL")"
 echo "Branch database: $(masked_url "$BRANCH_DATABASE_URL")"
 
-run_core_db_setup "$MASTER_WORKTREE/src/core" "$MASTER_DATABASE_URL" "Create and seed database using $BASE_REF"
+run_core_db_setup "$MASTER_WORKTREE/src/core" "$MASTER_DATABASE_URL" "Create and seed database using $BASE_REF" seed
 
 run_step "Copy master database into branch database"
 "$CONTAINER_CLI" exec "$PG_CONTAINER" pg_dump --no-owner --no-privileges -U "$PG_USER" -d "$MASTER_DB" >"$DUMP_FILE"
@@ -196,7 +241,7 @@ ALTER SCHEMA public RENAME TO :"migration_schema";
 ALTER DATABASE :"branch_db" SET search_path TO :"migration_schema";
 SQL
 
-run_core_db_setup "$ROOT_DIR/src/core" "$BRANCH_DATABASE_URL" "Apply current branch migrations to copied master database"
+run_core_db_setup "$ROOT_DIR/src/core" "$BRANCH_DATABASE_URL" "Apply current branch migrations and verify sample data" verify
 run_pytest_validation "$ROOT_DIR/src/core" "$BRANCH_DATABASE_URL" "$PYTEST_TARGET"
 
 run_step "Migration test completed"
