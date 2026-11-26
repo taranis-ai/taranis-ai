@@ -370,6 +370,12 @@ class Story(BaseModel):
 
         if source := filter_args.get("source"):
             source_group_filters.append(OSINTSource.id.in_(source))
+            if len(source) == 1 and not group and filter_args.get("limit") and db.engine.dialect.name == "postgresql":
+                # Bound a single feed's page by linked IDs while still sorting by the story dates.
+                from_source = NewsItem.osint_source_id == source[0]
+                first_id = db.select(func.min(NewsItem.story_id)).where(from_source).scalar_subquery()
+                last_id = db.select(func.max(NewsItem.story_id)).where(from_source).scalar_subquery()
+                query = query.where(cls.id.between(first_id, last_id))
 
         if source_group_filters:
             matching_items = matching_items.where(or_(*source_group_filters))

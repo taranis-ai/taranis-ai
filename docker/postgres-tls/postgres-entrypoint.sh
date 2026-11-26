@@ -1,6 +1,11 @@
 #!/bin/sh
 set -eu
 
+case "${1:-}" in
+    postgres|-*) ;;
+    *) exec docker-entrypoint.sh "$@" ;;
+esac
+
 cp /tls/server.crt /var/lib/postgresql/server.crt
 cp /tls/server.key /var/lib/postgresql/server.key
 chmod 0644 /var/lib/postgresql/server.crt
