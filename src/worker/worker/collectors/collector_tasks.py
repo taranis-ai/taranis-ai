@@ -392,14 +392,13 @@ def fetch_single_news_item(parameters: dict[str, Any]):
         try:
             parameters = {**parameters, "parameters": effective_parameter_values(worker_type, collector_parameters)}
             if parameters["parameters"].get("COLLECT_IMAGES"):
-                parameters["id"] = "manual"
                 collector.parse_source(parameters)
                 items = collector.gather_news_items()
                 if tlp := parameters["parameters"].get("TLP_LEVEL"):
                     collector.add_tlp(items, tlp)
                 preview_result = collector.publish_with_images(items, parameters)
                 if collector.affected_story_ids:
-                    core_api.run_post_collection_bots("manual", sorted(collector.affected_story_ids))
+                    core_api.run_post_collection_bots(parameters["id"], sorted(collector.affected_story_ids))
             else:
                 preview_result = collector.preview_collector(parameters)
                 if tlp := parameters["parameters"].get("TLP_LEVEL"):
