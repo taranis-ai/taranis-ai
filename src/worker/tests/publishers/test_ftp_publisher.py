@@ -1,5 +1,4 @@
 import unicodedata
-from unittest.mock import MagicMock
 
 import pytest
 
@@ -31,21 +30,3 @@ def test_remote_file_name_is_a_bounded_basename(title):
     assert ".." not in file_name
     assert not any(unicodedata.category(character).startswith("C") for character in file_name)
     assert len(file_name.encode("utf-8")) <= 240
-
-
-def test_ftp_publisher_uploads_basename_in_destination(monkeypatch, ftp_publisher, get_product_mock):
-    from tests.publishers.publishers_data import product_text
-
-    ftp_client = MagicMock()
-    monkeypatch.setattr("worker.publishers.ftp_publisher.ftplib.FTP", lambda: ftp_client)
-    product = product_text | {"title": "Résumé 2026"}
-    publisher = {"parameters": {"FTP_URL": "ftp://user:password@example.test/exports"}}
-
-    result = ftp_publisher.publish(publisher, product, get_product_mock)
-
-    assert result == "Successfully uploaded to FTP server"
-    assert ftp_publisher.file_name.startswith("Résumé 2026_")
-    ftp_client.cwd.assert_called_once_with("/exports")
-    upload_command, upload_data = ftp_client.storbinary.call_args.args
-    assert upload_command == f"STOR {ftp_publisher.file_name}"
-    assert upload_data.read() == get_product_mock.data

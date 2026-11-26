@@ -1,6 +1,4 @@
 from pathlib import Path
-from types import SimpleNamespace
-from unittest.mock import MagicMock
 
 import paramiko
 import pytest
@@ -13,26 +11,32 @@ pytestmark = pytest.mark.filterwarnings("error::pytest.PytestUnhandledThreadExce
 
 
 @pytest.mark.parametrize("accept_any", [False, True], ids=["pinned-key", "accept-any-key"])
-def test_sftp_publisher_publish(sftp_publisher, get_product_mock, sftp_mock, accept_any):
+def test_sftp_publisher_publish(sftp_publisher, get_product_mock, sftp_mock, accept_any, tmp_path):
     from tests.publishers.publishers_data import product_text
 
     key = paramiko.RSAKey.from_private_key_file(SERVER_KEY_PATH)
-    parameters = {"SFTP_URL": f"sftp://user:password@{sftp_mock.host}:{sftp_mock.port}"}
+    destination = tmp_path / "exports"
+    destination.mkdir()
+    parameters = {"SFTP_URL": f"sftp://user:password@{sftp_mock.host}:{sftp_mock.port}{destination.as_posix()}"}
     if accept_any:
         parameters["ACCEPT_ANY_HOST_KEY"] = True
         parameters["HOST_KEY"] = "ignored when accepting any key"
     else:
         parameters["HOST_KEY"] = f"{key.get_name()} {key.get_base64()} server comment\n"
 
-    result = sftp_publisher.publish({"parameters": parameters}, product_text, get_product_mock)
+    product = product_text | {"title": "Résumé 2026"}
+    result = sftp_publisher.publish({"parameters": parameters}, product, get_product_mock)
     assert result == "SFTP Publisher Task Successful"
-    assert Path(sftp_publisher.file_name).read_bytes() == get_product_mock.data
+    assert sftp_publisher.file_name.startswith("Résumé 2026_")
+    uploaded_files = list(destination.iterdir())
+    assert uploaded_files == [destination / sftp_publisher.file_name]
+    assert uploaded_files[0].read_bytes() == get_product_mock.data
     assert sftp_publisher.ssh.get_transport() is None
 
     parameters.pop("HOST_KEY")
     parameters["ACCEPT_ANY_HOST_KEY"] = False
     with pytest.raises(ValueError, match="host public key is required"):
-        sftp_publisher.publish({"parameters": parameters}, product_text, get_product_mock)
+        sftp_publisher.publish({"parameters": parameters}, product, get_product_mock)
 
 
 @pytest.mark.parametrize("host_key", ["", "invalid", "ssh-rsa !!!", "changed"], ids=["missing", "malformed", "invalid-base64", "changed"])
@@ -67,34 +71,6 @@ def test_sftp_publisher_rejects_upload_size_mismatch(monkeypatch, sftp_publisher
 
     with pytest.raises(OSError, match="upload size confirmation failed"):
         sftp_publisher.publish(publisher, product_text, get_product_mock)
-
-
-def test_sftp_publisher_uploads_basename_in_destination(monkeypatch, sftp_publisher, get_product_mock):
-    from tests.publishers.publishers_data import product_text
-
-    ssh_client = MagicMock()
-    sftp_client = MagicMock()
-    sftp_client.stat.return_value = SimpleNamespace(st_size=len(get_product_mock.data))
-    monkeypatch.setattr(paramiko, "SSHClient", lambda: ssh_client)
-    monkeypatch.setattr(paramiko, "SFTPClient", lambda _channel: sftp_client)
-    product = product_text | {"title": "Résumé 2026"}
-    publisher = {
-        "parameters": {
-            "SFTP_URL": "sftp://user:password@example.test/exports",
-            "ACCEPT_ANY_HOST_KEY": True,
-        }
-    }
-
-    result = sftp_publisher.publish(publisher, product, get_product_mock)
-
-    assert result == "SFTP Publisher Task Successful"
-    assert sftp_publisher.file_name.startswith("Résumé 2026_")
-    sftp_client.chdir.assert_called_once_with("/exports")
-    upload_data, upload_name = sftp_client.putfo.call_args.args
-    assert upload_name == sftp_publisher.file_name
-    assert upload_data.read() == get_product_mock.data
-    assert sftp_client.putfo.call_args.kwargs == {"confirm": False}
-    sftp_client.stat.assert_called_once_with(sftp_publisher.file_name)
 
 
 @pytest.mark.parametrize("sftp_mock", ["stalled"], indirect=True)
