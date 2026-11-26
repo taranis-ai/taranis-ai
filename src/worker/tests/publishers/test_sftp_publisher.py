@@ -1,4 +1,6 @@
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import MagicMock
 
 import paramiko
 import pytest
@@ -65,6 +67,34 @@ def test_sftp_publisher_rejects_upload_size_mismatch(monkeypatch, sftp_publisher
 
     with pytest.raises(OSError, match="upload size confirmation failed"):
         sftp_publisher.publish(publisher, product_text, get_product_mock)
+
+
+def test_sftp_publisher_uploads_basename_in_destination(monkeypatch, sftp_publisher, get_product_mock):
+    from tests.publishers.publishers_data import product_text
+
+    ssh_client = MagicMock()
+    sftp_client = MagicMock()
+    sftp_client.stat.return_value = SimpleNamespace(st_size=len(get_product_mock.data))
+    monkeypatch.setattr(paramiko, "SSHClient", lambda: ssh_client)
+    monkeypatch.setattr(paramiko, "SFTPClient", lambda _channel: sftp_client)
+    product = product_text | {"title": "Résumé 2026"}
+    publisher = {
+        "parameters": {
+            "SFTP_URL": "sftp://user:password@example.test/exports",
+            "ACCEPT_ANY_HOST_KEY": True,
+        }
+    }
+
+    result = sftp_publisher.publish(publisher, product, get_product_mock)
+
+    assert result == "SFTP Publisher Task Successful"
+    assert sftp_publisher.file_name.startswith("Résumé 2026_")
+    sftp_client.chdir.assert_called_once_with("/exports")
+    upload_data, upload_name = sftp_client.putfo.call_args.args
+    assert upload_name == sftp_publisher.file_name
+    assert upload_data.read() == get_product_mock.data
+    assert sftp_client.putfo.call_args.kwargs == {"confirm": False}
+    sftp_client.stat.assert_called_once_with(sftp_publisher.file_name)
 
 
 @pytest.mark.parametrize("sftp_mock", ["stalled"], indirect=True)

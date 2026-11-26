@@ -29,7 +29,7 @@ class SFTPPublisher(BasePublisher):
         private_key = parameters.get("PRIVATE_KEY")
         timeout = effective_network_timeout(parameters)
 
-        self.set_file_name(product)
+        self.set_safe_remote_file_name(product)
         server_config: ParseResult = urlparse(ftp_url)  # type: ignore
         rendered_data = self._require_rendered_data(rendered_product)
 
@@ -83,7 +83,8 @@ class SFTPPublisher(BasePublisher):
         timeout: float = 30,
     ):
         ssh_port = server_config.port or 22
-        remote_path = server_config.path + self.file_name
+        remote_file_name = self._require_safe_remote_file_name(self.file_name)
+        remote_directory = server_config.path
         connect_password = None if private_key else server_config.password
         hostname = server_config.hostname
         if not hostname:
@@ -133,13 +134,17 @@ class SFTPPublisher(BasePublisher):
             channel.settimeout(timeout)
             channel.invoke_subsystem("sftp")
             sftp = paramiko.SFTPClient(channel)
+            if remote_directory:
+                operation = "select_directory"
+                logger.info("SFTP publisher selecting destination directory")
+                sftp.chdir(remote_directory)
             expected_size = data_to_upload.getbuffer().nbytes
             operation = "upload"
             logger.info("SFTP publisher uploading")
-            sftp.putfo(data_to_upload, remote_path, confirm=False)
+            sftp.putfo(data_to_upload, remote_file_name, confirm=False)
             operation = "confirm"
             logger.info("SFTP publisher confirming upload size")
-            actual_size = sftp.stat(remote_path).st_size
+            actual_size = sftp.stat(remote_file_name).st_size
             if actual_size != expected_size:
                 raise OSError("SFTP upload size confirmation failed")
         except JobTimeoutException:
