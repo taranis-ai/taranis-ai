@@ -70,7 +70,7 @@ The S3 Publisher uploads the rendered Product to S3-compatible object storage. I
 
 ## Webhook Publisher
 
-Create a Webhook Publisher preset with the receiver’s final HTTPS URL. Select the preset when publishing a rendered product, or set it as the product’s default publisher for auto-publishing. Each publication sends one POST. Any 2xx status, including an empty `204`, confirms acceptance. Redirects and delivery failures end the attempt. After a timeout, check whether the receiver accepted the product before publishing again.
+Create a Webhook Publisher preset with the receiver’s final HTTPS URL. Select the preset when publishing a rendered product, or set it as the product’s default publisher for auto-publishing. Each publication sends one POST. Any 2xx status, including an empty `204`, confirms acceptance. Redirects and delivery failures end the attempt. For a non-2xx response, the saved task result records the receiver’s numeric status in `data.http_status`. After a timeout, check whether the receiver accepted the product before publishing again.
 
 Choose the payload format for each destination. For example, a text presenter that renders `Hello` produces these requests:
 

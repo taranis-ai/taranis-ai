@@ -17,6 +17,12 @@ def _discard_redirect_location(response: Response, **_kwargs) -> None:
     response.headers.pop("Location", None)
 
 
+class WebhookDeliveryRejected(RuntimeError):
+    def __init__(self, status_code: int | None):
+        super().__init__("Webhook endpoint rejected delivery")
+        self.status_code = status_code
+
+
 class WebhookPublisher(BasePublisher):
     def __init__(self):
         super().__init__()
@@ -60,5 +66,5 @@ class WebhookPublisher(BasePublisher):
                 raise PublisherNetworkTimeout("webhook_publisher", "delivery") from None
             raise RuntimeError("Webhook delivery failed") from None
         if status is None or not 200 <= status < 300:
-            raise RuntimeError("Webhook endpoint rejected delivery")
+            raise WebhookDeliveryRejected(status)
         return {"message": "Webhook delivery accepted"}

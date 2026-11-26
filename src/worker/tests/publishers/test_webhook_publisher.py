@@ -42,14 +42,16 @@ def test_webhook_delivers_render(raw, webhook_receiver, recording_core_api_facto
 
 
 @pytest.mark.parametrize(
-    ("path", "error", "reason"),
+    ("path", "error", "reason", "http_status"),
     [
-        ("redirect", RuntimeError, "publisher_failed"),
-        ("reject", RuntimeError, "publisher_failed"),
-        ("stall", PublisherNetworkTimeout, "publisher_network_timeout"),
+        ("redirect", RuntimeError, "publisher_failed", 307),
+        ("reject", RuntimeError, "publisher_failed", 403),
+        ("stall", PublisherNetworkTimeout, "publisher_network_timeout", None),
     ],
 )
-def test_webhook_failure_records_safe_result(path, error, reason, webhook_receiver, recording_core_api_factory, monkeypatch, caplog):
+def test_webhook_failure_records_safe_result(
+    path, error, reason, http_status, webhook_receiver, recording_core_api_factory, monkeypatch, caplog
+):
     url, received = webhook_receiver
     parameters = {"WEBHOOK_URL": f"{url}/{path}", "ALLOW_INSECURE_HTTP": True, "BEARER_TOKEN": "private-bearer", "NETWORK_TIMEOUT": 1}
     core = recording_core_api_factory(
@@ -63,4 +65,9 @@ def test_webhook_failure_records_safe_result(path, error, reason, webhook_receiv
     submission = core.put_calls[-1]["json"]
     assert submission["status"] == "FAILURE"
     assert submission["result"].reason == reason
+    data = submission["result"].data
+    if http_status is None:
+        assert "http_status" not in data
+    else:
+        assert data["http_status"] == http_status
     assert "private-" not in str(exc.value) + str(submission) + caplog.text
