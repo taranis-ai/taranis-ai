@@ -327,3 +327,19 @@ def test_get_dashboard_data_includes_top_sources(session, monkeypatch):
 
     user.profile["dashboard"]["source_distribution_limit"] = 0
     assert DashboardService.get_dashboard_data(user=user)["items"][0]["top_sources"] == []
+
+
+def test_trending_clusters_break_fifth_place_tie_by_name(client, auth_header, session):
+    from core.model.news_item_tag import NewsItemTagCluster
+
+    tag_type = _unique_value("trend-limit-type")
+    now = BaseModel.utcnow()
+    for name, count in [("one", 10), ("two", 8), ("three", 6), ("four", 4), ("zeta", 2), ("alpha", 2)]:
+        session.add(NewsItemTagCluster(name=name, tag_type=tag_type, tag_type_key=tag_type, story_count=count, last_story_created=now))
+    session.flush()
+
+    response = client.get("/api/dashboard/trending-clusters", headers=auth_header, query_string={"days": 7})
+    assert response.status_code == 200
+    cluster = next(item for item in response.get_json()["items"] if item["name"] == tag_type)
+    assert [tag["name"] for tag in cluster["tags"]] == ["one", "two", "three", "four", "alpha"]
+    assert cluster["size"] == 30
