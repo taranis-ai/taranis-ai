@@ -1780,17 +1780,24 @@ def test_capture_retains_distinct_images_and_checks_access(client, session, api_
         assert response.status_code == 200
         return response.json
 
-    initial = ingest([captures[0], captures[0], {"source_url": "https://example.org/invalid", "data": "AAAA"}])
+    initial = ingest(
+        [captures[0] | {"alt_text": "  Source caption  "}, captures[0], {"source_url": "https://example.org/invalid", "data": "AAAA"}]
+    )
     assert initial["skipped_images"] == 1
     story = Story.get(initial["story_ids"][0])
     item = story.news_items[0]
     original = item.images[0]
+    assert original.description == "Source caption"
     assert len(item.images) == 1
     assert ingest(captures, published="2000-01-01")["counts"]["stale"] == 1
     assert len(item.images) == 1
     assert ingest(captures)["counts"]["updated"] == 1
+    captures[0]["alt_text"] = "Different caption"
+    captures[1]["alt_text"] = "Second figure"
+    assert ingest(captures)["counts"]["updated"] == 1
     assert ingest(captures)["counts"]["unchanged"] == 1
     assert len(item.images) == 2
+    assert [image.description for image in item.images] == ["Source caption", "Second figure"]
     worker_url = f"/api/worker/images/{original.id}"
     assert client.get(worker_url).status_code == 401
     assert b64encode(client.get(worker_url, headers=api_header).data).decode() == captures[0]["data"]

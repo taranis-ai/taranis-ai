@@ -44,7 +44,8 @@ class CollectionService:
                     except (ValueError, OSError, SyntaxError, Image.DecompressionBombError):
                         skipped_images += 1
                         continue
-                    images[image.digest] = image
+                    stored = images.setdefault(image.digest, image)
+                    stored.description = stored.description or image.description
                 result, status = CollectionService.ingest_item(payload, list(images.values()))
                 if status >= 300:
                     db.session.rollback()
@@ -129,21 +130,33 @@ class CollectionService:
         changed = any(
             NewsItem.normalized_content(getattr(item, field)) != NewsItem.normalized_content(value) for field, value in incoming.items()
         )
+        story = None
+        if changed or images:
+            story = db.session.execute(db.select(Story).where(Story.id == item.story_id).with_for_update()).scalar_one_or_none()
+        new_images = []
+        descriptions = {}
         if images:
-            existing = {image.digest for image in item.images}
-            images = [image for image in images if image.digest not in existing]
-        if not changed and not images:
+            existing = {image.digest: image for image in item.images}
+            for image in images:
+                stored = existing.get(image.digest)
+                if stored is None:
+                    new_images.append(image)
+                elif stored.description is None and image.description:
+                    descriptions[stored] = image.description
+
+        if not changed and not new_images and not descriptions:
             if published != item.published:
                 db.session.execute(db.update(NewsItem).where(NewsItem.id == item.id).values(published=published, updated=item.updated))
             return {"action": "unchanged"}, 200
 
-        story = db.session.execute(db.select(Story).where(Story.id == item.story_id).with_for_update()).scalar_one_or_none()
         if story is None or any(attribute.key == "rt_id" for attribute in story.attributes):
             return {"error": "Collected article belongs to a story that cannot be updated"}, 409
         # Preserve the actual pre-change state, including items moved into this story.
         story.record_revision(note="before_collection_update")
-        if images:
-            item.images.extend(images)
+        if new_images:
+            item.images.extend(new_images)
+        for stored, description in descriptions.items():
+            stored.description = description
         for field, value in incoming.items():
             setattr(item, field, value)
         item.fuzzy_hash = NewsItem.get_fuzzy_hash(item.content)

@@ -186,7 +186,7 @@ class NewsItem(TaranisBaseModel):
     _pretty_name = "News Item"
 
     images: list[ImageMetadata] | None = None
-    image_urls: list[str] = Field(default_factory=list, exclude=True)
+    image_candidates: dict[str, str | None] = Field(default_factory=dict, exclude=True)
     osint_source_id: str
     id: str | None = None
     hash: str | None = None

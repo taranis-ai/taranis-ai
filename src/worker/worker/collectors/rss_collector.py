@@ -9,7 +9,7 @@ from bs4 import BeautifulSoup
 from models.assess import NewsItem
 
 from worker.collectors.base_web_collector import BaseWebCollector, parse_datetime
-from worker.collectors.news_images import document_base_url, image_urls, resolve_candidates
+from worker.collectors.news_images import document_base_url, markup_images, resolve_candidates
 from worker.collectors.playwright_manager import PlaywrightManager
 from worker.log import logger
 
@@ -170,24 +170,24 @@ class RSSCollector(BaseWebCollector):
         published = self.get_published_date(feed_entry)
         content = ""
 
-        urls = []
+        candidates = []
         if self.collect_images:
             for media in [*(feed_entry.get("enclosures") or []), *(feed_entry.get("media_content") or [])]:
                 media_url = media.get("href") or media.get("url")
                 if media_url and (media.get("medium") == "image" or str(media.get("type", "")).startswith("image/")):
-                    urls.append(str(media_url))
+                    candidates.append((str(media_url), media.get("alt")))
         if self.use_feed_content:
             content = self.extract_content_from_feed(feed_entry, source)
             if self.collect_images and content:
                 markup = self.xpath_extraction(content, self.xpath, False) if self.xpath else content
                 base_url = document_base_url(content, urljoin(self.feed_url, link))
-                urls.extend(resolve_candidates(base_url, image_urls(markup or "")))
+                candidates.extend(resolve_candidates(base_url, markup_images(markup or "")).items())
 
             if self.xpath and content and (extracted := self.xpath_extraction(content, self.xpath)):
                 content = extracted
         elif link:
             web_content = self.extract_web_content(link, self.xpath)
-            urls.extend(web_content.get("image_urls", []))
+            candidates.extend(web_content.get("image_candidates", {}).items())
             content = str(web_content.get("content") or "")
             author = author or str(web_content.get("author"))
             title = title or str(web_content.get("title"))
@@ -207,7 +207,7 @@ class RSSCollector(BaseWebCollector):
             author=author,
             title=title,
             source=self.feed_url,
-            image_urls=resolve_candidates(urljoin(self.feed_url, link), urls),
+            image_candidates=resolve_candidates(urljoin(self.feed_url, link), candidates),
             content=content,
             link=link,
             published=published,

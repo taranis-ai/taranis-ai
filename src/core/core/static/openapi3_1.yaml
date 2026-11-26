@@ -10031,6 +10031,7 @@ paths:
                       required: [source_url, data]
                       properties:
                         source_url: {type: string, format: uri}
+                        alt_text: {type: [string, "null"], description: Source alt text used as the initial image description.}
                         data: {type: string, contentEncoding: base64}
       responses:
         '200':

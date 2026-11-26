@@ -3,11 +3,12 @@
 import asyncio
 import ipaddress
 import socket
+from collections.abc import Iterable
 from urllib.parse import urldefrag, urlencode, urljoin, urlsplit
 
 import niquests
 from bs4 import BeautifulSoup
-from models.news_image import MAX_IMAGE_BYTES, MAX_IMAGE_COUNT
+from models.news_image import MAX_IMAGE_BYTES, MAX_IMAGE_COUNT, normalize_alt_text
 from niquests.utils import get_environ_proxies, select_proxy
 
 
@@ -24,22 +25,22 @@ def document_base_url(markup: str, page_url: str) -> str:
     return page_url
 
 
-def image_urls(markup: str) -> list[str]:
+def markup_images(markup: str) -> list[tuple[str, str | None]]:
     soup = BeautifulSoup(markup, "lxml")
-    return [str(node["src"]) for node in soup.select("img[src], graphic[src]", limit=MAX_IMAGE_COUNT)]
+    return [(str(node["src"]), str(node.get("alt") or "")) for node in soup.select("img[src], graphic[src]", limit=MAX_IMAGE_COUNT)]
 
 
-def resolve_candidates(base: str, urls: list[str]) -> list[str]:
-    result = []
-    for value in urls:
+def resolve_candidates(base: str, candidates: Iterable[tuple[str, str | None]]) -> dict[str, str | None]:
+    result: dict[str, str | None] = {}
+    for value, alt_text in candidates:
         try:
             url = urldefrag(urljoin(base, value.strip())).url
-            if url not in result and urlsplit(url).scheme in {"http", "https"}:
-                result.append(url)
+            if urlsplit(url).scheme not in {"http", "https"}:
+                continue
         except ValueError:
             continue
-        if len(result) == MAX_IMAGE_COUNT:
-            break
+        if url in result or len(result) < MAX_IMAGE_COUNT:
+            result[url] = result.get(url) or normalize_alt_text(alt_text)
     return result
 
 

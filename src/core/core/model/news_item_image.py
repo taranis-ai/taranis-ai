@@ -36,6 +36,7 @@ class NewsItemImage(BaseModel):
             mime = Image.MIME[image.format]
             image.load()
         record = cls()
+        record.description = capture.alt_text
         record.source_url = str(capture.source_url)
         record.mime_type = mime
         record.digest = hashlib.sha256(data).hexdigest()

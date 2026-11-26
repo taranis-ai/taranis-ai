@@ -975,7 +975,7 @@ class TestEndToEndUser(BaseE2ETest):
             expect(card.get_by_role("region", name="Images")).to_have_count(0)
             page.goto(url_for("assess.story_edit", story_id=story_id, _external=True))
             page.get_by_text("Open image 1", exact=True).click()
-            expect(page.get_by_text(f"Image2Text: {caption}", exact=True)).to_be_visible()
+            expect(page.get_by_text(caption, exact=True)).to_be_visible()
         finally:
             if bot_id:
                 core.delete(f"/config/bots/{bot_id}", raise_for_status=False)

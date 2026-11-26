@@ -185,13 +185,13 @@ class MastodonCollector(BaseCollector):
         if not title:
             title = f"Mastodon post by {author or 'unknown account'}"
 
-        media_urls = [
-            str(media["url"])
+        media_images = [
+            (str(media["url"]), media.get("description"))
             for media in post.get("media_attachments") or []
             if self.collect_images and media.get("type") == "image" and media.get("url")
         ]
         return NewsItem(
-            image_urls=resolve_candidates(link, media_urls),
+            image_candidates=resolve_candidates(link, media_images),
             osint_source_id=source_id,
             author=author,
             title=title,

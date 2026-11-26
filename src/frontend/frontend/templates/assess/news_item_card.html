@@ -9,9 +9,9 @@
           <figure class="mt-2">
             <img src="{{ url_for('assess.news_image', image_id=image.id) }}"
                  loading="lazy"
-                 alt="Collected image {{ loop.index }}"
+                 alt="{{ image.description or ('Collected image ' ~ loop.index) }}"
                  class="max-h-[70vh] max-w-full object-contain">
-            <figcaption class="mt-2 whitespace-pre-line">{{ ('Image2Text: ' ~ image.description) if image.description else 'No description yet.' }}</figcaption>
+            <figcaption class="mt-2 whitespace-pre-line">{{ image.description or 'No description yet.' }}</figcaption>
           </figure>
         </details>
       {% endfor %}

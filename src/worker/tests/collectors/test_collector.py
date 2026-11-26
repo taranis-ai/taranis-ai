@@ -733,6 +733,7 @@ def test_parse_parameters_error_cases(parameters, missing_field, expected_messag
 
 
 def test_article_capture_follows_selected_content_and_checks_redirects(rss_collector, monkeypatch):
+    import base64
     import socket
     from unittest.mock import AsyncMock, MagicMock
 
@@ -744,16 +745,18 @@ def test_article_capture_follows_selected_content_and_checks_redirects(rss_colle
     entry = feedparser.FeedParserDict(
         link=url,
         title="A diagram",
-        description='<base href="/assets/"><aside><img src="/logo"></aside><main>Example<img src="chart.png"></main>',
+        description='<base href="/assets/"><aside><img src="/logo"></aside><main>Example<img src="/cover.png" alt=" Cover &amp; key "><img src="chart.png" alt="   "></main>',
         links=[{"rel": "enclosure", "type": "image/png", "href": "/cover.png"}],
     )
     source = {"id": "source", "parameters": {"FEED_URL": url, "XPATH": "//main", "USE_FEED_CONTENT": True}}
     rss_collector.parse_source(source)
-    assert not rss_collector.parse_feed_entry(entry, source).image_urls
+    assert not rss_collector.parse_feed_entry(entry, source).image_candidates
     source["parameters"]["COLLECT_IMAGES"] = True
     rss_collector.parse_source(source)
     item = rss_collector.parse_feed_entry(entry, source)
-    assert item.image_urls == ["https://feed.example/cover.png", "https://feed.example/assets/chart.png"]
+    cover_url = "https://feed.example/cover.png"
+    chart_url = "https://feed.example/assets/chart.png"
+    assert item.image_candidates == {cover_url: "Cover & key", chart_url: None}
     monkeypatch.setattr("worker.collectors.news_images.get_environ_proxies", lambda _: {})
     original_resolve = socket.getaddrinfo
     monkeypatch.setattr(
@@ -772,12 +775,14 @@ def test_article_capture_follows_selected_content_and_checks_redirects(rss_colle
     response.iter_content.side_effect = chunks
     send = AsyncMock(return_value=response)
     monkeypatch.setattr(requests.adapters.AsyncHTTPAdapter, "send", send)
-    assert asyncio.run(download_image(item.image_urls[0])) == b"stored bytes"
+    captured = asyncio.run(rss_collector._capture_images(item.image_candidates, None, 1024))
+    assert [(image["source_url"], image["alt_text"]) for image in captured] == [(cover_url, "Cover & key"), (chart_url, None)]
+    assert base64.b64decode(captured[0]["data"]) == b"stored bytes"
     response.is_redirect = True
     response.headers = {"Location": "http://localhost/private"}
     with pytest.raises(ValueError, match="not public"):
-        asyncio.run(download_image(item.image_urls[1]))
-    assert send.await_count == 2
+        asyncio.run(download_image(chart_url))
+    assert send.await_count == 3
 
     async def stalled_chunks(_size):
         yield b"incomplete"
@@ -786,6 +791,6 @@ def test_article_capture_follows_selected_content_and_checks_redirects(rss_colle
     response.is_redirect = False
     response.iter_content.side_effect = stalled_chunks
     monkeypatch.setattr("worker.collectors.news_images.IMAGE_TIMEOUT_SECONDS", 0.1)
-    assert asyncio.run(rss_collector._capture_images(item.image_urls[:1], None, 1024)) == []
+    assert asyncio.run(rss_collector._capture_images({cover_url: None}, None, 1024)) == []
     assert rss_collector.skipped_images == 1
     response.__aexit__.assert_awaited()
