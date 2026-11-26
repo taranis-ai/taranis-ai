@@ -46,7 +46,7 @@
   <!-- Story header -->
   <article class="card shadow-xl border border-base-200 bg-base-100">
     <div class="card-body grid gap-4 grid-cols-1 2xl:grid-cols-2">
-      <div class="space-y-3">
+      <div class="space-y-1">
         <p class="text-xs uppercase tracking-wide text-base-content/60">Story reference · {{ story.id }}</p>
         <h1 {{ bot_result_fragment('story-ai-heading', ['SUMMARY_BOT']) }}
             class="text-3xl font-semibold leading-tight tracking-tight">{{ story.title or "Untitled story" }}</h1>
@@ -176,11 +176,15 @@
     </div>
   </article>
 
+  {% if comment_preview %}
+    {% include "discussion/preview.html" %}
+  {% endif %}
+
   {% if layout == "advanced" %}
     {% set misp_sync = story.misp_auto_update or {} %}
     {% set proposal_url = story.attributes | selectattr('key', 'equalto', 'has_proposals') | map(attribute='value') | first | default(none) %}
     <div id="story-misp-settings" x-show="mispSettingsOpen" x-cloak class="card bg-base-100 shadow-lg border border-base-200">
-      <div class="card-body space-y-3">
+      <div class="card-body space-y-1">
         <h3 class="card-title text-lg">MISP auto-update</h3>
         <p class="text-sm text-base-content/70">Push this story after five minutes without further changes.</p>
         {% if can_manage_connectors and story.can_edit %}
@@ -217,6 +221,7 @@
   <div class="grid gap-4 grid-cols-1 xl:grid-cols-5">
     <div class="min-w-0 space-y-6 {{ column_class }}">
       <form id="story-edit-form"
+            @submit.capture="confirmDiscardCommentDraft($event)"
             class="card bg-base-100 shadow-xl border border-base-200"
             method="post"
             action="{{ form_action }}"
@@ -267,12 +272,6 @@
                         placeholder="Summarise the key takeaways">{{ story.summary }}</textarea>
             </label>
 
-            <label class="floating-label">
-              <span class="label">Analyst comments</span>
-              <textarea name="comments"
-                        class="textarea textarea-bordered w-full"
-                        placeholder="Capture notes, caveats, or next steps">{{ story.comments }}</textarea>
-            </label>
             {# djlint:off #}
             <section class="rounded-2xl border border-base-200 bg-base-200/40 p-5 sm:col-span-2"
                      @story-ai-attributes='if ($event.detail.storyId === {{ story.id | tojson }}) { for (const fresh of $event.detail.attributes) { const existing = attributes.find(item => item.key === fresh.key); if (existing) existing.value = fresh.value; else attributes.push(fresh); } }'
@@ -320,10 +319,10 @@
     {% if layout == "advanced" %}
       <!-- Advanced options sidebar -->
       <aside class="space-y-2">
-        <div class="card bg-base-100 shadow-lg border border-base-200">
-          <div class="card-body space-y-4">
+        <div class="card card-xs bg-base-100 shadow-lg border border-base-200">
+          <div class="card-body space-y-2">
             <h3 class="card-title text-lg">Story status</h3>
-            <div class="flex flex-wrap gap-3 text-sm">
+            <div class="flex flex-wrap gap-2 text-sm">
               <span {{ bot_result_fragment('story-ai-classification', ['CYBERSEC_CLASSIFIER_BOT']) }}
                     class="badge badge-outline badge-lg">Classification · {{ story_classification }}</span>
               <span {{ bot_result_fragment('story-ai-sentiment', ['SENTIMENT_ANALYSIS_BOT']) }}
@@ -332,8 +331,8 @@
           </div>
         </div>
 
-        <div class="card bg-base-100 shadow-lg border border-base-200">
-          <div class="card-body space-y-3">
+        <div class="card card-xs bg-base-100 shadow-lg border border-base-200">
+          <div class="card-body space-y-1">
             <h3 class="card-title text-lg">AI assisted actions</h3>
             <p class="text-sm text-base-content/70">Kick off automation in the background.</p>
 

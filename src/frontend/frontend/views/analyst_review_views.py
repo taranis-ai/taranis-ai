@@ -6,6 +6,7 @@ from flask import abort, current_app, make_response, redirect, render_template, 
 from flask.typing import ResponseReturnValue
 from flask_jwt_extended import current_user
 from models.assess import Story
+from models.cache_contract import build_analyst_review_state_key
 from models.product import Product
 from models.report import ReportItem, ReportTypes
 from werkzeug.exceptions import HTTPException
@@ -44,7 +45,7 @@ class AnalystReviewView:
 
     @staticmethod
     def _cache_key(run_id: str) -> str:
-        return f"{cache.key_prefix}:analyst-review:{current_user.username}:{run_id}"
+        return build_analyst_review_state_key(current_user.username, run_id)
 
     @staticmethod
     def _testing_state_store() -> dict[str, dict[str, Any]] | None:

@@ -176,6 +176,13 @@ class StoryOperationsService:
                 absorbed_overrides.append(source_story.relevance_override or 0)
 
         target_story.relevance_override = max(absorbed_overrides)
+        if absorbed_story_ids:
+            from core.model.comment import Comment
+            from core.model.story import Story
+
+            # Block new comments on absorbed stories until this transaction deletes them.
+            db.session.execute(db.select(Story.id).where(Story.id.in_(absorbed_story_ids)).order_by(Story.id).with_for_update()).all()
+            db.session.execute(db.update(Comment).where(Comment.story_id.in_(absorbed_story_ids)).values(story_id=target_story.id))
         cls.merge_votes_into_story(target_story, absorbed_story_ids)
         # Absorbed stories are deleted below; ON DELETE CASCADE would otherwise drop their report links.
         affected_reports = ReportStorySyncService.keep_memberships_after_merge(target_story, source_stories, absorbed_story_ids)

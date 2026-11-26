@@ -8,7 +8,6 @@
     "likes": 0,
     "dislikes": 0,
     "relevance": 0,
-    "comments": "",
     "summary": "",
     "news_items": [
       {
@@ -51,7 +50,6 @@
     "likes": 0,
     "dislikes": 0,
     "relevance": 0,
-    "comments": "",
     "summary": "",
     "news_items": [
       {
@@ -94,7 +92,6 @@
     "likes": 0,
     "dislikes": 0,
     "relevance": 0,
-    "comments": "",
     "summary": "",
     "news_items": [
       {
@@ -137,7 +134,6 @@
     "likes": 0,
     "dislikes": 0,
     "relevance": 0,
-    "comments": "",
     "summary": "",
     "news_items": [
       {
@@ -181,7 +177,6 @@
     "likes": 0,
     "dislikes": 0,
     "relevance": 0,
-    "comments": "",
     "summary": "",
     "news_items": [
       {
@@ -224,7 +219,6 @@
     "likes": 0,
     "dislikes": 0,
     "relevance": 0,
-    "comments": "",
     "summary": "",
     "news_items": [
       {
@@ -267,7 +261,6 @@
     "likes": 0,
     "dislikes": 0,
     "relevance": 0,
-    "comments": "",
     "summary": "",
     "news_items": [
       {
@@ -310,7 +303,6 @@
     "likes": 0,
     "dislikes": 0,
     "relevance": 0,
-    "comments": "",
     "summary": "",
     "news_items": [
       {
@@ -353,7 +345,6 @@
     "likes": 0,
     "dislikes": 0,
     "relevance": 0,
-    "comments": "",
     "summary": "",
     "news_items": [
       {
@@ -389,7 +380,6 @@
     "likes": 0,
     "dislikes": 0,
     "relevance": 0,
-    "comments": "",
     "summary": "",
     "news_items": [
       {
@@ -425,7 +415,6 @@
     "likes": 0,
     "dislikes": 0,
     "relevance": 0,
-    "comments": "",
     "summary": "Following some utf 16 chars 😢😢 and 🍕 and 😄",
     "news_items": [
       {
@@ -468,7 +457,6 @@
       "value": "yes"
     }
   },
-  "comments": "This is a story comment",
   "created": "2025-06-03T07:36:00+00:00",
   "description": "",
   "detail_view": true,

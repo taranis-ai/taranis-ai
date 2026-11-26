@@ -6,6 +6,7 @@ Agent name: jipitiii. taranis.ai is an OSINT application; see [README.md](README
 
 - Before application edits or validation: [Development Workflow](docs/agents/development-workflow.md).
 - Before component, model, API, queue, persistence, or datetime edits: [Architecture and Boundaries](docs/agents/architecture-and-boundaries.md).
+- **Never migrate SQLite.** Follow the [database migration policy](docs/agents/architecture-and-boundaries.md#database-migrations) when planning or reviewing schema changes and data backfills.
 - Before any `src/frontend` edit: [Frontend Development](docs/agents/frontend-development.md).
 - Before planning or editing application behavior: inspect [Agent Memory](docs/agents/README.md) and read every matching memory. Code remains authoritative; update memories when contracts, paths, caching, or validation change. Add and index substantial recurring workflows.
 
