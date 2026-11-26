@@ -69,6 +69,9 @@
       </div>
     </div>
     <div class="flex min-w-0 flex-wrap items-center gap-2">
+      {% if not bookmark_mode %}
+        <a class="btn btn-outline btn-sm" href="{{ url_for('discussion.overview', scope='story') }}">Discussion</a>
+      {% endif %}
       <div class="flex flex-wrap items-center gap-2"
            x-show="selectedItems.length"
            x-transition.opacity

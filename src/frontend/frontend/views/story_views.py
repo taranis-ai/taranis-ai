@@ -48,6 +48,7 @@ from frontend.utils.form_data_parser import parse_formdata
 from frontend.utils.router_helpers import is_htmx_request, parse_paging_data
 from frontend.utils.validation_helpers import format_pydantic_errors
 from frontend.views.base_view import BaseView
+from frontend.views.discussion_views import discussion_preview
 
 
 _quote_via = cast(Any, quote)
@@ -1039,6 +1040,9 @@ class StoryView(BaseView):
         story = context.get("story")
 
         if isinstance(story, Story):
+            detail_paths = {url_for("assess.story", story_id=object_id), url_for("assess.story_edit", story_id=object_id)}
+            if request.path in detail_paths or cls._get_current_url_path() in detail_paths:
+                context["comment_preview"] = discussion_preview("story", object_id)
             context["layout"] = request.args.get("layout", "advanced" if current_user.profile.advanced_story_options else "simple")
             context["can_manage_connectors"] = "CONNECTOR_USER_ACCESS" in (current_user.permissions or [])
             if context["can_manage_connectors"] and context["layout"] == "advanced":
