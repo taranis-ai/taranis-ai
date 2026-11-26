@@ -537,7 +537,6 @@ def cleanup_story_update_data(rt_id_attribute):
         "read": True,
         "title": "Updated Test Story Title",
         "description": "This is an updated test description",
-        "comments": "This is an updated comment",
         "summary": "This is an updated summary of the story",
         "attributes": [
             {"key": "priority", "value": "high"},
@@ -833,7 +832,6 @@ def story_conflict_resolution_1(news_items, cleanup_news_item):
         "resolution": {
             "title": "Updated Test Story Title",
             "description": "This is an updated test description",
-            "comments": "This is an updated comment",
             "summary": "This is an updated summary of the story",
             "attributes": [{"key": "priority", "value": "high"}],
             "links": ["https://example.com/1", "http://example.com/2"],

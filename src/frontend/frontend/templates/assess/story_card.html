@@ -188,6 +188,10 @@
         </footer>
       </div>
 
+      {% if detail_view and comment_preview %}
+        {% include "discussion/preview.html" %}
+      {% endif %}
+
       <div id="story-details-{{ story_id }}"
            x-ref="details"
            class="border-t border-base-200 pt-2 space-y-1 w-full max-w-full"

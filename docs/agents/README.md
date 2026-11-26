@@ -5,7 +5,7 @@ Read matching memories before planning or editing application behavior. Code and
 ## Operational References
 
 - [Development Workflow](development-workflow.md): setup, validation, signoff, and development conventions. Required before application changes or validation.
-- [Architecture and Boundaries](architecture-and-boundaries.md): components, API boundaries, persistence, and datetimes. Required before changes to those areas.
+- [Architecture and Boundaries](architecture-and-boundaries.md): components, API boundaries, persistence, datetimes, and the [PostgreSQL and SQLite migration policy](architecture-and-boundaries.md#database-migrations). Required before changes to those areas.
 - [Frontend Development](frontend-development.md): HTMX, Alpine, browser state, and shared UI contracts. Required before frontend changes.
 - [Test Design](test-design.md): coverage and fixture conventions. Required before test changes.
 - [Frontend E2E Harness](frontend-e2e-harness.md): isolated Compose stacks, service selection, and diagnostics.

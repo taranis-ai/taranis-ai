@@ -599,7 +599,7 @@ def test_export_stories_and_metadata(client, full_story, api_header, auth_header
     assert "description" in data[0]
     assert "read" in data[0]
     assert "relevance" in data[0]
-    assert "comments" in data[0]
+    assert "comments" not in data[0]
     assert "summary" in data[0]
     assert "created" in data[0]
     assert "updated" in data[0]
