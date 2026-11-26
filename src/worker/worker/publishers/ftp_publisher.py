@@ -25,7 +25,7 @@ class FTPPublisher(BasePublisher):
         ftp_url = parameters.get("FTP_URL")
         timeout = effective_network_timeout(parameters)
 
-        self.set_file_name(product)
+        self.set_safe_remote_file_name(product)
         server_config: ParseResult = urlparse(ftp_url)  # type: ignore
         rendered_data = self._require_rendered_data(rendered_product)
 
@@ -40,7 +40,8 @@ class FTPPublisher(BasePublisher):
 
     def upload_to_ftp(self, server_config: ParseResult, data_to_upload: BytesIO, timeout: float):
         ftp_port = server_config.port or 21
-        remote_path = server_config.path + self.file_name
+        remote_file_name = self._require_safe_remote_file_name(self.file_name)
+        remote_directory = server_config.path
         host_name = server_config.hostname
 
         if not host_name:
@@ -59,9 +60,13 @@ class FTPPublisher(BasePublisher):
                 operation = "authenticate"
                 logger.info("FTP publisher authenticating")
                 ftp.login(server_config.username, server_config.password)
+            if remote_directory:
+                operation = "select_directory"
+                logger.info("FTP publisher selecting destination directory")
+                ftp.cwd(remote_directory)
             operation = "upload"
             logger.info("FTP publisher uploading")
-            ftp.storbinary(f"STOR {remote_path}", data_to_upload)
+            ftp.storbinary(f"STOR {remote_file_name}", data_to_upload)
             completed = True
         except JobTimeoutException:
             raise

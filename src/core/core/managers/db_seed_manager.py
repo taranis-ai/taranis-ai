@@ -340,11 +340,14 @@ def migrate_use_feed_content():
         content_location = source.parameters.get("CONTENT_LOCATION", "")
         use_feed_content = source.parameters.get("USE_FEED_CONTENT")
 
-        # Only migrate sources that haven't been migrated yet and are not a boolean
-        if use_feed_content in ["true", "false"]:
+        # Saved values are native bools; never re-derive them from CONTENT_LOCATION.
+        if isinstance(use_feed_content, bool):
             continue
 
-        target_value = "true" if content_location.strip() else "false"
+        if use_feed_content in ["true", "false"]:
+            target_value = use_feed_content == "true"
+        else:
+            target_value = bool(content_location.strip())
         source.parameters = {**source.parameters, "USE_FEED_CONTENT": target_value}
         updated_sources += 1
         if use_feed_content is None:
