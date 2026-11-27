@@ -1003,25 +1003,35 @@ class TestEndToEndUser(BaseE2ETest):
         core = core_request_client
         caption = f"Diagram {uuid.uuid4().hex}"
         png = (Path(__file__).parent / "testdata/icon.png").read_bytes()
-        article = {
-            "osint_source_id": fake_source,
-            "title": f"Illustrated article {uuid.uuid4()}",
-            "captured_images": [
-                {"source_url": "https://example.invalid/image.png", "data": b64encode(png).decode(), "alt_text": "Original caption"}
-            ],
-        }
-        result = core.json_request("POST", "/worker/news-items", json_data=[article], headers=api_header, authenticated=False)
+        articles = [
+            {
+                "osint_source_id": fake_source,
+                "title": f"Illustrated article {uuid.uuid4()}",
+                "captured_images": [
+                    {"source_url": "https://example.invalid/image.png", "data": b64encode(png).decode(), "alt_text": alt_text}
+                ],
+            }
+            for alt_text in ("Original caption", "Second caption")
+        ]
+        result = core.json_request("POST", "/worker/news-items", json_data=articles, headers=api_header, authenticated=False)
         story_id = result["story_ids"][0]
         bot_id = None
         try:
+            core.post("/assess/stories/group", json_data=result["story_ids"])
             story = core.json_request("GET", f"/assess/stories/{story_id}")
             image_id = story["news_items"][0]["images"][0]["id"]
             page.goto(url_for("assess.story", story_id=story_id, _external=True))
-            page.get_by_text("Open image 1", exact=True).click()
+            page.get_by_text("Open image 1", exact=True).first.click()
             expect(page.get_by_alt_text("Original caption")).to_have_js_property("naturalWidth", 16)
+            page.get_by_role("button", name="Open all images").click()
+            expect(page.get_by_alt_text("Second caption")).to_be_visible()
+            page.get_by_role("button", name="Close all images").click()
+            expect(page.get_by_alt_text("Original caption")).to_be_hidden()
+            expect(page.get_by_alt_text("Second caption")).to_be_hidden()
             page.goto(url_for("assess.story_edit", story_id=story_id, layout="advanced", _external=True))
-            page.get_by_text("Open image 1", exact=True).click()
+            page.get_by_role("button", name="Open all images").click()
             expect(page.get_by_text("Original caption", exact=True)).to_be_visible()
+            expect(page.get_by_text("Second caption", exact=True)).to_be_visible()
             page.get_by_role("textbox", name="Summary").fill("Unsaved draft")
             regenerate = page.get_by_role("button", name="Regenerate image descriptions")
             expect(regenerate).to_be_enabled()
@@ -1076,17 +1086,18 @@ class TestEndToEndUser(BaseE2ETest):
             expect(page.get_by_role("textbox", name="Summary")).to_have_value("Unsaved draft")
             page.goto(url_for("assess.assess", search=caption, _external=True))
             card = page.get_by_test_id(f"story-card-{story_id}")
-            expect(card.get_by_text("Images: 1", exact=True)).to_be_visible()
+            expect(card.get_by_text("Images: 2", exact=True)).to_be_visible()
             card.get_by_test_id("toggle-summary").click()
             expect(card.get_by_test_id(f"news-item-title-{story['news_items'][0]['id']}")).to_be_visible()
             expect(card.get_by_role("region", name="Images")).to_have_count(0)
             page.goto(url_for("assess.story_edit", story_id=story_id, _external=True))
-            page.get_by_text("Open image 1", exact=True).click()
+            page.get_by_text("Open image 1", exact=True).first.click()
             expect(page.get_by_text(caption, exact=True)).to_be_visible()
         finally:
             if bot_id:
                 core.delete(f"/config/bots/{bot_id}", raise_for_status=False)
-            core.delete(f"/assess/stories/{story_id}", raise_for_status=False)
+            for created_id in result["story_ids"]:
+                core.delete(f"/assess/stories/{created_id}", raise_for_status=False)
 
     def test_news_item_order(self, non_admin_logged_in_page, forward_console_and_page_errors_non_admin, core_request_client):
         page = non_admin_logged_in_page

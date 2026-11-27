@@ -1,10 +1,24 @@
 {% from "assess/bot_result_refresh.html" import bot_result_fragment %}
+{% macro story_image_toggle(story) %}
+  {% if story.image_count %}
+    <button type="button"
+            class="btn btn-sm btn-outline"
+            x-cloak
+            @click="const images = Array.from($refs.items.querySelectorAll('.news-item-image'));
+                    const open = images.some(image => !image.open);
+                    images.forEach(image => { image.open = open })">
+      <span class="hidden group-has-[.news-item-image:not([open])]/images:inline">Open all images</span>
+      <span class="group-has-[.news-item-image:not([open])]/images:hidden">Close all images</span>
+    </button>
+  {% endif %}
+{% endmacro %}
+
 {% macro news_item_images(item) %}
   {% if item.images %}
     <section aria-label="Images" class="space-y-2">
       <h4 class="font-semibold">Images</h4>
       {% for image in item.images %}
-        <details>
+        <details class="news-item-image">
           <summary class="w-fit cursor-pointer rounded-sm font-medium hover:underline">Open image {{ loop.index }}</summary>
           <figure {{ bot_result_fragment('news-image-' ~ image.id, ['IMAGE2TEXT_BOT']) }} class="mt-2 block max-w-5xl">
             <img src="{{ url_for('assess.news_image', image_id=image.id) }}"
