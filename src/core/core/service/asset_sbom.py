@@ -7,7 +7,7 @@ from models.sbom import SbomComparison, SbomCreateAsset, component_identity
 from core.managers.db_manager import db
 from core.model.asset import Asset, AssetCpe, AssetGroup
 from core.model.asset_intelligence import AssetMatchRun, AssetTrigger
-from core.model.asset_sbom import AssetSbomComponent, AssetSbomImport, AssetSbomUpload
+from core.model.asset_sbom import AssetSbomComponent, AssetSbomImport, AssetSbomUpload, DiscoveryImport
 from core.model.user import User
 from core.service.asset_intelligence import generate_triggers, product_identity
 
@@ -19,13 +19,24 @@ class SbomImportError(ValueError):
         self.status = status
 
 
-def owned_import(import_id: str, user: User, *, lock=False) -> AssetSbomImport:
+def owned_import(import_id: str, user: User, *, lock=False, discovery=False) -> AssetSbomImport:
     query = db.select(AssetSbomImport).filter_by(id=import_id, user_id=user.id, organization_id=user.organization.id)
     if lock:
         query = query.with_for_update().execution_options(populate_existing=True)
     record = db.session.scalar(query)
     if not record or (record.asset_id and Asset.get_for_api(record.asset_id, user.organization)[1] != 200):
         raise SbomImportError("SBOM preview unavailable. Upload the file again.", 404)
+    if (
+        not discovery
+        and not record.asset_id
+        and db.session.scalar(
+            db.select(DiscoveryImport.upload_id)
+            .join(AssetSbomUpload, AssetSbomUpload.id == DiscoveryImport.upload_id)
+            .where(AssetSbomUpload.import_id == record.id)
+            .limit(1)
+        )
+    ):
+        raise SbomImportError("Review this inventory through its discovery import.", 409)
     if db.session.scalar(
         db.select(AssetSbomUpload.id).where(AssetSbomUpload.import_id == record.id, AssetSbomUpload.status != "READY").limit(1)
     ):
@@ -116,7 +127,7 @@ def apply_import(
 ) -> tuple[Asset, bool]:
     """Apply one snapshot atomically; callers schedule matching only after this commits."""
     with db.session.begin_nested():
-        asset, changed = _apply_import(
+        asset, changed = apply_snapshot(
             import_id,
             user,
             create=create,
@@ -129,7 +140,7 @@ def apply_import(
     return asset, changed
 
 
-def _apply_import(
+def apply_snapshot(
     import_id: str,
     user: User,
     *,
@@ -138,6 +149,7 @@ def _apply_import(
     expected_sha256: str | None,
     enable_software_matching: bool,
     enable_cve_matching: bool,
+    discovery: bool = False,
 ) -> tuple[Asset, bool]:
     asset = None
     if asset_id:
@@ -146,7 +158,7 @@ def _apply_import(
         # A write also serializes replacement on SQLite, where FOR UPDATE is ignored.
         db.session.execute(db.update(Asset).where(Asset.id == asset_id).values(name=Asset.name))
         asset = db.session.get(Asset, asset_id)
-    record = owned_import(import_id, user, lock=True)
+    record = owned_import(import_id, user, lock=True, discovery=discovery)
     if record.asset_id:
         if asset_id and record.asset_id != asset_id:
             raise SbomImportError("This import belongs to another asset. Upload a new export.", 409)

@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block content %}
+  <section id="discovery-progress"
+           class="p-4 space-y-4"
+           {% if data.state in ('queued','processing') %}hx-get="{{ url_for('assets.discovery_progress', upload_id=upload_id) }}" hx-trigger="every 2s" hx-select="#discovery-progress" hx-swap="outerHTML"{% endif %}>
+    <a class="link" href="{{ url_for('assets.assets') }}">Assets</a>
+    <h1 class="text-2xl font-bold">Discovery import</h1>
+    {% if data.error %}<p role="alert">{{ data.error }}</p>{% endif %}
+    <p role="status">{{ data.state | capitalize }} {{ data.message | default("") }}</p>
+    {% if data.reason in ("destination","scope","replacement","identity") and (data.reason != "scope" or data.options) %}
+      <form method="post" class="space-y-2">
+        <input type="hidden" name="csrf_token" value="{{ request.cookies.get(config['JWT_ACCESS_CSRF_COOKIE_NAME'], '') }}">
+        {% if data.reason == "destination" %}
+          <label>Destination group <select name="group_id" required class="select select-bordered">{% for group in data.groups %}<option value="{{ group.id }}">{{ group.name }}</option>{% endfor %}</select></label>
+        {% elif data.reason == "identity" %}
+          <label>{{ data.scope }} <select name="asset_id" required class="select select-bordered"><option value="new">Create a separate asset</option>{% for option in data.options %}<option value="{{ option.id }}">{{ option.name }} · {{ option.id }}</option>{% endfor %}</select></label>
+        {% elif data.reason == "scope" %}
+          <label>Inventory scope <select name="scope" required class="select select-bordered">{% for option in data.options %}<option value="{{ option.key }}">{{ option.key }}</option>{% endfor %}</select></label>
+        {% else %}
+          <p>{{ data.scope }} · Current SBOM <code>{{ data.expected_sha256 }}</code></p>
+          <input type="hidden" name="expected_sha256" value="{{ data.expected_sha256 }}">
+        {% endif %}
+        <button type="submit" class="btn btn-primary">Apply decision</button>
+      </form>
+    {% endif %}
+    {% if data.reason == "mismatch" %}<p>{{ data.scope }} · Expected SHA-256 <code>{{ data.expected_sha256 }}</code> · Uploaded <code>{{ data.uploaded_sha256 }}</code></p>{% endif %}
+    {% for asset in data.assets %}
+      <p>
+        <a class="link" href="{{ url_for('assets.asset', asset_id=asset.id) }}">{{ asset.name }}</a> ·
+        <a class="link" href="{{ url_for('assets.asset_services', asset_id=asset.id) }}">Services &amp; running software</a>
+        {% if data.inventory_asset_id == asset.id %} · <a class="link"
+                                                          href="{{ url_for('assets.asset_sbom', asset_id=asset.id) }}">Software inventory</a>{% endif %}
+      </p>
+    {% endfor %}
+    <a class="link" href="{{ url_for('assets.sbom_upload') }}">Import files</a>
+  </section>
+{% endblock content %}

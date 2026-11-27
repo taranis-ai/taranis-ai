@@ -15,6 +15,7 @@
       {% for key, label, href, available in [
         ('details', 'Asset details', url_for('assets.asset', asset_id=asset_id, assess_url=assess_return_url), can_read),
         ('inventory', 'Software inventory', url_for('assets.asset_sbom', asset_id=asset_id, assess_url=assess_return_url), can_read),
+        ('services', 'Services & running software', url_for('assets.asset_services', asset_id=asset_id, assess_url=assess_return_url), can_read),
         ('rules', 'Matching rules', url_for('assets.asset_triggers', asset_id=asset_id, assess_url=assess_return_url), can_read),
         ('intelligence', 'Relevant intelligence', intelligence_url, can_read and 'ASSESS_ACCESS' in current_user.permissions),
         ('findings', 'Findings & indicators', url_for('assets.asset_cti', asset_id=asset_id, assess_url=assess_return_url), can_read),

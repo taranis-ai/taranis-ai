@@ -2,9 +2,11 @@ import io
 import json
 import os
 from datetime import timedelta
+from hashlib import sha256
 from pathlib import Path
 
 import pytest
+from models.discovery import prepare_discovery
 from models.sbom_parser import SbomValidationError, parse_sbom
 
 from core.managers import queue_manager
@@ -61,7 +63,20 @@ def prepare_upload(client, upload_id):
     endpoint = f"/api/worker/sbom-uploads/{upload_id}"
     source = client.get(endpoint, headers=worker_headers)
     assert source.status_code == 200
-    parsed = parse_sbom(source.data)
+    raw = source.data
+    if file_count := source.headers.get("X-Discovery-Files"):
+        files = [raw]
+        if file_count == "2":
+            files.append(client.get(endpoint + "?file=2", headers=worker_headers).data)
+        discovery = prepare_discovery(files)
+        response = client.post(endpoint + "/discovery", headers=worker_headers, json=discovery.model_dump(mode="json"))
+        assert response.status_code == 200, response.json
+        if discovery.sbom_file is None:
+            response = client.post(endpoint + "/complete", headers=worker_headers, json={})
+            assert response.status_code == 200, response.json
+            return
+        raw = files[discovery.sbom_file - 1]
+    parsed = parse_sbom(raw)
     response = client.post(endpoint + "/begin", headers=worker_headers, json=parsed.summary.model_dump())
     assert response.status_code == 200, response.json
     for kind, items in (("components", parsed.components), ("findings", parsed.findings)):
@@ -1118,7 +1133,20 @@ def test_sbom_preparation_is_private_and_requires_complete_worker_batches(
     source = client.get(worker_url, headers=api_header)
     assert source.status_code == 200, source.json
     assert source.data == FIXTURE.read_bytes()
-    parsed = parse_sbom(source.data)
+    raw = source.data
+    if file_count := source.headers.get("X-Discovery-Files"):
+        files = [raw]
+        if file_count == "2":
+            files.append(client.get(endpoint + "?file=2", headers=worker_headers).data)
+        discovery = prepare_discovery(files)
+        response = client.post(endpoint + "/discovery", headers=worker_headers, json=discovery.model_dump(mode="json"))
+        assert response.status_code == 200, response.json
+        if discovery.sbom_file is None:
+            response = client.post(endpoint + "/complete", headers=worker_headers, json={})
+            assert response.status_code == 200, response.json
+            return
+        raw = files[discovery.sbom_file - 1]
+    parsed = parse_sbom(raw)
     begin = client.post(worker_url + "/begin", headers=api_header, json=parsed.summary.model_dump())
     preview_url = f"/api/assets/sbom-imports/{begin.json['import_id']}"
     assert client.get(preview_url, headers=auth_header).status_code == 409
@@ -1277,3 +1305,160 @@ def test_software_rules_are_shared_within_organization_but_enablement_stays_loca
     )
     assert client.delete(first_base, headers=auth_header).status_code == 200
     assert any(t["rule_id"] == first_rule["rule_id"] for t in client.get(third_base + "/triggers", headers=auth_header).json["items"])
+
+
+def discovery_files(client, headers, *files):
+    endpoint = "/api/assets/discovery-imports"
+    queued = client.post(
+        endpoint,
+        headers={"Authorization": headers["Authorization"]},
+        data={"file": [(io.BytesIO(raw), f"{i}.json") for i, raw in enumerate(files)]},
+    )
+    assert queued.status_code == 202, queued.json
+    prepare_upload(client, queued.json["id"])
+    receipt = client.get(f"{endpoint}/{queued.json['id']}", headers=headers)
+    assert receipt.status_code == 200, receipt.json
+    return receipt.json
+
+
+def test_discovery_links_exact_scopes_and_only_verified_findings(client, auth_header, auth_header_user_permissions, session):
+    document = json.loads(FIXTURE.read_bytes())
+    document["components"][0]["purl"] = "pkg:deb/debian/openssl@3.0.2?arch=amd64&distro=debian-12"
+    document["vulnerabilities"] = [
+        {"id": "CVE-2026-12345", "source": {"name": "scanner"}, "affects": [{"ref": "openssl-a"}]},
+        {"id": "CVE-2026-56789", "affects": [{"ref": "ruby-openssl"}]},
+    ]
+    raw = json.dumps(document).encode()
+    owner = {
+        "name": "openssl",
+        "ecosystem": "deb",
+        "version": "3.0.2",
+        "architecture": "amd64",
+        "distribution": {"id": "debian", "version_id": "12"},
+    }
+    listener = {
+        "kind": "listener",
+        "address": "127.0.0.1",
+        "port": 443,
+        "protocol": "tcp",
+        "processes": [{"name": "web", "packages": ["openssl"], "package_details": [owner]}],
+    }
+    service = {
+        "name": "Web",
+        "bom-ref": "service-1",
+        "properties": [{"name": "sbomprober:services:evidence", "value": json.dumps([listener])}],
+    }
+    sidecar = {
+        "schema_version": 1,
+        "asset_type": "host",
+        "asset_name": "web",
+        "inventory_hostname": "web",
+        "source_sha256": sha256(raw).hexdigest(),
+        "observed_at": "2026-11-13T10:00:00Z",
+        "complete": True,
+        "services": [service],
+    }
+    companion = json.dumps(sidecar).encode()
+    mismatch = discovery_files(client, auth_header, raw, json.dumps({**sidecar, "source_sha256": "0" * 64}).encode())
+    assert mismatch["reason"] == "mismatch" and not mismatch.get("assets")
+    receipt = discovery_files(client, auth_header, companion, raw)
+    assert receipt["state"] == "applied", receipt
+    asset_id = receipt["inventory_asset_id"]
+    assert discovery_files(client, auth_header, raw, companion)["inventory_asset_id"] == asset_id
+    partial = {**sidecar, "complete": False, "services": [], "observed_at": "2026-11-14T10:00:00Z"}
+    discovery_files(client, auth_header, json.dumps(partial).encode())
+    data = client.get(f"/api/assets/{asset_id}/services", headers=auth_header).json
+    assert len(data["captures"]) == 2 and len(data["services"]) == 1
+    observed = data["services"][0]
+    assert list(observed["providers"].values()) == ["openssl"]
+    assert [f["cve"] for f in observed["findings"]] == ["CVE-2026-12345"]
+    assert observed["findings"][0]["records"][0]["source"]["name"] == "scanner"
+    other = {**sidecar, "asset_name": "web/docker/compose/site/app/1", "asset_type": "container"}
+    second = discovery_files(client, auth_header, raw, json.dumps(other).encode())
+    assert second["inventory_asset_id"] != asset_id
+    container_service = client.get(f"/api/assets/{second['inventory_asset_id']}/services", headers=auth_header).json["services"][0]
+    assert not container_service["providers"] and not container_service["findings"]
+    unassessed = json.dumps({k: v for k, v in document.items() if k != "vulnerabilities"}).encode()
+    replace = discovery_files(
+        client, auth_header, unassessed, json.dumps({**sidecar, "source_sha256": sha256(unassessed).hexdigest()}).encode()
+    )
+    assert replace["reason"] == "replacement" and replace["expected_sha256"] == sha256(raw).hexdigest()
+    result = client.post(
+        f"/api/assets/discovery-imports/{replace['id']}", headers=auth_header, json={"expected_sha256": replace["expected_sha256"]}
+    )
+    assert result.json["state"] == "applied"
+    foreign_org = Organization(name="Other discovery tenant")
+    foreign_group = AssetGroup(name="Private", description="", organization=foreign_org)
+    db.session.add(foreign_group)
+    Asset.get(asset_id).asset_group = foreign_group
+    db.session.commit()
+    assert client.get(f"/api/assets/{asset_id}/services", headers=auth_header).status_code == 404
+    assert client.get(f"/api/assets/discovery-imports/{receipt['id']}", headers=auth_header).status_code == 404
+    private = client.get(f"/api/assets/discovery-imports/{receipt['id']}", headers=auth_header_user_permissions)
+    assert private.status_code in (401, 403, 404)
+
+
+def test_discovery_resolves_late_inventory_and_ambiguous_runtime_images(client, auth_header, session):
+    document = json.loads(FIXTURE.read_bytes())
+    image = "sha256:" + "a" * 64
+    document["metadata"]["component"] = {"type": "container", "name": image}
+    raw = json.dumps(document).encode()
+    host = {"id": "host", "alias": "runtime", "collection": {"runtime": "complete"}}
+    one = {"id": "a", "identity": ["compose", "demo", "app", "1"], "image_id": image, "host_id": "host"}
+    two = {**one, "id": "b", "identity": ["compose", "demo", "app", "2"]}
+    executable = {
+        "name": "web",
+        "id": "pid",
+        "host_id": "host",
+        "container_id": "a",
+        "executable": "/bin/web",
+        "executable_evidence": {"status": "complete", "sha256": "b" * 64},
+        "candidates": [
+            {
+                "image_id": image,
+                "native_id": "openssl",
+                "relationship": "contains",
+                "file_path": "/bin/web",
+                "file_sha256": "b" * 64,
+                "purl": "pkg:generic/openssl@3.0.2",
+                "version": "3.0.2",
+            }
+        ],
+    }
+    endpoint = {
+        "id": "socket",
+        "host_id": "host",
+        "container_ids": ["a"],
+        "process_ids": ["pid"],
+        "runtime_observed": True,
+        "address": "127.0.0.1",
+        "protocol": "tcp",
+        "port": 443,
+    }
+    report = {
+        "schema_version": 2,
+        "collected_at": "2026-11-10T09:00:00Z",
+        "status": "complete",
+        "hosts": [host],
+        "containers": [one],
+        "network_namespaces": [],
+        "processes": [executable],
+        "endpoints": [endpoint],
+    }
+    pending = discovery_files(client, auth_header, raw)
+    assert pending["reason"] == "scope"
+    paired = discovery_files(client, auth_header, json.dumps(report).encode())
+    assert paired["state"] == "applied" and paired["inventory_asset_id"]
+    assert (
+        client.get(f"/api/assets/discovery-imports/{pending['id']}", headers=auth_header).json["inventory_asset_id"]
+        == paired["inventory_asset_id"]
+    )
+    status = client.get(f"/api/assets/{paired['inventory_asset_id']}/services", headers=auth_header).json
+    assert status["captures"][0]["basis"] == "image inventory"
+    assert list(status["services"][0]["providers"].values()) == ["openssl"]
+    ambiguous = discovery_files(client, auth_header, raw, json.dumps({**report, "containers": [one, two]}).encode())
+    assert ambiguous["reason"] == "scope" and len(ambiguous["options"]) == 2
+    resolved = client.post(
+        f"/api/assets/discovery-imports/{ambiguous['id']}", headers=auth_header, json={"scope": "runtime/docker/compose/demo/app/2"}
+    )
+    assert resolved.json["inventory_asset_id"] != paired["inventory_asset_id"]

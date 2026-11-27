@@ -131,3 +131,40 @@ class AssetSbomUploadReference(BaseModel):
     component_id: Mapped[str] = db.Column(
         db.String(UUID_STR_LENGTH), db.ForeignKey("asset_sbom_component.id", ondelete="CASCADE"), nullable=False
     )
+
+
+class DiscoveryImport(BaseModel):
+    __tablename__ = "discovery_import"
+    upload_id: Mapped[str] = db.Column(db.ForeignKey("asset_sbom_upload.id", ondelete="CASCADE"), primary_key=True)
+    source: Mapped[str] = db.Column(db.String(100), nullable=False)
+    second_name: Mapped[str | None] = db.Column(db.String(255))
+    second_hash: Mapped[str | None] = db.Column(db.String(64))
+    second_file: Mapped[bytes | None] = deferred(db.Column(db.LargeBinary))
+    prepared: Mapped[dict | None] = db.Column(db.JSON)
+    result: Mapped[dict] = db.Column(db.JSON, nullable=False, default=dict)
+
+
+class DiscoveryDestination(BaseModel):
+    __tablename__ = "discovery_destination"
+    organization_id: Mapped[str] = db.Column(db.ForeignKey("organization.id", ondelete="CASCADE"), primary_key=True)
+    source: Mapped[str] = db.Column(db.String(100), primary_key=True)
+    group_id: Mapped[str] = db.Column(db.ForeignKey("asset_group.id", ondelete="CASCADE"), nullable=False)
+
+
+class DiscoveryAsset(BaseModel):
+    __tablename__ = "discovery_asset"
+    organization_id: Mapped[str] = db.Column(db.ForeignKey("organization.id", ondelete="CASCADE"), primary_key=True)
+    source: Mapped[str] = db.Column(db.String(100), primary_key=True)
+    key: Mapped[str] = db.Column(db.String(255), primary_key=True)
+    asset_id: Mapped[str] = db.Column(db.ForeignKey("asset.id", ondelete="CASCADE"), nullable=False, index=True)
+    host: Mapped[str] = db.Column(db.String(255), nullable=False)
+    link: Mapped[dict] = db.Column(db.JSON, nullable=False, default=dict)
+
+
+class DiscoveryObservation(BaseModel):
+    __tablename__ = "discovery_observation"
+    asset_id: Mapped[str] = db.Column(db.ForeignKey("asset.id", ondelete="CASCADE"), primary_key=True)
+    source: Mapped[str] = db.Column(db.String(100), primary_key=True)
+    digest: Mapped[str] = db.Column(db.String(64), primary_key=True)
+    observed_at: Mapped[str] = db.Column(db.String(40), nullable=False)
+    evidence: Mapped[dict] = db.Column(db.JSON, nullable=False)

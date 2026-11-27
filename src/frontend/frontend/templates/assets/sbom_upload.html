@@ -11,21 +11,31 @@
     {% if error %}<div role="alert" class="alert alert-error mb-4">{{ error }}</div>{% endif %}
     {% if not read_only | default(false) %}
       <p class="mb-4">Upload CycloneDX JSON 1.5, 1.6, or 1.7 containing at least one valid software CPE. Maximum request size: {{ config['MAX_CONTENT_LENGTH'] // (1024 * 1024) }} MiB, including the file and form data.</p>
-      <p class="mb-4">{{ 'Replace the selected asset’s current inventory and imported findings.' if target_asset_id else 'Create one asset for the scanned application or system.' }} Software packages are grouped with their installation locations; individual files are excluded.</p>
+      <p class="mb-4">{{ 'Replace the selected asset’s current inventory and imported findings.' if target_asset_id else 'Select a service sidecar or ScanMate report alongside the SBOM to discover assets automatically. You can also import either file separately.' }} Software packages are grouped with their installation locations; individual files are excluded.</p>
       <form method="post"
             action="{{ url_for('assets.sbom_upload', asset_id=target_asset_id or none, assess_url=get_assess_return_url()) }}"
             enctype="multipart/form-data"
             class="space-y-4 max-w-3xl">
         <input type="hidden" name="csrf_token" value="{{ request.cookies.get(config['JWT_ACCESS_CSRF_COOKIE_NAME'], '') }}">
-        <label class="block" for="sbom-file">CycloneDX file</label>
+        <label class="block"
+               for="sbom-file">{{ "CycloneDX file" if target_asset_id else "CycloneDX SBOM and service discovery JSON" }}</label>
         <input id="sbom-file"
                name="file"
                type="file"
                accept=".json,application/json"
+               {% if not target_asset_id %}multiple{% endif %}
                required
                class="file-input file-input-bordered w-full"
                data-test-id="sbom-file">
-        <button class="btn btn-primary" type="submit" data-test-id="sbom-preview">Preview SBOM</button>
+        {% if not target_asset_id %}
+          <details>
+            <summary>Inventory source</summary>
+            <label for="discovery-source">Source name</label>
+            <input id="discovery-source" name="source" value="default" maxlength="100" class="input input-bordered">
+          </details>
+          <button class="btn btn-primary" type="submit" formaction="{{ url_for('assets.discovery_upload') }}">Import</button>
+        {% endif %}
+        <button class="btn btn-outline" type="submit" data-test-id="sbom-preview">Preview SBOM</button>
       </form>
     {% endif %}
   </div>

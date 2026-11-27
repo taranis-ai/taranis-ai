@@ -1,22 +1,27 @@
 """User-scoped SBOM previews, replacement, and imported CVE matching decisions."""
 
+import re
 from math import ceil
 
 from flask import Response, request
 from flask.views import MethodView
 from flask_jwt_extended import current_user
 from models.cti import normalize_ioc_value
+from models.discovery import PreparedDiscovery
 from models.sbom import SbomComponentBatch, SbomCreateAsset, SbomCveMatching, SbomFindingBatch, SbomInventory, SbomReplaceAsset, SbomSummary
 from pydantic import ValidationError
 from werkzeug.utils import secure_filename
 
 from core.managers.auth_manager import api_key_required, auth_required
 from core.managers.db_manager import db
-from core.model.asset import Asset
+from core.model.asset import Asset, AssetGroup
 from core.model.asset_intelligence import AssetTrigger
-from core.model.asset_sbom import AssetSbomComponent, AssetSbomFinding, AssetSbomImport
+from core.model.asset_sbom import AssetSbomComponent, AssetSbomFinding, AssetSbomImport, DiscoveryImport
+from core.model.user import User
+from core.service.asset_discovery import apply_discovery, prepare, stage_discovery
 from core.service.asset_intelligence import asset_triggers, start_match_run, trigger_suggestions
 from core.service.asset_sbom import SbomImportError, apply_import, compare_import, current_import, owned_import
+from core.service.asset_services import asset_services
 from core.service.cache_invalidation import invalidate_frontend_cache_on_success
 from core.service.sbom_upload import (
     accessible_upload,
@@ -64,13 +69,14 @@ def inventory_response(record: AssetSbomImport) -> dict:
     ).model_dump(mode="json")
 
 
-def applied_response(asset: Asset, changed: bool, status: int):
+def applied_response(asset: Asset, changed: bool, status: int, user=None):
+    user = user or current_user
     if changed:
         invalidate_frontend_cache_on_success(status, models=("asset",), object_ids={"asset": asset.id})
-        if {"ASSETS_ACCESS", "ASSESS_ACCESS"}.issubset(current_user.get_permissions()) and db.session.scalar(
+        if {"ASSETS_ACCESS", "ASSESS_ACCESS"}.issubset(user.get_permissions()) and db.session.scalar(
             asset_triggers(asset.id).where(AssetTrigger.enabled.is_(True)).limit(1)
         ):
-            start_match_run(asset.id, current_user)
+            start_match_run(asset.id, user)
     return {"id": asset.id, "message": "SBOM applied." if changed else "This SBOM has already been applied."}, status if changed else 200
 
 
@@ -111,9 +117,15 @@ class WorkerSbomUpload(MethodView):
             if upload.status not in ("QUEUED", "PROCESSING") or upload.source is None:
                 return {"error": "SBOM source is no longer available."}, 409
             upload.status, upload.updated = "PROCESSING", upload.utcnow()
-            raw = upload.source
+            job = db.session.get(DiscoveryImport, upload_id)
+            headers = {"Cache-Control": "no-store"}
+            if job:
+                headers["X-Discovery-Files"] = "2" if job.second_name else "1"
+            raw = job.second_file if job and request.args.get("file") == "2" else upload.source
+            if raw is None:
+                return {"error": "File unavailable."}, 409
             db.session.commit()
-            return Response(raw, mimetype="application/octet-stream", headers={"Cache-Control": "no-store"})
+            return Response(raw, mimetype="application/octet-stream", headers=headers)
         except SbomImportError as exc:
             return {"error": exc.public_message}, exc.status
 
@@ -122,14 +134,31 @@ class WorkerSbomUpload(MethodView):
         try:
             upload = accessible_upload(upload_id)
             data = request.get_json(silent=True)
-            if action == "begin":
+            job = db.session.get(DiscoveryImport, upload_id)
+            owner = None
+            changed = None
+            if action == "discovery" and job:
+                prepare(upload, job, PreparedDiscovery.model_validate(data))
+            elif action == "begin":
                 begin_preview(upload, SbomSummary.model_validate(data))
             elif action == "components":
                 persist_batch(upload, SbomComponentBatch.model_validate(data))
             elif action == "findings":
                 persist_batch(upload, SbomFindingBatch.model_validate(data))
             elif action == "complete":
-                finish_preview(upload)
+                if job and upload.status == "READY":
+                    return upload_status(upload), 200
+                if not job or (job.prepared or {}).get("sbom_file"):
+                    finish_preview(upload)
+                elif not job.prepared:
+                    raise SbomImportError("Discovery evidence is incomplete.", 409)
+                else:
+                    upload.status, upload.source = "READY", None
+                if job:
+                    owner = db.session.get(User, upload.user_id)
+                    assert owner is not None
+                    changed = apply_discovery(upload, job, owner, {})
+                    job.second_file = None
             elif action == "failure":
                 # Only a worker's explicitly curated validation message is displayable.
                 message = data.get("public_message") if isinstance(data, dict) else None
@@ -141,6 +170,10 @@ class WorkerSbomUpload(MethodView):
                 return {"error": "Unknown SBOM preparation action."}, 404
             upload.updated = upload.utcnow()
             db.session.commit()
+            if job and action == "complete":
+                invalidate_frontend_cache_on_success(200, models=("asset",))
+                if changed:
+                    applied_response(changed, True, 200, owner)
             return upload_status(upload), 200
         except ValidationError:
             db.session.rollback()
@@ -227,7 +260,88 @@ class AssetSbomCveMatching(MethodView):
         return {"message": "CVE matching updated.", "enabled": data.enabled}, 200
 
 
+class DiscoveryUpload(MethodView):
+    @auth_required("ASSETS_CREATE")
+    def post(self):
+        files = request.files.getlist("file")
+        source = request.form.get("source", "default")
+        if not 1 <= len(files) <= 2 or not all(f.filename for f in files) or not re.fullmatch(r"[A-Za-z0-9_][A-Za-z0-9_.-]{0,99}", source):
+            return {"error": "Select one or two JSON files and a valid inventory source."}, 400
+        try:
+            upload = stage_discovery(
+                [(secure_filename(f.filename or "")[:255] or "inventory.json", f.read()) for f in files], source, current_user
+            )
+            return {"id": upload.id, "state": "queued"}, 202
+        except SbomImportError as exc:
+            return {"error": exc.public_message}, exc.status
+
+
+def discovery_receipt(upload_id):
+    upload = accessible_upload(upload_id, current_user)
+    job = db.session.get(DiscoveryImport, upload_id)
+    if not job:
+        raise SbomImportError("Discovery import unavailable.", 404)
+    refresh_upload(upload)
+    assets = job.result.get("assets", [])
+    if any(Asset.get_for_api(a["id"], current_user.organization)[1] != 200 for a in assets):
+        raise SbomImportError("Discovery import unavailable.", 404)
+    if job.result.get("reason") == "identity" and any(
+        Asset.get_for_api(a["id"], current_user.organization)[1] != 200 for a in job.result["options"]
+    ):
+        raise SbomImportError("Discovery import unavailable.", 404)
+    if job.result.get("reason") == "destination" and any(
+        not AssetGroup.access_allowed(current_user.organization, g["id"]) for g in job.result["groups"]
+    ):
+        raise SbomImportError("Discovery import unavailable.", 404)
+    return upload, job
+
+
+class DiscoveryProgress(MethodView):
+    @auth_required("ASSETS_ACCESS")
+    def get(self, upload_id):
+        try:
+            upload, job = discovery_receipt(upload_id)
+            return {"id": upload_id, "state": upload.status.lower(), "message": upload.error, **job.result}, 200
+        except SbomImportError as exc:
+            return {"error": exc.public_message}, exc.status
+
+    @auth_required("ASSETS_ACCESS")
+    @auth_required("ASSETS_CREATE")
+    def post(self, upload_id):
+        try:
+            upload, job = discovery_receipt(upload_id)
+            if job.result.get("state") != "review":
+                raise SbomImportError("This import has no decision pending.", 409)
+            choice = request.get_json(silent=True)
+            field = {"destination": "group_id", "scope": "scope", "identity": "asset_id", "replacement": "expected_sha256"}.get(
+                job.result.get("reason", "")
+            )
+            if not field or not isinstance(choice, dict) or set(choice) != {field} or not isinstance(choice[field], str):
+                raise SbomImportError("Invalid import decision.", 400)
+            changed = apply_discovery(upload, job, current_user, choice)
+            db.session.commit()
+            invalidate_frontend_cache_on_success(200, models=("asset",))
+            if changed:
+                applied_response(changed, True, 200)
+            return {"id": upload_id, **job.result}, 200
+        except SbomImportError as exc:
+            db.session.rollback()
+            return {"error": exc.public_message}, exc.status
+
+
+class AssetServices(MethodView):
+    @auth_required("ASSETS_ACCESS")
+    def get(self, asset_id):
+        try:
+            return asset_services(asset_id, current_user), 200
+        except SbomImportError as exc:
+            return {"error": exc.public_message}, exc.status
+
+
 def initialize(app, base_route: str):
+    app.add_url_rule(f"{base_route}/assets/discovery-imports", view_func=DiscoveryUpload.as_view("discovery_upload"))
+    app.add_url_rule(f"{base_route}/assets/discovery-imports/<string:upload_id>", view_func=DiscoveryProgress.as_view("discovery_progress"))
+    app.add_url_rule(f"{base_route}/assets/<string:asset_id>/services", view_func=AssetServices.as_view("asset_services"))
     app.add_url_rule(f"{base_route}/assets/sbom-uploads/<string:upload_id>", view_func=SbomUploadProgress.as_view("sbom_upload_progress"))
     worker_view = WorkerSbomUpload.as_view("worker_sbom_upload")
     app.add_url_rule(f"{base_route}/worker/sbom-uploads/<string:upload_id>", view_func=worker_view, methods=["GET"])

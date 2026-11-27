@@ -9,7 +9,14 @@ from sqlalchemy import select
 from core.managers import queue_manager
 from core.managers.db_manager import db
 from core.model.asset import Asset
-from core.model.asset_sbom import AssetSbomComponent, AssetSbomFinding, AssetSbomImport, AssetSbomUpload, AssetSbomUploadReference
+from core.model.asset_sbom import (
+    AssetSbomComponent,
+    AssetSbomFinding,
+    AssetSbomImport,
+    AssetSbomUpload,
+    AssetSbomUploadReference,
+    DiscoveryImport,
+)
 from core.model.task import Task
 from core.model.user import User
 from core.service.asset_sbom import SbomImportError
@@ -27,7 +34,7 @@ def accessible_upload(upload_id: str, user: User | None = None) -> AssetSbomUplo
     upload = db.session.scalar(db.select(AssetSbomUpload).filter_by(id=upload_id).with_for_update())
     if not upload or (user and (upload.user_id != user.id or upload.organization_id != user.organization.id)):
         raise SbomImportError("SBOM upload unavailable.", 404)
-    if upload.status == "READY" and not upload.import_id:
+    if upload.status == "READY" and not upload.import_id and not db.session.get(DiscoveryImport, upload.id):
         raise SbomImportError("SBOM preview no longer available.", 404)
     owner = user or (db.session.get(User, upload.user_id) if upload.user_id else None)
     authorized = owner and owner.organization.id == upload.organization_id and "ASSETS_CREATE" in owner.get_permissions()
@@ -40,6 +47,8 @@ def accessible_upload(upload_id: str, user: User | None = None) -> AssetSbomUplo
 def fail_upload(upload: AssetSbomUpload, message: str = PREPARATION_FAILED) -> None:
     if upload.status in TERMINAL_STATUSES:
         return
+    if discovery := db.session.get(DiscoveryImport, upload.id):
+        discovery.second_file = None
     upload.status, upload.error, upload.source = "FAILED", message, None
     db.session.execute(db.delete(AssetSbomUploadReference).filter_by(upload_id=upload.id))
     if record := db.session.get(AssetSbomImport, upload.import_id) if upload.import_id else None:
@@ -70,6 +79,13 @@ def stage_upload(raw: bytes, filename: str, user: User, target_asset_id: str | N
         .where(
             ~db.select(AssetSbomUpload.id).where(AssetSbomUpload.import_id == AssetSbomImport.id, AssetSbomUpload.status != "READY").exists()
         )
+        .where(
+            AssetSbomImport.asset_id.is_not(None)
+            | ~db.select(DiscoveryImport.upload_id)
+            .join(AssetSbomUpload, AssetSbomUpload.id == DiscoveryImport.upload_id)
+            .where(AssetSbomUpload.import_id == AssetSbomImport.id)
+            .exists()
+        )
         .order_by(AssetSbomImport.created.desc())
     )
     for record in previous:
@@ -93,7 +109,10 @@ def stage_upload(raw: bytes, filename: str, user: User, target_asset_id: str | N
     upload = db.session.scalar(
         db.select(AssetSbomUpload)
         .filter_by(user_id=user.id, organization_id=user.organization.id, target_asset_id=target_asset_id, sha256=digest)
-        .where(AssetSbomUpload.status.in_(("QUEUED", "PROCESSING")))
+        .where(
+            AssetSbomUpload.status.in_(("QUEUED", "PROCESSING")),
+            ~db.select(DiscoveryImport.upload_id).where(DiscoveryImport.upload_id == AssetSbomUpload.id).exists(),
+        )
     )
     if upload:
         refresh_upload(upload)
@@ -103,14 +122,18 @@ def stage_upload(raw: bytes, filename: str, user: User, target_asset_id: str | N
         user_id=user.id, organization_id=user.organization.id, target_asset_id=target_asset_id, filename=filename, sha256=digest, source=raw
     )
     db.session.add(upload)
+    return queue_upload(upload)
+
+
+def queue_upload(upload: AssetSbomUpload) -> AssetSbomUpload:
     db.session.commit()
-    if not manager.enqueue_task(
+    if not queue_manager.queue_manager.enqueue_task(
         "misc",
         "sbom_import_task",
         upload.id,
         job_id=upload.id,
         job_timeout=1800,
-        meta={"task": "sbom_import_task", "user_id": user.id, "worker_id": upload.id, "worker_type": "sbom_import_task"},
+        meta={"task": "sbom_import_task", "user_id": upload.user_id, "worker_id": upload.id, "worker_type": "sbom_import_task"},
     ):
         fail_upload(upload, "Unable to queue SBOM processing. Upload the file again to retry.")
         raise SbomImportError(upload.error, 503)

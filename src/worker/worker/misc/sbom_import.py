@@ -1,5 +1,6 @@
 """Prepare SBOMs outside Core request processes; publish only bounded normalized batches."""
 
+from models.discovery import prepare_discovery
 from models.sbom import SBOM_BATCH_SIZE, SbomComponentBatch, SbomFindingBatch
 from models.sbom_parser import SbomValidationError, parse_sbom
 from rq import get_current_job
@@ -24,18 +25,29 @@ def sbom_import_task(upload_id: str):
     endpoint = f"/worker/sbom-uploads/{upload_id}"
     job = get_current_job()
     try:
-        with http_request(
-            "GET", url=f"{api.api_url}{endpoint}", headers=api.get_request_headers(), verify=api.verify, timeout=api.timeout
-        ) as response:
-            response.raise_for_status()
-            parsed = parse_sbom(response.content or b"")
-        submit_prepared(f"{endpoint}/begin", parsed.summary.model_dump())
-        for offset in range(0, len(parsed.components), SBOM_BATCH_SIZE):
-            batch = SbomComponentBatch(offset=offset, items=parsed.components[offset : offset + SBOM_BATCH_SIZE])
-            submit_prepared(f"{endpoint}/components", batch.model_dump(mode="json"))
-        for offset in range(0, len(parsed.findings), SBOM_BATCH_SIZE):
-            findings = SbomFindingBatch(offset=offset, items=parsed.findings[offset : offset + SBOM_BATCH_SIZE])
-            submit_prepared(f"{endpoint}/findings", findings.model_dump(mode="json"))
+
+        def download(suffix=""):
+            with http_request(
+                "GET", url=f"{api.api_url}{endpoint}{suffix}", headers=api.get_request_headers(), verify=api.verify, timeout=api.timeout
+            ) as response:
+                response.raise_for_status()
+                return response.content or b"", response.headers.get("X-Discovery-Files")
+
+        raw, discovery_files = download()
+        if discovery_files:
+            files = [raw, download("?file=2")[0]] if discovery_files == "2" else [raw]
+            discovery = prepare_discovery(files)
+            raw = files[discovery.sbom_file - 1] if discovery.sbom_file else None
+            submit_prepared(f"{endpoint}/discovery", discovery.model_dump(mode="json"))
+        if raw is not None:
+            parsed = parse_sbom(raw)
+            submit_prepared(f"{endpoint}/begin", parsed.summary.model_dump())
+            for offset in range(0, len(parsed.components), SBOM_BATCH_SIZE):
+                batch = SbomComponentBatch(offset=offset, items=parsed.components[offset : offset + SBOM_BATCH_SIZE])
+                submit_prepared(f"{endpoint}/components", batch.model_dump(mode="json"))
+            for offset in range(0, len(parsed.findings), SBOM_BATCH_SIZE):
+                findings = SbomFindingBatch(offset=offset, items=parsed.findings[offset : offset + SBOM_BATCH_SIZE])
+                submit_prepared(f"{endpoint}/findings", findings.model_dump(mode="json"))
         result = submit_prepared(f"{endpoint}/complete", {})
     except Exception as exc:
         logger.exception("SBOM preparation failed")

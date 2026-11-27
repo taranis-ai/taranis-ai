@@ -54,7 +54,9 @@ def upload_sbom():
     target_id = request.args.get("asset_id", "")
     if request.method == "POST":
         upload = request.files.get("file")
-        if not upload or not upload.filename:
+        if len(request.files.getlist("file")) > 1:
+            error, status = "Use Import to combine the SBOM and service discovery files.", 400
+        elif not upload or not upload.filename:
             error, status = "Select a CycloneDX JSON file.", 400
         else:
             try:
@@ -173,3 +175,53 @@ def asset_inventory(asset_id: str):
     except RequestException, ValueError:
         logger.exception("SBOM inventory failed")
         return _render_upload(target_id=asset_id, error="Unable to load the inventory. Please try again.", read_only=True, status=502)
+
+
+@auth_required("ASSETS_CREATE")
+def discovery_upload():
+    api = CoreApi()
+    try:
+        response = api.session.post(
+            f"{api.api_url}/assets/discovery-imports",
+            files=[("file", (f.filename, f.stream, "application/json")) for f in request.files.getlist("file")],
+            data={"source": request.form.get("source", "default")},
+            headers={"Content-type": None},
+            timeout=api.timeout,
+        )
+        data = response.json()
+        if response.ok:
+            return redirect(url_for("assets.discovery_progress", upload_id=data["id"]), code=303)
+        return _render_upload(error=data.get("error", "Upload failed."), status=response.status_code)
+    except RequestException, ValueError:
+        logger.exception("Discovery upload failed")
+        return _render_upload(error="Unable to upload discovery files.", status=502)
+
+
+@auth_required("ASSETS_ACCESS")
+def discovery_progress(upload_id: str):
+    api = CoreApi()
+    endpoint = f"/assets/discovery-imports/{upload_id}"
+    try:
+        if request.method == "POST":
+            response = api.api_post(
+                endpoint, {k: v for k, v in request.form.items() if k in ("group_id", "scope", "expected_sha256", "asset_id")}
+            )
+        else:
+            response = api.session.get(f"{api.api_url}{endpoint}", timeout=api.timeout)
+        return render_template("assets/discovery_progress.html", data=response.json(), upload_id=upload_id), response.status_code
+    except RequestException, ValueError:
+        logger.exception("Discovery receipt unavailable")
+        return _render_upload(error="Unable to load the discovery import.", status=502)
+
+
+@auth_required("ASSETS_ACCESS")
+def asset_services(asset_id: str):
+    api = CoreApi()
+    try:
+        response = api.session.get(f"{api.api_url}/assets/{asset_id}/services", timeout=api.timeout)
+        return render_template(
+            "assets/services.html", data=response.json(), asset_id=asset_id, asset_name=asset_display_name(asset_id)
+        ), response.status_code
+    except RequestException, ValueError:
+        logger.exception("Asset services unavailable")
+        return _render_upload(target_id=asset_id, error="Unable to load service observations.", status=502, read_only=True)

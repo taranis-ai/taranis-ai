@@ -7226,6 +7226,62 @@ paths:
           description: Upload unavailable
         '409':
           description: Incomplete or out-of-order preparation
+  /assets/discovery-imports:
+    post:
+      security: [{UserAuth: []}]
+      tags: [assets]
+      operationId: discovery_upload.post
+      description: Queue a private CycloneDX and service discovery import. File order is immaterial.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: {type: array, minItems: 1, maxItems: 2, items: {type: string, format: binary}}
+                source: {type: string, default: default}
+      responses:
+        '202': {description: Private import ID and queued state}
+  /assets/discovery-imports/{upload_id}:
+    parameters:
+    - {name: upload_id, in: path, required: true, schema: {type: string}}
+    get:
+      security: [{UserAuth: []}]
+      tags: [assets]
+      operationId: discovery_progress.get
+      description: Read preparation status, applied asset IDs or a pending decision.
+      responses:
+        '200': {description: Current import receipt}
+    post:
+      security: [{UserAuth: []}]
+      tags: [assets]
+      operationId: discovery_progress.post
+      description: Resolve the pending destination, inventory scope or replacement decision.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                group_id: {type: string}
+                scope: {type: string}
+                asset_id: {type: string}
+                expected_sha256: {type: string}
+      responses:
+        '200': {description: Updated import receipt}
+  /assets/{asset_id}/services:
+    parameters:
+    - {name: asset_id, in: path, required: true, schema: {type: string}}
+    get:
+      security: [{UserAuth: []}]
+      tags: [assets]
+      operationId: asset_services.get
+      description: Read scoped endpoints, processes, source evidence and verified provider findings.
+      responses:
+        '200': {description: Observations and current inventory association}
   /assets/sbom-imports:
     post:
       security:

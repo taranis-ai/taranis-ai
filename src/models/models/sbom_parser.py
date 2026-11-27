@@ -257,6 +257,7 @@ def parse_sbom(raw: bytes) -> ParsedSbom:
         generated_at=str(document.metadata.get("timestamp") or ""),
         suggested_name=suggested_name,
         source_name=source_name,
+        image_id=source_name if root and root.get("type") == "container" and re.fullmatch(r"sha256:[0-9a-f]{64}", source_name) else None,
         software_records=software_records,
         excluded_files=excluded_files,
         component_count=len(components),

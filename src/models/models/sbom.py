@@ -50,6 +50,7 @@ class SbomSummary(BaseModel):
     generated_at: str = ""
     suggested_name: str = ""
     source_name: str = ""
+    image_id: str | None = None
     software_records: int
     excluded_files: int
     component_count: int

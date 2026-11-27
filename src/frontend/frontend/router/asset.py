@@ -2,7 +2,15 @@ from flask import Blueprint, Flask
 
 from frontend.views.asset_cve_views import asset_cves
 from frontend.views.asset_intelligence_views import asset_scan, asset_triggers
-from frontend.views.asset_sbom_views import asset_inventory, preview_sbom, sbom_progress, upload_sbom
+from frontend.views.asset_sbom_views import (
+    asset_inventory,
+    asset_services,
+    discovery_progress,
+    discovery_upload,
+    preview_sbom,
+    sbom_progress,
+    upload_sbom,
+)
 from frontend.views.asset_tactical_views import tactical
 from frontend.views.asset_views import AssetView
 
@@ -18,6 +26,9 @@ def init(app: Flask):
     asset_bp.add_url_rule("/assets/<string:asset_id>", view_func=AssetView.as_view("asset"))
     asset_bp.add_url_rule("/assets/<string:asset_id>/cti", view_func=AssetView.cti_dialog, endpoint="asset_cti")
 
+    asset_bp.add_url_rule("/assets/discovery-imports", view_func=discovery_upload, methods=["POST"])
+    asset_bp.add_url_rule("/assets/discovery-imports/<string:upload_id>", view_func=discovery_progress, methods=["GET", "POST"])
+    asset_bp.add_url_rule("/assets/<string:asset_id>/services", view_func=asset_services)
     asset_bp.add_url_rule("/assets/sbom-uploads/<string:upload_id>", view_func=sbom_progress, endpoint="sbom_progress")
     asset_bp.add_url_rule("/assets/import-sbom", view_func=upload_sbom, endpoint="sbom_upload", methods=["GET", "POST"])
     asset_bp.add_url_rule("/assets/sbom-imports/<string:import_id>", view_func=preview_sbom, endpoint="sbom_preview", methods=["GET", "POST"])
