@@ -19,6 +19,7 @@ from frontend.filters import render_count, render_datetime
 from frontend.log import logger
 from frontend.utils.form_data_parser import parse_formdata
 from frontend.views.base_view import BaseView
+from frontend.views.discussion_views import discussion_preview
 
 
 class ReportItemView(BaseView):
@@ -173,6 +174,8 @@ class ReportItemView(BaseView):
 
             report = base_context.get("report")
             if report:
+                if report.id and not cls.is_create_object_id(report.id):
+                    base_context["comment_preview"] = discussion_preview("report", str(report.id))
                 if cls.is_create_object_id(report.id) or "PUBLISH_ACCESS" not in (current_user.permissions or []):
                     base_context["existing_products"] = []
                 else:

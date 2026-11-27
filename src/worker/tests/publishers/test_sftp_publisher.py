@@ -11,26 +11,32 @@ pytestmark = pytest.mark.filterwarnings("error::pytest.PytestUnhandledThreadExce
 
 
 @pytest.mark.parametrize("accept_any", [False, True], ids=["pinned-key", "accept-any-key"])
-def test_sftp_publisher_publish(sftp_publisher, get_product_mock, sftp_mock, accept_any):
+def test_sftp_publisher_publish(sftp_publisher, get_product_mock, sftp_mock, accept_any, tmp_path):
     from tests.publishers.publishers_data import product_text
 
     key = paramiko.RSAKey.from_private_key_file(SERVER_KEY_PATH)
-    parameters = {"SFTP_URL": f"sftp://user:password@{sftp_mock.host}:{sftp_mock.port}"}
+    destination = tmp_path / "exports"
+    destination.mkdir()
+    parameters = {"SFTP_URL": f"sftp://user:password@{sftp_mock.host}:{sftp_mock.port}{destination.as_posix()}"}
     if accept_any:
         parameters["ACCEPT_ANY_HOST_KEY"] = True
         parameters["HOST_KEY"] = "ignored when accepting any key"
     else:
         parameters["HOST_KEY"] = f"{key.get_name()} {key.get_base64()} server comment\n"
 
-    result = sftp_publisher.publish({"parameters": parameters}, product_text, get_product_mock)
+    product = product_text | {"title": "Résumé 2026"}
+    result = sftp_publisher.publish({"parameters": parameters}, product, get_product_mock)
     assert result == "SFTP Publisher Task Successful"
-    assert Path(sftp_publisher.file_name).read_bytes() == get_product_mock.data
+    assert sftp_publisher.file_name.startswith("Résumé 2026_")
+    uploaded_files = list(destination.iterdir())
+    assert uploaded_files == [destination / sftp_publisher.file_name]
+    assert uploaded_files[0].read_bytes() == get_product_mock.data
     assert sftp_publisher.ssh.get_transport() is None
 
     parameters.pop("HOST_KEY")
     parameters["ACCEPT_ANY_HOST_KEY"] = False
     with pytest.raises(ValueError, match="host public key is required"):
-        sftp_publisher.publish({"parameters": parameters}, product_text, get_product_mock)
+        sftp_publisher.publish({"parameters": parameters}, product, get_product_mock)
 
 
 @pytest.mark.parametrize("host_key", ["", "invalid", "ssh-rsa !!!", "changed"], ids=["missing", "malformed", "invalid-base64", "changed"])

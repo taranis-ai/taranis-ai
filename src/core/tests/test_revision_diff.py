@@ -38,7 +38,6 @@ def test_build_story_revision_diff_payload_formats_inline_and_collection_changes
                 "title": "Kill Chain im Krieg deutlich verkurzt",
                 "description": "First draft",
                 "summary": "Summary B",
-                "comments": "Comment A",
                 "likes": 3,
                 "dislikes": 1,
                 "tags": [{"name": "new-tag"}],
@@ -65,6 +64,7 @@ def test_build_story_revision_diff_payload_formats_inline_and_collection_changes
         "News item retained: Image old removed": ("old", None),
     }
     assert any(change.field == "Tags Added" and change.new_value == "new-tag" for change in payload.changes)
+    assert any(change.field == "Comments" and change.old_value == "Comment A" and change.new_value is None for change in payload.changes)
     assert any(change.field == "News Items Added" and change.new_value == "New news" for change in payload.changes)
     assert any(change.field == "Likes" and change.old_value == 1 and change.new_value == 3 for change in payload.changes)
     assert any(change.field == "Dislikes" and change.old_value == 0 and change.new_value == 1 for change in payload.changes)
