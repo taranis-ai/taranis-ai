@@ -1,0 +1,8 @@
+<div id="asset-scan-status"
+     hx-status:4xx="target:this"
+     hx-status:5xx="target:this"
+     {% if run and run.status in ('QUEUED', 'RUNNING') %} hx-get="{{ url_for('assets.asset_scan', asset_id=asset_id, assess_url=get_assess_return_url()) }}" hx-trigger="every 2s" hx-target="this" hx-swap="outerHTML" {% endif %}>
+  {% if scan_error %}<p role="alert" class="text-error">{{ scan_error }}</p>{% endif %}
+  {% if run %}<p role="status" data-test-id="asset-scan-status">Your latest scan: {{ run.status }} · {{ run.processed }} accessible articles checked{% if run.error %} · {{ run.error }}{% endif %}</p>{% endif %}
+  <a class="link" href="{{ url_for('assets.asset_triggers', asset_id=asset_id, assess_url=get_assess_return_url()) }}">Refresh scan status</a>
+</div>

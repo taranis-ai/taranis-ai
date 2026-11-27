@@ -25,14 +25,15 @@ def app(tmp_path_factory):
     from core.config import Config
 
     database_uri = f"sqlite:///{tmp_path_factory.mktemp('core-db') / 'test.db'}"
+    data_folder = str(tmp_path_factory.mktemp("core-data"))
     redis_server = fakeredis.FakeServer()
 
     def isolated_redis_from_url(url, *args, **kwargs):
         return fakeredis.FakeRedis.from_url(url, *args, server=redis_server, **kwargs)
 
     with (
-        patch.dict(os.environ, {"SQLALCHEMY_DATABASE_URI": database_uri}),
-        patch.multiple(Config, SQLALCHEMY_DATABASE_URI=database_uri, SQLALCHEMY_DATABASE_URI_MASK=database_uri),
+        patch.dict(os.environ, {"SQLALCHEMY_DATABASE_URI": database_uri, "DATA_FOLDER": data_folder}),
+        patch.multiple(Config, SQLALCHEMY_DATABASE_URI=database_uri, SQLALCHEMY_DATABASE_URI_MASK=database_uri, DATA_FOLDER=data_folder),
         patch("redis.Redis.from_url", side_effect=isolated_redis_from_url),
     ):
         app = create_app()

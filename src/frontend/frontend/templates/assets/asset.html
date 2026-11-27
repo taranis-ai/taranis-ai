@@ -1,5 +1,6 @@
 {% from "macros/forms.html" import form_input, form_textarea, form_select %}
 {% from "macros/datatable.html" import datatable %}
+{% from "assets/navigation.html" import asset_navigation with context %}
 
 {% set form_error = form_error | default({}) %}
 {% set asset = asset | default({}) %}
@@ -10,19 +11,13 @@
 <div class="p-4"
      id="asset">
 
+{% if asset.id and asset.id != '0' %}{{ asset_navigation(asset.id, 'details', asset.name) }}{% endif %}
 <div class="card bg-base-100 shadow">
   <div class="card-body gap-3">
     <div class="flex items-center gap-3">
       <h2 class="card-title">{{ submit_text }}</h2>
       <div class="flex-1"></div>
-      {% if asset.id and asset.id != '0' %}
-        <a class="btn btn-outline btn-sm gap-2"
-           href="{{ url_for('assets.asset_cti', asset_id=asset.id) }}"
-           data-testid="asset-cti-button">
-          {{ heroicon_mini("document-magnifying-glass", class="h-4 w-4") }}
-          <span>CTI information</span>
-        </a>
-      {% endif %}
+
     </div>
 
     <div class="grid grid-cols-12 gap-4">
@@ -37,7 +32,13 @@
           {% include "partials/admin_form_error.html" %}
           {{ form_input('Name', 'name', asset.name, form_error.name, width="w-full") }}
           {{ form_textarea('Description', 'description', asset.description, form_error.description, width="w-full", required=false) }}
-          {{ form_input('Serial Number', 'serial', asset.serial, form_error.serial, width="w-full", required=false) }}
+          <label class="block" for="asset-tags">Tags</label>
+          <textarea id="asset-tags" name="tags_text" class="textarea textarea-bordered w-full" data-test-id="asset-tags">{{ asset.tags | default([]) | join('\n') }}</textarea>
+          <p class="text-sm">One classification tag per line. Tags do not change access permissions.</p>
+          <div class="flex flex-wrap gap-2">
+            {% for tag in asset.tags | default([]) %}<span class="badge badge-outline">{{ tag }}</span>{% endfor %}
+          </div>
+          {{ form_input('Serial Number' , 'serial', asset.serial, form_error.serial, width="w-full", required=false) }}
           <div class="mb-5">
             <div class="flex items-center justify-between gap-3 mb-2">
               <span class="font-semibold text-sm">Observables</span>

@@ -1,0 +1,10 @@
+{% if asset_scan_error %}<p role="alert" class="text-error">{{ asset_scan_error }}</p>{% endif %}
+{% if asset_scan_run %}
+  <div class="flex flex-wrap gap-3 items-center mb-4"
+       {% if asset_scan_run.status in ('QUEUED', 'RUNNING') %} hx-get="{{ assess_return_url }}" hx-trigger="every 2s" hx-target="#assess" hx-select="#assess" hx-swap="outerHTML" hx-status:4xx="target:#notification-bar select:#notification-bar" hx-status:5xx="target:#notification-bar select:#notification-bar" {% endif %}>
+    <p role="status" data-test-id="asset-scan-status">Your latest scan: {{ asset_scan_run.status }} · {{ asset_scan_run.processed }} accessible articles checked{% if asset_scan_run.error %} · {{ asset_scan_run.error }}{% endif %}</p>
+    <a class="link"
+       href="{{ url_for('assets.asset_triggers', asset_id=asset_filters.asset_id, assess_url=assess_return_url) }}">Matching rules and scans</a>
+    <a class="link" href="{{ assess_return_url }}">Refresh results</a>
+  </div>
+{% endif %}

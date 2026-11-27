@@ -1,5 +1,5 @@
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import Any, cast
 
 from sqlalchemy import func, select
 
@@ -45,7 +45,7 @@ class NewsItemTagService:
 
         results = []
         for name, tag_type, created, count in result:
-            published = list(created.split(",")) if dialect_name == "sqlite" else [dt.isoformat() for dt in created]
+            published = created.split(",") if isinstance(created, str) else [dt.isoformat() for dt in cast(list[datetime], created)]
             results.append(
                 {
                     "name": name,
@@ -81,7 +81,7 @@ class NewsItemTagService:
             .group_by(NewsItemTagCluster.tag_type, NewsItemTagCluster.tag_type_key)
             .order_by(func.sum(NewsItemTagCluster.story_count).desc())
         ).all()
-        return [row[0] for row in items] if items else []
+        return [cast(str, row[0]) for row in items]
 
     @classmethod
     def get_largest_tag_types(cls, days: int) -> dict:

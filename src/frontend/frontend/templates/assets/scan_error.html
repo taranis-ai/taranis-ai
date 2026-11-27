@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% from "assets/navigation.html" import asset_navigation with context %}
+{% block content %}
+  <div class="p-4 space-y-4">
+    {{ asset_navigation(asset_id, 'rules') }}
+    <p class="alert alert-error" role="alert">{{ error }}</p>
+    <a class="link"
+       href="{{ url_for('assets.asset_triggers', asset_id=asset_id, assess_url=get_assess_return_url()) }}">Return to matching rules</a>
+  </div>
+{% endblock content %}

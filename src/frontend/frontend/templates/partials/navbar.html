@@ -68,6 +68,14 @@
         <span class="sr-only 2xl:not-sr-only">{{ _("Assets") }}</span>
       </a>
     </li>
+    {% if current_user and "ASSETS_ACCESS" in current_user.permissions %}
+      <li>
+        <a href="{{ url_for('assets.tactical') }}" class="whitespace-nowrap" title="Tactical view · sample preview">
+          {{ heroicon_outline("share") }}
+          <span class="sr-only 2xl:not-sr-only">{{ _("Tactical") }}</span>
+        </a>
+      </li>
+    {% endif %}
     <li class="dropdown dropdown-end z-50">
       <div tabindex="0" role="button" class="btn btn-ghost btn-circle avatar" data-testid="user-menu-button">
         {{ heroicon_outline("user-circle") }}

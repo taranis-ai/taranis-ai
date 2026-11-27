@@ -1,0 +1,20 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.7",
+  "serialNumber": "urn:uuid:6aa66ab1-7466-4868-973c-6b9ed17db1f1",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2026-10-21T10:00:00Z",
+    "component": {"type": "file", "name": "Demo / portal-staging", "bom-ref": "root", "description": "Fictional staging portal; findings are source-reported assessments as of 21 October 2026."},
+    "tools": [{"vendor": "Taranis", "name": "SBOM showcase", "version": "1"}]
+  },
+  "components": [
+    {"type": "application", "name": "PHP", "version": "8.4.26", "bom-ref": "php84-fpm", "purl": "pkg:generic/php@8.4.26", "cpe": "cpe:2.3:a:php:php:8.4.26:*:*:*:*:*:*:*", "properties": [{"name": "syft:location:0:path", "value": "usr/sbin/php-fpm8.4"}]},
+    {"type": "application", "name": "nginx", "version": "1.26.2", "bom-ref": "nginx", "purl": "pkg:generic/nginx@1.26.2", "cpe": "cpe:2.3:a:nginx:nginx:1.26.2:*:*:*:*:*:*:*", "properties": [{"name": "syft:location:0:path", "value": "usr/sbin/nginx"}]},
+    {"type": "application", "name": "curl", "version": "8.5.0", "bom-ref": "curl", "purl": "pkg:generic/curl@8.5.0", "cpe": "cpe:2.3:a:haxx:curl:8.5.0:*:*:*:*:*:*:*", "properties": [{"name": "syft:location:0:path", "value": "usr/bin/curl"}]}
+  ],
+  "vulnerabilities": [
+    {"id": "CVE-2026-109618", "source": {"name": "CERT-EU", "url": "https://cert.europa.eu/publications/security-advisories/2026-018/"}, "description": "Critical PHP issue reported on 21 October 2026; technical details and exact affected versions were pending in this snapshot.", "ratings": [{"source": {"name": "PHP security team", "url": "https://www.php.net/archive/2026.php#2026-10-20-1"}, "severity": "critical", "score": 9.2, "method": "CVSSv4"}], "published": "2026-10-21T00:00:00Z", "analysis": {"state": "in_triage", "detail": "Source-reported potential exposure; installed-version applicability has not been confirmed."}, "affects": [{"ref": "php84-fpm"}]},
+    {"id": "CVE-2026-109619", "source": {"name": "CERT-EU", "url": "https://cert.europa.eu/publications/security-advisories/2026-018/"}, "description": "Second critical PHP issue reported on 21 October 2026; technical details and exact affected versions were pending in this snapshot.", "ratings": [{"source": {"name": "PHP security team", "url": "https://www.php.net/archive/2026.php#2026-10-20-1"}, "severity": "critical", "score": 9.2, "method": "CVSSv4"}], "published": "2026-10-21T00:00:00Z", "analysis": {"state": "in_triage", "detail": "Source-reported potential exposure; installed-version applicability has not been confirmed."}, "affects": [{"ref": "php84-fpm"}]}
+  ]
+}
