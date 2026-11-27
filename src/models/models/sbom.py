@@ -9,6 +9,7 @@ from models.asset_intelligence import TriggerInput
 
 SBOM_PARSER_VERSION = 3
 SBOM_BATCH_SIZE = 100
+SBOM_PAGE_SIZE = 50
 
 
 class TriggerSuggestion(TriggerInput):

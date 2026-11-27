@@ -2,6 +2,7 @@
 
 from collections import defaultdict
 
+from models.sbom import SBOM_PAGE_SIZE
 from packageurl import PackageURL
 
 from core.managers.db_manager import db
@@ -10,6 +11,10 @@ from core.model.asset_sbom import DiscoveryAsset, DiscoveryObservation
 from core.model.user import User
 from core.service.asset_discovery import contradicts_image
 from core.service.asset_sbom import SbomImportError, current_import
+
+
+def component_link(component):
+    return {"name": component.inventory["name"], "version": component.inventory["version"], "page": 1 + component.position // SBOM_PAGE_SIZE}
 
 
 def host_provider(owner, packages):
@@ -124,7 +129,7 @@ def asset_services(asset_id: str, user: User):
                         continue
                     for name in process["packages"]:
                         for component in packages[name]:
-                            candidates[component.id] = component.inventory["name"]
+                            candidates[component.id] = component_link(component)
                     if binding.host == binding.key:
                         verified = [host_provider(owner, packages) for owner in process["package_details"]]
                     else:
@@ -142,7 +147,7 @@ def asset_services(asset_id: str, user: User):
                         "scope": binding.key,
                         "observed_at": capture.observed_at,
                         "basis": basis,
-                        "providers": {k: v.inventory["name"] for k, v in providers.items()},
+                        "providers": {k: component_link(v) for k, v in providers.items()},
                         "candidates": {k: v for k, v in candidates.items() if k not in providers},
                         "findings": findings,
                     }

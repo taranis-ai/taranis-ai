@@ -8,7 +8,16 @@ from flask.views import MethodView
 from flask_jwt_extended import current_user
 from models.cti import normalize_ioc_value
 from models.discovery import PreparedDiscovery
-from models.sbom import SbomComponentBatch, SbomCreateAsset, SbomCveMatching, SbomFindingBatch, SbomInventory, SbomReplaceAsset, SbomSummary
+from models.sbom import (
+    SBOM_PAGE_SIZE,
+    SbomComponentBatch,
+    SbomCreateAsset,
+    SbomCveMatching,
+    SbomFindingBatch,
+    SbomInventory,
+    SbomReplaceAsset,
+    SbomSummary,
+)
 from pydantic import ValidationError
 from werkzeug.utils import secure_filename
 
@@ -35,18 +44,15 @@ from core.service.sbom_upload import (
 )
 
 
-PAGE_SIZE = 50
-
-
 def inventory_response(record: AssetSbomImport) -> dict:
-    pages = max(1, ceil(record.summary["component_count"] / PAGE_SIZE))
+    pages = max(1, ceil(record.summary["component_count"] / SBOM_PAGE_SIZE))
     page = min(pages, max(1, request.args.get("page", default=1, type=int)))
     components = db.session.scalars(
         db.select(AssetSbomComponent)
         .filter_by(import_id=record.id)
         .order_by(AssetSbomComponent.position)
-        .offset((page - 1) * PAGE_SIZE)
-        .limit(PAGE_SIZE)
+        .offset((page - 1) * SBOM_PAGE_SIZE)
+        .limit(SBOM_PAGE_SIZE)
     ).all()
     comparison = None
     if target_id := request.args.get("asset_id"):

@@ -16,8 +16,8 @@
         {% if s.description %}<details><summary>Collector identification</summary><p>{{ s.description }}</p></details>{% endif %}
         <ul>{% for e in s.endpoints %}<li>{{ e.kind }} · {{ e.protocol }} {{ e.address or '' }} {{ e.port }} {% if e.kind == "published" %}→ {{ e.container_port }}{% endif %}</li>{% endfor %}</ul>
         {% for p in s.processes %}<p>Process · {{ p.name }} {{ p.executable or '' }}</p>{% endfor %}
-        {% for id, name in s.candidates.items() %}<p>Candidate package · {{ name }}</p>{% endfor %}
-        {% for id, name in s.providers.items() %}<p>Verified provider · {{ name }}</p>{% else %}<p>Package ownership unverified</p>{% endfor %}
+        {% for id, component in s.candidates.items() %}<p>Candidate package · <a class="link" href="{{ url_for('assets.asset_sbom', asset_id=asset_id, page=component.page, _anchor='component-' ~ id) }}">{{ component.name }} {{ component.version }}</a></p>{% endfor %}
+        {% for id, component in s.providers.items() %}<p>Verified provider · <a class="link" href="{{ url_for('assets.asset_sbom', asset_id=asset_id, page=component.page, _anchor='component-' ~ id) }}">{{ component.name }} {{ component.version }}</a></p>{% else %}<p>Package ownership unverified</p>{% endfor %}
         {% for finding in s.findings %}<details><summary>{{ finding.cve }}</summary>{% for record in finding.records %}<p>{{ (record.get("source") or {}).get('name', 'Source not supplied') }} · {{ record.ratings | tojson }} · {{ record.analysis | default({}) | tojson }}</p>{% endfor %}</details>{% endfor %}
       </article>
 {% else %}<p>No service observations have been imported.</p>{% endfor %}

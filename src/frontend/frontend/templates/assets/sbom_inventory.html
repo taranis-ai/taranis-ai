@@ -82,7 +82,7 @@
         </thead>
         <tbody>
           {% for component in inventory.components %}
-            <tr>
+            <tr id="component-{{ component.id }}">
               <td>
                 <strong>{{ component.name }}</strong>
                 <div>{{ component.type }}</div>

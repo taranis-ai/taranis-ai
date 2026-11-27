@@ -1358,7 +1358,7 @@ def test_discovery_links_exact_scopes_and_only_verified_findings(client, auth_he
     data = client.get(f"/api/assets/{asset_id}/services", headers=auth_header).json
     assert len(data["captures"]) == 2 and len(data["services"]) == 1
     observed = data["services"][0]
-    assert list(observed["providers"].values()) == ["openssl"]
+    assert list(observed["providers"].values()) == [{"name": "openssl", "version": "3.0.2", "page": 1}]
     assert [f["cve"] for f in observed["findings"]] == ["CVE-2026-12345"]
     assert observed["findings"][0]["records"][0]["source"]["name"] == "scanner"
     other = {**sidecar, "asset_name": "web/docker/compose/site/app/1", "asset_type": "container"}
@@ -1455,7 +1455,7 @@ def test_discovery_resolves_late_inventory_and_ambiguous_runtime_images(client, 
     )
     status = client.get(f"/api/assets/{paired['inventory_asset_id']}/services", headers=auth_header).json
     assert status["captures"][0]["basis"] == "image inventory"
-    assert list(status["services"][0]["providers"].values()) == ["openssl"]
+    assert list(status["services"][0]["providers"].values()) == [{"name": "openssl", "version": "3.0.2", "page": 1}]
     ambiguous = discovery_files(client, auth_header, raw, json.dumps({**report, "containers": [one, two]}).encode())
     assert ambiguous["reason"] == "scope" and len(ambiguous["options"]) == 2
     resolved = client.post(
