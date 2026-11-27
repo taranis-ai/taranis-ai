@@ -97,7 +97,7 @@ class BaseWebCollector(BaseCollector):
             response = http_request(
                 "GET", url, external=True, headers=self._request_headers(url, modified_since), proxies=self.proxies, timeout=self.timeout
             )
-        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as exc:
+        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout, requests.exceptions.ChunkedEncodingError) as exc:
             logger.error(f"Collector HTTP request failed: {exc}")
             logger.exception("Collector HTTP request failed")
             raise requests.exceptions.RequestException(

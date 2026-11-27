@@ -1,4 +1,6 @@
 import asyncio
+import errno
+from unittest.mock import Mock
 
 import niquests as requests
 import pytest
@@ -6,7 +8,7 @@ from models.worker_parameters import effective_parameter_values
 
 from tests.testdata import news_items
 from worker.config import Config
-from worker.http_client import http_session_scope
+from worker.http_client import http_request, http_session_scope
 
 
 def test_base_web_collector_conditional_request(base_web_collector_mock, base_web_collector, requests_mock, caplog):
@@ -34,8 +36,13 @@ def test_base_web_collector_conditional_request(base_web_collector_mock, base_we
         response = base_web_collector.send_get_request("https://test.org/404")
     assert str(exception.value) == "404 Client Error: None for url: https://test.org/404"
 
-    for error_type in (requests.exceptions.ConnectionError, requests.exceptions.Timeout, requests.exceptions.ReadTimeout):
-        requests_mock.get("https://test.org/network-error", exc=error_type("technical-network-details"))
+    for error_type in (
+        requests.exceptions.ConnectionError,
+        requests.exceptions.Timeout,
+        requests.exceptions.ReadTimeout,
+        requests.exceptions.ChunkedEncodingError,
+    ):
+        request = requests_mock.get("https://test.org/network-error", exc=error_type("technical-network-details"))
         caplog.clear()
         with caplog.at_level("INFO"), pytest.raises(requests.exceptions.RequestException) as failure:
             base_web_collector.send_get_request("https://test.org/network-error")
@@ -47,6 +54,7 @@ def test_base_web_collector_conditional_request(base_web_collector_mock, base_we
         )
         assert failure.value.__suppress_context__ is True
         assert failure.value.__cause__ is None
+        assert request.call_count == 1
         assert any(record.levelname == "ERROR" and "technical-network-details" in record.message for record in caplog.records)
 
 
@@ -73,6 +81,29 @@ def test_base_web_collector_http3_config(base_web_collector_mock, base_web_colle
         asyncio.run(base_web_collector._fetch_icon("https://test.org/200"))
 
     assert [options["disable_http3"] for options in session_options if options] == [disable_http3, disable_http3]
+
+
+@pytest.mark.parametrize("error_type", [requests.exceptions.ChunkedEncodingError, requests.exceptions.ConnectionError])
+def test_external_get_falls_back_to_tcp_on_emsgsize(base_web_collector, requests_mock, monkeypatch, error_type):
+    url = "https://test.org/article"
+    error = error_type("connection broken")
+    error.__context__ = requests.packages.urllib3.exceptions.ProtocolError("connection broken")
+    error.__context__.__cause__ = OSError(errno.EMSGSIZE, "Message too long")
+    monkeypatch.setattr(Config, "DISABLE_HTTP3", False)
+    sessions = Mock(wraps=requests.Session)
+    monkeypatch.setattr(requests, "Session", sessions)
+    post = requests_mock.post(url, exc=error)
+    article = requests_mock.get(url, [{"exc": error}, {"text": "complete article"}, {"exc": error}])
+    with http_session_scope():
+        with pytest.raises(error_type):
+            http_request("POST", url, external=True)
+        assert post.call_count == 1
+        assert base_web_collector.send_get_request(url).text == "complete article"
+        with pytest.raises(requests.exceptions.RequestException):
+            base_web_collector.send_get_request(url)
+
+    assert article.call_count == 3
+    assert [call.kwargs["disable_http3"] for call in sessions.call_args_list] == [False, True]
 
 
 def test_malformed_last_modified_is_ignored(base_web_collector, requests_mock):
