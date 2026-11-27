@@ -120,28 +120,26 @@ class BaseCollector:
         return captures
 
     def publish_with_images(self, items: list[NewsItem], source: dict) -> dict:
-        message = "All news items were skipped"
-        for item in self.process_news_items(items, source):
-            payload = item.model_dump(mode="json")
-            # Leave room for the JSON envelope within Core's 50 MiB request limit.
-            remaining = 49 * 1024 * 1024 - len(json.dumps(payload).encode())
-            payload["captured_images"] = asyncio.run(
-                self._capture_images(item.image_candidates, source["parameters"].get("PROXY_SERVER"), remaining)
-            )
-            try:
+        try:
+            for item in self.process_news_items(items, source):
+                payload = item.model_dump(mode="json")
+                # Leave room for the JSON envelope within Core's 50 MiB request limit.
+                remaining = 49 * 1024 * 1024 - len(json.dumps(payload).encode())
+                payload["captured_images"] = asyncio.run(
+                    self._capture_images(item.image_candidates, source["parameters"].get("PROXY_SERVER"), remaining)
+                )
                 result = self.core_api.add_news_items([payload])
                 if result:
                     self.affected_story_ids.update(result.get("story_ids", []))
                 if not result or result.get("error"):
                     raise RuntimeError("Cannot add news items")
-            except Exception:
-                if self.affected_story_ids:
-                    self.core_api.run_post_collection_bots(source["id"], sorted(self.affected_story_ids))
-                logger.exception("Could not publish collected article with images")
-                raise RuntimeError("Cannot add news items") from None
-            self.skipped_images += result.get("skipped_images", 0)
-            if result.get("story_ids"):
-                message = f"Collected {len(self.affected_story_ids)} stories"
+                self.skipped_images += result.get("skipped_images", 0)
+        except Exception:
+            if self.affected_story_ids:
+                self.core_api.run_post_collection_bots(source["id"], sorted(self.affected_story_ids))
+            logger.exception("Could not publish collected article with images")
+            raise RuntimeError("Cannot add news items") from None
+        message = f"Collected {len(self.affected_story_ids)} stories" if self.affected_story_ids else "All news items were skipped"
         if self.skipped_images:
             message += f". Skipped {self.skipped_images} images"
         return {"message": message, "story_ids": sorted(self.affected_story_ids)}

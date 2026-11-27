@@ -157,8 +157,11 @@ def test_rss_last_modified_published_fallback_applies_across_content_modes(rss_c
     assert item.published == datetime.datetime(2026, 8, 11, 9, 7, 3)
 
 
-def test_rss_publish_error_propagates(rss_collector, requests_mock):
+def test_rss_publish_error_propagates(rss_collector, requests_mock, monkeypatch):
+    from unittest.mock import AsyncMock
+
     from models.assess import NewsItem
+    from rq.timeouts import JobTimeoutException
 
     requests_mock.post(f"{Config.TARANIS_CORE_URL}/worker/news-items", status_code=500, text="failed")
 
@@ -176,6 +179,16 @@ def test_rss_publish_error_propagates(rss_collector, requests_mock):
     assert rss_collector.affected_story_ids == {"committed-story"}
     assert bots.call_count == 1
     assert bots.last_request.json()["story_ids"] == ["committed-story"]
+
+    rss_collector.affected_story_ids.clear()
+    saved = requests_mock.post(f"{Config.TARANIS_CORE_URL}/worker/news-items", json={"story_ids": ["first-story"]})
+    monkeypatch.setattr(rss_collector, "_capture_images", AsyncMock(side_effect=[[], JobTimeoutException()]))
+    items = [NewsItem(osint_source_id="source-1", title=title) for title in ("First", "Second")]
+    with pytest.raises(RuntimeError, match="Cannot add news items"):
+        rss_collector.publish(items, {"id": "source-1", "parameters": {"COLLECT_IMAGES": True}})
+    assert saved.call_count == 1
+    assert bots.call_count == 2
+    assert bots.last_request.json()["story_ids"] == ["first-story"]
 
 
 def test_primary_http_validator_lifecycle(base_web_collector, requests_mock):
