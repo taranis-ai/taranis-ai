@@ -274,6 +274,13 @@ class IOCBotParameters(BotParameters):
     pass
 
 
+class Image2TextBotParameters(BotParameters):
+    USERNAME: str = Field(
+        min_length=1, title="Media Intelligence username", description="Account used to submit images to AIT Media Intelligence."
+    )
+    PASSWORD: SecretStr = Field(min_length=1, title="Media Intelligence password", description="Password for the Media Intelligence account.")
+
+
 class IntelOwlBotParameters(BotParameters):
     INTEL_OWL_URL: str = Field(min_length=1, title="IntelOwl URL", description="IntelOwl service URL.")
     INTEL_OWL_API_KEY: SecretStr = Field(min_length=1, title="IntelOwl API key", description="IntelOwl API key.")
@@ -556,7 +563,12 @@ _DEFINITIONS = (
     _definition(WORKER_TYPES.GROUPING_BOT, "Grouping Bot", "Bot for grouping news items into stories", GroupingBotParameters),
     _definition(WORKER_TYPES.NLP_BOT, "NLP Bot", "Bot for natural-language processing", NLPBotParameters),
     _definition(WORKER_TYPES.IOC_BOT, "IOC Bot", "Bot for extracting indicators of compromise", IOCBotParameters),
-    _definition(WORKER_TYPES.IMAGE2TEXT_BOT, "Image2Text", "Describe images attached to news items", BotParameters),
+    _definition(
+        WORKER_TYPES.IMAGE2TEXT_BOT,
+        "Image2Text",
+        "Describe images attached to news items with AIT Media Intelligence",
+        Image2TextBotParameters,
+    ),
     _definition(WORKER_TYPES.INTEL_OWL_BOT, "IntelOwl Bot", "Bot for submitting observables to IntelOwl", IntelOwlBotParameters),
     _definition(WORKER_TYPES.TAGGING_BOT, "Tagging Bot", "Bot for tagging news items", TaggingBotParameters),
     _definition(WORKER_TYPES.STORY_BOT, "Story Clustering Bot", "Bot for story clustering", StoryBotParameters),

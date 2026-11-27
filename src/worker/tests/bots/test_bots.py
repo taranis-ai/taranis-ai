@@ -1,4 +1,5 @@
 import json
+from io import BytesIO
 from unittest.mock import patch
 
 import pytest
@@ -7,6 +8,7 @@ from llm_bot.config import Config as LLMConfig
 from llm_bot.decisions_client import DecisionsClient
 from llm_bot.schemas import ClassifyResponse
 from models.classification import CLASSIFICATION_CATEGORIES
+from PIL import Image
 from rq import Retry
 
 from worker.bots.base_bot import BaseBot
@@ -320,34 +322,72 @@ def test_sentiment_analysis_bot(stories, requests_mock, mock_job, monkeypatch, b
         assert attributes == {"sentiment_category": "neutral", "sentiment_score": expected_scores[item_id]}
 
 
-def test_image2text_processes_only_missing_captions_and_preserves_partial_success(requests_mock, monkeypatch, caplog):
-    from worker.bots.image2text_bot import Image2TextBot
+def test_image2text_processes_only_missing_captions_and_preserves_partial_success(requests_mock, caplog):
+    from worker.bots.image2text_bot import BASE_URL, Image2TextBot
 
     bot = Image2TextBot()
     bot.pipeline_stories = [
         {
             "news_items": [
-                {"images": [{"id": "ok", "mime_type": "image/png"}, {"id": "failed"}, {"id": "old", "description": "Existing caption"}]}
+                {"images": [{"id": "first", "mime_type": "image/webp"}, {"id": "old", "description": "Existing caption"}]},
+                {"images": [{"id": name, "mime_type": "image/jpeg"} for name in ("missing", "second", "unavailable")]},
             ]
         }
     ]
-    requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/images/ok", content=b"input")
-    requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/images/failed", status_code=404)
-
-    def describe(data, mime):
-        assert (data, mime) == (b"input", "image/png")
-        return "A network diagram"
-
-    monkeypatch.setattr("worker.bots.image2text_bot.load_image2text_adapter", lambda: describe)
+    webp = BytesIO()
+    Image.new("RGB", (16, 16)).save(webp, "WEBP")
+    requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/images/first", content=webp.getvalue())
+    for image_id in ("missing", "second"):
+        requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/images/{image_id}", content=b"stored jpeg")
+    requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/images/unavailable", status_code=404)
+    login = requests_mock.post(f"{BASE_URL}/login", json={"authenticated": True})
+    submit = requests_mock.post(
+        f"{BASE_URL}/modules/groundedsam/inference",
+        [{"json": {"job_id": "batch"}}, {"status_code": 503}],
+    )
+    records = [
+        {"name": name, "status": "success", "result": {"image_caption": caption, "tags": "ignore"}}
+        for name, caption in [("second.jpg", " Second caption "), ("extra.jpg", "Unrequested"), ("first.png", "First caption")]
+    ]
+    requests_mock.get(
+        f"{BASE_URL}/job/get/batch",
+        [
+            {"json": {"status": "processing"}},
+            {"json": {"status": "success", "j_metadata": {"groundedsam": {"model_results": [{"file_records": records}]}}}},
+        ],
+    )
     state = {}
     checkpoints = []
-    parameters = {"_llm_batch_state": state, "_save_llm_batch_state": lambda: checkpoints.append(state["image_descriptions"].copy())}
+    parameters = {
+        "USERNAME": "test-user",
+        "PASSWORD": "test-password",
+        "_llm_batch_state": state,
+        "_save_llm_batch_state": lambda: checkpoints.append(state["image_descriptions"].copy()),
+    }
     result = bot.execute(parameters)
-    assert result["changes"] == {"image_descriptions": {"ok": "A network diagram"}}
-    assert result["errors"] == ["failed"]
-    assert checkpoints == [{"ok": "A network diagram"}]
-    assert "Image2Text failed for image failed (HTTPError)" in caplog.text
+    assert login.last_request.text == "username=test-user&password=test-password"
+    multipart = submit.last_request.body
+    assert multipart.count(b'name="file"') == 3
+    assert b'name="image_caption_class"' in multipart and b"Tag2Text" in multipart
+    assert b'filename="first.png"' in multipart and b"image/png" in multipart and b"\x89PNG" in multipart
+    assert b'filename="second.jpg"' in multipart and b"stored jpeg" in multipart
+    assert result["changes"] == {"image_descriptions": {"first": "First caption", "second": "Second caption"}}
+    assert result["errors"] == ["missing", "unavailable"]
+    assert checkpoints == [result["changes"]["image_descriptions"]]
+    assert "Image2Text failed for image unavailable (HTTPError)" in caplog.text
+
     requests_mock.reset_mock()
     assert bot.execute(parameters) == result
-    assert [request.path for request in requests_mock.request_history] == ["/api/worker/images/failed"]
+    assert submit.call_count == 1 and submit.last_request.body.count(b'name="file"') == 1
+    assert b'filename="missing.jpg"' in submit.last_request.body
     assert len(checkpoints) == 1
+
+
+def test_image2text_rejected_login_stops_before_upload(requests_mock):
+    from worker.bots.image2text_bot import BASE_URL, Image2TextAuthenticationError, Image2TextBot
+
+    bot = Image2TextBot()
+    bot.pipeline_stories = [{"news_items": [{"images": [{"id": "pending", "mime_type": "image/png"}]}]}]
+    requests_mock.post(f"{BASE_URL}/login", json={"authenticated": False})
+    with pytest.raises(Image2TextAuthenticationError):
+        bot.execute({"USERNAME": "test-user", "PASSWORD": "test-password"})
