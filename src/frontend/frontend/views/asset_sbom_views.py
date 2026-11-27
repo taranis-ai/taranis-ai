@@ -184,7 +184,7 @@ def discovery_upload():
         response = api.session.post(
             f"{api.api_url}/assets/discovery-imports",
             files=[("file", (f.filename, f.stream, "application/json")) for f in request.files.getlist("file")],
-            data={"source": request.form.get("source", "default")},
+            data={"source": request.form.get("source", "")},
             headers={"Content-type": None},
             timeout=api.timeout,
         )

@@ -31,7 +31,7 @@
           <details>
             <summary>Inventory source</summary>
             <label for="discovery-source">Source name</label>
-            <input id="discovery-source" name="source" value="default" maxlength="100" class="input input-bordered">
+            <input id="discovery-source" name="source" placeholder="Last used source or default" maxlength="100" class="input input-bordered">
           </details>
           <button class="btn btn-primary" type="submit" formaction="{{ url_for('assets.discovery_upload') }}">Import</button>
         {% endif %}

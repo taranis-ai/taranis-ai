@@ -26,6 +26,21 @@ from core.service.sbom_upload import queue_upload
 def stage_discovery(files: list[tuple[str, bytes]], source: str, user: User):
     if queue_manager.queue_manager.queue_action_error():
         raise SbomImportError("Discovery processing is unavailable. Please try again later.", 503)
+    if not source:
+        source = (
+            db.session.scalar(
+                select(DiscoveryImport.source)
+                .join(AssetSbomUpload, AssetSbomUpload.id == DiscoveryImport.upload_id)
+                .where(
+                    AssetSbomUpload.organization_id == user.organization.id,
+                    AssetSbomUpload.user_id == user.id,
+                    DiscoveryImport.result["state"].as_string() == "applied",
+                )
+                .order_by(AssetSbomUpload.created.desc())
+                .limit(1)
+            )
+            or "default"
+        )
     filename, raw = files[0]
     upload = AssetSbomUpload(
         user_id=user.id,
@@ -46,7 +61,7 @@ def stage_discovery(files: list[tuple[str, bytes]], source: str, user: User):
     return queue_upload(upload)
 
 
-def prepare(upload: AssetSbomUpload, job: DiscoveryImport, data: PreparedDiscovery):
+def prepare_discovery_import(upload: AssetSbomUpload, job: DiscoveryImport, data: PreparedDiscovery):
     if job.prepared is not None:
         return
     evidence_digest = upload.sha256 if data.sbom_file != 1 else job.second_hash
@@ -238,7 +253,7 @@ def apply_discovery(upload: AssetSbomUpload, job: DiscoveryImport, user: User, c
             "state": "review",
             "reason": "scope",
             "message": "Choose the scope for this inventory or import matching discovery.",
-            "options": [{"key": b.key} for b in options if Asset.get_for_api(b.asset_id, user.organization)[1] == 200],
+            "options": [{"key": b.key, "id": b.asset_id} for b in options if Asset.get_for_api(b.asset_id, user.organization)[1] == 200],
         }
         return None
     binding, basis = candidates[0]

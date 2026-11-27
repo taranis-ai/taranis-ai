@@ -18,7 +18,7 @@ from core.model.asset import Asset, AssetGroup
 from core.model.asset_intelligence import AssetTrigger
 from core.model.asset_sbom import AssetSbomComponent, AssetSbomFinding, AssetSbomImport, DiscoveryImport
 from core.model.user import User
-from core.service.asset_discovery import apply_discovery, prepare, stage_discovery
+from core.service.asset_discovery import apply_discovery, prepare_discovery_import, stage_discovery
 from core.service.asset_intelligence import asset_triggers, start_match_run, trigger_suggestions
 from core.service.asset_sbom import SbomImportError, apply_import, compare_import, current_import, owned_import
 from core.service.asset_services import asset_services
@@ -138,7 +138,7 @@ class WorkerSbomUpload(MethodView):
             owner = None
             changed = None
             if action == "discovery" and job:
-                prepare(upload, job, PreparedDiscovery.model_validate(data))
+                prepare_discovery_import(upload, job, PreparedDiscovery.model_validate(data))
             elif action == "begin":
                 begin_preview(upload, SbomSummary.model_validate(data))
             elif action == "components":
@@ -264,8 +264,12 @@ class DiscoveryUpload(MethodView):
     @auth_required("ASSETS_CREATE")
     def post(self):
         files = request.files.getlist("file")
-        source = request.form.get("source", "default")
-        if not 1 <= len(files) <= 2 or not all(f.filename for f in files) or not re.fullmatch(r"[A-Za-z0-9_][A-Za-z0-9_.-]{0,99}", source):
+        source = request.form.get("source", "").strip()
+        if (
+            not 1 <= len(files) <= 2
+            or not all(f.filename for f in files)
+            or (source and not re.fullmatch(r"[A-Za-z0-9_][A-Za-z0-9_.-]{0,99}", source))
+        ):
             return {"error": "Select one or two JSON files and a valid inventory source."}, 400
         try:
             upload = stage_discovery(
@@ -285,8 +289,8 @@ def discovery_receipt(upload_id):
     assets = job.result.get("assets", [])
     if any(Asset.get_for_api(a["id"], current_user.organization)[1] != 200 for a in assets):
         raise SbomImportError("Discovery import unavailable.", 404)
-    if job.result.get("reason") == "identity" and any(
-        Asset.get_for_api(a["id"], current_user.organization)[1] != 200 for a in job.result["options"]
+    if job.result.get("reason") in ("identity", "scope") and any(
+        not a.get("id") or Asset.get_for_api(a["id"], current_user.organization)[1] != 200 for a in job.result["options"]
     ):
         raise SbomImportError("Discovery import unavailable.", 404)
     if job.result.get("reason") == "destination" and any(
@@ -301,7 +305,7 @@ class DiscoveryProgress(MethodView):
     def get(self, upload_id):
         try:
             upload, job = discovery_receipt(upload_id)
-            return {"id": upload_id, "state": upload.status.lower(), "message": upload.error, **job.result}, 200
+            return {"id": upload_id, "source": job.source, "state": upload.status.lower(), "message": upload.error, **job.result}, 200
         except SbomImportError as exc:
             return {"error": exc.public_message}, exc.status
 

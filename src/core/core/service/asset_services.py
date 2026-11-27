@@ -85,7 +85,13 @@ def asset_services(asset_id: str, user: User):
             exact = snapshot and evidence.get("source_sha256") == snapshot.sha256
             image = snapshot and snapshot.summary.get("image_id") and snapshot.summary["image_id"] == evidence.get("image_id")
             basis = "exact snapshot" if exact else "image inventory" if image else None
-            if not basis and snapshot and not evidence.get("source_sha256") and binding.link.get("sha256") == snapshot.sha256:
+            if (
+                not basis
+                and snapshot
+                and binding.host == binding.key
+                and not evidence.get("source_sha256")
+                and binding.link.get("sha256") == snapshot.sha256
+            ):
                 basis = "asset binding"
             history.append(
                 {
@@ -109,11 +115,11 @@ def asset_services(asset_id: str, user: User):
                 seen.add(service["key"])
                 candidates, providers, findings = {}, {}, []
                 for process in service["processes"]:
+                    if not basis:
+                        continue
                     for name in process["packages"]:
                         for component in packages[name]:
                             candidates[component.id] = component.inventory["name"]
-                    if not basis:
-                        continue
                     if binding.host == binding.key:
                         verified = [host_provider(owner, packages) for owner in process["package_details"]]
                     else:

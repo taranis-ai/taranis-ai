@@ -1133,20 +1133,7 @@ def test_sbom_preparation_is_private_and_requires_complete_worker_batches(
     source = client.get(worker_url, headers=api_header)
     assert source.status_code == 200, source.json
     assert source.data == FIXTURE.read_bytes()
-    raw = source.data
-    if file_count := source.headers.get("X-Discovery-Files"):
-        files = [raw]
-        if file_count == "2":
-            files.append(client.get(endpoint + "?file=2", headers=worker_headers).data)
-        discovery = prepare_discovery(files)
-        response = client.post(endpoint + "/discovery", headers=worker_headers, json=discovery.model_dump(mode="json"))
-        assert response.status_code == 200, response.json
-        if discovery.sbom_file is None:
-            response = client.post(endpoint + "/complete", headers=worker_headers, json={})
-            assert response.status_code == 200, response.json
-            return
-        raw = files[discovery.sbom_file - 1]
-    parsed = parse_sbom(raw)
+    parsed = parse_sbom(source.data)
     begin = client.post(worker_url + "/begin", headers=api_header, json=parsed.summary.model_dump())
     preview_url = f"/api/assets/sbom-imports/{begin.json['import_id']}"
     assert client.get(preview_url, headers=auth_header).status_code == 409
@@ -1307,12 +1294,12 @@ def test_software_rules_are_shared_within_organization_but_enablement_stays_loca
     assert any(t["rule_id"] == first_rule["rule_id"] for t in client.get(third_base + "/triggers", headers=auth_header).json["items"])
 
 
-def discovery_files(client, headers, *files):
+def discovery_files(client, headers, *files, source=""):
     endpoint = "/api/assets/discovery-imports"
     queued = client.post(
         endpoint,
         headers={"Authorization": headers["Authorization"]},
-        data={"file": [(io.BytesIO(raw), f"{i}.json") for i, raw in enumerate(files)]},
+        data={"source": source, "file": [(io.BytesIO(raw), f"{i}.json") for i, raw in enumerate(files)]},
     )
     assert queued.status_code == 202, queued.json
     prepare_upload(client, queued.json["id"])
@@ -1361,10 +1348,11 @@ def test_discovery_links_exact_scopes_and_only_verified_findings(client, auth_he
     companion = json.dumps(sidecar).encode()
     mismatch = discovery_files(client, auth_header, raw, json.dumps({**sidecar, "source_sha256": "0" * 64}).encode())
     assert mismatch["reason"] == "mismatch" and not mismatch.get("assets")
-    receipt = discovery_files(client, auth_header, companion, raw)
+    receipt = discovery_files(client, auth_header, companion, raw, source="testbed")
     assert receipt["state"] == "applied", receipt
     asset_id = receipt["inventory_asset_id"]
-    assert discovery_files(client, auth_header, raw, companion)["inventory_asset_id"] == asset_id
+    repeated = discovery_files(client, auth_header, raw, companion)
+    assert repeated["source"] == "testbed" and repeated["inventory_asset_id"] == asset_id
     partial = {**sidecar, "complete": False, "services": [], "observed_at": "2026-11-14T10:00:00Z"}
     discovery_files(client, auth_header, json.dumps(partial).encode())
     data = client.get(f"/api/assets/{asset_id}/services", headers=auth_header).json
