@@ -113,8 +113,10 @@ Afterwards they are stored in the database in the `user` table.
 
 For existing database-auth users, passwords and role assignments can be repaired with the operational CLI. See [User Management](../admin/user-management.md#operational-cli).
 
-Open `http://<url>:<TARANIS_PORT>/config/sources` and click **load default sources** to import the default sources from: [default_sources.json](https://github.com/taranis-ai/taranis-ai/blob/master/src/core/core/static/default_sources.json)
+### Collect your first news items
 
-Or import a source export via the **Import**.
+1. Sign in as an administrator and open the OSINT Sources page (`/admin/sources`).
+2. Click **Curated sources**, choose one or more lists, then click **Add selected lists**. The sources appear in the source table.
+3. Click **Collect** on one source to try it. When the worker finishes, open **Assess** to read any news items it collected.
 
-![getting started](../images/getting-started.png)
+If you already have a source configuration exported as JSON, use **Import** on the same page. See [OSINT Sources](../admin/osint-sources.md) for preview and collection options.
