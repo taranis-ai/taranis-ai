@@ -15,7 +15,16 @@
 {% from "assess/news_item_card.html" import news_item_card %}
 {% from "assess/story_actions.html" import story_edit_actions with context %}
 {% from "assess/bot_result_refresh.html" import bot_result_fragment, bot_result_refresh %}
-{% set refresh_bot_types = ["SUMMARY_BOT", "SENTIMENT_ANALYSIS_BOT", "CYBERSEC_CLASSIFIER_BOT", "WORDLIST_BOT", "IOC_BOT", "NLP_BOT", "TAGGING_BOT"] %}
+{% set refresh_bot_types = [
+  "SUMMARY_BOT",
+  "SENTIMENT_ANALYSIS_BOT",
+  "CYBERSEC_CLASSIFIER_BOT",
+  "WORDLIST_BOT",
+  "IOC_BOT",
+  "NLP_BOT",
+  "TAGGING_BOT",
+  "IMAGE2TEXT_BOT"
+] %}
 {% set completed_bot_types = request.args.getlist('bot_types') | select('in', refresh_bot_types) | list %}
 {% set generated_keys = completed_bot_types + (['classification'] if 'CYBERSEC_CLASSIFIER_BOT' in completed_bot_types else []) + (['sentiment'] if 'SENTIMENT_ANALYSIS_BOT' in completed_bot_types else []) %}
 {% set generated_attributes = namespace(items=[]) %}
@@ -336,57 +345,26 @@
             <h3 class="card-title text-lg">AI assisted actions</h3>
             <p class="text-sm text-base-content/70">Kick off automation in the background.</p>
 
-            <form class="flex flex-col"
-                  hx-post="{{ url_for('assess.story_trigger_bot', story_id=story.id) }}"
-                  hx-target="#notification-bar"
-                  hx-status:400="target:#notification-bar"
-                  hx-status:4xx="target:#notification-bar"
-                  hx-status:5xx="target:#notification-bar"
-                  hx-swap="outerHTML">
-              <input type="hidden" name="bot_id" value="summary_bot">
-              <button type="submit"
-                      class="btn btn-outline btn-accent h-auto min-h-10 whitespace-normal py-2"
-                      {% if not story.can_edit %}disabled{% endif %}>Generate summary & title</button>
-            </form>
-
-            <form class="flex flex-col"
-                  hx-post="{{ url_for('assess.story_trigger_bot', story_id=story.id) }}"
-                  hx-target="#notification-bar"
-                  hx-status:400="target:#notification-bar"
-                  hx-status:4xx="target:#notification-bar"
-                  hx-status:5xx="target:#notification-bar"
-                  hx-swap="outerHTML">
-              <input type="hidden" name="bot_id" value="generate_tags">
-              <button type="submit"
-                      class="btn btn-outline btn-accent h-auto min-h-10 whitespace-normal py-2"
-                      {% if not story.can_edit %}disabled{% endif %}>Generate Tags</button>
-            </form>
-
-            <form class="flex flex-col"
-                  hx-post="{{ url_for('assess.story_trigger_bot', story_id=story.id) }}"
-                  hx-target="#notification-bar"
-                  hx-status:400="target:#notification-bar"
-                  hx-status:4xx="target:#notification-bar"
-                  hx-status:5xx="target:#notification-bar"
-                  hx-swap="outerHTML">
-              <input type="hidden" name="bot_id" value="sentiment_analysis_bot">
-              <button type="submit"
-                      class="btn btn-outline btn-accent h-auto min-h-10 whitespace-normal py-2"
-                      {% if not story.can_edit %}disabled{% endif %}>Run sentiment analysis</button>
-            </form>
-
-            <form class="flex flex-col"
-                  hx-post="{{ url_for('assess.story_trigger_bot', story_id=story.id) }}"
-                  hx-target="#notification-bar"
-                  hx-status:400="target:#notification-bar"
-                  hx-status:4xx="target:#notification-bar"
-                  hx-status:5xx="target:#notification-bar"
-                  hx-swap="outerHTML">
-              <input type="hidden" name="bot_id" value="cybersec_classifier_bot">
-              <button type="submit"
-                      class="btn btn-outline btn-accent h-auto min-h-10 whitespace-normal py-2"
-                      {% if not story.can_edit %}disabled{% endif %}>Topic classification</button>
-            </form>
+            {% for bot_id, label in [
+              ('summary_bot', 'Generate summary & title'),
+              ('generate_tags', 'Generate Tags'),
+              ('sentiment_analysis_bot', 'Run sentiment analysis'),
+              ('cybersec_classifier_bot', 'Topic classification'),
+              ('regenerate_image_descriptions', 'Regenerate image descriptions')
+            ] %}
+              <form class="flex flex-col"
+                    hx-post="{{ url_for('assess.story_trigger_bot', story_id=story.id) }}"
+                    hx-target="#notification-bar"
+                    hx-status:400="target:#notification-bar"
+                    hx-status:4xx="target:#notification-bar"
+                    hx-status:5xx="target:#notification-bar"
+                    hx-swap="outerHTML">
+                <input type="hidden" name="bot_id" value="{{ bot_id }}">
+                <button type="submit"
+                        class="btn btn-outline btn-accent h-auto min-h-10 whitespace-normal py-2"
+                        {% if not story.can_edit or (bot_id == "regenerate_image_descriptions" and not story.image_count) %}disabled{% endif %}>{{ label }}</button>
+              </form>
+            {% endfor %}
 
           </div>
         </div>

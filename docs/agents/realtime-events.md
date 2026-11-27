@@ -40,7 +40,7 @@ Live table and queue-card refreshes route 5xx notifications to `#notification-ba
 
 Successful staged bot runs publish user-scoped `story.bot.finished` after commit and frontend cache invalidation, in one publication per saved result, regardless of story/stage count. Its `data.stories` maps story IDs to deduplicated bot types, without result content; rejected, failed, duplicate, and unattributed background runs do not publish these completion events. The Assess invalidation remains separate.
 
-One form-free controller per story editor queues completion events and fetches the authenticated edit route once per matching event with supported bot types. OOB swaps update only affected summary/title, sentiment, classification, or tag displays. HTMX 4 trigger filters stop at the first `]`; use `Reflect.get` for story-map lookups.
+One form-free controller per story editor queues completion events and fetches the authenticated edit route once per matching event with supported bot types. OOB swaps update only affected summary/title, sentiment, classification, tag displays, or image figures. Swapping the figure preserves an open image disclosure. HTMX 4 trigger filters stop at the first `]`; use `Reflect.get` for story-map lookups.
 
 Local events update saved tag baselines and merge completed bots’ generated attributes/markers. Preserve open tag editors, custom/unrelated drafts, comments, and item ordering. A completed field replaces a draft in that same field. Missed/disabled realtime requires reload; persisted results remain authoritative.
 

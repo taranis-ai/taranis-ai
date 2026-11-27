@@ -1025,6 +1025,19 @@ class QueueManager:
             return {"message": "Executing Bot scheduled"}, 200
         return {"error": self.error or "Could not reach Redis"}, 503 if not Config.QUEUE_ENABLED else 500
 
+    def regenerate_image_descriptions(self, story_id: str, user_id: str):
+        from core.model.bot import Bot
+
+        if error := self.queue_action_error():
+            return error
+        if not (bot := Bot.filter_by_type("image2text_bot")):
+            return {"error": "Image2Text bot not found"}, 404
+        if not bot.enabled:
+            return {"error": "Image2Text bot is disabled"}, 400
+        return self.execute_bot_task(
+            bot.id, filter={"story_id": story_id, "missing_image_description": False}, user_id=user_id, trigger_dependents=False
+        )
+
     def execute_tagging_tasks(self, filter: dict, user_id: str):
         from core.model.bot import Bot
 

@@ -455,6 +455,10 @@ class BotActions(MethodView):
 
         if bot_id == "generate_tags":
             response, code = queue_manager.queue_manager.execute_tagging_tasks(filter=filter_data, user_id=current_user.id)
+        elif bot_id == "regenerate_image_descriptions":
+            if len(story_ids) != 1 or report_ids:
+                return {"error": "Select one story to regenerate image descriptions"}, 400
+            response, code = queue_manager.queue_manager.regenerate_image_descriptions(story_ids[0], user_id=current_user.id)
         else:
             if selected_bot := bot.Bot.filter_by_type(bot_id):
                 bot_id = selected_bot.id

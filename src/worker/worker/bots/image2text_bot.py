@@ -101,7 +101,14 @@ class Image2TextBot(BaseBot):
         self.type = "IMAGE2TEXT_BOT"
         self.name = "Image2Text"
 
+    @staticmethod
+    def _regeneration_story_id(parameters: dict) -> str | None:
+        run_filter = parameters.get("filter") or {}
+        return run_filter.get("story_id") if run_filter.get("missing_image_description") is False else None
+
     def get_filter_dict(self, parameters: dict) -> dict:
+        if story_id := self._regeneration_story_id(parameters):
+            return {"story_id": story_id}
         return {**super().get_filter_dict(parameters), "missing_image_description": True}
 
     def _describe_batch(self, session: Session, images: tuple[tuple[str, str], ...]) -> dict[str, str]:
@@ -124,12 +131,13 @@ class Image2TextBot(BaseBot):
         parameters = parameters or {}
         descriptions = parameters.get("_llm_batch_state", {}).setdefault("image_descriptions", {})
         save_state = parameters.get("_save_llm_batch_state")
+        regenerate = self._regeneration_story_id(parameters)
         pending = {
             image["id"]: image["mime_type"]
             for story in self.get_stories(parameters)
             for item in story.get("news_items", [])
             for image in item.get("images", [])
-            if not image.get("description") and image["id"] not in descriptions
+            if (regenerate or not image.get("description")) and image["id"] not in descriptions
         }
         if pending:
             # This service needs its login cookie across requests, isolated from Core and other bots.

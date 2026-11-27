@@ -32,6 +32,35 @@ class TestAssessApi(BaseTest):
         assert job.kwargs["filter"] == {"story_id": story.id}
         assert job.meta["user_id"] == User.find_by_name("admin").id
 
+    def test_regenerate_image_descriptions_queues_only_the_selected_story(self, app, client, auth_header, session, redis_client):
+        from core.model.bot import Bot
+        from tests.application.support.builders import build_news_item_payload, create_story
+
+        story = create_story(news_items=[build_news_item_payload()])
+        bot = Bot(name="Image captions", type="image2text_bot", parameters={"USERNAME": "test-user", "PASSWORD": "test-password"})
+        session.add(bot)
+        session.commit()
+        for _ in range(2):
+            response = client.post(
+                "/api/assess/stories/botactions", headers=auth_header, json={"story_id": story.id, "bot_id": "regenerate_image_descriptions"}
+            )
+            assert response.status_code == 200, response.json
+        jobs = app.extensions["rq"].get_queue("bots").get_jobs()
+        assert len({job.id for job in jobs}) == 2
+        for job in jobs:
+            assert job.kwargs == {
+                "bot_id": bot.id,
+                "filter": {"story_id": story.id, "missing_image_description": False},
+                "trigger_dependents": False,
+            }
+        bot.enabled = False
+        session.commit()
+        response = client.post(
+            "/api/assess/stories/botactions", headers=auth_header, json={"story_id": story.id, "bot_id": "regenerate_image_descriptions"}
+        )
+        assert response.status_code == 400
+        assert app.extensions["rq"].get_queue("bots").count == 2
+
     @pytest.mark.parametrize("unavailable", [None, "missing_bot", "disabled_bot", "disabled_endpoint", "queue_disabled"])
     def test_generate_tags_queues_one_scoped_pipeline(self, app, client, auth_header, session, redis_client, monkeypatch, unavailable):
         from core.config import Config

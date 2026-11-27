@@ -11,7 +11,7 @@ from flask import url_for
 from htmx_helpers import reset_htmx_state, wait_for_htmx_settled, with_htmx_wait
 from playwright.sync_api import Error, Page, expect
 
-from tests.external_e2e import allow_requests_passthru
+from tests.external_e2e import allow_requests_passthru, external_core_api_url
 from tests.playwright.notification_helpers import dismiss_notifications
 
 
@@ -1006,7 +1006,9 @@ class TestEndToEndUser(BaseE2ETest):
         article = {
             "osint_source_id": fake_source,
             "title": f"Illustrated article {uuid.uuid4()}",
-            "captured_images": [{"source_url": "https://example.invalid/image.png", "data": b64encode(png).decode()}],
+            "captured_images": [
+                {"source_url": "https://example.invalid/image.png", "data": b64encode(png).decode(), "alt_text": "Original caption"}
+            ],
         }
         result = core.json_request("POST", "/worker/news-items", json_data=[article], headers=api_header, authenticated=False)
         story_id = result["story_ids"][0]
@@ -1016,8 +1018,16 @@ class TestEndToEndUser(BaseE2ETest):
             image_id = story["news_items"][0]["images"][0]["id"]
             page.goto(url_for("assess.story", story_id=story_id, _external=True))
             page.get_by_text("Open image 1", exact=True).click()
-            expect(page.get_by_text("No description yet.", exact=True)).to_be_visible()
-            expect(page.get_by_alt_text("Collected image 1")).to_have_js_property("naturalWidth", 16)
+            expect(page.get_by_alt_text("Original caption")).to_have_js_property("naturalWidth", 16)
+            page.goto(url_for("assess.story_edit", story_id=story_id, layout="advanced", _external=True))
+            page.get_by_text("Open image 1", exact=True).click()
+            expect(page.get_by_text("Original caption", exact=True)).to_be_visible()
+            page.get_by_role("textbox", name="Summary").fill("Unsaved draft")
+            regenerate = page.get_by_role("button", name="Regenerate image descriptions")
+            expect(regenerate).to_be_enabled()
+            if not external_core_api_url():
+                regenerate.click()
+                expect(page.locator("#notification-bar")).to_contain_text("Image2Text bot not found")
             bot_id = core.json_request(
                 "POST",
                 "/config/bots",
@@ -1046,10 +1056,24 @@ class TestEndToEndUser(BaseE2ETest):
                     "status": "SUCCESS",
                     "result": {
                         "message": "Described one image",
-                        "data": {"story_revisions": {story_id: story["revision"]}, "bot_stages": [stage], "trigger_dependents": False},
+                        "data": {
+                            "story_revisions": {story_id: story["revision"]},
+                            "bot_stages": [stage],
+                            "filter": {"story_id": story_id, "missing_image_description": False},
+                            "trigger_dependents": False,
+                        },
                     },
                 },
             )
+            page.evaluate(
+                """id => document.dispatchEvent(new CustomEvent('realtime:story.bot.finished', {
+                    detail: {data: {stories: {[id]: ['IMAGE2TEXT_BOT']}}}
+                }))""",
+                story_id,
+            )
+            expect(page.get_by_text(caption, exact=True)).to_be_visible()
+            expect(page.get_by_alt_text(caption)).to_be_visible()
+            expect(page.get_by_role("textbox", name="Summary")).to_have_value("Unsaved draft")
             page.goto(url_for("assess.assess", search=caption, _external=True))
             card = page.get_by_test_id(f"story-card-{story_id}")
             expect(card.get_by_text("Images: 1", exact=True)).to_be_visible()

@@ -67,8 +67,12 @@ class BotPipelineService:
                 raise StaleBotRun
             allowed_items = {item.id for story in stories.values() for item in story.news_items}
             affected_story_ids: set[str] = set()
+            run_filter = data.get("filter")
+            regenerate_story_id = (
+                run_filter.get("story_id") if isinstance(run_filter, dict) and run_filter.get("missing_image_description") is False else None
+            )
             for stage in stages:
-                cls._apply_stage(stage, set(revisions), allowed_items, affected_story_ids)
+                cls._apply_stage(stage, set(revisions), allowed_items, affected_story_ids, regenerate_story_id)
 
             result_payload = submission.result.model_dump(mode="json", exclude_none=False)
             task_data: dict[str, Any] = {
@@ -141,7 +145,9 @@ class BotPipelineService:
             db.session.add(entry)
 
     @classmethod
-    def _apply_stage(cls, stage: Any, allowed_stories: set[str], allowed_items: set[str], affected_story_ids: set[str]) -> None:
+    def _apply_stage(
+        cls, stage: Any, allowed_stories: set[str], allowed_items: set[str], affected_story_ids: set[str], regenerate_story_id: str | None
+    ) -> None:
         if not isinstance(stage, dict):
             raise InvalidBotRun
         bot_id, bot_type, result = stage.get("bot_id"), stage.get("bot_type"), stage.get("result")
@@ -186,7 +192,7 @@ class BotPipelineService:
                 item = NewsItem.get(image.news_item_id) if image else None
                 if not image or not item or item.id not in allowed_items or item.story_id not in story_ids or not item.story:
                     raise InvalidBotRun
-                if image.description is None:
+                if (image.description is None or item.story_id == regenerate_story_id) and image.description != caption.strip():
                     image.description = caption.strip()
                     changed_stories.add(item.story)
             for story in changed_stories:

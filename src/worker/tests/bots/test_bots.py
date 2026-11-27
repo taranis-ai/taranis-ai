@@ -383,6 +383,31 @@ def test_image2text_processes_only_missing_captions_and_preserves_partial_succes
     assert len(checkpoints) == 1
 
 
+def test_image2text_regenerates_captions_for_the_selected_story(requests_mock):
+    from worker.bots.image2text_bot import BASE_URL, Image2TextBot
+
+    bot = Image2TextBot()
+    parameters = {
+        "USERNAME": "test-user",
+        "PASSWORD": "test-password",
+        "ITEM_FILTER": "missing_image_description=true&limit=0",
+        "filter": {"story_id": "selected", "missing_image_description": False},
+    }
+    image = {"id": "diagram", "description": "Source caption", "mime_type": "image/png"}
+    requests_mock.get(
+        f"{Config.TARANIS_CORE_URL}/worker/stories?story_id=selected",
+        complete_qs=True,
+        json=[{"id": "selected", "revision": 2, "news_items": [{"images": [image]}]}],
+    )
+    requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/images/diagram", content=b"stored png")
+    requests_mock.post(f"{BASE_URL}/login", json={"authenticated": True})
+    requests_mock.post(f"{BASE_URL}/modules/groundedsam/inference", json={"job_id": "batch"})
+    record = {"name": "diagram.png", "status": "success", "result": {"image_caption": "Updated caption"}}
+    requests_mock.get(f"{BASE_URL}/job/get/batch", json={"j_metadata": {"groundedsam": {"model_results": [{"file_records": [record]}]}}})
+
+    assert bot.execute(parameters)["changes"] == {"image_descriptions": {"diagram": "Updated caption"}}
+
+
 def test_image2text_rejected_login_stops_before_upload(requests_mock):
     from worker.bots.image2text_bot import BASE_URL, Image2TextAuthenticationError, Image2TextBot
 

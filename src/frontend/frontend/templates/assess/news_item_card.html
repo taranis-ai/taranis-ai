@@ -6,7 +6,7 @@
       {% for image in item.images %}
         <details>
           <summary class="cursor-pointer link">Open image {{ loop.index }}</summary>
-          <figure class="mt-2">
+          <figure {{ bot_result_fragment('news-image-' ~ image.id, ['IMAGE2TEXT_BOT']) }} class="mt-2">
             <img src="{{ url_for('assess.news_image', image_id=image.id) }}"
                  loading="lazy"
                  alt="{{ image.description or ('Collected image ' ~ loop.index) }}"
