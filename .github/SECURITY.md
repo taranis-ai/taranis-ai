@@ -1,5 +1,7 @@
 # Security Policy
 
+The [Taranis AI threat model](../docs/security/threat-model.md) describes trust boundaries, security controls and deployment risks.
+
 ## Supported Versions
 
 Security fixes are applied to the latest released version and the current `master` branch.

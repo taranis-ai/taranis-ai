@@ -1,5 +1,5 @@
 {% from "macros/forms.html" import form_input %}
-{% from "analyze/attribute_macros.html" import attribute_field %}
+{% from "analyze/attribute_macros.html" import attribute_field with context %}
 {% from "assess/simple_story_card.html" import analyze_story_card %}
 
 {% set form_error = form_error | default({}) %}
@@ -78,7 +78,11 @@
       </div>
     </div>
 
-    <form id="report_form" class="w-full" method="post" action="{{ form_action }}">
+    {% if comment_preview %}
+      {% include "discussion/preview.html" %}
+    {% endif %}
+
+    <form id="report_form" class="w-full" method="post" action="{{ form_action }}" @submit.capture="confirmDiscardCommentDraft($event)">
       <input type="hidden" name="layout" value="{{ layout }}">
       <input type="hidden" name="csrf_token" value="{{ request.cookies.get(config['JWT_ACCESS_CSRF_COOKIE_NAME'], '') }}">
 

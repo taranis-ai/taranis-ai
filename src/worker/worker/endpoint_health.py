@@ -12,11 +12,13 @@ from worker.http_client import http_request, http_session_scope
 from worker.llm import LLMTaskError, get_decisions_client, get_llm_client, run_llm_tasks
 from worker.llm_batch import BatchExecutionError
 from worker.log import logger
+from worker.task_events import task_started
 from worker.telemetry import instrument_job
 
 
 @instrument_job
 @http_session_scope()
+@task_started
 def check_endpoint(kind: str, endpoint_id: str, check_id: str):
     core = CoreApi()
     route = f"/worker/endpoint-health/{kind}/{endpoint_id}"

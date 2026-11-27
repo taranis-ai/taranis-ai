@@ -1,4 +1,4 @@
-{% macro tlp_levels(selected, name='tlp_level', input_id='tlp_level', data_testid=None, required=True) %}
+{% macro tlp_levels(selected, name='tlp_level', input_id='tlp_level', data_testid=None, required=True, allowed=None) %}
   {% from "macros/forms.html" import form_select %}
 
   {% set tlp_levels = [
@@ -23,6 +23,9 @@
       "name": "Red"
     }
   ] %}
+  {% if allowed is not none %}
+    {% set tlp_levels = tlp_levels | selectattr("id", "in", allowed) | list %}
+  {% endif %}
 
   {{ form_select(label='TLP Level', name=name, value=selected, options=tlp_levels, input_id=input_id, data_testid=data_testid, required=required) }}
 {% endmacro %}

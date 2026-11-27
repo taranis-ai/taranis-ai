@@ -131,10 +131,10 @@
     </div>
     <nav aria-label="Component pages" class="flex gap-4 items-center">
       {% if inventory.page > 1 %}<a class="btn btn-sm"
-   href="{{ url_for('assets.sbom_preview', import_id=inventory.id, page=inventory.page - 1, asset_id=target_id, assess_url=get_assess_return_url()) if preview else url_for('assets.asset_sbom', asset_id=inventory.asset_id, page=inventory.page - 1, assess_url=get_assess_return_url()) }}">Previous</a>{% endif %}
+                                    href="{{ url_for('assets.sbom_preview', import_id=inventory.id, page=inventory.page - 1, asset_id=target_id, assess_url=get_assess_return_url()) if preview else url_for('assets.asset_sbom', asset_id=inventory.asset_id, page=inventory.page - 1, assess_url=get_assess_return_url()) }}">Previous</a>{% endif %}
       <span>Page {{ inventory.page }} of {{ inventory.pages }}</span>
       {% if inventory.page < inventory.pages %}<a class="btn btn-sm"
-   href="{{ url_for('assets.sbom_preview', import_id=inventory.id, page=inventory.page + 1, asset_id=target_id, assess_url=get_assess_return_url()) if preview else url_for('assets.asset_sbom', asset_id=inventory.asset_id, page=inventory.page + 1, assess_url=get_assess_return_url()) }}">Next</a>{% endif %}
+                                                  href="{{ url_for('assets.sbom_preview', import_id=inventory.id, page=inventory.page + 1, asset_id=target_id, assess_url=get_assess_return_url()) if preview else url_for('assets.asset_sbom', asset_id=inventory.asset_id, page=inventory.page + 1, assess_url=get_assess_return_url()) }}">Next</a>{% endif %}
     </nav>
     {% if preview %}
       <form method="post"
@@ -180,7 +180,7 @@
           <select id="asset-group" name="asset_group_id" required class="select select-bordered w-full">
             <option value="">Select a group</option>
             {% for group in groups %}<option value="{{ group.id }}"
-        {% if group.id == group_id %}selected{% endif %}>{{ group.name }}</option>{% endfor %}
+                                             {% if group.id == group_id %}selected{% endif %}>{{ group.name }}</option>{% endfor %}
           </select>
           <label class="block" for="asset-description">Description</label>
           <textarea id="asset-description"

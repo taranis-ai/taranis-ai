@@ -1,9 +1,11 @@
 (function () {
   const MAX_RECONNECT_ATTEMPTS = 8;
+  document.documentElement.dataset.realtimeConnected = "false";
   const SUPPORTED_TYPES = new Set([
     "assess.changed",
+    "scheduler.changed",
+    "task.changed",
     "report.item.changed",
-    "report.lock.changed",
     "product.rendered",
     "story.bot.finished",
     "osint_source.preview.finished",
@@ -25,7 +27,6 @@
   const PAGE_TARGETS = {
     "assess.changed": "#assess",
     "report.item.changed": "#report",
-    "report.lock.changed": "#report",
     "product.rendered": "#publish, #product",
   };
 
@@ -46,6 +47,25 @@
       return;
     }
 
+    if (typeof payload?.connect?.client === "string") {
+      const shouldResync = opened && disconnected && !suppressNextResync;
+      document.documentElement.dataset.realtimeConnected = "true";
+      self.clearTimeout(outageTimer);
+      outageTimer = undefined;
+      outageNotified = false;
+      reconnectAttempt = 0;
+      suppressNextResync = false;
+      hideStatusNotification();
+      if (shouldResync) {
+        scheduleResync("reconnected");
+      } else {
+        document.dispatchEvent(new CustomEvent("realtime:connected"));
+      }
+      opened = true;
+      disconnected = false;
+      return;
+    }
+
     const disconnectCode = payload?.disconnect?.code;
     if (
       Number.isInteger(disconnectCode) && disconnectCode >= 4500 &&
@@ -55,6 +75,7 @@
       return;
     }
     if (Number.isInteger(disconnectCode)) {
+      document.documentElement.dataset.realtimeConnected = "false";
       suppressNextResync = true;
       return;
     }
@@ -181,6 +202,7 @@
   }
 
   function close(permanent = false) {
+    document.documentElement.dataset.realtimeConnected = "false";
     reconnectAllowed = permanent ? false : reconnectAllowed;
     self.clearTimeout(reconnectTimer);
     self.clearTimeout(resyncTimer);
@@ -207,21 +229,8 @@
 
     eventSource = new EventSource(document.body.dataset.realtimeUrl);
     eventSource.addEventListener("message", handleMessage);
-    eventSource.addEventListener("open", () => {
-      const shouldResync = opened && disconnected && !suppressNextResync;
-      self.clearTimeout(outageTimer);
-      outageTimer = undefined;
-      outageNotified = false;
-      reconnectAttempt = 0;
-      suppressNextResync = false;
-      hideStatusNotification();
-      if (shouldResync) {
-        scheduleResync("reconnected");
-      }
-      opened = true;
-      disconnected = false;
-    });
     eventSource.addEventListener("error", () => {
+      document.documentElement.dataset.realtimeConnected = "false";
       if (!reconnectAllowed) {
         return;
       }

@@ -9,7 +9,6 @@
         "likes": 0,
         "dislikes": 0,
         "relevance": 0,
-        "comments": "",
         "summary": "",
         "news_items": [
         {
@@ -50,7 +49,6 @@
         "likes": 0,
         "dislikes": 0,
         "relevance": 0,
-        "comments": "",
         "summary": "",
         "news_items": [
             {

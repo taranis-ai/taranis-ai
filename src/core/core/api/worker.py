@@ -2,6 +2,8 @@ from datetime import timedelta
 
 from flask import Blueprint, Flask, Response, jsonify, make_response, request, send_file
 from flask.views import MethodView
+from models.task import TaskChangeNotice
+from pydantic import ValidationError
 from werkzeug.datastructures import FileStorage
 
 from core.config import Config
@@ -35,6 +37,7 @@ from core.service.news_item import NewsItemService
 from core.service.news_item_tag import NewsItemTagService
 from core.service.product import ProductService
 from core.service.task import TaskService
+from core.service.task_events import notify_task_change
 
 
 class AddNewsItems(MethodView):
@@ -129,6 +132,17 @@ class CronJobs(MethodView):
         if queue_manager.queue_manager.restore_runtime_state():
             return {"message": "Queue runtime state restored"}, 200
         return {"error": "Could not restore queue runtime state"}, 503
+
+
+class TaskChanges(MethodView):
+    @api_key_required
+    def post(self):
+        try:
+            notice = TaskChangeNotice.model_validate(request.get_json(silent=True))
+        except ValidationError:
+            return {"error": "Invalid task change notice"}, 400
+        notify_task_change(notice.user_ids)
+        return {"message": "Task views invalidated"}, 200
 
 
 class EndpointHealth(MethodView):
@@ -482,6 +496,7 @@ def initialize(app: Flask):
     worker_bp.add_url_rule("/osint-sources/<string:source_id>/icon", view_func=SourceIcon.as_view("osint_sources_worker_icon"))
     worker_bp.add_url_rule("/cron-jobs", view_func=CronJobs.as_view("cron_jobs_worker"))
     worker_bp.add_url_rule("/tasks/history/cleanup", view_func=TaskHistoryCleanup.as_view("task_history_cleanup_worker"))
+    worker_bp.add_url_rule("/tasks/changed", view_func=TaskChanges.as_view("task_changes_worker"))
     worker_bp.add_url_rule("/products/<string:product_id>", view_func=Products.as_view("products_worker"))
     worker_bp.add_url_rule("/products/<string:product_id>/render", view_func=ProductsRender.as_view("products_render_worker"))
     worker_bp.add_url_rule("/products/<string:product_id>/publish", view_func=ProductsPublish.as_view("products_publish_worker"))

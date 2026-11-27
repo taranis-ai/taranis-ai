@@ -25,6 +25,9 @@ class TaranisLogger:
         lloggers = [logging.getLogger()]
 
         logging.getLogger("ioc_fanger").setLevel(logging.INFO)
+        # Both renderer diagnostics and progress messages can contain complete resource URLs.
+        logging.getLogger("weasyprint").disabled = True
+        logging.getLogger("weasyprint.progress").disabled = True
 
         for llogger in lloggers:
             llogger.handlers.clear()

@@ -150,6 +150,9 @@ class MismatchedSFTPClient:
     def putfo(self, data, path, confirm=True):
         pass
 
+    def chdir(self, path):
+        pass
+
     def stat(self, path):
         return SimpleNamespace(st_size=-1)
 

@@ -42,7 +42,7 @@
         <select id="asset-tag-filter" name="tag" class="select select-bordered block" data-test-id="asset-tag-filter">
           <option value="">All tags</option>
           {% for tag in asset_tags | default([]) %}<option value="{{ tag }}"
-        {% if request.args.get('tag', '') | trim | lower == tag %}selected{% endif %}>{{ tag }}</option>{% endfor %}
+                                                           {% if request.args.get('tag', '') | trim | lower == tag %}selected{% endif %}>{{ tag }}</option>{% endfor %}
         </select>
       </div>
       <button type="submit" class="btn btn-outline">Filter assets</button>

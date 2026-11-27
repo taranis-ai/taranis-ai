@@ -1,0 +1,35 @@
+{# djlint:off #}
+{% set tabs = [
+  ('scheduled', 'Scheduled Jobs', 'admin.scheduler_jobs_table', 'schedule/jobs_table.html'),
+  ('active', 'Active Jobs', 'admin.scheduler_active_jobs', 'schedule/active_jobs.html'),
+  ('completed', 'Completed Runs', 'admin.scheduler_completed_runs', 'schedule/completed_runs.html'),
+  ('failed', 'Queue Failures', 'admin.scheduler_failed_jobs', 'schedule/failed_jobs.html'),
+  ('history', 'Worker Summary', 'admin.scheduler_history', 'schedule/execution_history.html')
+] %}
+{# djlint:on #}
+<div id="scheduler-content" data-refresh-url="{{ request.path }}{{ request.query_string.decode() and '?' ~ request.query_string.decode() }}">
+  <div class="tabs tabs-border tabs-boxed mt-6 mb-4">
+    {% for tab, title, endpoint, template in tabs %}
+      <a class="tab{% if initial_tab == tab %} tab-active{% endif %}"
+         data-tab="{{ tab }}"
+         href="{{ url_for(endpoint, tab=tab) }}"
+         hx-boost="select:#scheduler-content target:#scheduler-content swap:outerHTML"
+         hx-sync="#scheduler-dashboard:replace">{{ title }}</a>
+    {% endfor %}
+  </div>
+  <div class="card bg-base-200 shadow-lg">
+    <div class="card-body">
+      {% for tab, title, endpoint, template in tabs %}
+        {% if initial_tab == tab %}
+          <h2 class="card-title">{{ title }}</h2>
+          {% if tab == "completed" %}
+            <p class="text-sm opacity-70">Finished jobs and committed pipeline steps, newest first. Successful jobs leave Active Jobs and appear here.</p>
+          {% elif tab == "failed" %}
+            <p class="text-sm opacity-70">Jobs currently held in the RQ failed-job registry.</p>
+          {% endif %}
+          {% include template %}
+        {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+</div>

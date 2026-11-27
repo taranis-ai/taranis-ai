@@ -159,7 +159,13 @@ class StoryOperationsService:
         target_story: Story,
         source_stories: list[Story],
         actor: str | None = None,
+        *,
+        user: User | None = None,
+        revision_note: str,
     ) -> set[Story]:
+        # Local import: report_story_sync imports core.model.story, which imports this module.
+        from core.service.report_story_sync import ReportStorySyncService
+
         processed_stories = {target_story, *source_stories}
         absorbed_story_ids: list[str] = []
         absorbed_overrides = [target_story.relevance_override or 0]
@@ -170,6 +176,17 @@ class StoryOperationsService:
                 absorbed_overrides.append(source_story.relevance_override or 0)
 
         target_story.relevance_override = max(absorbed_overrides)
+        if absorbed_story_ids:
+            from core.model.comment import Comment
+            from core.model.story import Story
+
+            # Block new comments on absorbed stories until this transaction deletes them.
+            db.session.execute(db.select(Story.id).where(Story.id.in_(absorbed_story_ids)).order_by(Story.id).with_for_update()).all()
+            db.session.execute(db.update(Comment).where(Comment.story_id.in_(absorbed_story_ids)).values(story_id=target_story.id))
         cls.merge_votes_into_story(target_story, absorbed_story_ids)
+        # Absorbed stories are deleted below; ON DELETE CASCADE would otherwise drop their report links.
+        affected_reports = ReportStorySyncService.keep_memberships_after_merge(target_story, source_stories, absorbed_story_ids)
         type(target_story).update_stories(processed_stories, actor=actor)
+        # Snapshot reports only after update_stories recomputed TLP and other status fields.
+        ReportStorySyncService.record_report_revisions(affected_reports, user, revision_note)
         return processed_stories

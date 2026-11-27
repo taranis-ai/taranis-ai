@@ -44,10 +44,14 @@
             <button type="button"
                     class="btn btn-sm btn-outline"
                     data-testid="ungroup-newsitem-{{ news_item.id }}"
+                    hx-disable="this"
                     hx-vals='{"news_item_ids[]": "{{ news_item.id }}"}'
                     hx-post="{{ url_for('assess.ungroup', story_id=news_item.story_id) }}"
                     hx-target="#story-{{ news_item.story_id }}"
-                    hx-select="#story-{{ news_item.story_id }}">Ungroup</button>
+                    hx-select="#story-{{ news_item.story_id }}"
+                    hx-status:400="target:#notification-bar swap:outerHTML select:#notification-bar"
+                    hx-status:4xx="target:#notification-bar swap:outerHTML select:#notification-bar"
+                    hx-status:5xx="target:#notification-bar swap:outerHTML select:#notification-bar">Ungroup</button>
           {% endif %}
           {% if edit_tags %}
             <button type="button"
@@ -73,11 +77,15 @@
           <button type="button"
                   class="btn btn-sm"
                   data-testid="delete-newsitem-{{ news_item.id }}"
+                  hx-disable="this"
                   hx-delete="{{ url_for('assess.delete_news_item', news_item_id=news_item.id) }}"
                   hx-confirm="Are you sure you want to delete this news item?"
                   hx-select="#story-{{ news_item.story_id }}"
                   hx-swap="outerHTML"
-                  hx-target="#story-{{ news_item.story_id }}">{{ heroicon_mini("trash") }}</button>
+                  hx-target="#story-{{ news_item.story_id }}"
+                  hx-status:400="target:#notification-bar swap:outerHTML select:#notification-bar"
+                  hx-status:4xx="target:#notification-bar swap:outerHTML select:#notification-bar"
+                  hx-status:5xx="target:#notification-bar swap:outerHTML select:#notification-bar">{{ heroicon_mini("trash") }}</button>
         </div>
 
       </div>

@@ -278,6 +278,22 @@ class TestRBAC:
 
         db.session.remove()
 
+    def test_global_tag_deletion_requires_admin_operations(self, client, session, auth_header, auth_header_user_permissions):
+        from core.model.news_item_tag import NewsItemTag
+
+        url = "/api/dashboard/delete-tag/rbac-global-tag"
+        response = client.delete(url, headers=auth_header_user_permissions)
+        assert response.status_code == 403
+
+        _, _, item = create_rbac_source_story("delete-tag")
+        assert item.set_tags([{"name": "rbac-global-tag"}])[1] == 200
+        tag_query = db.select(NewsItemTag.id).where(NewsItemTag.name == "rbac-global-tag")
+        assert db.session.execute(tag_query).first() is not None
+
+        response = client.delete(url, headers=auth_header)
+        assert response.status_code == 200
+        assert db.session.execute(tag_query).first() is None
+
 
 class TestRBACAclBehavior:
     @pytest.mark.parametrize("restriction", ["acl", "tlp"])
@@ -513,6 +529,55 @@ class TestRBACAclBehavior:
         assert detail_status == 403
         assert detail_error == {"error": "User does not have access to this news item"}
 
+    def test_story_summary_hides_inaccessible_stories(self, client, session, auth_header_user_permissions):
+        from core.model.news_item_attribute import NewsItemAttribute
+        from core.model.role import Role
+        from core.model.role_based_access import ItemType
+        from core.model.story import Story
+
+        visible_source, visible_story, visible_item = create_rbac_source_story("summary-visible")
+        _, acl_hidden_story, _ = create_rbac_source_story("summary-acl-hidden")
+        tlp_source, tlp_story, _ = create_rbac_source_story("summary-tlp-hidden")
+        mixed_source, mixed_story, _ = create_rbac_source_story("summary-mixed")
+        hidden_member_source, hidden_member, _ = create_rbac_source_story("summary-mixed-hidden")
+        role = Role.filter_by_name("User")
+        assert role is not None
+        role.tlp_level = TLPLevel.CLEAR
+        for source in (visible_source, tlp_source, mixed_source):
+            grant_acl(role, ItemType.OSINT_SOURCE, source.id)
+        tlp_story.upsert_attribute(NewsItemAttribute("tlp_override", "red"))
+        tlp_story.refresh_tlp()
+        Story.group_stories([mixed_story.id, hidden_member.id])
+        db.session.commit()
+
+        def summary(story_id):
+            return client.get(f"/api/connectors/story-summary/{story_id}", headers=auth_header_user_permissions)
+
+        response = summary(visible_story.id)
+        assert response.status_code == 200
+        assert response.json == {
+            "id": visible_story.id,
+            "title": visible_story.title,
+            "is_misp_story": False,
+            "news_item_count": 1,
+            "relevance": visible_story.relevance,
+            "news_item_data": [{"title": visible_item.title, "id": visible_item.id}],
+        }
+
+        # ACL-hidden, TLP-hidden, partially hidden (grouped with an inaccessible source) and missing stories are indistinguishable.
+        for story_id in (acl_hidden_story.id, tlp_story.id, mixed_story.id, "does-not-exist"):
+            response = summary(story_id)
+            assert response.status_code == 404
+            assert response.json == {"error": "Story not found"}
+
+        # Once access is granted, the same stories become available.
+        role.tlp_level = TLPLevel.RED
+        grant_acl(role, ItemType.OSINT_SOURCE, hidden_member_source.id)
+        assert summary(tlp_story.id).status_code == 200
+        response = summary(mixed_story.id)
+        assert response.status_code == 200
+        assert response.json["news_item_count"] == 2
+
     def test_source_group_acl_inherits_to_assess_content_and_filter_lists(self, session):
         from core.model.osint_source import OSINTSource, OSINTSourceGroup
         from core.model.role import Role
@@ -715,3 +780,90 @@ class TestRBACAclBehavior:
         assert response.status_code == 403
         assert response.json == {"error": "User does not have write access to all requested reports"}
         blocked_enqueue.assert_not_called()
+
+    def test_report_stories_respect_story_acl(self, client, session, auth_header_user_permissions):
+        from core.model.permission import Permission
+        from core.model.report_item import ReportItem
+        from core.model.role import Role
+        from core.model.role_based_access import ItemType
+
+        allowed_source, allowed_story, _ = create_rbac_source_story("report-stories-allowed")
+        _, hidden_story, _ = create_rbac_source_story("report-stories-hidden")
+        user_role = Role.filter_by_name("User")
+        assert user_role is not None
+        grant_acl(user_role, ItemType.OSINT_SOURCE, allowed_source.id)
+        for permission in Permission.get_bulk(["ANALYZE_ACCESS", "ANALYZE_CREATE", "ANALYZE_UPDATE"]):
+            if permission not in user_role.permissions:
+                user_role.permissions.append(permission)
+        db.session.commit()
+
+        # A report that (legitimately) already contains a story the user can't see.
+        shared_report = create_rbac_report_item("report-stories-shared")
+        ReportItem.add_stories(shared_report.id, [allowed_story.id, hidden_story.id], None)
+        stories_url = f"/api/analyze/report-items/{shared_report.id}/stories"
+
+        # GET only lists stories visible to the user.
+        response = client.get(stories_url, headers=auth_header_user_permissions)
+        assert response.status_code == 200
+        assert response.json == {"report": {"story_ids": [allowed_story.id]}}
+
+        # Report detail embeds only id, title and links of stories.
+        detail = client.get(f"/api/analyze/report-items/{shared_report.id}", headers=auth_header_user_permissions)
+        assert detail.status_code == 200
+        assert all(set(story) == {"id", "title", "links"} for story in detail.json["stories"])
+
+        # Re-saving the report with its existing (partly hidden) stories still works.
+        response = client.put(stories_url, headers=auth_header_user_permissions, json=[allowed_story.id, hidden_story.id])
+        assert response.status_code == 200
+
+        # A hidden story can't be attached to a report via POST/PUT .../stories or PUT report-items/<id>.
+        own_report = create_rbac_report_item("report-stories-own")
+        own_stories_url = f"/api/analyze/report-items/{own_report.id}/stories"
+        for send, url, payload in [
+            (client.post, own_stories_url, [hidden_story.id]),
+            (client.put, own_stories_url, [allowed_story.id, hidden_story.id]),
+            (client.put, f"/api/analyze/report-items/{own_report.id}", {"stories": [hidden_story.id]}),
+        ]:
+            response = send(url, headers=auth_header_user_permissions, json=payload)
+            assert response.status_code == 404
+            assert response.json == {"error": "One or more stories were not found", "story_ids": [hidden_story.id]}
+            db.session.refresh(own_report)
+            assert own_report.stories == []
+
+        # Hidden and nonexistent stories are indistinguishable.
+        response = client.post(own_stories_url, headers=auth_header_user_permissions, json=["does-not-exist"])
+        assert response.status_code == 404
+
+        # Visible stories can still be attached.
+        response = client.post(own_stories_url, headers=auth_header_user_permissions, json=[allowed_story.id])
+        assert response.status_code == 200
+        db.session.refresh(own_report)
+        assert [story.id for story in own_report.stories] == [allowed_story.id]
+
+        # A hidden story can't be smuggled in when creating a report either.
+        new_report_id = str(uuid.uuid4())
+        response = client.post(
+            "/api/analyze/report-items",
+            headers=auth_header_user_permissions,
+            json={
+                "id": new_report_id,
+                "title": "Smuggled story",
+                "report_item_type_id": own_report.report_item_type_id,
+                "stories": [hidden_story.id],
+            },
+        )
+        assert response.status_code == 404
+        assert ReportItem.get(new_report_id) is None
+
+    def test_report_stories_require_report_read_access(self, client, session, auth_header_user_permissions):
+        from core.model.role import Role
+        from core.model.role_based_access import ItemType
+
+        report = create_rbac_report_item("report-stories-restricted-type")
+        admin_role = Role.filter_by_name("Admin")
+        assert admin_role is not None
+        grant_acl(admin_role, ItemType.REPORT_ITEM_TYPE, report.report_item_type_id)
+
+        response = client.get(f"/api/analyze/report-items/{report.id}/stories", headers=auth_header_user_permissions)
+        assert response.status_code == 403
+        assert "report" not in response.json

@@ -93,7 +93,9 @@
               <input type="hidden" name="resolving_story_id" value="{{ incoming_story_id }}">
               <input type="hidden" name="incoming_story" value='{{ conflict_group.incoming_story | tojson | forceescape }}'>
               {% for story_id in internal_story_ids %}<input type="hidden" name="existing_story_ids[]" value="{{ story_id }}">{% endfor %}
-              {% for news_id in incoming_ids[incoming_story_id] %}<input type="hidden" name="incoming_news_item_ids[]" value="{{ news_id }}">{% endfor %}
+              {% for news_id in incoming_ids[incoming_story_id] %}
+                <input type="hidden" name="incoming_news_item_ids[]" value="{{ news_id }}">
+              {% endfor %}
               {% for story in remaining_stories %}<input type="hidden" name="remaining_stories[]" value="{{ story.id }}">{% endfor %}
               <button type="submit" class="btn btn-error">Take Incoming Story (Replace Local)</button>
             </form>

@@ -97,6 +97,8 @@ class ActiveJob(Job):
     _cache_timeout = 1
     _model_name = "active_job"
 
+    tracks_completion: bool = True
+
 
 class FailedJob(Job):
     _core_endpoint = "/config/workers/failed"

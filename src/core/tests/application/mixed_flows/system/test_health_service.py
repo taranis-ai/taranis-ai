@@ -3,6 +3,23 @@ import pytest
 from core.service import health
 
 
+@pytest.mark.parametrize("debug", [False, True])
+@pytest.mark.parametrize(("database_status", "expected_status"), [("up", 200), ("down", 503)])
+def test_health_reports_configured_debug(client, app, monkeypatch, debug, database_status, expected_status):
+    """Expose configured debug even when Flask runtime or dependency health differs."""
+    monkeypatch.setattr(health.Config, "DEBUG", debug)
+    monkeypatch.setattr(health.Config, "QUEUE_ENABLED", False)
+    monkeypatch.setitem(app.config, "DEBUG", not debug)
+    monkeypatch.setattr(health, "check_database", lambda: database_status)
+    monkeypatch.setattr(health, "check_seed_data", lambda: "up")
+
+    response = client.get("/api/health")
+
+    assert response.status_code == expected_status
+    assert response.json["core"]["debug"] is debug
+    assert response.json["healthy"] is (expected_status == 200)
+
+
 @pytest.mark.parametrize(
     ("manual_exists", "product_type_exists", "expected"),
     [

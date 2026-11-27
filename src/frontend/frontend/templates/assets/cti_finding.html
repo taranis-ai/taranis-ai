@@ -19,7 +19,7 @@
     <summary class="cursor-pointer">Finding details and installed components</summary>
     <ul class="my-2">
       {% for component in finding.components %}<li><a class="link"
-   href="{{ url_for('assets.asset_triggers', asset_id=finding.asset_id, component_id=component.id, assess_url=get_assess_return_url()) }}">{{ component.name }} {{ component.version }}</a><span class="text-xs break-all"> {{ component.purl }}</span></li>{% endfor %}
+                                                      href="{{ url_for('assets.asset_triggers', asset_id=finding.asset_id, component_id=component.id, assess_url=get_assess_return_url()) }}">{{ component.name }} {{ component.version }}</a><span class="text-xs break-all"> {{ component.purl }}</span></li>{% endfor %}
     </ul>
     {% if finding.unresolved_references %}<p class="text-warning">{{ finding.unresolved_references | length }} references could not be linked to imported software.</p>{% endif %}
     {% for record in finding.records %}

@@ -24,7 +24,7 @@
             <option value="">All</option>
             {% if asset_filters[key] and asset_filters[key] not in choices | map(attribute="id") %}<option value="{{ asset_filters[key] }}" selected>Selected (unavailable)</option>{% endif %}
             {% for choice in choices %}<option value="{{ choice.id }}"
-        {% if asset_filters[key] == choice.id %}selected{% endif %}>{{ choice.name }}</option>{% endfor %}
+                                               {% if asset_filters[key] == choice.id %}selected{% endif %}>{{ choice.name }}</option>{% endfor %}
           </select>
         </div>
       {% endfor %}
@@ -34,7 +34,7 @@
           <option value="">All</option>
           {% if asset_filters.asset_tag and asset_filters.asset_tag not in asset_filter_lists.tags %}<option value="{{ asset_filters.asset_tag }}" selected>Selected (unavailable)</option>{% endif %}
           {% for tag in asset_filter_lists.tags %}<option value="{{ tag }}"
-        {% if asset_filters.asset_tag == tag %}selected{% endif %}>{{ tag }}</option>{% endfor %}
+                                                          {% if asset_filters.asset_tag == tag %}selected{% endif %}>{{ tag }}</option>{% endfor %}
         </select>
       </div>
       {% for key, label in [('asset_cve_match', 'CVE match'), ('asset_software_match', 'Software-name match')] %}
@@ -42,7 +42,7 @@
           <label class="label-text" for="assess-{{ key }}">{{ label }}</label>
           <select id="assess-{{ key }}" name="{{ key }}" x-ref="{{ key }}" {% if key == 'asset_cve_match' %}:disabled="cvssMissing" {% if asset_filters.asset_cvss_missing %}disabled{% endif %}{% endif %} class="select select-bordered select-sm w-full">
             {% for value in ['any', 'yes', 'no'] %}<option value="{{ value }}"
-        {% if asset_filters[key] == value %}selected{% endif %}>{{ value | capitalize }}</option>{% endfor %}
+                                                           {% if asset_filters[key] == value %}selected{% endif %}>{{ value | capitalize }}</option>{% endfor %}
           </select>
         </div>
       {% endfor %}

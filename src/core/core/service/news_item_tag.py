@@ -1,7 +1,7 @@
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import Any, cast
 
-from sqlalchemy import func
+from sqlalchemy import func, select
 
 from core.log import logger
 from core.managers.db_manager import db
@@ -45,7 +45,7 @@ class NewsItemTagService:
 
         results = []
         for name, tag_type, created, count in result:
-            published = list(created.split(",")) if dialect_name == "sqlite" else [dt.isoformat() for dt in created]
+            published = created.split(",") if isinstance(created, str) else [dt.isoformat() for dt in cast(list[datetime], created)]
             results.append(
                 {
                     "name": name,
@@ -81,33 +81,44 @@ class NewsItemTagService:
             .group_by(NewsItemTagCluster.tag_type, NewsItemTagCluster.tag_type_key)
             .order_by(func.sum(NewsItemTagCluster.story_count).desc())
         ).all()
-        return [row[0] for row in items] if items else []
+        return [cast(str, row[0]) for row in items]
 
     @classmethod
     def get_largest_tag_types(cls, days: int) -> dict:
         start_date = BaseModel.utcnow() - timedelta(days=days) if days > 0 else None
-        stmt = db.select(
-            NewsItemTagCluster.tag_type,
-            NewsItemTagCluster.tag_type_key,
-            NewsItemTagCluster.name,
-            NewsItemTagCluster.story_count,
+        ranked_stmt = db.select(
+            NewsItemTagCluster.tag_type.label("tag_type"),
+            NewsItemTagCluster.tag_type_key.label("tag_type_key"),
+            NewsItemTagCluster.name.label("name"),
+            NewsItemTagCluster.story_count.label("story_count"),
+            func.row_number()
+            .over(
+                partition_by=NewsItemTagCluster.tag_type_key,
+                order_by=[NewsItemTagCluster.story_count.desc(), NewsItemTagCluster.name.asc()],
+            )
+            .label("rn"),
         ).where(NewsItemTagCluster.tag_type_key != "")
         if start_date:
-            stmt = stmt.where(NewsItemTagCluster.last_story_created >= start_date)
+            ranked_stmt = ranked_stmt.where(NewsItemTagCluster.last_story_created >= start_date)
 
-        stmt = stmt.order_by(NewsItemTagCluster.tag_type_key, NewsItemTagCluster.story_count.desc())
+        ranked = ranked_stmt.subquery("ranked_clusters")
+        type_size = func.sum(ranked.c.story_count).over(partition_by=ranked.c.tag_type_key).label("type_size")
+        stmt = (
+            select(ranked.c.tag_type, ranked.c.tag_type_key, ranked.c.name, ranked.c.story_count, type_size)
+            .where(ranked.c.rn <= 5)
+            .order_by(type_size.desc(), ranked.c.tag_type_key, ranked.c.rn)
+        )
 
         largest_tag_types = {}
-        for tag_type, tag_type_key, tag_name, story_count in db.session.execute(stmt).all():
-            cluster = largest_tag_types.setdefault(tag_type_key, {"size": 0, "tags": [], "name": tag_type})
-            if len(cluster["tags"]) >= 5:
-                continue
-            tag = {"name": tag_name, "size": story_count}
-            cluster["tags"].append(tag)
-            cluster["size"] += story_count
+        for tag_type, tag_type_key, tag_name, story_count, total_size in db.session.execute(stmt).all():
+            cluster = largest_tag_types.setdefault(
+                tag_type_key,
+                {"size": total_size, "tags": [], "name": tag_type},
+            )
+            cluster["tags"].append({"name": tag_name, "size": story_count})
 
         logger.debug(f"Found {len(largest_tag_types)} tag clusters")
-        return dict(sorted(largest_tag_types.items(), key=lambda item: item[1]["size"], reverse=True))
+        return largest_tag_types
 
     @staticmethod
     def set_found_bot_tags(found_tags: dict[str, Any], *, actor: str | None = None) -> set[str]:

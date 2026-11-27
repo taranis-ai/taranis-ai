@@ -28,6 +28,7 @@ TASK_FUNCTION_MAP = {
     "collector_task": "worker.collectors.collector_tasks.collector_task",
     "bot_task": "worker.bots.bot_tasks.bot_task",
     "cleanup_token_blacklist": "worker.misc.misc_tasks.cleanup_token_blacklist",
+    "cleanup_task_history": "worker.misc.misc_tasks.cleanup_task_history",
 }
 
 
@@ -102,6 +103,17 @@ def compute_next(spec: dict[str, Any], base_ts: float) -> float:
     raise ValueError("CronTaskSpec must provide exactly one of cron or interval")
 
 
+def _resolve_task(job_id: str, func_path: str) -> str | None:
+    if not func_path:
+        logger.warning(f"Skipping cron job {job_id} because func_path is missing")
+        return None
+    task = TASK_FUNCTION_MAP.get(func_path, func_path)
+    if "." not in task:
+        logger.error(f"Skipping cron job {job_id}: unknown task {func_path!r}. Add it to TASK_FUNCTION_MAP or use a dotted import path.")
+        return None
+    return task
+
+
 def _enqueue_key(job_id: str) -> str:
     return f"{ENQUEUE_KEY_PREFIX}{job_id}"
 
@@ -115,10 +127,8 @@ def _enqueue_due_job(
 ) -> str | None:
     queue_name = spec["queue_name"]
     queue = queues.setdefault(queue_name, Queue(queue_name, connection=redis))
-    func_path = str(spec.get("func_path") or "")
-    task = TASK_FUNCTION_MAP.get(func_path, func_path)
+    task = _resolve_task(job_id, str(spec.get("func_path") or ""))
     if not task:
-        logger.warning(f"Skipping cron job {job_id} because func_path is missing")
         next_ts = compute_next(spec, due_ts)
         redis.zadd(NEXT_KEY, {job_id: next_ts})
         return None
@@ -190,8 +200,11 @@ def run_scheduler(
             now_ts = time.time()
             specs = _sync_next_index(redis, now_ts)
             due_ids = _sync_response(redis.zrangebyscore(NEXT_KEY, min=0, max=now_ts, start=0, num=100), "redis.zrangebyscore")
-
+            changed = False
+            user_ids: set[str] = set()
             for raw_job_id in due_ids:
+                if not renew_leader(redis, node_id, ttl_seconds=ttl_seconds):
+                    break
                 job_id = _decode(raw_job_id, "redis.zrangebyscore item")
 
                 spec = specs.get(job_id) or _load_spec(redis, job_id)
@@ -202,11 +215,17 @@ def run_scheduler(
 
                 try:
                     due_ts = float(redis.zscore(NEXT_KEY, job_id) or now_ts)
-                    _enqueue_due_job(redis, queues, job_id, spec, due_ts)
+                    if due_ts <= now_ts and _enqueue_due_job(redis, queues, job_id, spec, due_ts):
+                        changed = True
+                        meta = (spec.get("job_options") or {}).get("meta", spec.get("meta")) or {}
+                        if user_id := meta.get("user_id"):
+                            user_ids.add(user_id)
                 except Exception:
                     # Keep the job alive and retry on next poll cycle.
                     redis.zadd(NEXT_KEY, {job_id: now_ts + poll_interval_seconds})
                     logger.exception(f"Failed processing scheduled job {job_id}")
+            if changed:
+                CoreApi().notify_task_change(list(user_ids))
         except RedisError:
             logger.exception("Cron scheduler could not reach Redis; retrying")
 

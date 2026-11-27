@@ -1,7 +1,7 @@
 import contextlib
 import hashlib
 import re
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Annotated, Any, Literal, Self, get_origin
 from urllib.parse import quote, unquote
 
@@ -59,7 +59,6 @@ STORY_IMPORT_FIELDS = frozenset(
         "read",
         "important",
         "summary",
-        "comments",
         "revision",
         "attributes",
         "news_items",
@@ -75,6 +74,24 @@ def _dump_core_fields(model: TaranisBaseModel, allowed_fields: frozenset[str]) -
 
 def _utcnow() -> datetime:
     return datetime.now(UTC).replace(tzinfo=None)
+
+
+def assess_range_bounds(filter_range: str, now: datetime) -> tuple[datetime, datetime | None]:
+    """Return the UTC start and exclusive calendar end of an Assess time preset; rolling presets end at now."""
+    midnight = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    if filter_range == "24h":
+        return now - timedelta(hours=24), None
+    if filter_range.startswith("last") and filter_range[4:].isdigit():
+        return now - timedelta(days=int(filter_range[4:])), None
+    if filter_range == "day":
+        return midnight - timedelta(days=1), None
+    if filter_range == "week":
+        start = midnight - timedelta(days=midnight.weekday())
+        return start, start + timedelta(days=7)
+    if filter_range == "month":
+        start = midnight.replace(day=1)
+        return start, (start + timedelta(days=32)).replace(day=1)
+    return midnight, midnight + timedelta(days=1)
 
 
 def _normalize_datetime(value: str | datetime | None) -> datetime | None:
@@ -331,7 +348,6 @@ class Story(TaranisBaseModel):
     summary: str | None = None
     relevance: int | None = None
     relevance_override: int | None = None
-    comments: str | None = None
     in_reports_count: int | None = None
     bookmarked: bool = False
     tags: list[dict[str, Any]] | None = None
@@ -468,7 +484,6 @@ class StoryUpdatePayload(TaranisBaseModel):
     read: bool | None = None
     title: str | None = None
     description: str | None = None
-    comments: str | None = None
     summary: str | None = None
     relevance: int | None = None
     relevance_override: int | None = None
@@ -477,9 +492,11 @@ class StoryUpdatePayload(TaranisBaseModel):
 
     @model_validator(mode="before")
     @classmethod
-    def omit_unconfigured_misp_auto_update(cls, value: Any) -> Any:
+    def validate_update_fields(cls, value: Any) -> Any:
         if not isinstance(value, dict):
             return value
+        if "comments" in value:
+            raise ValueError("To add a Story comment, POST to /api/discussions/story/{story_id} with a body field.")
         normalized = dict(value)
         misp_auto_update = normalized.get("misp_auto_update")
         if isinstance(misp_auto_update, dict) and not misp_auto_update.get("connector_id") and not misp_auto_update.get("enabled"):

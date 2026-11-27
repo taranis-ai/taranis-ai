@@ -11,7 +11,7 @@
 {% set rendered_mime_type = product.mime_type %}
 {% set report_access_warning = report_access_warning | default(product.report_access_warning | default(none)) %}
 
-{% set columns = [{'title': 'id', 'field': 'id', 'sortable': True, 'searchable': True}, {'title': 'title', 'field': 'title', 'sortable': True, 'searchable': True}, {'title': 'created', 'field': 'created', 'sortable': True, 'searchable': False}, {'title': 'completed', 'field': 'completed', 'sortable': True, 'searchable': False}] %}
+{% set columns = [{'title': 'id', 'field': 'id', 'sortable': True, 'searchable': True}, {'title': 'title', 'field': 'title', 'sortable': True, 'searchable': True}, {'title': 'created', 'field': 'created', 'sortable': True, 'searchable': False}, {'title': 'stories', 'field': 'story_count', 'sortable': True, 'searchable': False}, {'title': 'completed', 'field': 'completed', 'sortable': True, 'searchable': False}] %}
 
 {# djlint:off #}
 <div class="p-4"
@@ -91,9 +91,14 @@
       </div>
     {% endif %}
 
+    {% if comment_preview %}
+      {% include "discussion/preview.html" %}
+    {% endif %}
+
     <div class="grid grid-cols-12 gap-4">
       <div class="col-span-12 {% if is_edit %}lg:col-span-6{% else %}lg:col-span-12{% endif %} px-2">
         <form id="product_form"
+              @submit.capture="confirmDiscardCommentDraft($event)"
               method="post"
               action="{{ form_action }}"
               {% if is_edit %}hx-put="{{ form_action }}"{% else %}hx-post="{{ form_action }}"{% endif %}
@@ -228,7 +233,9 @@
             </fieldset>
             {% if report_access_warning %}
               <input type="hidden" name="auto_publish" value="{{ 'true' if product.auto_publish else 'false' }}">
-              {% if product.default_publisher %}<input type="hidden" name="default_publisher" value="{{ product.default_publisher }}">{% endif %}
+              {% if product.default_publisher %}
+                <input type="hidden" name="default_publisher" value="{{ product.default_publisher }}">
+              {% endif %}
             {% endif %}
           {% endif %}
           <input type="submit"

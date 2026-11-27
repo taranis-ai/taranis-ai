@@ -23,6 +23,43 @@ def _expected_story_tag_names(story: dict) -> set[str]:
 class TestWorkerApi:
     base_uri = "/api/worker"
 
+    def test_task_changes_require_worker_auth_and_publish_only_invalidation(self, client, api_header, auth_header, monkeypatch):
+        from core.managers.realtime_publisher import realtime_publisher
+
+        publication = Mock(return_value=True)
+        monkeypatch.setattr(realtime_publisher, "publish", publication)
+        payload = {"user_ids": ["owner", "second-owner", "owner"]}
+        path = f"{self.base_uri}/tasks/changed"
+        assert client.post(path, json=payload).status_code == 401
+        assert client.post(path, json=payload, headers=auth_header).status_code == 401
+        publication.assert_not_called()
+        for invalid_payload in (
+            [],
+            {"user_ids": "owner"},
+            {"user_ids": [123]},
+            {"user_ids": [""]},
+            {"user_ids": ["x" * 37]},
+            {"user_ids": ["owner"] * 101},
+        ):
+            response = client.post(path, json=invalid_payload, headers=api_header)
+            assert response.status_code == 400
+            assert response.get_json() == {"error": "Invalid task change notice"}
+        publication.assert_not_called()
+
+        assert client.post(path, json=payload, headers=api_header).status_code == 200
+        assert [call.args for call in publication.call_args_list] == [
+            ("global:events", "scheduler.changed", "invalidated"),
+            (["user:#owner", "user:#second-owner"], "task.changed", "invalidated"),
+        ]
+        assert all(not call.kwargs for call in publication.call_args_list)
+
+        publication.reset_mock()
+        assert client.post(path, json={}, headers=api_header).status_code == 200
+        publication.assert_called_once_with("global:events", "scheduler.changed", "invalidated")
+
+        publication.side_effect = RuntimeError("Realtime unavailable")
+        assert client.post(path, json=payload, headers=api_header).status_code == 200
+
     def test_restore_queue_state_after_redis_loss(self, client, api_header, session, redis_client, monkeypatch):
         from core.config import Config
         from core.managers.queue_manager import CRON_DEFS_KEY, CRON_NEXT_KEY
@@ -416,6 +453,36 @@ class TestWorkerApi:
 
         assert response.status_code == 200
         assert "timefrom" not in captured_filter
+
+    def test_worker_story_lists_batch_related_data(self, client, stories, api_header):
+        from sqlalchemy import event
+
+        from core.managers.db_manager import db
+
+        query_counts = []
+        returned_ids = []
+        for limit in (1, len(stories)):
+            db.session.expire_all()
+            statements = []
+
+            def collect(_conn, _cursor, statement, _params, _context, _many, collected=statements):
+                if statement.lstrip().upper().startswith("SELECT"):
+                    collected.append(statement)
+
+            event.listen(db.engine, "before_cursor_execute", collect)
+            try:
+                response = client.get(f"{self.base_uri}/stories", headers=api_header, query_string={"story_ids": stories, "limit": limit})
+                assert response.status_code == 200
+                payload = response.get_json()
+                assert len(payload) == limit
+                returned_ids.append([item["id"] for item in payload])
+                query_counts.append(len(statements))
+            finally:
+                event.remove(db.engine, "before_cursor_execute", collect)
+
+        assert set(returned_ids[1]) == set(stories)
+        assert returned_ids[0] == returned_ids[1][:1]
+        assert query_counts[1] <= query_counts[0] + 1, query_counts
 
     def test_post_collection_bots_forwards_user_id(self, client, api_header, monkeypatch):
         captured = {}

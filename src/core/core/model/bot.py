@@ -16,6 +16,7 @@ from core.log import logger
 from core.managers.db_manager import db
 from core.model.base_model import UUID_STR_LENGTH, BaseModel
 from core.model.task import Task as TaskModel
+from core.service.task_events import batch_task_changes
 from core.service.worker_parameters import configured_parameters, effective_parameters, set_parameters
 
 
@@ -480,13 +481,13 @@ class Bot(BaseModel):
         if not bot:
             return {"error": "Bot not found"}, 404
 
+        db.session.delete(bot)
+        db.session.commit()
         bot.unschedule_bot()
         queue_manager.queue_manager.purge_job_artifacts(
             exact_ids={bot.task_id},
             prefixes=[bot.cron_run_prefix],
         )
-        db.session.delete(bot)
-        db.session.commit()
         return {"message": "Bot deleted"}, 200
 
     def get_schedule(self) -> str:
@@ -619,6 +620,7 @@ class Bot(BaseModel):
         return [bot for bot in db.session.execute(query).scalars() if bot.is_llm_endpoint_enabled(settings)]
 
     @classmethod
+    @batch_task_changes()
     def schedule_all_bots(cls):
         """Refresh cron registrations, including bots paused by their endpoint."""
         for bot in cls._get_all_ordered():

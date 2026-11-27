@@ -7,10 +7,20 @@ import pytest
 from models.task import CronTaskSpec
 from pydantic import ValidationError
 from rq import Queue
+from rq.utils import import_attribute
 
 from worker import cron_scheduler
 from worker.config import Config
-from worker.cron_scheduler import DEFS_KEY, NEXT_KEY, _decode, _enqueue_due_job, _enqueue_key, _normalize_spec, _sync_next_index
+from worker.cron_scheduler import (
+    DEFS_KEY,
+    NEXT_KEY,
+    TASK_FUNCTION_MAP,
+    _decode,
+    _enqueue_due_job,
+    _enqueue_key,
+    _normalize_spec,
+    _sync_next_index,
+)
 
 
 def test_cron_task_spec_rejects_missing_required_fields():
@@ -185,6 +195,78 @@ def test_enqueue_due_job_updates_next_run_and_notifies_wait_key():
     assert wait_key_result[1] == b"cron_osint_source_source-1_1000"  # type: ignore[comparison-with-callable]
 
 
+@pytest.mark.parametrize(
+    ("func_path", "queue_name", "cron", "expected_func_name", "expected_next_ts"),
+    [
+        ("collector_task", "collectors", "*/5 * * * *", "worker.collectors.collector_tasks.collector_task", 1200.0),
+        ("bot_task", "bots", "*/5 * * * *", "worker.bots.bot_tasks.bot_task", 1200.0),
+        ("cleanup_token_blacklist", "misc", "0 2 * * *", "worker.misc.misc_tasks.cleanup_token_blacklist", 7200.0),
+        ("cleanup_task_history", "misc", "0 3 * * *", "worker.misc.misc_tasks.cleanup_task_history", 10800.0),
+    ],
+)
+def test_enqueue_due_job_maps_core_scheduled_short_names(func_path, queue_name, cron, expected_func_name, expected_next_ts):
+    redis_conn = fakeredis.FakeRedis(decode_responses=False)
+
+    rq_job_id = _enqueue_due_job(
+        redis_conn,
+        {},
+        func_path,
+        {"queue_name": queue_name, "func_path": func_path, "cron": cron},
+        due_ts=1000.0,
+    )
+
+    assert rq_job_id == f"cron_{func_path}_1000"
+    job = Queue(queue_name, connection=redis_conn).fetch_job(rq_job_id)
+    assert job is not None
+    assert job.origin == queue_name
+    assert job.func_name == expected_func_name
+    assert callable(job.func)
+    assert redis_conn.zscore(NEXT_KEY, func_path) == expected_next_ts
+
+
+@pytest.mark.parametrize("task_path", sorted(TASK_FUNCTION_MAP.values()))
+def test_task_function_map_values_are_importable(task_path):
+    assert callable(import_attribute(task_path))
+
+
+def test_enqueue_due_job_skips_unknown_short_name_and_reschedules(monkeypatch: pytest.MonkeyPatch, fake_queue: Any):
+    redis_conn = fakeredis.FakeRedis(decode_responses=False)
+    logger = Mock()
+    monkeypatch.setattr(cron_scheduler, "Queue", fake_queue)
+    monkeypatch.setattr(cron_scheduler, "logger", logger)
+
+    rq_job_id = _enqueue_due_job(
+        redis_conn,
+        {},
+        "job-unknown",
+        {"queue_name": "misc", "func_path": "not_a_task", "interval": 60},
+        due_ts=1000.0,
+    )
+
+    assert rq_job_id is None
+    assert fake_queue.enqueued_calls == []
+    assert redis_conn.zscore(NEXT_KEY, "job-unknown") == 1060.0
+    logger.error.assert_called_once()
+    assert "'not_a_task'" in logger.error.call_args.args[0]
+
+
+def test_enqueue_due_job_passes_dotted_func_path_through():
+    redis_conn = fakeredis.FakeRedis(decode_responses=False)
+
+    rq_job_id = _enqueue_due_job(
+        redis_conn,
+        {},
+        "job-dotted",
+        {"queue_name": "misc", "func_path": "worker.misc.misc_tasks.cleanup_token_blacklist", "interval": 60},
+        due_ts=1000.0,
+    )
+
+    job = Queue("misc", connection=redis_conn).fetch_job(rq_job_id)
+    assert job is not None
+    assert job.func_name == "worker.misc.misc_tasks.cleanup_token_blacklist"
+    assert redis_conn.zscore(NEXT_KEY, "job-dotted") == 1060.0
+
+
 def test_enqueue_due_job_skips_missing_func_path_without_crashing(monkeypatch: pytest.MonkeyPatch, fake_queue: Any):
     redis_conn = fakeredis.FakeRedis(decode_responses=False)
     monkeypatch.setattr(cron_scheduler, "Queue", fake_queue)
@@ -205,3 +287,35 @@ def test_enqueue_due_job_skips_missing_func_path_without_crashing(monkeypatch: p
     assert rq_job_id is None
     assert fake_queue.enqueued_calls == []
     assert redis_conn.zscore(NEXT_KEY, "job-invalid") is not None
+
+
+def test_scheduler_batches_notices_after_enqueuing_and_stops_when_leadership_is_lost(requests_mock, monkeypatch):
+    connection = fakeredis.FakeRedis()
+    monkeypatch.setattr(cron_scheduler, "get_redis_connection", lambda *_args: connection)
+    monkeypatch.setattr(cron_scheduler.time, "time", lambda: 1000.0)
+    monkeypatch.setattr(cron_scheduler.time, "sleep", Mock(side_effect=RuntimeError("stop scheduler")))
+    for number in range(100):
+        job_id = f"source-{number:03}"
+        spec = {"queue_name": "misc", "func_path": "cleanup_token_blacklist", "interval": 3600, "meta": {"user_id": "owner"}}
+        connection.hset(DEFS_KEY, job_id, json.dumps(spec))
+        connection.zadd(NEXT_KEY, {job_id: 999.0})
+
+    def observe_change(request, _context):
+        assert Queue("misc", connection=connection).count == 100
+        assert connection.zcount(NEXT_KEY, 0, 1000) == 0
+        assert request.json() == {"user_ids": ["owner"]}
+        return {"message": "Task views invalidated"}
+
+    notices = requests_mock.post(f"{Config.TARANIS_CORE_URL}/worker/tasks/changed", json=observe_change)
+    with pytest.raises(RuntimeError, match="stop scheduler"):
+        cron_scheduler.run_scheduler()
+    assert notices.call_count == 1
+
+    # A stale due-job snapshot must not enqueue work after another cron takes leadership.
+    connection.zadd(NEXT_KEY, {"source-000": 999.0, "source-001": 999.0})
+    requests_mock.post(f"{Config.TARANIS_CORE_URL}/worker/tasks/changed", json={"message": "Task views invalidated"})
+    monkeypatch.setattr(cron_scheduler, "renew_leader", Mock(side_effect=[True, True, False]))
+    with pytest.raises(RuntimeError, match="stop scheduler"):
+        cron_scheduler.run_scheduler()
+    assert Queue("misc", connection=connection).count == 101
+    assert connection.zscore(NEXT_KEY, "source-001") == 999.0

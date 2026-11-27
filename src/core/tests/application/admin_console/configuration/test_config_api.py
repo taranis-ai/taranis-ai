@@ -4,6 +4,7 @@ import json
 import os
 import uuid
 from io import BytesIO
+from unittest.mock import Mock, call
 
 import pytest
 from PIL import Image
@@ -255,17 +256,26 @@ class TestSourcesConfigApi(BaseTest):
         assert "Field 'rank': Input should be less than or equal to 5" in response.json["error"]
 
     def test_modify_source(self, client, auth_header, cleanup_sources, monkeypatch):
-        purged_calls: list[tuple[set[str], list[str]]] = []
-        monkeypatch.setattr(
-            "core.managers.queue_manager.queue_manager.purge_job_artifacts",
-            lambda *, exact_ids=None, prefixes=None: purged_calls.append((exact_ids or set(), prefixes or [])) or (1, 1),
+        from core.managers.realtime_publisher import realtime_publisher
+        from core.model.task import Task
+
+        source_id = cleanup_sources["id"]
+        preview_id = f"source_preview_{source_id}"
+        queue = client.application.extensions["rq"].get_queue("collectors")
+        queue.enqueue(
+            "worker.collectors.collector_tasks.collector_preview",
+            source_id,
+            job_id=preview_id,
+            meta={"user_id": "preview-owner"},
         )
+        Task.add_or_update({"id": preview_id, "user_id": "preview-owner", "status": "PREVIEW", "result": {"message": "Ready"}})
+        publication = Mock(return_value=True)
+        monkeypatch.setattr(realtime_publisher, "publish", publication)
         source_data = {
             "description": "Sourcy McSourceFace",
             "rank": 5,
             "parameters": {"FEED_URL": "https://example.com/updated.xml"},
         }
-        source_id = cleanup_sources["id"]
         response = self.assert_put_ok(client, uri=f"osint-sources/{source_id}", json_data=source_data, auth_header=auth_header)
         assert response.json["id"] == f"{source_id}"
 
@@ -273,7 +283,9 @@ class TestSourcesConfigApi(BaseTest):
         assert source_response.json["description"] == "Sourcy McSourceFace"
         assert source_response.json["rank"] == 5
         assert source_response.json["parameters"]["FEED_URL"] == "https://example.com/updated.xml"
-        assert purged_calls == [({f"source_preview_{source_id}"}, [])]
+        assert queue.fetch_job(preview_id) is None
+        assert Task.get_by_job_id(preview_id) is None
+        assert call(["user:#preview-owner"], "task.changed", "invalidated") in publication.call_args_list
 
     def test_modify_source_can_store_rank_zero(self, client, auth_header, cleanup_sources):
         source_id = cleanup_sources["id"]
@@ -535,7 +547,8 @@ class TestSourcesConfigApi(BaseTest):
         assert response.json["message"] == "OSINT Source deleted"
         assert response.json["id"] == source_id
 
-    def test_bulk_delete_sources_is_atomic_and_requires_explicit_force(self, app, client, auth_header):
+    def test_bulk_delete_sources_is_atomic_and_requires_explicit_force(self, app, client, auth_header, monkeypatch):
+        from core.managers.realtime_publisher import realtime_publisher
         from core.model.osint_source import OSINTSource
 
         source_ids = [str(uuid.uuid7()), str(uuid.uuid7())]
@@ -579,8 +592,11 @@ class TestSourcesConfigApi(BaseTest):
             with app.app_context():
                 assert all(OSINTSource.get(source_id) for source_id in source_ids)
 
+            publication = Mock(return_value=False)
+            monkeypatch.setattr(realtime_publisher, "publish", publication)
             response = client.delete(self.concat_url("osint-sources"), query_string={"ids": source_ids, "force": "true"}, headers=auth_header)
             assert response.status_code == 200
+            publication.assert_called_once_with("global:events", "scheduler.changed", "invalidated")
         finally:
             with app.app_context():
                 for source_id in source_ids:

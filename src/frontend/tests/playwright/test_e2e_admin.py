@@ -1,15 +1,20 @@
 import json
 import uuid
 from datetime import UTC, datetime
+from urllib.parse import parse_qs, urlparse
 from zoneinfo import ZoneInfo
 
 import pytest
+import redis
 from base_e2e_test import BaseE2ETest
-from flask import url_for
+from flask import render_template, url_for
 from htmx_helpers import reset_htmx_state, with_htmx_wait
-from playwright.sync_api import Page, expect
+from models.scheduler import MAX_OBSERVED_JOBS
+from playwright.sync_api import Page, Route, expect
+from rq import Queue
+from rq.executions import Execution
 
-from tests.external_e2e import allow_requests_passthru
+from tests.external_e2e import allow_requests_passthru, external_core_api_url
 from tests.playwright.notification_helpers import dismiss_notifications
 
 
@@ -169,6 +174,7 @@ class TestEndToEndAdmin(BaseE2ETest):
     @pytest.mark.e2e_full_stack
     def test_admin_dashboard(self, logged_in_page: Page, forward_console_and_page_errors, core_request_client, api_header):
         page = logged_in_page
+        page.clock.install()
 
         page.goto(url_for("admin.dashboard", _external=True))
         expect(page.locator("#dashboard")).to_be_visible()
@@ -193,7 +199,7 @@ class TestEndToEndAdmin(BaseE2ETest):
         expect(page).to_have_url(url_for("admin.scheduler", _external=True))
         expect(page.locator("#scheduler-dashboard")).to_be_visible()
         expect(page.get_by_test_id("scheduled-jobs")).to_be_visible()
-        expect(page.locator("#scheduled-jobs-table-search")).to_be_visible()
+        expect(page.locator("#scheduler-content-search")).to_be_visible()
         expect(page.locator("#scheduled-jobs-table")).to_contain_text("Page 1 of")
 
         page.goto(
@@ -207,18 +213,18 @@ class TestEndToEndAdmin(BaseE2ETest):
             )
         )
         with_htmx_wait(page, lambda: page.locator('.tab[data-tab="active"]').click())
-        expect(page).to_have_url(url_for("admin.scheduler", tab="active", _external=True))
-        expect(page.locator("#active-jobs-table-search")).to_have_value("")
+        expect(page).to_have_url(url_for("admin.scheduler_active_jobs", tab="active", _external=True))
+        expect(page.locator("#scheduler-content-search")).to_have_value("")
         expect(page.locator("#active-jobs-table")).to_contain_text("No jobs currently running")
 
         run_prefix = f"scheduler-run-{uuid.uuid4().hex}"
-        for outcome in ("SUCCESS", "FAILURE"):
+        for index, outcome in enumerate(("SUCCESS", "SUCCESS", "FAILURE")):
             core_request_client.post(
                 "/tasks",
                 headers=api_header,
                 authenticated=False,
                 json_data={
-                    "id": f"{run_prefix}-{outcome}",
+                    "id": f"{run_prefix}-{index}",
                     "task": "scheduler_test",
                     "worker_type": "Scheduler Test",
                     "status": outcome,
@@ -227,25 +233,163 @@ class TestEndToEndAdmin(BaseE2ETest):
             )
         with_htmx_wait(page, lambda: page.locator('.tab[data-tab="completed"]').click())
         expect(page.get_by_test_id("completed-runs")).to_be_visible()
-        search = page.locator("#completed-runs-table-search")
+        search = page.locator("#scheduler-content-search")
         with page.expect_response(lambda response: "/scheduler/completed?" in response.url and f"search={run_prefix}" in response.url):
             search.fill(run_prefix)
-        expect(page.get_by_test_id("completed-run-row")).to_have_count(2)
+        expect(page.get_by_test_id("completed-run-row")).to_have_count(3)
         page.get_by_test_id("completed-run-status").select_option("SUCCESS")
         with_htmx_wait(page, lambda: page.locator("#completed-runs-table").get_by_role("button", name="Apply", exact=True).first.click())
-        expect(page.get_by_test_id("completed-run-row")).to_have_count(1)
-        expect(page.get_by_test_id("completed-run-row")).to_contain_text("Success")
-        expect(page.locator("#completed-runs-table-search")).to_have_value(run_prefix)
+        expect(page.get_by_test_id("completed-run-row")).to_have_count(2)
+        expect(page.get_by_test_id("completed-run-row")).to_contain_text(["Success", "Success"])
+        expect(page.locator("#scheduler-content-search")).to_have_value(run_prefix)
         page.reload()
         expect(page.get_by_test_id("completed-run-status")).to_have_value("SUCCESS")
-        expect(page.get_by_test_id("completed-run-row")).to_have_count(1)
+        expect(page.get_by_test_id("completed-run-row")).to_have_count(2)
+
+        completed_url = url_for(
+            "admin.scheduler_completed_runs", search=run_prefix, status="SUCCESS", page=2, limit=1, order="last_run_asc", _external=True
+        )
+        page.goto(completed_url)
+        expect(page.locator("#completed-runs-table")).to_contain_text("Page 2 of 2")
+        page.evaluate("window.schedulerDocument = document")
+        scheduler_requests = []
+        page.on("request", lambda request: scheduler_requests.append(request) if "/scheduler" in request.url else None)
+        page.clock.fast_forward(11000)
+        page.wait_for_timeout(100)
+        assert scheduler_requests == []
+
+        extra_run_id = f"{run_prefix}-extra"
+        core_request_client.post(
+            "/tasks",
+            headers=api_header,
+            authenticated=False,
+            json_data={
+                "id": extra_run_id,
+                "task": "scheduler_test",
+                "worker_type": "Scheduler Test",
+                "status": "SUCCESS",
+                "result": {"message": "Another scheduled run completed"},
+            },
+        )
+        # The isolated E2E stack omits Centrifugo; exercise the same browser event it dispatches.
+        page.evaluate("document.dispatchEvent(new CustomEvent('realtime:scheduler.changed'))")
+        expect(page.locator("#completed-runs-table")).to_contain_text("Page 2 of 3")
+        core_request_client.delete(f"/tasks/{extra_run_id}")
+        page.evaluate("document.dispatchEvent(new CustomEvent('realtime:resync'))")
+        expect(page.locator("#completed-runs-table")).to_contain_text("Page 2 of 2")
+        expect(page.locator("#scheduler-content-search")).to_have_value(run_prefix)
+        expect(page.get_by_test_id("completed-run-status")).to_have_value("SUCCESS")
+        expect(page).to_have_url(completed_url)
+        assert page.evaluate("window.schedulerDocument === document")
+        completed_requests = [request for request in scheduler_requests if urlparse(request.url).path == urlparse(completed_url).path]
+        assert len(completed_requests) == 2
+        assert all(parse_qs(urlparse(request.url).query) == parse_qs(urlparse(completed_url).query) for request in completed_requests)
+        assert all(request.headers.get("hx-request") == "true" for request in scheduler_requests)
+        assert {urlparse(request.url).path for request in scheduler_requests} == {
+            url_for("admin.scheduler_completed_runs"),
+            url_for("admin.scheduler_queue_cards"),
+        }
 
         with_htmx_wait(page, lambda: page.locator('.tab[data-tab="history"]').click())
         expect(page.locator("#execution-history-table")).to_be_visible()
-        expect(page.locator("#history-tab .stats")).to_have_count(1)
+        expect(page.locator("#execution-history .stats")).to_have_count(1)
         with_htmx_wait(page, lambda: page.locator('.tab[data-tab="scheduled"]').click())
         with_htmx_wait(page, lambda: page.locator('.tab[data-tab="history"]').click())
-        expect(page.locator("#history-tab .stats")).to_have_count(1)
+        expect(page.locator("#execution-history .stats")).to_have_count(1)
+
+    @pytest.mark.skipif(external_core_api_url(), reason="Completion workflow seeds the isolated Redis instance")
+    def test_scheduler_completion_notice(
+        self, logged_in_page: Page, forward_console_and_page_errors, core_request_client, api_header, docker_services
+    ):
+        page = logged_in_page
+        allow_requests_passthru(core_request_client.base_url)
+        connection = redis.Redis(host="127.0.0.1", port=docker_services.port_for("redis", 6379))
+        queue = Queue("bots", connection=connection)
+        run_prefix = f"scheduler-observed-{uuid.uuid4().hex}"
+        jobs = [queue.create_job("worker.bots.bot_tasks.bot_task", job_id=f"{run_prefix}-{index}") for index in range(3)]
+        jobs.append(queue.create_job("worker.endpoint_health.check_endpoint", job_id=f"{run_prefix}-probe"))
+        notice = page.locator('[data-test-id="scheduler-completion-notice"]')
+
+        def save_result(index: int, status: str):
+            core_request_client.post(
+                "/tasks",
+                headers=api_header,
+                authenticated=False,
+                json_data={
+                    "id": jobs[index].id,
+                    "task": "scheduler_test",
+                    "status": status,
+                    "result": {"message": "Scheduler run completed"},
+                },
+            )
+
+        def refresh():
+            with_htmx_wait(page, lambda: page.locator("#scheduler-refresh").click())
+
+        try:
+            for job in jobs:
+                job.save()
+                with connection.pipeline() as pipeline:
+                    Execution.create(job, ttl=900, pipeline=pipeline)
+                    job.prepare_for_execution("scheduler-monitor", pipeline=pipeline)
+                    pipeline.execute()
+            page.goto(url_for("admin.scheduler_active_jobs", search=run_prefix, _external=True))
+            expect(page.get_by_test_id("active-jobs").locator("tbody tr")).to_have_count(4)
+            observed = page.locator("#active-jobs-table").get_attribute("data-active-jobs")
+            assert jobs[-1].id not in observed
+            page.evaluate("window.taranisNotifications.clear()")
+
+            # A checkpoint retry keeps its job ID but starts a new attempt.
+            jobs[0].started_at = datetime.now(UTC)
+            jobs[0].save()
+            refresh()
+            save_result(0, "SUCCESS")
+            refresh()
+            expect(notice).to_contain_text("1 job you were viewing has finished.")
+            expect(page.get_by_test_id("active-jobs")).to_contain_text(jobs[1].id)
+
+            save_result(1, "WARNING")
+            refresh()
+            expect(notice).to_contain_text("2 jobs you were viewing have finished.")
+
+            refresh()
+            expect(notice).to_contain_text("2 jobs you were viewing have finished.")
+            assert len(page.evaluate("taranisNotifications.read()")) == 2
+            notice.get_by_role("button", name="Dismiss", exact=True).click()
+            expect(notice).not_to_be_visible()
+
+            save_result(2, "FAILURE")
+            refresh()
+            expect(notice).to_contain_text("1 job you were viewing has finished.")
+            with_htmx_wait(page, lambda: notice.get_by_role("link", name="View completed runs", exact=True).click())
+            expect(page.get_by_test_id("completed-runs")).to_be_visible()
+            expect(page.locator("#scheduler-content-search")).to_have_value("")
+            expect(page.get_by_test_id("completed-run-status")).to_have_value("")
+            expect(notice).not_to_be_visible()
+
+            # Lost outcomes stay unannounced, and long-lived tabs retain bounded state.
+            state = page.evaluate(
+                """limit => {
+                    const owner = document.getElementById('scheduler-dashboard').parentElement;
+                    const state = Alpine.$data(owner);
+                    const active = Array.from({length: limit + 1}, (_, id) => ({id: `lost-${id}`, started_at: '2026-10-22T12:00:00Z'}));
+                    owner.dispatchEvent(new CustomEvent('scheduler:jobs-loaded', {detail: {active, completed: []}}));
+                    const pending = state.observedJobs.length;
+                    const count = state.completionCount;
+                    owner.dispatchEvent(new CustomEvent('scheduler:jobs-loaded', {detail: {active: [], completed: active}}));
+                    const next = [{id: 'next', started_at: '2026-10-22T12:00:00Z'}];
+                    owner.dispatchEvent(new CustomEvent('scheduler:jobs-loaded', {detail: {active: next, completed: []}}));
+                    owner.dispatchEvent(new CustomEvent('scheduler:jobs-loaded', {detail: {active: [], completed: next}}));
+                    return {pending, count, announced: Object.keys(state.announcedJobs).length, completed: state.completionCount};
+                }""",
+                MAX_OBSERVED_JOBS,
+            )
+            assert state == {"pending": MAX_OBSERVED_JOBS, "count": 0, "announced": MAX_OBSERVED_JOBS, "completed": MAX_OBSERVED_JOBS + 1}
+        finally:
+            for job in jobs:
+                job.delete()
+                core_request_client.delete(f"/tasks/{job.id}", raise_for_status=False)
+            connection.close()
 
     def test_news_item_creation_methods(self, logged_in_page: Page, core_request_client):
         page = logged_in_page
@@ -1784,8 +1928,52 @@ class TestEndToEndAdmin(BaseE2ETest):
             expect(form.get_by_label("Name", exact=False)).to_have_value("E2E shared model")
             expect(form.get_by_label("API key", exact=False)).to_have_value("")
             reset_htmx_state(page)
-            form.get_by_label("Provider base URL").fill("https://provider.example/v1")
             form.get_by_label("API key", exact=False).fill("e2e-private-key")
+            base_url = "https://provider.example/v1"
+            suggestions_url = url_for("admin_settings.settings_action", action="llm-model-suggestions", _external=True)
+            responses_model = form.get_by_label("Responses model", exact=True)
+            model_options = form.locator("#llm--responses-models option")
+            expect(responses_model).to_have_attribute("list", "llm--responses-models")
+            model_ids = {"realtime": "test/responses", "openrouter_batch": "test/batch"}
+            fragments = {
+                mode: render_template(
+                    "settings/llm_model_suggestions.html",
+                    field_prefix="llm-",
+                    suggestions={"responses": [{"id": model_id, "name": model_id}]},
+                )
+                for mode, model_id in model_ids.items()
+            }
+
+            def respond_with_suggestions(route: Route):
+                query = parse_qs(urlparse(route.request.url).query)
+                if query.get("base_url") == [base_url]:
+                    route.fulfill(body=fragments[query["processing_mode"][0]], content_type="text/html")
+                else:
+                    route.continue_()
+
+            route_pattern = f"{suggestions_url}?**"
+            page.route(route_pattern, respond_with_suggestions)
+            try:
+                with page.expect_response(
+                    lambda response: (
+                        response.url.startswith(f"{suggestions_url}?")
+                        and parse_qs(urlparse(response.url).query).get("base_url") == [base_url]
+                    )
+                ) as suggestions:
+                    form.get_by_label("Provider base URL").fill(base_url)
+                    responses_model.focus()
+                assert suggestions.value.ok
+                assert "e2e-private-key" not in suggestions.value.url
+                expect(model_options).to_have_attribute("value", model_ids["realtime"])
+
+                processing_mode = form.get_by_label("Processing mode")
+                processing_mode.select_option("openrouter_batch")
+                expect(model_options).to_have_attribute("value", model_ids["openrouter_batch"])
+                processing_mode.select_option("realtime")
+                expect(model_options).to_have_attribute("value", model_ids["realtime"])
+            finally:
+                page.unroute(route_pattern, respond_with_suggestions)
+            responses_model.fill("private/custom-model")
             with_htmx_wait(page, lambda: form.get_by_role("button", name="Add Endpoint", exact=True).click())
             endpoint = section.locator("details").filter(has=page.locator("summary", has_text="E2E shared model"))
             expect(endpoint).to_have_count(1)
@@ -1798,6 +1986,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             expect(assignments.get_by_label("Default endpoint").locator("option:checked")).to_have_text("E2E shared model")
             endpoint.locator("summary").click()
             expect(endpoint.get_by_label("Endpoint state")).to_have_value("false")
+            expect(endpoint.get_by_label("Responses model", exact=True)).to_have_value("private/custom-model")
             expect(endpoint.locator('input[name="api_key"]')).to_have_value("")
             expect(endpoint).to_contain_text("An API key is saved.")
             endpoint.get_by_label("Endpoint state").select_option("true")

@@ -25,6 +25,7 @@ from models.assess import (
     Story,
     StoryBookmark,
     StoryUpdatePayload,
+    assess_range_bounds,
 )
 from models.classification import CLASSIFICATION_CATEGORIES
 from models.cti import CTIResponse
@@ -49,6 +50,7 @@ from frontend.utils.router_helpers import get_assess_return_url, is_htmx_request
 from frontend.utils.validation_helpers import format_pydantic_errors
 from frontend.views.asset_intelligence_views import load_scan_status
 from frontend.views.base_view import BaseView
+from frontend.views.discussion_views import discussion_preview
 
 
 _quote_via = cast(Any, quote)
@@ -65,6 +67,20 @@ ASSESS_TIME_PRESETS = {
     "last7": "Last 7 days",
     "last30": "Last 30 days",
 }
+
+
+def _time_preset_from_bounds(time_presets: dict[str, str]) -> dict[str, dict[str, str]]:
+    """Datetime-local min/max (UTC clock) that keep the From filter inside each preset."""
+    now = datetime.datetime.now(datetime.UTC).replace(tzinfo=None)
+    bounds = {}
+    for value in time_presets:
+        start, end = assess_range_bounds(value, now)
+        first_minute = start.replace(second=0, microsecond=0)
+        if first_minute < start:  # rolling presets start mid-minute; round up to stay inside Core's interval
+            first_minute += datetime.timedelta(minutes=1)
+        last_second = f"{end - datetime.timedelta(seconds=1):%Y-%m-%dT%H:%M:%S}" if end else ""
+        bounds[value] = {"min": f"{first_minute:%Y-%m-%dT%H:%M}", "max": last_second}
+    return bounds
 
 
 class StoryView(BaseView):
@@ -150,6 +166,7 @@ class StoryView(BaseView):
             days = int(current_range[4:])
             time_presets[current_range] = f"Last {days} {'day' if days == 1 else 'days'}"
         base_context["time_presets"] = time_presets
+        base_context["time_preset_from_bounds"] = _time_preset_from_bounds(time_presets)
         chips = []
         labels = {
             "search": "Search",
@@ -1075,6 +1092,9 @@ class StoryView(BaseView):
         story = context.get("story")
 
         if isinstance(story, Story):
+            detail_paths = {url_for("assess.story", story_id=object_id), url_for("assess.story_edit", story_id=object_id)}
+            if request.path in detail_paths or cls._get_current_url_path() in detail_paths:
+                context["comment_preview"] = discussion_preview("story", object_id)
             context["layout"] = request.args.get("layout", "advanced" if current_user.profile.advanced_story_options else "simple")
             context["can_manage_connectors"] = "CONNECTOR_USER_ACCESS" in (current_user.permissions or [])
             if context["can_manage_connectors"] and context["layout"] == "advanced":
@@ -1569,7 +1589,14 @@ class StoryView(BaseView):
         except HTTPException:
             raise
         except Exception:
-            return cls.render_response_notification({"error": "Failed to delete news item"})
+            logger.exception("Failed to delete news item.")
+            return render_template(
+                "notification/index.html", notification={"message": "Failed to delete news item", "error": True}, oob=False
+            ), 500
+
+        if not core_response.ok:
+            # Delete buttons route error statuses to the notification bar, never into the story card.
+            return cls.get_notification_from_response(core_response, oob=False), core_response.status_code
 
         payload = core_response.json()
         story_id = payload.get("story_id") or payload.get("story_ids", [""])[0]
@@ -1693,10 +1720,18 @@ class StoryView(BaseView):
     @auth_required()
     def ungroup(cls, story_id: str):
         if news_item_ids := request.form.getlist("news_item_ids[]"):
+            confirm = request.form.get("confirm") == "true"
             try:
-                response = CoreApi().api_put("/assess/news-items/ungroup", json_data=news_item_ids)
+                endpoint = "/assess/news-items/ungroup?confirm=true" if confirm else "/assess/news-items/ungroup"
+                response = CoreApi().api_put(endpoint, json_data=news_item_ids)
+                if response.status_code == 409 and (reports := (cls._response_payload(response) or {}).get("reports")):
+                    return cls._ungroup_confirm_dialog(story_id, news_item_ids, reports)
                 if not response.ok:
+                    # Ungroup buttons route error statuses to the notification bar, never into the story card.
                     return cls.get_notification_from_response(response, oob=False), response.status_code
+                if confirm:
+                    # The confirmed ungroup emptied and deleted the story, so there is no card left to refresh.
+                    return cls._after_story_removed(response)
                 notification_html = cls.get_notification_from_response(response)
                 if response.ok and (refreshed := cls._refresh_asset_filtered_assess(notification_html)) is not None:
                     return refreshed
@@ -1706,24 +1741,43 @@ class StoryView(BaseView):
                 raise
             except Exception:
                 logger.exception("Failed to ungroup news item.")
-                return cls.render_response_notification({"error": "Failed to ungroup news item."})
+                return cls.render_response_notification({"error": "Failed to ungroup news item."}), 500
         else:
             try:
                 core_response = CoreApi().api_put("/assess/stories/ungroup", json_data=[story_id])
                 if not core_response.ok:
                     return cls.get_notification_from_response(core_response, oob=False), core_response.status_code
-                if bookmark_id := cls._get_bookmark_id():
-                    return cls._render_bookmark_after_story_change(
-                        bookmark_id,
-                        notification=cls.get_notification_from_response(core_response),
-                    )
-                cls.add_flash_notification(core_response)
-                return cls.redirect_htmx(get_assess_return_url() or url_for("assess.assess"))
+                return cls._after_story_removed(core_response)
             except HTTPException:
                 raise
             except Exception:
                 logger.exception("Failed to ungroup story.")
                 return cls.render_response_notification({"error": "Failed to ungroup story."})
+
+    @classmethod
+    def _after_story_removed(cls, core_response: Any) -> ResponseReturnValue:
+        if bookmark_id := cls._get_bookmark_id():
+            return cls._render_bookmark_after_story_change(
+                bookmark_id,
+                notification=cls.get_notification_from_response(core_response),
+            )
+        cls.add_flash_notification(core_response)
+        return cls.redirect_htmx(get_assess_return_url() or url_for("assess.assess"))
+
+    @classmethod
+    def _ungroup_confirm_dialog(cls, story_id: str, news_item_ids: list[str], reports: list[dict[str, Any]]) -> ResponseReturnValue:
+        dialog = render_template(
+            "assess/ungroup_confirm_dialog.html",
+            story_id=story_id,
+            news_item_ids=news_item_ids,
+            reports=reports,
+        )
+        response = make_response(dialog, 200)
+        # Error statuses are not swapped, and the ungroup button selects its story card, so redirect the dialog explicitly.
+        response.headers["HX-Retarget"] = "body"
+        response.headers["HX-Reswap"] = "beforeend"
+        response.headers["HX-Reselect"] = "#ungroup_confirm_dialog"
+        return response
 
     @classmethod
     @auth_required("ASSESS_ACCESS")

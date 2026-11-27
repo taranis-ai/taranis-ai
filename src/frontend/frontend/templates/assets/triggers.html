@@ -27,7 +27,9 @@
       <p>Phrases match whole words, ignoring case. Optional context requires at least one context phrase in the same article. Installed versions are shown for reference and need not appear in the article.</p>
       <form method="get" class="flex flex-wrap gap-2 items-end">
         {% if get_assess_return_url() %}<input type="hidden" name="assess_url" value="{{ get_assess_return_url() }}">{% endif %}
-        {% if request.args.get("component_id") %}<input type="hidden" name="component_id" value="{{ request.args['component_id'] }}">{% endif %}
+        {% if request.args.get("component_id") %}
+          <input type="hidden" name="component_id" value="{{ request.args['component_id'] }}">
+        {% endif %}
         <label>
           Phrase
           <input name="search" class="input input-bordered" value="{{ request.args.get('search', '') }}">
@@ -120,9 +122,9 @@
                     Multiple context phrases are alternatives (<strong>OR</strong>).
                   </p>
                   <label class="flex gap-2"><input type="checkbox"
-       name="enabled"
-       class="checkbox"
-       {% if (retry and request.form.get('enabled') == 'on') or (not retry and trigger.enabled) %}checked{% endif %}>Enabled on this asset</label>
+                                                   name="enabled"
+                                                   class="checkbox"
+                                                   {% if (retry and request.form.get('enabled') == 'on') or (not retry and trigger.enabled) %}checked{% endif %}>Enabled on this asset</label>
                   <button class="btn btn-primary" type="submit">Save rule</button>
                 </form>
               </details>
@@ -153,9 +155,9 @@
                     Multiple context phrases are alternatives (<strong>OR</strong>).
                   </p>
                   <label class="flex gap-2"><input type="checkbox"
-       name="enabled"
-       class="checkbox"
-       {% if retry and request.form.get('enabled') == 'on' %}checked{% endif %}>Enabled on this asset</label>
+                                                   name="enabled"
+                                                   class="checkbox"
+                                                   {% if retry and request.form.get('enabled') == 'on' %}checked{% endif %}>Enabled on this asset</label>
                   <button class="btn" type="submit">Add alternative matching phrase</button>
                 </form>
               </details>
@@ -167,10 +169,10 @@
       </div>
       <nav aria-label="Rule pages" class="flex gap-4 items-center">
         {% if data.page > 1 %}<a class="btn btn-sm"
-   href="{{ url_for('assets.asset_triggers', asset_id=asset_id, page=data.page - 1, search=request.args.get('search', ''), enabled=request.args.get('enabled', ''), component_id=request.args.get('component_id', ''), assess_url=get_assess_return_url()) }}">Previous</a>{% endif %}
+                                 href="{{ url_for('assets.asset_triggers', asset_id=asset_id, page=data.page - 1, search=request.args.get('search', ''), enabled=request.args.get('enabled', ''), component_id=request.args.get('component_id', ''), assess_url=get_assess_return_url()) }}">Previous</a>{% endif %}
         <span>{{ data.total }} rules · Page {{ data.page }} of {{ data.pages }}</span>
         {% if data.page < data.pages %}<a class="btn btn-sm"
-   href="{{ url_for('assets.asset_triggers', asset_id=asset_id, page=data.page + 1, search=request.args.get('search', ''), enabled=request.args.get('enabled', ''), component_id=request.args.get('component_id', ''), assess_url=get_assess_return_url()) }}">Next</a>{% endif %}
+                                          href="{{ url_for('assets.asset_triggers', asset_id=asset_id, page=data.page + 1, search=request.args.get('search', ''), enabled=request.args.get('enabled', ''), component_id=request.args.get('component_id', ''), assess_url=get_assess_return_url()) }}">Next</a>{% endif %}
       </nav>
       {% if can_edit %}
         <form method="post">

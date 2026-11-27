@@ -528,7 +528,7 @@ class TestUserWorkflow(BaseE2ETest):
             self.highlight_element(page.get_by_role("button", name="Add to Report")).click()
 
             # First dialog
-            self.highlight_element(page.get_by_test_id("select-report-input")).select_option(label="Test Report")
+            self.highlight_element(page.get_by_test_id("select-report-input")).select_option(label="Test Report — CERT Report")
             self.highlight_element(page.get_by_test_id("share-to-report-dialog-button")).click()
             expect(page.get_by_test_id("share-story-to-report-dialog")).to_have_count(0)
 
@@ -539,7 +539,9 @@ class TestUserWorkflow(BaseE2ETest):
             expect(story_card).to_have_attribute("aria-selected", "true")
             self.highlight_element(page.get_by_role("button", name="Add to Report")).click()
 
-            self.highlight_element(page.get_by_test_id("select-report-input")).select_option(label="Test Disinformation Title")
+            self.highlight_element(page.get_by_test_id("select-report-input")).select_option(
+                label="Test Disinformation Title — Disinformation"
+            )
             self.highlight_element(page.get_by_test_id("share-to-report-dialog-button")).click()
             expect(page.get_by_test_id("share-story-to-report-dialog")).to_have_count(0)
             return selected_story_ids
@@ -547,8 +549,12 @@ class TestUserWorkflow(BaseE2ETest):
         def modify_report_1(selected_story_ids: list[str]):
             self.highlight_element(page.get_by_role("link", name="Test Report", exact=True)).click()
             self.expect_list_of_test_ids_visible(page, [f"story-link-{story_id}" for story_id in selected_story_ids])
-            self.highlight_element(page.get_by_placeholder("Date"), scroll=False).fill("17/3/2024")
-            self.highlight_element(page.get_by_placeholder("Timeframe"), scroll=False).fill("12/2/2024 - 21/2/2024")
+            report_date = datetime.now(UTC).date()
+            timeframe_start = report_date - timedelta(days=6)
+            self.highlight_element(page.get_by_placeholder("Date"), scroll=False).fill(report_date.strftime("%d/%m/%Y"))
+            self.highlight_element(page.get_by_placeholder("Timeframe"), scroll=False).fill(
+                f"{timeframe_start:%d/%m/%Y} - {report_date:%d/%m/%Y}"
+            )
             self.highlight_element(page.get_by_placeholder("Handler", exact=True), scroll=False).fill("John Doe")
             self.highlight_element(page.get_by_placeholder("CO-Handler"), scroll=False).fill("Arthur Doyle")
 

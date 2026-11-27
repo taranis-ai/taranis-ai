@@ -1,10 +1,33 @@
-"""Validation and serialization for Redis-backed scheduler lists."""
+"""Validation and serialization for scheduler state and execution observations."""
 
 from datetime import UTC, datetime
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, Json, PositiveInt, StrictStr, ValidationError, field_validator, model_serializer
+from pydantic import (
+    AwareDatetime,
+    BaseModel,
+    ConfigDict,
+    Field,
+    Json,
+    PositiveInt,
+    StrictStr,
+    ValidationError,
+    field_validator,
+    model_serializer,
+)
 from pydantic_core import PydanticUseDefault
+
+
+MAX_OBSERVED_JOBS = 500
+
+
+class ObservedJob(BaseModel):
+    id: str = Field(min_length=1, max_length=512)
+    started_at: AwareDatetime
+
+
+class ObservedJobsRequest(BaseModel):
+    observed_jobs: Json[Annotated[list[ObservedJob], Field(max_length=MAX_OBSERVED_JOBS)]] = Field(default_factory=list)
 
 
 class JobFilter(BaseModel):

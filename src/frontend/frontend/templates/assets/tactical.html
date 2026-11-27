@@ -184,7 +184,7 @@
             <ul class="space-y-2 text-sm">
               {% for edge in dependencies if edge.provider == selected_host %}
                 <li><a class="link"
-   href="{{ url_for('assets.tactical', scenario=scenario_id, host=edge.consumer) }}">{{ edge.consumer }}</a></li>
+                       href="{{ url_for('assets.tactical', scenario=scenario_id, host=edge.consumer) }}">{{ edge.consumer }}</a></li>
               {% else %}
                 <li class="text-base-content/60">No dependent hosts declared in this sample.</li>
               {% endfor %}

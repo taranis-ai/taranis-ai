@@ -82,6 +82,9 @@ required-environments = [
   "sys_platform == 'darwin' and platform_machine == 'arm64'",
 ]
 
+[tool.pyright]
+reportUnknownVariableType = "none"
+
 [tool.pyrefly]
 infer-with-first-use = false
 project-excludes = [

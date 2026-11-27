@@ -56,7 +56,7 @@ class TestAnalyzeApi(BaseTest):
         try:
             full = self.assert_get_ok(client, f"report-items/{report_id}", auth_header).get_json()
             editor = self.assert_get_ok(client, f"report-editors/{report_id}", auth_header).get_json()
-            full["stories"] = [{key: story[key] for key in ("id", "title", "summary", "important", "links")} for story in full["stories"]]
+            editor["stories"] = [{key: story[key] for key in ("id", "title", "links")} for story in editor["stories"]]
             assert editor == full
             response = client.get(self.concat_url(f"report-editors/{uuid4()}"), headers=auth_header)
             assert response.status_code == 404
@@ -301,6 +301,35 @@ class TestAnalyzeApi(BaseTest):
         assert response.json["message"] == "Report item updated"
         assert response.json["report"]["title"] == "Updated Report Title"
 
+    def test_update_report_rejects_tlp_above_user_clearance(
+        self, app, client, auth_header, auth_header_user_permissions, cleanup_report_item
+    ):
+        from core.managers.db_manager import db
+        from core.model.report_item import AttributeType, ReportItem, ReportItemAttribute
+
+        report_id = str(uuid7())
+        self.assert_post_ok(client, "report-items", json_data=cleanup_report_item | {"id": report_id}, auth_header=auth_header)
+        with app.app_context():
+            report = ReportItem.get(report_id)
+            assert report is not None
+            tlp_attribute = ReportItemAttribute(title="TLP", attribute_type=AttributeType.TLP, value="clear")
+            report.attributes.append(tlp_attribute)
+            db.session.commit()
+            tlp_attribute_id = str(tlp_attribute.id)
+
+        def tlp_value(report_json):
+            attributes = [attr for group in report_json["grouped_attributes"] for attr in group["attributes"]]
+            return next(attr["value"] for attr in attributes if str(attr["id"]) == tlp_attribute_id)
+
+        url = f"report-items/{report_id}"
+        response = client.put(self.concat_url(url), json={"attributes": {tlp_attribute_id: "green"}}, headers=auth_header_user_permissions)
+        assert response.status_code == 403
+        assert response.get_json() == {"error": "TLP is above your clearance"}
+        assert tlp_value(self.assert_get_ok(client, url, auth_header_user_permissions).get_json()) == "clear"
+
+        response = self.assert_put_ok(client, url, json_data={"attributes": {tlp_attribute_id: "green"}}, auth_header=auth_header)
+        assert tlp_value(response.get_json()["report"]) == "green"
+
     def test_clone_report(self, client, auth_header, cleanup_report_item):
         """
         POST to /api/analyze/report-items/<report_id>/clone endpoint to clone an existing report.
@@ -423,6 +452,133 @@ class TestAnalyzeApi(BaseTest):
             assert story is not None
             assert story.find_attribute_by_key(f"report_{report_payload['id']}") is None
             assert story.relevance_feedback == 0
+
+    def test_removing_stories_cleans_story_attributes_and_revisions(self, app, client, auth_header, stories):
+        from core.managers.db_manager import db
+        from core.model.attribute import Attribute, AttributeType
+        from core.model.report_item import ReportItem
+        from core.model.report_item_type import ReportItemType
+        from core.model.revision import ReportRevision
+        from core.model.user import User
+
+        assert len(stories) >= 2
+        suffix = uuid4().hex
+        story_a, story_b = stories[0], stories[1]
+        report_id = str(uuid7())
+        report_type_id = None
+        attribute_id = None
+
+        with app.app_context():
+            admin_user = User.find_by_name("admin")
+            assert admin_user is not None
+
+            story_attr_def = Attribute(
+                name=f"story_ref_{suffix}",
+                description="Referenced stories attribute",
+                attribute_type=AttributeType.STORY,
+            )
+            db.session.add(story_attr_def)
+            db.session.flush()
+            attribute_id = story_attr_def.id
+
+            report_type = ReportItemType(
+                title=f"Story Attr Report Type {suffix}",
+                description="Report type with STORY attribute",
+                attribute_groups=[
+                    {
+                        "index": 0,
+                        "title": "Analysis",
+                        "description": "Analysis attributes",
+                        "attribute_group_items": [
+                            {
+                                "index": 0,
+                                "attribute_id": attribute_id,
+                                "title": "Referenced Stories",
+                                "description": "Referenced stories",
+                                "required": False,
+                            }
+                        ],
+                    }
+                ],
+            )
+            db.session.add(report_type)
+            db.session.commit()
+            report_type_id = report_type.id
+
+            report, status = ReportItem.add(
+                {
+                    "id": report_id,
+                    "title": f"Story Attribute Cleanup {suffix}",
+                    "completed": False,
+                    "report_item_type_id": report_type_id,
+                    "stories": [story_a, story_b],
+                },
+                admin_user,
+            )
+            assert status == 200
+            assert not isinstance(report, dict)
+
+            story_attr = next(attr for attr in report.attributes if attr.attribute_type == AttributeType.STORY)
+            updated, update_status = ReportItem.update_report_item(
+                report_id,
+                {"attributes": {story_attr.id: f"{story_a},{story_b}"}},
+                admin_user,
+            )
+            assert update_status == 200
+            assert updated["used_story_ids"] == [story_a, story_b]
+
+        try:
+            with app.app_context():
+                admin_user = User.find_by_name("admin")
+                assert admin_user is not None
+                remove_result, remove_status = ReportItem.remove_stories(report_id, [story_a], admin_user)
+                assert remove_status == 200
+                assert remove_result["message"] == "Successfully removed stories"
+
+                report = ReportItem.get(report_id)
+                assert report is not None
+                story_attr = next(attr for attr in report.attributes if attr.attribute_type == AttributeType.STORY)
+                assert story_attr.value == story_b
+                assert report.to_detail_dict()["used_story_ids"] == [story_b]
+                assert report.to_product_dict()["attributes"]["Analysis"]["Referenced Stories"] == story_b
+
+                latest_revision = db.session.execute(
+                    db.select(ReportRevision).where(ReportRevision.report_item_id == report_id).order_by(ReportRevision.revision.desc())
+                ).scalars().first()
+                assert latest_revision is not None
+                assert latest_revision.data["used_story_ids"] == [story_b]
+
+            editor_response = self.assert_get_ok(client, f"report-editors/{report_id}", auth_header=auth_header)
+            assert editor_response.get_json()["used_story_ids"] == [story_b]
+
+            deselect_response = self.assert_put_ok(
+                client,
+                f"report-items/{report_id}",
+                json_data={"stories": []},
+                auth_header=auth_header,
+            )
+            assert deselect_response.get_json()["report"]["used_story_ids"] == []
+
+            with app.app_context():
+                report = ReportItem.get(report_id)
+                assert report is not None
+                story_attr = next(attr for attr in report.attributes if attr.attribute_type == AttributeType.STORY)
+                assert story_attr.value == ""
+                assert report.to_product_dict()["attributes"]["Analysis"]["Referenced Stories"] == ""
+                latest_revision = db.session.execute(
+                    db.select(ReportRevision).where(ReportRevision.report_item_id == report_id).order_by(ReportRevision.revision.desc())
+                ).scalars().first()
+                assert latest_revision is not None
+                assert latest_revision.data["used_story_ids"] == []
+        finally:
+            with app.app_context():
+                if ReportItem.get(report_id):
+                    ReportItem.delete(report_id)
+                if report_type_id and ReportItemType.get(report_type_id):
+                    db.session.delete(ReportItemType.get(report_type_id))
+                if attribute_id and Attribute.get(attribute_id):
+                    db.session.delete(Attribute.get(attribute_id))
+                db.session.commit()
 
     def test_create_report_and_publish_product_workflow(self, app, client, auth_header, stories, workflow_publish_resources, monkeypatch):
         from core.model.product import Product

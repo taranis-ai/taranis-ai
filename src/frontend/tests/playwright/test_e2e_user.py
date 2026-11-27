@@ -18,6 +18,11 @@ from tests.playwright.notification_helpers import dismiss_notifications
 ASSESS_STORY_PAGE_SIZE = 20
 
 
+@pytest.fixture(scope="session")
+def browser_context_args(browser_context_args):
+    return {**browser_context_args, "no_viewport": False, "viewport": {"width": 2560, "height": 1440}}
+
+
 @pytest.fixture
 def enabled_default_llm_endpoint(core_request_client):
     allow_requests_passthru()
@@ -105,6 +110,48 @@ class TestEndToEndUser(BaseE2ETest):
         finally:
             context.close()
 
+    def test_story_discussion_without_javascript(self, browser, non_admin_logged_in_page, core_request_client):
+        allow_requests_passthru()
+        story = core_request_client.json_request(
+            "POST", "/assess/news-items", json_data={"title": "Discussion test", "content": uuid.uuid4().hex, "osint_source_id": "manual"}
+        )
+        story_id = story["story_id"]
+        try:
+            with browser.new_context(java_script_enabled=False, storage_state=non_admin_logged_in_page.context.storage_state()) as context:
+                editor = context.new_page()
+                editor.goto(url_for("assess.story_edit", story_id=story_id, _external=True))
+                title = editor.get_by_role("textbox", name="Title", exact=True)
+                title.fill("Unsaved story title")
+                editor.locator("#comments > summary").click()
+                editor.get_by_role("textbox", name="Comment text").fill("First comment")
+                with context.expect_page() as opened:
+                    editor.get_by_role("button", name="Post comment").click()
+                thread = opened.value
+                expect(thread.locator("#comments li")).to_have_text(re.compile("First comment"))
+                expect(title).to_have_value("Unsaved story title")
+
+                for index in range(20):
+                    core_request_client.post(f"/discussions/story/{story_id}", json_data={"body": f"Reply {index}"})
+                thread.reload()
+                thread.get_by_role("link", name="Older comments").click()
+                stale_editor = context.new_page()
+                stale_editor.goto(thread.url)
+                stale_editor.locator("summary").filter(has_text="Edit comment").click()
+                stale_editor.get_by_role("textbox", name="Edit comment").fill("Keep this unsent edit")
+
+                thread.get_by_role("button", name="Delete comment").click()
+                expect(thread.locator("#comments li")).to_have_text(re.compile("First comment"))
+                thread.get_by_label("Confirm deletion").check()
+                thread.get_by_role("button", name="Delete comment").click()
+                expect(thread.locator("#comments li")).to_have_count(20)
+                expect(thread.locator("#comments")).to_contain_text("Reply 19")
+
+                stale_editor.get_by_role("button", name="Save comment").click()
+                expect(stale_editor.get_by_text("That comment or discussion is no longer available.", exact=True)).to_be_visible()
+                expect(stale_editor.get_by_role("textbox", name="Unsent comment")).to_have_value("Keep this unsent edit")
+        finally:
+            core_request_client.delete(f"/assess/stories/{story_id}")
+
     def test_user_dashboard(self, non_admin_logged_in_page: Page, forward_console_and_page_errors_non_admin, stories_function_wrapper):
         page = non_admin_logged_in_page
 
@@ -124,6 +171,7 @@ class TestEndToEndUser(BaseE2ETest):
             page.get_by_role("link", name="Dashboard", exact=True).click()
 
             page.locator("#dashboard").get_by_role("link", name="Assess").click()
+            self.capture_screenshot(page, "./tests/playwright/screenshots/assess.png")
             expect(page.get_by_test_id("assess_story_count")).to_be_visible()
             visible_count, total_count = self._get_assess_story_counts(page)
             assert total_count >= visible_count > 0
@@ -530,7 +578,38 @@ class TestEndToEndUser(BaseE2ETest):
             expect(back_to_assess).to_have_attribute("href", return_url)
             page.get_by_role("textbox", name="Title").fill(edited_title)
             page.get_by_role("textbox", name="Summary").fill("Test summary")
-            page.get_by_role("textbox", name="Analyst comments").fill("Test analyst comment")
+            page.locator("#comments > summary").click()
+            page.get_by_role("textbox", name="Comment text").fill("Test analyst comment")
+            with_htmx_wait(page, page.get_by_role("button", name="Post comment").click)
+            comment = page.locator("#comments li").filter(has_text="Test analyst comment")
+            edit = comment.get_by_role("button", name="Edit comment")
+            editor = comment.get_by_role("textbox", name="Edit comment")
+            expect(comment.get_by_role("button", name="Delete comment")).to_be_visible()
+            edit.click()
+            expect(editor).to_be_focused()
+            expect(comment.locator("p").filter(has_text="Test analyst comment")).not_to_be_visible()
+            editor.fill("Discarded edit")
+            page.once("dialog", lambda dialog: dialog.dismiss())
+            with page.expect_event("dialog"):
+                page.get_by_role("button", name="Save changes").click()
+            expect(editor).to_have_value("Discarded edit")
+            comment.get_by_role("button", name="Cancel").click()
+            edit.click()
+            expect(editor).to_have_value("Test analyst comment")
+            page.get_by_text("Add a comment", exact=True).click()
+            reply = page.get_by_role("textbox", name="Comment text")
+            reply.fill("Another reply")
+            editor.fill("Updated analyst comment")
+            with_htmx_wait(page, comment.get_by_role("button", name="Save comment").click)
+            expect(page.locator("#comments p").filter(has_text="Updated analyst comment")).to_be_visible()
+            expect(reply).to_have_value("Another reply")
+            with_htmx_wait(page, page.get_by_role("button", name="Post comment").click)
+            posted_reply = page.locator("#comments li").filter(has_text="Another reply")
+            posted_reply.get_by_role("button", name="Delete comment").click()
+            with_htmx_wait(page, page.locator(".swal2-confirm").click)
+            expect(posted_reply).to_have_count(0)
+            expect(page.get_by_role("textbox", name="Title")).to_have_value(edited_title)
+            expect(page.get_by_role("textbox", name="Summary")).to_have_value("Test summary")
             news_item_card = page.locator("article[id^='news-item-card-']").first
             news_item_card.get_by_test_id("edit-newsitem-tags").click()
             expect(news_item_card.get_by_role("heading", name="News item tags")).to_be_in_viewport()
@@ -570,7 +649,8 @@ class TestEndToEndUser(BaseE2ETest):
             expect(page.get_by_role("complementary")).to_contain_text("Generate summary & title")
             expect(page.get_by_role("complementary")).to_contain_text("Run sentiment analysis")
             expect(page.get_by_role("complementary")).to_contain_text("Topic classification")
-            page.get_by_role("textbox", name="Analyst comments").fill("Unsaved analyst comment")
+            page.get_by_text("Add a comment", exact=True).click()
+            page.get_by_role("textbox", name="Comment text").fill("Unsaved analyst comment")
             for action in ("Generate summary & title", "Generate Tags", "Run sentiment analysis", "Topic classification"):
                 with_htmx_wait(page, page.get_by_role("button", name=action, exact=True).click)
                 expect(page.locator("#notification-bar")).to_have_count(1)
@@ -578,7 +658,7 @@ class TestEndToEndUser(BaseE2ETest):
                     "Tag generation scheduled" if action == "Generate Tags" else "Executing Bot scheduled"
                 )
                 expect(page.get_by_role("textbox", name="Title", exact=True)).to_have_value(edited_title)
-                expect(page.get_by_role("textbox", name="Analyst comments")).to_have_value("Unsaved analyst comment")
+                expect(page.get_by_role("textbox", name="Comment text")).to_have_value("Unsaved analyst comment")
             story_id = seeded_story["id"]
             news_item_id = seeded_story["news_items"][0]["id"]
             response = core_request_client.put(
@@ -628,7 +708,7 @@ class TestEndToEndUser(BaseE2ETest):
                 wait_for_htmx_settled(page)
                 assert len(refresh_requests) == 1
                 assert parse_qs(urlparse(refresh_requests[0]).query) == {"layout": ["advanced"], "bot_types": [bot_type]}
-                expect(page.get_by_role("textbox", name="Analyst comments")).to_have_value("Unsaved analyst comment")
+                expect(page.get_by_role("textbox", name="Comment text")).to_have_value("Unsaved analyst comment")
                 expect(page.get_by_test_id("attribute-value-input").nth(1)).to_have_value("Unsaved custom attribute")
                 if bot_type != "SUMMARY_BOT":
                     expect(page.locator("#story-ai-summary")).to_have_value("Private summary draft " * 600)
@@ -648,6 +728,15 @@ class TestEndToEndUser(BaseE2ETest):
             }""")
             page.get_by_role("link", name="Return to story").click()
             expect(page.get_by_test_id("story-title")).to_contain_text(edited_title)
+            comments = page.locator("#comments")
+            expect(comments).to_contain_text("Updated analyst comment")
+            comments.get_by_role("link", name="View discussion").click()
+            expect(page.get_by_role("heading", name=edited_title, exact=True)).to_be_visible()
+            page.get_by_role("link", name="← Discussion").click()
+            expect(page.get_by_role("link", name="Stories", exact=True)).to_have_attribute("aria-current", "page")
+            expect(page.get_by_role("link", name=re.compile(re.escape(edited_title)))).to_contain_text("Updated analyst comment")
+            page.go_back()
+            page.go_back()
             back_to_assess.click()
             expect(page.get_by_placeholder("Search stories")).to_have_value(target_title)
             expect(story_card()).to_be_visible()
@@ -989,6 +1078,171 @@ class TestEndToEndUser(BaseE2ETest):
             for created_id in created_ids:
                 core_request_client.delete(f"/assess/stories/{created_id}", raise_for_status=False)
 
+    def test_ungroup_last_news_item_of_report_story_requires_confirmation(
+        self, non_admin_logged_in_page, forward_console_and_page_errors_non_admin, core_request_client
+    ):
+        page = non_admin_logged_in_page
+        allow_requests_passthru()
+        marker = uuid.uuid4().hex
+        news_item_ids = []
+        report_id = None
+        try:
+            story_ids = []
+            for index in range(2):
+                result = core_request_client.json_request(
+                    "POST",
+                    "/assess/news-items",
+                    json_data={
+                        "title": f"Ungroup item {index} {marker}",
+                        "content": f"Ungroup test {marker}",
+                        "source": "manual",
+                        "osint_source_id": "manual",
+                        "link": f"https://example.invalid/{marker}/{index}",
+                    },
+                )
+                story_ids.append(result["story_id"])
+            core_request_client.post("/assess/stories/group", json_data=story_ids)
+            story_id = story_ids[0]
+            news_item_ids = [item["id"] for item in core_request_client.json_request("GET", f"/assess/stories/{story_id}")["news_items"]]
+            report_title = f"Ungroup report {marker}"
+            report_type_id = core_request_client.json_request("GET", "/analyze/report-types")["items"][0]["id"]
+            report_id = core_request_client.json_request(
+                "POST",
+                "/analyze/report-items",
+                json_data={"title": report_title, "report_item_type_id": report_type_id, "stories": [story_id]},
+            )["id"]
+
+            page.goto(url_for("assess.story", story_id=story_id, _external=True))
+            expect(page.get_by_test_id(f"ungroup-newsitem-{news_item_ids[1]}")).to_be_visible()
+            # Another session ungroups the first item, so this page still offers ungrouping the story's last item.
+            core_request_client.put("/assess/news-items/ungroup", json_data=[news_item_ids[0]])
+
+            ungroup_posts = []
+            page.on(
+                "request",
+                lambda request: ungroup_posts.append(request.url) if request.method == "POST" and "/ungroup/" in request.url else None,
+            )
+            dialog = page.locator("#ungroup_confirm_dialog")
+            for confirm in (False, True):
+                ungroup_button = page.get_by_test_id(f"ungroup-newsitem-{news_item_ids[1]}")
+                if confirm:
+                    with_htmx_wait(page, ungroup_button.click)
+                else:
+                    # A double click must send one request and open one confirmation dialog.
+                    with_htmx_wait(page, ungroup_button.dblclick)
+                    assert len(ungroup_posts) == 1, ungroup_posts
+                    expect(dialog).to_have_count(1)
+                expect(dialog.locator('[data-test-id="affected-reports"]')).to_have_text(report_title)
+                if not confirm:
+                    dialog.locator('[data-test-id="ungroup-cancel"]').click()
+                    expect(dialog).to_have_count(0)
+                    report = core_request_client.json_request("GET", f"/analyze/report-items/{report_id}")
+                    assert [story["id"] for story in report["stories"]] == [story_id]
+            ungroup_url = url_for("assess.ungroup", story_id=story_id, _external=True)
+            page.route(
+                ungroup_url,
+                lambda route: route.fulfill(
+                    status=403,
+                    content_type="text/html",
+                    body='<section id="notification-bar"><div role="alert">User is not allowed to update report</div></section>',
+                ),
+                times=1,
+            )
+            confirm_button = dialog.locator('[data-test-id="ungroup-confirm"]')
+            with page.expect_response(lambda response: response.url == ungroup_url and response.status == 403):
+                confirm_button.click()
+            with pytest.raises(AssertionError, match=r"HTMX response error .* for POST .*/ungroup/.* returned 403"):
+                wait_for_htmx_settled(page)
+            reset_htmx_state(page)
+            expect(dialog).to_be_visible()
+            expect(confirm_button).to_be_enabled()
+            report = core_request_client.json_request("GET", f"/analyze/report-items/{report_id}")
+            assert [story["id"] for story in report["stories"]] == [story_id]
+            ungroup_posts.clear()
+            with page.expect_navigation(url=re.compile(r"/assess(\?|$)")):
+                dialog.locator('[data-test-id="ungroup-confirm"]').dblclick()
+            assert len(ungroup_posts) == 1, ungroup_posts
+            expect(page.locator("#notification-message")).to_contain_text("Successfully ungrouped")
+
+            report = core_request_client.json_request("GET", f"/analyze/report-items/{report_id}")
+            assert report["stories"] == []
+            assert core_request_client.get(f"/assess/stories/{story_id}", raise_for_status=False).status_code == 404
+        finally:
+            allow_requests_passthru()
+            if report_id:
+                core_request_client.delete(f"/analyze/report-items/{report_id}", raise_for_status=False)
+            for news_item_id in news_item_ids:
+                core_request_client.delete(f"/assess/news-items/{news_item_id}", raise_for_status=False)
+
+    def test_delete_news_item_is_disabled_while_request_is_pending(
+        self, non_admin_logged_in_page, forward_console_and_page_errors_non_admin, core_request_client
+    ):
+        page = non_admin_logged_in_page
+        allow_requests_passthru()
+        marker = uuid.uuid4().hex
+        news_item_ids = []
+        try:
+            story_ids = [
+                core_request_client.json_request(
+                    "POST",
+                    "/assess/news-items",
+                    json_data={
+                        "title": f"Delete item {index} {marker}",
+                        "content": f"Delete test {marker}",
+                        "source": "manual",
+                        "osint_source_id": "manual",
+                        "link": f"https://example.invalid/{marker}/{index}",
+                    },
+                )["story_id"]
+                for index in range(2)
+            ]
+            core_request_client.post("/assess/stories/group", json_data=story_ids)
+            story_id = story_ids[0]
+            news_item_ids = [item["id"] for item in core_request_client.json_request("GET", f"/assess/stories/{story_id}")["news_items"]]
+            page.goto(url_for("assess.story", story_id=story_id, _external=True))
+            delete_button = page.get_by_test_id(f"delete-newsitem-{news_item_ids[1]}")
+
+            delete_button.click()
+            page.locator(".swal2-cancel").click()
+            expect(page.locator(".swal2-container")).to_have_count(0)
+            expect(delete_button).to_be_enabled()
+
+            # Hold the first DELETE so the second click lands while it is pending; answer any later DELETE without a swap.
+            delete_requests = []
+            held_routes = []
+
+            def hold_first_delete(route):
+                delete_requests.append(route.request.url)
+                if len(delete_requests) == 1:
+                    held_routes.append(route)
+                else:
+                    route.fulfill(status=204)
+
+            delete_url = url_for("assess.delete_news_item", news_item_id=news_item_ids[1], _external=True)
+            page.route(re.compile(rf"^{re.escape(delete_url)}(\?.*)?$"), hold_first_delete)
+            # Without protection the queued click falls back to the native confirm, which Playwright would otherwise dismiss.
+            native_dialogs = []
+            page.on("dialog", lambda dialog: (native_dialogs.append(dialog.message), dialog.accept()))
+            delete_button.click()
+            with page.expect_request(lambda request: request.method == "DELETE"):
+                page.locator(".swal2-confirm").click()
+            expect(page.locator(".swal2-container")).to_have_count(0)
+            delete_button.click(force=True)
+            assert held_routes, delete_requests
+            held_routes[0].continue_()
+            wait_for_htmx_settled(page)
+
+            assert len(delete_requests) == 1, delete_requests
+            assert native_dialogs == []
+            expect(delete_button).to_have_count(0)
+            assert [item["id"] for item in core_request_client.json_request("GET", f"/assess/stories/{story_id}")["news_items"]] == [
+                news_item_ids[0]
+            ]
+        finally:
+            allow_requests_passthru()
+            for news_item_id in news_item_ids:
+                core_request_client.delete(f"/assess/news-items/{news_item_id}", raise_for_status=False)
+
     def test_story_export(
         self,
         non_admin_logged_in_page: Page,
@@ -1002,11 +1256,8 @@ class TestEndToEndUser(BaseE2ETest):
         possible_story_titles = {expected_title, f"{expected_title} edited title"}
         expected_news_item_title = expected_story["title"]
 
-        page.goto(url_for("assess.assess", _external=True))
+        page.goto(url_for("assess.assess", search=expected_title, _external=True))
         expect(page.get_by_test_id("assess")).to_be_visible()
-
-        page.get_by_placeholder("Search stories").fill(expected_title)
-        with_htmx_wait(page, lambda: page.get_by_placeholder("Search stories").press("Enter"))
 
         story = page.locator("article", has=page.get_by_test_id("story-title").filter(has_text=expected_title)).first
         expect(story).to_be_visible()
@@ -1292,7 +1543,7 @@ class TestEndToEndUser(BaseE2ETest):
             def test_report_item_view():
                 page.get_by_role("link", name="Analyze").click()
                 page.get_by_role("link", name="Test report").click()
-                expect(page.get_by_role("paragraph")).to_contain_text("test summary")
+                expect(page.get_by_test_id("report-stories").get_by_text("test summary", exact=True)).to_be_visible()
 
             def test_remove_story_from_report():
                 page.get_by_role("link", name="Analyze").click()
@@ -1390,7 +1641,7 @@ class TestEndToEndUser(BaseE2ETest):
                 expect(page.get_by_role("textbox", name="Date", exact=True)).to_have_attribute("type", "date")
                 expect(page.get_by_role("textbox", name="Time", exact=True)).to_have_attribute("type", "time")
                 expect(page.get_by_role("textbox", name="Date Time")).to_have_attribute("type", "datetime-local")
-                expect(page.get_by_label("TLP Level Clear Green Amber")).to_be_visible()
+                expect(page.get_by_label("TLP Level")).to_be_visible()
                 expect(page.get_by_role("heading", name="Technical References and")).to_be_visible()
                 expect(page.get_by_text('Unsupported attribute type "')).to_be_visible()
                 expect(page.get_by_text("Attachment editing is not yet")).to_be_visible()
@@ -1437,7 +1688,7 @@ class TestEndToEndUser(BaseE2ETest):
                 page.get_by_role("textbox", name="Date", exact=True).fill("2026-02-05")
                 page.get_by_role("textbox", name="Time", exact=True).fill("11:11")
                 page.get_by_role("textbox", name="Date Time").fill("2026-02-05T11:11")
-                # page.get_by_label("TLP Level Clear Green Amber").select_option("red")
+                # page.get_by_label("TLP Level").select_option("red")
                 page.locator("div").filter(has_text="Stories Remove all Report").nth(4).click()
                 page.get_by_placeholder("CVE field").fill("CVE-2026-24888")
                 page.get_by_placeholder("CVSS field").fill("1")
@@ -1461,7 +1712,7 @@ class TestEndToEndUser(BaseE2ETest):
                 page.get_by_role("textbox", name="Date", exact=True).fill("")
                 page.get_by_role("textbox", name="Time", exact=True).fill("")
                 page.get_by_role("textbox", name="Date Time").fill("")
-                page.get_by_label("TLP Level Clear Green Amber").select_option("clear")
+                page.get_by_label("TLP Level").select_option("clear")
                 page.get_by_placeholder("CVE field").fill("")
                 page.get_by_placeholder("CVSS field").fill("")
                 page.get_by_test_id("save-report").click()
@@ -1487,7 +1738,7 @@ class TestEndToEndUser(BaseE2ETest):
                 expect(page.get_by_role("textbox", name="Date", exact=True)).to_be_empty()
                 expect(page.get_by_role("textbox", name="Time", exact=True)).to_be_empty()
                 expect(page.get_by_role("textbox", name="Date Time")).to_be_empty()
-                expect(page.get_by_label("TLP Level Clear Green Amber")).to_have_value("clear")
+                expect(page.get_by_label("TLP Level")).to_have_value("clear")
                 expect(page.get_by_placeholder("CVE field")).to_be_empty()
                 expect(page.get_by_placeholder("CVSS field")).to_be_empty()
                 expect(page.locator("#report_form")).to_contain_text("Use the NVD CVSS calculator to determine the score.")
@@ -1577,7 +1828,7 @@ class TestEndToEndUser(BaseE2ETest):
                 page.get_by_role("textbox", name="Date *", exact=True).fill("2026-02-05")
                 page.get_by_role("textbox", name="Time *", exact=True).fill("11:11")
                 page.get_by_role("textbox", name="Date Time *").fill("2026-02-05T11:11")
-                page.get_by_label("TLP Level * Clear Green Amber").select_option("clear")
+                page.get_by_label("TLP Level").select_option("clear")
                 page.locator("div").filter(has_text="Stories Remove all Report").nth(4).click()
                 page.get_by_placeholder("CVE field*").fill("CVE-2026-24888")
                 page.get_by_placeholder("CVSS field*").fill("1")
@@ -1633,78 +1884,27 @@ class TestEndToEndUser(BaseE2ETest):
         go_to_analyze()
         check_various_report_type_fields()
 
-    def test_user_report_vanishes_with_higher_tlp(
+    def test_user_report_tlp_choices_match_clearance(
         self,
         non_admin_logged_in_page: Page,
         forward_console_and_page_errors_non_admin,
         pre_seed_report_type_all_attribute_types_optional,
     ):
         page = non_admin_logged_in_page
-        report_title = f"tlp_clear_report_{uuid.uuid4().hex[:8]}"
 
         page.goto(url_for("analyze.analyze", _external=True))
         expect(page.get_by_test_id("analyze")).to_be_visible()
 
         page.get_by_test_id("new-report-button").click()
         expect(page.get_by_role("heading", name="Create Report")).to_be_visible()
-        page.get_by_role("textbox", name="Title").fill(report_title)
+        page.get_by_role("textbox", name="Title").fill(f"tlp_clear_report_{uuid.uuid4().hex[:8]}")
         page.get_by_test_id("report-type-select").select_option(label=self.ALL_ATTRIBUTE_REPORT_TYPE_LABEL)
         page.get_by_test_id("save-report").click()
-        page.get_by_test_id("report-id").inner_text().split("ID: ")[1]
         dismiss_notifications(page)
 
-        page.get_by_label("TLP Level Clear Green Amber").select_option("clear")
-        page.get_by_test_id("save-report").click()
-        expect(page.get_by_label("TLP Level Clear Green Amber")).to_have_value("clear")
-        dismiss_notifications(page)
-
-        page.get_by_role("link", name="Analyze").click()
-        self.assert_item_in_table(page, "report-table", report_title)
-
-        self.open_table_item(page, "report-table", report_title)
-        page.get_by_label("TLP Level Clear Green Amber").select_option("green")
-        page.get_by_test_id("save-report").click()
-        expect(page.get_by_test_id("analyze")).to_be_visible()
-
-        page.get_by_role("link", name="Analyze").click()
-        expect(page.get_by_test_id("analyze")).to_be_visible()
-        self.assert_item_not_in_table(page, "report-table", report_title)
-
-    def test_user_report_detail_is_forbidden_after_higher_tlp(
-        self,
-        non_admin_logged_in_page: Page,
-        forward_console_and_page_errors_non_admin_report_forbidden,
-        pre_seed_report_type_all_attribute_types_optional,
-    ):
-        page = non_admin_logged_in_page
-        report_title = f"tlp_clear_report_detail_{uuid.uuid4().hex[:8]}"
-
-        page.goto(url_for("analyze.analyze", _external=True))
-        expect(page.get_by_test_id("analyze")).to_be_visible()
-
-        page.get_by_test_id("new-report-button").click()
-        expect(page.get_by_role("heading", name="Create Report")).to_be_visible()
-        page.get_by_role("textbox", name="Title").fill(report_title)
-        page.get_by_test_id("report-type-select").select_option(label=self.ALL_ATTRIBUTE_REPORT_TYPE_LABEL)
-        page.get_by_test_id("save-report").click()
-        page.get_by_test_id("report-id").inner_text().split("ID: ")[1]
-        dismiss_notifications(page)
-
-        page.get_by_label("TLP Level Clear Green Amber").select_option("clear")
-        page.get_by_test_id("save-report").click()
-        expect(page.get_by_label("TLP Level Clear Green Amber")).to_have_value("clear")
-        dismiss_notifications(page)
-
-        page.get_by_role("link", name="Analyze").click()
-        self.assert_item_in_table(page, "report-table", report_title)
-        self.open_table_item(page, "report-table", report_title)
-        report_id = page.url.rstrip("/").split("/")[-1]
-
-        page.get_by_label("TLP Level Clear Green Amber").select_option("green")
-        page.get_by_test_id("save-report").click()
-        expect(page.get_by_test_id("analyze")).to_be_visible()
-        page.goto(url_for("analyze.report", report_id=report_id, _external=True))
-        expect(page.get_by_text("403 - Access denied")).to_be_visible()
+        tlp_select = page.get_by_label("TLP Level")
+        expect(tlp_select).to_have_value("clear")
+        expect(tlp_select.locator("option")).to_have_text(["Clear"])
 
     def test_publish(
         self,
@@ -1714,6 +1914,7 @@ class TestEndToEndUser(BaseE2ETest):
         core_request_client,
         api_header,
     ):
+        """Create, render, publish, and copy a product, checking its Report Items table along the way."""
         page = non_admin_logged_in_page
         product_title = f"test_product_{str(uuid.uuid4())[:8]}"
 
@@ -1732,10 +1933,37 @@ class TestEndToEndUser(BaseE2ETest):
             page.get_by_placeholder("Description").fill("This is a test product.")
             self.highlight_element(page.get_by_test_id("save-product")).click()
 
-        load_product_list()
-        add_product()
-        expect(page.get_by_test_id("copy-product")).to_be_visible()
-        expect(page.locator("[data-product-report-items-enhanced]")).to_be_visible()
+        def create_report_with_stories() -> tuple[str, str, int]:
+            """Create an OSINT Report with two stories through Core and return its ID, title, and story count."""
+            report_types = core_request_client.json_request("GET", "/analyze/report-types")["items"]
+            report_type_id = next(report_type["id"] for report_type in report_types if report_type["title"] == "OSINT Report")
+            story_ids = [story["id"] for story in core_request_client.json_request("GET", "/assess/stories")["items"][:2]]
+            title = f"{product_title} report"
+            response = core_request_client.post(
+                "/analyze/report-items", json_data={"title": title, "report_item_type_id": report_type_id, "stories": story_ids}
+            )
+            response.raise_for_status()
+            return response.json()["id"], title, len(story_ids)
+
+        def check_report_items_table(report_title: str, story_count: int):
+            """Assert the product's Report Items row shows the seconds-only timestamp and the story count."""
+            report_items = page.locator("[data-product-report-items-enhanced]")
+            expect(report_items.locator("thead")).to_contain_text("Stories")
+            report_items.get_by_placeholder("Search...").fill(report_title)
+            cells = report_items.locator("tbody tr", has_text=report_title).locator("td")
+            expect(cells.nth(3)).to_have_text(re.compile(r"^\s*\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\s*$"))
+            expect(cells.nth(4)).to_have_text(str(story_count))
+            report_items.get_by_placeholder("Search...").fill("")
+
+        report_id, report_title, report_story_count = create_report_with_stories()
+        try:
+            load_product_list()
+            add_product()
+            expect(page.get_by_test_id("copy-product")).to_be_visible()
+            expect(page.locator("[data-product-report-items-enhanced]")).to_be_visible()
+            check_report_items_table(report_title, report_story_count)
+        finally:
+            core_request_client.delete(f"/analyze/report-items/{report_id}")
         source_url = page.url
         product_type = page.locator("#product_type_id").input_value()
 
@@ -1777,11 +2005,15 @@ class TestEndToEndUser(BaseE2ETest):
 
         render_requests = []
         page.on("request", lambda request: render_requests.append(request.url) if request.method == "POST" else None)
+        page.locator("#comments > summary").click()
+        page.get_by_role("textbox", name="Comment text").fill("Unfinished product comment")
         page.get_by_placeholder("Description").fill("Updated before rendering")
         page.locator("#render_button").click()
         dirty_dialog = page.locator("#dirty_dialog")
         expect(dirty_dialog).to_be_visible()
-        with_htmx_wait(page, lambda: dirty_dialog.get_by_role("button", name="Save and Continue").click())
+        page.once("dialog", lambda dialog: dialog.accept())
+        with page.expect_event("dialog"):
+            with_htmx_wait(page, lambda: dirty_dialog.get_by_role("button", name="Save and Continue").click())
         expect(dirty_dialog).not_to_be_visible()
         expect(page.get_by_placeholder("Description")).to_have_value("Updated before rendering")
         assert not any(url.endswith("/render") for url in render_requests)

@@ -1,3 +1,3 @@
 # Taranis Ingress
 
-The Ingress is a Nginx based on [nginxinc/nginx-unprivileged:mainline](https://hub.docker.com/r/nginxinc/nginx-unprivileged).
+The ingress uses the [NGINX Unprivileged image](https://hub.docker.com/r/nginx/nginx-unprivileged) pinned in the [ingress Containerfile](../../docker/Containerfile.ingress).

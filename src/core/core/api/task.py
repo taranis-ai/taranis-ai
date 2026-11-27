@@ -54,7 +54,10 @@ class CompletedRuns(MethodView):
     @api_key_or_auth_required("CONFIG_OSINT_SOURCE_ACCESS")
     @extract_args("search", "page", "limit", "order", "status")
     def get(self, filter_args: dict[str, Any] | None = None):
-        return TaskService.get_completed_runs(TaskRunFilter.model_validate(filter_args or {}))
+        filter_args = dict(filter_args or {})
+        if "job_ids" in request.args:
+            filter_args["job_ids"] = request.args.getlist("job_ids")
+        return TaskService.get_completed_runs(TaskRunFilter.model_validate(filter_args))
 
 
 def initialize(app: Flask):

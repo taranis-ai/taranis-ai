@@ -129,10 +129,10 @@ class DataPersistenceLayer:
             links=links,
         )
 
-    def get_object(self, object_model: type[T], object_id: str | None = None) -> T | None:
+    def get_object(self, object_model: type[T], object_id: str | None = None, *, use_cache: bool = True) -> T | None:
         endpoint = self.get_endpoint(object_model)
         cache_key = self.make_detail_cache_key(object_model, object_id)
-        cached_object = self._load_cached_object(cache_key, object_model)
+        cached_object = self._load_cached_object(cache_key, object_model) if use_cache else None
         if cached_object is not None:
             logger.debug(f"Cache hit for {cache_key}")
             return cached_object
@@ -141,7 +141,8 @@ class DataPersistenceLayer:
         result = self.api.api_get(path)
         if isinstance(result, dict):
             cache_object = object_model(**result)
-            cache.set(key=cache_key, value=cache_object.model_dump(mode="json"), timeout=getattr(object_model, "_cache_timeout", None))
+            if use_cache:
+                cache.set(key=cache_key, value=cache_object.model_dump(mode="json"), timeout=getattr(object_model, "_cache_timeout", None))
             return cache_object
         logger.warning(f"Failed to fetch object from: {endpoint}")
         return None

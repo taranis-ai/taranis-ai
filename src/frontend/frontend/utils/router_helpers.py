@@ -9,7 +9,7 @@ from frontend.cache_models import PagingData
 
 
 def is_htmx_request() -> bool:
-    return "HX-Request" in request.headers
+    return "HX-Request" in request.headers and request.headers.get("HX-History-Restore-Request") != "true"
 
 
 def get_assess_return_url() -> str | None:
