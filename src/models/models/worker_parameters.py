@@ -274,13 +274,6 @@ class IOCBotParameters(BotParameters):
     pass
 
 
-class Image2TextBotParameters(BotParameters):
-    USERNAME: str = Field(
-        min_length=1, title="Media Intelligence username", description="Account used to submit images to AIT Media Intelligence."
-    )
-    PASSWORD: SecretStr = Field(min_length=1, title="Media Intelligence password", description="Password for the Media Intelligence account.")
-
-
 class IntelOwlBotParameters(BotParameters):
     INTEL_OWL_URL: str = Field(min_length=1, title="IntelOwl URL", description="IntelOwl service URL.")
     INTEL_OWL_API_KEY: SecretStr = Field(min_length=1, title="IntelOwl API key", description="IntelOwl API key.")
@@ -308,6 +301,18 @@ class SharedLLMBotParameters(BotParameters):
     )
     # Accept stored service credentials without offering unused controls in the form.
     BOT_API_KEY: SkipJsonSchema[SecretStr] = SecretStr("")
+
+
+class Image2TextBotParameters(SharedLLMBotParameters):
+    CAPTIONING_API: Literal["media_miner", "llm_bot"] = Field("media_miner", title="Captioning API")
+    USERNAME: str = Field("", title="Media Miner username", description="AIT Media Intelligence account used to submit images.")
+    PASSWORD: SecretStr = Field(SecretStr(""), title="Media Miner password", description="Password for the AIT Media Intelligence account.")
+
+    @model_validator(mode="after")
+    def validate_media_credentials(self):
+        if self.CAPTIONING_API == "media_miner" and (not self.USERNAME.strip() or not self.PASSWORD.get_secret_value()):
+            raise ValueError("Enter a Media Miner username and password")
+        return self
 
 
 class NLPBotParameters(SharedLLMBotParameters):
@@ -566,7 +571,7 @@ _DEFINITIONS = (
     _definition(
         WORKER_TYPES.IMAGE2TEXT_BOT,
         "Image2Text",
-        "Describe images attached to news items with AIT Media Intelligence",
+        "Describe images attached to news items using Media Miner or an LLM endpoint",
         Image2TextBotParameters,
     ),
     _definition(WORKER_TYPES.INTEL_OWL_BOT, "IntelOwl Bot", "Bot for submitting observables to IntelOwl", IntelOwlBotParameters),

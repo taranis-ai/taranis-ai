@@ -81,7 +81,7 @@ def bot_task(bot_id: str, filter: dict | None = None, trigger_dependents: bool =
         worker_type = bot_config.get("type", worker_type).upper()
         if not job and (bot_config.get("llm_endpoint") or {}).get("processing_mode") == "openrouter_batch":
             raise RuntimeError("Batch processing requires a queued job")
-        checkpointed = bot_config.get("type") in LLM_BOT_FEATURES or worker_type in TAGGING_BOTS or worker_type == "IMAGE2TEXT_BOT"
+        checkpointed = worker_type.lower() in LLM_BOT_FEATURES or worker_type in TAGGING_BOTS
         if job and checkpointed and batch_state is None:
             batch_state = {"config": bot_config}
             job.meta["llm_batch"] = batch_state

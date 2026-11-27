@@ -1,5 +1,6 @@
 {% from "macros/forms.html" import form_select %}
-{% if llm_endpoint_options is not none and llm_endpoint_options is defined %}
+{% from "partials/worker_parameters.html" import worker_parameter %}
+{% macro llm_endpoint_selector() %}
   <div data-test-id="bot-llm-endpoint">
     {{ form_select('LLM endpoint', 'parameters[LLM_ENDPOINT]', parameter_values.get('LLM_ENDPOINT', ''), options=llm_endpoint_options, required=False) }}
     <p class="text-sm mb-5">
@@ -7,6 +8,33 @@
       <a class="link link-primary" href="{{ url_for('admin_settings.settings', _anchor='llm-endpoints') }}">Manage LLM endpoints</a>
     </p>
   </div>
+{% endmacro %}
+{% set provider = parameters | selectattr('name', 'equalto', 'CAPTIONING_API') | first %}
+{% if provider %}
+  {% set selected = parameter_values.get(provider.name, provider.value) %}
+  <div x-data='{ provider: {{ selected | tojson }} }'>
+    <div x-on:change="provider = $event.target.value">
+      {{ form_select(provider.label, 'parameters[CAPTIONING_API]', selected, options=[{'id': 'media_miner', 'name': 'Media Miner API'}, {'id': 'llm_bot', 'name': 'llm-bot'}]) }}
+    </div>
+    <fieldset x-show="provider === 'media_miner'" x-bind:disabled="provider !== 'media_miner'">
+      {% for field in parameters if field.name in ['USERNAME', 'PASSWORD'] %}
+        {{ worker_parameter(dict(field, required=true), parameter_values, [], false, secret_reveal_url, [], []) }}
+      {% endfor %}
+    </fieldset>
+    <fieldset x-show="provider === 'llm_bot'" x-bind:disabled="provider !== 'llm_bot'">
+      <p class="text-sm mb-2">
+        Image captioning requires a vision-capable model.
+        {% if parameter_values.get("PASSWORD") %}Saving this change clears the saved Media Miner credentials.{% endif %}
+      </p>
+      {{ llm_endpoint_selector() }}
+      {% for field in parameters if field.name == 'REQUESTS_TIMEOUT' %}
+        {{ worker_parameter(field, parameter_values, [], false, '', [], []) }}
+      {% endfor %}
+    </fieldset>
+  </div>
+  {% set parameters = parameters | rejectattr('name', 'in', ['CAPTIONING_API', 'USERNAME', 'PASSWORD', 'REQUESTS_TIMEOUT']) | list %}
+{% elif llm_endpoint_options is defined and llm_endpoint_options is not none %}
+  {{ llm_endpoint_selector() }}
 {% endif %}
 {% include "partials/worker_parameters.html" %}
 {% include "bot/bot_run_order.html" %}

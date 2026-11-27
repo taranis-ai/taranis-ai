@@ -3,7 +3,7 @@ from copy import deepcopy
 from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from models.llm import LLM_BOT_FEATURES, LLM_FEATURES, LLMEndpoint, LLMProvider
+from models.llm import LLM_FEATURES, LLMEndpoint, LLMProvider
 from sqlalchemy import event
 from sqlalchemy.orm import Mapped, Session
 
@@ -288,7 +288,7 @@ class Settings(BaseModel):
         if endpoint_id == values.get("llm_classification_endpoint") and "classification" in lost_features:
             return {"error": "Reassign topic classification before changing this endpoint's API format."}, 400
         for bot in db.session.execute(db.select(Bot)).scalars():
-            if bot.parameters.get("LLM_ENDPOINT") == endpoint_id and LLM_BOT_FEATURES.get(bot.type.value) in lost_features:
+            if bot.parameters.get("LLM_ENDPOINT") == endpoint_id and bot.llm_feature in lost_features:
                 return {"error": "Reassign incompatible bots before changing this endpoint's API format."}, 400
         entry.settings = values
         db.session.commit()

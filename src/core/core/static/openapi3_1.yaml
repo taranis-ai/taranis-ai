@@ -9673,7 +9673,7 @@ paths:
         Get settings including llm_endpoints (API keys omitted, api_key_configured
         indicates whether a key is stored). Assignments use llm_default_endpoint,
         llm_chat_endpoint, llm_clustering_endpoint, llm_summarization_endpoint,
-        llm_ner_endpoint, llm_sentiment_endpoint, and llm_classification_endpoint.
+        llm_ner_endpoint, llm_image2text_endpoint, llm_sentiment_endpoint, and llm_classification_endpoint.
         Empty feature assignments inherit the default; an empty default leaves
         unassigned features unconfigured. Change assignments through settings
         PATCH and manage endpoint definitions through the llm-endpoints routes.

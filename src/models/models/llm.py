@@ -14,6 +14,7 @@ LLM_FEATURES = {
     "clustering": "Story clustering",
     "summarization": "Summarization and titles",
     "ner": "Named-entity recognition",
+    "image2text": "Image descriptions",
     "sentiment": "Sentiment analysis",
     "classification": "Topic classification",
 }
@@ -23,6 +24,7 @@ LLM_BOT_FEATURES = {
     "story_bot": "clustering",
     "summary_bot": "summarization",
     "nlp_bot": "ner",
+    "image2text_bot": "image2text",
     "sentiment_analysis_bot": "sentiment",
     "cybersec_classifier_bot": "classification",
 }

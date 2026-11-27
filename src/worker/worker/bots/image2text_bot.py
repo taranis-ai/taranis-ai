@@ -8,9 +8,11 @@ from models.task import FAILURE_MESSAGES
 from niquests import Response, Session
 from niquests.exceptions import RequestException
 from PIL import Image
+from rq import Retry
 
 from worker.bot_api import BotServiceUnavailableError
 from worker.bots.base_bot import BaseBot
+from worker.bots.image2text_llm import describe_with_llm
 from worker.log import logger
 
 
@@ -113,12 +115,20 @@ class Image2TextBot(BaseBot):
             return {"story_id": story_id}
         return {**super().get_filter_dict(parameters), "missing_image_description": True}
 
+    def _read_image(self, image_id: str) -> bytes | None:
+        try:
+            return self.core_api.get_image(image_id)
+        except (RequestException, ValueError) as exc:
+            logger.warning(f"Image2Text failed for image {image_id} ({type(exc).__name__})")
+            return None
+
     def _describe_batch(self, session: Session, images: tuple[tuple[str, str], ...]) -> dict[str, str]:
         files = {}
         for image_id, mime_type in images:
             try:
-                files[image_id] = _upload_file(image_id, self.core_api.get_image(image_id), mime_type)
-            except (RequestException, OSError, ValueError, KeyError) as exc:
+                if data := self._read_image(image_id):
+                    files[image_id] = _upload_file(image_id, data, mime_type)
+            except (OSError, ValueError, KeyError) as exc:
                 logger.warning(f"Image2Text failed for image {image_id} ({type(exc).__name__})")
         if not files:
             return {}
@@ -129,19 +139,23 @@ class Image2TextBot(BaseBot):
             raise BotServiceUnavailableError from None
         return {image_id: captions[name] for image_id, (name, _, _) in files.items() if name in captions}
 
-    def execute(self, parameters: dict | None = None) -> dict:
+    def execute(self, parameters: dict | None = None) -> dict | Retry:
         parameters = parameters or {}
         descriptions = parameters.get("_llm_batch_state", {}).setdefault("image_descriptions", {})
         save_state = parameters.get("_save_llm_batch_state")
         regenerate = self._regeneration_story_id(parameters)
-        pending = {
+        images = {
             image["id"]: image["mime_type"]
             for story in self.get_stories(parameters)
             for item in story.get("news_items", [])
             for image in item.get("images", [])
-            if (regenerate or not image.get("description")) and image["id"] not in descriptions
+            if regenerate or not image.get("description")
         }
-        if pending:
+        pending = {image_id: mime for image_id, mime in images.items() if image_id not in descriptions}
+        if pending and parameters.get("CAPTIONING_API") == "llm_bot":
+            if retry := describe_with_llm(parameters, images, self._read_image, descriptions):
+                return retry
+        elif pending:
             # This service needs its login cookie across requests, isolated from Core and other bots.
             with Session(retries=0, disable_http3=True) as session:
                 authenticate_media_int(session, parameters)

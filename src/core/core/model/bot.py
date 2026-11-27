@@ -497,32 +497,36 @@ class Bot(BaseModel):
     def job_timeout(self) -> int:
         return self.parameters.get("EXECUTION_TIMEOUT") or Config.RQ_DEFAULT_JOB_TIMEOUT
 
-    def get_llm_endpoint_id(self, settings: dict) -> str | None:
+    @property
+    def llm_feature(self) -> str | None:
         from models.llm import LLM_BOT_FEATURES
 
-        if feature := LLM_BOT_FEATURES.get(self.type.value):
+        if self.type == BOT_TYPES.IMAGE2TEXT_BOT and self.parameters.get("CAPTIONING_API") != "llm_bot":
+            return None
+        return LLM_BOT_FEATURES.get(self.type.value)
+
+    def get_llm_endpoint_id(self, settings: dict) -> str | None:
+        if feature := self.llm_feature:
             return self.parameters.get("LLM_ENDPOINT") or settings.get(f"llm_{feature}_endpoint") or settings.get("llm_default_endpoint")
         return None
 
     def to_worker_dict(self) -> dict[str, Any]:
-        from models.llm import LLM_BOT_FEATURES, LLMProvider
+        from models.llm import LLMProvider
 
         from core.model.settings import Settings
 
         data = super().to_dict()
         data["parameters"] = effective_parameters(self.type, self.parameters)
-        if self.type.value in LLM_BOT_FEATURES:
+        if feature := self.llm_feature:
             settings = Settings.get_settings()
             endpoint = settings["llm_endpoints"].get(self.get_llm_endpoint_id(settings))
-            data["llm_endpoint"] = LLMProvider.model_validate(endpoint).for_feature(LLM_BOT_FEATURES[self.type.value]) if endpoint else None
+            data["llm_endpoint"] = LLMProvider.model_validate(endpoint).for_feature(feature) if endpoint else None
         return data
 
     def is_llm_endpoint_enabled(self, settings: dict | None = None) -> bool:
-        from models.llm import LLM_BOT_FEATURES
-
         from core.model.settings import Settings
 
-        if self.type.value not in LLM_BOT_FEATURES:
+        if not self.llm_feature:
             return True
         settings = settings if settings is not None else Settings.get_settings()
         endpoint = settings.get("llm_endpoints", {}).get(self.get_llm_endpoint_id(settings))

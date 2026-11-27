@@ -44,6 +44,10 @@ def set_parameters(
     normalized = normalize_parameter_values(
         worker_type, candidate, complete=complete, context={"rq_job_timeout": Config.RQ_DEFAULT_JOB_TIMEOUT}
     )
+    if worker_type.lower() == "image2text_bot":
+        inactive = ("USERNAME", "PASSWORD") if normalized.get("CAPTIONING_API") == "llm_bot" else ("LLM_ENDPOINT", "REQUESTS_TIMEOUT")
+        for name in inactive:
+            normalized.pop(name, None)
     if endpoint_id := normalized.get("LLM_ENDPOINT"):
         from core.managers.db_manager import db
         from core.model.settings import Settings
