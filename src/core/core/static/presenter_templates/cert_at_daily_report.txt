@@ -1,65 +1,69 @@
 {% if data.report_items|length != 1 -%}
 This Template needs exactly one Report
 {% else -%}
-{% set report = data.report_items[0].attributes -%}
-{% set stories = data.report_items[0].stories %}
+{% set report = data.report_items[0].attributes.get('Data', {}) -%}
+{% set stories = data.report_items[0].stories | default([], true) -%}
 
 =====================
 = End-of-Day report =
 =====================
 
-Timeframe:   {{ report.timeframe }}
-Handler:     {{ report.handler }}
-Co-Handler:  {{ report.co_handler }}
+Date:        {{ report.get('date') | default('', true) }}
+Timeframe:   {{ report.get('timeframe') | default('', true) }}
+Handler:     {{ report.get('handler') | default('', true) }}
+Co-Handler:  {{ report.get('co_handler') | default('', true) }}
 
 
 =====================
 =       News        =
 =====================
-
-{% for group_id in report.news.split(',') -%}
+{% if report.get('news') %}
+{% for group_id in report.get('news').split(',') -%}
+{% set gid = group_id.strip() -%}
 {% for story in stories -%}
-{% if story.id|string == group_id -%}
+{% if story.id|string == gid -%}
 
 *** {{ story.title }} ***
 ---------------------------------------------
 {% if story.summary is defined and story.summary|length -%}
 {{ story.summary }}
-{% else -%}
+{% elif story.news_items -%}
 {{ story.news_items[0].content }}
 {%- endif %}
 ---------------------------------------------
-{% for item in story.news_items -%}
+{% for item in story.news_items | default([], true) -%}
 {{ item.link }}
 {% endfor %}
 
 {%- endif %}
 {%- endfor %}
 {%- endfor %}
-
+{%- endif %}
 
 
 =====================
 =  Vulnerabilities  =
 =====================
-
-{% for group_id in report.vulnerabilities.split(',') -%}
+{% if report.get('vulnerabilities') %}
+{% for group_id in report.get('vulnerabilities').split(',') -%}
+{% set gid = group_id.strip() -%}
 {% for story in stories -%}
-{% if story.id|string == group_id -%}
+{% if story.id|string == gid -%}
 
 *** {{ story.title }} ***
 ---------------------------------------------
 {% if story.summary is defined and story.summary|length -%}
 {{ story.summary }}
-{% else -%}
+{% elif story.news_items -%}
 {{ story.news_items[0].content }}
 {%- endif %}
 ---------------------------------------------
-{% for item in story.news_items -%}
+{% for item in story.news_items | default([], true) -%}
 {{ item.link }}
 {% endfor %}
 
 {%- endif %}
 {%- endfor %}
 {%- endfor %}
+{%- endif %}
 {% endif -%}

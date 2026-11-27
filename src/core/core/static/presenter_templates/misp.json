@@ -1,20 +1,54 @@
+{% set threat_level_map = {'High': '1', 'Medium': '2', 'Low': '3', 'Undefined': '4'} -%}
+{% set distribution_map = {
+    'Your Organisation Only': '0',
+    'Your Organisation only': '0',
+    'This Community Only': '1',
+    'Connected Communities': '2',
+    'Conected Communities': '2',
+    'All Communities': '3',
+    'Sharing Group': '4',
+    'Inherit Event': '5'
+} -%}
+{% set analysis_map = {'Initial': '0', 'Ongoing': '1', 'Complete': '2'} -%}
+{% set report_item = data.report_items[0] if data.report_items else {} -%}
+{% set attrs = report_item.attributes if report_item and report_item.attributes is mapping else {} -%}
+{% set summary = attrs.get('Summary', {}) if attrs.get('Summary') is mapping else {} -%}
+{% set event_threat_level = summary.get('Threat level') or attrs.get('event_threat_level') or 'Undefined' -%}
+{% set event_info = summary.get('Summary') or attrs.get('event_info') or report_item.get('title') or data.get('title') or '' -%}
+{% set event_distribution = attrs.get('event_distribution') or 'Your Organisation Only' -%}
+{% set event_analysis = attrs.get('event_analysis') or 'Initial' -%}
+{% set ns = namespace(items=[]) -%}
+{% if attrs.get('attribute_value') -%}
+{% set ns.items = ns.items + [{
+    'type': attrs.get('attribute_type') or 'comment',
+    'category': attrs.get('attribute_category') or 'Other',
+    'to_ids': attrs.get('attribute_additional_information') == 'For Intrusion Detection System',
+    'disable_correlation': attrs.get('attribute_additional_information') == 'Disable Correlation',
+    'distribution': distribution_map.get(attrs.get('attribute_distribution') or '', '5'),
+    'comment': attrs.get('attribute_contextual_comment') or '',
+    'value': attrs.get('attribute_value')
+}] -%}
+{% endif -%}
+{% for story in report_item.get('stories', []) if report_item -%}
+{% for item in story.get('news_items', []) -%}
+{% if item.get('link') -%}
+{% set ns.items = ns.items + [{
+    'type': 'link',
+    'category': 'External analysis',
+    'to_ids': False,
+    'disable_correlation': False,
+    'distribution': '5',
+    'comment': story.get('title') or '',
+    'value': item.get('link')
+}] -%}
+{% endif -%}
+{% endfor -%}
+{% endfor -%}
 {
-{% for report_item in data.report_items %}
-    "threat_level_id": {% if report_item.attributes.event_threat_level == 'High' %}"1"{% endif %}{% if report_item.attributes.event_threat_level == 'Medium' %}"2"{% endif %}{% if report_item.attributes.event_threat_level == 'Low' %}"3"{% endif %}{% if report_item.attributes.event_threat_level == 'Undefined' %}"4"{% endif %},
-    "info": {% if report_item.attributes.event_info %}"{{ report_item.attributes.event_info }}"{% endif %},
+    "threat_level_id": {{ threat_level_map.get(event_threat_level, '4') | tojson }},
+    "info": {{ event_info | tojson }},
     "published": false,
-    "distribution": {% if report_item.attributes.event_distribution == 'Your Organisation only' %}"0"{% endif %}{% if report_item.attributes.event_distribution == 'This Community Only' %}"1"{% endif %}{% if report_item.attributes.event_distribution == 'Conected Communities' %}"2"{% endif %}{% if report_item.attributes.event_distribution == 'All Communities' %}"3"{% endif %}{% if report_item.attributes.event_distribution == 'Sharing Group' %}"4"{% endif %},
-    "analysis": {% if report_item.attributes.event_analysis == 'Initial' %}"0"{% endif %}{% if report_item.attributes.event_analysis == 'Ongoing' %}"1"{% endif %}{% if report_item.attributes.event_analysis == 'Complete' %}"2"{% endif %},
-    "Attribute": [
-        {
-        "type": {% if report_item.attributes.attribute_type %}"{{ report_item.attributes.attribute_type }}"{% endif %},
-        "category": {% if report_item.attributes.attribute_category %}"{{ report_item.attributes.attribute_category }}"{% endif %},
-        "to_ids": {% if report_item.attributes.attribute_additional_information == 'For Intrusion Detection System' %}true{% else %}false{% endif %},
-        "disable_correlation": {% if report_item.attributes.attribute_additional_information == 'Disable Correlation' %}true{% else %}false{% endif %},
-        "distribution": {% if report_item.attributes.attribute_distribution == 'Your Organisation Only' %}"0"{% endif %}{% if report_item.attributes.attribute_distribution == 'This Community Only' %}"1"{% endif %}{% if report_item.attributes.attribute_distribution == 'Connected Communities' %}"2"{% endif %}{% if report_item.attributes.attribute_distribution == 'All Communities' %}"3"{% endif %}{% if report_item.attributes.attribute_distribution == 'Sharing Group' %}"4"{% endif %}{% if report_item.attributes.attribute_distribution == 'Inherit Event' %}"5"{% endif %},
-        "comment": {% if report_item.attributes.attribute_contextual_comment %}"{{ report_item.attributes.attribute_contextual_comment }}"{% endif %},
-        "value": {% if report_item.attributes.attribute_value %}"{{ report_item.attributes.attribute_value }}"{% endif %}
-        }
-    ]
-{% endfor %}
+    "distribution": {{ distribution_map.get(event_distribution, '0') | tojson }},
+    "analysis": {{ analysis_map.get(event_analysis, '0') | tojson }},
+    "Attribute": {{ ns.items | tojson }}
 }
