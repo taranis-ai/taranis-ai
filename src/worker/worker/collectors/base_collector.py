@@ -123,10 +123,18 @@ class BaseCollector:
         try:
             for item in self.process_news_items(items, source):
                 payload = item.model_dump(mode="json")
+                candidates = item.image_candidates
+                if candidates:
+                    identity = {"osint_source_id": item.osint_source_id, "link": item.link, "title": item.title}
+                    if not item.link or not item.title:
+                        identity["content"] = item.content
+                    known = self.core_api.get_known_news_item_images(identity)
+                    payload["known_image_descriptions"] = {known[url]: alt for url, alt in candidates.items() if url in known and alt}
+                    candidates = {url: alt for url, alt in candidates.items() if url not in known}
                 # Leave room for the JSON envelope within Core's 50 MiB request limit.
                 remaining = 49 * 1024 * 1024 - len(json.dumps(payload).encode())
                 payload["captured_images"] = asyncio.run(
-                    self._capture_images(item.image_candidates, source["parameters"].get("PROXY_SERVER"), remaining)
+                    self._capture_images(candidates, source["parameters"].get("PROXY_SERVER"), remaining)
                 )
                 result = self.core_api.add_news_items([payload])
                 if result:
@@ -147,8 +155,8 @@ class BaseCollector:
     def publish(self, news_items: list[NewsItem], source: dict):
         if source.get("parameters", {}).get("COLLECT_IMAGES"):
             result = self.publish_with_images(news_items, source)
-            if not self.affected_story_ids and not self.skipped_images:
-                raise NoChangeError("All news items were skipped")
+            if not self.affected_story_ids:
+                raise NoChangeError(result["message"])
             return result["message"]
         news_items = self.process_news_items(news_items, source)
         logger.info(f"Publishing {len(news_items)} news items to core api")

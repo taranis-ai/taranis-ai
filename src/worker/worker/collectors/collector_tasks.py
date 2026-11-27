@@ -270,9 +270,6 @@ def collector_task(osint_source_id: str, manual: bool = False):
         core_api.run_post_collection_bots(osint_source_id, story_ids=sorted(collector_impl.affected_story_ids))
 
     reason = None
-    if collector_impl.skipped_images:
-        task_status = "WARNING"
-        reason = "images_skipped"
     if isinstance(collector_impl, RSSCollector) and (warning := collector_impl.entry_limit_warning):
         task_status = "WARNING"
         reason = "rss_entry_limit"
@@ -449,11 +446,11 @@ def fetch_single_news_item(parameters: dict[str, Any]):
         core_api.save_task_result(
             job.id,
             "collector_task",
-            "WARNING" if collector.skipped_images else "SUCCESS",
+            "SUCCESS",
             worker_id=worker_id,
             worker_type=worker_type,
             result=build_success_task_result(
-                default_message=f"Fetched news item from {worker_id}",
+                default_message=preview_result["message"] if isinstance(preview_result, dict) else f"Fetched news item from {worker_id}",
                 data=preview_result,
             ),
         )

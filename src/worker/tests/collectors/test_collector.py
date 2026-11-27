@@ -849,3 +849,13 @@ def test_article_capture_follows_selected_content_and_checks_redirects(rss_colle
     assert asyncio.run(rss_collector._capture_images({cover_url: None}, None, 1024)) == []
     assert rss_collector.skipped_images == 1
     response.__aexit__.assert_awaited_once()
+
+    stored = requests_mock.post(f"{Config.TARANIS_CORE_URL}/worker/news-items/known-images", json={cover_url: "stored-id"})
+    published = requests_mock.post(f"{Config.TARANIS_CORE_URL}/worker/news-items", json={"story_ids": ["story"]})
+    rss_collector.skipped_images = 0
+    send.reset_mock()
+    assert rss_collector.publish([item], source) == "Collected 1 stories. Skipped 1 images"
+    assert stored.called and send.await_count == 1
+    assert send.await_args.args[0].url == chart_url
+    assert published.last_request.json()[0]["known_image_descriptions"] == {"stored-id": "Cover & key"}
+    assert published.last_request.json()[0]["captured_images"] == []

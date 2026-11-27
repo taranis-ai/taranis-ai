@@ -65,7 +65,7 @@ class NewsItem(BaseModel):
     attributes: Mapped[list["NewsItemAttribute"]] = relationship(
         "NewsItemAttribute", secondary="news_item_news_item_attribute", cascade="all, delete"
     )
-    images: Mapped[list[NewsItemImage]] = relationship(cascade="all, delete-orphan", order_by=NewsItemImage.id)
+    images: Mapped[list[NewsItemImage]] = relationship(cascade="all, delete-orphan", order_by=(NewsItemImage.captured, NewsItemImage.id))
     tags: Mapped[list["NewsItemTag"]] = relationship("NewsItemTag", back_populates="news_item", cascade="all, delete")
 
     osint_source_id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("osint_source.id"), nullable=True, index=True)

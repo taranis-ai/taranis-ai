@@ -10158,6 +10158,11 @@ paths:
                         source_url: {type: string, format: uri}
                         alt_text: {type: [string, "null"], description: Source alt text used as the initial image description.}
                         data: {type: string, contentEncoding: base64}
+                  known_image_descriptions:
+                    type: object
+                    maxProperties: 8
+                    additionalProperties: {type: [string, "null"]}
+                    description: Source captions keyed by stored image ID. Fills empty descriptions on this item.
       responses:
         '200':
           description: success
@@ -10179,6 +10184,39 @@ paths:
           description: forbidden
         '404':
           $ref: '#/components/responses/404NotFound'
+  /worker/news-items/known-images:
+    post:
+      security:
+      - APIKey: []
+      description: Look up stored image URLs for a collected article before downloading candidates.
+      operationId: worker.known_news_item_images_worker.post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [osint_source_id]
+              anyOf:
+              - required: [title]
+              - required: [content]
+              properties:
+                osint_source_id: {type: string}
+                link: {type: [string, "null"]}
+                title: {type: [string, "null"]}
+                content: {type: [string, "null"]}
+      responses:
+        '200':
+          description: Stored image IDs keyed by source URL, empty for an unknown article.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {type: string}
+        '400':
+          description: Invalid article identity
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
   /worker/osint-sources:
     get:
       security:

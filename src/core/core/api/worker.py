@@ -33,6 +33,7 @@ from core.service.cache_invalidation import (
     SCOPE_STORY_REPORT_VIEWS,
     invalidate_frontend_cache_on_success,
 )
+from core.service.collection import CollectionService
 from core.service.misp_auto_update import cancel_misp_auto_update_jobs
 from core.service.news_item import NewsItemService
 from core.service.news_item_tag import NewsItemTagService
@@ -57,6 +58,15 @@ class AddNewsItems(MethodView):
             200 if result.get("news_item_ids") else status, scopes=(SCOPE_ASSESS_VIEWS, SCOPE_STORY_REPORT_VIEWS)
         )
         return result, status
+
+
+class KnownNewsItemImages(MethodView):
+    @api_key_required
+    def post(self):
+        item, error = Story.check_news_item_data(request.json)
+        if item is None:
+            return error, 400
+        return CollectionService.known_images(item), 200
 
 
 class StoredImage(MethodView):
@@ -516,6 +526,7 @@ def initialize(app: Flask):
     worker_bp.add_url_rule("/connectors/<string:connector_id>", view_func=Connectors.as_view("connectors_worker"))
     worker_bp.add_url_rule("/images/<string:image_id>", view_func=StoredImage.as_view("image_worker"))
     worker_bp.add_url_rule("/news-items", view_func=AddNewsItems.as_view("news_items_worker"))
+    worker_bp.add_url_rule("/news-items/known-images", view_func=KnownNewsItemImages.as_view("known_news_item_images_worker"))
     worker_bp.add_url_rule("/endpoint-health/<string:kind>/<string:endpoint_id>", view_func=EndpointHealth.as_view("endpoint_health_worker"))
     worker_bp.add_url_rule("/bots", view_func=BotInfo.as_view("bots_worker"))
     worker_bp.add_url_rule("/tags", view_func=Tags.as_view("tags_worker"))

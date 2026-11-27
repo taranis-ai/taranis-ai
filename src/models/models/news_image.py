@@ -15,9 +15,12 @@ def normalize_alt_text(value: str | None) -> str | None:
     return (value or "").replace("\x00", "").strip()[:MAX_DESCRIPTION_LENGTH].rstrip() or None
 
 
+ImageAltText = Annotated[str | None, AfterValidator(normalize_alt_text)]
+
+
 class CapturedImage(BaseModel):
     source_url: HttpUrl
-    alt_text: Annotated[str | None, AfterValidator(normalize_alt_text)] = None
+    alt_text: ImageAltText = None
     data: str = Field(min_length=4, max_length=4 * ((MAX_IMAGE_BYTES + 2) // 3), repr=False)
 
 

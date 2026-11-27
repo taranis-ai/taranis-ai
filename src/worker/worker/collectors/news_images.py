@@ -10,6 +10,7 @@ import niquests
 from bs4 import BeautifulSoup
 from models.news_image import MAX_IMAGE_BYTES, MAX_IMAGE_COUNT, normalize_alt_text
 from niquests.utils import get_environ_proxies, select_proxy
+from pydantic import HttpUrl
 
 
 IMAGE_TIMEOUT_SECONDS = 15
@@ -41,6 +42,8 @@ def resolve_candidates(base: str, candidates: Iterable[tuple[str, str | None]]) 
             url = urldefrag(urljoin(base, value.strip())).url
             if urlsplit(url).scheme not in {"http", "https"}:
                 continue
+            # Compare the same URL representation that Core stores for a capture.
+            url = str(HttpUrl(url))
         except ValueError:
             continue
         if url in result or len(result) < MAX_IMAGE_COUNT:

@@ -1756,7 +1756,7 @@ def test_capture_retains_distinct_images_and_checks_access(client, session, api_
     from io import BytesIO
     from unittest.mock import patch
 
-    from PIL import Image, WebPImagePlugin
+    from PIL import Image, PngImagePlugin, WebPImagePlugin
 
     from core.model.news_item_attribute import NewsItemAttribute
     from core.model.role import Role, TLPLevel
@@ -1771,10 +1771,10 @@ def test_capture_retains_distinct_images_and_checks_access(client, session, api_
     source = create_osint_source(rank=0)
     article = build_news_item_payload(source.id)
     captures = []
-    for color in ("red", "blue"):
+    for color in range(9):
         buffer = BytesIO()
-        Image.new("RGB", (2, 3), color=color).save(buffer, format="PNG")
-        captures.append({"source_url": "https://example.org/figure", "data": b64encode(buffer.getvalue()).decode()})
+        Image.new("RGB", (2, 3), color=(0, 0, color)).save(buffer, format="PNG")
+        captures.append({"source_url": f"https://example.org/figure/{color}", "data": b64encode(buffer.getvalue()).decode()})
 
     def ingest(images, **changes):
         response = client.post("/api/worker/news-items", json=[article | {"captured_images": images} | changes], headers=api_header)
@@ -1798,13 +1798,22 @@ def test_capture_retains_distinct_images_and_checks_access(client, session, api_
     original = item.images[0]
     assert original.description == "Source caption"
     assert len(item.images) == 1
-    assert ingest(captures, published="2000-01-01")["counts"]["stale"] == 1
+    with patch.object(PngImagePlugin.PngImageFile, "load", side_effect=IndexError):
+        assert ingest([captures[0]])["skipped_images"] == 1
+    assert ingest(captures[:2], published="2000-01-01")["counts"]["stale"] == 1
     assert len(item.images) == 1
-    assert ingest(captures)["counts"]["updated"] == 1
-    captures[0]["alt_text"] = "Different caption"
-    captures[1]["alt_text"] = "Second figure"
-    assert ingest(captures)["counts"]["updated"] == 1
-    assert ingest(captures)["counts"]["unchanged"] == 1
+    story.read = True
+    session.commit()
+    assert ingest(captures[:2])["counts"]["updated"] == 1
+    assert story.read
+    lookup = "/api/worker/news-items/known-images"
+    assert client.post(lookup, json=article).status_code == 401
+    known = client.post(lookup, json=article, headers=api_header).json
+    assert known == {image.source_url: image.id for image in item.images}
+    assert client.post(lookup, json=article | {"link": "https://example.org/another"}, headers=api_header).json == {}
+    descriptions = {known[captures[0]["source_url"]]: "Different caption", known[captures[1]["source_url"]]: "Second figure"}
+    assert ingest([], known_image_descriptions=descriptions)["counts"]["updated"] == 1
+    assert ingest([], known_image_descriptions=descriptions)["counts"]["unchanged"] == 1
     assert len(item.images) == 2
     assert [image.description for image in item.images] == ["Source caption", "Second figure"]
     worker_url = f"/api/worker/images/{original.id}"
@@ -1827,6 +1836,11 @@ def test_capture_retains_distinct_images_and_checks_access(client, session, api_
     story.refresh_tlp()
     session.commit()
     assert client.get(url, headers=auth_header_user_permissions).status_code == 404
+    assert ingest(captures[2:])["counts"]["updated"] == 1
+    assert [image.source_url for image in item.images] == [capture["source_url"] for capture in captures[1:]]
+    assert client.get(worker_url, headers=api_header).status_code == 404
+    assert ingest(captures[2:])["counts"]["unchanged"] == 1
+    retained_url = f"/api/worker/images/{item.images[-1].id}"
     item.delete_item()
     session.commit()
-    assert client.get(worker_url, headers=api_header).status_code == 404
+    assert client.get(retained_url, headers=api_header).status_code == 404

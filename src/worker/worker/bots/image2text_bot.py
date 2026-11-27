@@ -4,6 +4,7 @@ from itertools import batched
 from urllib.parse import quote
 
 from models.news_image import MAX_DESCRIPTION_LENGTH
+from models.task import FAILURE_MESSAGES
 from niquests import Response, Session
 from niquests.exceptions import RequestException
 from PIL import Image
@@ -20,8 +21,8 @@ POLL_TIMEOUT = 120
 
 
 class Image2TextAuthenticationError(BotServiceUnavailableError):
-    public_message = "Media Intelligence login failed. Check the Image2Text bot credentials."
     reason = "image2text_authentication_failed"
+    public_message = FAILURE_MESSAGES[reason]
     retryable = False
 
 
@@ -46,7 +47,8 @@ def authenticate_media_int(session: Session, parameters: dict) -> None:
         if response.status_code in {401, 403} or _service_json(response).get("authenticated") is not True:
             raise Image2TextAuthenticationError
     except (RequestException, TypeError, ValueError) as exc:
-        raise BotServiceUnavailableError from exc
+        logger.warning(f"Image2Text login service request failed ({type(exc).__name__})")
+        raise BotServiceUnavailableError from None
 
 
 def _upload_file(image_id: str, data: bytes, mime_type: str) -> tuple[str, bytes, str]:
@@ -124,7 +126,7 @@ class Image2TextBot(BaseBot):
             captions = media_int_image_service(session, list(files.values()))
         except (RequestException, TimeoutError, ValueError, KeyError, IndexError, TypeError) as exc:
             logger.warning(f"Image2Text inference failed for {len(files)} images ({type(exc).__name__})")
-            return {}
+            raise BotServiceUnavailableError from None
         return {image_id: captions[name] for image_id, (name, _, _) in files.items() if name in captions}
 
     def execute(self, parameters: dict | None = None) -> dict:

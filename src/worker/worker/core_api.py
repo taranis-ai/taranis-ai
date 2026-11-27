@@ -539,6 +539,16 @@ class CoreApi:
         except requests.exceptions.RequestException:
             return None
 
+    def get_known_news_item_images(self, identity: dict) -> dict[str, str]:
+        try:
+            images = self.api_post("/worker/news-items/known-images", json_data=identity)
+            if isinstance(images, dict):
+                return images
+        except requests.exceptions.RequestException:
+            pass
+        logger.warning("Could not look up stored news-item images. Continuing with image capture.")
+        return {}
+
     def add_news_items(self, news_items) -> dict | None:
         response = http_request(
             "POST",

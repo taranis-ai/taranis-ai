@@ -323,6 +323,7 @@ def test_sentiment_analysis_bot(stories, requests_mock, mock_job, monkeypatch, b
 
 
 def test_image2text_processes_only_missing_captions_and_preserves_partial_success(requests_mock, caplog):
+    from worker.bot_api import BotServiceUnavailableError
     from worker.bots.image2text_bot import BASE_URL, Image2TextBot
 
     bot = Image2TextBot()
@@ -377,7 +378,10 @@ def test_image2text_processes_only_missing_captions_and_preserves_partial_succes
     assert "Image2Text failed for image unavailable (HTTPError)" in caplog.text
 
     requests_mock.reset_mock()
-    assert bot.execute(parameters) == result
+    with pytest.raises(BotServiceUnavailableError) as failure:
+        bot.execute(parameters)
+    assert failure.value.reason == "bot_service_unavailable" and failure.value.retryable
+    assert state["image_descriptions"] == checkpoints[0]
     assert submit.call_count == 1 and submit.last_request.body.count(b'name="file"') == 1
     assert b'filename="missing.jpg"' in submit.last_request.body
     assert len(checkpoints) == 1
