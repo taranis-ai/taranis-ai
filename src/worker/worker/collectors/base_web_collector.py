@@ -324,6 +324,8 @@ class BaseWebCollector(BaseCollector):
             )
             if markup:
                 candidates = resolve_candidates(base_url, markup_images(markup))
+            elif not xpath:
+                candidates = resolve_candidates(base_url, markup_images(web_content, article_only=True))
         if not web_content or (not content and not candidates):
             return {"author": "", "title": "", "content": "", "published_date": None, "language": "", "review": ""}
 

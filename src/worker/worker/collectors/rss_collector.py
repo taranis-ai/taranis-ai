@@ -62,6 +62,11 @@ class RSSCollector(BaseWebCollector):
         self.max_entries = source.get("rss_collector_max_entries", 42)
 
     @property
+    def final_feed_url(self) -> str:
+        response = getattr(self, "feed_content", None)
+        return (response.url if response is not None else None) or self.feed_url
+
+    @property
     def entry_limit_warning(self) -> str | None:
         if self.skipped_entries:
             return (
@@ -171,7 +176,13 @@ class RSSCollector(BaseWebCollector):
         content = ""
 
         candidates = []
+        image_base = self.feed_url
         if self.collect_images:
+            image_base = self.final_feed_url
+            try:
+                image_base = urljoin(image_base, link)
+            except ValueError:
+                pass  # Relative images can still resolve against the feed itself.
             for media in [*(feed_entry.get("enclosures") or []), *(feed_entry.get("media_content") or [])]:
                 media_url = media.get("href") or media.get("url")
                 if media_url and (media.get("medium") == "image" or str(media.get("type", "")).startswith("image/")):
@@ -180,7 +191,7 @@ class RSSCollector(BaseWebCollector):
             content = self.extract_content_from_feed(feed_entry, source)
             if self.collect_images and content:
                 markup = self.xpath_extraction(content, self.xpath, False) if self.xpath else content
-                base_url = document_base_url(content, urljoin(self.feed_url, link))
+                base_url = document_base_url(content, image_base)
                 candidates.extend(resolve_candidates(base_url, markup_images(markup or "")).items())
 
             if self.xpath and content and (extracted := self.xpath_extraction(content, self.xpath)):
@@ -207,7 +218,7 @@ class RSSCollector(BaseWebCollector):
             author=author,
             title=title,
             source=self.feed_url,
-            image_candidates=resolve_candidates(urljoin(self.feed_url, link), candidates),
+            image_candidates=resolve_candidates(image_base, candidates) if candidates else {},
             content=content,
             link=link,
             published=published,
@@ -216,8 +227,7 @@ class RSSCollector(BaseWebCollector):
 
     def update_favicon_from_feed(self, feed: feedparser.FeedParserDict, source_id: str):
         logger.info(f"RSS-Feed {self.feed_url} initial gather, get meta info about source like image icon and language")
-        response = getattr(self, "feed_content", None)
-        feed_url = (response.url if response is not None else None) or self.feed_url
+        feed_url = self.final_feed_url
         icon_urls: list[str] = []
         for key in ("icon", "image", "logo"):
             if url := self.extract_icon_url(feed.get(key)):

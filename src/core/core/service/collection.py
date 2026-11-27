@@ -41,7 +41,7 @@ class CollectionService:
                 for capture in payload.captured_images:
                     try:
                         image = NewsItemImage.from_capture(CapturedImage.model_validate(capture))
-                    except (ValueError, OSError, SyntaxError, Image.DecompressionBombError):
+                    except (ValueError, OSError, EOFError, SyntaxError, Image.DecompressionBombError):
                         skipped_images += 1
                         continue
                     stored = images.setdefault(image.digest, image)

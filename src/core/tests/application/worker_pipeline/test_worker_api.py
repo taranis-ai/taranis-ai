@@ -1754,8 +1754,9 @@ class TestOSINTSourceScheduling:
 def test_capture_retains_distinct_images_and_checks_access(client, session, api_header, auth_header_user_permissions):
     from base64 import b64encode
     from io import BytesIO
+    from unittest.mock import patch
 
-    from PIL import Image
+    from PIL import Image, WebPImagePlugin
 
     from core.model.news_item_attribute import NewsItemAttribute
     from core.model.role import Role, TLPLevel
@@ -1780,10 +1781,18 @@ def test_capture_retains_distinct_images_and_checks_access(client, session, api_
         assert response.status_code == 200
         return response.json
 
-    initial = ingest(
-        [captures[0] | {"alt_text": "  Source caption  "}, captures[0], {"source_url": "https://example.org/invalid", "data": "AAAA"}]
-    )
-    assert initial["skipped_images"] == 1
+    webp = BytesIO()
+    Image.new("RGB", (2, 3)).save(webp, format="WEBP")
+    with patch.object(WebPImagePlugin.WebPImageFile, "load", side_effect=EOFError):
+        initial = ingest(
+            [
+                captures[0] | {"alt_text": "  Source caption  "},
+                captures[0],
+                {"source_url": "https://example.org/invalid", "data": "AAAA"},
+                {"source_url": "https://example.org/incomplete.webp", "data": b64encode(webp.getvalue()).decode()},
+            ]
+        )
+    assert initial["skipped_images"] == 2
     story = Story.get(initial["story_ids"][0])
     item = story.news_items[0]
     original = item.images[0]

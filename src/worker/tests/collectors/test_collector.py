@@ -436,7 +436,7 @@ def test_simple_web_collector_with_additional_headers(simple_web_collector_mock,
     assert simple_web_collector.headers["Authorization"] == "Bearer Token1234"
 
 
-def test_simple_web_collector_collect(simple_web_collector_mock, simple_web_collector):
+def test_simple_web_collector_collect(simple_web_collector_mock, simple_web_collector, requests_mock):
     from tests.testdata import web_collector_result_content, web_collector_result_title, web_collector_url
 
     result_item = simple_web_collector.news_item_from_article(web_collector_url)
@@ -444,6 +444,12 @@ def test_simple_web_collector_collect(simple_web_collector_mock, simple_web_coll
     assert result_item.title == web_collector_result_title
     # assert result_item.author == "John Doe"
     assert result_item.content.startswith(web_collector_result_content)
+
+    requests_mock.get(web_collector_url, text='<nav><img src="/logo"></nav><article><img src="/chart.png" alt="Chart"></article>')
+    simple_web_collector.collect_images = True
+    item = simple_web_collector.news_item_from_article(web_collector_url)
+    assert item.title == web_collector_url
+    assert list(item.image_candidates.values()) == ["Chart"]
 
 
 def test_simple_web_collector_digest_splitting(simple_web_collector_mock, simple_web_collector):
@@ -732,7 +738,7 @@ def test_parse_parameters_error_cases(parameters, missing_field, expected_messag
     assert expected_message in str(excinfo.value)
 
 
-def test_article_capture_follows_selected_content_and_checks_redirects(rss_collector, monkeypatch):
+def test_article_capture_follows_selected_content_and_checks_redirects(rss_collector, monkeypatch, requests_mock):
     import base64
     import socket
     from unittest.mock import AsyncMock, MagicMock
@@ -743,18 +749,22 @@ def test_article_capture_follows_selected_content_and_checks_redirects(rss_colle
 
     url = "https://feed.example/articles/1"
     entry = feedparser.FeedParserDict(
-        link=url,
+        link="https://[broken/article",
         title="A diagram",
-        description='<base href="/assets/"><aside><img src="/logo"></aside><main>Example<img src="/cover.png" alt=" Cover &amp; key "><img src="chart.png" alt="   "></main>',
-        links=[{"rel": "enclosure", "type": "image/png", "href": "/cover.png"}],
+        description='<base href="/assets/"><aside><img src="/logo"></aside><main>Example<img src="/v2/cover.png" alt=" Cover &amp; key "><img src="chart.png" alt="   "></main>',
+        links=[{"rel": "enclosure", "type": "image/png", "href": "cover.png"}],
     )
     source = {"id": "source", "parameters": {"FEED_URL": url, "XPATH": "//main", "USE_FEED_CONTENT": True}}
     rss_collector.parse_source(source)
     assert not rss_collector.parse_feed_entry(entry, source).image_candidates
     source["parameters"]["COLLECT_IMAGES"] = True
     rss_collector.parse_source(source)
+    redirected_url = "https://feed.example/v2/rss.xml"
+    requests_mock.get(url, status_code=302, headers={"Location": redirected_url})
+    requests_mock.get(redirected_url, text='<rss version="2.0"><channel><title>Feed</title></channel></rss>')
+    rss_collector.get_feed()
     item = rss_collector.parse_feed_entry(entry, source)
-    cover_url = "https://feed.example/cover.png"
+    cover_url = "https://feed.example/v2/cover.png"
     chart_url = "https://feed.example/assets/chart.png"
     assert item.image_candidates == {cover_url: "Cover & key", chart_url: None}
     monkeypatch.setattr("worker.collectors.news_images.get_environ_proxies", lambda _: {})
@@ -776,7 +786,7 @@ def test_article_capture_follows_selected_content_and_checks_redirects(rss_colle
     send = AsyncMock(return_value=response)
     monkeypatch.setattr(requests.adapters.AsyncHTTPAdapter, "send", send)
     captured = asyncio.run(rss_collector._capture_images(item.image_candidates, None, 1024))
-    assert [(image["source_url"], image["alt_text"]) for image in captured] == [(cover_url, "Cover & key"), (chart_url, None)]
+    assert [(image["source_url"], image["alt_text"]) for image in captured] == list(item.image_candidates.items())
     assert base64.b64decode(captured[0]["data"]) == b"stored bytes"
     response.is_redirect = True
     response.headers = {"Location": "http://localhost/private"}
@@ -790,7 +800,8 @@ def test_article_capture_follows_selected_content_and_checks_redirects(rss_colle
 
     response.is_redirect = False
     response.iter_content.side_effect = stalled_chunks
+    response.__aexit__.reset_mock()
     monkeypatch.setattr("worker.collectors.news_images.IMAGE_TIMEOUT_SECONDS", 0.1)
     assert asyncio.run(rss_collector._capture_images({cover_url: None}, None, 1024)) == []
     assert rss_collector.skipped_images == 1
-    response.__aexit__.assert_awaited()
+    response.__aexit__.assert_awaited_once()

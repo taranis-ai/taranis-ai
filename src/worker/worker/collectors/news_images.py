@@ -25,9 +25,13 @@ def document_base_url(markup: str, page_url: str) -> str:
     return page_url
 
 
-def markup_images(markup: str) -> list[tuple[str, str | None]]:
+def markup_images(markup: str, *, article_only: bool = False) -> list[tuple[str, str | None]]:
     soup = BeautifulSoup(markup, "lxml")
-    return [(str(node["src"]), str(node.get("alt") or "")) for node in soup.select("img[src], graphic[src]", limit=MAX_IMAGE_COUNT)]
+    if article_only:
+        for element in soup.select("nav, aside, footer, body > header"):
+            element.decompose()
+    root = (soup.select_one("article") or soup.select_one("main") or soup) if article_only else soup
+    return [(str(node["src"]), str(node.get("alt") or "")) for node in root.select("img[src], graphic[src]", limit=MAX_IMAGE_COUNT)]
 
 
 def resolve_candidates(base: str, candidates: Iterable[tuple[str, str | None]]) -> dict[str, str | None]:
