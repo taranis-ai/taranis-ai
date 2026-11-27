@@ -64,7 +64,9 @@ class FakeQueue:
 @pytest.fixture
 def requests_mock(requests_mock, monkeypatch):
     async def async_request(self, method, url, **kwargs):
-        with niquests.Session(base_url=self.base_url, headers=self.headers) as session:
+        with niquests.Session() as session:
+            session.base_url = self.base_url
+            session.headers.update(self.headers)
             session.max_redirects = self.max_redirects
             return session.request(method, url, **kwargs)
 

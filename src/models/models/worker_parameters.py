@@ -304,7 +304,9 @@ class SharedLLMBotParameters(BotParameters):
 
 
 class Image2TextBotParameters(SharedLLMBotParameters):
-    CAPTIONING_API: Literal["media_miner", "llm_bot"] = Field("media_miner", title="Captioning API")
+    CAPTIONING_API: Literal["media_miner", "llm_bot"] = Field(
+        "media_miner", title="Captioning API", description="Service that receives stored images and generates their descriptions."
+    )
     USERNAME: str = Field("", title="Media Miner username", description="AIT Media Intelligence account used to submit images.")
     PASSWORD: SecretStr = Field(SecretStr(""), title="Media Miner password", description="Password for the AIT Media Intelligence account.")
 
