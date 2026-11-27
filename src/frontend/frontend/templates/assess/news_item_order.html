@@ -18,9 +18,9 @@
          handle: '[data-order-handle]', draggable: '[data-order-item]', animation: 150,
          onEnd: (event) => { if (event.oldIndex !== event.newIndex) dirty = true; }
        })" x-effect="sortable?.option('disabled', saving)" {% endif %}>
-  <div class="card-body space-y-5 group/images">
+  <div class="card-body space-y-2 group/images">
     <div class="flex flex-wrap items-center gap-2">
-      <h3 class="card-title text-lg">Linked news items ({{ story.news_items | length }})</h3>
+      <h3 class="card-title text-lg space-y-0">Linked news items ({{ story.news_items | length }})</h3>
       <div class="ms-auto flex flex-wrap items-center justify-end gap-2">
         {{ story_image_toggle(story) }}
         {% if story.can_edit and story.news_items | length > 1 %}
