@@ -280,8 +280,8 @@ class DiscoveryUpload(MethodView):
             return {"error": exc.public_message}, exc.status
 
 
-def discovery_receipt(upload_id):
-    upload = accessible_upload(upload_id, current_user)
+def discovery_receipt(upload_id, *, read_completed=False):
+    upload = accessible_upload(upload_id, current_user, read_completed=read_completed)
     job = db.session.get(DiscoveryImport, upload_id)
     if not job:
         raise SbomImportError("Discovery import unavailable.", 404)
@@ -304,7 +304,7 @@ class DiscoveryProgress(MethodView):
     @auth_required("ASSETS_ACCESS")
     def get(self, upload_id):
         try:
-            upload, job = discovery_receipt(upload_id)
+            upload, job = discovery_receipt(upload_id, read_completed=True)
             return {"id": upload_id, "source": job.source, "state": upload.status.lower(), "message": upload.error, **job.result}, 200
         except SbomImportError as exc:
             return {"error": exc.public_message}, exc.status

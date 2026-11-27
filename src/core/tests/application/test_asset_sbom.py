@@ -1435,6 +1435,18 @@ def test_discovery_resolves_late_inventory_and_ambiguous_runtime_images(client, 
     }
     pending = discovery_files(client, auth_header, raw)
     assert pending["reason"] == "scope"
+    contradictory = {
+        "schema_version": 1,
+        "asset_type": "host",
+        "asset_name": "wrong-host",
+        "inventory_hostname": "wrong-host",
+        "complete": True,
+        "observed_at": "2026-11-10T09:00:00Z",
+        "source_sha256": sha256(raw).hexdigest(),
+        "services": [],
+    }
+    rejected = discovery_files(client, auth_header, json.dumps(contradictory).encode())
+    assert rejected["reason"] == "mismatch" and not rejected.get("assets")
     paired = discovery_files(client, auth_header, json.dumps(report).encode())
     assert paired["state"] == "applied" and paired["inventory_asset_id"]
     assert (
@@ -1450,3 +1462,29 @@ def test_discovery_resolves_late_inventory_and_ambiguous_runtime_images(client, 
         f"/api/assets/discovery-imports/{ambiguous['id']}", headers=auth_header, json={"scope": "runtime/docker/compose/demo/app/2"}
     )
     assert resolved.json["inventory_asset_id"] != paired["inventory_asset_id"]
+
+
+def test_sidecar_can_resolve_a_preexisting_inventory_without_creating_a_second_asset(client, auth_header, session):
+    raw = FIXTURE.read_bytes()
+    preview = upload(client, auth_header).json
+    existing = client.post(
+        f"/api/assets/sbom-imports/{preview['id']}",
+        headers=auth_header,
+        json={"name": "Existing display name", "asset_group_id": AssetGroup.get_default_group().id},
+    )
+    assert existing.status_code == 201, existing.json
+    sidecar = {
+        "schema_version": 1,
+        "inventory_hostname": "legacy",
+        "asset_name": "legacy",
+        "asset_type": "host",
+        "source_sha256": sha256(raw).hexdigest(),
+        "observed_at": "2026-11-12T12:00:00Z",
+        "complete": True,
+        "services": [],
+    }
+    receipt = discovery_files(client, auth_header, json.dumps(sidecar).encode())
+    assert receipt["reason"] == "identity" and receipt["options"] == [{"id": existing.json["id"], "name": "Existing display name"}]
+    decision = client.post(f"/api/assets/discovery-imports/{receipt['id']}", headers=auth_header, json={"asset_id": existing.json["id"]})
+    assert decision.json["inventory_asset_id"] == existing.json["id"]
+    assert discovery_files(client, auth_header, json.dumps(sidecar).encode())["inventory_asset_id"] == existing.json["id"]

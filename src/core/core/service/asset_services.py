@@ -8,6 +8,7 @@ from core.managers.db_manager import db
 from core.model.asset import Asset
 from core.model.asset_sbom import DiscoveryAsset, DiscoveryObservation
 from core.model.user import User
+from core.service.asset_discovery import contradicts_image
 from core.service.asset_sbom import SbomImportError, current_import
 
 
@@ -82,7 +83,11 @@ def asset_services(asset_id: str, user: User):
         active, seen = True, set()
         for capture in captures:
             evidence = capture.evidence
-            exact = snapshot and evidence.get("source_sha256") == snapshot.sha256
+            exact = (
+                snapshot
+                and evidence.get("source_sha256") == snapshot.sha256
+                and not contradicts_image(snapshot.summary.get("image_id"), evidence)
+            )
             image = snapshot and snapshot.summary.get("image_id") and snapshot.summary["image_id"] == evidence.get("image_id")
             basis = "exact snapshot" if exact else "image inventory" if image else None
             if (

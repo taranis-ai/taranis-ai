@@ -30,14 +30,15 @@ def upload_status(upload: AssetSbomUpload) -> dict:
     return SbomUploadStatus.model_validate(upload, from_attributes=True).model_dump()
 
 
-def accessible_upload(upload_id: str, user: User | None = None) -> AssetSbomUpload:
+def accessible_upload(upload_id: str, user: User | None = None, *, read_completed: bool = False) -> AssetSbomUpload:
     upload = db.session.scalar(db.select(AssetSbomUpload).filter_by(id=upload_id).with_for_update())
     if not upload or (user and (upload.user_id != user.id or upload.organization_id != user.organization.id)):
         raise SbomImportError("SBOM upload unavailable.", 404)
     if upload.status == "READY" and not upload.import_id and not db.session.get(DiscoveryImport, upload.id):
         raise SbomImportError("SBOM preview no longer available.", 404)
     owner = user or (db.session.get(User, upload.user_id) if upload.user_id else None)
-    authorized = owner and owner.organization.id == upload.organization_id and "ASSETS_CREATE" in owner.get_permissions()
+    permission = "ASSETS_ACCESS" if read_completed and upload.status in TERMINAL_STATUSES else "ASSETS_CREATE"
+    authorized = owner and owner.organization.id == upload.organization_id and permission in owner.get_permissions()
     if not owner or not authorized or (upload.target_asset_id and Asset.get_for_api(upload.target_asset_id, owner.organization)[1] != 200):
         fail_upload(upload, "Access to this SBOM upload is no longer available.")
         raise SbomImportError("SBOM upload unavailable.", 404)

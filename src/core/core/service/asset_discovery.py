@@ -105,9 +105,18 @@ def discover_scopes(job, user, group, scopes, digest, choice):
                 raise SbomImportError("The destination asset is unavailable.", 403)
         else:
             assert group is not None
+            identity = Asset.name == scope.key
+            if scope.source_sha256:
+                identity = (
+                    identity
+                    | select(AssetSbomImport.id)
+                    .where(AssetSbomImport.asset_id == Asset.id, AssetSbomImport.sha256 == scope.source_sha256)
+                    .exists()
+                )
             matches = db.session.scalars(
                 db.select(Asset)
-                .filter_by(name=scope.key, asset_group_id=group.id)
+                .filter_by(asset_group_id=group.id)
+                .where(identity)
                 .where(~db.select(DiscoveryAsset.asset_id).where(DiscoveryAsset.asset_id == Asset.id).exists())
             ).all()
             selection = choice.get("asset_id") if job.result.get("reason") == "identity" and job.result.get("scope") == scope.key else None
@@ -116,7 +125,7 @@ def discover_scopes(job, user, group, scopes, digest, choice):
                     "state": "review",
                     "reason": "identity",
                     "scope": scope.key,
-                    "message": "An existing asset has this name. Choose whether it represents this collector scope.",
+                    "message": "An existing asset has this name or inventory. Choose whether it represents this collector scope.",
                     "options": [{"id": a.id, "name": a.name} for a in matches],
                 }
                 return False
@@ -138,6 +147,10 @@ def discover_scopes(job, user, group, scopes, digest, choice):
     return True
 
 
+def contradicts_image(image, evidence):
+    return bool(image and (evidence["key"] == evidence["host"] or evidence.get("image_id") and evidence["image_id"] != image))
+
+
 def apply_discovery(upload: AssetSbomUpload, job: DiscoveryImport, user: User, choice: dict):
     if job.result.get("state") == "applied":
         return None
@@ -147,15 +160,39 @@ def apply_discovery(upload: AssetSbomUpload, job: DiscoveryImport, user: User, c
     scopes = [Scope.model_validate(s) for s in data["scopes"]]
     record = db.session.get(AssetSbomImport, upload.import_id) if upload.import_id else None
     exact = scopes[0].source_sha256 if len(scopes) == 1 else None
-    if (
-        record
-        and exact
-        and (
-            record.sha256 != exact
-            or (record.summary.get("image_id") and scopes[0].key == scopes[0].host)
-            or (record.summary.get("image_id") and scopes[0].image_id and record.summary["image_id"] != scopes[0].image_id)
-        )
-    ):
+    # A separately arriving sidecar may complete an earlier private inventory upload.
+    related = data.get("pending_upload_id")
+    pending = db.session.get(DiscoveryImport, related) if related else None
+    if not record and scopes:
+        waiting = db.session.execute(
+            select(DiscoveryImport, AssetSbomImport)
+            .join(AssetSbomUpload, AssetSbomUpload.id == DiscoveryImport.upload_id)
+            .join(AssetSbomImport, AssetSbomImport.id == AssetSbomUpload.import_id)
+            .where(
+                DiscoveryImport.source == job.source,
+                AssetSbomUpload.user_id == user.id,
+                AssetSbomUpload.organization_id == user.organization.id,
+                AssetSbomImport.asset_id.is_(None),
+            )
+            .order_by(AssetSbomUpload.created.desc())
+        ).all()
+        matches = {}
+        for other, snapshot in waiting:
+            if (
+                other.result.get("reason") == "scope"
+                and not (other.prepared or {}).get("scopes")
+                and (
+                    exact == snapshot.sha256
+                    or not exact
+                    and any(s.image_id and s.image_id == snapshot.summary.get("image_id") for s in scopes)
+                )
+            ):
+                matches.setdefault(snapshot.sha256, (other, snapshot))
+        if len(matches) == 1:
+            pending, record = next(iter(matches.values()))
+            job.prepared = {**data, "pending_upload_id": pending.upload_id}
+            upload.import_id = record.id
+    if record and exact and (record.sha256 != exact or contradicts_image(record.summary.get("image_id"), scopes[0].model_dump())):
         job.result = {
             "state": "review",
             "reason": "mismatch",
@@ -176,40 +213,18 @@ def apply_discovery(upload: AssetSbomUpload, job: DiscoveryImport, user: User, c
     observed_keys = {s.key for s in scopes}
     observed = [b for b in bindings if b.key in observed_keys]
     result = {"state": "applied", "assets": [{"id": b.asset_id, "name": b.key} for b in observed]}
-    # A separately arriving sidecar may complete an earlier private inventory upload.
-    pending = None
-    if not record and scopes:
-        waiting = db.session.execute(
-            select(DiscoveryImport, AssetSbomImport)
-            .join(AssetSbomUpload, AssetSbomUpload.id == DiscoveryImport.upload_id)
-            .join(AssetSbomImport, AssetSbomImport.id == AssetSbomUpload.import_id)
-            .where(
-                DiscoveryImport.source == job.source,
-                AssetSbomUpload.user_id == user.id,
-                AssetSbomUpload.organization_id == user.organization.id,
-                AssetSbomImport.asset_id.is_(None),
-            )
-            .order_by(AssetSbomUpload.created.desc())
-        ).all()
-        for other, snapshot in waiting:
-            if (
-                other.result.get("reason") == "scope"
-                and not (other.prepared or {}).get("scopes")
-                and (
-                    exact == snapshot.sha256
-                    or not exact
-                    and any(s.image_id and s.image_id == snapshot.summary.get("image_id") for s in scopes)
-                )
-            ):
-                pending, record = other, snapshot
-                break
     if not record:
+        if len(observed) == 1 and exact:
+            current = current_import(observed[0].asset_id)
+            if current and current.sha256 == exact and not contradicts_image(current.summary.get("image_id"), scopes[0].model_dump()):
+                result["inventory_asset_id"] = observed[0].asset_id
         job.result = result
         return None
     image = record.summary.get("image_id")
     allowed = observed if scopes else list(bindings)
     candidates = []
     basis = "exact snapshot"
+    incompatible = set()
     for binding in allowed:
         if Asset.get_for_api(binding.asset_id, user.organization)[1] != 200:
             continue
@@ -219,10 +234,15 @@ def apply_discovery(upload: AssetSbomUpload, job: DiscoveryImport, user: User, c
             .order_by(DiscoveryObservation.observed_at.desc())
         ).all()
         relevant = [c for c in captures if not scopes or c.digest == data.get("evidence_digest")]
-        if any(c.evidence.get("source_sha256") == record.sha256 for c in relevant):
+        exact_captures = [c for c in relevant if c.evidence.get("source_sha256") == record.sha256]
+        if any(contradicts_image(image, c.evidence) for c in exact_captures):
+            incompatible.add(binding.key)
+            continue
+        if exact_captures:
             candidates.append((binding, "exact snapshot"))
         elif image and relevant and relevant[0].evidence.get("image_id") == image and not relevant[0].evidence.get("source_sha256"):
             candidates.append((binding, "image inventory"))
+    allowed = [b for b in allowed if b.key not in incompatible]
     if len(candidates) != 1:
         remembered = [
             (b, "analyst selection")
