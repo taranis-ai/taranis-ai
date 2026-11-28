@@ -1,4 +1,5 @@
 # pyright: reportPrivateUsage=false, reportAttributeAccessIssue=false
+import json
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from typing import Any, cast
@@ -6,6 +7,7 @@ from unittest.mock import Mock
 
 import fakeredis
 import pytest
+from models.admin import CronSpec
 from models.scheduler import JobFilter, ScheduledJob, StoredTaskResult
 from models.types import COLLECTOR_TYPES, PRESENTER_TYPES, PUBLISHER_TYPES
 from rq import Queue
@@ -814,27 +816,6 @@ def test_reschedule_all_prunes_stale_managed_cron_jobs(monkeypatch):
     publication = Mock(return_value=True)
     monkeypatch.setattr(realtime_publisher, "publish", publication)
 
-    class FakeSpec:
-        def __init__(self, job_id: str, task_name: str, queue_name: str):
-            self.job_id = job_id
-            self.task_name = task_name
-            self.queue_name = queue_name
-            self.cron = "0 * * * *"
-            self.interval = None
-
-        def model_dump(self, mode="json"):
-            del mode
-            return {
-                "job_id": self.job_id,
-                "func_path": self.task_name,
-                "queue_name": self.queue_name,
-                "cron": self.cron,
-                "args": [],
-                "kwargs": {},
-                "job_options": {},
-                "meta": {},
-            }
-
     class FakeSource:
         enabled = True
 
@@ -845,7 +826,12 @@ def test_reschedule_all_prunes_stale_managed_cron_jobs(monkeypatch):
             return "0 * * * *"
 
         def get_cron_spec(self):
-            return FakeSpec(f"osint_source_{self.id}", "collector_task", "collectors")
+            return CronSpec(
+                job_id=f"osint_source_{self.id}",
+                func_path="collector_task",
+                queue_name="collectors",
+                cron="0 * * * *",
+            )
 
     class FakeBot:
         enabled = True
@@ -857,7 +843,12 @@ def test_reschedule_all_prunes_stale_managed_cron_jobs(monkeypatch):
             return "0 * * * *"
 
         def get_cron_spec(self):
-            return FakeSpec(f"bot_{self.id}", "bot_task", "bots")
+            return CronSpec(
+                job_id=f"bot_{self.id}",
+                func_path="bot_task",
+                queue_name="bots",
+                cron="0 * * * *",
+            )
 
     qm = _make_queue_manager()
     qm._queues = {"collectors": _DummyQueue("collectors"), "bots": _DummyQueue("bots")}  # type: ignore[assignment]
@@ -884,6 +875,9 @@ def test_reschedule_all_prunes_stale_managed_cron_jobs(monkeypatch):
         b"cleanup_token_blacklist",
         b"cleanup_task_history",
     }
+    raw = qm._redis.hget("rq:cron:def", "cleanup_task_history")
+    assert raw is not None
+    assert json.loads(raw)["func_path"] == "worker.misc.misc_tasks.cleanup_task_history"
     assert not set(qm._redis.zrange("rq:cron:next", 0, -1)) & {job_id.encode() for job_id in stale_job_ids}
     assert len(purged_calls) == 1
     assert purged_calls[0][0] == set()
