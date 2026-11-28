@@ -7,6 +7,7 @@ from worker.publishers.s3_publisher import S3Publisher
 from worker.publishers.sftp_publisher import SFTPPublisher
 from worker.publishers.taranis_publisher import TaranisPublisher
 from worker.publishers.taxii_publisher import TAXIIPublisher
+from worker.publishers.webhook_publisher import WebhookPublisher
 from worker.publishers.wordpress_publisher import WORDPRESSPublisher
 
 
@@ -21,4 +22,5 @@ __all__ = [
     "TAXIIPublisher",
     "TaranisPublisher",
     "WORDPRESSPublisher",
+    "WebhookPublisher",
 ]

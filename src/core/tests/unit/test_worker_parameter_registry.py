@@ -49,6 +49,11 @@ def test_boundary_adapter_preserves_native_values():
     [
         ("RSS_COLLECTOR", {"FEED_URL": "https://example.test/feed"}, {"USE_GLOBAL_PROXY": False, "REFRESH_INTERVAL": ""}),
         ("FTP_PUBLISHER", {"FTP_URL": "ftp://example.test/"}, {"NETWORK_TIMEOUT": 30}),
+        (
+            "WEBHOOK_PUBLISHER",
+            {"WEBHOOK_URL": "https://receiver.test/hook"},
+            {"PAYLOAD_FORMAT": "json", "ALLOW_INSECURE_HTTP": False, "BEARER_TOKEN": "", "NETWORK_TIMEOUT": 30},
+        ),
         ("SFTP_PUBLISHER", {"SFTP_URL": "sftp://user@example.test/", "HOST_KEY": "ssh-ed25519 AAAA"}, {"NETWORK_TIMEOUT": 30}),
         (
             "EMAIL_PUBLISHER",
@@ -165,6 +170,9 @@ def test_every_schema_uses_uppercase_names_and_documents_each_field():
         ("RSS_COLLECTOR", {"FEED_URL": "feed", "TLP_LEVEL": "blue"}),
         ("RSS_COLLECTOR", {"FEED_URL": "feed", "ADDITIONAL_HEADERS": "[]"}),
         ("NLP_BOT", {"REQUESTS_TIMEOUT": "0"}),
+        ("WEBHOOK_PUBLISHER", {"WEBHOOK_URL": "https://user:password@example.test/"}),
+        ("WEBHOOK_PUBLISHER", {"WEBHOOK_URL": "https://example.test/hook#fragment"}),
+        ("WEBHOOK_PUBLISHER", {"WEBHOOK_URL": "ftp://example.test/", "ALLOW_INSECURE_HTTP": True}),
         ("FTP_PUBLISHER", {"FTP_URL": "ftp://example.test/", "NETWORK_TIMEOUT": 0}),
         ("SFTP_PUBLISHER", {"SFTP_URL": "sftp://user@example.test/", "HOST_KEY": "ssh-ed25519 AAAA", "NETWORK_TIMEOUT": -1}),
         (

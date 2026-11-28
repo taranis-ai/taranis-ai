@@ -7,6 +7,7 @@ from urllib.parse import urlparse
 
 from pydantic import (
     AfterValidator,
+    AnyHttpUrl,
     BaseModel,
     BeforeValidator,
     ConfigDict,
@@ -448,6 +449,39 @@ class EmailPublisherParameters(WorkerParameters):
     EMAIL_SUBJECT: str = Field("", title="Email subject", description="Optional subject of the published email.")
 
 
+class WebhookPublisherParameters(WorkerParameters):
+    model_config = ConfigDict(hide_input_in_errors=True)
+
+    WEBHOOK_URL: SecretStr = Field(title="Webhook URL", description="Final destination URL. Its path and query may contain secrets.")
+    PAYLOAD_FORMAT: Literal["json", "raw"] = Field(
+        "json", title="Payload format", description="Send product metadata and Base64 data as JSON, or send the raw rendered file."
+    )
+    BEARER_TOKEN: SecretStr = Field(SecretStr(""), title="Bearer token", description="Optional token sent in the Authorization header.")
+    ALLOW_INSECURE_HTTP: bool = Field(
+        False, title="Allow plain HTTP", description="For trusted internal endpoints. HTTP sends the product and any token in cleartext."
+    )
+    NETWORK_TIMEOUT: PublisherNetworkTimeoutSeconds = Field(
+        30, gt=0, validate_default=True, title="Network timeout", description="Network inactivity timeout in seconds. Defaults to 30 seconds."
+    )
+
+    @model_validator(mode="after")
+    def validate_destination(self):
+        url = self.WEBHOOK_URL.get_secret_value()
+        if not url.lower().startswith(("https://", "http://")) or any(c.isspace() or ord(c) < 32 or ord(c) == 127 for c in url):
+            raise ValueError("Enter an absolute HTTP or HTTPS URL.")
+        try:
+            parsed = AnyHttpUrl(url)
+            authority = urlparse(url).netloc
+        except ValueError:
+            raise ValueError("Enter a valid webhook URL.") from None
+        if not authority or "@" in authority or "\\" in url or "#" in url:
+            raise ValueError("Enter a webhook URL with a host and without embedded credentials, backslashes, or a fragment.")
+        if parsed.scheme == "http" and not self.ALLOW_INSECURE_HTTP:
+            raise ValueError("Use HTTPS or enable plain HTTP for a trusted internal endpoint.")
+        self.WEBHOOK_URL = SecretStr(str(parsed))
+        return self
+
+
 class WordpressPublisherParameters(WorkerParameters):
     WP_URL: str = Field(min_length=1, title="WordPress URL", description="WordPress site URL.")
     WP_USER: str = Field(min_length=1, title="WordPress user", description="WordPress username.")
@@ -583,6 +617,9 @@ _DEFINITIONS = (
     _definition(WORKER_TYPES.SFTP_PUBLISHER, "SFTP Publisher", "Publisher for an SFTP server", SFTPPublisherParameters),
     _definition(WORKER_TYPES.S3_PUBLISHER, "S3 Publisher", "Publisher for S3-compatible storage", S3PublisherParameters),
     _definition(WORKER_TYPES.EMAIL_PUBLISHER, "EMAIL Publisher", "Publisher for email", EmailPublisherParameters),
+    _definition(
+        WORKER_TYPES.WEBHOOK_PUBLISHER, "Webhook Publisher", "Send a rendered product to a webhook endpoint", WebhookPublisherParameters
+    ),
     _definition(WORKER_TYPES.WORDPRESS_PUBLISHER, "WordPress Publisher", "Publisher for WordPress", WordpressPublisherParameters),
     _definition(WORKER_TYPES.MISP_PUBLISHER, "MISP Publisher", "Publisher for MISP", MISPPublisherParameters),
     _definition(WORKER_TYPES.TAXII_PUBLISHER, "TAXII Publisher", "Publisher for a TAXII 2.1 collection", TaxiiPublisherParameters),

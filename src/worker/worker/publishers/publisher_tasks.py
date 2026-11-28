@@ -14,6 +14,7 @@ from worker.http_client import http_session_scope
 from worker.log import logger
 from worker.publishers.base_publisher import BasePublisher
 from worker.publishers.network import PublisherNetworkTimeout
+from worker.publishers.webhook_publisher import WebhookDeliveryRejected
 from worker.task_events import task_started
 from worker.telemetry import instrument_job
 
@@ -41,7 +42,7 @@ def publisher_task(product_id: str, publisher_id: str):
     task_id = job.id if job else f"{task_name}_{publisher_id}_{product_id}"
     worker_type = "publisher_task"
 
-    result_data = {"product_id": product_id, "publisher_id": publisher_id}
+    result_data: dict[str, str | int] = {"product_id": product_id, "publisher_id": publisher_id}
     logger.info(f"Publisher task started: job={task_id} product={product_id} publisher={publisher_id}")
 
     try:
@@ -95,6 +96,8 @@ def publisher_task(product_id: str, publisher_id: str):
         )
         raise
     except Exception as exc:
+        if isinstance(exc, WebhookDeliveryRejected) and exc.status_code is not None:
+            result_data["http_status"] = exc.status_code
         logger.error(f"Publisher task failed: exception_type={type(exc).__name__}")
         core_api.save_task_result(
             task_id,
@@ -184,6 +187,7 @@ def _get_publisher_impl(pub_type: str) -> BasePublisher:
     publishers = {
         "taranis_publisher": worker.publishers.TaranisPublisher(),
         "email_publisher": worker.publishers.EMAILPublisher(),
+        "webhook_publisher": worker.publishers.WebhookPublisher(),
         "wordpress_publisher": worker.publishers.WORDPRESSPublisher(),
         "ftp_publisher": worker.publishers.FTPPublisher(),
         "sftp_publisher": worker.publishers.SFTPPublisher(),

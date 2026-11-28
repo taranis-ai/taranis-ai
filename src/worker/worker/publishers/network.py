@@ -11,7 +11,9 @@ class PublisherNetworkTimeout(RuntimeError):
     def __init__(self, publisher_type: str, operation: str):
         self.publisher_type = publisher_type.lower()
         self.operation = operation
-        name = {"email_publisher": "Email", "ftp_publisher": "FTP", "sftp_publisher": "SFTP"}.get(self.publisher_type, "Publisher")
+        name = {"email_publisher": "Email", "ftp_publisher": "FTP", "sftp_publisher": "SFTP", "webhook_publisher": "Webhook"}.get(
+            self.publisher_type, "Publisher"
+        )
         self.public_message = f"{name} publisher timed out during {operation}"
         super().__init__(self.public_message)
 

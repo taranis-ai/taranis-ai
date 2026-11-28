@@ -31,7 +31,9 @@ def http_session_scope() -> Iterator[None]:
                 cleanup.callback(session.close)
 
 
-def http_request(method: str, url: str, *, external: bool = False, timeout: int = 60, **kwargs: Any) -> niquests.Response:
+def http_request(
+    method: str, url: str, *, external: bool = False, follow_redirects: bool = True, timeout: float = 60, **kwargs: Any
+) -> niquests.Response:
     """Fetch a buffered response; calls outside tasks own a temporary session.
 
     Credentials and proxies remain request-local. External requests keep cookies
@@ -52,7 +54,7 @@ def http_request(method: str, url: str, *, external: bool = False, timeout: int 
                 method,
                 url,
                 timeout=(min(10 if external else 5, timeout), timeout),
-                allow_redirects=external,
+                allow_redirects=external and follow_redirects,
                 **kwargs,
             )
             if not external and response.status_code is not None and 300 <= response.status_code < 400:

@@ -4,6 +4,8 @@ import socket
 import sys
 import traceback
 
+from niquests.packages import urllib3
+
 from worker.config import Config
 
 
@@ -24,6 +26,8 @@ class TaranisLogger:
 
         lloggers = [logging.getLogger()]
 
+        # Transport debug logs include request paths and queries, which can contain webhook credentials.
+        logging.getLogger(f"{urllib3.__name__}.connectionpool").setLevel(logging.INFO)
         logging.getLogger("ioc_fanger").setLevel(logging.INFO)
         # Both renderer diagnostics and progress messages can contain complete resource URLs.
         logging.getLogger("weasyprint").disabled = True

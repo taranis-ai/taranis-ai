@@ -1688,6 +1688,35 @@ class TestAcls(BaseTest):
 class TestPublisherPreset(BaseTest):
     base_uri = "/api/config"
 
+    def test_webhook_preset_transport_and_secrets(self, client, auth_header, api_header):
+        url = self.concat_url("publisher-presets")
+        parameters = {"WEBHOOK_URL": "HTTP://RECEIVER.TEST:80/hooks/private-path%2Freport?key=a%2Bb", "BEARER_TOKEN": "private-token"}
+        preset = {"name": "Webhook delivery", "type": "webhook_publisher", "parameters": parameters}
+        rejected = client.post(url, json=preset, headers=auth_header)
+        assert rejected.status_code == 400
+        assert "Use HTTPS" in rejected.json["error"]
+        assert "private-" not in rejected.get_data(as_text=True)
+
+        parameters["ALLOW_INSECURE_HTTP"] = True
+        created = client.post(url, json=preset, headers=auth_header)
+        assert created.status_code == 200
+        preset_id = created.json["id"]
+        detail_url = f"{url}/{preset_id}"
+        try:
+            saved = client.get(detail_url, headers=auth_header).json["parameters"]
+            assert saved == {"WEBHOOK_URL": "********", "BEARER_TOKEN": "********", "ALLOW_INSECURE_HTTP": True}
+            saved.pop("BEARER_TOKEN")
+            saved["PAYLOAD_FORMAT"] = "raw"
+            assert client.put(detail_url, json={"parameters": saved}, headers=auth_header).status_code == 200
+            effective = client.get(f"/api/worker/publishers/{preset_id}", headers=api_header).json["parameters"]
+            assert effective == parameters | {
+                "WEBHOOK_URL": "http://receiver.test/hooks/private-path%2Freport?key=a%2Bb",
+                "PAYLOAD_FORMAT": "raw",
+                "NETWORK_TIMEOUT": 30,
+            }
+        finally:
+            client.delete(detail_url, headers=auth_header)
+
     def test_create_publisher_preset(self, client, auth_header, cleanup_publisher_preset, monkeypatch):
         monkeypatch.setattr(Config, "RQ_DEFAULT_JOB_TIMEOUT", 180)
         invalid = cleanup_publisher_preset | {"parameters": cleanup_publisher_preset["parameters"] | {"NETWORK_TIMEOUT": 91}}
