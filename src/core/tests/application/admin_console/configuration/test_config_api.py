@@ -188,6 +188,84 @@ class TestSourcesConfigApi(BaseTest):
         finally:
             client.delete(self.concat_url(f"osint-sources/{source_id}"), headers=auth_header)
 
+    @staticmethod
+    def _stored_use_feed_content(app, source_ids: list[str]) -> dict[str, bool | None]:
+        from core.managers.db_manager import db
+        from core.model.osint_source import OSINTSource
+
+        with app.app_context():
+            sources = [db.session.get(OSINTSource, source_id) for source_id in source_ids]
+            return {source.name: source.parameters.get("USE_FEED_CONTENT") for source in sources}
+
+    def test_import_osint_sources_v4_keeps_use_feed_content(self, client, auth_header, app):
+        cases = [
+            ({"USE_FEED_CONTENT": True}, True),
+            ({"USE_FEED_CONTENT": False, "CONTENT_LOCATION": "content"}, False),
+            ({"USE_FEED_CONTENT": "true"}, True),
+            ({"USE_FEED_CONTENT": "false", "CONTENT_LOCATION": "content"}, False),
+            ({"CONTENT_LOCATION": "content"}, True),
+            ({"CONTENT_LOCATION": " "}, False),
+            ({}, None),
+        ]
+        payload = {
+            "version": 4,
+            "sources": [
+                {
+                    "name": f"V4 Feed Content {idx}",
+                    "description": "",
+                    "type": "rss_collector",
+                    "parameters": {"FEED_URL": f"https://example.com/v4-{idx}.xml", **parameters},
+                }
+                for idx, (parameters, _) in enumerate(cases)
+            ],
+        }
+        expected = {f"V4 Feed Content {idx}": value for idx, (_, value) in enumerate(cases)}
+
+        source_ids = self.assert_post_ok(client, uri="import-osint-sources", json_data=payload, auth_header=auth_header).json["sources"]
+        reimported_ids: list[str] = []
+        try:
+            assert self._stored_use_feed_content(app, source_ids) == expected
+
+            exported = client.get(self.concat_url("export-osint-sources"), query_string={"ids": source_ids}, headers=auth_header).json
+            for source_id in source_ids:
+                client.delete(self.concat_url(f"osint-sources/{source_id}"), headers=auth_header)
+            source_ids = []
+            reimported_ids = self.assert_post_ok(client, uri="import-osint-sources", json_data=exported, auth_header=auth_header).json[
+                "sources"
+            ]
+            assert self._stored_use_feed_content(app, reimported_ids) == expected
+        finally:
+            for source_id in source_ids + reimported_ids:
+                client.delete(self.concat_url(f"osint-sources/{source_id}"), headers=auth_header)
+
+    def test_import_osint_sources_v3_keeps_use_feed_content(self, client, auth_header, app):
+        cases = [
+            ([{"USE_FEED_CONTENT": "true"}], True),
+            ([{"USE_FEED_CONTENT": "false"}, {"CONTENT_LOCATION": "content"}], False),
+            ([{"CONTENT_LOCATION": "content"}], True),
+            ([{"CONTENT_LOCATION": ""}], False),
+            ([], None),
+        ]
+        payload = {
+            "version": 3,
+            "sources": [
+                {
+                    "name": f"V3 Feed Content {idx}",
+                    "description": "",
+                    "type": "rss_collector",
+                    "parameters": [{"FEED_URL": f"https://example.com/v3-{idx}.xml"}, *parameters],
+                }
+                for idx, (parameters, _) in enumerate(cases)
+            ],
+        }
+
+        source_ids = self.assert_post_ok(client, uri="import-osint-sources", json_data=payload, auth_header=auth_header).json["sources"]
+        try:
+            assert self._stored_use_feed_content(app, source_ids) == {f"V3 Feed Content {idx}": value for idx, (_, value) in enumerate(cases)}
+        finally:
+            for source_id in source_ids:
+                client.delete(self.concat_url(f"osint-sources/{source_id}"), headers=auth_header)
+
     def test_export_osint_sources(self, client, auth_header, cleanup_sources):
         response = self.assert_get_ok(client, uri="export-osint-sources", auth_header=auth_header)
         dir_path = os.path.dirname(os.path.realpath(__file__))
