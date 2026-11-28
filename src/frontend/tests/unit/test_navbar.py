@@ -41,3 +41,18 @@ def test_debug_badge_is_absent_outside_admin_dashboard(app, request, monkeypatch
         assert "debug-mode-badge" not in response.text
 
     assert [call.request.url for call in responses.calls] == [f"{Config.TARANIS_CORE_URL}/auth/method"]
+
+
+def test_user_view_extra_context_preserves_current_user(monkeypatch):
+    from frontend.views.admin_views import user_views
+
+    class DummyDpl:
+        def get_objects(self, _model):
+            return []
+
+        def get_first(self, _model):
+            return None
+
+    monkeypatch.setattr(user_views, "DataPersistenceLayer", DummyDpl)
+    extra_context = user_views.UserView.get_extra_context({})
+    assert "current_user" not in extra_context
