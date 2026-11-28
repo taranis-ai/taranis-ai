@@ -109,8 +109,9 @@ jobs:
           PYTHON
           done
 
-          docker compose pause core-background
-          trap 'docker compose unpause core-background' EXIT
+          background_id="$(docker compose ps -q core-background)"
+          docker pause "$background_id"
+          trap 'docker unpause "$background_id"' EXIT
           docker compose exec -T frontend python - <<'PYTHON'
           import os
           from urllib.parse import urlsplit
