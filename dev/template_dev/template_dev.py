@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import datetime
 from pathlib import Path
 
@@ -139,11 +140,11 @@ def render(template_path):
         return {"error": "Invalid template path"}, 400
     except FileNotFoundError:
         return {"error": "Template file not found."}, 404
-    except Exception:
+    except (OSError, UnicodeDecodeError):
         return {"error": "Unable to read template file"}, 500
     try:
         return generate(example_product, template)
-    except Exception:
+    except jinja2.TemplateError:
         return {"error": "Template rendering failed"}, 500
 
 
