@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Literal
 from uuid import uuid4
 
-from models.llm import LLM_BOT_FEATURES
+from models.llm import LLM_BOT_FEATURES, EndpointFormatCheck
 from redis.exceptions import RedisError, WatchError
 from rq import Retry
 
@@ -37,6 +37,20 @@ def endpoint_config(kind: str, endpoint_id: str) -> dict | None:
     return None
 
 
+def extraction_probe(endpoint_id: str) -> dict | None:
+    from core.model.settings import Settings
+
+    if not Config.HRAG_ENABLED:
+        return None
+    settings = Settings.get_settings()
+    selected = settings.get("llm_extraction_endpoint") or settings.get("llm_default_endpoint")
+    endpoint = Settings.get_llm_endpoint("extraction", settings)
+    if selected != endpoint_id or not endpoint or endpoint["processing_mode"] != "realtime":
+        return None
+    effort = settings["hrag_extraction_reasoning_effort"]
+    return {"api_format": endpoint["api_format"], "reasoning_effort": None if effort == "default" else effort}
+
+
 def fingerprint(config: dict) -> str:
     return hashlib.sha256(json.dumps(config, sort_keys=True).encode()).hexdigest()
 
@@ -63,7 +77,21 @@ def get_status(kind: str, endpoint_id: str, config: dict) -> dict:
     status = state.get("status", "pending") if state.get("fingerprint") == fingerprint(config) else "pending"
     if not Config.QUEUE_ENABLED:
         status = "n/a"
-    return {"status": status, "message": MESSAGES[status], "checked_at": state.get("checked_at")}
+    current = state.get("fingerprint") == fingerprint(config)
+    formats = {}
+    if current and Config.QUEUE_ENABLED:
+        for api_format, raw_check in state.get("formats", {}).items():
+            check = EndpointFormatCheck.model_validate(raw_check)
+            formats[api_format] = {"status": check.status, "message": check.public_message(api_format)}
+    failures = [check["message"] for check in formats.values() if check["status"] == "down"]
+    message = " ".join(failures) if status == "down" and failures else MESSAGES[status]
+    return {
+        "status": status,
+        "message": message,
+        "checked_at": state.get("checked_at") if current else None,
+        "embedding_dimensions": state.get("embedding_dimensions") if current else None,
+        "formats": formats,
+    }
 
 
 def bot_status(bot: "Bot") -> dict | None:
@@ -115,7 +143,9 @@ def schedule_all() -> None:
         schedule_check("llm", endpoint_id)
 
 
-def record_result(kind: str, endpoint_id: str, check_id: str, healthy: bool) -> bool:
+def record_result(
+    kind: str, endpoint_id: str, check_id: str, healthy: bool, *, embedding_dimensions: int | None = None, formats: dict | None = None
+) -> bool:
     qm = getattr(queue_manager, "queue_manager", None)
     if not Config.QUEUE_ENABLED or not qm or not qm.redis:
         return False
@@ -130,7 +160,12 @@ def record_result(kind: str, endpoint_id: str, check_id: str, healthy: bool) -> 
             state = json.loads(pipe.get(key) or "{}")
             if state.get("check_id") != check_id or state.get("fingerprint") != fingerprint(config):
                 return False
-            state.update(status="up" if healthy else "down", checked_at=datetime.now(UTC).isoformat())
+            state.update(
+                status="up" if healthy else "down",
+                checked_at=datetime.now(UTC).isoformat(),
+                embedding_dimensions=embedding_dimensions,
+                formats=formats or {},
+            )
             pipe.multi()
             pipe.set(key, json.dumps(state))
             pipe.execute()

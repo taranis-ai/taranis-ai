@@ -1,9 +1,10 @@
+import re
 import uuid
 from typing import Any
 from urllib.parse import urlencode
 
 import requests
-from flask import abort, make_response, render_template, request, url_for
+from flask import abort, current_app, make_response, render_template, request, url_for
 from flask.typing import ResponseReturnValue
 from models.chat import ChatConversation, ChatConversationList, ChatConversationSummary, ChatTurnRequest, ChatTurnResponse
 from pydantic import ValidationError
@@ -43,6 +44,27 @@ class ChatView(BaseView):
                 query_string = urlencode(result.filters, doseq=True)
                 assess_url = url_for("assess.assess")
                 data["assess_url"] = f"{assess_url}?{query_string}" if query_string else assess_url
+            if message.hrag_result:
+                citations = {}
+                evidence_items = data["hrag_result"]["evidence"]
+                sources = {evidence["citation"]: evidence["news_item_id"] for evidence in evidence_items}
+                cited_ids = [match.group(1) for match in re.finditer(r"\[([GV]\d+)\]", message.content) if match.group(1) in sources]
+                citation_order = dict.fromkeys([*cited_ids, *(evidence["citation"] for evidence in evidence_items)])
+                source_order = dict.fromkeys(sources[citation] for citation in citation_order)
+                numbers = {source: number for number, source in enumerate(source_order, start=1)}
+                for evidence in evidence_items:
+                    evidence["assess_url"] = url_for("assess.assess") + "?" + urlencode({"story_ids": evidence["story_id"]})
+                    evidence["citation_number"] = numbers[evidence["news_item_id"]]
+                    citations[evidence["citation"]] = evidence
+                parts = []
+                start = 0
+                for match in re.finditer(r"\[([GV]\d+)\]", message.content):
+                    if evidence := citations.get(match.group(1)):
+                        parts.append({"text": message.content[start : match.start()]})
+                        parts.append({"citation": evidence})
+                        start = match.end()
+                parts.append({"text": message.content[start:]})
+                data["content_parts"] = parts
             messages.append(data)
         return messages
 
@@ -63,6 +85,8 @@ class ChatView(BaseView):
             "message_views": cls._message_views(conversation),
             "notification": notification,
             "draft": draft,
+            "hrag_enabled": current_app.config.get("HRAG_ENABLED", False),
+            "mode": request.form.get("mode") or (conversation.messages[-1].mode if conversation and conversation.messages else "chat"),
             "turn_id": turn_id or str(uuid.uuid7()),
         }
 

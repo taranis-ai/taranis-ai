@@ -36,12 +36,13 @@ def test_check_seed_data(monkeypatch, manual_exists, product_type_exists, expect
     assert health.check_seed_data() == expected
 
 
-def test_endpoint_health_lifecycle(client, auth_header, api_header, app, db_persistent_session, redis_client):
+def test_endpoint_health_lifecycle(client, auth_header, api_header, app, db_persistent_session, redis_client, monkeypatch):
     from copy import deepcopy
 
     from rq import Worker
     from rq.job import Job
 
+    from core.config import Config
     from core.managers.queue_manager import CRON_DEFS_KEY
     from core.model.bot import Bot
     from core.model.settings import Settings
@@ -81,13 +82,90 @@ def test_endpoint_health_lifecycle(client, auth_header, api_header, app, db_pers
             snapshot = client.get(route, query_string={"check_id": state["check_id"]}, headers=api_header)
             assert snapshot.headers["Cache-Control"] == "no-store"
             assert snapshot.json["config"]["api_key"] == endpoint["api_key"]
+            monkeypatch.setattr(Config, "HRAG_ENABLED", True)
+            assert (
+                client.patch(
+                    "/api/settings/settings", json={"settings": {"llm_extraction_endpoint": endpoint_id}}, headers=auth_header
+                ).status_code
+                == 200
+            )
+            state = read_state("llm", endpoint_id)
+            extraction = client.get(route, query_string={"check_id": state["check_id"]}, headers=api_header).json["extraction"]
+            assert extraction == {"api_format": "responses", "reasoning_effort": "low"}
+            assert (
+                client.patch(
+                    "/api/settings/settings", json={"settings": {"hrag_extraction_reasoning_effort": "default"}}, headers=auth_header
+                ).status_code
+                == 200
+            )
+            assert client.post(route, json={"check_id": state["check_id"], "healthy": True}, headers=api_header).json == {"accepted": False}
+            state = read_state("llm", endpoint_id)
+            assert (
+                client.get(route, query_string={"check_id": state["check_id"]}, headers=api_header).json["extraction"]["reasoning_effort"]
+                is None
+            )
+            monkeypatch.setattr(Config, "HRAG_ENABLED", False)
+            snapshot = client.get(route, query_string={"check_id": state["check_id"]}, headers=api_header).json
+            assert snapshot["extraction"] is None
+            for invalid_dimensions in (0, 16001):
+                response = client.post(
+                    endpoint_url,
+                    json={"api_formats": {"responses": {}, "embeddings": {"dimensions": invalid_dimensions}}},
+                    headers=auth_header,
+                )
+                assert response.status_code == 400
+            for dimensions, expected in (("256", 256), ("", None)):
+                response = client.post(
+                    endpoint_url,
+                    json={"api_formats": {"responses": {}, "embeddings": {"dimensions": dimensions}}},
+                    headers=auth_header,
+                )
+                assert response.status_code == 200
+                state = read_state("llm", endpoint_id)
+                snapshot = client.get(route, query_string={"check_id": state["check_id"]}, headers=api_header).json
+                assert snapshot["config"]["api_formats"]["embeddings"].get("dimensions") == expected
+                public = client.get("/api/settings/settings", headers=auth_header).json["items"][0]
+                assert public["settings"]["llm_endpoints"][endpoint_id]["api_formats"]["embeddings"].get("dimensions") == expected
             assert client.get("/api/health").json["services"]["worker_endpoints"] == "down"
 
-            result = {"check_id": state["check_id"], "healthy": False}
+            from core.service.hrag.indexing import current_configuration
+
+            indexing_settings = {**Settings.get_settings(), "llm_embedding_endpoint": endpoint_id}
+            assert current_configuration("embedding", indexing_settings) is None
+            detected = {"check_id": state["check_id"], "healthy": True, "embedding_dimensions": 512}
+            assert client.post(route, json=detected, headers=api_header).json == {"accepted": True}
+            configuration = current_configuration("embedding", indexing_settings)
+            assert configuration["dimensions"] == 512 and configuration["automatic_dimensions"]
+            public = client.get("/api/settings/settings", headers=auth_header).json["items"][0]
+            assert public["settings"]["llm_endpoints"][endpoint_id]["health"]["embedding_dimensions"] == 512
+            assert (
+                client.post(
+                    endpoint_url, json={"api_formats": {"responses": {}, "embeddings": {"model": "new-embedding"}}}, headers=auth_header
+                ).status_code
+                == 200
+            )
+            assert client.post(route, json=detected, headers=api_header).json == {"accepted": False}
+            indexing_settings = {**Settings.get_settings(), "llm_embedding_endpoint": endpoint_id}
+            assert current_configuration("embedding", indexing_settings) is None
+            state = read_state("llm", endpoint_id)
+
+            result = {
+                "check_id": state["check_id"],
+                "healthy": False,
+                "formats": {
+                    "responses": {"status": "down", "failure_reason": "model_missing", "http_status": 400},
+                    "embeddings": {"status": "up"},
+                },
+            }
             assert client.post(route, json=result, headers=api_header).json == {"accepted": True}
             public = client.get("/api/settings/settings", headers=auth_header)
             assert "private-health-key" not in public.text
             assert public.json["items"][0]["settings"]["llm_endpoints"][endpoint_id]["health"]["status"] == "down"
+            health_result = public.json["items"][0]["settings"]["llm_endpoints"][endpoint_id]["health"]
+            assert "Responses (HTTP 400)" in health_result["message"] and "no model ID configured" in health_result["message"]
+            assert health_result["formats"]["embeddings"] == {"status": "up", "message": "Embeddings: Check succeeded."}
+            invalid_result = {**result, "formats": {"responses": {"status": "down", "failure_reason": "private provider body"}}}
+            assert client.post(route, json=invalid_result, headers=api_header).status_code == 400
             assert client.get("/api/health").status_code == 503
 
             response = client.post(
@@ -115,6 +193,7 @@ def test_endpoint_health_lifecycle(client, auth_header, api_header, app, db_pers
             assert bot_id in {bot["id"] for bot in failures}
 
             result["healthy"] = True
+            result["formats"] = {key: {"status": "up"} for key in result["formats"]}
             assert client.post(route, json=result, headers=api_header).json == {"accepted": True}
             assert client.get("/api/health").status_code == 200
             assert client.get(f"/api/config/bots/{bot_id}", headers=auth_header).json["endpoint_health"]["status"] == "up"
@@ -130,12 +209,12 @@ def test_endpoint_health_lifecycle(client, auth_header, api_header, app, db_pers
             assert current["status"] == "pending"
             assert client.post(route, json={"check_id": current["check_id"], "healthy": True}, headers=api_header).json["accepted"]
 
-            for bot_type in ("nlp_bot", "sentiment_analysis_bot", "cybersec_classifier_bot"):
+            for bot_type in ("nlp_bot", "sentiment_analysis_bot", "topic_classifier_bot"):
                 selected_endpoint_id = endpoint_id
-                if bot_type == "cybersec_classifier_bot":
+                if bot_type in {"topic_classifier_bot", "sentiment_analysis_bot"}:
                     response = client.post(
                         "/api/settings/llm-endpoints",
-                        json={**endpoint, "name": "Topic health", "api_format": "systemone", "enabled": True},
+                        json={**endpoint, "name": f"{bot_type} health", "api_format": "systemone", "enabled": True},
                         headers=auth_header,
                     )
                     assert response.status_code == 200

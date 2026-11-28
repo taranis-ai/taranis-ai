@@ -164,7 +164,6 @@ class TestAdminApi(BaseTest):
         [
             ("story_bot", "clustering"),
             ("nlp_bot", "ner"),
-            ("sentiment_analysis_bot", "sentiment"),
         ],
     )
     def test_llm_endpoints_assignments_and_secrets(self, client, auth_header, app, monkeypatch, bot_type, feature):
@@ -301,13 +300,14 @@ class TestAdminApi(BaseTest):
         ).json["id"]
         for incompatible_format in ("responses", "chat_completions"):
             self.assert_post_ok(client, f"llm-endpoints/{incompatible_id}", {"api_format": incompatible_format}, auth_header)
-            response = client.patch(
-                self.concat_url("settings"), json={"settings": {"llm_classification_endpoint": incompatible_id}}, headers=auth_header
-            )
-            assert response.status_code == 400
+            for feature in ("classification", "sentiment", "extraction_verification"):
+                response = client.patch(
+                    self.concat_url("settings"), json={"settings": {f"llm_{feature}_endpoint": incompatible_id}}, headers=auth_header
+                )
+                assert response.status_code == 400
             response = client.post(
                 "/api/config/bots",
-                json={"name": "Invalid topics", "type": "cybersec_classifier_bot", "parameters": {"LLM_ENDPOINT": incompatible_id}},
+                json={"name": "Invalid topics", "type": "topic_classifier_bot", "parameters": {"LLM_ENDPOINT": incompatible_id}},
                 headers=auth_header,
             )
             assert response.status_code == 400
@@ -318,13 +318,66 @@ class TestAdminApi(BaseTest):
                 self.concat_url("settings"), json={"settings": {f"llm_{feature}_endpoint": endpoint_id}}, headers=auth_header
             )
             assert response.status_code == 400
-        self.assert_patch_ok(client, "settings", {"settings": {"llm_classification_endpoint": endpoint_id}}, auth_header)
+        self.assert_patch_ok(
+            client, "settings", {"settings": {"llm_classification_endpoint": endpoint_id, "llm_sentiment_endpoint": endpoint_id}}, auth_header
+        )
+        self.assert_patch_ok(
+            client,
+            "settings",
+            {
+                "settings": {
+                    "llm_extraction_verification_endpoint": endpoint_id,
+                    "llm_sentiment_endpoint": endpoint_id,
+                    "hrag_extraction_reasoning_effort": "low",
+                    "hrag_relationship_verification_enabled": True,
+                }
+            },
+            auth_header,
+        )
+        self.assert_post_ok(client, f"llm-endpoints/{endpoint_id}", {"enabled": False}, auth_header)
+        for invalid_settings in (
+            {"hrag_relationship_verification_enabled": True},
+            {"llm_extraction_verification_endpoint": endpoint_id},
+        ):
+            invalid = client.patch(self.concat_url("settings"), json={"settings": invalid_settings}, headers=auth_header)
+            assert invalid.status_code == 400 and "Decisions endpoint" in invalid.json["error"]
+        self.assert_patch_ok(client, "settings", {"settings": {"hrag_relationship_verification_enabled": False}}, auth_header)
+        self.assert_post_ok(client, f"llm-endpoints/{endpoint_id}", {"enabled": True}, auth_header)
+        invalid = client.patch(
+            self.concat_url("settings"), json={"settings": {"hrag_extraction_reasoning_effort": "private-invalid"}}, headers=auth_header
+        )
+        assert invalid.status_code == 400 and "private-invalid" not in invalid.text
+        self.assert_patch_ok(
+            client,
+            "settings",
+            {
+                "settings": {
+                    "hrag_chunk_size": "1000",
+                    "hrag_chunk_overlap": "100",
+                    "hrag_chunking_enabled": "false",
+                    "hrag_vector_limit": "8",
+                    "hrag_relationship_verification_enabled": "false",
+                }
+            },
+            auth_header,
+        )
+        invalid = client.patch(self.concat_url("settings"), json={"settings": {"hrag_chunk_overlap": 1000}}, headers=auth_header)
+        assert invalid.status_code == 400
+        current = client.get(self.concat_url("settings"), headers=auth_header).json["items"][0]["settings"]
+        assert current["hrag_chunk_size"] == 1000 and current["hrag_chunk_overlap"] == 100
+        assert current["hrag_chunking_enabled"] is False and current["hrag_vector_limit"] == 8
+        assert current["hrag_relationship_verification_enabled"] is False
+        invalid = client.patch(
+            self.concat_url("settings"), json={"settings": {"hrag_relationship_verification_enabled": "invalid"}}, headers=auth_header
+        )
+        assert invalid.status_code == 400
+        assert client.post(self.concat_url(f"llm-endpoints/{endpoint_id}/delete"), json={}, headers=auth_header).status_code == 409
         for incompatible_format in ("responses", "chat_completions"):
             response = client.post(
                 endpoint_url, json={"base_url": "https://provider.example/v1", "api_format": incompatible_format}, headers=auth_header
             )
             assert response.status_code == 400
-        bot = client.post("/api/config/bots", json={"name": "Topics", "type": "cybersec_classifier_bot"}, headers=auth_header)
+        bot = client.post("/api/config/bots", json={"name": "Topics", "type": "topic_classifier_bot"}, headers=auth_header)
         assert bot.status_code == 201
         worker = client.get(f"/api/worker/bots/{bot.json['id']}", headers={"Authorization": "Bearer test_key"})
         assert worker.json["llm_endpoint"]["api_format"] == api_format
@@ -336,6 +389,10 @@ class TestAdminApi(BaseTest):
             "/api/config/bots", json={"name": "NER", "type": "nlp_bot", "parameters": {"LLM_ENDPOINT": endpoint_id}}, headers=auth_header
         )
         assert other.status_code == 400
+        sentiment = client.post("/api/config/bots", json={"name": "Sentiment", "type": "sentiment_analysis_bot"}, headers=auth_header)
+        assert sentiment.status_code == 201
+        sentiment_worker = client.get(f"/api/worker/bots/{sentiment.json['id']}", headers={"Authorization": "Bearer test_key"})
+        assert sentiment_worker.json["llm_endpoint"]["api_format"] == api_format
         bot_url = f"/api/config/bots/{bot.json['id']}"
         assert client.patch(bot_url, json={"parameters": {"LLM_ENDPOINT": endpoint_id}}, headers=auth_header).status_code == 200
         with app.app_context():
@@ -346,6 +403,7 @@ class TestAdminApi(BaseTest):
             # Upgraded binary classifiers can retain assignments to non-Decisions providers.
             values = Settings.get_settings()
             values["llm_classification_endpoint"] = incompatible_id
+            values["llm_sentiment_endpoint"] = incompatible_id
             Settings.get_settings_entry().settings = values
             Bot.get(bot.json["id"]).parameters = {"LLM_ENDPOINT": incompatible_id}
             db.session.commit()
@@ -358,7 +416,9 @@ class TestAdminApi(BaseTest):
         with app.app_context():
             saved = Settings.get_settings()["llm_endpoints"][incompatible_id]
             assert (saved["enabled"], saved["api_key"], saved["timeout"]) == (False, "rotated-test-key", 45)
-        self.assert_patch_ok(client, "settings", {"settings": {"llm_classification_endpoint": endpoint_id}}, auth_header)
+        self.assert_patch_ok(
+            client, "settings", {"settings": {"llm_classification_endpoint": endpoint_id, "llm_sentiment_endpoint": endpoint_id}}, auth_header
+        )
         assert client.patch(bot_url, json={"parameters": {"LLM_ENDPOINT": endpoint_id}}, headers=auth_header).status_code == 200
         self.assert_patch_ok(client, "settings", {"settings": {"llm_classification_endpoint": ""}}, auth_header)
         for incompatible_format in ("responses", "chat_completions"):
@@ -402,6 +462,11 @@ class TestAdminApi(BaseTest):
         self.assert_patch_ok(client, "settings", {"settings": {"llm_default_endpoint": ""}}, auth_header)
         assert client.delete(f"/api/config/bots/{bot.json['id']}", headers=auth_header).status_code == 200
         self.assert_patch_ok(client, "settings", {"settings": {"llm_classification_endpoint": ""}}, auth_header)
+        self.assert_patch_ok(client, "settings", {"settings": {"llm_extraction_verification_endpoint": ""}}, auth_header)
+        removed = client.post(endpoint_url, json={"api_formats": {"responses": {"model": "conversation-model"}}}, headers=auth_header)
+        assert removed.status_code == 400 and "sentiment analysis" in removed.json["error"]
+        assert client.delete(f"/api/config/bots/{sentiment.json['id']}", headers=auth_header).status_code == 200
+        self.assert_patch_ok(client, "settings", {"settings": {"llm_sentiment_endpoint": ""}}, auth_header)
         self.assert_post_ok(client, f"llm-endpoints/{endpoint_id}/delete", {}, auth_header)
         self.assert_post_ok(client, f"llm-endpoints/{incompatible_id}/delete", {}, auth_header)
 

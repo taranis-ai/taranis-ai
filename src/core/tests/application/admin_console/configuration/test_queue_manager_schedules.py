@@ -1,3 +1,4 @@
+import json
 import logging
 from datetime import UTC, datetime, timedelta, timezone
 from unittest.mock import DEFAULT, Mock, call
@@ -305,3 +306,66 @@ def test_core_startup_without_redis_requires_explicit_queue_disable(
     connect.assert_not_called()
     ping.assert_not_called()
     sleep.assert_not_called()
+
+
+def test_hrag_indexing_schedule_settings(app, client, auth_header, redis_client, monkeypatch, session):
+    from core.config import Config
+    from core.model.settings import Settings
+
+    monkeypatch.setattr(Config, "HRAG_ENABLED", True)
+    manager = app.extensions["rq"]
+    settings_url = "/api/settings/settings"
+    with app.app_context():
+        assert Settings.with_defaults({})["hrag_index_interval_minutes"] == 60
+        assert manager.restore_runtime_state()
+    spec = json.loads(redis_client.hget("rq:cron:def", "hrag_reconcile"))
+    assert spec["interval"] == 3600 and spec.get("cron") is None
+    assert all(job.func_name != "worker.hrag.reconcile_index" for job in manager.get_queue("misc").jobs)
+
+    response = client.patch(settings_url, json={"settings": {"hrag_index_interval_minutes": "90"}}, headers=auth_header)
+    assert response.status_code == 200
+    assert response.json["settings"]["hrag_index_interval_minutes"] == 90
+    assert json.loads(redis_client.hget("rq:cron:def", "hrag_reconcile"))["interval"] == 5400
+    with app.app_context():
+        recovery, status = manager.get_cron_job_configs()
+        assert status == 200
+        assert next(job for job in recovery["cron_jobs"] if job["task_id"] == "hrag_reconcile")["interval"] == 5400
+        schedules, status = manager.get_scheduled_jobs({"limit": 100})
+        assert status == 200
+        hrag_schedule = next(job for job in schedules["items"] if job["id"] == "hrag_reconcile")
+        assert hrag_schedule["schedule"] == "Every 90 minutes"
+        assert hrag_schedule["next_run_time"] is not None
+
+    next_run = redis_client.zscore("rq:cron:next", "hrag_reconcile")
+    response = client.patch(
+        settings_url, json={"settings": {"hrag_index_interval_minutes": "90", "hrag_chunk_size": 2500}}, headers=auth_header
+    )
+    assert response.status_code == 200
+    assert redis_client.zscore("rq:cron:next", "hrag_reconcile") == next_run
+    assert all(job.func_name != "worker.hrag.reconcile_index" for job in manager.get_queue("misc").jobs)
+
+    response = client.patch(settings_url, json={"settings": {"hrag_index_interval_minutes": -1}}, headers=auth_header)
+    assert response.status_code == 400
+    assert json.loads(redis_client.hget("rq:cron:def", "hrag_reconcile"))["interval"] == 5400
+    response = client.patch(settings_url, json={"settings": {"hrag_index_interval_minutes": "0"}}, headers=auth_header)
+    assert response.status_code == 200
+    assert not redis_client.hexists("rq:cron:def", "hrag_reconcile")
+    assert redis_client.zscore("rq:cron:next", "hrag_reconcile") is None
+    with app.app_context():
+        assert manager.restore_runtime_state()
+        assert "hrag_reconcile" not in manager._get_managed_cron_specs()
+    assert not redis_client.hexists("rq:cron:def", "hrag_reconcile")
+    assert all(job.func_name != "worker.hrag.reconcile_index" for job in manager.get_queue("misc").jobs)
+    response = client.post("/api/settings/hrag", json={"action": "backfill"}, headers=auth_header)
+    assert response.status_code == 202
+    assert sum(job.func_name == "worker.hrag.reconcile_index" for job in manager.get_queue("misc").jobs) == 1
+
+    monkeypatch.setattr(Config, "HRAG_ENABLED", False)
+    response = client.patch(settings_url, json={"settings": {"hrag_index_interval_minutes": "60"}}, headers=auth_header)
+    assert response.status_code == 200
+    with app.app_context():
+        assert manager.restore_runtime_state()
+        recovery, _ = manager.get_cron_job_configs()
+    assert not redis_client.hexists("rq:cron:def", "hrag_reconcile")
+    assert all(job["task_id"] != "hrag_reconcile" for job in recovery["cron_jobs"])
+    assert client.post("/api/settings/hrag", json={"action": "backfill"}, headers=auth_header).status_code == 503

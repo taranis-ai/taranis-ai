@@ -1,5 +1,5 @@
 version = 1
-revision = 5
+revision = 3
 requires-python = "==3.13.*"
 required-markers = [
     "platform_machine == 'x86_64' and sys_platform == 'linux'",
@@ -13,11 +13,11 @@ exclude-newer = "0001-01-01T00:00:00Z" # This has no effect and is included for 
 exclude-newer-span = "P1W"
 
 [options.exclude-newer-package]
-brotli = "2026-10-23T00:00:00Z"
-brotlicffi = "2026-10-23T00:00:00Z"
+taranis-llm-bot = false
 certifi = false
 pillow = false
-taranis-llm-bot = false
+brotli = "2026-10-23T00:00:00Z"
+brotlicffi = "2026-10-23T00:00:00Z"
 
 [[package]]
 name = "annotated-types"
@@ -1898,17 +1898,21 @@ wheels = [
 
 [[package]]
 name = "taranis-llm-bot"
-version = "0.1.6"
+version = "0.1.8"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "langcodes", extra = ["data"] },
-    { name = "niquests" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/69/42/8dd06d1749143d4ee23481a67fc3ac7e511c7b9eca824f373ae1124e5288/taranis_llm_bot-0.1.6.tar.gz", hash = "sha256:4d1368fe43b837d53af7a5e29cc6657806213ba4014d9301788c409dd5b19503", size = 145208, upload-time = "2026-10-21T11:30:32.197Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/34/84/5ffef9acdfd5efd669f505129a0969d8f1a2c8fe3773e5f397b2b85bd53b/taranis_llm_bot-0.1.8.tar.gz", hash = "sha256:aaea3eede90a8a1b774888d199fc05c9c9f0c882ed7a084d62461324dbbabf92", size = 176743, upload-time = "2026-11-19T10:28:14.96Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/82/5c/ed236ac95f27e3d9c5fd7593f8f0b99bdc63942cd09f55a23ee1a0d809fb/taranis_llm_bot-0.1.6-py3-none-any.whl", hash = "sha256:27a6f0a550c400f2cfe65d055d2b453f8137255d202b1f4fa66bd1ad97788d6b", size = 72950, upload-time = "2026-10-21T11:30:31.223Z" },
+    { url = "https://files.pythonhosted.org/packages/cb/80/69113cdea2c32746f4c4787fa2c263e6a5277e31a6e0d45de3c861d1fd81/taranis_llm_bot-0.1.8-py3-none-any.whl", hash = "sha256:fda8ab9c99a0293d38a55d033948db9f73d29409f400594f3e5cbecc7b562325", size = 70680, upload-time = "2026-11-19T10:28:14.008Z" },
+]
+
+[package.optional-dependencies]
+inference = [
+    { name = "niquests" },
 ]
 
 [[package]]
@@ -1967,7 +1971,7 @@ dependencies = [
     { name = "python-gnupg" },
     { name = "redis" },
     { name = "rq" },
-    { name = "taranis-llm-bot" },
+    { name = "taranis-llm-bot", extra = ["inference"] },
     { name = "taranis-models" },
     { name = "taxii2-client" },
     { name = "trafilatura" },
@@ -2029,7 +2033,7 @@ requires-dist = [
     { name = "ruff", marker = "extra == 'dev'" },
     { name = "setuptools", marker = "extra == 'dev'" },
     { name = "setuptools-scm", marker = "extra == 'dev'" },
-    { name = "taranis-llm-bot", specifier = "==0.1.6" },
+    { name = "taranis-llm-bot", extras = ["inference"], specifier = "==0.1.8" },
     { name = "taranis-models", editable = "../models" },
     { name = "taxii2-client" },
     { name = "trafilatura" },

@@ -38,6 +38,8 @@ dependencies = [
     "sentry-sdk[flask]",
     "sentry-sdk[sqlalchemy]",
     "fuzzbite",
+    "neo4j>=6.4.1",
+    "taranis-llm-bot==0.1.8",
 ]
 dynamic = ["version"]
 
@@ -148,7 +150,8 @@ no-binary-package = ["urllib3-future"]
 extra-build-variables = { "urllib3-future" = { URLLIB3_NO_OVERRIDE = "1" } }
 exclude-newer = "1 week"
 # Allow security updates to the certificate bundle and image decoders without the release delay.
-exclude-newer-package = { fuzzbite = "2026-09-15T00:00:00Z", certifi = false, pillow = false }
+# Use explicitly pinned first-party llm-bot releases without the release delay.
+exclude-newer-package = { "taranis-llm-bot" = false, fuzzbite = "2026-09-15T00:00:00Z", certifi = false, pillow = false }
 
 required-environments = [
   "sys_platform == 'linux' and platform_machine == 'x86_64'",

@@ -4,7 +4,7 @@ Load for: Assess sidebar/search/default filters, `/assess`, `/api/assess/filter-
 
 ## Contracts
 
-- `classification` uses the eight llm-bot categories in `models/classification.py` across sidebar, saved filters, Chat, and `classification:`/`topic:` omnisearch (quote spaces). Rerun classification and replace binary filters manually. `CYBERSEC_CLASSIFIER_BOT` retains bot IDs/schedules.
+- `classification` uses the eight llm-bot categories in `models/classification.py` across sidebar, saved filters, Chat, and `classification:`/`topic:` omnisearch (quote spaces). Rerun classification and replace binary filters manually. The topic classifier type migration preserves bot IDs and schedules.
 
 - Assess removes empty GET parameter values before rendering. Native navigation redirects to the clean Assess URL; HTMX normalizes request arguments in place and returns `HX-Push-Url` so filters stay asynchronous. Preserve repeated non-empty values and explicit values such as `false` and `0`.
 - Without JavaScript, search and the native sidebar filters submit through one GET form, and the form exposes an explicit Apply filters button. Source, language, group, and tag filters are hidden because their token-selection workflows require JavaScript.

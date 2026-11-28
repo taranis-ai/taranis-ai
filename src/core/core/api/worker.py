@@ -148,7 +148,7 @@ class TaskChanges(MethodView):
 class EndpointHealth(MethodView):
     @api_key_required
     def get(self, kind: str, endpoint_id: str):
-        from core.service.endpoint_health import endpoint_config, fingerprint, read_state
+        from core.service.endpoint_health import endpoint_config, extraction_probe, fingerprint, read_state
 
         config = endpoint_config(kind, endpoint_id)
         state = read_state(kind, endpoint_id)
@@ -160,18 +160,33 @@ class EndpointHealth(MethodView):
         ):
             response = jsonify({"skip": True})
         else:
-            response = jsonify({"config": config})
+            response = jsonify(
+                {
+                    "config": config,
+                    "extraction": extraction_probe(endpoint_id),
+                }
+            )
         response.headers["Cache-Control"] = "no-store"
         return response
 
     @api_key_required
     def post(self, kind: str, endpoint_id: str):
+        from models.llm import EndpointCheckResult
+
         from core.service.endpoint_health import record_result
 
-        data = request.get_json(silent=True)
-        if not isinstance(data, dict) or not isinstance(data.get("check_id"), str) or not isinstance(data.get("healthy"), bool):
+        try:
+            data = EndpointCheckResult.model_validate(request.get_json(silent=True))
+        except ValidationError:
             return {"error": "Invalid endpoint check result"}, 400
-        accepted = record_result(kind, endpoint_id, data["check_id"], data["healthy"])
+        accepted = record_result(
+            kind,
+            endpoint_id,
+            data.check_id,
+            data.healthy,
+            embedding_dimensions=data.embedding_dimensions,
+            formats={key: value.model_dump(exclude_none=True) for key, value in data.formats.items()},
+        )
         return {"accepted": accepted}, 200
 
 
@@ -488,9 +503,66 @@ class Reports(MethodView):
         return ReportItem.get_for_api(report_id)
 
 
+class HragReconcile(MethodView):
+    @api_key_required
+    def post(self):
+        from models.hrag import IndexAction
+
+        from core.service.hrag.indexing import reconcile
+
+        try:
+            payload = IndexAction.model_validate(request.get_json(silent=True) or {"action": "reconcile"})
+            if payload.action != "reconcile":
+                return {"error": "Invalid HRAG reconciliation request"}, 400
+            return reconcile(payload.generation_id or None), 200
+        except ValidationError:
+            return {"error": "Invalid HRAG reconciliation request"}, 400
+        except Exception:
+            db.session.rollback()
+            logger.exception("HRAG reconciliation failed")
+            return {"error": "HRAG reconciliation failed"}, 503
+
+
+class HragIndex(MethodView):
+    @api_key_required
+    def post(self, index_id: str):
+        from core.service.hrag.indexing import claim
+
+        try:
+            payload = claim(index_id)
+            response = make_response(payload or {"skip": True}, 200)
+            response.headers["Cache-Control"] = "no-store"
+            return response
+        except Exception:
+            db.session.rollback()
+            logger.exception("HRAG claim failed")
+            return {"error": "HRAG index unavailable"}, 503
+
+    @api_key_required
+    def put(self, index_id: str):
+        from models.hrag import IndexSubmission
+
+        from core.service.hrag.indexing import submit
+
+        try:
+            result, status = submit(index_id, IndexSubmission.model_validate(request.get_json(silent=True)))
+            if status >= 400:
+                db.session.rollback()
+            return result, status
+        except ValidationError:
+            db.session.rollback()
+            return {"error": "Invalid HRAG submission"}, 400
+        except Exception:
+            db.session.rollback()
+            logger.exception("HRAG submission failed")
+            return {"error": "HRAG submission failed"}, 503
+
+
 def initialize(app: Flask):
     worker_bp = Blueprint("worker", __name__, url_prefix=f"{Config.APPLICATION_ROOT}api/worker")
 
+    worker_bp.add_url_rule("/hrag/reconcile", view_func=HragReconcile.as_view("hrag_reconcile"))
+    worker_bp.add_url_rule("/hrag/index/<string:index_id>", view_func=HragIndex.as_view("hrag_index"))
     worker_bp.add_url_rule("/osint-sources", view_func=Sources.as_view("osint_sources_all_worker"))
     worker_bp.add_url_rule("/osint-sources/<string:source_id>", view_func=Sources.as_view("osint_sources_worker"))
     worker_bp.add_url_rule("/osint-sources/<string:source_id>/icon", view_func=SourceIcon.as_view("osint_sources_worker_icon"))

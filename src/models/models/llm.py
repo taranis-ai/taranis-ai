@@ -1,16 +1,27 @@
-from typing import Literal
+from typing import Annotated, Literal
 from urllib.parse import urlparse
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
+type LLMAPIFormat = Literal["responses", "chat_completions", "systemone", "openai_decisions", "embeddings"]
 type LLMProcessingMode = Literal["realtime", "openrouter_batch"]
 
 OPENROUTER_DECISIONS_URL = "https://openrouter.ai/api/alpha/decisions"
 
+type EmbeddingDimensions = Annotated[int, Field(ge=1, le=16000)]
+
+
+class EmbeddingDimensionMismatch(ValueError):
+    public_message = "Embedding output dimensions do not match the index or configured override. Check the model and rebuild the index."
+
 
 LLM_FEATURES = {
     "chat": "Chat",
+    "embedding": "HRAG embeddings",
+    "graph_planning": "HRAG graph planning",
+    "extraction": "HRAG entity and relationship extraction",
+    "extraction_verification": "HRAG relationship verification",
     "clustering": "Story clustering",
     "summarization": "Summarization and titles",
     "ner": "Named-entity recognition",
@@ -24,7 +35,7 @@ LLM_BOT_FEATURES = {
     "summary_bot": "summarization",
     "nlp_bot": "ner",
     "sentiment_analysis_bot": "sentiment",
-    "cybersec_classifier_bot": "classification",
+    "topic_classifier_bot": "classification",
 }
 
 
@@ -35,7 +46,8 @@ class LLMEndpoint(BaseModel):
     base_url: str = Field(min_length=1)
     enabled: bool = True
     model: str = ""
-    api_format: Literal["responses", "chat_completions", "systemone", "openai_decisions"] = "responses"
+    dimensions: EmbeddingDimensions | None = Field(default=None, exclude_if=lambda value: value is None)
+    api_format: LLMAPIFormat = "responses"
     processing_mode: LLMProcessingMode = "realtime"
     api_key: str = Field(default="", repr=False)
     timeout: int = Field(default=120, gt=0)
@@ -46,7 +58,9 @@ class LLMEndpoint(BaseModel):
 
     @model_validator(mode="after")
     def validate_transport(self):
-        if self.is_decisions and self.processing_mode != "realtime":
+        if self.dimensions is not None and self.api_format != "embeddings":
+            raise ValueError("Dimensions apply only to embeddings")
+        if (self.is_decisions or self.api_format == "embeddings") and self.processing_mode != "realtime":
             raise ValueError("Decisions endpoints require realtime processing")
         if not self.is_decisions and urlparse(self.base_url).path.endswith(("/decisions", "/systemone")):
             raise ValueError("Select a Decisions API format for this endpoint")
@@ -62,21 +76,89 @@ class LLMEndpoint(BaseModel):
             parsed.port == 0
             or parsed.query
             or parsed.fragment
-            or parsed.path.rstrip("/").endswith(("/responses", "/chat/completions", "/batches"))
+            or parsed.path.rstrip("/").endswith(("/responses", "/chat/completions", "/batches", "/embeddings"))
         ):
             raise ValueError("Enter the provider base URL without an API endpoint, query, or fragment")
         return value.rstrip("/")
 
 
-type LLMAPIFormat = Literal["responses", "chat_completions", "systemone", "openai_decisions"]
-
 LLM_API_FORMATS: dict[LLMAPIFormat, str] = {
+    "embeddings": "Embeddings",
     "responses": "Responses",
     "chat_completions": "Chat Completions",
     "systemone": "Decisions (System One / OpenRouter)",
     "openai_decisions": "Decisions (OpenAI)",
 }
 DECISIONS_FORMATS = {"systemone", "openai_decisions"}
+
+
+type EndpointFailureReason = Literal[
+    "model_missing",
+    "request_rejected",
+    "authentication_failed",
+    "billing_required",
+    "forbidden",
+    "not_found",
+    "rate_limited",
+    "service_unavailable",
+    "http_error",
+    "timeout",
+    "connection_failed",
+    "tls_failed",
+    "invalid_response",
+    "invalid_configuration",
+    "batch_failed",
+    "provider_error",
+    "embedding_dimensions_mismatch",
+    "embedding_dimensions_unsupported",
+]
+
+ENDPOINT_CHECK_MESSAGES = {
+    "model_missing": "Request rejected with no model ID configured. Enter a model ID if required by this provider, or disable this API format.",
+    "request_rejected": "Request rejected. Check the model ID, API format and supported parameters.",
+    "authentication_failed": "Authentication failed. Check the saved API key.",
+    "billing_required": "Provider requires payment or credits. Check the provider account.",
+    "forbidden": "Access denied. Check API key permissions and model access.",
+    "not_found": "API path or model not found. Check the base URL, API format and model ID.",
+    "rate_limited": "Provider rate limit reached. Wait and try again or check the account limits.",
+    "service_unavailable": "Provider service is unavailable. Try again later.",
+    "http_error": "Provider returned an HTTP error. Check the endpoint configuration.",
+    "timeout": "Provider request timed out. Check service availability and the configured timeout.",
+    "connection_failed": "Could not connect to the provider. Check the URL, network and service availability.",
+    "tls_failed": "TLS certificate verification failed. Check the provider certificate and trusted certificate authorities.",
+    "invalid_response": "Provider returned invalid or empty output for this API format. Check the model and API format.",
+    "invalid_configuration": "Invalid endpoint configuration. Check the API format, model and processing mode.",
+    "batch_failed": "Batch check failed. Check the model's batch support and provider batch status.",
+    "provider_error": "Provider inference failed. Check the model and service availability.",
+    "embedding_dimensions_mismatch": "Embedding output does not match the configured dimensions. Clear the dimension override for Automatic, or choose a supported size.",
+    "embedding_dimensions_unsupported": "Embedding output exceeds the supported size of 16000 dimensions. Select a smaller output size.",
+}
+
+
+class EndpointFormatCheck(BaseModel):
+    status: Literal["up", "down", "pending"]
+    failure_reason: EndpointFailureReason | None = None
+    http_status: int | None = Field(default=None, ge=400, le=599, strict=True)
+
+    def public_message(self, api_format: LLMAPIFormat) -> str:
+        message = "Check succeeded." if self.status == "up" else "Check pending."
+        if self.status == "down":
+            message = ENDPOINT_CHECK_MESSAGES.get(self.failure_reason or "invalid_response", ENDPOINT_CHECK_MESSAGES["invalid_response"])
+        status = f" (HTTP {self.http_status})" if self.http_status else ""
+        return f"{LLM_API_FORMATS[api_format]}{status}: {message}"
+
+
+class EndpointCheckResult(BaseModel):
+    check_id: str
+    healthy: bool = Field(strict=True)
+    embedding_dimensions: EmbeddingDimensions | None = None
+    formats: dict[LLMAPIFormat, EndpointFormatCheck] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def validate_overall_health(self):
+        if self.formats and self.healthy != all(check.status == "up" for check in self.formats.values()):
+            raise ValueError("Overall endpoint health must match the API format results")
+        return self
 
 
 def resolve_format_base_url(base_url: str, api_format: str, override: str) -> str:
@@ -92,6 +174,12 @@ class LLMAPIConfig(BaseModel):
 
     model: str = ""
     base_url: str = ""
+    dimensions: EmbeddingDimensions | None = Field(default=None, exclude_if=lambda value: value is None)
+
+    @field_validator("dimensions", mode="before")
+    @classmethod
+    def normalize_dimensions(cls, value):
+        return None if value == "" else value
 
     @field_validator("base_url")
     @classmethod
@@ -133,12 +221,20 @@ class LLMProvider(BaseModel):
             raise ValueError("Decisions endpoints require realtime processing")
         return self
 
+    @staticmethod
+    def feature_formats(feature: str) -> tuple[str, ...]:
+        if feature == "embedding":
+            return ("embeddings",)
+        if feature in {"classification", "sentiment", "extraction_verification"}:
+            return ("systemone", "openai_decisions")
+        return ("responses", "chat_completions")
+
     def supports(self, feature: str) -> bool:
-        return any((api_format in DECISIONS_FORMATS) == (feature == "classification") for api_format in self.api_formats)
+        return bool(set(self.api_formats) & set(self.feature_formats(feature)))
 
     def for_feature(self, feature: str) -> dict | None:
         for api_format in LLM_API_FORMATS:
-            if api_format in self.api_formats and (api_format in DECISIONS_FORMATS) == (feature == "classification"):
+            if api_format in self.api_formats and api_format in self.feature_formats(feature):
                 return self.for_format(api_format)
         return None
 
@@ -150,7 +246,8 @@ class LLMProvider(BaseModel):
             enabled=self.enabled,
             api_format=api_format,
             model=config.model,
-            processing_mode="realtime" if api_format in DECISIONS_FORMATS else self.processing_mode,
+            dimensions=config.dimensions,
+            processing_mode="realtime" if api_format in DECISIONS_FORMATS or api_format == "embeddings" else self.processing_mode,
             api_key=self.api_key,
             timeout=self.timeout,
         ).model_dump()

@@ -4,6 +4,8 @@ Load for: Worker-backed actions, queue warnings/priority, task results, `/health
 
 ## Queue and Result Contracts
 
+HRAG indexing uses dedicated `embeddings` and `hrag` queues (worker roles `Embeddings` and `HRAG`). Embeddings precedes background bots; HRAG extraction is last in the default priority order. Container HRAG deployments reserve separate workers; see [Hybrid Retrieval](../features/hrag.md).
+
 Task entry points and RQ failure hooks own their HTTP session scope, including result persistence on error. See [HTTP Client Lifetimes](http-clients.md) for cleanup and no-retry service behavior.
 
 - With `QUEUE_ENABLED=false`, core skips queue connections and scheduling; broker/worker health is `n/a` and queue actions are unavailable (503). Source collection/preview and bot execution/chains reject disabled queues before source/bot validation or graph construction. Enabled queues require Redis at startup.

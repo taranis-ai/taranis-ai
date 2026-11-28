@@ -335,8 +335,8 @@ class SentimentAnalysisBotParameters(SharedLLMBotParameters):
     RUN_AFTER_COLLECTOR: bool = Field(True, title="Run after collector", description="Run automatically after collection.")
 
 
-class CybersecClassifierBotParameters(SharedLLMBotParameters):
-    BOT_ENDPOINT: SkipJsonSchema[str] = "http://llm-bot:8000/cybersec-classification"
+class TopicClassifierBotParameters(SharedLLMBotParameters):
+    BOT_ENDPOINT: SkipJsonSchema[str] = "http://llm-bot:8000/classify"
     # Accept saved binary-classifier settings; topic classification always selects the highest score.
     CLASSIFICATION_THRESHOLD: SkipJsonSchema[float] = Field(0.65, ge=0, le=1)
 
@@ -563,10 +563,10 @@ _DEFINITIONS = (
     _definition(WORKER_TYPES.WORDLIST_BOT, "Wordlist Bot", "Bot for tagging news items by word list", WordlistBotParameters),
     _definition(WORKER_TYPES.SENTIMENT_ANALYSIS_BOT, "Sentiment Analysis Bot", "Bot for analyzing sentiment", SentimentAnalysisBotParameters),
     _definition(
-        WORKER_TYPES.CYBERSEC_CLASSIFIER_BOT,
+        WORKER_TYPES.TOPIC_CLASSIFIER_BOT,
         "Topic Classifier",
         "Bot for classifying news items into general and security topics",
-        CybersecClassifierBotParameters,
+        TopicClassifierBotParameters,
     ),
     _definition(
         WORKER_TYPES.PANDOC_PRESENTER, "PANDOC Presenter", "Presenter for generating ODT and DOCX documents", PandocPresenterParameters

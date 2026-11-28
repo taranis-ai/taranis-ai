@@ -231,3 +231,14 @@ files are no longer used. Pull the selected published images, restart services, 
 health, and publish a test product. No database migration is required. Before rolling
 back, export the presets and remove the new parameters for older schema versions;
 the prior worker version requires its documented `known_hosts` setup.
+
+
+### Sentiment Decisions upgrade
+
+The updated llm-bot integration runs sentiment through Decisions. In **LLM Endpoints**, enable a realtime Decisions format and assign **Sentiment analysis**, or select a compatible endpoint on each sentiment bot. Existing generative assignments remain saved but cannot execute sentiment with the new library. Other generative bot assignments remain unchanged. HRAG extraction now defaults to **Low** reasoning; explicitly change an older saved **None** setting when desired, then backfill and activate the replacement extraction generation.
+
+### Topic classifier type
+
+The classifier now uses `topic_classifier_bot` (`TOPIC_CLASSIFIER_BOT`) in API requests and completion markers. PostgreSQL migrates existing bots and markers automatically, preserving IDs, names, configuration and schedules. Update external integrations/import files that send the old type, and finish or drain queued bot runs before upgrading Core and Workers together.
+
+HRAG graph extraction now selects a general or cybersecurity vocabulary from each NewsItem’s topic classification. Run indexing to build the replacement extraction generation and activate it when ready; embeddings do not need rebuilding. Unclassified and disinformation items retain the extended vocabulary.

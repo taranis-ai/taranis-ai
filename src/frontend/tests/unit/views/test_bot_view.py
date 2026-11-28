@@ -50,7 +50,7 @@ def test_bot_run_order_labels(parameters, expected):
         "story_bot",
         "summary_bot",
         "sentiment_analysis_bot",
-        "cybersec_classifier_bot",
+        "topic_classifier_bot",
     ],
 )
 def test_bot_parameters_include_optional_positive_integer_requests_timeout(authenticated_client, htmx_header, bot_type):
@@ -72,7 +72,7 @@ def test_bot_parameters_include_optional_positive_integer_requests_timeout(authe
     assert requests_timeout_fields[0].get("min") == "1"
     assert requests_timeout_fields[0].get("required") is None
     assert requests_timeout_fields[0].get("step") is None
-    if bot_type == "cybersec_classifier_bot":
+    if bot_type == "topic_classifier_bot":
         assert not tree.xpath('//input[@name="parameters[CLASSIFICATION_THRESHOLD]"]')
     assert refresh_interval_fields[0].get("required") is None
     assert tree.xpath('//select[@name="parameters[LLM_ENDPOINT]"]')

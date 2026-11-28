@@ -1,0 +1,120 @@
+"""Opt-in real-store check; database names/credentials must refer to disposable services."""
+
+import os
+import uuid
+
+import pytest
+from flask import Flask
+from models.hrag import ChunkEmbedding, ExtractionResult, GraphPlan
+from sqlalchemy import text
+
+from core.config import Config
+from core.managers.db_manager import db
+from core.service.hrag import stores
+
+
+@pytest.fixture
+def hrag_stores(monkeypatch):
+    uri = os.environ.get("HRAG_TEST_POSTGRES_URI")
+    bolt = os.environ.get("HRAG_TEST_NEO4J_URI")
+    if not uri or not bolt:
+        pytest.skip("Set HRAG_TEST_POSTGRES_URI and HRAG_TEST_NEO4J_URI for disposable database checks")
+    monkeypatch.setattr(Config, "HRAG_ENABLED", True)
+    monkeypatch.setattr(Config, "HRAG_NEO4J_URI", bolt)
+    monkeypatch.setattr(Config, "HRAG_NEO4J_PASSWORD", os.environ["HRAG_TEST_NEO4J_PASSWORD"])
+    app = Flask("hrag-store-check")
+    schema = "hrag_test_" + uuid.uuid4().hex
+    app.config.update(SQLALCHEMY_DATABASE_URI=uri, SQLALCHEMY_ENGINE_OPTIONS={"connect_args": {"options": f"-csearch_path={schema},public"}})
+    db.init_app(app)
+    with app.app_context():
+        with db.engine.begin() as conn:
+            conn.execute(text(f'CREATE SCHEMA "{schema}"'))
+            conn.execute(text("CREATE TABLE hrag_index (id varchar(36) PRIMARY KEY)"))
+        stores.initialize_vectors(db.engine)
+        yield schema
+        db.session.remove()
+        with db.engine.begin() as conn:
+            conn.execute(text(f'DROP SCHEMA "{schema}" CASCADE'))
+        with stores.graph_driver() as driver:
+            driver.execute_query("MATCH (d:Document) WHERE d.index_id STARTS WITH $prefix DETACH DELETE d", prefix=schema)
+            driver.execute_query("MATCH (:Entity)-[r]->(:Entity) WHERE r.index_id STARTS WITH $prefix DELETE r", prefix=schema)
+            driver.execute_query("MATCH (n:Entity) WHERE NOT (n)--() DELETE n")
+        db.engine.dispose()
+
+
+def test_authorized_paths_vector_ranking_projection_retry_and_deletion(hrag_stores):
+    prefix = hrag_stores
+    ids = [str(uuid.uuid4()) for _ in range(3)]
+    for index_id in ids:
+        db.session.execute(text("INSERT INTO hrag_index (id) VALUES (:id)"), {"id": index_id})
+    for index_id in (ids[0], ids[2]):
+        stores.save_chunks(
+            index_id, [ChunkEmbedding(start=0, end=10, embedding=[1, 0, 0]), ChunkEmbedding(start=8, end=20, embedding=[0.9, 0.1, 0])]
+        )
+    db.session.commit()
+    assert stores.search_chunk_vectors([1, 0, 0], [ids[2]], 3, 1) == [(ids[2], 0)]
+    assert stores.search_chunk_vectors([1, 0, 0], [ids[2]], 3, 2) == [(ids[2], 0), (ids[2], 1)]
+    stores.save_chunks(ids[2], [ChunkEmbedding(start=0, end=20, embedding=[0, 1, 0])])
+    db.session.commit()
+    assert stores.search_chunk_vectors([1, 0, 0], [ids[2]], 3, 2) == [(ids[2], 0)]
+    db.session.execute(text("DELETE FROM hrag_index WHERE id = :id"), {"id": ids[2]})
+    db.session.commit()
+    assert stores.search_chunk_vectors([1, 0, 0], [ids[2]], 3, 2) == []
+
+    keys = []
+    for index, (actor, assertion) in enumerate((("Alpha", "affirmed"), ("Beta", "affirmed"), ("Gamma", "negated"))):
+        content = f"{actor} exploits CVE-2026-9999." if assertion == "affirmed" else f"{actor} does not exploit CVE-2026-9999."
+        cve_start = content.index("CVE")
+        result = ExtractionResult.model_validate(
+            {
+                "entities": [
+                    {"id": "a", "type": "GROUP", "name": actor, "evidence": {"start": 0, "end": len(actor), "quote": actor}},
+                    {
+                        "id": "v",
+                        "type": "VULNERABILITY",
+                        "name": "CVE-2026-9999",
+                        "evidence": {"start": cve_start, "end": cve_start + 13, "quote": "CVE-2026-9999"},
+                    },
+                ],
+                "relations": [
+                    {
+                        "type": "EXPLOITS",
+                        "source_id": "a",
+                        "target_id": "v",
+                        "assertion": assertion,
+                        "evidence": {"start": 0, "end": len(content), "quote": content},
+                    }
+                ],
+            }
+        ).validate_content(content)
+        index_id = f"{prefix}-{index}"
+        stores.project_graph(index_id, "current", str(index), prefix, result)
+        stores.project_graph(index_id, "current", str(index), prefix, result)  # Idempotent replay.
+        keys.append(f"{index_id}:current")
+    with stores.graph_driver() as driver:
+        rows, _, _ = driver.execute_query(
+            "MATCH (:Entity)-[r]->(:Entity) WHERE r.key IN $keys RETURN type(r) AS type, properties(r) AS properties",
+            keys=keys,
+        )
+        assert len(rows) == 3
+        assert all(row["type"] == "EXPLOITS" and "kind" not in row["properties"] for row in rows)
+    plan = GraphPlan(names=["Alpha"], hops=3)
+    full = stores.graph_search(plan, keys, 50)
+    assert any(len(path) == 2 for path in full)
+    assert not any(row["key"] == keys[2] for path in full for row in path)
+    filtered = stores.graph_search(plan, [keys[0]], 50)
+    assert len(filtered) == 1 and len(filtered[0]) == 1
+    assert stores.graph_search(GraphPlan(names=["Alpha"], relationships=["EXPLOITS"]), [keys[0]], 50) == filtered
+    assert stores.graph_search(GraphPlan(names=["Alpha"], relationships=["USES"]), keys, 50) == []
+    assert stores.graph_search(GraphPlan(names=["Alpha"], hops=0), [keys[0]], 50) == [
+        [{"key": keys[0], "index_id": f"{prefix}-0", "idx": None}]
+    ]
+    assert stores.graph_search(GraphPlan(names=["'; MATCH (n) DETACH DELETE n //"]), keys, 50) == []
+    assert stores.graph_search(plan, [], 50) == []
+    # A stale callback creates its own fingerprint projection and cannot replace current evidence.
+    stores.project_graph(f"{prefix}-0", "old", "0", prefix, result)
+    assert stores.graph_search(plan, [keys[0]], 50) == filtered
+    stores.prune_graph(keys[:1])
+    assert stores.graph_document_keys() == {keys[0]}
+    assert stores.graph_search(plan, keys, 50) == filtered
+    assert stores.graph_search(GraphPlan(names=["Beta"], hops=0), keys, 50) == []

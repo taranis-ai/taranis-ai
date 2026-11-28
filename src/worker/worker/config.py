@@ -4,7 +4,7 @@ from pydantic import Field, ValidationInfo, field_validator, model_validator
 from pydantic_settings import BaseSettings
 
 
-WORKER_TYPE_PRIORITIES = ("Presenters", "Publishers", "Connectors", "Misc", "Bots", "Collectors")
+WORKER_TYPE_PRIORITIES = ("Presenters", "Publishers", "Connectors", "Misc", "Embeddings", "Bots", "Collectors", "HRAG")
 
 
 class Settings(BaseSettings):

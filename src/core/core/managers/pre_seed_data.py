@@ -49,7 +49,7 @@ bots = [
     {
         "name": "Topic Classifier",
         "description": "Bot for classifying news items into general and security topics",
-        "type": "CYBERSEC_CLASSIFIER_BOT",
+        "type": "TOPIC_CLASSIFIER_BOT",
     },
 ]
 

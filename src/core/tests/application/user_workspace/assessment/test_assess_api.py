@@ -9,7 +9,7 @@ from tests.application.support.api_test_base import BaseTest
 class TestAssessApi(BaseTest):
     base_uri = "/api/assess"
 
-    @pytest.mark.parametrize("bot_type", ["summary_bot", "sentiment_analysis_bot", "cybersec_classifier_bot"])
+    @pytest.mark.parametrize("bot_type", ["summary_bot", "sentiment_analysis_bot", "topic_classifier_bot"])
     @pytest.mark.parametrize("use_type", [True, False])
     def test_story_bot_actions_queue_configured_bot(self, app, client, auth_header, session, redis_client, bot_type, use_type):
         from core.model.bot import Bot

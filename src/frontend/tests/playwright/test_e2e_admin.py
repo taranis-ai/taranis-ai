@@ -1,4 +1,5 @@
 import json
+import time
 import uuid
 from datetime import UTC, datetime
 from urllib.parse import parse_qs, urlparse
@@ -1638,7 +1639,8 @@ class TestEndToEndAdmin(BaseE2ETest):
             for cleanup_id in set(cleanup_ids):
                 core_request_client.delete(f"/assess/stories/{cleanup_id}", raise_for_status=False)
 
-    def test_admin_settings(self, logged_in_page, tmp_path, pre_seed_stories):
+    @pytest.mark.e2e_full_stack
+    def test_admin_settings(self, logged_in_page, tmp_path, pre_seed_stories, core_request_client):
         page = logged_in_page
         settings_update_url = url_for("admin_settings.settings_action", action="settings", _external=True)
         settings_form = page.locator("#settings-container form#admin-settings-form")
@@ -1928,6 +1930,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             expect(form.get_by_label("Name", exact=False)).to_have_value("E2E shared model")
             expect(form.get_by_label("API key", exact=False)).to_have_value("")
             reset_htmx_state(page)
+            local_provider = not external_core_api_url()
             form.get_by_label("API key", exact=False).fill("e2e-private-key")
             base_url = "https://provider.example/v1"
             suggestions_url = url_for("admin_settings.settings_action", action="llm-model-suggestions", _external=True)
@@ -1973,6 +1976,10 @@ class TestEndToEndAdmin(BaseE2ETest):
                 expect(model_options).to_have_attribute("value", model_ids["realtime"])
             finally:
                 page.unroute(route_pattern, respond_with_suggestions)
+            if local_provider:
+                form.get_by_label("Provider base URL").fill("http://demo-llm:8080/v1")
+                form.get_by_label("Enable Embeddings", exact=True).check()
+                form.get_by_label("Embeddings model", exact=True).fill("probe-model")
             responses_model.fill("private/custom-model")
             with_htmx_wait(page, lambda: form.get_by_role("button", name="Add Endpoint", exact=True).click())
             endpoint = section.locator("details").filter(has=page.locator("summary", has_text="E2E shared model"))
@@ -1987,11 +1994,32 @@ class TestEndToEndAdmin(BaseE2ETest):
             endpoint.locator("summary").click()
             expect(endpoint.get_by_label("Endpoint state")).to_have_value("false")
             expect(endpoint.get_by_label("Responses model", exact=True)).to_have_value("private/custom-model")
+            if local_provider:
+                endpoint.get_by_label("Responses model", exact=True).fill("")
             expect(endpoint.locator('input[name="api_key"]')).to_have_value("")
             expect(endpoint).to_contain_text("An API key is saved.")
             endpoint.get_by_label("Endpoint state").select_option("true")
             with_htmx_wait(page, lambda: endpoint.get_by_role("button", name="Save Endpoint", exact=True).click())
+            if local_provider:
+                deadline = time.monotonic() + 30
+                while time.monotonic() < deadline:
+                    values = core_request_client.json_request("GET", "/settings/settings")["items"][0]["settings"]["llm_endpoints"]
+                    checked = next(value for value in values.values() if value["name"] == "E2E shared model")["health"]
+                    if checked["status"] == "down":
+                        break
+                    time.sleep(0.2)
+                else:
+                    pytest.fail("Endpoint format check did not finish")
+                page.reload()
             endpoint.locator("summary").click()
+            if local_provider:
+                responses_status = endpoint.locator('[data-test-id="llm-format-responses"]').get_by_role("status")
+                expect(responses_status).to_contain_text("Responses (HTTP 400)")
+                expect(responses_status).to_contain_text("no model ID configured")
+                expect(endpoint.locator('[data-test-id="llm-format-embeddings"]').get_by_role("status")).to_have_text(
+                    "Embeddings: Check succeeded."
+                )
+                expect(endpoint).not_to_contain_text("Private provider detail")
             expect(endpoint.get_by_label("Endpoint state")).to_have_value("true")
             expect(endpoint).to_contain_text("An API key is saved.")
             with page.expect_response(
@@ -2002,7 +2030,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             expect(endpoint).to_have_count(1)
             expect(page.locator("#notification-bar")).to_contain_text("Reassign this endpoint")
             reset_htmx_state(page)
-            for bot_type in ("story_bot", "summary_bot", "nlp_bot", "sentiment_analysis_bot"):
+            for bot_type in ("story_bot", "summary_bot", "nlp_bot"):
                 page.goto(url_for("admin.bots", _external=True))
                 page.get_by_test_id("new-bot-button").click()
                 selector = page.get_by_role("combobox", name="LLM endpoint", exact=True)
@@ -2039,8 +2067,11 @@ class TestEndToEndAdmin(BaseE2ETest):
             assignments.get_by_label("Default endpoint").select_option("")
             with_htmx_wait(page, lambda: assignments.get_by_role("button", name="Save Assignments").click())
             endpoint.locator("summary").click()
-            endpoint.get_by_label("Endpoint state").select_option("false")
+            endpoint.get_by_label("Endpoint state").select_option("true")
             endpoint.get_by_label("Responses model", exact=True).fill("response-model")
+            endpoint.get_by_label("Enable Embeddings", exact=True).check()
+            endpoint.get_by_label("Embeddings model", exact=True).fill("embedding-model")
+            endpoint.get_by_label("Embedding dimensions", exact=True).fill("1024")
             endpoint.get_by_label("Enable Decisions", exact=True).check()
             endpoint.get_by_label("Decisions model", exact=True).fill("topic-model")
             decisions_format = endpoint.get_by_label("Decisions API format")
@@ -2051,6 +2082,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             with_htmx_wait(page, lambda: endpoint.get_by_role("button", name="Save Endpoint", exact=True).click())
             assignments.get_by_label("Default endpoint").select_option(label="E2E shared model")
             assignments.get_by_label("Topic classification").select_option(label="E2E shared model")
+            assignments.get_by_label("Sentiment analysis").select_option(label="E2E shared model")
             with_htmx_wait(page, lambda: assignments.get_by_role("button", name="Save Assignments").click())
             page.reload()
             expect(assignments.get_by_label("Topic classification").locator("option:checked")).to_have_text("E2E shared model")
@@ -2058,6 +2090,9 @@ class TestEndToEndAdmin(BaseE2ETest):
             expect(endpoint.get_by_label("Enable Responses", exact=True)).to_be_checked()
             expect(endpoint.get_by_label("Enable Decisions", exact=True)).to_be_checked()
             expect(endpoint.get_by_label("Responses model", exact=True)).to_have_value("response-model")
+            expect(endpoint.get_by_label("Embeddings model", exact=True)).to_have_value("embedding-model")
+            expect(endpoint.get_by_label("Embedding dimensions", exact=True)).to_have_value("1024")
+            endpoint.get_by_label("Embedding dimensions", exact=True).fill("")
             expect(endpoint.get_by_label("Decisions model", exact=True)).to_have_value("topic-model")
             expect(decisions_format).to_have_value("openrouter")
             expect(decisions_url).to_be_hidden()
@@ -2069,6 +2104,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             page.reload()
             endpoint.locator("summary").click()
             expect(decisions_format).to_have_value("openai_decisions")
+            expect(endpoint.get_by_label("Embedding dimensions", exact=True)).to_have_value("")
             expect(endpoint.get_by_label("Decisions model", exact=True)).to_have_value("topic-model")
             expect(decisions_url).to_have_value("https://provider.example/alpha/decisions")
             endpoint.get_by_label("Enable Decisions", exact=True).uncheck()
@@ -2085,14 +2121,69 @@ class TestEndToEndAdmin(BaseE2ETest):
             endpoint.get_by_label("Enable Decisions", exact=True).check()
             assignments.get_by_label("Default endpoint").select_option("")
             assignments.get_by_label("Topic classification").select_option("")
+            assignments.get_by_label("Sentiment analysis").select_option("")
             with_htmx_wait(page, lambda: assignments.get_by_role("button", name="Save Assignments").click())
             endpoint.locator("summary").click()
             with_htmx_wait(page, lambda: endpoint.get_by_role("button", name="Delete Endpoint").click())
             expect(endpoint).to_have_count(0)
 
+        def check_hrag_indexing():
+            page.goto(url_for("admin_settings.settings", _external=True))
+            page.get_by_test_id("settings-chat-section").locator("summary").click()
+            effort = page.get_by_role("combobox", name="HRAG extraction reasoning", exact=True)
+            expect(effort).to_have_value("low")
+            effort.select_option("default")
+            verification = page.get_by_test_id("settings-chat-form").get_by_role(
+                "combobox", name="HRAG relationship verification", exact=True
+            )
+            expect(verification).to_have_value("false")
+            interval = page.get_by_test_id("settings-hrag-index-interval")
+            expect(interval).to_have_value("60")
+            interval.fill("90")
+            page.get_by_test_id("settings-hrag-chunk-size").fill("500")
+            page.get_by_test_id("settings-hrag-chunk-overlap").fill("50")
+            with_htmx_wait(page, lambda: page.get_by_test_id("settings-chat-submit").click())
+            page.reload()
+            page.get_by_test_id("settings-chat-section").locator("summary").click()
+            expect(effort).to_have_value("default")
+            expect(verification).to_have_value("false")
+            expect(interval).to_have_value("90")
+            interval.fill("0")
+            expect(page.get_by_test_id("settings-hrag-chunk-size")).to_have_value("500")
+            expect(page.get_by_test_id("settings-hrag-chunk-overlap")).to_have_value("50")
+            page.get_by_test_id("settings-hrag-chunk-size").fill("3000")
+            page.get_by_test_id("settings-hrag-chunk-overlap").fill("100")
+            effort.select_option("low")
+            with_htmx_wait(page, lambda: page.get_by_test_id("settings-chat-submit").click())
+            page.get_by_test_id("settings-chat-section").locator("summary").click()
+            expect(interval).to_have_value("0")
+            expect(verification).to_have_value("false")
+            interval.fill("60")
+            expect(page.get_by_test_id("settings-hrag-chunk-size")).to_have_value("3000")
+            page.get_by_test_id("settings-hrag-chunk-size").fill("2000")
+            page.get_by_test_id("settings-hrag-chunk-overlap").fill("200")
+            with_htmx_wait(page, lambda: page.get_by_test_id("settings-chat-submit").click())
+            page.get_by_test_id("settings-chat-section").locator("summary").click()
+            panel = page.locator("#settings-hrag-index")
+            expect(panel.get_by_role("heading", name="HRAG indexing")).to_be_visible()
+            with page.expect_response(
+                lambda response: response.request.method == "POST" and response.url.endswith("/settings/hrag")
+            ) as started:
+                panel.get_by_role("button", name="Start indexing", exact=True).click()
+            assert started.value.status == 202
+            expect(panel.get_by_role("status").filter(has_text="HRAG indexing queued")).to_be_visible()
+            with page.expect_response(
+                lambda response: response.request.method == "GET" and response.url.endswith("/settings/hrag")
+            ) as refreshed:
+                panel.get_by_role("link", name="Refresh status", exact=True).click()
+            assert refreshed.value.ok
+            expect(panel.get_by_role("button", name="Start indexing", exact=True)).to_be_visible()
+            expect(page.locator("#settings-hrag-index")).to_have_count(1)
+
         go_to_admin_settings()
         check_default_values()
         check_llm_endpoints()
+        check_hrag_indexing()
         change_default_values()
         check_new_values()
         exported_stories_file = test_export_all_stories(pre_seed_stories)

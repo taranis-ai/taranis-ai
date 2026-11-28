@@ -1,6 +1,18 @@
 {% from "macros/worker.html" import endpoint_health_badge %}
 {% from "macros/forms.html" import form_input, form_select %}
 {% set endpoints = current_settings.llm_endpoints %}
+{# djlint:off #}
+{% set requirements = {'chat': ('Generative + tools', 'Requires Responses or Chat Completions with tool calling and realtime processing. Generates Chat and HRAG answers.'),
+  'embedding': ('Embeddings', 'Requires Embeddings with an embedding model. Converts NewsItem passages and search queries into vectors.'),
+  'graph_planning': ('Generative', 'Requires Responses or Chat Completions with realtime processing. Converts a question into a structured graph search plan.'),
+  'extraction': ('Generative', 'Requires Responses or Chat Completions with realtime processing. Extracts entities and relationships from NewsItems.'),
+  'extraction_verification': ('Decisions', 'Requires Decisions. Checks extracted relationships only when verification is enabled in Chat settings.'),
+  'clustering': ('Generative', 'Requires Responses or Chat Completions. Groups related stories.'),
+  'summarization': ('Generative', 'Requires Responses or Chat Completions. Generates summaries and titles.'),
+  'ner': ('Generative', 'Requires Responses or Chat Completions. Identifies named entities in stories.'),
+  'sentiment': ('Decisions', 'Requires Decisions. Classifies the sentiment of stories.'),
+  'classification': ('Decisions', 'Requires Decisions. Assigns topics to stories.')} %}
+{# djlint:on #}
 {% set endpoint_options = [] %}
 {% for endpoint_id, endpoint in endpoints.items() %}
   {% set _ = endpoint_options.append({'id': endpoint_id, 'name': endpoint.name}) %}
@@ -8,24 +20,59 @@
 <section id="llm-endpoints" class="rounded-box border border-base-300 bg-base-100 p-6 shadow-sm" data-test-id="llm-settings">
   <h2 class="text-lg font-semibold">LLM Endpoints</h2>
   <p class="text-sm text-base-content/70 mt-2 mb-6">
-    Configure providers and models for Chat, NER, sentiment, topic classification, clustering, and summarization. Set a default, then override individual functions if needed.
+    Configure providers and models for Chat, HRAG, NER, sentiment, topic classification, clustering, and summarization. Set a default, then override individual functions if needed.
     Changes apply to the next message or bot run. Prompts and selected story content are sent to the assigned provider.
     Disabled endpoints pause health checks, Chat, and bot scheduling.
   </p>
   <form method="post"
         action="{{ links.update_settings | admin_action }}"
         hx-patch="{{ links.update_settings | admin_action }}"
-        data-test-id="llm-assignments">
+        data-test-id="llm-assignments"
+        x-data='{ "defaultEndpoint": {{ current_settings.llm_default_endpoint | tojson }} }'>
     <input type="hidden" name="csrf_token" value="{{ request.cookies.get(config['JWT_ACCESS_CSRF_COOKIE_NAME'], '') }}" />
-    {{ form_select('Default endpoint', 'settings[llm_default_endpoint]', current_settings.llm_default_endpoint, options=[{'id': '', 'name': 'Not configured'}] + endpoint_options, required=False) }}
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    {{ form_select('Default endpoint', 'settings[llm_default_endpoint]', current_settings.llm_default_endpoint, options=[{'id': '', 'name': 'Not configured'}] + endpoint_options, required=False, stacked=True, model='defaultEndpoint') }}
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-x-6">
       {% for feature, label in llm_features.items() %}
-        {{ form_select(label, 'settings[llm_' ~ feature ~ '_endpoint]', current_settings['llm_' ~ feature ~ '_endpoint'], options=[{'id': '', 'name': 'Use default'}] + endpoint_options, required=False) }}
+        {% set options = llm_feature_endpoint_options[feature] | list %}
+        {% set compatible_ids = options | map(attribute="id") | list %}
+        {% set selected = current_settings['llm_' ~ feature ~ '_endpoint'] %}
+        {% if selected and selected not in compatible_ids %}
+          {% set _ = options.append({'id': selected, 'name': endpoints[selected].name ~ ' (unavailable)'}) %}
+        {% endif %}
+        {% set capability, hint = requirements[feature] %}
+        <div class="min-w-0" x-data='{ "selectedEndpoint": {{ selected | tojson }}, "compatibleIds": {{ compatible_ids | tojson }} }'>
+          {% call form_select(label, 'settings[llm_' ~ feature ~ '_endpoint]', selected, options=[{'id': '', 'name': 'Use default'}] + options, required=False, stacked=True, model='selectedEndpoint') %}
+            <span class="badge badge-ghost badge-sm whitespace-nowrap" aria-hidden="true">{{ capability }}</span>
+            {% if feature == "extraction_verification" %}<span class="badge badge-outline badge-sm"
+                                                               aria-hidden="true">Optional</span>{% endif %}
+            <span class="tooltip tooltip-bottom" data-tip="{{ hint }}">
+              <span tabindex="0"
+                    role="img"
+                    aria-label="{{ hint }}">{{ heroicon_outline('information-circle', class='h-4 w-4 text-base-content/60') }}</span>
+            </span>
+          {% endcall %}
+          <p class="-mt-3 mb-5 text-sm text-warning" x-cloak x-show="!compatibleIds.length">
+            No compatible endpoint configured.
+            <a class="link" href="#llm-endpoint-configurations">Configure an endpoint</a>
+          </p>
+          <p class="-mt-3 mb-5 text-sm text-warning"
+             x-cloak
+             x-show="compatibleIds.length && selectedEndpoint && !compatibleIds.includes(selectedEndpoint)">
+            The selected endpoint is unavailable. Select an enabled, compatible endpoint.
+          </p>
+          <p class="-mt-3 mb-5 text-sm text-warning"
+             x-cloak
+             x-show="compatibleIds.length && !selectedEndpoint && !compatibleIds.includes(defaultEndpoint)">
+            <span x-show="defaultEndpoint">The default endpoint is unavailable for this feature.</span>
+            <span x-show="!defaultEndpoint">No default endpoint configured.</span>
+            Select a compatible endpoint or update the default.
+          </p>
+        </div>
       {% endfor %}
     </div>
     <button class="btn btn-primary" type="submit">Save Assignments</button>
   </form>
-  <div class="mt-6 space-y-4">
+  <div id="llm-endpoint-configurations" class="mt-6 space-y-4 scroll-mt-4">
     {% for endpoint_id, endpoint in (endpoints.items() | list) + [('', {})] %}
       {% if llm_form is not none and endpoint_id == llm_editing_endpoint %}
         {% set endpoint = dict(endpoint, **llm_form) %}
@@ -62,7 +109,15 @@
                            {% if api_config.enabled | default(api_format in formats) %}checked{% endif %} />
                     Enable {{ label }}
                   </label>
-                  {{ form_input(label ~ ' model', 'api_formats[' ~ api_format ~ '][model]', api_config.model | default(''), preserve=False, floating=False, required=False, placeholder='Provider model ID', input_id=field_prefix ~ '-' ~ api_format ~ '-model', list_id=field_prefix ~ '-' ~ api_format ~ '-models') }}
+                  {% set format_check = endpoint.health.formats.get(api_format) if endpoint.health and endpoint.health.formats else none %}
+                  {% if format_check %}<p class="text-sm mb-3 {{ 'text-success' if format_check.status == 'up' else 'text-error' if format_check.status == 'down' else 'text-base-content/70' }}"
+                                          role="status">{{ format_check.message }}</p>{% endif %}
+                  {{ form_input(label ~ ' model', 'api_formats[' ~ api_format ~ '][model]', api_config.model | default(''), preserve=False, floating=False, required=False, placeholder='Provider model ID', input_id=field_prefix ~ '-' ~ api_format ~ '-model', list_id=field_prefix ~ '-' ~ api_format ~ '-models' if api_format != 'embeddings' else none) }}
+                  {% if api_format == "embeddings" %}
+                    {{ form_input('Embedding dimensions', 'api_formats[embeddings][dimensions]', api_config.dimensions | default('', true), type='number', preserve=False, floating=False, required=False, min_value=1, max_value=16000, placeholder='Automatic', input_id='llm-' ~ endpoint_id ~ '-embeddings-dimensions') }}
+                    <p class="text-sm text-base-content/70 mb-4">Leave blank for Automatic: the endpoint chooses its output size. Set a number only to request a specific size supported by the model. Changing dimensions builds a replacement embedding index at the next indexing pass; activate it when ready.</p>
+                    {% if endpoint.health and endpoint.health.embedding_dimensions %}<p class="text-sm text-base-content/70 mb-4">Detected output: {{ endpoint.health.embedding_dimensions }} dimensions.</p>{% endif %}
+                  {% endif %}
                   {{ form_input(label ~ ' URL override', 'api_formats[' ~ api_format ~ '][base_url]', api_config.base_url | default(''), type='url', preserve=False, floating=False, required=False, placeholder='Use provider base URL', input_id='llm-' ~ endpoint_id ~ '-' ~ api_format ~ '-url') }}
                 </fieldset>
               {% endfor %}
@@ -82,6 +137,9 @@
                          {% if decisions_config.enabled | default(decisions_wire_format in formats) %}checked{% endif %} />
                   Enable Decisions
                 </label>
+                {% set decisions_check = endpoint.health.formats.get(decisions_wire_format) if endpoint.health and endpoint.health.formats else none %}
+                {% if decisions_check %}<p class="text-sm mb-3 {{ 'text-success' if decisions_check.status == 'up' else 'text-error' if decisions_check.status == 'down' else 'text-base-content/70' }}"
+                                           role="status">{{ decisions_check.message }}</p>{% endif %}
                 {{ form_select('Decisions API format', 'decisions[api_format]', decisions_format, options=[{'id': 'systemone', 'name': 'System One (vLLM / llama.cpp)'}, {'id': 'openrouter', 'name': 'OpenRouter'}, {'id': 'openai_decisions', 'name': 'OpenAI'}], input_id='llm-' ~ endpoint_id ~ '-decisions-format') }}
                 {{ form_input('Decisions model', 'decisions[model]', decisions_config.model | default(''), preserve=False, floating=False, required=False, placeholder='Provider model ID', input_id=field_prefix ~ '-decisions-model', list_id=field_prefix ~ '-decisions-models') }}
                 <fieldset x-show="!isOpenRouter" :disabled="isOpenRouter">
@@ -93,10 +151,10 @@
                 <p class="text-sm text-base-content/70">Use System One for self-hosted /v1/systemone servers with a supported decision model, OpenRouter for its hosted models, or OpenAI for servers using OpenAI's /v1/decisions schema.</p>
               </fieldset>
             </div>
-            <p class="text-sm text-base-content/70 mb-4">Enter a model ID for each enabled format or choose a suggestion when available. Blank models use the provider default. Decisions URLs default to /systemone or /decisions under the provider base URL; use a full URL override for a different path. Responses is preferred over Chat Completions when both are enabled.</p>
+            <p class="text-sm text-base-content/70 mb-4">Enter a model ID for each enabled format or choose a suggestion when available. Leave the model blank only if the provider supplies a default. Decisions URLs default to /systemone or /decisions under the provider base URL; use a full URL override for a different path. Responses is preferred over Chat Completions when both are enabled.</p>
             {{ form_select('Processing mode', 'processing_mode', endpoint.processing_mode | default('realtime'), options=[{'id': 'realtime', 'name': 'Realtime'}, {'id': 'openrouter_batch', 'name': 'OpenRouter batch'}], input_id='llm-' ~ endpoint_id ~ '-processing_mode') }}
             <p class="text-sm text-base-content/70 mb-4">
-              OpenRouter batch uses /batches for background bots and can take up to 24 hours. Use https://openrouter.ai/api/v1 and a model that supports batch processing. Chat requires realtime processing. Decisions always uses realtime processing, even when other formats use batch. The same endpoint can serve Chat and topic classification with different models.
+              OpenRouter batch uses /batches for background bots and can take up to 24 hours. Use https://openrouter.ai/api/v1 and a model that supports batch processing. Chat requires realtime processing. Decisions always uses realtime processing, even when other formats use batch. The same endpoint can serve Chat, sentiment, topic classification, and HRAG relationship verification with different models.
             </p>
             {{ form_input('API key', 'api_key', '', type='password', required=False, preserve=False, floating=False, placeholder='Leave blank to keep the saved key' if endpoint_id else 'Enter provider API key', input_id='llm-' ~ endpoint_id ~ '-api_key') }}
             <p class="text-sm text-base-content/70 mb-4">{{ 'An API key is saved.' if endpoint.api_key_configured else 'No API key saved. Optional for providers without authentication.' }}</p>

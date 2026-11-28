@@ -18,7 +18,7 @@ def test_get_queues_uses_default_priority_order(monkeypatch):
     monkeypatch.setattr(
         worker.Config,
         "WORKER_TYPES",
-        ["Collectors", "Bots", "Misc", "Connectors", "Publishers", "Presenters"],
+        ["HRAG", "Collectors", "Bots", "Embeddings", "Misc", "Connectors", "Publishers", "Presenters"],
     )
 
-    assert worker.get_queues() == ["presenters", "publishers", "connectors", "misc", "bots", "collectors"]
+    assert worker.get_queues() == ["presenters", "publishers", "connectors", "misc", "embeddings", "bots", "collectors", "hrag"]

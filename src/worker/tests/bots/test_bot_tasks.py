@@ -33,7 +33,7 @@ BOT_CLASS_NAMES = [
     "IOCBot",
     "SummaryBot",
     "SentimentAnalysisBot",
-    "CyberSecClassifierBot",
+    "TopicClassifierBot",
 ]
 
 
@@ -85,7 +85,7 @@ class TestBotTask:
     @pytest.mark.parametrize(
         "failure", [RequestException("private provider detail"), UpstreamLLMError("private provider detail"), None, "unconfigured"]
     )
-    @pytest.mark.parametrize("bot_type", ["story_bot", "summary_bot", "nlp_bot", "sentiment_analysis_bot", "cybersec_classifier_bot"])
+    @pytest.mark.parametrize("bot_type", ["story_bot", "summary_bot", "nlp_bot", "sentiment_analysis_bot", "topic_classifier_bot"])
     def test_llm_bot_failure_is_safe(self, current_job, requests_mock, failure, bot_type):
         requests_mock.real_http = False
         requests_mock.get(
@@ -98,7 +98,7 @@ class TestBotTask:
                 else {
                     "name": "Test",
                     "base_url": "https://llm.test/v1",
-                    "api_format": "systemone" if bot_type == "cybersec_classifier_bot" else "responses",
+                    "api_format": "systemone" if bot_type in {"topic_classifier_bot", "sentiment_analysis_bot"} else "responses",
                 },
             },
         )
@@ -107,11 +107,17 @@ class TestBotTask:
             json=[{"id": "story-1", "tags": {}, "news_items": [{"id": "item-1", "title": "Story", "content": "Content"}]}],
         )
         saved = requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
-        client, method = (DecisionsClient, "create_decision") if bot_type == "cybersec_classifier_bot" else (LLMClient, "create_response")
+        client, method = (
+            (DecisionsClient, "create_decision")
+            if bot_type in {"topic_classifier_bot", "sentiment_analysis_bot"}
+            else (LLMClient, "create_response")
+        )
         with patch.object(client, method, autospec=True, side_effect=failure) as provider:
             provider.return_value = (
-                {"category": {"invalid": "private invalid provider output"}}
-                if bot_type == "cybersec_classifier_bot"
+                {"sentiment": {"positive": 2.0, "neutral": 0.0, "negative": 0.0}}
+                if bot_type == "sentiment_analysis_bot"
+                else {"category": {"invalid": "private invalid provider output"}}
+                if bot_type in {"topic_classifier_bot", "sentiment_analysis_bot"}
                 else {"output_text": "private invalid provider output"}
             )
             with pytest.raises(RuntimeError) as exc_info:

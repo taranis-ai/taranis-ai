@@ -1,0 +1,321 @@
+"""Retrieval over current, authorized evidence; no provider-generated query code."""
+
+import asyncio
+import time
+from dataclasses import replace
+
+from llm_bot.embedding_client import EmbeddingClient
+from llm_bot.schemas import GraphQueryGenerationRequest
+from llm_bot.tasks.graph_query_generation import prepare_graph_query_generation
+from models.hrag import (
+    EmbeddingResult,
+    EvidenceReference,
+    ExtractionResult,
+    GraphPlan,
+    HragResult,
+    RetrievalEvidence,
+    bounded_content,
+    extraction_profile,
+    extraction_vocabulary,
+    relationship_instructions,
+    split_content,
+)
+from models.llm import EmbeddingDimensionMismatch
+from sqlalchemy import select
+from sqlalchemy.orm import defer
+
+from core.config import Config
+from core.log import logger
+from core.managers.db_manager import db
+from core.model.hrag import HragGeneration, HragIndex
+from core.model.news_item import NewsItem
+from core.model.settings import Settings
+from core.model.story import Story
+from core.model.user import User
+from core.service.hrag.indexing import fingerprint, generation_endpoint
+from core.service.hrag.stores import graph_search, search_chunk_vectors
+
+
+LIMIT_NOTICE = (
+    "Evidence covers currently accessible indexed content only. Retrieval limits and unresolved names prevent complete corpus counts."
+)
+
+
+class PlanningClient:
+    """Adapt the existing deadline-aware Chat transport to the library task API."""
+
+    def __init__(self, endpoint: dict, deadline: float):
+        self.endpoint = endpoint
+        self.deadline = deadline
+
+    async def create_response(self, system_input: str, user_input: str, response_format: dict | None = None) -> dict:
+        client = endpoint_client(self.endpoint, self.deadline)
+        return client.create_response(
+            [{"role": "user", "content": user_input}], lambda _delta: None, prompt=system_input, response_format=response_format
+        )
+
+
+def endpoint_client(endpoint: dict, deadline: float):
+    from core.service.chat import ChatClient
+
+    settings = Settings.with_defaults({"llm_endpoints": {"hrag": endpoint}, "llm_chat_endpoint": "hrag"})
+    return ChatClient(settings, deadline=deadline)
+
+
+def query_embedding(question: str, endpoint: dict, dimensions: int, deadline: float) -> EmbeddingResult:
+    from core.service.chat import ProviderTransport
+
+    client = EmbeddingClient(base_url=endpoint["base_url"], api_key=endpoint["api_key"], model=endpoint["model"], timeout=endpoint["timeout"])
+    transport = ProviderTransport(client.base_url, client.path, client.api_key, client.timeout, deadline)
+    with transport._response(client.build_request(question, dimensions=endpoint.get("dimensions"))) as response:
+        response.raise_for_status()
+        vector = client.parse_response(response.json())[0]
+    if len(vector) != dimensions:
+        raise EmbeddingDimensionMismatch(EmbeddingDimensionMismatch.public_message)
+    return EmbeddingResult(embedding=vector)
+
+
+def run_inference(coroutine, deadline: float):
+    async def bounded():
+        return await asyncio.wait_for(coroutine, timeout=max(0.001, deadline - time.monotonic()))
+
+    return asyncio.run(bounded())
+
+
+def iter_authorized_indexes(user: User, pipeline: str | None = None, filters: dict | None = None, ids: list[str] | None = None):
+    """Apply ACL, story/item TLP and live content checks before ranking or limits."""
+    story_query = Story.visible_query(user, Story.get_filter_query({**(filters or {}), "_user": user})).with_only_columns(Story.id)
+    query = (
+        select(HragIndex, HragGeneration, NewsItem)
+        .join(HragGeneration, HragGeneration.id == HragIndex.generation_id)
+        .join(NewsItem, NewsItem.id == HragIndex.news_item_id)
+        .where(HragGeneration.active, HragIndex.status == "ready", NewsItem.story_id.in_(story_query))
+    )
+    if pipeline:
+        query = query.where(HragGeneration.pipeline == pipeline)
+    if ids is not None:
+        query = query.where(HragIndex.id.in_(ids))
+    accessible_tlps = user.get_highest_tlp().get_accessible_levels()
+    query = query.options(defer(HragIndex.result)).execution_options(yield_per=200)
+    for index_record, generation, item in db.session.execute(query):
+        if (
+            item.tlp_level.value in accessible_tlps
+            and item.allowed_with_acl(user, require_write_access=False)
+            and item.story
+            and item.story.tlp_level.value in accessible_tlps
+            and bool(bounded_content(item.content, generation.config["limit"]).strip())
+            and index_record.fingerprint == fingerprint(item, generation)
+        ):
+            yield index_record, generation, item
+
+
+def authorized_indexes(
+    user: User, pipeline: str | None = None, filters: dict | None = None, ids: list[str] | None = None
+) -> dict[str, tuple]:
+    return {
+        index_record.id: (index_record, generation, item)
+        for index_record, generation, item in iter_authorized_indexes(user, pipeline, filters, ids)
+    }
+
+
+def evidence_from_reference(reference: EvidenceReference, authorized: dict[str, tuple]) -> RetrievalEvidence | None:
+    record = authorized.get(reference.index_id)
+    if not record:
+        return None
+    index_record, generation, item = record
+    if reference.fingerprint != index_record.fingerprint:
+        return None
+    for key in reference.support_ids:
+        support_id, _, expected = key.partition(":")
+        support = authorized.get(support_id)
+        if not support or support[0].fingerprint != expected:
+            return None
+    branch = "graph" if generation.pipeline == "extraction" else "vector"
+    content = bounded_content(item.content, generation.config["limit"])
+    quote, assertion, description = content, None, ""
+    if branch == "vector":
+        if reference.chunk_index is None:
+            return None
+        chunks = split_content(content, **generation.config["chunking"])
+        if reference.chunk_index >= len(chunks):
+            return None
+        span = chunks[reference.chunk_index]
+        quote = content[span.start : span.end]
+    if branch == "graph":
+        try:
+            result = (
+                ExtractionResult.model_validate(index_record.result)
+                .validate_content(content)
+                .validate_profile(extraction_profile(item.get_classification()))
+            )
+        except ValueError:
+            logger.warning("HRAG extraction evidence failed validation")
+            return None
+        if reference.relation_index is not None:
+            if reference.relation_index >= len(result.relations):
+                return None
+            relation = result.relations[reference.relation_index]
+            entities = {entity.id: entity for entity in result.entities}
+            quote, assertion = relation.evidence.quote, relation.assertion
+            description = f"{entities[relation.source_id].name} — {relation.type} → {entities[relation.target_id].name}"
+            if relation.date:
+                description += f" ({relation.date})"
+        else:
+            quote = "\n".join(dict.fromkeys(entity.evidence.quote for entity in result.entities))
+        if not quote:
+            return None
+    return RetrievalEvidence(
+        **reference.model_dump(),
+        branch=branch,
+        news_item_id=item.id,
+        story_id=item.story_id,
+        title=item.title,
+        quote=quote,
+        description=description,
+        assertion=assertion,
+        truncated=len(item.content or "") > generation.config["limit"],
+    )
+
+
+def reauthorize(references: list[EvidenceReference], user_id: str, filters: dict | None = None) -> list[RetrievalEvidence]:
+    db.session.rollback()
+    user = db.session.get(User, user_id)
+    if not user or "ASSESS_ACCESS" not in user.get_permissions():
+        return []
+    ids = list(
+        {reference.index_id for reference in references}
+        | {key.partition(":")[0] for reference in references for key in reference.support_ids}
+    )
+    authorized = authorized_indexes(user, filters=filters, ids=ids)
+    result = [evidence for reference in references if (evidence := evidence_from_reference(reference, authorized))]
+    db.session.rollback()
+    return result
+
+
+def retrieve(context: dict, user_id: str, settings: dict, deadline: float, stream, *, filters: dict) -> HragResult:
+    from core.service.chat import ChatProviderError, ChatUnavailableError
+
+    if not Config.HRAG_ENABLED:
+        raise ChatUnavailableError("HRAG is disabled")
+    result = HragResult(notices=[LIMIT_NOTICE], filters=filters)
+    plan = GraphPlan()
+    plan_ok = False
+    graph_ok = False
+    vector_ok = False
+    try:
+        endpoint = Settings.get_llm_endpoint("graph_planning", settings)
+        if not endpoint or endpoint["processing_mode"] != "realtime":
+            raise ValueError("Graph planning endpoint unavailable")
+        client = PlanningClient(endpoint, deadline)
+        db.session.rollback()
+        request = GraphQueryGenerationRequest.model_validate(
+            {"question": context["latest_message"], "schema": extraction_vocabulary(), "context": context}
+        )
+        task = prepare_graph_query_generation(request)
+        task = replace(task, system_input=task.system_input + "\n\n" + relationship_instructions())
+        proposed = run_inference(task.run(client), deadline)
+        plan = GraphPlan.model_validate(proposed.model_dump())
+        plan_ok = True
+        stream.stage("searching")
+        user = db.session.get(User, user_id)
+        if user is None:
+            raise ValueError("User unavailable")
+        if not db.session.scalar(db.select(HragGeneration.id).where(HragGeneration.active, HragGeneration.pipeline == "extraction")):
+            raise ValueError("Graph generation unavailable")
+        keys = [index_record.graph_key for index_record, _, _ in iter_authorized_indexes(user, "extraction", result.filters)]
+        db.session.rollback()
+        paths = graph_search(plan, keys, min(50, max(1, Config.HRAG_GRAPH_LIMIT)), max(0.001, min(30, deadline - time.monotonic())))
+        references = []
+        seen = set()
+        for path_number, path in enumerate(paths, start=1):
+            supports = list(dict.fromkeys(row["key"] for row in path))
+            additions = []
+            for row in path:
+                identity = (row["key"], row["idx"], tuple(supports))
+                if identity in seen:
+                    continue
+                seen.add(identity)
+                additions.append(
+                    EvidenceReference(
+                        citation=f"G{len(references) + len(additions) + 1}",
+                        index_id=row["index_id"],
+                        fingerprint=row["key"].partition(":")[2],
+                        support_ids=supports,
+                        relation_index=row["idx"],
+                        path_id=path_number,
+                    )
+                )
+            if len(references) + len(additions) > min(50, max(1, Config.HRAG_GRAPH_LIMIT)):
+                break
+            references.extend(additions)
+        result.evidence.extend(reauthorize(references, user_id, result.filters))
+        graph_ok = True
+    except Exception:
+        db.session.rollback()
+        logger.error("HRAG graph retrieval failed")
+        result.notices.append(
+            "Graph retrieval is unavailable; the answer uses vector evidence where available."
+            if plan_ok
+            else "Graph planning is unavailable; vector matching uses the Chat-resolved filters."
+        )
+    try:
+        generation = db.session.scalar(db.select(HragGeneration).where(HragGeneration.active, HragGeneration.pipeline == "embedding"))
+        if generation is None or not (endpoint := generation_endpoint(generation)):
+            raise ValueError("Embedding generation unavailable")
+        dimensions = generation.config["dimensions"]
+        embedding_generation_id = generation.id
+        db.session.rollback()
+        vector = query_embedding(context["latest_message"], endpoint, dimensions, deadline)
+        if len(vector.embedding) != dimensions:
+            raise ValueError("Unexpected embedding dimensions")
+        user = db.session.get(User, user_id)
+        if user is None:
+            raise ValueError("User unavailable")
+        authorized = {
+            index_record.id: (index_record.fingerprint, generation.id)
+            for index_record, generation, _ in iter_authorized_indexes(user, "embedding", result.filters)
+        }
+        if any(generation_id != embedding_generation_id for _, generation_id in authorized.values()):
+            raise ValueError("Embedding generation changed during retrieval")
+        limit = settings["hrag_vector_limit"]
+        matches = search_chunk_vectors(vector.embedding, list(authorized), limit, settings["hrag_chunks_per_item"])
+        references = [
+            EvidenceReference(citation=f"V{index + 1}", index_id=index_id, fingerprint=authorized[index_id][0], chunk_index=chunk_index)
+            for index, (index_id, chunk_index) in enumerate(matches)
+        ]
+        result.evidence.extend(reauthorize(references, user_id, result.filters))
+        vector_ok = True
+    except EmbeddingDimensionMismatch:
+        db.session.rollback()
+        logger.error("HRAG query embedding dimensions changed")
+        result.notices.append(EmbeddingDimensionMismatch.public_message)
+    except Exception:
+        db.session.rollback()
+        logger.error("HRAG vector retrieval failed")
+        result.notices.append("Vector retrieval is unavailable; the answer uses graph evidence where available.")
+    if not graph_ok and not vector_ok:
+        raise ChatProviderError(
+            EmbeddingDimensionMismatch.public_message
+            if EmbeddingDimensionMismatch.public_message in result.notices
+            else "HRAG retrieval failed"
+        )
+    return result
+
+
+def reference_metadata(result: HragResult) -> dict:
+    return {
+        "references": [
+            EvidenceReference.model_validate(e.model_dump(include=set(EvidenceReference.model_fields))).model_dump() for e in result.evidence
+        ],
+        "notices": result.notices,
+        "filters": result.filters,
+    }
+
+
+def display_result(metadata: dict, user_id: str) -> HragResult:
+    references = [EvidenceReference.model_validate(value) for value in metadata.get("references", [])]
+    evidence = reauthorize(references, user_id, metadata.get("filters"))
+    notices = list(metadata.get("notices", []))
+    if len(evidence) < len(references):
+        notices.append("Some evidence is no longer available or has changed.")
+    return HragResult(evidence=evidence, notices=notices, filters=metadata.get("filters", {}))

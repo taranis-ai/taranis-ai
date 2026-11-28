@@ -28,6 +28,20 @@ cp env.sample .env
 
 Open file `.env` and defaults if needed
 
+### Hybrid retrieval (HRAG)
+
+Set `CHAT_ENABLED=true` and a non-empty `HRAG_NEO4J_PASSWORD` in the Compose `.env`, then start the optional overlay from this directory:
+
+```bash
+docker compose -f compose.yml -f compose.hrag.yml up -d
+```
+
+The overlay enables HRAG on Core/frontend, uses PostgreSQL with pgvector, and adds persistent Neo4j storage and dedicated extraction/embedding workers. Core must be able to install the `vector` extension. Back up an existing database before changing its image; the supplied overlay uses PostgreSQL 18.
+
+In **Admin Settings > LLM Endpoints**, assign Chat, HRAG embeddings, graph planning and extraction. Relationship verification is optional and requires Decisions. **Admin Settings > Chat** controls character chunking, retrieval limits and the indexing interval (default 60 minutes; 0 means manual only). Run topic classification before indexing to select the general/cybersecurity extraction profile; unclassified and disinformation items retain the extended vocabulary.
+
+Click **Start indexing** to start a pass. Each pass drains pending batches and continues corpus scans without waiting for the next interval. Changed models or indexing settings create replacement generations; activate a ready replacement to switch retrieval to it. Core owns durable results in PostgreSQL; Neo4j is a rebuildable projection. Back up both database volumes when preserving a complete running deployment.
+
 ### Settings preseeding
 
 Before the first startup, pass `PRE_SEED_SETTINGS` to the core container as a flat JSON object using the keys stored in Admin Settings. Any subset (or all settings) can be supplied; omitted keys retain their built-in defaults. The shipped Compose files (including load, minimal, PPN, and Tor variations) forward this variable from your shell or `.env`, defaulting to `{}`. For example, add this line to `.env`:
