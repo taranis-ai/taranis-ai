@@ -315,7 +315,7 @@ All other Centrifugo server behavior is configured through native `CENTRIFUGO_*`
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | OTLP/HTTP base URL for job traces and metrics | `''`                  |
 | `OTEL_EXPORTER_OTLP_HEADERS` | Optional OTLP exporter headers           | `''`                        |
 | `OTEL_METRIC_EXPORT_INTERVAL` | Metric export interval in milliseconds   | `60000`                     |
-| `DISABLE_HTTP3`         | Disable HTTP/3 for web-based collectors    | `False`                     |
+| `DISABLE_HTTP3`         | Disable HTTP/3 for web-based collectors. With HTTP/3 enabled, an external GET that encounters a “Message too long” socket error retries once over TCP. | `False` |
 | `DEBUG`                 | Debug logging                              | `False`                     |
 
 

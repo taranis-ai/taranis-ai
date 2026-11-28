@@ -1155,7 +1155,9 @@ class StoryView(BaseView):
     @auth_required("ASSESS_ACCESS")
     def story_fragment(cls, story_id: str, fragment: str):
         try:
-            story = DataPersistenceLayer().get_object(Story, story_id)
+            paging = PagingData(query_params={"story_ids": story_id, "limit": "1", "no_count": "true"})
+            stories = DataPersistenceLayer().get_objects(Story, paging)
+            story = stories[0] if stories else None
             if story is not None and fragment == "details":
                 cls._enhance_story_with_details(story, {source.id: source for source in cls.get_filter_lists().sources if source.id})
         except HTTPException:
@@ -1175,6 +1177,17 @@ class StoryView(BaseView):
             assess_return_url=cls._get_assess_return_url(),
             delete_target=cls._get_story_action_target([story_id]),
         ), 200
+
+    @classmethod
+    @auth_required("ASSESS_ACCESS")
+    def news_image(cls, image_id: str):
+        upstream = CoreApi().api_download(f"/assess/images/{image_id}")
+        if not upstream.ok:
+            abort(upstream.status_code)
+        response = CoreApi.stream_proxy(upstream, "image")
+        response.headers["Cache-Control"] = "private, no-store"
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        return response
 
     @classmethod
     @auth_required("ASSESS_ACCESS")

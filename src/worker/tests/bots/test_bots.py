@@ -1,4 +1,5 @@
 import json
+from io import BytesIO
 from unittest.mock import patch
 
 import pytest
@@ -7,6 +8,7 @@ from llm_bot.config import Config as LLMConfig
 from llm_bot.decisions_client import DecisionsClient
 from llm_bot.schemas import ClassifyResponse
 from models.classification import CLASSIFICATION_CATEGORIES
+from PIL import Image
 from rq import Retry
 
 from worker.bots.base_bot import BaseBot
@@ -318,3 +320,151 @@ def test_sentiment_analysis_bot(stories, requests_mock, mock_job, monkeypatch, b
     for item_id, changes in result["changes"]["item_attributes"].items():
         attributes = {attr["key"]: attr["value"] for attr in changes}
         assert attributes == {"sentiment_category": "neutral", "sentiment_score": expected_scores[item_id]}
+
+
+def test_image2text_processes_only_missing_captions_and_preserves_partial_success(requests_mock, caplog):
+    from worker.bot_api import BotServiceUnavailableError
+    from worker.bots.image2text_bot import BASE_URL, Image2TextBot
+
+    bot = Image2TextBot()
+    bot.pipeline_stories = [
+        {
+            "news_items": [
+                {"images": [{"id": "first", "mime_type": "image/webp"}, {"id": "old", "description": "Existing caption"}]},
+                {"images": [{"id": name, "mime_type": "image/jpeg"} for name in ("missing", "second", "unavailable")]},
+            ]
+        }
+    ]
+    webp = BytesIO()
+    Image.new("RGB", (16, 16)).save(webp, "WEBP")
+    requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/images/first", content=webp.getvalue())
+    for image_id in ("missing", "second"):
+        requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/images/{image_id}", content=b"stored jpeg")
+    requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/images/unavailable", status_code=404)
+    login = requests_mock.post(f"{BASE_URL}/login", json={"authenticated": True})
+    submit = requests_mock.post(
+        f"{BASE_URL}/modules/groundedsam/inference",
+        [{"json": {"job_id": "batch"}}, {"status_code": 503}],
+    )
+    records = [
+        {"name": name, "status": "success", "result": {"image_caption": caption, "tags": "ignore"}}
+        for name, caption in [("second.jpg", " Second caption "), ("extra.jpg", "Unrequested"), ("first.png", "First caption")]
+    ]
+    requests_mock.get(
+        f"{BASE_URL}/job/get/batch",
+        [
+            {"json": {"status": "processing"}},
+            {"json": {"status": "success", "j_metadata": {"groundedsam": {"model_results": [{"file_records": records}]}}}},
+        ],
+    )
+    state = {}
+    checkpoints = []
+    parameters = {
+        "USERNAME": "test-user",
+        "PASSWORD": "test-password",
+        "_llm_batch_state": state,
+        "_save_llm_batch_state": lambda: checkpoints.append(state["image_descriptions"].copy()),
+    }
+    result = bot.execute(parameters)
+    assert login.last_request.text == "username=test-user&password=test-password"
+    multipart = submit.last_request.body
+    assert multipart.count(b'name="file"') == 3
+    assert b'name="image_caption_class"' in multipart and b"Tag2Text" in multipart
+    assert b'filename="first.png"' in multipart and b"image/png" in multipart and b"\x89PNG" in multipart
+    assert b'filename="second.jpg"' in multipart and b"stored jpeg" in multipart
+    assert result["changes"] == {"image_descriptions": {"first": "First caption", "second": "Second caption"}}
+    assert result["errors"] == ["missing", "unavailable"]
+    assert checkpoints == [result["changes"]["image_descriptions"]]
+    assert "Image2Text failed for image unavailable (HTTPError)" in caplog.text
+
+    requests_mock.reset_mock()
+    with pytest.raises(BotServiceUnavailableError) as failure:
+        bot.execute(parameters)
+    assert failure.value.reason == "bot_service_unavailable" and failure.value.retryable
+    assert state["image_descriptions"] == checkpoints[0]
+    assert submit.call_count == 1 and submit.last_request.body.count(b'name="file"') == 1
+    assert b'filename="missing.jpg"' in submit.last_request.body
+    assert len(checkpoints) == 1
+
+
+def test_image2text_regenerates_captions_for_the_selected_story(requests_mock):
+    from worker.bots.image2text_bot import BASE_URL, Image2TextBot
+
+    bot = Image2TextBot()
+    parameters = {
+        "USERNAME": "test-user",
+        "PASSWORD": "test-password",
+        "ITEM_FILTER": "missing_image_description=true&limit=0",
+        "filter": {"story_id": "selected", "missing_image_description": False},
+    }
+    image = {"id": "diagram", "description": "Source caption", "mime_type": "image/png"}
+    requests_mock.get(
+        f"{Config.TARANIS_CORE_URL}/worker/stories?story_id=selected",
+        complete_qs=True,
+        json=[{"id": "selected", "revision": 2, "news_items": [{"images": [image]}]}],
+    )
+    requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/images/diagram", content=b"stored png")
+    requests_mock.post(f"{BASE_URL}/login", json={"authenticated": True})
+    requests_mock.post(f"{BASE_URL}/modules/groundedsam/inference", json={"job_id": "batch"})
+    record = {"name": "diagram.png", "status": "success", "result": {"image_caption": "Updated caption"}}
+    requests_mock.get(f"{BASE_URL}/job/get/batch", json={"j_metadata": {"groundedsam": {"model_results": [{"file_records": [record]}]}}})
+
+    assert bot.execute(parameters)["changes"] == {"image_descriptions": {"diagram": "Updated caption"}}
+
+
+def test_image2text_rejected_login_stops_before_upload(requests_mock):
+    from worker.bots.image2text_bot import BASE_URL, Image2TextAuthenticationError, Image2TextBot
+
+    bot = Image2TextBot()
+    bot.pipeline_stories = [{"news_items": [{"images": [{"id": "pending", "mime_type": "image/png"}]}]}]
+    requests_mock.post(f"{BASE_URL}/login", json={"authenticated": False})
+    with pytest.raises(Image2TextAuthenticationError):
+        bot.execute({"USERNAME": "test-user", "PASSWORD": "test-password"})
+
+
+@pytest.mark.parametrize(("api_format", "batch"), [("chat_completions", False), ("responses", True)])
+def test_image2text_uses_the_selected_llm_endpoint(requests_mock, mock_job, monkeypatch, api_format, batch):
+    mock_job.meta = {}
+    monkeypatch.setattr("worker.bots.bot_tasks.get_current_job", lambda: mock_job)
+    endpoint = {
+        "name": "Vision",
+        "base_url": "https://vision.test/v1",
+        "api_key": "vision-key",
+        "model": "vision-model",
+        "api_format": api_format,
+        "processing_mode": "openrouter_batch" if batch else "realtime",
+    }
+    config = {"id": "captions", "type": "image2text_bot", "parameters": {"CAPTIONING_API": "llm_bot"}, "llm_endpoint": endpoint}
+    requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/bots/captions", json=config)
+    images = [
+        {"id": "kept", "description": "Existing caption"},
+        {"id": "diagram", "mime_type": "image/png"},
+        {"id": "gone", "mime_type": "image/png"},
+    ]
+    requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/stories", json=[{"id": "story", "revision": 2, "news_items": [{"images": images}]}])
+    image = requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/images/diagram", content=b"png")
+    requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/images/gone", status_code=404)
+    requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"status": "SUCCESS"})
+    if batch:
+        upload = requests_mock.post(f"{endpoint['base_url']}/batches", json={"id": "image-batch"})
+        assert isinstance(bot_task("captions"), Retry)
+        payload = upload.last_request.json()["requests"][0]["body"]
+        assert payload["input"][1]["content"] == [{"type": "input_image", "image_url": "data:image/png;base64,cG5n"}]
+        requests_mock.get(
+            f"{endpoint['base_url']}/batches/image-batch",
+            json={
+                "status": "completed",
+                "results": [{"custom_id": "0", "response": {"status_code": 200, "body": {"output_text": " Caption "}}}],
+            },
+        )
+        result = bot_task("captions")
+    else:
+        upload = requests_mock.post(f"{endpoint['base_url']}/chat/completions", json={"choices": [{"message": {"content": " Caption "}}]})
+        result = bot_task("captions")
+        payload = upload.last_request.json()
+        assert payload["messages"][1]["content"] == [{"type": "image_url", "image_url": {"url": "data:image/png;base64,cG5n"}}]
+    assert payload["model"] == "vision-model"
+    assert upload.last_request.headers["Authorization"] == "Bearer vision-key"
+    assert upload.call_count == image.call_count == 1
+    assert result["changes"] == {"image_descriptions": {"diagram": "Caption"}}
+    assert result["errors"] == ["gone"]

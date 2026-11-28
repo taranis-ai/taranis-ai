@@ -20,7 +20,10 @@ def test_build_story_revision_diff_payload_formats_inline_and_collection_changes
                 "likes": 1,
                 "dislikes": 0,
                 "tags": [{"name": "old-tag"}],
-                "news_items": [{"id": "news-1", "title": "Old news"}],
+                "news_items": [
+                    {"id": "news-1", "title": "Old news"},
+                    {"id": "retained", "images": [{"id": "figure"}, {"id": "old"}]},
+                ],
                 "attributes": [{"key": "TLP", "value": "clear"}],
             },
         },
@@ -38,7 +41,10 @@ def test_build_story_revision_diff_payload_formats_inline_and_collection_changes
                 "likes": 3,
                 "dislikes": 1,
                 "tags": [{"name": "new-tag"}],
-                "news_items": [{"id": "news-2", "title": "New news"}],
+                "news_items": [
+                    {"id": "news-2", "title": "New news"},
+                    {"id": "retained", "images": [{"id": "new"}, {"id": "figure", "description": "A diagram"}]},
+                ],
                 "attributes": [{"key": "TLP", "value": "amber"}],
             },
         },
@@ -51,6 +57,12 @@ def test_build_story_revision_diff_payload_formats_inline_and_collection_changes
     title_change = next(change for change in payload.changes if change.field == "Title")
     assert any(segment.highlighted for segment in title_change.new_segments)
     assert title_change.old_segments
+    image_changes = {change.field: (change.old_value, change.new_value) for change in payload.changes if "Image" in change.field}
+    assert image_changes == {
+        "News item retained: Image figure description": (None, "A diagram"),
+        "News item retained: Image new added": (None, "new"),
+        "News item retained: Image old removed": ("old", None),
+    }
     assert any(change.field == "Tags Added" and change.new_value == "new-tag" for change in payload.changes)
     assert any(change.field == "Comments" and change.old_value == "Comment A" and change.new_value is None for change in payload.changes)
     assert any(change.field == "News Items Added" and change.new_value == "New news" for change in payload.changes)

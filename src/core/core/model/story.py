@@ -14,7 +14,7 @@ from sqlalchemy import func, inspect, or_, select
 from sqlalchemy.dialects.postgresql import TSVECTOR
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.orm import Mapped, aliased, relationship, selectinload
+from sqlalchemy.orm import Mapped, aliased, column_property, relationship, selectinload, undefer
 from sqlalchemy.sql import Select
 from sqlalchemy.sql.expression import false, true
 
@@ -24,6 +24,7 @@ from core.model.base_model import UUID_STR_LENGTH, BaseModel
 from core.model.news_item import NewsItem
 from core.model.news_item_attribute import NewsItemAttribute
 from core.model.news_item_conflict import NewsItemConflict
+from core.model.news_item_image import NewsItemImage
 from core.model.news_item_tag import NewsItemTag
 from core.model.osint_source import OSINTSource, OSINTSourceGroup, OSINTSourceGroupOSINTSource
 from core.model.revision import StoryRevision
@@ -55,6 +56,15 @@ class Story(BaseModel):
     summary: Mapped[str] = db.Column(db.Text, default="")
     revision: Mapped[int] = db.Column(db.Integer, nullable=False, default=0)
     news_items: Mapped[list["NewsItem"]] = relationship("NewsItem")
+    image_count: Mapped[int] = column_property(
+        select(func.count())
+        .select_from(NewsItem)
+        .join(NewsItemImage, NewsItemImage.news_item_id == NewsItem.id)
+        .where(NewsItem.story_id == id)
+        .correlate_except(NewsItem, NewsItemImage)
+        .scalar_subquery(),
+        deferred=True,
+    )
     news_item_order: Mapped[list[str]] = db.Column(db.JSON, nullable=False, default=list)
     last_change: Mapped[str] = db.Column(db.String())
     attributes: Mapped[list["NewsItemAttribute"]] = relationship(
@@ -342,6 +352,9 @@ class Story(BaseModel):
         )
         query = db.select(cls)
 
+        if str(filter_args.get("missing_image_description", "")).lower() == "true":
+            query = query.where(cls.news_items.any(NewsItem.images.any(NewsItemImage.description.is_(None))))
+
         if item_id := filter_args.get("story_id"):
             return query.where(matching_items.exists(), cls.id == item_id)
 
@@ -477,7 +490,9 @@ class Story(BaseModel):
     def _add_sqlite_search_query(cls, search: str, query: Select) -> Select:
         pattern = f"%{search}%"
 
-        news_exists = cls.news_items.any(or_(NewsItem.title.ilike(pattern), NewsItem.content.ilike(pattern)))
+        news_exists = cls.news_items.any(
+            or_(NewsItem.title.ilike(pattern), NewsItem.content.ilike(pattern), NewsItem.images.any(NewsItemImage.description.ilike(pattern)))
+        )
 
         return query.where(
             or_(
@@ -574,6 +589,7 @@ class Story(BaseModel):
             selectinload(cls.news_items).selectinload(NewsItem.osint_source),
         )
         if filter_args.get("worker", False) or not user:
+            query = query.options(selectinload(cls.news_items).selectinload(NewsItem.images))
             return [s.to_worker_dict() for s in cls.get_filtered(query.options(*serialization_options)) or []], None
 
         story_ids = list(db.session.scalars(query.with_only_columns(cls.id)))
@@ -582,7 +598,7 @@ class Story(BaseModel):
             if story_ids:
                 query = query.order_by(db.case({story_id: position for position, story_id in enumerate(story_ids)}, value=cls.id))
 
-        query = query.options(*serialization_options)
+        query = query.options(*serialization_options, undefer(cls.image_count))
         writable_sources = set(
             db.session.scalars(
                 RoleBasedAccessService.filter_query_with_acl(
@@ -714,7 +730,9 @@ class Story(BaseModel):
                 story.delete(story_id)
 
     @classmethod
-    def add(cls, data, user: User | None = None, actor: str | None = None) -> "tuple[dict[str, Any], int]":
+    def add(
+        cls, data, user: User | None = None, actor: str | None = None, *, captured_images: list[NewsItemImage] | None = None
+    ) -> "tuple[dict[str, Any], int]":
         try:
             if attributes := data.get("attributes"):
                 data["attributes"] = NewsItemAttribute.unify_attributes_to_old_format(attributes)
@@ -725,6 +743,10 @@ class Story(BaseModel):
             if resolved_actor is not None:
                 data = {**data, "last_change": resolved_actor}
             story = cls.from_dict(data)
+            if captured_images:
+                assert source is not None
+                NewsItemImage.share_blobs(captured_images, source.id)
+                story.news_items[0].images.extend(captured_images)
             for news_item in story.news_items:
                 source = news_item.osint_source or OSINTSource.get(news_item.osint_source_id)
                 if source and cls._is_manual_source(source):
@@ -756,7 +778,9 @@ class Story(BaseModel):
             return {"error": "Failed to add story"}, 400
 
     @classmethod
-    def add_from_news_item(cls, news_item: AssessNewsItem, user: User | None = None) -> "tuple[dict, int]":
+    def add_from_news_item(
+        cls, news_item: AssessNewsItem, user: User | None = None, *, captured_images: list[NewsItemImage] | None = None
+    ) -> "tuple[dict, int]":
         if news_item_obj := NewsItem.get_by_payload_identity(news_item):
             logger.warning("Identical news item found. Skipping...")
             return {
@@ -770,7 +794,7 @@ class Story(BaseModel):
             "news_items": [news_item.to_core_dict()],
         }
 
-        return cls.add(data, user=user)
+        return cls.add(data, user=user, captured_images=captured_images)
 
     @classmethod
     def add_or_update_for_misp(cls, data: list[dict[str, Any]], force: bool = False) -> "tuple[dict[str, Any], int]":
@@ -1537,7 +1561,12 @@ class Story(BaseModel):
         return ordered + [items[item_id] for item_id in sorted(items)]
 
     def to_dict(
-        self, user: User | None = None, writable_sources: set[str | None] | None = None, bookmarked: bool | None = None
+        self,
+        user: User | None = None,
+        writable_sources: set[str | None] | None = None,
+        bookmarked: bool | None = None,
+        *,
+        include_images: bool = False,
     ) -> dict[str, Any]:
         data = super().to_dict()
         if user is not None:
@@ -1546,7 +1575,11 @@ class Story(BaseModel):
         data.pop("news_item_order", None)
         data["tlp_level"] = self.tlp_level.value
         data["attributes"] = [attribute.to_small_dict() for attribute in self.attributes]
-        data["news_items"] = [news_item.to_detail_dict() for news_item in self.ordered_news_items]
+        data["news_items"] = [news_item.to_detail_dict(include_images=include_images) for news_item in self.ordered_news_items]
+        if not include_images:
+            data["image_count"] = self.image_count or 0
+        elif user:
+            data["image_count"] = sum(len(item.get("images", ())) for item in data["news_items"])
         data["tags"] = [tag.to_dict() for tag in self.tags]
         data["links"] = self.links
         if self.misp_auto_update:
@@ -1555,7 +1588,7 @@ class Story(BaseModel):
         return data
 
     def to_detail_dict(self, user: User | None = None) -> dict[str, Any]:
-        data = self.to_dict(user=user)
+        data = self.to_dict(user=user, include_images=True)
         data["detail_view"] = True
         data["in_reports_count"] = ReportItemStory.count(self.id)
         data["revision_count"] = self.get_revision_count()
@@ -1566,7 +1599,7 @@ class Story(BaseModel):
         return {"id": self.id, "title": self.title, "links": self.links}
 
     def to_export_dict(self) -> dict[str, Any]:
-        data = self.to_dict()
+        data = self.to_dict(include_images=True)
         data["attributes"] = [attribute.to_small_dict() for attribute in self.attributes]
         return data
 
@@ -1909,7 +1942,7 @@ class StoryBookmark(BaseModel):
     def _get_accessible_stories_by_id(cls, story_ids: list[str], user: User) -> dict[str, Story]:
         if not story_ids:
             return {}
-        query = Story.visible_query(user, Story.get_filter_query({"story_ids": story_ids}))
+        query = Story.visible_query(user, Story.get_filter_query({"story_ids": story_ids})).options(undefer(Story.image_count))
         return {story.id: story for story in db.session.execute(query).scalars().all()}
 
     @classmethod

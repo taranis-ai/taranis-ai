@@ -2002,11 +2002,20 @@ class TestEndToEndAdmin(BaseE2ETest):
             expect(endpoint).to_have_count(1)
             expect(page.locator("#notification-bar")).to_contain_text("Reassign this endpoint")
             reset_htmx_state(page)
-            for bot_type in ("story_bot", "summary_bot", "nlp_bot", "sentiment_analysis_bot"):
+            for bot_type in ("story_bot", "summary_bot", "nlp_bot", "sentiment_analysis_bot", "image2text_bot"):
                 page.goto(url_for("admin.bots", _external=True))
                 page.get_by_test_id("new-bot-button").click()
                 selector = page.get_by_role("combobox", name="LLM endpoint", exact=True)
-                self.select_dynamic_type_and_wait(page, bot_type, selector)
+                if bot_type == "image2text_bot":
+                    provider = page.get_by_label("Captioning API")
+                    self.select_dynamic_type_and_wait(page, bot_type, provider)
+                    expect(provider).to_have_value("media_miner")
+                    expect(page.locator("#parameter-PASSWORD")).to_be_visible()
+                    expect(selector).to_be_hidden()
+                    provider.select_option("llm_bot")
+                    expect(page.locator("#parameter-PASSWORD")).to_be_disabled()
+                else:
+                    self.select_dynamic_type_and_wait(page, bot_type, selector)
                 expect(selector.locator("option:checked")).to_contain_text("E2E shared model")
                 expect(page.locator('input[name="parameters[BOT_API_KEY]"]')).to_have_count(0)
                 expect(

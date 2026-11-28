@@ -1,4 +1,6 @@
 import asyncio
+import errno
+from unittest.mock import Mock
 
 import niquests as requests
 import pytest
@@ -6,7 +8,7 @@ from models.worker_parameters import effective_parameter_values
 
 from tests.testdata import news_items
 from worker.config import Config
-from worker.http_client import http_session_scope
+from worker.http_client import http_request, http_session_scope
 
 
 def test_base_web_collector_conditional_request(base_web_collector_mock, base_web_collector, requests_mock, caplog):
@@ -34,8 +36,13 @@ def test_base_web_collector_conditional_request(base_web_collector_mock, base_we
         response = base_web_collector.send_get_request("https://test.org/404")
     assert str(exception.value) == "404 Client Error: None for url: https://test.org/404"
 
-    for error_type in (requests.exceptions.ConnectionError, requests.exceptions.Timeout, requests.exceptions.ReadTimeout):
-        requests_mock.get("https://test.org/network-error", exc=error_type("technical-network-details"))
+    for error_type in (
+        requests.exceptions.ConnectionError,
+        requests.exceptions.Timeout,
+        requests.exceptions.ReadTimeout,
+        requests.exceptions.ChunkedEncodingError,
+    ):
+        request = requests_mock.get("https://test.org/network-error", exc=error_type("technical-network-details"))
         caplog.clear()
         with caplog.at_level("INFO"), pytest.raises(requests.exceptions.RequestException) as failure:
             base_web_collector.send_get_request("https://test.org/network-error")
@@ -47,6 +54,7 @@ def test_base_web_collector_conditional_request(base_web_collector_mock, base_we
         )
         assert failure.value.__suppress_context__ is True
         assert failure.value.__cause__ is None
+        assert request.call_count == 1
         assert any(record.levelname == "ERROR" and "technical-network-details" in record.message for record in caplog.records)
 
 
@@ -73,6 +81,29 @@ def test_base_web_collector_http3_config(base_web_collector_mock, base_web_colle
         asyncio.run(base_web_collector._fetch_icon("https://test.org/200"))
 
     assert [options["disable_http3"] for options in session_options if options] == [disable_http3, disable_http3]
+
+
+@pytest.mark.parametrize("error_type", [requests.exceptions.ChunkedEncodingError, requests.exceptions.ConnectionError])
+def test_external_get_falls_back_to_tcp_on_emsgsize(base_web_collector, requests_mock, monkeypatch, error_type):
+    url = "https://test.org/article"
+    error = error_type("connection broken")
+    error.__context__ = requests.packages.urllib3.exceptions.ProtocolError("connection broken")
+    error.__context__.__cause__ = OSError(errno.EMSGSIZE, "Message too long")
+    monkeypatch.setattr(Config, "DISABLE_HTTP3", False)
+    sessions = Mock(wraps=requests.Session)
+    monkeypatch.setattr(requests, "Session", sessions)
+    post = requests_mock.post(url, exc=error)
+    article = requests_mock.get(url, [{"exc": error}, {"text": "complete article"}, {"exc": error}])
+    with http_session_scope():
+        with pytest.raises(error_type):
+            http_request("POST", url, external=True)
+        assert post.call_count == 1
+        assert base_web_collector.send_get_request(url).text == "complete article"
+        with pytest.raises(requests.exceptions.RequestException):
+            base_web_collector.send_get_request(url)
+
+    assert article.call_count == 3
+    assert [call.kwargs["disable_http3"] for call in sessions.call_args_list] == [False, True]
 
 
 def test_malformed_last_modified_is_ignored(base_web_collector, requests_mock):
@@ -157,8 +188,11 @@ def test_rss_last_modified_published_fallback_applies_across_content_modes(rss_c
     assert item.published == datetime.datetime(2026, 8, 11, 9, 7, 3)
 
 
-def test_rss_publish_error_propagates(rss_collector, requests_mock):
+def test_rss_publish_error_propagates(rss_collector, requests_mock, monkeypatch):
+    from unittest.mock import AsyncMock
+
     from models.assess import NewsItem
+    from rq.timeouts import JobTimeoutException
 
     requests_mock.post(f"{Config.TARANIS_CORE_URL}/worker/news-items", status_code=500, text="failed")
 
@@ -176,6 +210,16 @@ def test_rss_publish_error_propagates(rss_collector, requests_mock):
     assert rss_collector.affected_story_ids == {"committed-story"}
     assert bots.call_count == 1
     assert bots.last_request.json()["story_ids"] == ["committed-story"]
+
+    rss_collector.affected_story_ids.clear()
+    saved = requests_mock.post(f"{Config.TARANIS_CORE_URL}/worker/news-items", json={"story_ids": ["first-story"]})
+    monkeypatch.setattr(rss_collector, "_capture_images", AsyncMock(side_effect=[[], JobTimeoutException()]))
+    items = [NewsItem(osint_source_id="source-1", title=title) for title in ("First", "Second")]
+    with pytest.raises(RuntimeError, match="Cannot add news items"):
+        rss_collector.publish(items, {"id": "source-1", "parameters": {"COLLECT_IMAGES": True}})
+    assert saved.call_count == 1
+    assert bots.call_count == 2
+    assert bots.last_request.json()["story_ids"] == ["first-story"]
 
 
 def test_primary_http_validator_lifecycle(base_web_collector, requests_mock):
@@ -436,7 +480,7 @@ def test_simple_web_collector_with_additional_headers(simple_web_collector_mock,
     assert simple_web_collector.headers["Authorization"] == "Bearer Token1234"
 
 
-def test_simple_web_collector_collect(simple_web_collector_mock, simple_web_collector):
+def test_simple_web_collector_collect(simple_web_collector_mock, simple_web_collector, requests_mock):
     from tests.testdata import web_collector_result_content, web_collector_result_title, web_collector_url
 
     result_item = simple_web_collector.news_item_from_article(web_collector_url)
@@ -444,6 +488,12 @@ def test_simple_web_collector_collect(simple_web_collector_mock, simple_web_coll
     assert result_item.title == web_collector_result_title
     # assert result_item.author == "John Doe"
     assert result_item.content.startswith(web_collector_result_content)
+
+    requests_mock.get(web_collector_url, text='<nav><img src="/logo"></nav><article><img src="/chart.png" alt="Chart"></article>')
+    simple_web_collector.collect_images = True
+    item = simple_web_collector.news_item_from_article(web_collector_url)
+    assert item.title == web_collector_url
+    assert list(item.image_candidates.values()) == ["Chart"]
 
 
 def test_simple_web_collector_digest_splitting(simple_web_collector_mock, simple_web_collector):
@@ -730,3 +780,82 @@ def test_parse_parameters_error_cases(parameters, missing_field, expected_messag
     with pytest.raises(ValueError) as excinfo:
         collector.parse_parameters(parameters)
     assert expected_message in str(excinfo.value)
+
+
+def test_article_capture_follows_selected_content_and_checks_redirects(rss_collector, monkeypatch, requests_mock):
+    import base64
+    import socket
+    from unittest.mock import AsyncMock, MagicMock
+
+    import feedparser
+
+    from worker.collectors.news_images import download_image
+
+    url = "https://feed.example/articles/1"
+    entry = feedparser.FeedParserDict(
+        link="https://[broken/article",
+        title="A diagram",
+        description='<base href="/assets/"><aside><img src="/logo"></aside><main>Example<img src="/v2/cover.png" alt=" Cover &amp; key "><img src="chart.png" alt="   "></main>',
+        links=[{"rel": "enclosure", "type": "image/png", "href": "cover.png"}],
+    )
+    source = {"id": "source", "parameters": {"FEED_URL": url, "XPATH": "//main", "USE_FEED_CONTENT": True}}
+    rss_collector.parse_source(source)
+    assert not rss_collector.parse_feed_entry(entry, source).image_candidates
+    source["parameters"]["COLLECT_IMAGES"] = True
+    rss_collector.parse_source(source)
+    redirected_url = "https://feed.example/v2/rss.xml"
+    requests_mock.get(url, status_code=302, headers={"Location": redirected_url})
+    requests_mock.get(redirected_url, text='<rss version="2.0"><channel><title>Feed</title></channel></rss>')
+    rss_collector.get_feed()
+    item = rss_collector.parse_feed_entry(entry, source)
+    cover_url = "https://feed.example/v2/cover.png"
+    chart_url = "https://feed.example/assets/chart.png"
+    assert item.image_candidates == {cover_url: "Cover & key", chart_url: None}
+    monkeypatch.setattr("worker.collectors.news_images.get_environ_proxies", lambda _: {})
+    original_resolve = socket.getaddrinfo
+    monkeypatch.setattr(
+        socket,
+        "getaddrinfo",
+        lambda host, port, *args: original_resolve("1.1.1.1" if host == "feed.example" else "127.0.0.1", port, *args),
+    )
+
+    async def chunks(_size):
+        yield b"stored bytes"
+
+    response = MagicMock(spec=requests.AsyncResponse)
+    response.status_code = 200
+    response.headers = {}
+    response.is_redirect = False
+    response.iter_content.side_effect = chunks
+    send = AsyncMock(return_value=response)
+    monkeypatch.setattr(requests.adapters.AsyncHTTPAdapter, "send", send)
+    captured = asyncio.run(rss_collector._capture_images(item.image_candidates, None, 1024))
+    assert [(image["source_url"], image["alt_text"]) for image in captured] == list(item.image_candidates.items())
+    assert base64.b64decode(captured[0]["data"]) == b"stored bytes"
+    response.is_redirect = True
+    response.headers = {"Location": "http://localhost/private"}
+    with pytest.raises(ValueError, match="not public"):
+        asyncio.run(download_image(chart_url))
+    assert send.await_count == 3
+
+    async def stalled_chunks(_size):
+        yield b"incomplete"
+        await asyncio.Event().wait()
+
+    response.is_redirect = False
+    response.iter_content.side_effect = stalled_chunks
+    response.__aexit__.reset_mock()
+    monkeypatch.setattr("worker.collectors.news_images.IMAGE_TIMEOUT_SECONDS", 0.1)
+    assert asyncio.run(rss_collector._capture_images({cover_url: None}, None, 1024)) == []
+    assert rss_collector.skipped_images == 1
+    response.__aexit__.assert_awaited_once()
+
+    stored = requests_mock.post(f"{Config.TARANIS_CORE_URL}/worker/news-items/known-images", json={cover_url: "stored-id"})
+    published = requests_mock.post(f"{Config.TARANIS_CORE_URL}/worker/news-items", json={"story_ids": ["story"]})
+    rss_collector.skipped_images = 0
+    send.reset_mock()
+    assert rss_collector.publish([item], source) == "Collected 1 stories. Skipped 1 images"
+    assert stored.called and send.await_count == 1
+    assert send.await_args.args[0].url == chart_url
+    assert published.last_request.json()[0]["known_image_descriptions"] == {"stored-id": "Cover & key"}
+    assert published.last_request.json()[0]["captured_images"] == []

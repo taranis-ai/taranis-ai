@@ -81,7 +81,8 @@ def bot_task(bot_id: str, filter: dict | None = None, trigger_dependents: bool =
         worker_type = bot_config.get("type", worker_type).upper()
         if not job and (bot_config.get("llm_endpoint") or {}).get("processing_mode") == "openrouter_batch":
             raise RuntimeError("Batch processing requires a queued job")
-        if job and (bot_config.get("type") in LLM_BOT_FEATURES or worker_type in TAGGING_BOTS) and batch_state is None:
+        checkpointed = worker_type.lower() in LLM_BOT_FEATURES or worker_type in TAGGING_BOTS
+        if job and checkpointed and batch_state is None:
             batch_state = {"config": bot_config}
             job.meta["llm_batch"] = batch_state
             job.save_meta()
@@ -183,6 +184,7 @@ def _bot_for_config(bot_config: dict):
         "nlp_bot": worker.bots.NLPBot,
         "story_bot": worker.bots.StoryBot,
         "ioc_bot": worker.bots.IOCBot,
+        "image2text_bot": worker.bots.Image2TextBot,
         "intel_owl_bot": worker.bots.IntelOwlBot,
         "summary_bot": worker.bots.SummaryBot,
         "sentiment_analysis_bot": worker.bots.SentimentAnalysisBot,
@@ -247,6 +249,11 @@ def _apply_context(stories: dict[str, dict], aliases: dict[str, str], bot_type: 
                     if isinstance(name, str) and name not in names:
                         existing.append({"name": name, "tag_type": tag_type})
                         names.add(name)
+    if captions := changes.get("image_descriptions"):
+        for item in items.values():
+            for image in item.get("images", []):
+                if image["id"] in captions:
+                    image["description"] = captions[image["id"]]
     for item_id, attributes in changes.get("item_attributes", {}).items():
         if item := items.get(item_id):
             existing = item.setdefault("attributes", [])

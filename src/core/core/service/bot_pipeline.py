@@ -3,6 +3,7 @@
 from datetime import UTC, datetime
 from typing import Any
 
+from models.news_image import MAX_DESCRIPTION_LENGTH
 from models.task import Task as TaskResponseModel
 from models.task import TaskSubmission
 from sqlalchemy.exc import IntegrityError
@@ -13,13 +14,14 @@ from core.model.bot import Bot
 from core.model.ioc import IOC
 from core.model.news_item import NewsItem
 from core.model.news_item_attribute import NewsItemAttribute
+from core.model.news_item_image import NewsItemImage
 from core.model.story import Story
 from core.model.task import Task
 from core.service.misp_auto_update import refresh_misp_auto_update_jobs
 
 
 TAGGING_BOTS = {"WORDLIST_BOT", "IOC_BOT", "NLP_BOT", "TAGGING_BOT"}
-CHANGE_KEYS = {"groups", "item_attributes", "story_attributes", "story_updates"}
+CHANGE_KEYS = {"image_descriptions", "groups", "item_attributes", "story_attributes", "story_updates"}
 
 
 class InvalidBotRun(ValueError):
@@ -65,8 +67,12 @@ class BotPipelineService:
                 raise StaleBotRun
             allowed_items = {item.id for story in stories.values() for item in story.news_items}
             affected_story_ids: set[str] = set()
+            run_filter = data.get("filter")
+            regenerate_story_id = (
+                run_filter.get("story_id") if isinstance(run_filter, dict) and run_filter.get("missing_image_description") is False else None
+            )
             for stage in stages:
-                cls._apply_stage(stage, set(revisions), allowed_items, affected_story_ids)
+                cls._apply_stage(stage, set(revisions), allowed_items, affected_story_ids, regenerate_story_id)
 
             result_payload = submission.result.model_dump(mode="json", exclude_none=False)
             task_data: dict[str, Any] = {
@@ -139,7 +145,9 @@ class BotPipelineService:
             db.session.add(entry)
 
     @classmethod
-    def _apply_stage(cls, stage: Any, allowed_stories: set[str], allowed_items: set[str], affected_story_ids: set[str]) -> None:
+    def _apply_stage(
+        cls, stage: Any, allowed_stories: set[str], allowed_items: set[str], affected_story_ids: set[str], regenerate_story_id: str | None
+    ) -> None:
         if not isinstance(stage, dict):
             raise InvalidBotRun
         bot_id, bot_type, result = stage.get("bot_id"), stage.get("bot_type"), stage.get("result")
@@ -171,6 +179,26 @@ class BotPipelineService:
                 if item.story_id:
                     tag_counts[item.story_id] = tag_counts.get(item.story_id, 0) + len(tags)
                     affected_story_ids.add(item.story_id)
+
+        if "image_descriptions" in changes:
+            captions = changes["image_descriptions"]
+            if bot_type != "IMAGE2TEXT_BOT" or not isinstance(captions, dict):
+                raise InvalidBotRun
+            changed_stories = set()
+            for image_id, caption in captions.items():
+                if not isinstance(caption, str) or not caption.strip() or len(caption) > MAX_DESCRIPTION_LENGTH or "\x00" in caption:
+                    raise InvalidBotRun
+                image = NewsItemImage.get(image_id)
+                item = NewsItem.get(image.news_item_id) if image else None
+                if not image or not item or item.id not in allowed_items or item.story_id not in story_ids or not item.story:
+                    raise InvalidBotRun
+                if (image.description is None or item.story_id == regenerate_story_id) and image.description != caption.strip():
+                    image.description = caption.strip()
+                    changed_stories.add(item.story)
+            for story in changed_stories:
+                story.update_status(change="bot")
+                story.record_revision(note="image_descriptions")
+                affected_story_ids.add(story.id)
 
         item_attributes = changes.get("item_attributes", {})
         if not isinstance(item_attributes, dict):

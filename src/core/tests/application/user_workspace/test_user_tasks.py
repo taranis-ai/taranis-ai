@@ -325,13 +325,14 @@ def test_completed_runs_includes_background_jobs_and_filters_without_exposing_pa
         for job_id, status in zip(job_ids, ("SUCCESS", "FAILURE", "STARTED"), strict=True):
             payload = _task_payload(job_id, user_id=None, status=status)
             if status == "FAILURE":
-                payload["result"].update(message="private traceback and provider secret", reason="job_timeout")
+                payload["result"].update(message="private traceback and provider secret", reason="image2text_authentication_failed")
             assert client.post("/api/tasks", json=payload, headers=api_header).status_code == 200
         response = client.get("/api/tasks/runs", query_string={"search": prefix, "limit": 1}, headers=api_header)
         assert response.status_code == 200
         assert response.json["total_count"] == 2
         assert response.json["items"][0]["job_id"] == job_ids[1]
-        assert response.json["items"][0]["result"]["message"] == "The job exceeded its execution timeout."
+        assert response.json["items"][0]["result"]["reason"] == "image2text_authentication_failed"
+        assert response.json["items"][0]["result"]["message"] == "Media Intelligence login failed. Check the Image2Text bot credentials."
         assert "private traceback" not in response.text
         assert "secret" not in response.text
         assert "data" not in response.json["items"][0]["result"]

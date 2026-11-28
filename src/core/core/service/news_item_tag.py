@@ -31,7 +31,7 @@ class NewsItemTagService:
         group_concat_fn = func.group_concat(subquery.c.created) if dialect_name == "sqlite" else func.array_agg(subquery.c.created)
 
         stmt = (
-            db.select(subquery.c.name, subquery.c.tag_type, group_concat_fn, func.count(subquery.c.name).label("count"))
+            select(subquery.c.name, subquery.c.tag_type, group_concat_fn, func.count(subquery.c.name).label("count"))
             .select_from(subquery)
             .group_by(subquery.c.name, subquery.c.tag_type)
             .having(func.count(subquery.c.name) >= min_count)
@@ -45,7 +45,7 @@ class NewsItemTagService:
 
         results = []
         for name, tag_type, created, count in result:
-            published = list(created.split(",")) if dialect_name == "sqlite" else [dt.isoformat() for dt in created]
+            published = created.split(",") if isinstance(created, str) else [dt.isoformat() for dt in created]
             results.append(
                 {
                     "name": name,
@@ -75,13 +75,13 @@ class NewsItemTagService:
 
     @classmethod
     def get_tag_types(cls) -> list[str]:
-        items = db.session.execute(
-            db.select(NewsItemTagCluster.tag_type)
+        stmt = (
+            select(NewsItemTagCluster.tag_type)
             .where(NewsItemTagCluster.tag_type_key != "")
             .group_by(NewsItemTagCluster.tag_type, NewsItemTagCluster.tag_type_key)
             .order_by(func.sum(NewsItemTagCluster.story_count).desc())
-        ).all()
-        return [row[0] for row in items] if items else []
+        )
+        return [tag_type for tag_type in db.session.scalars(stmt) if tag_type is not None]
 
     @classmethod
     def get_largest_tag_types(cls, days: int) -> dict:

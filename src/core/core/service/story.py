@@ -15,6 +15,7 @@ from core.managers import queue_manager
 from core.managers.db_manager import db
 from core.model.news_item import NewsItem
 from core.model.news_item_attribute import NewsItemAttribute
+from core.model.osint_source import OSINTSource
 from core.model.revision import StoryRevision
 from core.model.story import Story
 from core.model.user import User
@@ -201,6 +202,7 @@ class StoryService:
             selectinload(Story.misp_auto_update),
             selectinload(Story.news_items).selectinload(NewsItem.attributes),
             selectinload(Story.news_items).selectinload(NewsItem.tags),
+            selectinload(Story.news_items).selectinload(NewsItem.images),
             selectinload(Story.news_items).selectinload(NewsItem.osint_source),
         )
         return list(db.session.scalars(query).unique().all())
@@ -334,6 +336,7 @@ class StoryService:
 
     @staticmethod
     def fetch_and_create_story(parameters: dict[str, Any], user_id: str | None = None) -> tuple[dict[str, Any], int]:
+        parameters = {**parameters, "id": OSINTSource.get_manual().id}
         result = queue_manager.queue_manager.fetch_single_news_item(parameters=parameters, user_id=user_id)
         if isinstance(result, tuple):
             return result

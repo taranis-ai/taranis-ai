@@ -163,6 +163,7 @@ class TestAdminApi(BaseTest):
         "bot_type, feature",
         [
             ("story_bot", "clustering"),
+            ("image2text_bot", "image2text"),
             ("nlp_bot", "ner"),
             ("sentiment_analysis_bot", "sentiment"),
         ],
@@ -211,7 +212,10 @@ class TestAdminApi(BaseTest):
                 90,
             )
             assert Settings.get_settings()["chat_max_stories"] == 8
-        bot_response = client.post("/api/config/bots", json={"name": "Endpoint selection", "type": bot_type}, headers=auth_header)
+        parameters = {"CAPTIONING_API": "llm_bot"} if bot_type == "image2text_bot" else {}
+        bot_response = client.post(
+            "/api/config/bots", json={"name": "Endpoint selection", "type": bot_type, "parameters": parameters}, headers=auth_header
+        )
         assert bot_response.status_code == 201
         bot_id = bot_response.json["id"]
         worker_url = f"/api/worker/bots/{bot_id}"
@@ -282,6 +286,15 @@ class TestAdminApi(BaseTest):
         assert "private-test-key" not in response.get_data(as_text=True)
         self.assert_patch_ok(client, "settings", {"settings": {"llm_default_endpoint": ""}}, auth_header)
         assert client.get(worker_url, headers=worker_headers).json["llm_endpoint"] is None
+        if bot_type == "image2text_bot":
+            assert client.patch(bot_url, json={"parameters": {"CAPTIONING_API": "media_miner"}}, headers=auth_header).status_code == 400
+            media = {"CAPTIONING_API": "media_miner", "USERNAME": "media-user", "PASSWORD": "media-password"}
+            assert client.patch(bot_url, json={"parameters": media}, headers=auth_header).status_code == 200
+            worker = client.get(worker_url, headers=worker_headers).json
+            assert "llm_endpoint" not in worker and worker["parameters"]["PASSWORD"] == "media-password"
+            assert "media-password" not in client.get(bot_url, headers=auth_header).text
+            assert client.patch(bot_url, json={"parameters": {"CAPTIONING_API": "llm_bot"}}, headers=auth_header).status_code == 200
+            assert client.get(worker_url, headers=worker_headers).json["parameters"]["PASSWORD"] == ""
         assert client.delete(bot_url, headers=auth_header).status_code == 200
         self.assert_post_ok(client, f"llm-endpoints/{endpoint_id}/delete", {}, auth_header)
 

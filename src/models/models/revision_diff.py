@@ -202,6 +202,17 @@ def build_story_revision_diff_payload(
                     item.get(field),
                 )
 
+            old_images = {image["id"]: image.get("description") for image in old_item.get("images") or []}
+            new_images = {image["id"]: image.get("description") for image in item.get("images") or []}
+            for image_id in sorted(old_images.keys() | new_images.keys()):
+                field = f"News item {item['id']}: Image {image_id}"
+                if image_id not in old_images:
+                    changes.append(RevisionDiffChange(field=f"{field} added", new_value=new_images[image_id] or image_id))
+                elif image_id not in new_images:
+                    changes.append(RevisionDiffChange(field=f"{field} removed", old_value=old_images[image_id] or image_id))
+                else:
+                    _append_change(changes, f"{field} description", old_images[image_id], new_images[image_id])
+
     added_items = to_news_ids - from_news_ids
     removed_items = from_news_ids - to_news_ids
 

@@ -6,7 +6,6 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Literal
 from uuid import uuid4
 
-from models.llm import LLM_BOT_FEATURES
 from redis.exceptions import RedisError, WatchError
 from rq import Retry
 
@@ -71,7 +70,7 @@ def bot_status(bot: "Bot") -> dict | None:
 
     if not bot.enabled:
         return None
-    if bot.type.value in LLM_BOT_FEATURES:
+    if bot.llm_feature:
         settings = Settings.get_settings()
         endpoint_id = bot.get_llm_endpoint_id(settings)
         if endpoint_id and (config := settings["llm_endpoints"].get(endpoint_id)):

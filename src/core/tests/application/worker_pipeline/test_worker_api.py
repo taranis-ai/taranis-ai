@@ -1749,3 +1749,192 @@ class TestOSINTSourceScheduling:
                 from core.model.osint_source import OSINTSource
 
                 OSINTSource.delete(source_id)
+
+
+def test_capture_retains_distinct_images_and_checks_access(client, session, api_header, auth_header_user_permissions):
+    from base64 import b64encode
+    from io import BytesIO
+    from unittest.mock import patch
+
+    from PIL import Image, PngImagePlugin, WebPImagePlugin
+
+    from core.model.news_item_attribute import NewsItemAttribute
+    from core.model.role import Role, TLPLevel
+    from core.model.role_based_access import ItemType
+    from core.model.story import Story
+    from tests.application.support.builders import build_news_item_payload, create_osint_source
+    from tests.application.support.rbac import grant_acl
+
+    if session.get_bind().dialect.name == "sqlite":
+        session.get_bind().exec_driver_sql("BEGIN")
+    session().join_transaction_mode = "create_savepoint"
+    source = create_osint_source(rank=0)
+    article = build_news_item_payload(source.id)
+    captures = []
+    for color in range(9):
+        buffer = BytesIO()
+        Image.new("RGB", (2, 3), color=(0, 0, color)).save(buffer, format="PNG")
+        captures.append({"source_url": f"https://example.org/figure/{color}", "data": b64encode(buffer.getvalue()).decode()})
+
+    def ingest(images, **changes):
+        response = client.post("/api/worker/news-items", json=[article | {"captured_images": images} | changes], headers=api_header)
+        assert response.status_code == 200
+        return response.json
+
+    webp = BytesIO()
+    Image.new("RGB", (2, 3)).save(webp, format="WEBP")
+    with patch.object(WebPImagePlugin.WebPImageFile, "load", side_effect=EOFError):
+        initial = ingest(
+            [
+                captures[0] | {"alt_text": "  Source caption  "},
+                captures[0],
+                {"source_url": "https://example.org/invalid", "data": "AAAA"},
+                {"source_url": "https://example.org/incomplete.webp", "data": b64encode(webp.getvalue()).decode()},
+            ]
+        )
+    assert initial["skipped_images"] == 2
+    story = Story.get(initial["story_ids"][0])
+    item = story.news_items[0]
+    original = item.images[0]
+    assert original.description == "Source caption"
+    assert len(item.images) == 1
+    with patch.object(PngImagePlugin.PngImageFile, "load", side_effect=IndexError):
+        assert ingest([captures[8]])["skipped_images"] == 1
+        assert ingest([captures[0]])["counts"]["unchanged"] == 1
+    assert ingest(captures[:2], published="2000-01-01")["counts"]["stale"] == 1
+    assert len(item.images) == 1
+    story.read = True
+    session.commit()
+    assert ingest(captures[:2])["counts"]["updated"] == 1
+    assert story.read
+    lookup = "/api/worker/news-items/known-images"
+    assert client.post(lookup, json=article).status_code == 401
+    known = client.post(lookup, json=article, headers=api_header).json
+    assert known == {image.source_url: image.id for image in item.images}
+    assert client.post(lookup, json=article | {"link": "https://example.org/another"}, headers=api_header).json == {}
+    descriptions = {known[captures[0]["source_url"]]: "Different caption", known[captures[1]["source_url"]]: "Second figure"}
+    assert ingest([], known_image_descriptions=descriptions)["counts"]["updated"] == 1
+    assert ingest([], known_image_descriptions=descriptions)["counts"]["unchanged"] == 1
+    assert len(item.images) == 2
+    assert [image.description for image in item.images] == ["Source caption", "Second figure"]
+    worker_url = f"/api/worker/images/{original.id}"
+    assert client.get(worker_url).status_code == 401
+    assert b64encode(client.get(worker_url, headers=api_header).data).decode() == captures[0]["data"]
+
+    role = Role.filter_by_name("User")
+    role.tlp_level = TLPLevel.CLEAR
+    acl = grant_acl(role, ItemType.OSINT_SOURCE, source.id, read_only=True)
+    overview = client.get("/api/assess/stories", query_string={"story_ids": story.id}, headers=auth_header_user_permissions).json["items"][0]
+    assert overview["image_count"] == 2
+    assert "images" not in overview["news_items"][0]
+    url = f"/api/assess/images/{original.id}"
+    assert client.get(url, headers=auth_header_user_permissions).mimetype == "image/png"
+    acl.item_id = "unrelated-source"
+    session.commit()
+    assert client.get(url, headers=auth_header_user_permissions).status_code == 404
+    acl.item_id = source.id
+    story.upsert_attribute(NewsItemAttribute("tlp_override", "red"))
+    story.refresh_tlp()
+    session.commit()
+    assert client.get(url, headers=auth_header_user_permissions).status_code == 404
+    assert ingest(captures[2:])["counts"]["updated"] == 1
+    assert [image.source_url for image in item.images] == [capture["source_url"] for capture in captures[1:]]
+    assert client.get(worker_url, headers=api_header).status_code == 404
+    assert ingest(captures[2:])["counts"]["unchanged"] == 1
+    retained_url = f"/api/worker/images/{item.images[-1].id}"
+    item.delete_item()
+    session.commit()
+    assert client.get(retained_url, headers=api_header).status_code == 404
+
+
+def test_visual_image_duplicates_keep_the_original_and_remember_alternate_urls(client, session, api_header):
+    from base64 import b64encode
+    from io import BytesIO
+
+    from PIL import Image, ImageDraw
+
+    from core.model.news_image_blob import NewsImageBlob
+    from core.model.story import Story
+    from tests.application.support.builders import build_news_item_payload, create_osint_source
+
+    if session.get_bind().dialect.name == "sqlite":
+        session.get_bind().exec_driver_sql("BEGIN")
+    session().join_transaction_mode = "create_savepoint"
+    source = create_osint_source(rank=0)
+    article = build_news_item_payload(source.id)
+
+    def capture(picture, name, fmt, **options):
+        buf = BytesIO()
+        picture.save(buf, format=fmt, **options)
+        return {"source_url": f"https://example.org/{name}", "data": b64encode(buf.getvalue()).decode()}
+
+    def ingest(*images, target=article):
+        response = client.post("/api/worker/news-items", json=[target | {"captured_images": images}], headers=api_header)
+        assert response.status_code == 200
+        return response.json
+
+    gradient = Image.linear_gradient("L")
+    picture = Image.merge("RGB", (gradient, gradient.transpose(Image.Transpose.TRANSPOSE), gradient))
+    original = capture(picture, "full.png", "PNG")
+    small = picture.resize((128, 128), Image.Resampling.LANCZOS)
+    thumbnail = capture(small, "thumb.jpg", "JPEG", quality=90)
+    initial = ingest(original, thumbnail | {"alt_text": "Source figure"})
+    item = Story.get(initial["story_ids"][0]).news_items[0]
+    (image,) = item.images
+    assert image.source_url == original["source_url"]
+    assert image.description == "Source figure"
+    reencoded = capture(picture, "full.webp", "WEBP", lossless=True)
+    result = ingest(reencoded | {"alt_text": "Another caption"})
+    assert result["counts"]["unchanged"] == 1
+    assert result["story_ids"] == []
+    known = client.post("/api/worker/news-items/known-images", json=article, headers=api_header).json
+    assert known == dict.fromkeys([c["source_url"] for c in (original, thumbnail, reencoded)], image.id)
+    assert image.description == "Source figure"
+
+    # A one-pixel edit survives even though the two color signatures look alike.
+    changed = picture.copy()
+    changed.putpixel((128, 128), (255, 255, 255))
+    translucent = picture.convert("RGBA")
+    translucent.putpixel((128, 128), (128, 128, 128, 0))
+    assert ingest(capture(changed, "edit.png", "PNG"), capture(translucent, "alpha.png", "PNG"))["counts"]["updated"] == 1
+    assert len(item.images) == 3
+
+    def attach(target_source, image_input, caption):
+        result = ingest(image_input | {"alt_text": caption}, target=build_news_item_payload(target_source.id))
+        linked_item = Story.get(result["story_ids"][0]).news_items[0]
+        (attachment,) = linked_item.images
+        assert attachment.description == caption
+        assert attachment.inline_data == b""
+        return linked_item, attachment
+
+    sibling, similar = attach(source, thumbnail, "Other article")
+    brighter = capture(picture.point(lambda value: min(255, value + 2)), "brighter.jpg", "JPEG", quality=98)
+    assert ingest(brighter)["counts"]["unchanged"] == 1
+    _, separate = attach(source, brighter, "Different exposure")
+    assert separate.fingerprint.blob_digest != image.fingerprint.blob_digest
+    other_source = create_osint_source(rank=1)
+    _, foreign = attach(other_source, thumbnail, "Other publisher")
+    exact_item, exact = attach(other_source, original, "Syndicated figure")
+    assert len({image.id, similar.id, foreign.id, exact.id}) == 4
+    shared_digest = image.fingerprint.blob_digest
+    assert similar.fingerprint.blob_digest == exact.fingerprint.blob_digest == shared_digest
+    assert foreign.fingerprint.blob_digest != shared_digest
+    for attachment, expected in ((similar, original), (exact, original), (foreign, thumbnail)):
+        response = client.get(f"/api/worker/images/{attachment.id}", headers=api_header)
+        assert b64encode(response.data).decode() == expected["data"]
+    for holder in (item, sibling):
+        holder.delete_item()
+        session.commit()
+        assert session.get(NewsImageBlob, shared_digest) is not None
+    exact_item.delete_item()
+    session.commit()
+    assert session.get(NewsImageBlob, shared_digest) is None
+    assert b64encode(foreign.data).decode() == thumbnail["data"]
+
+    logo = Image.new("RGBA", (733, 211))
+    draw = ImageDraw.Draw(logo)
+    for x in range(0, logo.width, 81):
+        draw.rectangle((x, 10, x + 36, 201), fill=(10, 35, 200, 255))
+    small_logo = logo.resize((220, 63), Image.Resampling.BICUBIC)
+    result = ingest(capture(logo, "logo.png", "PNG"), capture(small_logo, "small.webp", "WEBP"), target=build_news_item_payload(source.id))
+    assert len(Story.get(result["story_ids"][0]).news_items[0].images) == 1

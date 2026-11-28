@@ -1,4 +1,40 @@
 {% from "assess/bot_result_refresh.html" import bot_result_fragment %}
+{% macro story_image_toggle(story) %}
+  {% if story.image_count %}
+    <button type="button"
+            class="btn btn-sm btn-outline"
+            x-cloak
+            @click="const images = Array.from($refs.items.querySelectorAll('.news-item-image'));
+                    const open = images.some(image => !image.open);
+                    images.forEach(image => { image.open = open })">
+      <span class="hidden group-has-[.news-item-image:not([open])]/images:inline">Open all images</span>
+      <span class="group-has-[.news-item-image:not([open])]/images:hidden">Close all images</span>
+    </button>
+  {% endif %}
+{% endmacro %}
+
+{% macro news_item_images(item) %}
+  {% if item.images %}
+    <section aria-label="Images" class="space-y-2">
+      <h4 class="font-semibold">Images</h4>
+      {% for image in item.images %}
+        <details class="news-item-image">
+          <summary class="w-fit cursor-pointer rounded-sm font-medium hover:underline">Open image {{ loop.index }}</summary>
+          <figure {{ bot_result_fragment('news-image-' ~ image.id, ['IMAGE2TEXT_BOT']) }} class="mt-2 block max-w-5xl">
+            <img src="{{ url_for('assess.news_image', image_id=image.id) }}"
+                 loading="lazy"
+                 alt="{{ image.description or ('Collected image ' ~ loop.index) }}"
+                 class="max-h-[70vh] max-w-full rounded-lg object-contain">
+            <figcaption class="mt-2 max-w-prose text-sm leading-relaxed whitespace-pre-line wrap-anywhere text-base-content/70">
+              {{- image.description or 'No description yet.' -}}
+            </figcaption>
+          </figure>
+        </details>
+      {% endfor %}
+    </section>
+  {% endif %}
+{% endmacro %}
+
 {% macro news_item_metadata(news_item, story) %}
   {% set source_name = (story.model_extra.source_names | default({})).get(news_item.osint_source_id) or news_item.source %}
   <div class="flex flex-wrap gap-2 text-xs text-base-content/60">
@@ -98,6 +134,7 @@
       {% if news_item.content %}
         <p class="text-sm leading-relaxed text-base-content/80 whitespace-pre-line highlight">{{ news_item.content }}</p>
       {% endif %}
+      {{ news_item_images(news_item) }}
       {% if edit_tags or news_item_tags %}
         <div {% if edit_tags %}{{ bot_result_fragment('news-item-tags-' ~ news_item.id, ['WORDLIST_BOT', 'IOC_BOT', 'NLP_BOT', 'TAGGING_BOT']) }}{% endif %}
              class="flex flex-wrap gap-1"

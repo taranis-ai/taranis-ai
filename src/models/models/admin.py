@@ -241,6 +241,7 @@ class TaranisConfig(TaranisBaseModel):
     llm_chat_endpoint: str = ""
     llm_clustering_endpoint: str = ""
     llm_summarization_endpoint: str = ""
+    llm_image2text_endpoint: str = ""
     llm_ner_endpoint: str = ""
     llm_sentiment_endpoint: str = ""
     llm_classification_endpoint: str = ""

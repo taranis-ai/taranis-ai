@@ -13,7 +13,7 @@ Load for: RSS/Simple Web conditional requests, ETag/Last-Modified, 304 results, 
 
 Direct requests and icons share the task's external Niquests pool; cookies persist only within a redirect chain. Session ownership and connect/read timeout policy are defined in [HTTP Client Lifetimes](http-clients.md). HTTP validators remain request-local and retain the contracts above.
 
-Connection failures/timeouts in `send_get_request` return static DNS/network/`PROXY_SERVER` guidance without claiming a definite cause or retrying. Log details at ERROR and tracebacks at DEBUG; suppress displayed exception chains. Preserve HTTP request exception types for RT’s per-item fallback. Shared collector tests cover diagnostics/logging; RT tests cover continued collection.
+Connection failures, timeouts, and interrupted response bodies in `send_get_request` return static DNS/network/`PROXY_SERVER` guidance after the HTTP client's transport handling. Log details at ERROR and tracebacks at DEBUG; suppress displayed exception chains. Preserve HTTP request exception types for RT’s per-item fallback. Shared collector tests cover diagnostics/logging; RT tests cover continued collection.
 
 ## Date Fallbacks
 

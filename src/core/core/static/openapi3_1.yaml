@@ -1324,6 +1324,33 @@ paths:
           $ref: '#/components/responses/401Unauthorized'
         '404':
           $ref: '#/components/responses/404NotFound'
+  /assess/images/{image_id}:
+    parameters:
+      - name: image_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      security:
+        - UserAuth: []
+      tags: [assess]
+      description: Retrieve the stored bytes of a news-item image.
+      operationId: assess.image_content.get
+      responses:
+        "200":
+          description: Stored image
+          content:
+            image/png: {}
+            image/jpeg: {}
+            image/webp: {}
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: Access denied
+        "404":
+          $ref: "#/components/responses/404NotFound"
   /assess/news-items:
     post:
       security:
@@ -9646,7 +9673,7 @@ paths:
         Get settings including llm_endpoints (API keys omitted, api_key_configured
         indicates whether a key is stored). Assignments use llm_default_endpoint,
         llm_chat_endpoint, llm_clustering_endpoint, llm_summarization_endpoint,
-        llm_ner_endpoint, llm_sentiment_endpoint, and llm_classification_endpoint.
+        llm_ner_endpoint, llm_image2text_endpoint, llm_sentiment_endpoint, and llm_classification_endpoint.
         Empty feature assignments inherit the default; an empty default leaves
         unassigned features unconfigured. Change assignments through settings
         PATCH and manage endpoint definitions through the llm-endpoints routes.
@@ -10079,6 +10106,33 @@ paths:
           description: forbidden
         '404':
           $ref: '#/components/responses/404NotFound'
+  /worker/images/{image_id}:
+    parameters:
+      - name: image_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      security:
+        - APIKey: []
+      tags: [worker]
+      description: Retrieve the stored bytes of a news-item image.
+      operationId: worker.image_worker.get
+      responses:
+        "200":
+          description: Stored image
+          content:
+            image/png: {}
+            image/jpeg: {}
+            image/webp: {}
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: Access denied
+        "404":
+          $ref: "#/components/responses/404NotFound"
   /worker/news-items:
     post:
       security:
@@ -10090,7 +10144,25 @@ paths:
         content:
           application/json:
             schema:
-              type: object
+              type: array
+              items:
+                type: object
+                properties:
+                  captured_images:
+                    type: array
+                    maxItems: 8
+                    items:
+                      type: object
+                      required: [source_url, data]
+                      properties:
+                        source_url: {type: string, format: uri}
+                        alt_text: {type: [string, "null"], description: Source alt text used as the initial image description.}
+                        data: {type: string, contentEncoding: base64}
+                  known_image_descriptions:
+                    type: object
+                    maxProperties: 8
+                    additionalProperties: {type: [string, "null"]}
+                    description: Source captions keyed by stored image ID. Fills empty descriptions on this item.
       responses:
         '200':
           description: success
@@ -10112,6 +10184,39 @@ paths:
           description: forbidden
         '404':
           $ref: '#/components/responses/404NotFound'
+  /worker/news-items/known-images:
+    post:
+      security:
+      - APIKey: []
+      description: Look up stored image URLs for a collected article before downloading candidates.
+      operationId: worker.known_news_item_images_worker.post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [osint_source_id]
+              anyOf:
+              - required: [title]
+              - required: [content]
+              properties:
+                osint_source_id: {type: string}
+                link: {type: [string, "null"]}
+                title: {type: [string, "null"]}
+                content: {type: [string, "null"]}
+      responses:
+        '200':
+          description: Stored image IDs keyed by source URL, empty for an unknown article.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {type: string}
+        '400':
+          description: Invalid article identity
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
   /worker/osint-sources:
     get:
       security:
@@ -11342,6 +11447,15 @@ components:
       type: object
       additionalProperties: false
       properties:
+        images:
+          type: array
+          readOnly: true
+          items:
+            type: object
+            properties:
+              id: {type: string, format: uuid}
+              mime_type: {type: string, enum: [image/jpeg, image/png, image/webp]}
+              description: {type: [string, "null"]}
         tlp_level:
           type: string
           readOnly: true

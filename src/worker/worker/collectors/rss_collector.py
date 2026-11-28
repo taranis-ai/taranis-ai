@@ -9,6 +9,7 @@ from bs4 import BeautifulSoup
 from models.assess import NewsItem
 
 from worker.collectors.base_web_collector import BaseWebCollector, parse_datetime
+from worker.collectors.news_images import document_base_url, markup_images, resolve_candidates
 from worker.collectors.playwright_manager import PlaywrightManager
 from worker.log import logger
 
@@ -59,6 +60,11 @@ class RSSCollector(BaseWebCollector):
 
         self.use_feed_content = self._determine_use_feed_content(params)
         self.max_entries = source.get("rss_collector_max_entries", 42)
+
+    @property
+    def final_feed_url(self) -> str:
+        response = getattr(self, "feed_content", None)
+        return (response.url if response is not None else None) or self.feed_url
 
     @property
     def entry_limit_warning(self) -> str | None:
@@ -169,14 +175,31 @@ class RSSCollector(BaseWebCollector):
         published = self.get_published_date(feed_entry)
         content = ""
 
+        candidates = []
+        image_base = self.feed_url
+        if self.collect_images:
+            image_base = self.final_feed_url
+            try:
+                image_base = urljoin(image_base, link)
+            except ValueError:
+                pass  # Relative images can still resolve against the feed itself.
+            for media in [*(feed_entry.get("enclosures") or []), *(feed_entry.get("media_content") or [])]:
+                media_url = media.get("href") or media.get("url")
+                if media_url and (media.get("medium") == "image" or str(media.get("type", "")).startswith("image/")):
+                    candidates.append((str(media_url), media.get("alt")))
         if self.use_feed_content:
             content = self.extract_content_from_feed(feed_entry, source)
+            if self.collect_images and content:
+                markup = self.xpath_extraction(content, self.xpath, False) if self.xpath else content
+                base_url = document_base_url(content, image_base)
+                candidates.extend(resolve_candidates(base_url, markup_images(markup or "")).items())
 
             if self.xpath and content and (extracted := self.xpath_extraction(content, self.xpath)):
                 content = extracted
         elif link:
             web_content = self.extract_web_content(link, self.xpath)
-            content = str(web_content.get("content"))
+            candidates.extend(web_content.get("image_candidates", {}).items())
+            content = str(web_content.get("content") or "")
             author = author or str(web_content.get("author"))
             title = title or str(web_content.get("title"))
             published = published or web_content.get("published_date")
@@ -195,6 +218,7 @@ class RSSCollector(BaseWebCollector):
             author=author,
             title=title,
             source=self.feed_url,
+            image_candidates=resolve_candidates(image_base, candidates) if candidates else {},
             content=content,
             link=link,
             published=published,
@@ -203,8 +227,7 @@ class RSSCollector(BaseWebCollector):
 
     def update_favicon_from_feed(self, feed: feedparser.FeedParserDict, source_id: str):
         logger.info(f"RSS-Feed {self.feed_url} initial gather, get meta info about source like image icon and language")
-        response = getattr(self, "feed_content", None)
-        feed_url = (response.url if response is not None else None) or self.feed_url
+        feed_url = self.final_feed_url
         icon_urls: list[str] = []
         for key in ("icon", "image", "logo"):
             if url := self.extract_icon_url(feed.get(key)):

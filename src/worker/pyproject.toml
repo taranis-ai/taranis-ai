@@ -42,6 +42,7 @@ dependencies = [
     # Connectors
     "pymisp",
     # Bots
+    "Pillow",
     "ioc-finder",
     "ioc-fanger",
     "pyintelowl",

@@ -116,7 +116,6 @@ def test_assess_upstream_failure_returns_safe_error_page(authenticated_client, r
         assert "Stories updated" not in tree.text_content()
         assert "private upstream details" not in tree.text_content()
 
-        responses_mock.get(f"{Config.TARANIS_CORE_URL}/assess/stories/story-1", body=RequestException("private upstream details"))
         for endpoint in ("assess.story_details", "assess.story_actions"):
             response = authenticated_client.get(url_for(endpoint, story_id="story-1"), headers=htmx_header)
             assert response.status_code == 502
@@ -139,7 +138,9 @@ def test_assess_upstream_failure_returns_safe_error_page(authenticated_client, r
     ],
 )
 def test_story_assess_return_navigation(authenticated_client, responses_mock, return_url, expected_return):
-    mock_story_for_edit(responses_mock, story_with_news_item_tags())
+    story = story_with_news_item_tags()
+    mock_story_for_edit(responses_mock, story)
+    responses_mock.get(f"{Config.TARANIS_CORE_URL}/assess/stories", json={"items": [story]})
     responses_mock.get(f"{Config.TARANIS_CORE_URL}/assess/bookmarks", json={"items": [], "total_count": 0})
     responses_mock.patch(f"{Config.TARANIS_CORE_URL}/assess/stories/story-1", json={"message": "Story updated"})
 
@@ -283,6 +284,7 @@ def test_story_card_shows_distinct_top_source_icons(authenticated_client, respon
     ]
     assert [badge.text_content().strip() for badge in tree.xpath('//*[@data-test-id="news-item-source"]')] == expected_item_sources
 
+    responses_mock.get(f"{Config.TARANIS_CORE_URL}/assess/stories", json={"items": [story_payload]})
     details = authenticated_client.get(url_for("assess.story_details", story_id=story_payload["id"]))
     assert details.status_code == 200
     detail_sources = html.fromstring(details.text).xpath('//*[@data-test-id="news-item-source"]')

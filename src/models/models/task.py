@@ -12,6 +12,7 @@ FAILURE_MESSAGES = {
     "job_timeout": "The job exceeded its execution timeout.",
     "llm_request_timeout": "An LLM provider request timed out. Check the endpoint and REQUESTS_TIMEOUT.",
     "bot_service_unavailable": "The configured bot or LLM service could not be reached. Check its availability and worker connectivity.",
+    "image2text_authentication_failed": "Media Intelligence login failed. Check the Image2Text bot credentials.",
     "llm_invalid_output": "The LLM provider returned invalid output. Check the configured model and worker logs.",
     "llm_not_configured": "No enabled LLM endpoint is configured. Check Admin Settings > LLM Endpoints.",
     "llm_processing_failed": "LLM processing failed. Check worker logs for details.",

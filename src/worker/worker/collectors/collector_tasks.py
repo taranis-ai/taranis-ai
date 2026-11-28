@@ -388,10 +388,19 @@ def fetch_single_news_item(parameters: dict[str, Any]):
     with collector_log_fmt(logger, formatter):
         try:
             parameters = {**parameters, "parameters": effective_parameter_values(worker_type, collector_parameters)}
-            preview_result = collector.preview_collector(parameters)
-            if tlp := parameters["parameters"].get("TLP_LEVEL"):
-                for item in preview_result:
-                    item["attributes"] = (item.get("attributes") or []) + [{"key": "TLP", "value": tlp}]
+            if parameters["parameters"].get("COLLECT_IMAGES"):
+                collector.parse_source(parameters)
+                items = collector.gather_news_items()
+                if tlp := parameters["parameters"].get("TLP_LEVEL"):
+                    collector.add_tlp(items, tlp)
+                preview_result = collector.publish_with_images(items, parameters)
+                if collector.affected_story_ids:
+                    core_api.run_post_collection_bots(parameters["id"], sorted(collector.affected_story_ids))
+            else:
+                preview_result = collector.preview_collector(parameters)
+                if tlp := parameters["parameters"].get("TLP_LEVEL"):
+                    for item in preview_result:
+                        item["attributes"] = (item.get("attributes") or []) + [{"key": "TLP", "value": tlp}]
         except NoChangeError as e:
             logger.info(f"No changes detected: {e}")
             result_message = "No changes detected."
@@ -441,7 +450,7 @@ def fetch_single_news_item(parameters: dict[str, Any]):
             worker_id=worker_id,
             worker_type=worker_type,
             result=build_success_task_result(
-                default_message=f"Fetched news item from {worker_id}",
+                default_message=preview_result["message"] if isinstance(preview_result, dict) else f"Fetched news item from {worker_id}",
                 data=preview_result,
             ),
         )

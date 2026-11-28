@@ -5,6 +5,13 @@ CREATE EXTENSION IF NOT EXISTS pg_trgm;
 ALTER TABLE story ADD COLUMN IF NOT EXISTS search_vector tsvector DEFAULT ''::tsvector;
 ALTER TABLE story ALTER COLUMN search_vector DROP NOT NULL;
 
+CREATE OR REPLACE FUNCTION fts_image_descriptions(story_row_id varchar)
+RETURNS tsvector LANGUAGE sql STABLE AS $$
+    SELECT to_tsvector('simple', left(unaccent(coalesce(string_agg(left(i.description, 16000), ' ' ORDER BY i.id), '')), 200000))
+    FROM news_item_image i JOIN news_item n ON n.id = i.news_item_id
+    WHERE n.story_id = story_row_id AND i.description IS NOT NULL;
+$$;
+
 -- Build a weighted tsvector for a Story using the native ID type.
 CREATE OR REPLACE FUNCTION fts_build_story_search_vector(story_row_id varchar)
 RETURNS tsvector
@@ -29,7 +36,8 @@ SELECT
     setweight(to_tsvector('simple', (SELECT story_title   FROM story_text)), 'A') ||
     setweight(to_tsvector('simple', (SELECT story_summary FROM story_text)), 'B') ||
     setweight(to_tsvector('simple', (SELECT news_titles   FROM news_text)), 'B') ||
-    setweight(to_tsvector('simple', (SELECT news_contents FROM news_text)), 'C');
+    setweight(to_tsvector('simple', (SELECT news_contents FROM news_text)), 'C') ||
+    setweight(fts_image_descriptions(story_row_id), 'C');
 $$;
 
 -- Compatibility wrapper for callers that still pass text.
@@ -63,7 +71,8 @@ BEGIN
         setweight(to_tsvector('simple', unaccent(coalesce(NEW.title, ''))), 'A') ||
         setweight(to_tsvector('simple', unaccent(coalesce(NEW.summary, ''))), 'B') ||
         setweight(to_tsvector('simple', coalesce(v_news_titles, '')), 'B') ||
-        setweight(to_tsvector('simple', coalesce(v_news_contents, '')), 'C');
+        setweight(to_tsvector('simple', coalesce(v_news_contents, '')), 'C') ||
+        setweight(fts_image_descriptions(NEW.id), 'C');
 
     RETURN NEW;
 END;
@@ -116,6 +125,21 @@ AFTER INSERT OR UPDATE OF story_id, title, content OR DELETE
 ON news_item
 FOR EACH ROW
 EXECUTE FUNCTION fts_refresh_parent_story_vector();
+
+CREATE OR REPLACE FUNCTION fts_refresh_image_story() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+    IF (TG_OP = 'INSERT' AND NEW.description IS NULL) OR (TG_OP = 'DELETE' AND OLD.description IS NULL) THEN
+        RETURN NULL;
+    END IF;
+    UPDATE story s SET search_vector = fts_build_story_search_vector(s.id)
+    FROM news_item n WHERE n.id = coalesce(NEW.news_item_id, OLD.news_item_id) AND n.story_id = s.id;
+    RETURN NULL;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_image_story_vector ON news_item_image;
+CREATE TRIGGER trg_image_story_vector AFTER INSERT OR UPDATE OF description OR DELETE
+ON news_item_image FOR EACH ROW EXECUTE FUNCTION fts_refresh_image_story();
 
 CREATE INDEX IF NOT EXISTS ix_story_search_vector_gin
   ON story USING GIN (search_vector);
