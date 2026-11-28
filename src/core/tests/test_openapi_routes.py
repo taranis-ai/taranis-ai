@@ -1,13 +1,7 @@
 import re
 from collections import Counter, defaultdict
-from pathlib import Path
-
-import yaml
-
-from core.__init__ import create_app
 
 
-OPENAPI_PATH = Path(__file__).resolve().parents[1] / "core" / "static" / "openapi3_1.yaml"
 IGNORED_PATHS = {"/"}
 
 
@@ -17,9 +11,8 @@ def _canonical_path(path: str) -> str:
     return re.sub(r"\{[^}]+\}", "{}", path)
 
 
-def _load_openapi_paths() -> dict[str, set[str]]:
-    with OPENAPI_PATH.open("r", encoding="utf-8") as handle:
-        spec = yaml.safe_load(handle)
+def _load_openapi_paths(app) -> dict[str, set[str]]:
+    spec = app.api_doc
 
     paths: dict[str, set[str]] = defaultdict(set)
     for path, operations in spec["paths"].items():
@@ -32,9 +25,8 @@ def _load_openapi_paths() -> dict[str, set[str]]:
     return paths
 
 
-def _load_openapi_operations() -> tuple[dict[tuple[str, str], str], list[str], list[tuple[str, str]]]:
-    with OPENAPI_PATH.open("r", encoding="utf-8") as handle:
-        spec = yaml.safe_load(handle)
+def _load_openapi_operations(app) -> tuple[dict[tuple[str, str], str], list[str], list[tuple[str, str]]]:
+    spec = app.api_doc
 
     operations: dict[tuple[str, str], str] = {}
     operation_ids: list[str] = []
@@ -91,14 +83,16 @@ def _load_route_endpoints(app) -> dict[tuple[str, str], str]:
         for method in rule.methods:
             if method in {"HEAD", "OPTIONS"}:
                 continue
-            endpoints[(canonical, method.upper())] = rule.endpoint
+            endpoint = rule.endpoint
+            if rule.endpoint.startswith("tasks."):
+                endpoint = endpoint.removesuffix(f"_{method.lower()}")
+            endpoints[(canonical, method.upper())] = endpoint
 
     return endpoints
 
 
-def test_openapi_covers_app_routes():
-    app = create_app(initial_setup=False)
-    spec_paths = _load_openapi_paths()
+def test_openapi_covers_app_routes(app):
+    spec_paths = _load_openapi_paths(app)
     app_routes = _load_routes(app)
 
     missing_paths = sorted(path for path in app_routes if path not in spec_paths)
@@ -118,9 +112,8 @@ def test_openapi_covers_app_routes():
     )
 
 
-def test_openapi_operation_ids_match_view_funcs():
-    app = create_app(initial_setup=False)
-    spec_operations, operation_ids, missing_operation_ids = _load_openapi_operations()
+def test_openapi_operation_ids_match_view_funcs(app):
+    spec_operations, operation_ids, missing_operation_ids = _load_openapi_operations(app)
     route_endpoints = _load_route_endpoints(app)
 
     mismatches = sorted(
@@ -140,6 +133,11 @@ def test_openapi_operation_ids_match_view_funcs():
         duplicates,
         missing_operation_ids,
     )
+
+
+def test_openapi_uses_generated_task_submission_schema(app):
+    submission = app.api_doc["paths"]["/tasks"]["post"]
+    assert submission["requestBody"]["content"]["application/json"]["schema"]["$ref"] == "#/components/schemas/TaskSubmission"
 
 
 def _format_failure(

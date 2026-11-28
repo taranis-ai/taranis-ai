@@ -4,7 +4,11 @@ Load for: Worker-backed actions, queue warnings/priority, task results, `/health
 
 ## Queue and Result Contracts
 
+`/api/tasks` uses a flask-openapi `APIBlueprint` with shared request and response contracts. Core overlays the generated Task operations on the bundled YAML when serving or exporting the spec. The frontend's Swagger UI still reads the bundled YAML. Endpoint tests check the response contracts. Persisted task timestamps keep their ISO 8601 strings without an offset. Live jobs can include an offset. Missing tasks return HTTP 404 with `{"status": "PENDING"}`.
+
 Task entry points and RQ failure hooks own their HTTP session scope, including result persistence on error. See [HTTP Client Lifetimes](http-clients.md) for cleanup and no-retry service behavior.
+
+Keep authorization decorators above `@validate_request()`. The submission route checks for a JSON object after API-key authentication. This preserves the existing 400 error and prevents flask-openapi 5.0.0 from decoding a JSON string as a second request body.
 
 - With `QUEUE_ENABLED=false`, core skips queue connections and scheduling; broker/worker health is `n/a` and queue actions are unavailable (503). Source collection/preview and bot execution/chains reject disabled queues before source/bot validation or graph construction. Enabled queues require Redis at startup.
 - Accepted jobs report queue success. Only cached core health `services.workers == "down"` changes this to a queued-but-no-worker warning; failed/missing health checks retain the original notice. Do not change queue endpoint status codes or poll for final failures through this notification.

@@ -38,6 +38,7 @@ dependencies = [
     "sentry-sdk[flask]",
     "sentry-sdk[sqlalchemy]",
     "fuzzbite",
+    "flask-openapi[yaml]==5.0.0",
 ]
 dynamic = ["version"]
 

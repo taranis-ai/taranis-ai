@@ -410,6 +410,24 @@ wheels = [
 ]
 
 [[package]]
+name = "flask-openapi"
+version = "5.0.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "flask" },
+    { name = "pydantic" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/b0/80/e0f1e32a46076d6147c5aa8101dc8d61b3272490550444292a8958584bf3/flask_openapi-5.0.0.tar.gz", hash = "sha256:e0ec74340673e0879a22ee95cd72a9277a96d1e8cffd9f61386db9c31dfe03e9", size = 605329, upload-time = "2026-10-10T02:02:02.522Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/92/04/29e153690104d8d1ad3bf7f3cb013d2560685f8a101be1dbe064004a8253/flask_openapi-5.0.0-py3-none-any.whl", hash = "sha256:1f5f535295de71d2f46f473db422059c33447c8e44652cd4d2374dc076ad98cd", size = 43130, upload-time = "2026-10-10T02:02:01.275Z" },
+]
+
+[package.optional-dependencies]
+yaml = [
+    { name = "pyyaml" },
+]
+
+[[package]]
 name = "flask-sqlalchemy"
 version = "3.1.1"
 source = { registry = "https://pypi.org/simple" }
@@ -1893,6 +1911,7 @@ dependencies = [
     { name = "flask" },
     { name = "flask-cors" },
     { name = "flask-jwt-extended" },
+    { name = "flask-openapi", extra = ["yaml"] },
     { name = "flask-sqlalchemy" },
     { name = "fuzzbite" },
     { name = "granian" },
@@ -1939,6 +1958,7 @@ requires-dist = [
     { name = "flask" },
     { name = "flask-cors" },
     { name = "flask-jwt-extended" },
+    { name = "flask-openapi", extras = ["yaml"], specifier = "==5.0.0" },
     { name = "flask-sqlalchemy" },
     { name = "fuzzbite" },
     { name = "granian" },

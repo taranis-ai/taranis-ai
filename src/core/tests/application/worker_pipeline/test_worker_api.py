@@ -941,6 +941,7 @@ class TestWorkerTaskResults:
     @pytest.mark.parametrize(
         ("payload", "expected_error"),
         [
+            ('{"id":"double-encoded-task","status":"SUCCESS","result":{"message":"ok"}}', "No data provided"),
             ({"status": "SUCCESS", "result": {"message": "ok", "retryable": False}}, "id"),
             ({"id": "task-1", "result": {"message": "ok", "retryable": False}}, "status"),
             ({"id": 123, "status": "SUCCESS", "result": {"message": "ok", "retryable": False}}, "id"),
@@ -955,6 +956,10 @@ class TestWorkerTaskResults:
 
         assert response.status_code == 400
         assert expected_error in response.get_json()["error"]
+
+    def test_task_submission_requires_api_key_before_validation(self, client, auth_header):
+        response = client.post(self.base_uri, json={}, headers=auth_header)
+        assert response.status_code == 401
 
     def test_worker_task_results_rejects_invalid_task_field(self, client, api_header):
         response = client.post(

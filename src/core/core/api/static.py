@@ -1,5 +1,7 @@
-from flask import Blueprint, Flask, send_from_directory
+import yaml
+from flask import Blueprint, Response, send_from_directory
 from flask.views import MethodView
+from flask_openapi import OpenAPI
 
 from core.config import Config
 from core.managers.data_manager import get_default_json
@@ -10,15 +12,13 @@ class DefaultWordLists(MethodView):
         return send_from_directory(get_default_json("default_word_lists.json"), "default_word_lists.json")
 
 
-class OpenAPI3(MethodView):
-    def get(self):
-        return send_from_directory("static", "openapi3_1.yaml")
-
-
-def initialize(app: Flask):
+def initialize(app: OpenAPI):
     static_bp = Blueprint("static", __name__, url_prefix=f"{Config.APPLICATION_ROOT}api/static")
 
     static_bp.add_url_rule("/default_word_lists.json", view_func=DefaultWordLists.as_view("default_word_lists"))
-    static_bp.add_url_rule("/openapi3_1.yaml", view_func=OpenAPI3.as_view("openapi3"))
+
+    @static_bp.get("/openapi3_1.yaml")
+    def openapi3():
+        return Response(yaml.safe_dump(app.api_doc, sort_keys=False), mimetype="application/yaml")
 
     app.register_blueprint(static_bp)
