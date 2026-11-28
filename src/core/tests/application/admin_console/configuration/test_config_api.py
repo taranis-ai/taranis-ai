@@ -1690,7 +1690,7 @@ class TestPublisherPreset(BaseTest):
 
     def test_webhook_preset_transport_and_secrets(self, client, auth_header, api_header):
         url = self.concat_url("publisher-presets")
-        parameters = {"WEBHOOK_URL": "http://receiver.test/hooks/private-path", "BEARER_TOKEN": "private-token"}
+        parameters = {"WEBHOOK_URL": "HTTP://RECEIVER.TEST:80/hooks/private-path%2Freport?key=a%2Bb", "BEARER_TOKEN": "private-token"}
         preset = {"name": "Webhook delivery", "type": "webhook_publisher", "parameters": parameters}
         rejected = client.post(url, json=preset, headers=auth_header)
         assert rejected.status_code == 400
@@ -1709,7 +1709,11 @@ class TestPublisherPreset(BaseTest):
             saved["PAYLOAD_FORMAT"] = "raw"
             assert client.put(detail_url, json={"parameters": saved}, headers=auth_header).status_code == 200
             effective = client.get(f"/api/worker/publishers/{preset_id}", headers=api_header).json["parameters"]
-            assert effective == parameters | {"PAYLOAD_FORMAT": "raw", "NETWORK_TIMEOUT": 30}
+            assert effective == parameters | {
+                "WEBHOOK_URL": "http://receiver.test/hooks/private-path%2Freport?key=a%2Bb",
+                "PAYLOAD_FORMAT": "raw",
+                "NETWORK_TIMEOUT": 30,
+            }
         finally:
             client.delete(detail_url, headers=auth_header)
 

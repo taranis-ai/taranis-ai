@@ -2,12 +2,12 @@ import socket
 from threading import Event, Thread, current_thread
 from types import SimpleNamespace
 from unittest.mock import patch
-from wsgiref.simple_server import make_server
 
 import mockssh
 import paramiko
 import pytest
 from mockssh.server import Handler
+from werkzeug.serving import make_server, make_ssl_devcert
 
 from worker import publishers
 
@@ -349,13 +349,13 @@ def stalled_tcp_server():
 
 
 @pytest.fixture
-def webhook_receiver():
+def webhook_receiver(tmp_path, monkeypatch, caplog):
     requests = []
     release = Event()
 
     def receive(environ, start_response):
         size = int(environ.get("CONTENT_LENGTH") or 0)
-        path = environ["PATH_INFO"]
+        path = environ["RAW_URI"]
         requests.append(
             (environ["REQUEST_METHOD"], path, environ.get("HTTP_AUTHORIZATION"), environ["CONTENT_TYPE"], environ["wsgi.input"].read(size))
         )
@@ -373,11 +373,14 @@ def webhook_receiver():
             start_response("204 No Content", [])
         return []
 
-    with make_server("127.0.0.1", 0, receive) as server:
+    cert, key = make_ssl_devcert(str(tmp_path / "webhook"), host="localhost")
+    monkeypatch.setenv("REQUESTS_CA_BUNDLE", cert)
+    caplog.set_level("WARNING", logger="werkzeug")  # Only worker logs are subject to the publisher's redaction policy.
+    with make_server("127.0.0.1", 0, receive, ssl_context=(cert, key)) as server:
         thread = Thread(target=server.serve_forever, kwargs={"poll_interval": 0.02})
         thread.start()
         try:
-            yield f"http://127.0.0.1:{server.server_port}/private-route", requests
+            yield f"https://localhost:{server.server_port}/private-route", requests
         finally:
             release.set()
             server.shutdown()

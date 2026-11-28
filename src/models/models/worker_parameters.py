@@ -478,6 +478,7 @@ class WebhookPublisherParameters(WorkerParameters):
             raise ValueError("Enter a webhook URL with a host and without embedded credentials, backslashes, or a fragment.")
         if parsed.scheme == "http" and not self.ALLOW_INSECURE_HTTP:
             raise ValueError("Use HTTPS or enable plain HTTP for a trusted internal endpoint.")
+        self.WEBHOOK_URL = SecretStr(str(parsed))
         return self
 
 

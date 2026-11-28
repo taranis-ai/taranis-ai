@@ -15,7 +15,7 @@ def test_webhook_delivers_render(raw, webhook_receiver, recording_core_api_facto
     caplog.set_level(logging.DEBUG)
     content = b"%PDF-\xff\x00"
     encoded = b64encode(content)
-    parameters = {"WEBHOOK_URL": url, "ALLOW_INSECURE_HTTP": True}
+    parameters = {"WEBHOOK_URL": f"{url}%2Freport?key=private-a%2Bb"}
     if raw:
         parameters.update(PAYLOAD_FORMAT="raw", BEARER_TOKEN="private-bearer")
     core = recording_core_api_factory(
@@ -25,7 +25,7 @@ def test_webhook_delivers_render(raw, webhook_receiver, recording_core_api_facto
     monkeypatch.setattr(publisher_tasks, "CoreApi", lambda: core)
     assert publisher_tasks.publisher_task("prod-123", "webhook") == {"message": "Webhook delivery accepted"}
     [(method, path, auth, mime_type, body)] = received
-    assert (method, path) == ("POST", "/private-route")
+    assert (method, path) == ("POST", "/private-route%2Freport?key=private-a%2Bb")
     if raw:
         assert (auth, mime_type, body) == ("Bearer private-bearer", "application/pdf", content)
     else:
@@ -46,6 +46,7 @@ def test_webhook_delivers_render(raw, webhook_receiver, recording_core_api_facto
     [
         ("redirect", RuntimeError, "publisher_failed", 307),
         ("reject", RuntimeError, "publisher_failed", 403),
+        ("untrusted-cert", RuntimeError, "publisher_failed", None),
         ("stall", PublisherNetworkTimeout, "publisher_network_timeout", None),
     ],
 )
@@ -53,7 +54,9 @@ def test_webhook_failure_records_safe_result(
     path, error, reason, http_status, webhook_receiver, recording_core_api_factory, monkeypatch, caplog
 ):
     url, received = webhook_receiver
-    parameters = {"WEBHOOK_URL": f"{url}/{path}", "ALLOW_INSECURE_HTTP": True, "BEARER_TOKEN": "private-bearer", "NETWORK_TIMEOUT": 1}
+    if path == "untrusted-cert":
+        monkeypatch.delenv("REQUESTS_CA_BUNDLE")
+    parameters = {"WEBHOOK_URL": f"{url}/{path}", "BEARER_TOKEN": "private-bearer", "NETWORK_TIMEOUT": 1}
     core = recording_core_api_factory(
         publisher={"type": "webhook_publisher", "parameters": parameters},
         rendered_product=WorkerProduct(data=b"YWJj"),
@@ -61,7 +64,7 @@ def test_webhook_failure_records_safe_result(
     monkeypatch.setattr(publisher_tasks, "CoreApi", lambda: core)
     with pytest.raises(error) as exc:
         publisher_tasks.publisher_task("prod-123", "webhook")
-    assert len(received) == 1
+    assert len(received) == (0 if path == "untrusted-cert" else 1)
     submission = core.put_calls[-1]["json"]
     assert submission["status"] == "FAILURE"
     assert submission["result"].reason == reason
