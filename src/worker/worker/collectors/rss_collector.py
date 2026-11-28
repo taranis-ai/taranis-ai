@@ -8,7 +8,7 @@ import niquests as requests
 from bs4 import BeautifulSoup
 from models.assess import NewsItem
 
-from worker.collectors.base_web_collector import BaseWebCollector, parse_datetime
+from worker.collectors.base_web_collector import BaseWebCollector, HTTPNotModifiedError, LinkedArticleFetchError, parse_datetime
 from worker.collectors.playwright_manager import PlaywrightManager
 from worker.log import logger
 
@@ -25,6 +25,10 @@ class EmptyRSSFeedError(RSSCollectorError):
     def __init__(self, feed_url: str):
         self.feed_url = feed_url
         super().__init__(f"RSS feed {feed_url} returned no news items")
+
+
+class RSSArticleFetchError(LinkedArticleFetchError):
+    reason = "rss_article_fetch_failed"
 
 
 class RSSCollector(BaseWebCollector):
@@ -49,6 +53,7 @@ class RSSCollector(BaseWebCollector):
         return params.get("USE_FEED_CONTENT", False)
 
     def parse_source(self, source: dict):
+        self.news_items = []
         self.skipped_entries = None
         super().parse_source(source)
         params = source.get("parameters", {})
@@ -67,6 +72,18 @@ class RSSCollector(BaseWebCollector):
                 f"Only {self.max_entries} entries were considered, in the order provided by the feed (starting at the top). "
                 f"{self.skipped_entries} additional entries were skipped."
             )
+        return None
+
+    @property
+    def collection_warning(self) -> tuple[str, str] | None:
+        entry_limit = self.entry_limit_warning
+        if article_warning := super().collection_warning:
+            reason, message = article_warning
+            if entry_limit:
+                message = f"{message} {entry_limit}"
+            return reason if self.digest_splitting else RSSArticleFetchError.reason, message
+        if entry_limit:
+            return "rss_entry_limit", entry_limit
         return None
 
     def collect(self, source: dict, manual: bool = False):
@@ -226,7 +243,13 @@ class RSSCollector(BaseWebCollector):
         feed_updated: datetime.datetime | None = None,
     ) -> list[NewsItem]:
         for feed_entry in feed_entries:
-            self.news_items.append(self.parse_feed_entry(feed_entry, source, feed_updated))
+            try:
+                self.news_items.append(self.parse_feed_entry(feed_entry, source, feed_updated))
+            except (requests.exceptions.RequestException, HTTPNotModifiedError) as exc:
+                self.failed_articles += 1
+                logger.warning(f"Failed to fetch linked RSS article {feed_entry.get('link', '')}: {exc}")
+        if self.failed_articles and not self.news_items:
+            raise RSSArticleFetchError(self.failed_articles, self.entry_limit_warning)
         return self.news_items
 
     def gather_news_items(self, feed: feedparser.FeedParserDict, source: dict) -> list[NewsItem]:
@@ -261,7 +284,7 @@ class RSSCollector(BaseWebCollector):
 
         validator_date = self.http_validators.get("last_modified") if self.http_validators else None
         published_fallback = feed_updated or (parse_datetime(validator_date) if validator_date else None)
-        return self.parse_digests(published_fallback)
+        return self.parse_digests(published_fallback, entry_limit_warning=self.entry_limit_warning)
 
     def get_digest_url_list(self, feed_entries: list[feedparser.FeedParserDict]) -> list:
         return [

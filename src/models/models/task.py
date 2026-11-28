@@ -21,6 +21,8 @@ FAILURE_MESSAGES = {
     "bot_pipeline_failed": "The bot pipeline failed during processing or final result submission.",
     "bot_execution_failed": "Bot execution failed. Check the bot configuration and worker logs.",
     "collection_failed": "Source collection failed. Check source configuration, network access, and worker logs.",
+    "rss_article_fetch_failed": "The RSS collector could not fetch any linked articles through their link. Check the worker logs for details.",
+    "digest_article_fetch_failed": "The collector could not fetch any articles linked from the digest. Check the worker logs for details.",
     "work_horse_killed": "The worker process ended before completing the job.",
     "job_failed": "The background job failed. Check worker logs for details.",
 }

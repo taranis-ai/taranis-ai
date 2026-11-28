@@ -2,6 +2,7 @@ from copy import deepcopy
 from unittest.mock import MagicMock
 
 import pytest
+from niquests.exceptions import ReadTimeout
 
 from worker.collectors import collector_tasks
 from worker.config import Config
@@ -271,6 +272,139 @@ def test_rss_entry_limit_warning_and_recovery(
     assert feed_requests[1].headers["If-None-Match"] == '"feed"'
     assert feed_requests[2].headers["If-None-Match"] == '"feed"'
     assert "If-None-Match" not in feed_requests[3].headers
+
+
+@pytest.mark.parametrize("publish_message", ["News items added", "All news items were skipped", None])
+def test_rss_article_failures(current_job, requests_mock, publish_message):
+    feed_url = "https://example.com/feed"
+    article_url = "https://example.com/article/"
+    source = {
+        "id": "source-1",
+        "type": "rss_collector",
+        "parameters": {"FEED_URL": feed_url},
+        "rss_collector_max_entries": 3,
+        "http_validators": {"url": feed_url},
+    }
+    entries = "".join(f"<item><title>Item {i}</title><link>{article_url}{i}</link></item>" for i in range(4))
+    requests_mock.get(feed_url, text=f"<rss version='2.0'><channel>{entries}</channel></rss>", headers={"ETag": '"feed"'})
+    failed_article = requests_mock.get(f"{article_url}1", status_code=404, reason="private upstream text")
+    for index in (0, 2):
+        if publish_message is None:
+            requests_mock.get(f"{article_url}{index}", exc=ReadTimeout("private upstream text"))
+        else:
+            requests_mock.get(f"{article_url}{index}", text="<p>Article content</p>")
+    requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/osint-sources/source-1", json=source)
+    story_ids = ["story-1"] if publish_message == "News items added" else []
+    publish = requests_mock.post(f"{Config.TARANIS_CORE_URL}/worker/news-items", json={"message": publish_message, "story_ids": story_ids})
+    bots = requests_mock.put(f"{Config.TARANIS_CORE_URL}/worker/post-collection-bots", json={})
+    tasks = requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
+
+    if publish_message is None:
+        with pytest.raises(RuntimeError, match="Could not fetch any linked articles"):
+            collector_tasks.collector_task("source-1")
+        assert publish.call_count == 0
+        assert tasks.last_request.json()["status"] == "FAILURE"
+    else:
+        collector_tasks.collector_task("source-1")
+        assert [item["title"] for item in publish.last_request.json()] == ["Item 0", "Item 2"]
+        assert tasks.last_request.json()["status"] == "WARNING"
+    assert bots.call_count == len(story_ids)
+    assert failed_article.call_count == 1
+    result = tasks.last_request.json()["result"]
+    assert result["reason"] == "rss_article_fetch_failed"
+    assert "1 additional entries were skipped" in result["message"]
+    assert "private upstream text" not in result["message"]
+    assert result["data"]["http_validators"]["etag"] == '"feed"'
+
+    if publish_message is not None:
+        warning_task = tasks.last_request.json()
+        source.update(status=warning_task, http_validators=result["data"]["http_validators"])
+        requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/osint-sources/source-1", json=source)
+        unchanged_feed = requests_mock.get(feed_url, status_code=304)
+
+        collector_tasks.collector_task("source-1")
+
+        assert tasks.last_request.json() == warning_task
+        assert unchanged_feed.last_request.headers["If-None-Match"] == '"feed"'
+        assert publish.call_count == failed_article.call_count == 1
+
+
+@pytest.fixture(params=["rss_collector", "simple_web_collector"])
+def digest_source(request, requests_mock):
+    digest_url = "https://example.com/digest"
+    links = '<a href="/first">First</a><a href="/broken">Broken</a><a href="/last">Last</a>'
+    source = {
+        "id": "source-1",
+        "type": request.param,
+        "http_validators": {"url": digest_url},
+        "parameters": {"DIGEST_SPLITTING": True},
+    }
+    if request.param == "rss_collector":
+        source["parameters"]["FEED_URL"] = digest_url
+        source["rss_collector_max_entries"] = 1
+        body = (
+            f"<rss version='2.0'><channel><item><description><![CDATA[{links}]]></description></item>"
+            "<item><title>Beyond the entry limit</title></item></channel></rss>"
+        )
+    else:
+        source["parameters"].update(WEB_URL=digest_url, XPATH="//main")
+        body = f"<main>{links}</main>"
+    requests_mock.get(digest_url, text=body, headers={"ETag": '"digest"'})
+    requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/osint-sources/source-1", json=source)
+    return source
+
+
+@pytest.mark.parametrize("core_message", ["News items added", "All news items were skipped"])
+def test_digest_publishes_usable_articles_and_warns(current_job, requests_mock, digest_source, core_message):
+    first = "https://example.com/first"
+    last = "https://example.com/last"
+    requests_mock.get(first, text="<html><title>First</title><p>First article</p></html>")
+    requests_mock.get("https://example.com/broken", status_code=404)
+    requests_mock.get(last, text="<html><title>Last</title><p>Last article</p></html>")
+    publish = requests_mock.post(f"{Config.TARANIS_CORE_URL}/worker/news-items", json={"message": core_message})
+    tasks = requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
+
+    collector_tasks.collector_task(digest_source["id"])
+
+    assert publish.call_count == 1
+    assert [article["link"] for article in publish.last_request.json()] == [first, last]
+    task = tasks.last_request.json()
+    assert task["status"] == current_job.meta["status"] == "WARNING"
+    message = task["result"]["message"]
+    assert core_message in message
+    assert "Some linked articles could not be fetched (1 skipped)." in message
+    if digest_source["type"] == "rss_collector":
+        assert "1 additional entries were skipped." in message
+
+    validators = task["result"]["data"]["http_validators"]
+    digest_source.update(status=task, http_validators=validators)
+    requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/osint-sources/source-1", json=digest_source)
+    unchanged_digest = requests_mock.get(validators["url"], status_code=304)
+
+    collector_tasks.collector_task(digest_source["id"])
+
+    assert tasks.last_request.json() == task
+    assert unchanged_digest.last_request.headers["If-None-Match"] == '"digest"'
+    assert publish.call_count == 1
+
+
+def test_digest_fails_without_publishing_when_every_link_fails(current_job, requests_mock, digest_source):
+    requests_mock.get("https://example.com/first", exc=ReadTimeout("private upstream detail"))
+    requests_mock.get("https://example.com/broken", status_code=404, reason="private upstream detail")
+    requests_mock.get("https://example.com/last", status_code=304)
+    publish = requests_mock.post(f"{Config.TARANIS_CORE_URL}/worker/news-items", json={})
+    tasks = requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
+
+    message = "Could not fetch any linked articles (3 failed)."
+    with pytest.raises(RuntimeError) as error:
+        collector_tasks.collector_task(digest_source["id"])
+
+    assert publish.call_count == 0
+    task = tasks.last_request.json()
+    assert task["status"] == "FAILURE"
+    assert task["result"]["message"] == str(error.value)
+    assert task["result"]["message"].startswith(message)
+    assert "private upstream detail" not in task["result"]["message"]
 
 
 def test_rss_parse_failure_cleans_up_persists_failure_and_skips_bots(

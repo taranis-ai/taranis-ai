@@ -36,6 +36,16 @@ class HTTPNotModifiedError(NoChangeError):
         self.primary_resource = primary_resource
 
 
+class LinkedArticleFetchError(Exception):
+    reason = "digest_article_fetch_failed"
+
+    def __init__(self, failed_articles: int, entry_limit_warning: str | None = None):
+        self.public_message = f"Could not fetch any linked articles ({failed_articles} failed)."
+        if entry_limit_warning:
+            self.public_message = f"{self.public_message} {entry_limit_warning}"
+        super().__init__(self.public_message)
+
+
 class BaseWebCollector(BaseCollector):
     def __init__(self):
         super().__init__()
@@ -52,6 +62,7 @@ class BaseWebCollector(BaseCollector):
         self.digest_splitting_limit: int
         self.digest_splitting = False
         self.split_digest_urls: list = []
+        self.failed_articles = 0
 
         self.playwright_manager: PlaywrightManager | None = None
         self.browser_mode = False
@@ -116,6 +127,7 @@ class BaseWebCollector(BaseCollector):
         return response
 
     def parse_source(self, source: dict):
+        self.failed_articles = 0
         self.digest_splitting = source["parameters"].get("DIGEST_SPLITTING", False)
         self.digest_splitting_limit = source["parameters"].get("DIGEST_SPLITTING_LIMIT", 30)
         self.xpath = source["parameters"].get("XPATH", "")
@@ -127,6 +139,12 @@ class BaseWebCollector(BaseCollector):
         self.browser_mode = source["parameters"].get("BROWSER_MODE", False)
 
         self.osint_source_id = str(source["id"])
+
+    @property
+    def collection_warning(self) -> tuple[str, str] | None:
+        if self.failed_articles:
+            return LinkedArticleFetchError.reason, f"Some linked articles could not be fetched ({self.failed_articles} skipped)."
+        return None
 
     def set_proxies(self, proxy_server: str | None):
         self.proxies = {"http": proxy_server, "https": proxy_server, "ftp": proxy_server} if proxy_server else None
@@ -300,7 +318,7 @@ class BaseWebCollector(BaseCollector):
         )
 
     def extract_web_content(self, web_url: str, xpath: str = "") -> dict[str, Any]:
-        web_content, published_date = self.fetch_article_content(web_url)
+        web_content, published_date = self.fetch_article_content(web_url, xpath)
         content = ""
         if xpath and web_content:
             content = self.xpath_extraction(web_content, xpath)
@@ -318,17 +336,21 @@ class BaseWebCollector(BaseCollector):
         urls = [a["href"] for a in soup.find_all("a", href=True) if isinstance(a, Tag) and a.has_attr("href")]
         return [urljoin(collector_url, url) for url in urls if isinstance(url, str)]
 
-    def parse_digests(self, published_fallback: datetime.datetime | None = None) -> list[NewsItem]:
+    def parse_digests(self, published_fallback: datetime.datetime | None = None, *, entry_limit_warning: str | None = None) -> list[NewsItem]:
         news_items = []
         max_elements = min(len(self.split_digest_urls), self.digest_splitting_limit)
         for split_digest_url in self.split_digest_urls[:max_elements]:
             try:
                 news_items.append(self.news_item_from_article(split_digest_url, published_fallback=published_fallback))
+            except (requests.exceptions.RequestException, HTTPNotModifiedError) as e:
+                self.failed_articles += 1
+                logger.warning(f"Failed to fetch linked digest article {split_digest_url}: {e}")
             except ValueError as e:
                 logger.warning(f"Failed to parse the digest with error: {e!s}")
-                continue
             except Exception as e:
                 logger.error(f"Failed digest splitting with error: {e!s}")
                 raise
 
+        if self.failed_articles and not news_items:
+            raise LinkedArticleFetchError(self.failed_articles, entry_limit_warning)
         return news_items
