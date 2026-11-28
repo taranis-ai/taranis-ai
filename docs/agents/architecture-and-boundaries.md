@@ -10,6 +10,8 @@ Read before component, API, workflow, background-job, persistence, migration, or
 - `src/models/`: shared Pydantic input/output contracts.
 - `src/ingress/`: Nginx routing.
 
+Production runs the Core image as interactive `core` and private `core-background`. All bundled RQ clients use the latter. Only interactive Core runs startup setup. Background Core serves the existing Granian app factory with one WSGI thread and a bounded DB pool. Both roles need the same Core data volume. Their startup probes must work before RQ workers register. See [deployment settings](../../docker/README.md#interactive-and-background-core).
+
 `src/core/core/managers/queue_manager.py` owns Redis-backed RQ scheduling and cron expressions.
 
 ## Shared Validation

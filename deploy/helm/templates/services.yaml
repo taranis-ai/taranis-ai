@@ -15,6 +15,20 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
+  name: core-background
+  labels:
+    {{- include "taranis.labels" . | nindent 4 }}
+spec:
+  selector:
+    app: core-background
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
   name: frontend
   labels:
     {{- include "taranis.labels" . | nindent 4 }}

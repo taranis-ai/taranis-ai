@@ -27,7 +27,7 @@ jobs:
     if: ${{ github.event.review.state == 'approved' || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     env:
-      APPLICATION_SERVICES: ingress core frontend collector workers cron
+      APPLICATION_SERVICES: ingress core core-background frontend collector workers cron
       SUPPORT_SERVICES: redis centrifugo database
 
     steps:
@@ -80,7 +80,7 @@ jobs:
         working-directory: docker
         run: |
           # Check that services with healthchecks are healthy
-          for service in core frontend collector workers cron database redis centrifugo; do
+          for service in core core-background frontend collector workers cron database redis centrifugo; do
             HEALTH=$(docker compose ps $service --format json | jq -r '.Health')
             if [ -n "$HEALTH" ] && [ "$HEALTH" != "healthy" ]; then
               echo "❌ Service $service health check failed (health: $HEALTH)"
@@ -91,6 +91,40 @@ jobs:
           done
 
           echo "✅ All containers are healthy and running"
+
+      - name: Verify worker routing and interactive Core isolation
+        working-directory: docker
+        run: |
+          for service in collector workers cron; do
+            docker compose exec -T "$service" python - <<'PYTHON'
+          import os
+          from urllib.parse import urlsplit
+          from urllib.request import Request, urlopen
+
+          url = os.environ["TARANIS_CORE_URL"]
+          assert urlsplit(url).hostname == "core-background"
+          request = Request(f"{url}/worker/cron-jobs", headers={"Authorization": f"Bearer {os.environ['API_KEY']}"})
+          with urlopen(request, timeout=10) as response:
+              assert response.status == 200
+          PYTHON
+          done
+
+          docker compose pause core-background
+          trap 'docker compose unpause core-background' EXIT
+          docker compose exec -T frontend python - <<'PYTHON'
+          import os
+          from urllib.parse import urlsplit
+          import requests
+
+          url = os.environ["TARANIS_CORE_URL"]
+          assert urlsplit(url).hostname == "core"
+          login = requests.post(f"{url}/auth/login", json={"username": "user", "password": "test"}, timeout=5)
+          login.raise_for_status()
+          headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
+          stories = requests.get(f"{url}/assess/stories", headers=headers, timeout=5)
+          stories.raise_for_status()
+          assert isinstance(stories.json()["items"], list)
+          PYTHON
 
       - name: Show compose logs after e2e failure
         if: failure()

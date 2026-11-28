@@ -224,18 +224,15 @@ def test_endpoint_health_lifecycle(client, auth_header, api_header, app, db_pers
             worker.register_death()
 
 
-@pytest.mark.parametrize("failed_service", ["worker_endpoints", "database", "seed_data", "broker", "workers"])
-def test_core_process_probe_keeps_endpoint_failures_repairable(monkeypatch, failed_service):
-    import json
+def test_readiness_before_workers_start(client, monkeypatch):
+    monkeypatch.setattr(health.Config, "QUEUE_ENABLED", True)
+    assert client.get("/api/health").json["services"]["workers"] == "down"
+    assert client.get("/api/ready").status_code == 200
 
-    import requests
+    monkeypatch.setattr(health, "check_broker", lambda: "down")
+    assert client.get("/api/ready").status_code == 503
+    monkeypatch.setattr(health.Config, "QUEUE_ENABLED", False)
+    assert client.get("/api/ready").status_code == 200
 
-    from core.healthcheck import main
-
-    services = dict.fromkeys(("database", "seed_data", "broker", "workers", "worker_endpoints"), "up")
-    services[failed_service] = "down"
-    response = requests.Response()
-    response.status_code = 503
-    response._content = json.dumps({"healthy": False, "services": services}).encode()
-    monkeypatch.setattr("core.healthcheck.requests.get", lambda *args, **kwargs: response)
-    assert main() == (0 if failed_service == "worker_endpoints" else 1)
+    monkeypatch.setattr(health, "check_seed_data", lambda: "down")
+    assert client.get("/api/ready").status_code == 503

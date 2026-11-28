@@ -1,27 +1,43 @@
+{{- range $role := list "core" "core-background" }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: core
+  name: {{ $role }}
   labels:
-    {{- include "taranis.labels" . | nindent 4 }}
+    {{- include "taranis.labels" $ | nindent 4 }}
 spec:
-  replicas: {{ .Values.replicas.core }}
+  replicas: {{ if eq $role "core" }}{{ $.Values.replicas.core }}{{ else }}1{{ end }}
   strategy:
     type: Recreate
   selector:
     matchLabels:
-      app: core
+      app: {{ $role }}
   template:
     metadata:
       labels:
-        app: core
+        app: {{ $role }}
+      {{- if eq $role "core" }}
         taranis.io/expose: "true"
+      {{- end }}
     spec:
       restartPolicy: Always
+      {{- if eq $role "core-background" }}
+      affinity:
+        podAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app: core
+              topologyKey: kubernetes.io/hostname
+      {{- include "taranis.waitForCore" (dict "role" "core" "root" $) | nindent 6 }}
+      {{- end }}
       containers:
-        - name: core
-          image: {{ include "taranis.image" .Values.images.core | quote }}
-          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+        - name: {{ $role }}
+          image: {{ include "taranis.image" $.Values.images.core | quote }}
+          imagePullPolicy: {{ $.Values.global.imagePullPolicy }}
+      {{- if eq $role "core-background" }}
+          command: ["granian", "--interface", "wsgi", "--factory", "core:granian_app"]
+      {{- end }}
           envFrom:
             - configMapRef:
                 name: taranis-config
@@ -40,12 +56,14 @@ spec:
                 secretKeyRef:
                   name: taranis-secrets
                   key: JWT_SECRET_KEY
+      {{- if eq $role "core" }}
             - name: LLM_INFERENCE_API_KEY
               valueFrom:
                 secretKeyRef:
                   name: taranis-secrets
                   key: LLM_INFERENCE_API_KEY
                   optional: true
+      {{- end }}
             - name: API_KEY
               valueFrom:
                 secretKeyRef:
@@ -61,6 +79,7 @@ spec:
                 secretKeyRef:
                   name: centrifugo-secrets
                   key: CENTRIFUGO_CONNECT_PROXY_SECRET
+      {{- if eq $role "core" }}
             - name: PRE_SEED_PASSWORD_ADMIN
               valueFrom:
                 secretKeyRef:
@@ -71,9 +90,22 @@ spec:
                 secretKeyRef:
                   name: taranis-secrets
                   key: PRE_SEED_PASSWORD_USER
+      {{- else }}
+            - name: GRANIAN_WORKERS
+              value: "1"
+            - name: GRANIAN_BLOCKING_THREADS
+              value: "1"
+            - name: SQLALCHEMY_POOL_SIZE
+              value: "2"
+            - name: SQLALCHEMY_MAX_OVERFLOW
+              value: "0"
+            - name: OTEL_SERVICE_NAME
+              value: taranis-core-background
+      {{- end }}
           ports:
             - containerPort: 8080
               name: http
+      {{- if eq $role "core" }}
           readinessProbe:
             exec:
               command:
@@ -88,16 +120,31 @@ spec:
             initialDelaySeconds: 15
             periodSeconds: 300
             timeoutSeconds: 10
+      {{- else }}
+          startupProbe:
+            exec:
+              command: ["taranis-core-healthcheck"]
+            periodSeconds: 5
+            timeoutSeconds: 10
+            failureThreshold: 36
+          readinessProbe:
+            tcpSocket:
+              port: http
+          livenessProbe:
+            tcpSocket:
+              port: http
+      {{- end }}
           volumeMounts:
             - name: core
               mountPath: /app/data
           resources:
-            {{- toYaml .Values.resources.core | nindent 12 }}
+            {{- toYaml (index $.Values.resources $role) | nindent 12 }}
       volumes:
         - name: core
           persistentVolumeClaim:
             claimName: core
 ---
+{{- end }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -128,7 +175,7 @@ spec:
                 name: taranis-redis-credentials
           env:
             - name: TARANIS_CORE_URL
-              value: http://core:8080/api
+              value: http://core:8080$(TARANIS_BASE_PATH)api
             - name: APPLICATION_ROOT
               valueFrom:
                 configMapKeyRef:
@@ -296,6 +343,7 @@ spec:
         app: collector
     spec:
       restartPolicy: Always
+      {{- include "taranis.waitForCore" (dict "role" "core-background" "root" $) | nindent 6 }}
       containers:
         - name: collector
           image: {{ include "taranis.image" .Values.images.worker | quote }}
@@ -307,7 +355,7 @@ spec:
                 name: taranis-redis-credentials
           env:
             - name: TARANIS_CORE_URL
-              value: http://core:8080/api
+              value: http://core-background:8080$(TARANIS_BASE_PATH)api
             - name: API_KEY
               valueFrom:
                 secretKeyRef:
@@ -355,6 +403,7 @@ spec:
         app: worker
     spec:
       restartPolicy: Always
+      {{- include "taranis.waitForCore" (dict "role" "core-background" "root" $) | nindent 6 }}
       containers:
         - name: worker
           image: {{ include "taranis.image" .Values.images.worker | quote }}
@@ -368,7 +417,7 @@ spec:
                 name: taranis-redis-credentials
           env:
             - name: TARANIS_CORE_URL
-              value: http://core:8080/api
+              value: http://core-background:8080$(TARANIS_BASE_PATH)api
             - name: WORKER_TYPES
               value: '["Presenters", "Publishers", "Bots", "Connectors", "Misc"]'
           readinessProbe:
@@ -411,6 +460,7 @@ spec:
         app: cron
     spec:
       restartPolicy: Always
+      {{- include "taranis.waitForCore" (dict "role" "core-background" "root" $) | nindent 6 }}
       containers:
         - name: cron
           image: {{ include "taranis.image" .Values.images.worker | quote }}
@@ -424,7 +474,7 @@ spec:
                 name: taranis-redis-credentials
           env:
             - name: TARANIS_CORE_URL
-              value: http://core:8080/api
+              value: http://core-background:8080$(TARANIS_BASE_PATH)api
             - name: API_KEY
               valueFrom:
                 secretKeyRef:

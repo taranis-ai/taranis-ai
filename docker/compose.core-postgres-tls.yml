@@ -1,7 +1,7 @@
 services:
   core:
     environment:
-      SQLALCHEMY_DATABASE_URI: "postgresql+psycopg://${DB_USER:-taranis}:${POSTGRES_PASSWORD:-taranis}@database:5432/${DB_DATABASE:-taranis}?sslmode=require"
+      SQLALCHEMY_DATABASE_URI: &tls-db-uri "postgresql+psycopg://${DB_USER:-taranis}:${POSTGRES_PASSWORD:-taranis}@database:5432/${DB_DATABASE:-taranis}?sslmode=require"
       GRANIAN_WORKERS: "2"
       APPLICATION_ROOT: "/"
       PYTHONFAULTHANDLER: "1"
@@ -16,6 +16,10 @@ services:
       timeout: 5s
       retries: 30
       start_period: 10s
+
+  core-background:
+    environment:
+      SQLALCHEMY_DATABASE_URI: *tls-db-uri
 
   database:
     entrypoint: ["/bin/sh", "/postgres-tls/postgres-entrypoint.sh"]

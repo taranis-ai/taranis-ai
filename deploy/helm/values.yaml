@@ -108,6 +108,13 @@ resources:
     requests:
       cpu: "2"
       memory: 1Gi
+  core-background:
+    limits:
+      cpu: 500m
+      memory: 2Gi
+    requests:
+      cpu: 100m
+      memory: 256Mi
   frontend:
     limits:
       cpu: "1"

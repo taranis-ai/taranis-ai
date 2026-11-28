@@ -154,6 +154,18 @@ paths:
                     type: boolean
                     examples:
                     - true
+  /ready:
+    get:
+      tags:
+      - health
+      operationId: readiness.get
+      description: Check that Core can read its seeded database and reach its configured queue broker.
+      security: []
+      responses:
+        '200':
+          description: Core is ready to accept requests
+        '503':
+          description: Core dependencies are unavailable
   /health:
     get:
       tags:

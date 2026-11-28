@@ -1,3 +1,34 @@
+x-core-environment: &core-environment
+  DB_URL: "${DB_URL:-database}"
+  SQLALCHEMY_POOL_SIZE: "${SQLALCHEMY_POOL_SIZE:-5}"
+  SQLALCHEMY_MAX_OVERFLOW: "${SQLALCHEMY_MAX_OVERFLOW:-5}"
+  SQLALCHEMY_POOL_TIMEOUT: "${SQLALCHEMY_POOL_TIMEOUT:-30}"
+  DB_DATABASE: "${DB_DATABASE:-taranis}"
+  DB_USER: "${DB_USER:-taranis}"
+  DB_PASSWORD: "${POSTGRES_PASSWORD:-taranis}"
+  TARANIS_AUTHENTICATOR: "${TARANIS_AUTHENTICATOR:-database}"
+  APPLICATION_ROOT: "${TARANIS_BASE_PATH:-/}"
+
+  REDIS_URL: "redis://redis:6379/0"
+  REDIS_PASSWORD: "${REDIS_PASSWORD:-}"
+
+  GRANIAN_PORT: "${TARANIS_CORE_LISTEN_PORT:-8080}"
+  OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT:-}"
+  OTEL_EXPORTER_OTLP_HEADERS: "${OTEL_EXPORTER_OTLP_HEADERS:-}"
+  OTEL_METRIC_EXPORT_INTERVAL: "${OTEL_METRIC_EXPORT_INTERVAL:-60000}"
+  TARANIS_CORE_SENTRY_DSN: "${TARANIS_CORE_SENTRY_DSN:-}"
+
+  JWT_SECRET_KEY: "${JWT_SECRET_KEY}"
+  JWT_COOKIE_SUFFIX: "${JWT_COOKIE_SUFFIX:-}"
+  API_KEY: "${API_KEY}"
+  CHAT_ENABLED: "${CHAT_ENABLED:-False}"
+  REALTIME_ENABLED: "${REALTIME_ENABLED:-false}"
+  CENTRIFUGO_API_URL: "${CENTRIFUGO_API_URL:-http://centrifugo:9000}"
+  CENTRIFUGO_API_KEY: "${CENTRIFUGO_API_KEY}"
+  CENTRIFUGO_CONNECT_PROXY_SECRET: "${CENTRIFUGO_CONNECT_PROXY_SECRET}"
+  CENTRIFUGO_ALLOWED_ORIGINS: "${CENTRIFUGO_ALLOWED_ORIGINS:-http://localhost:8080}"
+  DEBUG: "${DEBUG:-False}"
+
 services:
   llm-inference:
     image: "${LLM_INFERENCE_IMAGE:-ghcr.io/taranis-ai/gemma4-e4b-gguf:cpu}"
@@ -28,7 +59,7 @@ services:
     environment:
       NGINX_WORKERS: "4"
       NGINX_CONNECTIONS: "16"
-      TARANIS_CORE_UPSTREAM: "${TARANIS_CORE_UPSTREAM:-core:8080}"
+      TARANIS_CORE_UPSTREAM: "${TARANIS_CORE_UPSTREAM:-core:${TARANIS_CORE_LISTEN_PORT:-8080}}"
       TARANIS_REALTIME_UPSTREAM: "${TARANIS_REALTIME_UPSTREAM:-centrifugo:8000}"
       TARANIS_FRONTEND_UPSTREAM: "${TARANIS_FRONTEND_UPSTREAM:-frontend:8080}"
       TARANIS_BASE_PATH: "${TARANIS_BASE_PATH:-/}"
@@ -47,56 +78,47 @@ services:
     deploy:
       restart_policy:
         condition: always
-    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-core:${TARANIS_TAG:-latest}"
+    image: &core-image "${DOCKER_IMAGE_NAMESPACE}/taranis-core:${TARANIS_TAG:-latest}"
     # ports:
     #   - "${TARANIS_CORE_PORT:-8081}:${TARANIS_CORE_LISTEN_PORT:-8080}"
     environment:
-      DB_URL: "${DB_URL:-database}"
-      SQLALCHEMY_POOL_SIZE: "${SQLALCHEMY_POOL_SIZE:-5}"
-      SQLALCHEMY_MAX_OVERFLOW: "${SQLALCHEMY_MAX_OVERFLOW:-5}"
-      SQLALCHEMY_POOL_TIMEOUT: "${SQLALCHEMY_POOL_TIMEOUT:-30}"
-      DB_DATABASE: "${DB_DATABASE:-taranis}"
-      DB_USER: "${DB_USER:-taranis}"
-      DB_PASSWORD: "${POSTGRES_PASSWORD:-taranis}"
-      TARANIS_AUTHENTICATOR: "${TARANIS_AUTHENTICATOR:-database}"
-      APPLICATION_ROOT: "${TARANIS_BASE_PATH:-/}"
-
-      REDIS_URL: "redis://redis:6379/0"
-      REDIS_PASSWORD: "${REDIS_PASSWORD:-}"
-
-      GRANIAN_PORT: "${TARANIS_CORE_LISTEN_PORT:-8080}"
-      OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT:-}"
-      OTEL_EXPORTER_OTLP_HEADERS: "${OTEL_EXPORTER_OTLP_HEADERS:-}"
-      OTEL_METRIC_EXPORT_INTERVAL: "${OTEL_METRIC_EXPORT_INTERVAL:-60000}"
-      TARANIS_CORE_SENTRY_DSN: "${TARANIS_CORE_SENTRY_DSN:-}"
-
+      <<: *core-environment
       PRE_SEED_PASSWORD_ADMIN: "${PRE_SEED_PASSWORD_ADMIN:-admin}"
       PRE_SEED_PASSWORD_USER: "${PRE_SEED_PASSWORD_USER:-user}"
       LLM_INFERENCE_API_KEY: "${LLM_INFERENCE_API_KEY:-}"
       PRE_SEED_SETTINGS: "${PRE_SEED_SETTINGS:-{}}"
-      JWT_SECRET_KEY: "${JWT_SECRET_KEY}"
-      JWT_COOKIE_SUFFIX: "${JWT_COOKIE_SUFFIX:-}"
-      API_KEY: "${API_KEY}"
-      CHAT_ENABLED: "${CHAT_ENABLED:-False}"
-      REALTIME_ENABLED: "${REALTIME_ENABLED:-false}"
-      CENTRIFUGO_API_URL: "${CENTRIFUGO_API_URL:-http://centrifugo:9000}"
-      CENTRIFUGO_API_KEY: "${CENTRIFUGO_API_KEY}"
-      CENTRIFUGO_CONNECT_PROXY_SECRET: "${CENTRIFUGO_CONNECT_PROXY_SECRET}"
-      CENTRIFUGO_ALLOWED_ORIGINS: "${CENTRIFUGO_ALLOWED_ORIGINS:-http://localhost:8080}"
-      DEBUG: "${DEBUG:-False}"
-    volumes:
+    volumes: &core-volumes
       - "core_data:/app/data"
-    healthcheck:
-      test: ["CMD", "taranis-core-healthcheck"]
-      interval: 5m
+    healthcheck: &core-healthcheck
+      test: ["CMD-SHELL", 'curl -fsS --max-time 5 "http://127.0.0.1:$${GRANIAN_PORT}$${APPLICATION_ROOT}api/ready"']
+      interval: 15s
       timeout: 10s
       retries: 3
-      start_period: 3s
-    logging:
+      start_period: 60s
+    logging: &core-logging
       driver: "json-file"
       options:
         max-size: "200k"
         max-file: "10"
+
+  core-background:
+    image: *core-image
+    command: ["granian", "--interface", "wsgi", "--factory", "core:granian_app"]
+    depends_on:
+      core:
+        condition: service_healthy
+    restart: unless-stopped
+    cpus: "${CORE_BACKGROUND_CPUS:-0.5}"
+    environment:
+      <<: *core-environment
+      GRANIAN_WORKERS: "1"
+      GRANIAN_BLOCKING_THREADS: "1"
+      SQLALCHEMY_POOL_SIZE: "2"
+      SQLALCHEMY_MAX_OVERFLOW: "0"
+      OTEL_SERVICE_NAME: taranis-core-background
+    volumes: *core-volumes
+    healthcheck: *core-healthcheck
+    logging: *core-logging
 
   database:
     image: "docker.io/library/postgres:${POSTGRES_TAG:-18-alpine}"
@@ -145,7 +167,7 @@ services:
     #   - "8000:8000"
     image: "${DOCKER_IMAGE_NAMESPACE}/taranis-frontend:${TARANIS_TAG:-latest}"
     environment:
-      TARANIS_CORE_URL: "${TARANIS_CORE_URL:-http://core:8080/api}"
+      TARANIS_CORE_URL: "${TARANIS_CORE_URL:-http://core:${TARANIS_CORE_LISTEN_PORT:-8080}${TARANIS_BASE_PATH:-/}api}"
       APPLICATION_ROOT: "${TARANIS_BASE_PATH:-/}frontend"
       TARANIS_BASE_PATH: "${TARANIS_BASE_PATH:-/}"
       JWT_SECRET_KEY: "${JWT_SECRET_KEY}"
@@ -170,6 +192,8 @@ services:
 
   collector:
     depends_on:
+      core-background:
+        condition: service_healthy
       redis:
         condition: service_healthy
     deploy:
@@ -177,7 +201,7 @@ services:
         condition: always
     image: "${DOCKER_IMAGE_NAMESPACE}/taranis-worker:${TARANIS_TAG:-latest}"
     environment:
-      TARANIS_CORE_URL: "${TARANIS_CORE_URL:-http://core:8080/api}"
+      TARANIS_CORE_URL: "${TARANIS_BACKGROUND_CORE_URL:-http://core-background:${TARANIS_CORE_LISTEN_PORT:-8080}${TARANIS_BASE_PATH:-/}api}"
       API_KEY: "${API_KEY}"
       REDIS_URL: "redis://redis:6379/0"
       REDIS_PASSWORD: "${REDIS_PASSWORD:-}"
@@ -203,6 +227,8 @@ services:
 
   workers:
     depends_on:
+      core-background:
+        condition: service_healthy
       redis:
         condition: service_healthy
     deploy:
@@ -210,7 +236,7 @@ services:
         condition: always
     image: "${DOCKER_IMAGE_NAMESPACE}/taranis-worker:${TARANIS_TAG:-latest}"
     environment:
-      TARANIS_CORE_URL: "${TARANIS_CORE_URL:-http://core:8080/api}"
+      TARANIS_CORE_URL: "${TARANIS_BACKGROUND_CORE_URL:-http://core-background:${TARANIS_CORE_LISTEN_PORT:-8080}${TARANIS_BASE_PATH:-/}api}"
       API_KEY: "${API_KEY}"
       BOT_API_KEY: "${BOT_API_KEY}"
       REDIS_URL: "redis://redis:6379/0"
@@ -299,7 +325,7 @@ services:
       CENTRIFUGO_ENGINE_REDIS_PREFIX: "taranis:realtime"
       CENTRIFUGO_CLIENT_ALLOWED_ORIGINS: "${CENTRIFUGO_ALLOWED_ORIGINS:-http://localhost:8080}"
       CENTRIFUGO_CLIENT_PROXY_CONNECT_ENABLED: "true"
-      CENTRIFUGO_CLIENT_PROXY_CONNECT_ENDPOINT: "http://core:8080${TARANIS_BASE_PATH:-/}api/realtime/connect"
+      CENTRIFUGO_CLIENT_PROXY_CONNECT_ENDPOINT: "http://core:${TARANIS_CORE_LISTEN_PORT:-8080}${TARANIS_BASE_PATH:-/}api/realtime/connect"
       CENTRIFUGO_CLIENT_PROXY_CONNECT_HTTP_HEADERS: "Cookie"
       CENTRIFUGO_CLIENT_PROXY_CONNECT_HTTP_STATIC_HEADERS: "{\"X-Realtime-Proxy-Key\":\"${CENTRIFUGO_CONNECT_PROXY_SECRET}\"}"
       CENTRIFUGO_CHANNEL_PUBLICATION_DATA_FORMAT: "json_object"

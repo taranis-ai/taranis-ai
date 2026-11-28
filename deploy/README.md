@@ -18,6 +18,12 @@ Always required:
 - When multiple deployments share a domain, set a unique `JWT_COOKIE_SUFFIX` such as `_q` for each deployment and keep it aligned between core and frontend. Helm exposes the same setting as `config.jwtCookieSuffix`.
 - The raw manifest keeps the public realtime endpoint at `/sse`; ingress rewrites it to Centrifugo's `/connection/uni_sse`.
 
+## Background Core upgrade
+
+Use the same Core image tag for `core` and `core-background`. Allow another 100m CPU and 256 MiB of requested memory on the Core node and two PostgreSQL connections. Both pods need the same Core PVC because workers publish files and read presenter templates. With the default ReadWriteOnce claim, background Core runs on the same node as interactive Core. A custom ReadWriteOncePod volume requires storage that supports both pods before upgrading.
+
+For a schema-changing upgrade or a move to another node with an attachable ReadWriteOnce volume, drain the workers, scale background Core to zero and finish the interactive Core rollout before restarting background Core and the workers. For a raw-manifest rollback, restore the previous worker URLs and wait for their rollouts before removing the private `core-background` Service and Deployment. Keep the shared PVC.
+
 ## Shared LLM endpoint upgrade
 
 Deploy matching Core, frontend, and worker images. Inference needs an amd64 or arm64 node with capacity for its 6 GiB memory request and 12 GiB limit; model loading can take several minutes. See [bundled inference](../docker/README.md#bundled-llm-inference).
@@ -146,6 +152,7 @@ Verify base services:
 ```bash
 kubectl get configmap,secret,pvc,svc,deploy,ingress
 kubectl rollout status deploy/core
+kubectl rollout status deploy/core-background
 kubectl rollout status deploy/frontend
 kubectl rollout status deploy/centrifugo
 kubectl rollout status deploy/ingress

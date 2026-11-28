@@ -111,6 +111,123 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
+  name: core-background
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: core-background
+  template:
+    metadata:
+      labels:
+        app: core-background
+    spec:
+      restartPolicy: Always
+      affinity:
+        podAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app: core
+              topologyKey: kubernetes.io/hostname
+      initContainers:
+        - name: wait-for-core
+          image: ghcr.io/taranis-ai/taranis-core:latest
+          imagePullPolicy: Always
+          envFrom:
+            - configMapRef:
+                name: taranis-config
+          command: ["curl", "-fsS", "--max-time", "5", "http://core:8080$(TARANIS_BASE_PATH)api/ready"]
+      containers:
+        - name: core-background
+          image: ghcr.io/taranis-ai/taranis-core:latest
+          imagePullPolicy: Always
+          command: ["granian", "--interface", "wsgi", "--factory", "core:granian_app"]
+          envFrom:
+            - configMapRef:
+                name: taranis-config
+            - secretRef:
+                name: db-credentials
+            - secretRef:
+                name: taranis-redis-credentials
+          env:
+            - name: APPLICATION_ROOT
+              valueFrom:
+                configMapKeyRef:
+                  name: taranis-config
+                  key: TARANIS_BASE_PATH
+                  optional: true
+            - name: JWT_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: taranis-secrets
+                  key: JWT_SECRET_KEY
+            - name: API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: taranis-secrets
+                  key: API_KEY
+            - name: CENTRIFUGO_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: centrifugo-secrets
+                  key: CENTRIFUGO_API_KEY
+            - name: CENTRIFUGO_CONNECT_PROXY_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: centrifugo-secrets
+                  key: CENTRIFUGO_CONNECT_PROXY_SECRET
+            - name: BOT_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: taranis-secrets
+                  key: BOT_API_KEY
+                  optional: true
+            - name: GRANIAN_WORKERS
+              value: "1"
+            - name: GRANIAN_BLOCKING_THREADS
+              value: "1"
+            - name: SQLALCHEMY_POOL_SIZE
+              value: "2"
+            - name: SQLALCHEMY_MAX_OVERFLOW
+              value: "0"
+            - name: OTEL_SERVICE_NAME
+              value: taranis-core-background
+          ports:
+            - containerPort: 8080
+              name: http
+          startupProbe:
+            exec:
+              command: ["taranis-core-healthcheck"]
+            periodSeconds: 5
+            timeoutSeconds: 10
+            failureThreshold: 36
+          readinessProbe:
+            tcpSocket:
+              port: http
+          livenessProbe:
+            tcpSocket:
+              port: http
+          volumeMounts:
+            - name: core
+              mountPath: /app/data
+          resources:
+            limits:
+              cpu: 500m
+              memory: 2Gi
+            requests:
+              cpu: 100m
+              memory: 256Mi
+      volumes:
+        - name: core
+          persistentVolumeClaim:
+            claimName: core
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
   name: frontend
 spec:
   replicas: 1
@@ -136,7 +253,7 @@ spec:
                 name: taranis-redis-credentials
           env:
             - name: TARANIS_CORE_URL
-              value: http://core:8080/api
+              value: http://core:8080$(TARANIS_BASE_PATH)api
             - name: APPLICATION_ROOT
               value: "$(TARANIS_BASE_PATH)frontend"
             - name: JWT_SECRET_KEY
@@ -327,6 +444,14 @@ spec:
         app: collector
     spec:
       restartPolicy: Always
+      initContainers:
+        - name: wait-for-core-background
+          image: ghcr.io/taranis-ai/taranis-core:latest
+          imagePullPolicy: Always
+          envFrom:
+            - configMapRef:
+                name: taranis-config
+          command: ["curl", "-fsS", "--max-time", "5", "http://core-background:8080$(TARANIS_BASE_PATH)api/ready"]
       containers:
         - name: collector
           image: ghcr.io/taranis-ai/taranis-worker:latest
@@ -338,7 +463,7 @@ spec:
                 name: taranis-redis-credentials
           env:
             - name: TARANIS_CORE_URL
-              value: http://core:8080/api
+              value: http://core-background:8080$(TARANIS_BASE_PATH)api
             - name: API_KEY
               valueFrom:
                 secretKeyRef:
@@ -391,6 +516,14 @@ spec:
         app: worker
     spec:
       restartPolicy: Always
+      initContainers:
+        - name: wait-for-core-background
+          image: ghcr.io/taranis-ai/taranis-core:latest
+          imagePullPolicy: Always
+          envFrom:
+            - configMapRef:
+                name: taranis-config
+          command: ["curl", "-fsS", "--max-time", "5", "http://core-background:8080$(TARANIS_BASE_PATH)api/ready"]
       containers:
         - name: worker
           image: ghcr.io/taranis-ai/taranis-worker:latest
@@ -404,7 +537,7 @@ spec:
                 name: taranis-redis-credentials
           env:
             - name: TARANIS_CORE_URL
-              value: http://core:8080/api
+              value: http://core-background:8080$(TARANIS_BASE_PATH)api
             - name: WORKER_TYPES
               value: '["Presenters", "Publishers", "Bots", "Connectors", "Misc"]'
           readinessProbe:
@@ -452,6 +585,14 @@ spec:
         app: cron
     spec:
       restartPolicy: Always
+      initContainers:
+        - name: wait-for-core-background
+          image: ghcr.io/taranis-ai/taranis-core:latest
+          imagePullPolicy: Always
+          envFrom:
+            - configMapRef:
+                name: taranis-config
+          command: ["curl", "-fsS", "--max-time", "5", "http://core-background:8080$(TARANIS_BASE_PATH)api/ready"]
       containers:
         - name: cron
           image: ghcr.io/taranis-ai/taranis-worker:latest
@@ -465,7 +606,7 @@ spec:
                 name: taranis-redis-credentials
           env:
             - name: TARANIS_CORE_URL
-              value: http://core:8080/api
+              value: http://core-background:8080$(TARANIS_BASE_PATH)api
             - name: API_KEY
               valueFrom:
                 secretKeyRef:

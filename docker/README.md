@@ -66,6 +66,12 @@ Keep a database backup and previous images/configuration for rollback. See [depl
 
 ## Startup & Usage
 
+### Interactive and background Core
+
+Ingress, frontend and realtime authentication use `core`. Collectors, workers and cron use the private `core-background` service. Both run the same Core image and share PostgreSQL, Redis and `core_data`, including presenter templates and published files. Only `core` runs startup migrations, seeding and schedule restoration. Background Core starts after that bootstrap and handles one WSGI request at a time with two database connections, zero overflow and a default CPU limit of 0.5. Both roles still compete for PostgreSQL CPU and disk.
+
+Apply matching images and configuration with `docker compose pull` and `docker compose up -d --wait`. Check `docker compose ps` for both Core services, open Assess and run one collector. Use the `taranis-core-background` telemetry service to identify worker callbacks. For a custom worker destination set `TARANIS_BACKGROUND_CORE_URL` to the private API URL, including the deployment base path and `api`. To roll back routing alone, set it to the interactive Core API URL and recreate the collector, workers and cron. The split requires no database migration.
+
 ### Redis without persistence
 
 All bundled Redis services disable RDB snapshots (`save ""`) and the append-only
@@ -107,7 +113,7 @@ For an existing PostgreSQL 14–17 installation, follow the [database upgrade pr
 docker compose up -d
 ```
 
-The `core` healthcheck runs every 5 minutes because it performs non-trivial service checks. Worker-related services (`collector`, `workers`, `cron`) use the packaged `taranis-worker-healthcheck` command for container health probes.
+Both Core container probes require PostgreSQL, seed data and the configured broker to be ready. Compose checks `/api/ready` every 15 seconds. The operational `/api/health` endpoint also reports worker and endpoint availability. Worker-related services (`collector`, `workers`, `cron`) use the packaged `taranis-worker-healthcheck` command for container health probes.
 
 **Note:** If you have development environment variables set (e.g., from sourcing `dev/env.dev`), unset `TARANIS_CORE_URL` for the Docker command to avoid configuration conflicts:
 
@@ -273,10 +279,10 @@ The bundled PostgreSQL 18 service uses these starting values for installations w
 | `DB_AUTOVACUUM_ANALYZE_SCALE_FACTOR` | `0.05` | Refreshes planner statistics after roughly 5% of a table changes plus the base threshold. This helps the planner track new stories and tag distributions during collection. |
 | `DB_WAL_COMPRESSION` | `lz4` | Compresses full-page images in the write-ahead log (WAL). Article revisions touch article, tag and search-index pages. Check LZ4 support on custom primary, standby and recovery images. Use `pglz` or `off` if your recovery environment requires it. |
 | `DB_MAX_WAL_SIZE` | `2GB` | Allows more WAL between checkpoints during bulk collection. Use `1GB` on disk-constrained volumes or when a shorter crash-recovery window matters. Allow free space beyond this soft limit. |
-| `SQLALCHEMY_POOL_SIZE` / `SQLALCHEMY_MAX_OVERFLOW` | `5` / `5` | Each Core process keeps up to five pooled connections and can open five more for a burst. The stock two-process Core can use up to 20. |
+| `SQLALCHEMY_POOL_SIZE` / `SQLALCHEMY_MAX_OVERFLOW` | `5` / `5` | Each Core process keeps up to five pooled connections and can open five more for a burst. The two interactive processes can use up to 20 connections. Background Core has a separate fixed pool of two, for 22 in total. |
 | `SQLALCHEMY_POOL_TIMEOUT` | `30` seconds | Maximum wait for a free connection in a saturated Core pool. |
 
-For Kubernetes, apply server settings through the external PostgreSQL service or its operator. Size Core's connection budget as **peak Core pods × Granian processes per pod × (pool size + overflow)**, including overlapping pods during rollouts. This bound requires a positive pool size and nonnegative overflow. A pool size of `0` or an overflow of `-1` allows unlimited checkouts. Set overflow to `0` with a positive pool size for a fixed limit.
+For Kubernetes, apply server settings through the external PostgreSQL service or its operator. Sum **peak pods × Granian processes per pod × (pool size + overflow)** across both Core services, including overlapping pods during rollouts. This bound requires a positive pool size and nonnegative overflow. A pool size of `0` or an overflow of `-1` allows unlimited checkouts. Set overflow to `0` with a positive pool size for a fixed limit.
 
 Helm exposes `config.sqlalchemyPoolSize`, `config.sqlalchemyMaxOverflow` and `config.sqlalchemyPoolTimeout`. Raw manifests expose the corresponding environment variables in `taranis-config`. With a shared database server, the administrator can scope statistics tuning to Taranis tables, for example `ALTER TABLE news_item_tag SET (autovacuum_analyze_scale_factor = 0.05)`.
 
