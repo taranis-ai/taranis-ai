@@ -9,7 +9,8 @@ def color_signature(image: Image.Image) -> bytes:
     # A 192-byte shortlist key. Only candidates with similar colors in the same places need their bytes opened.
     if image.mode in {"P", "1"} or "transparency" in image.info:
         image = image.convert("RGBA")
-    sample = ImageOps.exif_transpose(image.resize((8, 8), Image.Resampling.BOX, reducing_gap=3)).convert("RGBA")
+    # Sample the full extent. Integer pre-reduction shifts bins for differently sized copies.
+    sample = ImageOps.exif_transpose(image.resize((8, 8), Image.Resampling.BILINEAR)).convert("RGBA")
     return Image.alpha_composite(Image.new("RGBA", (8, 8), "white"), sample).convert("RGB").tobytes()
 
 
@@ -59,22 +60,27 @@ def _compare_pixels(left: Image.Image, right: Image.Image, colors: bytes, same_a
     ImageOps.exif_transpose(right, in_place=True)
     small, large = sorted((left, right), key=lambda image: image.width * image.height)
     aspect_tolerance = 0.01 if same_article else 0.002
-    if abs(small.width * large.height - large.width * small.height) > aspect_tolerance * small.width * large.height:
+    aspect_slack = aspect_tolerance * small.width * large.height
+    if same_article and min(small.size) >= 8:
+        # A proportional thumbnail can round one dimension by half a pixel.
+        aspect_slack = max(aspect_slack, 0.5 * max(large.size))
+    if abs(small.width * large.height - large.width * small.height) > aspect_slack:
         return False
     resized = large.size != small.size
     lossy = left.format in {"JPEG", "WEBP"} or right.format in {"JPEG", "WEBP"}
     # Keep subtly different solid swatches distinct, even when one is a JPEG.
     has_contrast = any(max(colors[c::3]) - min(colors[c::3]) >= 24 for c in range(3))
-    allow_noise = (resized or lossy) and min(small.size) >= 32 and has_contrast
+    min_side = 8 if same_article and resized else 32
+    allow_noise = (resized or lossy) and min(small.size) >= min_side and has_contrast
     if same_article and allow_noise:
         # Reduce JPEG edge ringing and differences between publishers' thumbnail resamplers.
         if small.mode not in {"RGB", "RGBA"} or "transparency" in small.info:
             small = small.convert("RGBA")
-        small.thumbnail((256, 256), Image.Resampling.LANCZOS)
+        small.thumbnail((192, 192), Image.Resampling.LANCZOS, reducing_gap=None)
     if large.size != small.size:
         if large.mode not in {"RGB", "RGBA"} or "transparency" in large.info:
             large = large.convert("RGBA")
-        large = large.resize(small.size, Image.Resampling.LANCZOS, reducing_gap=3)
+        large = large.resize(small.size, Image.Resampling.LANCZOS, reducing_gap=None if same_article else 3)
     total_error = 0.0
     for y in range(0, small.height, 128):
         box = (0, y, small.width, min(y + 128, small.height))
@@ -85,7 +91,7 @@ def _compare_pixels(left: Image.Image, right: Image.Image, colors: bytes, same_a
         if not allow_noise:
             return False
         stats = ImageStat.Stat(difference)
-        alpha_tolerance = 16 if same_article and resized else 0
+        alpha_tolerance = 32 if same_article and resized else 0
         if stats.extrema[3][1] > alpha_tolerance or max(high for _, high in stats.extrema) > (48 if same_article else 24):
             return False
         total_error += sum(stats.sum)

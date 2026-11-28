@@ -1851,7 +1851,7 @@ def test_visual_image_duplicates_keep_the_original_and_remember_alternate_urls(c
     from base64 import b64encode
     from io import BytesIO
 
-    from PIL import Image
+    from PIL import Image, ImageDraw
 
     from core.model.news_image_blob import NewsImageBlob
     from core.model.story import Story
@@ -1930,3 +1930,11 @@ def test_visual_image_duplicates_keep_the_original_and_remember_alternate_urls(c
     session.commit()
     assert session.get(NewsImageBlob, shared_digest) is None
     assert b64encode(foreign.data).decode() == thumbnail["data"]
+
+    logo = Image.new("RGBA", (733, 211))
+    draw = ImageDraw.Draw(logo)
+    for x in range(0, logo.width, 81):
+        draw.rectangle((x, 10, x + 36, 201), fill=(10, 35, 200, 255))
+    small_logo = logo.resize((220, 63), Image.Resampling.BICUBIC)
+    result = ingest(capture(logo, "logo.png", "PNG"), capture(small_logo, "small.webp", "WEBP"), target=build_news_item_payload(source.id))
+    assert len(Story.get(result["story_ids"][0]).news_items[0].images) == 1
