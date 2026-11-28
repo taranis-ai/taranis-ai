@@ -10,6 +10,7 @@ from models.assess import NewsItem as AssessNewsItem
 from models.news_image import MAX_IMAGE_COUNT, CapturedImage
 from PIL import Image
 from pydantic import ValidationError
+from sqlalchemy.orm import joinedload
 
 from core.log import logger
 from core.managers.db_manager import db
@@ -37,16 +38,13 @@ class CollectionService:
         skipped_images = 0
         try:
             for payload in payloads:
-                images: dict[str, NewsItemImage] = {}
+                images = []
                 for capture in payload.captured_images:
                     try:
-                        image = NewsItemImage.from_capture(CapturedImage.model_validate(capture))
+                        images.append(NewsItemImage.from_capture(CapturedImage.model_validate(capture)))
                     except (ValueError, OSError, EOFError, SyntaxError, IndexError, Image.DecompressionBombError):
                         skipped_images += 1
-                        continue
-                    stored = images.setdefault(image.digest, image)
-                    stored.description = stored.description or image.description
-                result, status = CollectionService.ingest_item(payload, list(images.values()))
+                result, status = CollectionService.ingest_item(payload, images)
                 if status >= 300:
                     db.session.rollback()
                     error = result
@@ -86,18 +84,42 @@ class CollectionService:
         ).scalar_one_or_none()
         if source is None:
             return {"error": "OSINT source not found"}, 400
+        collection_hash = cls._collection_hash(payload)
+        if source.key != "manual":
+            now = NewsItem.utcnow()
+            payload.published = payload.published or now
+            if item := cls._find_existing_item(payload, collection_hash):
+                return cls._update_item(item, payload, now, images)
+
+        images, captions = cls._distinct_images(images, [])
+        for image, caption in captions.items():
+            image.description = caption
         if source.key == "manual":
             result, status = Story.add_from_news_item(payload, captured_images=images)
             if status == 409:
                 return {"action": "unchanged"}, 200
             return {**result, "action": "created"}, status
 
-        now = NewsItem.utcnow()
-        payload.published = payload.published or now
-        collection_hash = cls._collection_hash(payload)
-        if item := cls._find_existing_item(payload, collection_hash):
-            return cls._update_item(item, payload, now, images)
         return cls._create_item(payload, collection_hash, images)
+
+    @staticmethod
+    def _distinct_images(
+        captures: list[NewsItemImage], existing: list[NewsItemImage]
+    ) -> tuple[list[NewsItemImage], dict[NewsItemImage, str]]:
+        retained = existing.copy()
+        by_digest = {image.digest: image for image in retained}
+        captions = {}
+        for image in captures:
+            match = by_digest.get(image.digest) or next((stored for stored in retained if stored.matches(image)), None)
+            if match is None:
+                retained.append(image)
+                by_digest[image.digest] = image
+            else:
+                by_digest[image.digest] = match
+                match.remember_urls(image)
+                if not match.description and image.description:
+                    captions.setdefault(match, image.description)
+        return retained[len(existing) :], captions
 
     @staticmethod
     def _collection_hash(payload: AssessNewsItem) -> str:
@@ -115,7 +137,23 @@ class CollectionService:
             item = cls._find_existing_item(payload, cls._collection_hash(payload))
         if item is None or item.osint_source_id != source.id:
             return {}
-        return {image.source_url: image.id for image in item.images}
+        known = {}
+        for image in cls._stored_images(item):
+            if image.fingerprint:
+                known.update(dict.fromkeys(image.fingerprint.aliases, image.id))
+            known[image.source_url] = image.id
+        return known
+
+    @staticmethod
+    def _stored_images(item: NewsItem) -> list[NewsItemImage]:
+        return list(
+            db.session.scalars(
+                db.select(NewsItemImage)
+                .where(NewsItemImage.news_item_id == item.id)
+                .options(joinedload(NewsItemImage.fingerprint))
+                .order_by(NewsItemImage.captured, NewsItemImage.id)
+            )
+        )
 
     @staticmethod
     def _find_existing_item(payload: AssessNewsItem, collection_hash: str) -> NewsItem | None:
@@ -154,17 +192,12 @@ class CollectionService:
         descriptions = {}
         evict_count = 0
         if has_image_input:
-            existing = {image.digest: image for image in item.images}
-            for image in item.images:
+            existing = cls._stored_images(item)
+            new_images, descriptions = cls._distinct_images(images, existing)
+            for image in existing:
                 if image.description is None and (alt := payload.known_image_descriptions.get(image.id)):
                     descriptions[image] = alt
-            for image in images:
-                stored = existing.get(image.digest)
-                if stored is None:
-                    new_images.append(image)
-                elif stored.description is None and image.description:
-                    descriptions[stored] = image.description
-            evict_count = max(0, len(item.images) + len(new_images) - MAX_IMAGE_COUNT)
+            evict_count = max(0, len(existing) + len(new_images) - MAX_IMAGE_COUNT)
 
         if not changed and not new_images and not descriptions and not evict_count:
             if published != item.published:
@@ -175,6 +208,7 @@ class CollectionService:
             return {"error": "Collected article belongs to a story that cannot be updated"}, 409
         # Preserve the actual pre-change state, including items moved into this story.
         story.record_revision(note="before_collection_update")
+        NewsItemImage.share_blobs(new_images, item.osint_source_id)
         if evict_count:
             del item.images[:evict_count]
         if new_images:
@@ -198,6 +232,7 @@ class CollectionService:
                 story = None
 
         order = [entry.id for entry in story.ordered_news_items] if story else []
+        NewsItemImage.share_blobs(images, payload.osint_source_id)
         item = NewsItem.from_payload(payload)
         item.images.extend(images)
         item.hash = collection_hash

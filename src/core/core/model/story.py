@@ -744,6 +744,8 @@ class Story(BaseModel):
                 data = {**data, "last_change": resolved_actor}
             story = cls.from_dict(data)
             if captured_images:
+                assert source is not None
+                NewsItemImage.share_blobs(captured_images, source.id)
                 story.news_items[0].images.extend(captured_images)
             for news_item in story.news_items:
                 source = news_item.osint_source or OSINTSource.get(news_item.osint_source_id)

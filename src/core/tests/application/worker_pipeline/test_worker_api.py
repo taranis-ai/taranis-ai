@@ -1799,7 +1799,8 @@ def test_capture_retains_distinct_images_and_checks_access(client, session, api_
     assert original.description == "Source caption"
     assert len(item.images) == 1
     with patch.object(PngImagePlugin.PngImageFile, "load", side_effect=IndexError):
-        assert ingest([captures[0]])["skipped_images"] == 1
+        assert ingest([captures[8]])["skipped_images"] == 1
+        assert ingest([captures[0]])["counts"]["unchanged"] == 1
     assert ingest(captures[:2], published="2000-01-01")["counts"]["stale"] == 1
     assert len(item.images) == 1
     story.read = True
@@ -1844,3 +1845,88 @@ def test_capture_retains_distinct_images_and_checks_access(client, session, api_
     item.delete_item()
     session.commit()
     assert client.get(retained_url, headers=api_header).status_code == 404
+
+
+def test_visual_image_duplicates_keep_the_original_and_remember_alternate_urls(client, session, api_header):
+    from base64 import b64encode
+    from io import BytesIO
+
+    from PIL import Image
+
+    from core.model.news_image_blob import NewsImageBlob
+    from core.model.story import Story
+    from tests.application.support.builders import build_news_item_payload, create_osint_source
+
+    if session.get_bind().dialect.name == "sqlite":
+        session.get_bind().exec_driver_sql("BEGIN")
+    session().join_transaction_mode = "create_savepoint"
+    source = create_osint_source(rank=0)
+    article = build_news_item_payload(source.id)
+
+    def capture(picture, name, fmt, **options):
+        buf = BytesIO()
+        picture.save(buf, format=fmt, **options)
+        return {"source_url": f"https://example.org/{name}", "data": b64encode(buf.getvalue()).decode()}
+
+    def ingest(*images, target=article):
+        response = client.post("/api/worker/news-items", json=[target | {"captured_images": images}], headers=api_header)
+        assert response.status_code == 200
+        return response.json
+
+    gradient = Image.linear_gradient("L")
+    picture = Image.merge("RGB", (gradient, gradient.transpose(Image.Transpose.TRANSPOSE), gradient))
+    original = capture(picture, "full.png", "PNG")
+    small = picture.resize((128, 128), Image.Resampling.LANCZOS)
+    thumbnail = capture(small, "thumb.jpg", "JPEG", quality=90)
+    initial = ingest(original, thumbnail | {"alt_text": "Source figure"})
+    item = Story.get(initial["story_ids"][0]).news_items[0]
+    (image,) = item.images
+    assert image.source_url == original["source_url"]
+    assert image.description == "Source figure"
+    reencoded = capture(picture, "full.webp", "WEBP", lossless=True)
+    result = ingest(reencoded | {"alt_text": "Another caption"})
+    assert result["counts"]["unchanged"] == 1
+    assert result["story_ids"] == []
+    known = client.post("/api/worker/news-items/known-images", json=article, headers=api_header).json
+    assert known == dict.fromkeys([c["source_url"] for c in (original, thumbnail, reencoded)], image.id)
+    assert image.description == "Source figure"
+
+    # A one-pixel edit survives even though the two color signatures look alike.
+    changed = picture.copy()
+    changed.putpixel((128, 128), (255, 255, 255))
+    translucent = picture.convert("RGBA")
+    translucent.putpixel((128, 128), (128, 128, 128, 0))
+    assert ingest(capture(changed, "edit.png", "PNG"), capture(translucent, "alpha.png", "PNG"))["counts"]["updated"] == 1
+    assert len(item.images) == 3
+
+    def attach(target_source, image_input, caption):
+        result = ingest(image_input | {"alt_text": caption}, target=build_news_item_payload(target_source.id))
+        linked_item = Story.get(result["story_ids"][0]).news_items[0]
+        (attachment,) = linked_item.images
+        assert attachment.description == caption
+        assert attachment.inline_data == b""
+        return linked_item, attachment
+
+    sibling, similar = attach(source, thumbnail, "Other article")
+    brighter = capture(picture.point(lambda value: min(255, value + 2)), "brighter.jpg", "JPEG", quality=98)
+    assert ingest(brighter)["counts"]["unchanged"] == 1
+    _, separate = attach(source, brighter, "Different exposure")
+    assert separate.fingerprint.blob_digest != image.fingerprint.blob_digest
+    other_source = create_osint_source(rank=1)
+    _, foreign = attach(other_source, thumbnail, "Other publisher")
+    exact_item, exact = attach(other_source, original, "Syndicated figure")
+    assert len({image.id, similar.id, foreign.id, exact.id}) == 4
+    shared_digest = image.fingerprint.blob_digest
+    assert similar.fingerprint.blob_digest == exact.fingerprint.blob_digest == shared_digest
+    assert foreign.fingerprint.blob_digest != shared_digest
+    for attachment, expected in ((similar, original), (exact, original), (foreign, thumbnail)):
+        response = client.get(f"/api/worker/images/{attachment.id}", headers=api_header)
+        assert b64encode(response.data).decode() == expected["data"]
+    for holder in (item, sibling):
+        holder.delete_item()
+        session.commit()
+        assert session.get(NewsImageBlob, shared_digest) is not None
+    exact_item.delete_item()
+    session.commit()
+    assert session.get(NewsImageBlob, shared_digest) is None
+    assert b64encode(foreign.data).decode() == thumbnail["data"]

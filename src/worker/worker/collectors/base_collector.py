@@ -129,7 +129,11 @@ class BaseCollector:
                     if not item.link or not item.title:
                         identity["content"] = item.content
                     known = self.core_api.get_known_news_item_images(identity)
-                    payload["known_image_descriptions"] = {known[url]: alt for url, alt in candidates.items() if url in known and alt}
+                    descriptions = {}
+                    for url, alt in candidates.items():
+                        if url in known and alt:
+                            descriptions.setdefault(known[url], alt)
+                    payload["known_image_descriptions"] = descriptions
                     candidates = {url: alt for url, alt in candidates.items() if url not in known}
                 # Leave room for the JSON envelope within Core's 50 MiB request limit.
                 remaining = 49 * 1024 * 1024 - len(json.dumps(payload).encode())
