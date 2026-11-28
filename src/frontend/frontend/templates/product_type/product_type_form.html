@@ -17,6 +17,14 @@ if (typeof htmx !== 'undefined' && htmx.onLoad) {
   <form id="product_type-form" class="w-3/4 ml-[10%]" method="post" action="{{ form_action }}">
     <input type="hidden" name="csrf_token" value="{{ request.cookies.get(config['JWT_ACCESS_CSRF_COOKIE_NAME'], '') }}">
     {% include "partials/admin_form_error.html" %}
+    {% if template_warnings %}
+      <div role="alert" class="alert alert-warning mb-4 w-3/4 flex-col items-start" data-test-id="product-type-template-warnings">
+        <p class="font-bold">Saved, but rendering products with this template may fail:</p>
+        <ul class="list-disc ml-5">
+          {% for warning in template_warnings %}<li>{{ warning }}</li>{% endfor %}
+        </ul>
+      </div>
+    {% endif %}
     {{ form_input('Title', 'title', product_type.title, form_error.title, width="w-3/4") }}
     {{ form_input('Description', 'description', product_type.description, form_error.description, required=false, width="w-3/4") }}
 

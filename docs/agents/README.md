@@ -50,7 +50,7 @@ Read matching memories before planning or editing application behavior. Code and
 - [Admin User Import/Export](admin-user-import-export.md): JSON format, duplicates, and passwordless users.
 - [Admin User CLI](admin-user-cli.md): existing-user password and role repair.
 - [Initial User Onboarding](initial-user-onboarding.md): global defaults and per-user overrides.
-- [Presenter Template API](template-api.md): template names, Pydantic responses, sorting, and admin routing.
+- [Presenter Template API](template-api.md): template names, Pydantic responses, sorting, admin routing, and Product Type compatibility warnings.
 
 ## Maintaining Memories
 

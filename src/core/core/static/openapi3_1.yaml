@@ -3418,8 +3418,12 @@ paths:
             schema:
               $ref: '#/components/schemas/product_type'
       responses:
-        '200':
-          description: success
+        '201':
+          description: created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/product_type.save_response'
         '401':
           $ref: '#/components/responses/401Unauthorized'
         '404':
@@ -3446,6 +3450,10 @@ paths:
       responses:
         '200':
           description: success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/product_type.save_response'
         '401':
           $ref: '#/components/responses/401Unauthorized'
         '404':
@@ -3466,6 +3474,10 @@ paths:
       responses:
         '200':
           description: updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/product_type.save_response'
         '400':
           description: invalid configuration
         '401':
@@ -10864,6 +10876,18 @@ components:
         parameters:
           type: object
           additionalProperties:
+            type: string
+    product_type.save_response:
+      type: object
+      properties:
+        message:
+          type: string
+        id:
+          type: string
+        warnings:
+          type: array
+          description: Report types the configured template cannot render. Saving is not blocked.
+          items:
             type: string
     publisher_preset.base:
       type: object

@@ -1,6 +1,7 @@
 from typing import Any, ClassVar
 
-from flask import render_template, request
+from flask import flash, get_flashed_messages, render_template, request
+from flask.typing import ResponseReturnValue
 from models.admin import ProductType, PublisherPreset, ReportItemType, Template
 from models.types import PRESENTER_TYPES, PUBLISHER_TYPES
 from werkzeug.exceptions import HTTPException
@@ -67,6 +68,9 @@ class ProductTypeView(AdminBaseView):
     model = ProductType
     icon = "envelope"
     _index = 150
+    # Flashed messages live in the session cookie; keep them well below the browser's cookie size limit.
+    _max_flashed_warnings = 5
+    _max_flashed_warning_length = 200
 
     presenter_types: ClassVar[dict[str, dict[str, str]]] = {
         member.name.lower(): {"id": member.name.lower(), "name": " ".join(part.capitalize() for part in member.name.split("_"))}
@@ -95,6 +99,7 @@ class ProductTypeView(AdminBaseView):
             ),
         }
         base_context["template_options"] = cls.get_template_options()
+        base_context["template_warnings"] = get_flashed_messages(category_filter=["warning"])
         return base_context
 
     @classmethod
@@ -106,6 +111,24 @@ class ProductTypeView(AdminBaseView):
             raise
         except Exception as exc:
             return None, str(exc)
+
+    @classmethod
+    def handle_submit_success(cls, object_id: str, core_response: dict) -> ResponseReturnValue:
+        product_type_id = core_response.get("id") or object_id
+        template_warnings = core_response.get("warnings")
+        if not template_warnings or cls.is_create_object_id(product_type_id):
+            return super().handle_submit_success(object_id, core_response)
+
+        # Saved: redirect to the edit page (Post/Redirect/Get) and show the warnings there.
+        cls._invalidate_model_cache(product_type_id)
+        cls.add_flash_notification(core_response)
+        for warning in template_warnings[: cls._max_flashed_warnings]:
+            if len(warning) > cls._max_flashed_warning_length:
+                warning = f"{warning[: cls._max_flashed_warning_length - 3]}..."
+            flash(warning, "warning")
+        if (hidden := len(template_warnings) - cls._max_flashed_warnings) > 0:
+            flash(f"... and {hidden} more warning{'s' if hidden > 1 else ''}.", "warning")
+        return cls.redirect_htmx(cls.get_edit_route(**{cls._get_object_key(): product_type_id}))
 
     @classmethod
     def get_columns(cls):

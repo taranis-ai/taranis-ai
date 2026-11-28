@@ -1,5 +1,6 @@
 import base64
 import json
+import secrets
 from datetime import datetime
 from io import BytesIO
 from typing import Any, cast
@@ -21,6 +22,7 @@ from frontend.cache import add_user_to_cache, cache
 from frontend.cache_models import CacheObject
 from frontend.config import Config
 from frontend.views.admin_views.dashboard_views import AdminDashboardView
+from frontend.views.admin_views.publisher_views import ProductTypeView
 from frontend.views.admin_views.report_type_views import ReportItemTypeView
 from frontend.views.admin_views.source_views import SourceView
 from frontend.views.admin_views.word_list_views import WordListView
@@ -826,6 +828,86 @@ def test_report_item_type_submitted_form_model_uses_shared_normalization(app):
     assert attribute_groups[0].title == "Indicators"
     assert len(attribute_groups[0].attribute_group_items) == 1
     assert attribute_groups[0].attribute_group_items[0].title == "Domain"
+
+
+def test_product_type_save_redirects_to_edit_page_with_template_compatibility_warnings(
+    authenticated_client, responses_mock, mock_core_get_endpoints
+):
+    product_type_id = "product-type-1"
+    core_base_url = f"{Config.TARANIS_CORE_URL}/config/product-types"
+    core_url = f"{core_base_url}/{product_type_id}"
+    warning = "The template uses a value that is not available for report type 'OSINT Report'."
+    responses_mock.post(core_base_url, json={"message": "Product type created", "id": product_type_id, "warnings": [warning]}, status=201)
+    saved = {"message": "Product type updated", "id": product_type_id}
+    responses_mock.patch(core_url, json=saved | {"warnings": [warning]})
+    responses_mock.patch(core_url, json=saved | {"warnings": []})
+    responses_mock.get(
+        core_url,
+        json={
+            "id": product_type_id,
+            "title": "CERT Daily",
+            "type": "html_presenter",
+            "parameters": {"TEMPLATE_PATH": "cert_at_daily_report.html"},
+            "report_types": ["report-type-1"],
+        },
+    )
+    edit_route = ProductTypeView.get_edit_route(product_type_id=product_type_id)
+    form = {
+        "title": "CERT Daily",
+        "type": "html_presenter",
+        "report_types[]": "report-type-1",
+        "parameters[TEMPLATE_PATH]": "cert_at_daily_report.html",
+    }
+
+    def warnings_on(page) -> list[str]:
+        tree = html.fromstring(page.text)
+        return [item.text_content().strip() for item in tree.xpath('//*[@data-test-id="product-type-template-warnings"]//li')]
+
+    created = authenticated_client.post(ProductTypeView.get_base_route(), data=form, headers={"HX-Request": "true"})
+    assert created.status_code == 204
+    assert created.headers["HX-Redirect"] == edit_route
+    assert warnings_on(authenticated_client.get(edit_route)) == [warning]
+
+    incompatible = authenticated_client.post(edit_route, data=form)
+    assert incompatible.status_code == 302
+    assert incompatible.location == edit_route
+    edit_page = authenticated_client.get(edit_route)
+    assert edit_page.status_code == 200
+    assert warnings_on(edit_page) == [warning]
+    tree = html.fromstring(edit_page.text)
+    assert tree.xpath('//form[@id="product_type-form"]/@action') == [edit_route]
+    assert "Product type updated" in tree.xpath('//*[@id="notification-message"]/text()')
+    assert warnings_on(authenticated_client.get(edit_route)) == []
+
+    compatible = authenticated_client.post(edit_route, data=form)
+    assert compatible.status_code == 302
+    assert compatible.location == ProductTypeView.get_base_route()
+
+
+def test_product_type_save_caps_flashed_template_warnings(authenticated_client, responses_mock, mock_core_get_endpoints):
+    product_type_id = "product-type-1"
+    core_url = f"{Config.TARANIS_CORE_URL}/config/product-types/{product_type_id}"
+    # Random titles: Flask compresses the session cookie, so repeated characters would not grow it.
+    warnings = [f"The template uses a value that is not available for report type '{secrets.token_urlsafe(750)}'." for _ in range(8)]
+    responses_mock.patch(core_url, json={"message": "Product type updated", "id": product_type_id, "warnings": warnings})
+    responses_mock.get(
+        core_url,
+        json={"id": product_type_id, "title": "CERT Daily", "type": "html_presenter", "parameters": {}, "report_types": []},
+    )
+    edit_route = ProductTypeView.get_edit_route(product_type_id=product_type_id)
+    form = {"title": "CERT Daily", "type": "html_presenter", "parameters[TEMPLATE_PATH]": "cert_at_daily_report.html"}
+
+    saved = authenticated_client.post(edit_route, data=form)
+
+    assert saved.status_code == 302
+    session_cookies = [header for header in saved.headers.getlist("Set-Cookie") if header.startswith("session=")]
+    assert session_cookies
+    assert all(len(header) < 4000 for header in session_cookies)
+    tree = html.fromstring(authenticated_client.get(edit_route).text)
+    shown = [item.text_content().strip() for item in tree.xpath('//*[@data-test-id="product-type-template-warnings"]//li')]
+    assert len(shown) == 6
+    assert all(len(warning) <= 200 for warning in shown[:5])
+    assert shown[-1] == "... and 3 more warnings."
 
 
 def test_osint_source_form_shows_current_icon_and_delete_option(app):
