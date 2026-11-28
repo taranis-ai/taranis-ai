@@ -34,7 +34,10 @@ if TYPE_CHECKING:
 
 class NewsItem(BaseModel):
     __tablename__ = "news_item"
-    __table_args__ = (db.Index("ix_news_item_source_collected", "osint_source_id", "collected"),)
+    __table_args__ = (
+        db.Index("ix_news_item_source_collected", "osint_source_id", "collected"),
+        db.Index("ix_news_item_source_story", "osint_source_id", "story_id").ddl_if(dialect="postgresql"),
+    )
 
     id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), primary_key=True, default=BaseModel.uuid7_str)
     hash: Mapped[str] = db.Column(db.String(), index=True, unique=True, nullable=False)

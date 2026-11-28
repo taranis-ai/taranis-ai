@@ -68,6 +68,7 @@ run_pytest_validation() {
     cd "$core_dir"
     env \
       SQLALCHEMY_DATABASE_URI="$database_url" \
+      TARANIS_MIGRATION_TEST_DB_URI="$database_url" \
       DEBUG=true \
       DISABLE_SCHEDULER=true \
       TARANIS_CORE_SENTRY_DSN= \

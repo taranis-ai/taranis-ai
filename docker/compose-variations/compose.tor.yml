@@ -51,6 +51,9 @@ services:
     #   - "${TARANIS_CORE_PORT:-8081}:${TARANIS_CORE_LISTEN_PORT:-8080}"
     environment:
       DB_URL: "${DB_URL:-database}"
+      SQLALCHEMY_POOL_SIZE: "${SQLALCHEMY_POOL_SIZE:-5}"
+      SQLALCHEMY_MAX_OVERFLOW: "${SQLALCHEMY_MAX_OVERFLOW:-5}"
+      SQLALCHEMY_POOL_TIMEOUT: "${SQLALCHEMY_POOL_TIMEOUT:-30}"
       DB_DATABASE: "${DB_DATABASE:-taranis}"
       DB_USER: "${DB_USER:-taranis}"
       DB_PASSWORD: "${POSTGRES_PASSWORD:-taranis}"
@@ -96,6 +99,7 @@ services:
 
   database:
     image: "docker.io/library/postgres:${POSTGRES_TAG:-18-alpine}"
+    shm_size: 256mb
     # ports:
     # - 6543:5432
     deploy:
@@ -105,7 +109,18 @@ services:
       POSTGRES_DB: "${DB_DATABASE:-taranis}"
       POSTGRES_USER: "${DB_USER:-taranis}"
       POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-taranis}"
-    command: ["postgres", "-c", "shared_buffers=${DB_SHARED_BUFFERS:-64MB}", "-c", "max_connections=${DB_MAX_CONNECTIONS:-1000}"]
+    command:
+      - postgres
+      - -c
+      - shared_buffers=${DB_SHARED_BUFFERS:-128MB}
+      - -c
+      - max_connections=${DB_MAX_CONNECTIONS:-100}
+      - -c
+      - autovacuum_analyze_scale_factor=${DB_AUTOVACUUM_ANALYZE_SCALE_FACTOR:-0.05}
+      - -c
+      - wal_compression=${DB_WAL_COMPRESSION:-lz4}
+      - -c
+      - max_wal_size=${DB_MAX_WAL_SIZE:-2GB}
     healthcheck:
       test: ["CMD", "pg_isready"]
       interval: 10s

@@ -1,10 +1,19 @@
+import os
 from datetime import datetime
+from uuid import uuid7
 
+import pytest
+from flask import Flask
 from sqlalchemy import func, select
 
+from core.managers.db_manager import db
+from core.model.news_item import NewsItem
 from core.model.organization import Organization
+from core.model.osint_source import OSINTSource
 from core.model.report_item import ReportItem, ReportItemCpe
+from core.model.story import Story
 from core.model.task import Task
+from core.model.user import User
 from core.model.word_list import WordList, WordListEntry
 
 
@@ -72,3 +81,36 @@ def test_schedule_history_matches_legacy_and_cron_runs_without_manual_jobs(sessi
 
     assert results == {"collect-source": latest, "bot-schedule": bot}
     assert Task.get_latest_for_schedules({}) == {}
+
+
+def test_postgres_single_source_pages_follow_publication_dates():
+    if not (uri := os.getenv("TARANIS_MIGRATION_TEST_DB_URI")):
+        pytest.skip("Requires the migration harness's disposable PostgreSQL database")
+
+    app = Flask(__name__)
+    app.config["SQLALCHEMY_DATABASE_URI"] = uri
+    db.init_app(app)
+    with app.app_context():
+        assert db.engine.dialect.name == "postgresql"
+        source = OSINTSource(
+            name="Assess paging test", description="", type="rss_collector", parameters={"FEED_URL": "https://example.invalid/rss"}
+        )
+        db.session.add(source)
+        db.session.flush()
+        newest, unrelated, oldest, middle = sorted(str(uuid7()) for _ in range(4))
+        for story_id, source_id, day in (
+            (newest, source.id, 3),
+            (unrelated, "manual", 4),
+            (oldest, source.id, 1),
+            (middle, source.id, 2),
+        ):
+            item = NewsItem(title=story_id, osint_source_id=source_id, published=datetime(2025, 1, day))
+            db.session.add(Story(id=story_id, title=story_id, news_items=[item]))
+        db.session.flush()
+
+        user = User.find_by_name("admin")
+        assert user is not None
+        for offset, expected in ((0, [newest, middle]), (2, [oldest])):
+            stories, counts = Story.get_by_filter({"source": [source.id], "sort": "date_desc", "limit": 2, "offset": offset}, user)
+            assert [story["id"] for story in stories] == expected
+            assert counts is not None and counts["total_count"] == 3

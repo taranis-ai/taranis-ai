@@ -37,6 +37,10 @@ from core.service.story_operations import StoryOperationsService
 
 class Story(BaseModel):
     __tablename__ = "story"
+    __table_args__ = (
+        db.Index("ix_story_created", "created").ddl_if(dialect="postgresql"),
+        db.Index("ix_story_updated", "updated").ddl_if(dialect="postgresql"),
+    )
 
     id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), primary_key=True, default=BaseModel.uuid7_str)
     title: Mapped[str] = db.Column(db.String())
@@ -366,6 +370,12 @@ class Story(BaseModel):
 
         if source := filter_args.get("source"):
             source_group_filters.append(OSINTSource.id.in_(source))
+            if len(source) == 1 and not group and filter_args.get("limit") and db.engine.dialect.name == "postgresql":
+                # Bound a single feed's page by linked IDs while still sorting by the story dates.
+                from_source = NewsItem.osint_source_id == source[0]
+                first_id = db.select(func.min(NewsItem.story_id)).where(from_source).scalar_subquery()
+                last_id = db.select(func.max(NewsItem.story_id)).where(from_source).scalar_subquery()
+                query = query.where(cls.id.between(first_id, last_id))
 
         if source_group_filters:
             matching_items = matching_items.where(or_(*source_group_filters))

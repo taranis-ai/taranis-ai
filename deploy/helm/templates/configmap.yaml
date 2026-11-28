@@ -16,6 +16,8 @@ data:
   TARANIS_PORT: {{ .Values.config.taranisPort | quote }}
   REQUESTS_TIMEOUT: {{ .Values.config.requestsTimeout | quote }}
   DISABLE_HTTP3: {{ .Values.config.disableHttp3 | quote }}
+  SQLALCHEMY_POOL_SIZE: {{ dig "sqlalchemyPoolSize" "5" .Values.config | quote }}
+  SQLALCHEMY_MAX_OVERFLOW: {{ dig "sqlalchemyMaxOverflow" "5" .Values.config | quote }}
   SQLALCHEMY_POOL_TIMEOUT: {{ .Values.config.sqlalchemyPoolTimeout | quote }}
   SQLALCHEMY_POOL_RECYCLE: {{ .Values.config.sqlalchemyPoolRecycle | quote }}
   PRE_SEED_SETTINGS: {{ .Values.config.preSeedSettings | quote }}

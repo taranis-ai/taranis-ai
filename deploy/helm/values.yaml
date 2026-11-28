@@ -13,7 +13,9 @@ config:
   taranisPort: "8080"
   requestsTimeout: "600"
   disableHttp3: "false"
-  sqlalchemyPoolTimeout: "3600"
+  sqlalchemyPoolSize: "5"
+  sqlalchemyMaxOverflow: "5"
+  sqlalchemyPoolTimeout: "30"
   sqlalchemyPoolRecycle: "3600"
   authenticator: database
   preSeedSettings: "{}"
